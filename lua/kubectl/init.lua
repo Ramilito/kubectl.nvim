@@ -6,7 +6,7 @@ local M = {}
 
 function M.open()
 	local results = commands.execute_shell_command("kubectl get pods -A")
-	actions.show_results_buffer(results, false, "k8s_pods")
+	actions.new_buffer(results, false, "k8s_pods")
 end
 
 function M.setup(options)

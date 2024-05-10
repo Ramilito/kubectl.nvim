@@ -1,10 +1,13 @@
--- k8s_pods.lua in ~/.config/nvim/ftplugin
+-- k8s_deployments.lua in ~/.config/nvim/ftplugin
 local commands = require("kubectl.commands")
 local actions = require("kubectl.actions")
 
-local init = function()
-	local results = commands.execute_shell_command("kubectl get deployments -A")
-	actions.show_results_buffer(results, false)
-end
-
-init()
+vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+	noremap = true,
+	silent = true,
+	desc = "kgp",
+	callback = function()
+		local results = commands.execute_shell_command("kubectl get pods -A")
+		actions.new_buffer(results, false, "k8s_pods")
+	end,
+})
