@@ -1,12 +1,51 @@
 -- k8s_pods.lua in ~/.config/nvim/ftplugin
-vim.api.nvim_buf_create_user_command(0, "DescribePod", function()
-	local line = vim.api.nvim_get_current_line()
-	local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
-	if pod_name and namespace then
-		local cmd = string.format("kubectl describe pod %s -n %s", pod_name, namespace)
-		local output = vim.fn.system(cmd)
-		vim.api.nvim_out_write(output)
-	else
-		vim.api.nvim_err_writeln("Failed to extract pod name or namespace.")
-	end
-end, { desc = "Describe the selected pod" })
+local actions = require("kubectl.actions")
+local commands = require("kubectl.commands")
+
+local function show_pod_logs(pod_name, namespace)
+	local cmd = "kubectl logs " .. pod_name .. " -n " .. namespace
+	local logs = commands.execute_shell_command(cmd)
+	actions.show_results_buffer(logs, true)
+end
+
+local function show_pod_desc(pod_name, namespace)
+	local cmd = string.format("kubectl describe pod %s -n %s", pod_name, namespace)
+	local desc = commands.execute_shell_command(cmd)
+	actions.show_results_buffer(desc, true)
+end
+
+vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		local line = vim.api.nvim_get_current_line()
+		local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+		if pod_name and namespace then
+			show_pod_desc(pod_name, namespace)
+		else
+			vim.api.nvim_err_writeln("Failed to describe pod name or namespace.")
+		end
+	end,
+})
+
+vim.api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		actions.new_buffer("k8s_deployments")
+	end,
+})
+
+vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		local line = vim.api.nvim_get_current_line()
+		local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+		if pod_name and namespace then
+			show_pod_logs(pod_name, namespace)
+		else
+			print("Failed to extract pod name or namespace.")
+		end
+	end,
+})
