@@ -31,13 +31,13 @@ function M.main_layout(buf, filetype, title)
 end
 
 function M.float_layout(buf, filetype, title)
-	local width = vim.o.columns - 10
+	local width = vim.o.columns - 20
 	local height = 40
-	local row = 0
-	local col = 0
+	local row = 5
+	local col = 10
 
 	local win = api.nvim_open_win(buf, true, {
-		relative = "cursor",
+		relative = "editor",
 		style = "minimal",
 		width = math.floor(width),
 		height = math.floor(height),

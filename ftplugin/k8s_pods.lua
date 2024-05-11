@@ -2,6 +2,16 @@
 local actions = require("kubectl.actions")
 local commands = require("kubectl.commands")
 
+local function show_pod_containers(pod_name, namespace)
+	local cmd = "kubectl get pods " .. pod_name .. " -n " .. namespace .. " -o jsonpath='{range .status.containerStatuses[*]} \z
+  {\"\tname: \"}{.name} \z
+  {\"\\n\tready: \"}{.ready} \z
+  {\"\\n\tstate: \"}{.state} \z
+  {\"\\n\"}{end}'"
+	local logs = commands.execute_shell_command(cmd)
+	actions.new_buffer(logs, "k8s_pod_containers", pod_name, true)
+end
+
 local function show_pod_logs(pod_name, namespace)
 	local cmd = "kubectl logs " .. pod_name .. " -n " .. namespace
 	local logs = commands.execute_shell_command(cmd)
@@ -37,7 +47,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+vim.api.nvim_buf_set_keymap(0, "n", "l", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -47,6 +57,20 @@ vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 			show_pod_logs(pod_name, namespace)
 		else
 			print("Failed to extract pod name or namespace.")
+		end
+	end,
+})
+
+vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		local line = vim.api.nvim_get_current_line()
+		local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+		if pod_name and namespace then
+			show_pod_containers(pod_name, namespace)
+		else
+			print("Failed to extract containers.")
 		end
 	end,
 })
