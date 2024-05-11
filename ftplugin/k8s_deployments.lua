@@ -8,6 +8,6 @@ vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 	desc = "kgp",
 	callback = function()
 		local results = commands.execute_shell_command("kubectl get pods -A")
-		actions.new_buffer(results, false, "k8s_pods")
+		actions.new_buffer(results, "k8s_pods")
 	end,
 })

@@ -5,13 +5,13 @@ local commands = require("kubectl.commands")
 local function show_pod_logs(pod_name, namespace)
 	local cmd = "kubectl logs " .. pod_name .. " -n " .. namespace
 	local logs = commands.execute_shell_command(cmd)
-	actions.new_buffer(logs, true, "k8s_logs", pod_name)
+	actions.new_buffer(logs, "k8s_logs", pod_name, true)
 end
 
 local function show_pod_desc(pod_name, namespace)
 	local cmd = string.format("kubectl describe pod %s -n %s", pod_name, namespace)
 	local desc = commands.execute_shell_command(cmd)
-	actions.new_buffer(desc, true, "k8s_pod_desc")
+	actions.new_buffer(desc, "k8s_pod_desc", pod_name, true)
 end
 
 vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
@@ -33,7 +33,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
 	silent = true,
 	callback = function()
 		local results = commands.execute_shell_command("kubectl get deployments -A")
-		actions.new_buffer(results, false, "k8s_deployments")
+		actions.new_buffer(results, "k8s_deployments")
 	end,
 })
 
