@@ -2,24 +2,28 @@ local M = {}
 local api = vim.api
 local layout = require("kubectl.layout")
 
-local function get_columns_to_hl(content, ft, columns)
+local function get_columns_to_hl(content, column_indices)
 	local highlights_to_apply = {}
-	for i, row in ipairs(content) do
-		if i > 1 then
-			for _, col_index in ipairs(columns) do
-				local start_index = col_index
-				local first_part = row:sub(start_index)
-				local word_start, word_end = first_part:find("%S+")
+	local column_delimiter = "%s+"
 
-				if word_start and word_end then
-					word_start = start_index + word_start - 3
-					word_end = start_index + word_end - 1
-					table.insert(highlights_to_apply, {
-						line = i - 1,
-						hl_group = "@comment.note",
-						start = word_start,
-						stop = word_end,
-					})
+	for i, row in ipairs(content) do
+		if i > 1 then -- Skip the first line since it's column names
+			local columns = {}
+			for column in row:gmatch("([^" .. column_delimiter .. "]+)") do
+				table.insert(columns, column)
+			end
+			for _, col_index in ipairs(column_indices) do
+				local column = columns[col_index]
+				if column then
+					local start_pos, end_pos = row:find(column, 1, true)
+					if start_pos and end_pos then
+						table.insert(highlights_to_apply, {
+							line = i - 1,
+							hl_group = "@comment.note",
+							start = start_pos - 1,
+							stop = end_pos,
+						})
+					end
 				end
 			end
 		end
@@ -27,9 +31,8 @@ local function get_columns_to_hl(content, ft, columns)
 	return highlights_to_apply
 end
 
-local function get_lines_to_hl(content, ft, conditions)
+local function get_lines_to_hl(content, conditions)
 	local lines_to_highlight = {}
-	print(vim.inspect(conditions))
 	for i, row in ipairs(content) do
 		for condition, highlight in pairs(conditions) do
 			local start_pos, end_pos = string.find(row, condition)
@@ -45,8 +48,8 @@ local function get_lines_to_hl(content, ft, conditions)
 end
 
 function M.new_buffer(content, filetype, title, opts)
-	local lines_to_highlight = opts.conditions and get_lines_to_hl(content, filetype, opts.conditions)
-	local highlights_to_apply = opts.columns and get_columns_to_hl(content, filetype, opts.columns)
+	local lines_to_highlight = opts.conditions and get_lines_to_hl(content, opts.conditions)
+	local highlights_to_apply = opts.columns and get_columns_to_hl(content, opts.columns)
 	local buf = api.nvim_create_buf(false, true)
 
 	api.nvim_buf_set_lines(buf, 0, -1, false, content)
