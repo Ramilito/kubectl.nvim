@@ -7,20 +7,24 @@ function M.new_buffer(content, is_float, filetype)
 	api.nvim_buf_set_lines(buf, 0, -1, false, content)
 	local width = vim.o.columns
 	local height = vim.o.lines
+	local row = vim.o.lines
+	local col = 10
 
 	if is_float then
-		width = width / 2
-		height = height / 2
+		width = vim.o.columns - 10
+		height = 40
+		row = 0
+		col = 0
 	end
 
 	local win = api.nvim_open_win(buf, true, {
 		relative = is_float and "cursor" or "editor",
 		style = is_float and "minimal" or "",
-		width = width,
-		height = height,
-		row = height,
+		width = math.floor(width),
+		height = math.floor(height),
+		row = row,
 		border = is_float and "rounded" or "none",
-		col = 10,
+		col = col,
 		title = filetype,
 	})
 

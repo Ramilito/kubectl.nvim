@@ -11,7 +11,7 @@ end
 local function show_pod_desc(pod_name, namespace)
 	local cmd = string.format("kubectl describe pod %s -n %s", pod_name, namespace)
 	local desc = commands.execute_shell_command(cmd)
-	actions.show_results_buffer(desc, true)
+	actions.new_buffer(desc, true, "k8s_pod_desc")
 end
 
 vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
