@@ -1,12 +1,10 @@
-local commands = require("kubectl.commands")
+local view = require("kubectl.view")
 local config = require("kubectl.config")
-local actions = require("kubectl.actions")
 
 local M = {}
 
 function M.open()
-	local results = commands.execute_shell_command("kubectl get pods -A")
-	actions.new_buffer(results, "k8s_pods")
+	view.Pods()
 end
 
 function M.setup(options)
