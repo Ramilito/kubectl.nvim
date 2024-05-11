@@ -2,7 +2,7 @@ local M = {}
 local api = vim.api
 local layout = require("kubectl.layout")
 
-function M.new_buffer(content, is_float, filetype)
+function M.new_buffer(content, is_float, filetype, title)
 	local buf = api.nvim_create_buf(false, true)
 	api.nvim_buf_set_lines(buf, 0, -1, false, content)
 	local width = vim.o.columns
@@ -25,7 +25,7 @@ function M.new_buffer(content, is_float, filetype)
 		row = row,
 		border = is_float and "rounded" or "none",
 		col = col,
-		title = filetype,
+		title = filetype .. " - " .. (title or ""),
 	})
 
 	vim.wo[win].winhighlight = "Normal:Normal"

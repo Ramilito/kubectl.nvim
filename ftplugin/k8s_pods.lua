@@ -5,7 +5,7 @@ local commands = require("kubectl.commands")
 local function show_pod_logs(pod_name, namespace)
 	local cmd = "kubectl logs " .. pod_name .. " -n " .. namespace
 	local logs = commands.execute_shell_command(cmd)
-	actions.new_buffer(logs, true, "k8s_logs")
+	actions.new_buffer(logs, true, "k8s_logs", pod_name)
 end
 
 local function show_pod_desc(pod_name, namespace)
