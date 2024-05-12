@@ -6,8 +6,9 @@ local function set_buf_options(buf, win, filetype)
 	api.nvim_set_option_value("filetype", filetype, { buf = buf })
 	api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
 	api.nvim_set_option_value("cursorline", true, { win = win })
-	-- vim.api.nvim_set_option_value("winbar", "hello world", { scope = "local" })
-	-- api.nvim_set_option_value("winbar", "%* %t %*", { scope = "local" })
+	api.nvim_set_option_value("modified", false, { buf = buf })
+  -- TODO: Need to workout how to reuse single buffer with this setting, or not
+  -- api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
 
 function M.main_layout(buf, filetype, title)
