@@ -54,6 +54,7 @@ No startup impact since we load on demand.
 ## TODO
 - Open in split
 - Auto watch state
+- Hints bar for shortcuts
 - Integrate with tooling (such as kubesses or kubediff)
 
 ## Motivation
