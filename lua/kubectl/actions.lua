@@ -48,9 +48,21 @@ local function get_lines_to_hl(content, conditions)
 end
 
 function M.new_buffer(content, filetype, title, opts)
+	local bufname = "kubectl"
+
+	if opts.is_float then
+		bufname = "kubectl_float"
+	end
+
+	local buf = vim.fn.bufnr(bufname)
+
+	if buf == -1 then
+		buf = api.nvim_create_buf(false, false)
+		api.nvim_buf_set_name(buf, bufname)
+	end
+
 	local lines_to_highlight = opts.conditions and get_lines_to_hl(content, opts.conditions)
 	local highlights_to_apply = opts.columns and get_columns_to_hl(content, opts.columns)
-	local buf = api.nvim_create_buf(false, true)
 
 	api.nvim_buf_set_lines(buf, 0, -1, false, content)
 
