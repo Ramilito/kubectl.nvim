@@ -1,14 +1,13 @@
 # kubectl.nvim
 Opens a buffer that displays output of kubectl
 
-
 ## ✨ Features
 - Navigate your cluster in a buffer, using hierarchy where possible e.g. deplyoment -> pod
 - Colored output and highlighted errors
-
+- Floating windows for contextual stuff such as pod_logs, pod_description
 
 ## ⚡️ Dependencies
-- None so far
+- kubectl
   
 ## 📦 Installation
 
@@ -58,5 +57,4 @@ No startup impact since we load on demand.
 - Integrate with tooling (such as kubesses or kubediff)
 
 ## Motivation
-This plugin aims to help people move away from the tabline way of working but still need to orient them selves when working with multiple files by giving context.
-The features are inspired by VSCode behaviour, some code is borrowed from bufferline, thanks for that 🙏.
+This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, ssh, edit) in the future, not sure yet.
