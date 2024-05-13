@@ -17,22 +17,22 @@ Install the plugin with your preferred package manager:
 
 ```lua
 return {
-	{
-		"ramilito/kubectl.nvim",
-		dir = "~/workspace/mine/kubectl.nvim/",
-		keys = {
-			{
-				"<leader>k",
-				function()
-					require("kubectl").open()
-				end,
-				desc = "kgpa",
-			},
-		},
-		config = function()
-			require("kubectl").setup()
-		end,
-	},
+    {
+        "ramilito/kubectl.nvim",
+        dir = "~/workspace/mine/kubectl.nvim/",
+        keys = {
+            {
+                "<leader>k",
+                function()
+                    require("kubectl").open()
+                end,
+                desc = "kgpa",
+            },
+        },
+        config = function()
+            require("kubectl").setup()
+        end,
+    },
 }
 ```
 
