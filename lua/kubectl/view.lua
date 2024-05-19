@@ -1,6 +1,6 @@
 local commands = require("kubectl.commands")
 local actions = require("kubectl.actions")
-local display = require("kubectl.display")
+local tables = require("kubectl.tables")
 
 local M = {}
 
@@ -13,7 +13,35 @@ function M.Pods()
 	}
 
 	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
-	local pretty = display.table(vim.json.decode(results))
+
+	local headers = { "NAMESPACE", "NAME", "READY", "STATUS", "RESTARTS" }
+
+	local data = {}
+	local rows = vim.json.decode(results)
+	for _, row in pairs(rows.items) do
+		local restartCount = 0
+		local containers = 0
+		local ready = 0
+		for _, value in ipairs(row.status.containerStatuses) do
+			containers = containers + 1
+			if value.ready then
+				ready = ready + 1
+			end
+			restartCount = restartCount + value.restartCount
+		end
+
+		local pod = {
+			namespace = row.metadata.namespace,
+			name = row.metadata.name,
+			status = row.status.phase,
+			restarts = restartCount,
+			ready = ready .. "/" .. containers,
+		}
+
+		table.insert(data, pod)
+	end
+
+	local pretty = tables.pretty_print(data, headers)
 	actions.new_buffer(
 		pretty,
 		"k8s_pods",
