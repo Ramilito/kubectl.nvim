@@ -8,7 +8,8 @@ function M.execute_shell_command(cmd)
 	end
 	local result = handle:read("*a")
 	handle:close()
-	return vim.split(result, "\n")
+
+	return result
 end
 
 return M

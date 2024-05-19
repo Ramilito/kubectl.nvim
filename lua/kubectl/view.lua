@@ -1,5 +1,6 @@
 local commands = require("kubectl.commands")
 local actions = require("kubectl.actions")
+local display = require("kubectl.display")
 
 local M = {}
 
@@ -10,9 +11,11 @@ function M.Pods()
 		Failed = "@comment.error",
 		Succeeded = "@comment.note",
 	}
-	local results = commands.execute_shell_command("kubectl get pods -A")
+
+	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
+	local pretty = display.table(vim.json.decode(results))
 	actions.new_buffer(
-		results,
+		pretty,
 		"k8s_pods",
 		"pods",
 		{ is_float = false, columns = { 2 }, conditions = highlight_conditions }
