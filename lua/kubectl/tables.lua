@@ -18,8 +18,8 @@ function M.pretty_print(data, headers)
 	local tbl = ""
 
 	local columns = {}
-	for i, v in ipairs(headers) do
-		columns[i] = v:lower()
+	for k, v in pairs(headers) do
+		columns[k] = v:lower()
 	end
 
 	local widths = calculate_column_widths(data, columns)
@@ -28,14 +28,14 @@ function M.pretty_print(data, headers)
 	end
 
 	-- Create table header
-	for i, header in ipairs(headers) do
-		tbl = tbl .. header .. string.rep(" ", widths[columns[i]] - #header + 1)
+	for k, header in pairs(headers) do
+		tbl = tbl .. header .. string.rep(" ", widths[columns[k]] - #header + 1)
 	end
 	tbl = tbl .. "\n"
 
 	-- Create table rows
 	for _, row in pairs(data) do
-		for _, col in ipairs(columns) do
+		for _, col in pairs(columns) do
 			local value = tostring(row[col])
 			tbl = tbl .. value .. string.rep(" ", widths[col] - #value + 1)
 		end

@@ -4,20 +4,8 @@ local tables = require("kubectl.tables")
 
 local M = {}
 
-function M.Pods()
-	local highlight_conditions = {
-		Running = "@comment.note",
-		Error = "@comment.error",
-		Failed = "@comment.error",
-		Succeeded = "@comment.note",
-	}
-
-	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
-
-	local headers = { "NAMESPACE", "NAME", "READY", "STATUS", "RESTARTS" }
-
+local function processRow(rows, columns)
 	local data = {}
-	local rows = vim.json.decode(results)
 	for _, row in pairs(rows.items) do
 		local restartCount = 0
 		local containers = 0
@@ -30,16 +18,37 @@ function M.Pods()
 			restartCount = restartCount + value.restartCount
 		end
 
-		local pod = {
-			namespace = row.metadata.namespace,
-			name = row.metadata.name,
-			status = row.status.phase,
-			restarts = restartCount,
-			ready = ready .. "/" .. containers,
-		}
+		local pod = {}
+		pod[columns.namespace:lower()] = row.metadata.namespace
+		pod[columns.name:lower()] = row.metadata.name
+		pod[columns.status:lower()] = row.status.phase
+		pod[columns.restarts:lower()] = restartCount
+		pod[columns.ready:lower()] = ready .. "/" .. containers
 
 		table.insert(data, pod)
 	end
+	return data
+end
+
+function M.Pods()
+	local highlight_conditions = {
+		Running = "@comment.note",
+		Error = "@comment.error",
+		Failed = "@comment.error",
+		Succeeded = "@comment.note",
+	}
+
+	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
+	local headers = {
+		namespace = "NAMESPACE",
+		name = "NAME",
+		ready = "READY",
+		status = "STATUS",
+		restarts = "RESTARTS",
+	}
+
+	local rows = vim.json.decode(results)
+	local data = processRow(rows, headers)
 
 	local pretty = tables.pretty_print(data, headers)
 	actions.new_buffer(
