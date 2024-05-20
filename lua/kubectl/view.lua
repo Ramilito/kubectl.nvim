@@ -18,12 +18,13 @@ local function processRow(rows, columns)
 			restartCount = restartCount + value.restartCount
 		end
 
-		local pod = {}
-		pod[columns.namespace:lower()] = row.metadata.namespace
-		pod[columns.name:lower()] = row.metadata.name
-		pod[columns.status:lower()] = row.status.phase
-		pod[columns.restarts:lower()] = restartCount
-		pod[columns.ready:lower()] = ready .. "/" .. containers
+		local pod = {
+			namespace = row.metadata.namespace,
+			name = row.metadata.name,
+			status = row.status.phase,
+			restarts = restartCount,
+			ready = ready .. "/" .. containers,
+		}
 
 		table.insert(data, pod)
 	end
@@ -40,11 +41,11 @@ function M.Pods()
 
 	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
 	local headers = {
-		namespace = "NAMESPACE",
-		name = "NAME",
-		ready = "READY",
-		status = "STATUS",
-		restarts = "RESTARTS",
+		"NAMESPACE",
+		"NAME",
+		"READY",
+		"STATUS",
+		"RESTARTS",
 	}
 
 	local rows = vim.json.decode(results)

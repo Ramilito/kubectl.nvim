@@ -28,14 +28,14 @@ function M.pretty_print(data, headers)
 	end
 
 	-- Create table header
-	for k, header in pairs(headers) do
-		tbl = tbl .. header .. string.rep(" ", widths[columns[k]] - #header + 1)
+	for i, header in ipairs(headers) do
+		tbl = tbl .. header .. string.rep(" ", widths[columns[i]] - #header + 1)
 	end
 	tbl = tbl .. "\n"
 
 	-- Create table rows
 	for _, row in pairs(data) do
-		for _, col in pairs(columns) do
+		for _, col in ipairs(columns) do
 			local value = tostring(row[col])
 			tbl = tbl .. value .. string.rep(" ", widths[col] - #value + 1)
 		end
