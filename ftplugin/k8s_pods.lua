@@ -1,5 +1,5 @@
 -- k8s_pods.lua in ~/.config/nvim/ftplugin
-local view = require("kubectl.view")
+local view = require("kubectl.view.view")
 
 vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
 	noremap = true,

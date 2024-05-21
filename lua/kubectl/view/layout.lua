@@ -1,4 +1,4 @@
-local hl = require("kubectl.highlight")
+local hl = require("kubectl.view.highlight")
 local M = {}
 local api = vim.api
 
@@ -52,7 +52,6 @@ function M.float_layout(buf, filetype, title)
 	})
 
 	set_buf_options(buf, win, filetype)
-	hl.set_highlighting()
 end
 
 return M

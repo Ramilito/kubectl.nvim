@@ -1,4 +1,4 @@
-local hl = require("kubectl.highlight")
+local hl = require("kubectl.view.highlight")
 local M = {}
 local api = vim.api
 

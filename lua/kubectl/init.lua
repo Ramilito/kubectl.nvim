@@ -1,4 +1,4 @@
-local view = require("kubectl.view")
+local view = require("kubectl.view.view")
 local config = require("kubectl.config")
 
 local M = {}
