@@ -1,3 +1,4 @@
+local hl = require("kubectl.highlight")
 local M = {}
 local api = vim.api
 
@@ -7,8 +8,9 @@ local function set_buf_options(buf, win, filetype)
 	api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
 	api.nvim_set_option_value("cursorline", true, { win = win })
 	api.nvim_set_option_value("modified", false, { buf = buf })
-  -- TODO: Need to workout how to reuse single buffer with this setting, or not
-  -- api.nvim_set_option_value("modifiable", false, { buf = buf })
+
+	-- TODO: Need to workout how to reuse single buffer with this setting, or not
+	-- api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
 
 function M.main_layout(buf, filetype, title)
@@ -29,6 +31,7 @@ function M.main_layout(buf, filetype, title)
 	})
 
 	set_buf_options(buf, win, filetype)
+	hl.set_highlighting()
 end
 
 function M.float_layout(buf, filetype, title)
@@ -49,6 +52,7 @@ function M.float_layout(buf, filetype, title)
 	})
 
 	set_buf_options(buf, win, filetype)
+	hl.set_highlighting()
 end
 
 return M

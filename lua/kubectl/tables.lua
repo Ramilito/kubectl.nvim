@@ -1,3 +1,4 @@
+local hl = require("kubectl.highlight")
 local M = {}
 local api = vim.api
 
@@ -15,8 +16,6 @@ end
 
 -- Function to print the table
 function M.pretty_print(data, headers)
-	local tbl = ""
-
 	local columns = {}
 	for k, v in pairs(headers) do
 		columns[k] = v:lower()
@@ -27,9 +26,10 @@ function M.pretty_print(data, headers)
 		widths[key] = math.max(#key, value)
 	end
 
+	local tbl = ""
 	-- Create table header
 	for i, header in ipairs(headers) do
-		tbl = tbl .. header .. string.rep(" ", widths[columns[i]] - #header + 1)
+		tbl = tbl .. hl.symbols.header .. header .. string.rep(" ", widths[columns[i]] - #header + 1)
 	end
 	tbl = tbl .. "\n"
 
