@@ -48,8 +48,4 @@ function M.new_buffer(content, filetype, title, opts)
 	end
 end
 
-function M.set_filetype(ft)
-	api.nvim_buf_set_option(0, "filetype", ft)
-end
-
 return M
