@@ -6,13 +6,6 @@ local pods = require("kubectl.pods")
 local M = {}
 
 function M.Pods()
-	local highlight_conditions = {
-		Running = "@comment.note",
-		Error = "@comment.error",
-		Failed = "@comment.error",
-		Succeeded = "@comment.note",
-	}
-
 	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
 	local headers = {
 		"NAMESPACE",
@@ -26,12 +19,7 @@ function M.Pods()
 	local data = pods.processRow(rows, headers)
 
 	local pretty = tables.pretty_print(data, headers)
-	actions.new_buffer(
-		pretty,
-		"k8s_pods",
-		"pods",
-		{ is_float = false, columns = { 2 }, conditions = highlight_conditions }
-	)
+	actions.new_buffer(pretty, "k8s_pods", "pods", { is_float = false })
 end
 
 function M.Deployments()

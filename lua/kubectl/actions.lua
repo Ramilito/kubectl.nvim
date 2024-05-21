@@ -1,7 +1,6 @@
 local M = {}
 local api = vim.api
 local layout = require("kubectl.view.layout")
-local hl = require("kubectl.view.highlight")
 
 function M.new_buffer(content, filetype, title, opts)
 	local bufname = "kubectl"
