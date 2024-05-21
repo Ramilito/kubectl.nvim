@@ -28,6 +28,17 @@ function M.processRow(rows, headers)
 	return data
 end
 
+function M.getHeaders()
+	local headers = {
+		"NAMESPACE",
+		"NAME",
+		"READY",
+		"STATUS",
+		"RESTARTS",
+	}
+	return headers
+end
+
 function M.getPodStatus(phase)
 	if phase == "Running" then
 		return hl.symbols.success .. phase

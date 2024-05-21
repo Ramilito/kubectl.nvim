@@ -7,15 +7,9 @@ local M = {}
 
 function M.Pods()
 	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
-	local headers = {
-		"NAMESPACE",
-		"NAME",
-		"READY",
-		"STATUS",
-		"RESTARTS",
-	}
 
 	local rows = vim.json.decode(results)
+	local headers = pods.getHeaders()
 	local data = pods.processRow(rows, headers)
 
 	local pretty = tables.pretty_print(data, headers)
@@ -24,7 +18,7 @@ end
 
 function M.Deployments()
 	local results = commands.execute_shell_command("kubectl get deployments -A")
-	actions.new_buffer(results, "k8s_deployments", "Deployments", { columns = { 2 } })
+	actions.new_buffer(vim.split(results, "\n"), "k8s_deployments", "Deployments", { columns = { 2 } })
 end
 
 function M.PodLogs(pod_name, namespace)
@@ -50,7 +44,7 @@ function M.PodContainers(pod_name, namespace)
   {"\\n state: "}{.state} \z
   {"\\n"}{end}\''
 	local results = commands.execute_shell_command(cmd)
-	actions.new_buffer(results, "k8s_pod_containers", pod_name, { is_float = true })
+	actions.new_buffer(vim.split(results, "\n"), "k8s_pod_containers", pod_name, { is_float = true })
 end
 
 return M
