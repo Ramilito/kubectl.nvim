@@ -7,7 +7,11 @@ local function calculate_column_widths(rows, columns)
 	local widths = {}
 	for _, row in ipairs(rows) do
 		for _, column in pairs(columns) do
-			widths[column] = math.max(widths[column] or 0, #tostring(row[column]))
+			if type(row[column]) == "table" then
+				widths[column] = math.max(widths[column] or 0, #tostring(row[column].value))
+			else
+				widths[column] = math.max(widths[column] or 0, #tostring(row[column]))
+			end
 		end
 	end
 
@@ -17,7 +21,7 @@ end
 -- Function to print the table
 function M.pretty_print(data, headers)
 	local columns = {}
-	for k, v in pairs(headers) do
+	for k, v in ipairs(headers) do
 		columns[k] = v:lower()
 	end
 
@@ -27,17 +31,23 @@ function M.pretty_print(data, headers)
 	end
 
 	local tbl = ""
+
 	-- Create table header
-	for i, header in ipairs(headers) do
+	for i, header in pairs(headers) do
 		tbl = tbl .. hl.symbols.header .. header .. string.rep(" ", widths[columns[i]] - #header + 1)
 	end
 	tbl = tbl .. "\n"
 
 	-- Create table rows
-	for _, row in pairs(data) do
+	for _, row in ipairs(data) do
 		for _, col in ipairs(columns) do
-			local value = tostring(row[col])
-			tbl = tbl .. value .. string.rep(" ", widths[col] - #value + 1)
+			if type(row[col]) == "table" then
+				local value = tostring(row[col].value)
+				tbl = tbl .. row[col].symbol .. value .. string.rep(" ", widths[col] - #value + 1)
+			else
+				local value = tostring(row[col])
+				tbl = tbl .. value .. string.rep(" ", widths[col] - #value + 1)
+			end
 		end
 		tbl = tbl .. "\n"
 	end

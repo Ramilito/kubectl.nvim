@@ -18,9 +18,9 @@ function M.processRow(rows, headers)
 		local pod = {
 			namespace = row.metadata.namespace,
 			name = row.metadata.name,
+			ready = readyCount .. "/" .. containers,
 			status = M.getPodStatus(row.status.phase),
 			restarts = restartCount,
-			ready = readyCount .. "/" .. containers,
 		}
 
 		table.insert(data, pod)
@@ -36,14 +36,16 @@ function M.getHeaders()
 		"STATUS",
 		"RESTARTS",
 	}
+
 	return headers
 end
 
 function M.getPodStatus(phase)
+	local status = { symbol = "", value = phase }
 	if phase == "Running" then
-		return hl.symbols.success .. phase
+		status.symbol = hl.symbols.success
 	elseif phase == "Pending" or phase == "Terminating" or phase == "ContainerCreating" then
-		return hl.symbols.pending .. phase
+		status.symbol = hl.symbols.pending
 	elseif
 		phase == "Failed"
 		or phase == "RunContainerError"
@@ -52,10 +54,10 @@ function M.getPodStatus(phase)
 		or phase == "Error"
 		or phase == "OOMKilled"
 	then
-		return hl.symbols.error .. phase
+		status.symbol = hl.symbols.error
 	end
 
-	return phase
+	return status
 end
 
 return M
