@@ -2,6 +2,7 @@ local commands = require("kubectl.commands")
 local tables = require("kubectl.view.tables")
 local actions = require("kubectl.actions")
 local pods = require("kubectl.pods")
+local deployments = require("kubectl.deployments")
 
 local M = {}
 
@@ -17,8 +18,13 @@ function M.Pods()
 end
 
 function M.Deployments()
-	local results = commands.execute_shell_command("kubectl get deployments -A")
-	actions.new_buffer(vim.split(results, "\n"), "k8s_deployments", "Deployments", { columns = { 2 } })
+	local results = commands.execute_shell_command("kubectl get deployments -A -o=json")
+	local rows = vim.json.decode(results)
+	local headers = deployments.getHeaders()
+	local data = deployments.processRow(rows, headers)
+
+	local pretty = tables.pretty_print(data, headers)
+	actions.new_buffer(pretty, "k8s_deployments", "Deployments", { is_float = false })
 end
 
 function M.PodLogs(pod_name, namespace)
