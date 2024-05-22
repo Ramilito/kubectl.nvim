@@ -33,7 +33,9 @@ function M.since(timestamp)
 
 	minutes = minutes % 60
 	hours = hours % 24
-	if days > 0 or hours > 23 then
+	if days > 7 then
+		return string.format("%dd", days)
+	elseif days > 0 or hours > 23 then
 		return string.format("%dd%dh", days, hours)
 	else
 		return string.format("%dm%ds", minutes, seconds)
