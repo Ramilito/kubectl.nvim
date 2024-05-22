@@ -5,21 +5,10 @@ local time = require("kubectl.utils.time")
 function M.processRow(rows, headers)
 	local data = {}
 	for _, row in pairs(rows.items) do
-		local restartCount = 0
-		local containers = 0
-		local readyCount = 0
-		for _, value in ipairs(row.status.containerStatuses) do
-			containers = containers + 1
-			if value.ready then
-				readyCount = readyCount + 1
-			end
-			restartCount = restartCount + value.restartCount
-		end
-
 		local pod = {
 			namespace = row.metadata.namespace,
 			name = row.metadata.name,
-			ready = readyCount .. "/" .. containers,
+			ready = M.getReady(row),
 			status = M.getPodStatus(row.status.phase),
 			restarts = M.getRestarts(row),
 			age = time.since(row.metadata.creationTimestamp),
@@ -41,6 +30,18 @@ function M.getHeaders()
 	}
 
 	return headers
+end
+
+function M.getReady(row)
+	local readyCount = 0
+	local containers = 0
+	for _, value in ipairs(row.status.containerStatuses) do
+		containers = containers + 1
+		if value.ready then
+			readyCount = readyCount + 1
+		end
+	end
+	return readyCount .. "/" .. containers
 end
 
 function M.getRestarts(row)
