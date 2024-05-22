@@ -1,5 +1,6 @@
 local M = {}
 local hl = require("kubectl.view.highlight")
+local time = require("kubectl.utils.time")
 
 function M.processRow(rows, headers)
 	local data = {}
@@ -20,7 +21,8 @@ function M.processRow(rows, headers)
 			name = row.metadata.name,
 			ready = readyCount .. "/" .. containers,
 			status = M.getPodStatus(row.status.phase),
-			restarts = restartCount,
+			restarts = M.getRestarts(row),
+			age = time.since(row.metadata.creationTimestamp),
 		}
 
 		table.insert(data, pod)
@@ -35,9 +37,26 @@ function M.getHeaders()
 		"READY",
 		"STATUS",
 		"RESTARTS",
+		"AGE",
 	}
 
 	return headers
+end
+
+function M.getRestarts(row)
+	local restartCount = 0
+	local lastState
+	for _, value in ipairs(row.status.containerStatuses) do
+		if value.lastState and value.lastState.terminated then
+			lastState = time.since(value.lastState.terminated.finishedAt)
+		end
+		restartCount = restartCount + value.restartCount
+	end
+	if lastState then
+		return restartCount .. " (" .. lastState .. " ago)"
+	else
+		return restartCount
+	end
 end
 
 function M.getPodStatus(phase)
