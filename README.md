@@ -1,5 +1,5 @@
 # kubectl.nvim
-Opens a buffer that displays output of kubectl
+Opens a buffer that displays processed output of kubectl
 
 ![image](https://github.com/Ramilito/kubectl.nvim/assets/8473233/b60b9dca-8a52-4222-8b3e-a7483c3debfb)
 
