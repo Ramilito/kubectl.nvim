@@ -26,16 +26,17 @@ function M.since(timestamp)
 	local currentTime = getCurrentTimeUTC()
 	local diff = currentTime - parsedTime
 
+	local seconds = diff % 60
 	local minutes = math.floor(diff / 60)
 	local hours = math.floor(minutes / 60)
 	local days = math.floor(hours / 24)
 
 	minutes = minutes % 60
 	hours = hours % 24
-	if days > 0 or hours > 0 then
-		return string.format("%dd%dh%dm", days, hours, minutes)
+	if days > 0 or hours > 23 then
+		return string.format("%dd%dh", days, hours)
 	else
-		return string.format("%dm", minutes)
+		return string.format("%dm%ds", minutes, seconds)
 	end
 end
 
