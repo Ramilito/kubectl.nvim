@@ -21,14 +21,13 @@ Install the plugin with your preferred package manager:
 return {
     {
         "ramilito/kubectl.nvim",
-        dir = "~/workspace/mine/kubectl.nvim/",
         keys = {
             {
                 "<leader>k",
                 function()
                     require("kubectl").open()
                 end,
-                desc = "kgpa",
+                desc = "Kubectl",
             },
         },
         config = function()
@@ -42,24 +41,9 @@ return {
 
 ### Setup
 ```lua
-return {
-	{
-		"ramilito/kubectl.nvim",
-		keys = {
-			{
-				"<leader>k",
-				function()
-					require("kubectl").open()
-				end,
-				desc = "Kubectl",
-			},
-		},
-		config = function()
-			require("kubectl").setup()
-		end,
-	},
-}
+{
 
+}
 ```
 
 ## Performance
