@@ -11,6 +11,7 @@ function M.processRow(rows, headers)
 			ready = M.getReady(row),
 			status = M.getPodStatus(row.status.phase),
 			restarts = M.getRestarts(row),
+			node = row.spec.nodeName,
 			age = time.since(row.metadata.creationTimestamp),
 		}
 
@@ -26,6 +27,7 @@ function M.getHeaders()
 		"READY",
 		"STATUS",
 		"RESTARTS",
+		"NODE",
 		"AGE",
 	}
 
