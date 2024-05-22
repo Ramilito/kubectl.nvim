@@ -12,7 +12,7 @@ function M.new_buffer(content, filetype, title, opts)
 	local buf = vim.fn.bufnr(bufname)
 
 	if buf == -1 then
-		buf = api.nvim_create_buf(false, false)
+		buf = api.nvim_create_buf(false, true)
 		api.nvim_buf_set_name(buf, bufname)
 	end
 
