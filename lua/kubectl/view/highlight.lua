@@ -47,7 +47,7 @@ function M.set_highlighting()
 	for _, tag in ipairs(tag_patterns) do
 		vim.fn.matchadd(tag.group, tag.pattern, 100, -1, { conceal = "" })
 	end
-	api.nvim_buf_set_option(0, "conceallevel", 2)
+	api.nvim_buf_set_option(0, "conceallevel", 3)
 	api.nvim_buf_set_option(0, "concealcursor", "nc")
 end
 

@@ -30,13 +30,13 @@ end
 function M.PodLogs(pod_name, namespace)
 	local cmd = "kubectl logs " .. pod_name .. " -n " .. namespace
 	local results = commands.execute_shell_command(cmd)
-	actions.new_buffer(vim.split(results, "\n"), "k8s_logs", pod_name, { is_float = true })
+	actions.new_buffer(vim.split(results, "\n"), "less", pod_name, { is_float = true })
 end
 
 function M.PodDesc(pod_name, namespace)
 	local cmd = string.format("kubectl describe pod %s -n %s", pod_name, namespace)
 	local desc = commands.execute_shell_command(cmd)
-	actions.new_buffer(vim.split(desc, "\n"), "k8s_pod_desc", pod_name, { is_float = true })
+	actions.new_buffer(vim.split(desc, "\n"), "yaml", pod_name, { is_float = true })
 end
 
 function M.PodContainers(pod_name, namespace)
@@ -50,7 +50,7 @@ function M.PodContainers(pod_name, namespace)
   {"\\n state: "}{.state} \z
   {"\\n"}{end}\''
 	local results = commands.execute_shell_command(cmd)
-	actions.new_buffer(vim.split(results, "\n"), "k8s_pod_containers", pod_name, { is_float = true })
+	actions.new_buffer(vim.split(results, "\n"), "yaml", pod_name, { is_float = true })
 end
 
 return M
