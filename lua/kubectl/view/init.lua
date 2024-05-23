@@ -14,7 +14,7 @@ function M.Pods()
 	local data = pods.processRow(rows, headers)
 
 	local pretty = tables.pretty_print(data, headers)
-	actions.new_buffer(pretty, "k8s_pods", "pods", { is_float = false })
+	actions.new_buffer(pretty, "k8s_pods", "Pods", { is_float = false })
 end
 
 function M.Deployments()
@@ -25,6 +25,12 @@ function M.Deployments()
 
 	local pretty = tables.pretty_print(data, headers)
 	actions.new_buffer(pretty, "k8s_deployments", "Deployments", { is_float = false })
+end
+
+function M.DeploymentDesc(deployment_desc, namespace)
+	local cmd = string.format("kubectl describe deployment %s -n %s", deployment_desc, namespace)
+	local desc = commands.execute_shell_command(cmd)
+	actions.new_buffer(vim.split(desc, "\n"), "yaml", deployment_desc, { is_float = true })
 end
 
 function M.PodLogs(pod_name, namespace)
