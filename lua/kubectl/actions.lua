@@ -21,6 +21,7 @@ function M.new_buffer(content, filetype, title, opts)
 	if opts.is_float then
 		layout.float_layout(buf, filetype, title or "")
 	else
+		api.nvim_set_current_buf(buf)
 		layout.main_layout(buf, filetype, title or "")
 	end
 end
