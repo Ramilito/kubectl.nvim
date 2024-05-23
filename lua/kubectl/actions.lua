@@ -9,7 +9,7 @@ function M.set_winbar(content)
 end
 
 function M.new_buffer(content, filetype, title, opts)
-	local bufname = "kubectl"
+	local bufname = title
 
 	if opts.is_float then
 		bufname = "kubectl_float"
