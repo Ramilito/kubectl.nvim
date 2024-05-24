@@ -5,7 +5,7 @@ local view = require("kubectl.view")
 local function getCurrentSelection()
 	local line = vim.api.nvim_get_current_line()
 	local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
-	return pod_name, namespace
+	return namespace, pod_name
 end
 
 vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {

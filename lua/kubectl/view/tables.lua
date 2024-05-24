@@ -24,7 +24,7 @@ function M.generateHints(hintConfigs)
 	for _, config in ipairs(hintConfigs) do
 		hint = hint .. hl.symbols.pending .. config.key .. hl.symbols.clear .. " " .. config.desc .. " | "
 	end
-	hint = hint .. hl.symbols.pending .. " g? " .. hl.symbols.clear .. "help"
+	hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
 	return hint
 end
 

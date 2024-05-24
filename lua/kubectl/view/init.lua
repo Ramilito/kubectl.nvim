@@ -20,10 +20,10 @@ function M.Pods()
 	local data = pods.processRow(rows, headers)
 	local pretty = tables.pretty_print(data, headers)
 	local hints = tables.generateHints({
-		{ key = "l", desc = "logs" },
-		{ key = "d", desc = "desc" },
-		{ key = "t", desc = "top" },
-		{ key = "<cr>", desc = "containers" },
+		{ key = "<l>", desc = "logs" },
+		{ key = "<d>", desc = "desc" },
+		{ key = "<t>", desc = "top" },
+		{ key = "<enter>", desc = "containers" },
 	})
 	actions.new_buffer(pretty, "k8s_pods", "Pods", { is_float = false, hints = { hints } })
 end
@@ -68,8 +68,8 @@ function M.Deployments()
 	local data = deployments.processRow(rows, headers)
 	local pretty = tables.pretty_print(data, headers)
 	local hints = tables.generateHints({
-		{ key = "d", desc = "desc" },
-		{ key = "<cr>", desc = "pods" },
+		{ key = "<d>", desc = "desc" },
+		{ key = "<enter>", desc = "pods" },
 	})
 
 	actions.new_buffer(pretty, "k8s_deployments", "Deployments", { is_float = false, hints = { hints } })
