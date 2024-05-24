@@ -17,6 +17,7 @@ function M.processRow(rows, headers)
 
 		table.insert(data, pod)
 	end
+
 	return data
 end
 

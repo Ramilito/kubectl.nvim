@@ -24,7 +24,7 @@ function M.getHeaders()
 		"NAMESPACE",
 		"NAME",
 		"READY",
-		"UP-TO-DATE",
+		"UPTODATE",
 		"AVAILABLE",
 		"AGE",
 	}

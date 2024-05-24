@@ -28,7 +28,6 @@ M.symbols = {
 }
 
 local tag_patterns = {
-	-- ◆[^◆➤]*
 	{ pattern = M.symbols.header .. "[^" .. M.symbols.header .. M.symbols.clear .. "]*", group = "KubectlHeader" }, -- Headers
 	{ pattern = M.symbols.warning .. "[^" .. M.symbols.warning .. M.symbols.clear .. "]*", group = "KubectlWarning" }, -- Warnings
 	{ pattern = M.symbols.error .. "[^" .. M.symbols.error .. M.symbols.clear .. "]*", group = "KubectlError" }, -- Errors

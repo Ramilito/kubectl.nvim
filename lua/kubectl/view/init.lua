@@ -1,5 +1,6 @@
 local commands = require("kubectl.commands")
 local tables = require("kubectl.view.tables")
+local hl = require("kubectl.view.highlight")
 local actions = require("kubectl.actions")
 local pods = require("kubectl.pods")
 local deployments = require("kubectl.deployments")
@@ -15,9 +16,13 @@ function M.Pods()
 	local rows = vim.json.decode(results)
 	local headers = pods.getHeaders()
 	local data = pods.processRow(rows, headers)
-
 	local pretty = tables.pretty_print(data, headers)
-	actions.new_buffer(pretty, "k8s_pods", "Pods", { is_float = false })
+	local hints = tables.generateHints({
+		{ key = "l", desc = "logs" },
+		{ key = "d", desc = "desc" },
+		{ key = "<cr>", desc = "containers" },
+	})
+	actions.new_buffer(pretty, "k8s_pods", "Pods", { is_float = false, hints = { hints } })
 end
 
 function M.Deployments()
@@ -25,9 +30,13 @@ function M.Deployments()
 	local rows = vim.json.decode(results)
 	local headers = deployments.getHeaders()
 	local data = deployments.processRow(rows, headers)
-
 	local pretty = tables.pretty_print(data, headers)
-	actions.new_buffer(pretty, "k8s_deployments", "Deployments", { is_float = false })
+	local hints = tables.generateHints({
+		{ key = "d", desc = "desc" },
+		{ key = "<cr>", desc = "pods" },
+	})
+
+	actions.new_buffer(pretty, "k8s_deployments", "Deployments", { is_float = false, hints = { hints } })
 end
 
 function M.DeploymentDesc(deployment_desc, namespace)

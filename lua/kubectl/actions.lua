@@ -16,7 +16,12 @@ function M.new_buffer(content, filetype, title, opts)
 		api.nvim_buf_set_name(buf, bufname)
 	end
 
-	api.nvim_buf_set_lines(buf, 0, -1, false, content)
+	if opts.hints then
+		api.nvim_buf_set_lines(buf, 0, 1, false, opts.hints)
+		api.nvim_buf_set_lines(buf, 1, -1, false, content)
+	else
+		api.nvim_buf_set_lines(buf, 0, -1, false, content)
+	end
 
 	if opts.is_float then
 		layout.float_layout(buf, filetype, title or "")
