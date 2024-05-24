@@ -24,19 +24,27 @@ M.symbols = {
 	deprecated = "☠",
 	experimental = "⚙",
 	note = "✎",
+	clear = "➤",
 }
 
 local tag_patterns = {
-	{ pattern = M.symbols.header .. "\\w\\+", group = "KubectlHeader" }, -- Headers
-	{ pattern = M.symbols.warning .. "\\w\\+", group = "KubectlWarning" }, -- Warnings
-	{ pattern = M.symbols.error .. "\\w\\+", group = "KubectlError" }, -- Errors
-	{ pattern = M.symbols.info .. "\\w\\+", group = "KubectlInfo" }, -- Info
-	{ pattern = M.symbols.debug .. "\\w\\+", group = "KubectlDebug" }, -- Debug
-	{ pattern = M.symbols.success .. "\\w\\+", group = "KubectlSuccess" }, -- Success
-	{ pattern = M.symbols.pending .. "\\w\\+", group = "KubectlPending" }, -- Pending
-	{ pattern = M.symbols.deprecated .. "\\w\\+", group = "KubectlDeprecated" }, -- Deprecated
-	{ pattern = M.symbols.experimental .. "\\w\\+", group = "KubectlExperimental" }, -- Experimental
-	{ pattern = M.symbols.note .. "\\w\\+", group = "KubectlNote" }, -- Note
+	-- ◆[^◆➤]*
+	{ pattern = M.symbols.header .. "[^" .. M.symbols.header .. M.symbols.clear .. "]*", group = "KubectlHeader" }, -- Headers
+	{ pattern = M.symbols.warning .. "[^" .. M.symbols.warning .. M.symbols.clear .. "]*", group = "KubectlWarning" }, -- Warnings
+	{ pattern = M.symbols.error .. "[^" .. M.symbols.error .. M.symbols.clear .. "]*", group = "KubectlError" }, -- Errors
+	{ pattern = M.symbols.info .. "[^" .. M.symbols.info .. M.symbols.clear .. "]*", group = "KubectlInfo" }, -- Info
+	{ pattern = M.symbols.debug .. "[^" .. M.symbols.debug .. M.symbols.clear .. "]*", group = "KubectlDebug" }, -- Debug
+	{ pattern = M.symbols.success .. "[^" .. M.symbols.success .. M.symbols.clear .. "]*", group = "KubectlSuccess" }, -- Success
+	{ pattern = M.symbols.pending .. "[^" .. M.symbols.pending .. M.symbols.clear .. "]*", group = "KubectlPending" }, -- Pending
+	{
+		pattern = M.symbols.deprecated .. "[^" .. M.symbols.deprecated .. M.symbols.clear .. "]*",
+		group = "KubectlDeprecated",
+	}, -- Deprecated
+	{
+		pattern = M.symbols.experimental .. "[^" .. M.symbols.experimental .. M.symbols.clear .. "]*",
+		group = "KubectlExperimental",
+	}, -- Experimental
+	{ pattern = M.symbols.note .. "[^" .. M.symbols.note .. M.symbols.clear .. "]*", group = "KubectlNote" }, -- Note
 }
 
 function M.set_highlighting()
@@ -49,52 +57,6 @@ function M.set_highlighting()
 	end
 	api.nvim_buf_set_option(0, "conceallevel", 3)
 	api.nvim_buf_set_option(0, "concealcursor", "nc")
-end
-
---TODO: This doesn't handle if same row column has same value as target column
-function M.get_columns_to_hl(content, column_indices)
-	local highlights_to_apply = {}
-	local column_delimiter = "%s+"
-
-	for i, row in ipairs(content) do
-		if i > 1 then -- Skip the first line since it's column names
-			local columns = {}
-			for column in row:gmatch("([^" .. column_delimiter .. "]+)") do
-				table.insert(columns, column)
-			end
-			for _, col_index in ipairs(column_indices) do
-				local column = columns[col_index]
-				if column then
-					local start_pos, end_pos = row:find(column, 1, true)
-					if start_pos and end_pos then
-						table.insert(highlights_to_apply, {
-							line = i - 1,
-							hl_group = "@comment.note",
-							start = start_pos - 1,
-							stop = end_pos,
-						})
-					end
-				end
-			end
-		end
-	end
-	return highlights_to_apply
-end
-
-function M.get_lines_to_hl(content, conditions)
-	local lines_to_highlight = {}
-	for i, row in ipairs(content) do
-		for condition, highlight in pairs(conditions) do
-			local start_pos, end_pos = string.find(row, condition)
-			if start_pos and end_pos then
-				table.insert(
-					lines_to_highlight,
-					{ line = i - 1, hl_group = highlight, start = start_pos - 1, stop = end_pos }
-				)
-			end
-		end
-	end
-	return lines_to_highlight
 end
 
 return M

@@ -9,7 +9,15 @@ vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	silent = true,
 	callback = function()
 		view.Hints({
-			"      Hint: " .. hl.symbols.pending .. "d " .. "desc | " .. hl.symbols.pending .. "<cr> " .. "pods",
+			"      Hint: "
+				.. hl.symbols.pending
+				.. "d "
+				.. hl.symbols.clear
+				.. "desc | "
+				.. hl.symbols.pending
+				.. "<cr> "
+				.. hl.symbols.clear
+				.. "pods",
 		})
 	end,
 })

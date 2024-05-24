@@ -9,13 +9,16 @@ vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
 		view.Hints({
 			"      Hint: "
 				.. hl.symbols.pending
-				.. "l "
-				.. "logs | "
+				.. "l"
+				.. hl.symbols.clear
+				.. " logs | "
 				.. hl.symbols.pending
-				.. "d "
+				.. " d "
+				.. hl.symbols.clear
 				.. "desc | "
 				.. hl.symbols.pending
 				.. "<cr> "
+				.. hl.symbols.clear
 				.. "containers",
 		})
 	end,

@@ -34,7 +34,12 @@ function M.pretty_print(data, headers)
 
 	-- Create table header
 	for i, header in pairs(headers) do
-		tbl = tbl .. hl.symbols.header .. header .. "  " .. string.rep(" ", widths[columns[i]] - #header + 1)
+		tbl = tbl
+			.. hl.symbols.header
+			.. header
+			.. hl.symbols.clear
+			.. "  "
+			.. string.rep(" ", widths[columns[i]] - #header + 1)
 	end
 	tbl = tbl .. "\n"
 
@@ -43,7 +48,12 @@ function M.pretty_print(data, headers)
 		for _, col in ipairs(columns) do
 			if type(row[col]) == "table" then
 				local value = tostring(row[col].value)
-				tbl = tbl .. row[col].symbol .. value .. "  " .. string.rep(" ", widths[col] - #value + 1)
+				tbl = tbl
+					.. row[col].symbol
+					.. value
+					.. hl.symbols.clear
+					.. "  "
+					.. string.rep(" ", widths[col] - #value + 1)
 			else
 				local value = tostring(row[col])
 				tbl = tbl .. value .. "  " .. string.rep(" ", widths[col] - #value + 1)
