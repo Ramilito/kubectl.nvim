@@ -2,6 +2,12 @@
 local hl = require("kubectl.view.highlight")
 local view = require("kubectl.view")
 
+local function getCurrentSelection()
+	local line = vim.api.nvim_get_current_line()
+	local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+	return pod_name, namespace
+end
+
 vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	noremap = true,
 	silent = true,
@@ -24,12 +30,19 @@ vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	end,
 })
 
+vim.api.nvim_buf_set_keymap(0, "n", "t", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		view.PodTop()
+	end,
+})
+
 vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
-		local line = vim.api.nvim_get_current_line()
-		local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+		local namespace, pod_name = getCurrentSelection()
 		if pod_name and namespace then
 			view.PodDesc(pod_name, namespace)
 		else
@@ -50,8 +63,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "l", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
-		local line = vim.api.nvim_get_current_line()
-		local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+		local namespace, pod_name = getCurrentSelection()
 		if pod_name and namespace then
 			view.PodLogs(pod_name, namespace)
 		else
@@ -64,8 +76,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
-		local line = vim.api.nvim_get_current_line()
-		local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+		local namespace, pod_name = getCurrentSelection()
 		if pod_name and namespace then
 			view.PodContainers(pod_name, namespace)
 		else

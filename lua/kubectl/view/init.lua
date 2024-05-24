@@ -10,6 +10,8 @@ local M = {}
 function M.Hints(hint)
 	actions.new_buffer(hint, "k8s_hints", "Hints", { is_float = true })
 end
+
+-- Pod view
 function M.Pods()
 	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
 
@@ -20,29 +22,16 @@ function M.Pods()
 	local hints = tables.generateHints({
 		{ key = "l", desc = "logs" },
 		{ key = "d", desc = "desc" },
+		{ key = "t", desc = "top" },
 		{ key = "<cr>", desc = "containers" },
 	})
 	actions.new_buffer(pretty, "k8s_pods", "Pods", { is_float = false, hints = { hints } })
 end
 
-function M.Deployments()
-	local results = commands.execute_shell_command("kubectl get deployments -A -o=json")
-	local rows = vim.json.decode(results)
-	local headers = deployments.getHeaders()
-	local data = deployments.processRow(rows, headers)
-	local pretty = tables.pretty_print(data, headers)
-	local hints = tables.generateHints({
-		{ key = "d", desc = "desc" },
-		{ key = "<cr>", desc = "pods" },
-	})
-
-	actions.new_buffer(pretty, "k8s_deployments", "Deployments", { is_float = false, hints = { hints } })
-end
-
-function M.DeploymentDesc(deployment_desc, namespace)
-	local cmd = string.format("kubectl describe deployment %s -n %s", deployment_desc, namespace)
-	local desc = commands.execute_shell_command(cmd)
-	actions.new_buffer(vim.split(desc, "\n"), "yaml", deployment_desc, { is_float = true })
+function M.PodTop()
+	local cmd = "kubectl top pods -A"
+	local results = commands.execute_shell_command(cmd)
+	actions.new_buffer(vim.split(results, "\n"), "k8s_pods", "Top", { is_float = true })
 end
 
 function M.PodLogs(pod_name, namespace)
@@ -69,6 +58,27 @@ function M.PodContainers(pod_name, namespace)
   {"\\n"}{end}\''
 	local results = commands.execute_shell_command(cmd)
 	actions.new_buffer(vim.split(results, "\n"), "yaml", pod_name, { is_float = true })
+end
+
+-- Deployment view
+function M.Deployments()
+	local results = commands.execute_shell_command("kubectl get deployments -A -o=json")
+	local rows = vim.json.decode(results)
+	local headers = deployments.getHeaders()
+	local data = deployments.processRow(rows, headers)
+	local pretty = tables.pretty_print(data, headers)
+	local hints = tables.generateHints({
+		{ key = "d", desc = "desc" },
+		{ key = "<cr>", desc = "pods" },
+	})
+
+	actions.new_buffer(pretty, "k8s_deployments", "Deployments", { is_float = false, hints = { hints } })
+end
+
+function M.DeploymentDesc(deployment_desc, namespace)
+	local cmd = string.format("kubectl describe deployment %s -n %s", deployment_desc, namespace)
+	local desc = commands.execute_shell_command(cmd)
+	actions.new_buffer(vim.split(desc, "\n"), "yaml", deployment_desc, { is_float = true })
 end
 
 return M
