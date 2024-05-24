@@ -1,22 +1,25 @@
 -- k8s_pods.lua in ~/.config/nvim/ftplugin
+local hl = require("kubectl.view.highlight")
 local view = require("kubectl.view")
-local actions = require("kubectl.actions")
 
-actions.set_winbar(
-	"      Hint: "
-		.. "%#KubectlNote#"
-		.. " l "
-		.. "%*"
-		.. "logs |"
-		.. "%#KubectlNote#"
-		.. " d "
-		.. "%*"
-		.. "desc |"
-		.. "%#KubectlNote#"
-		.. " <cr> "
-		.. "%*"
-		.. "containers"
-)
+vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		view.Hints({
+			"      Hint: "
+				.. hl.symbols.pending
+				.. "l "
+				.. "logs | "
+				.. hl.symbols.pending
+				.. "d "
+				.. "desc | "
+				.. hl.symbols.pending
+				.. "<cr> "
+				.. "containers",
+		})
+	end,
+})
 
 vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
 	noremap = true,
