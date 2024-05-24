@@ -38,6 +38,7 @@ function M.float_layout(buf, filetype, title)
 	})
 
 	set_buf_options(buf, win, filetype)
+	hl.set_highlighting()
 end
 
 return M

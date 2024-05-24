@@ -6,6 +6,9 @@ local deployments = require("kubectl.deployments")
 
 local M = {}
 
+function M.Hints(hint)
+	actions.new_buffer(hint, "k8s_hints", "Hints", { is_float = true })
+end
 function M.Pods()
 	local results = commands.execute_shell_command("kubectl get pods -A -o=json")
 

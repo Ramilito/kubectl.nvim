@@ -2,12 +2,6 @@ local M = {}
 local api = vim.api
 local layout = require("kubectl.view.layout")
 
-function M.set_winbar(content)
-	vim.defer_fn(function()
-		vim.api.nvim_set_option_value("winbar", content, { scope = "local" })
-	end, 100)
-end
-
 function M.new_buffer(content, filetype, title, opts)
 	local bufname = title
 
