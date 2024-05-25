@@ -22,12 +22,16 @@ function M.generateHints(hintConfigs)
 	local hint = ""
 	hint = hl.symbols.success .. "Hint: " .. hl.symbols.clear
 
+	local win = vim.api.nvim_get_current_win()
+	local winwidth = vim.api.nvim_win_get_width(win)
 	for _, config in ipairs(hintConfigs) do
 		hint = hint .. hl.symbols.pending .. config.key .. hl.symbols.clear .. " " .. config.desc .. " | "
 	end
+
 	hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
 	hint = hint .. "\n\n" .. "Context: " .. CONTEXT
 	hint = hint .. "Cluster: " .. CLUSTER_NAME .. "\n"
+	hint = hint .. string.rep("―", winwidth)
 	return vim.split(hint, "\n")
 end
 
