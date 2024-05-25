@@ -19,13 +19,16 @@ local function calculate_column_widths(rows, columns)
 end
 
 function M.generateHints(hintConfigs)
-	local hint = hl.symbols.success .. "      Hint: " .. hl.symbols.clear
+	local hint = ""
+	hint = hl.symbols.success .. "Hint: " .. hl.symbols.clear
 
 	for _, config in ipairs(hintConfigs) do
 		hint = hint .. hl.symbols.pending .. config.key .. hl.symbols.clear .. " " .. config.desc .. " | "
 	end
 	hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
-	return hint
+	hint = hint .. "\n\n" .. "Context: " .. CONTEXT
+	hint = hint .. "Cluster: " .. CLUSTER_NAME .. "\n"
+	return vim.split(hint, "\n")
 end
 
 -- Function to print the table

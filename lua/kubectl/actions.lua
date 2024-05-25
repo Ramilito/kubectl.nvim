@@ -1,9 +1,10 @@
 local M = {}
 local api = vim.api
 local layout = require("kubectl.view.layout")
+local commands = require("kubectl.commands")
 
-function M.new_buffer(content, filetype, title, opts)
-	local bufname = title
+function M.new_buffer(content, filetype, opts)
+	local bufname = opts.title or ""
 
 	if opts.is_float then
 		bufname = "kubectl_float"
@@ -17,17 +18,18 @@ function M.new_buffer(content, filetype, title, opts)
 	end
 
 	if opts.hints then
-		api.nvim_buf_set_lines(buf, 0, 1, false, opts.hints)
-		api.nvim_buf_set_lines(buf, 1, -1, false, content)
+		api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
+		api.nvim_buf_set_lines(buf, #opts.hints, -1, false, content)
 	else
 		api.nvim_buf_set_lines(buf, 0, -1, false, content)
 	end
 
 	if opts.is_float then
-		layout.float_layout(buf, filetype, title or "")
+		layout.float_layout(buf, filetype, opts.title or "")
 	else
 		api.nvim_set_current_buf(buf)
-		layout.main_layout(buf, filetype, title or "")
+		local context = commands.execute_shell_command("kubectl", { "config", "current-context" })
+		layout.main_layout(buf, filetype, opts.title or context)
 	end
 end
 
