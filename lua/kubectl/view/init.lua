@@ -1,6 +1,5 @@
 local commands = require("kubectl.commands")
 local tables = require("kubectl.view.tables")
-local hl = require("kubectl.view.highlight")
 local actions = require("kubectl.actions")
 local pods = require("kubectl.pods")
 local deployments = require("kubectl.deployments")
@@ -14,10 +13,8 @@ end
 -- Pod view
 function M.Pods()
 	local results = commands.execute_shell_command("kubectl", { "get", "pods", "-A", "-o=json" })
-	local rows = vim.json.decode(results)
-	local headers = pods.getHeaders()
-	local data = pods.processRow(rows, headers)
-	local pretty = tables.pretty_print(data, headers)
+	local data = pods.processRow(vim.json.decode(results))
+	local pretty = tables.pretty_print(data, pods.getHeaders())
 	local hints = tables.generateHints({
 		{ key = "<l>", desc = "logs" },
 		{ key = "<d>", desc = "desc" },
@@ -62,10 +59,8 @@ end
 -- Deployment view
 function M.Deployments()
 	local results = commands.execute_shell_command("kubectl", { "get", "deployments", "-A", "-o=json" })
-	local rows = vim.json.decode(results)
-	local headers = deployments.getHeaders()
-	local data = deployments.processRow(rows, headers)
-	local pretty = tables.pretty_print(data, headers)
+	local data = deployments.processRow(vim.json.decode(results))
+	local pretty = tables.pretty_print(data, deployments.getHeaders())
 	local hints = tables.generateHints({
 		{ key = "<d>", desc = "desc" },
 		{ key = "<enter>", desc = "pods" },

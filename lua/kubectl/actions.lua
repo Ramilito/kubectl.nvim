@@ -28,8 +28,7 @@ function M.new_buffer(content, filetype, opts)
 		layout.float_layout(buf, filetype, opts.title or "")
 	else
 		api.nvim_set_current_buf(buf)
-		local context = commands.execute_shell_command("kubectl", { "config", "current-context" })
-		layout.main_layout(buf, filetype, opts.title or context)
+		layout.main_layout(buf, filetype, opts.title or "")
 	end
 end
 

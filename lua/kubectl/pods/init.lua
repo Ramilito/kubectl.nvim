@@ -2,7 +2,7 @@ local M = {}
 local hl = require("kubectl.view.highlight")
 local time = require("kubectl.utils.time")
 
-function M.processRow(rows, headers)
+function M.processRow(rows)
 	local data = {}
 	for _, row in pairs(rows.items) do
 		local pod = {
