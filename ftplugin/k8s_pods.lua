@@ -2,6 +2,7 @@
 local hl = require("kubectl.view.highlight")
 local deployment_view = require("kubectl.deployments.views")
 local pod_view = require("kubectl.pods.views")
+local view = require("kubectl.view")
 local api = vim.api
 
 local function getCurrentSelection()

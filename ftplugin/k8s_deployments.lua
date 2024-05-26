@@ -1,9 +1,12 @@
 -- k8s_deployments.lua in ~/.config/nvim/ftplugin
+local root_view = require("kubectl.root.views")
 local deplyoment_view = require("kubectl.deployments.views")
 local pod_view = require("kubectl.pods.views")
+local view = require("kubectl.view")
 local hl = require("kubectl.view.highlight")
+local api = vim.api
 
-vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
+api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -21,7 +24,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
+api.nvim_buf_set_keymap(0, "n", "d", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -35,11 +38,19 @@ vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 	noremap = true,
 	silent = true,
 	desc = "kgp",
 	callback = function()
 		pod_view.Pods()
+	end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		root_view.Root()
 	end,
 })
