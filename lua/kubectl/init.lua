@@ -4,7 +4,6 @@ local commands = require("kubectl.commands")
 
 local M = {}
 
--- kubectl config view --minify -o jsonpath='{range .clusters[*]}{"cluster_name: "}{.name}{"\ncluster: "}{.cluster}{"\n"}{end}{range .contexts[*]}{"context: "}{.context}{"\n"}{end}{range .users[*]}{"user_name: "}{.name}{"\n"}{end}'
 KUBE_CONFIG = commands.execute_shell_command("kubectl", {
 	"config",
 	"view",
