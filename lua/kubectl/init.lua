@@ -1,4 +1,4 @@
-local view = require("kubectl.view")
+local view = require("kubectl.pods.views")
 local config = require("kubectl.config")
 local commands = require("kubectl.commands")
 
