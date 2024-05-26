@@ -1,8 +1,7 @@
-local hl = require("kubectl.view.highlight")
 local deployment_view = require("kubectl.deployments.views")
 local event_view = require("kubectl.events.views")
 local node_view = require("kubectl.nodes.views")
-local root_view = require("kubectl.root.views")
+local secret_view = require("kubectl.secrets.views")
 local api = vim.api
 
 local function getCurrentSelection()
@@ -23,8 +22,10 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 				event_view.Events()
 			elseif selection == "Nodes" then
 				node_view.Nodes()
+			elseif selection == "Secrets" then
+        print("correct")
+				secret_view.Secrets()
 			end
-			-- pod_view.PodContainers(pod_name, namespace)
 		else
 			print("Failed to extract containers.")
 		end
