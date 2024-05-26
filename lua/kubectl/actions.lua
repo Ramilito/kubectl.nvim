@@ -1,12 +1,11 @@
 local M = {}
 local api = vim.api
 local layout = require("kubectl.view.layout")
-local commands = require("kubectl.commands")
 
 function M.new_buffer(content, filetype, opts)
 	local bufname = opts.title or ""
 
-	if opts.is_float then
+	if opts.is_float and bufname == "" then
 		bufname = "kubectl_float"
 	end
 

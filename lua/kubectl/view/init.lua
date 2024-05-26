@@ -31,12 +31,12 @@ end
 
 function M.PodLogs(pod_name, namespace)
 	local results = commands.execute_shell_command("kubectl", { "logs", pod_name, "-n", namespace })
-	actions.new_buffer(vim.split(results, "\n"), pod_name, { is_float = true, title = "less" })
+	actions.new_buffer(vim.split(results, "\n"), "less", { is_float = true, title = pod_name })
 end
 
 function M.PodDesc(pod_name, namespace)
 	local desc = commands.execute_shell_command("kubectl", { "describe", "pod", pod_name, "-n", namespace })
-	actions.new_buffer(vim.split(desc, "\n"), pod_name, { is_float = true, title = "yaml" })
+	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = pod_name })
 end
 
 function M.PodContainers(pod_name, namespace)
@@ -53,7 +53,7 @@ function M.PodContainers(pod_name, namespace)
   {"\\n state: "}{.state} \z
   {"\\n"}{end}\'',
 	})
-	actions.new_buffer(vim.split(results, "\n"), pod_name, { is_float = true, title = "yaml" })
+	actions.new_buffer(vim.split(results, "\n"), "yaml", { is_float = true, title = pod_name })
 end
 
 -- Deployment view
@@ -72,7 +72,7 @@ end
 function M.DeploymentDesc(deployment_desc, namespace)
 	local cmd = string.format("kubectl describe deployment %s -n %s", deployment_desc, namespace)
 	local desc = commands.execute_shell_command(cmd)
-	actions.new_buffer(vim.split(desc, "\n"), deployment_desc, { is_float = true, title = "yaml" })
+	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = deployment_desc })
 end
 
 return M
