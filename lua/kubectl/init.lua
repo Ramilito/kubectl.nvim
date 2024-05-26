@@ -10,7 +10,7 @@ KUBE_CONFIG = commands.execute_shell_command("kubectl", {
 	"--minify",
 	"-o",
 	'jsonpath=\'{range .clusters[*]}{"Cluster: "}{.name}{end} \z
-                {range .contexts[*]}{"\\nContext: "}{.context.cluster}{"\\nUsers: "}{.context.user}{end}\'',
+                {range .contexts[*]}{"\\nContext: "}{.context.cluster}{"\\nUsers:   "}{.context.user}{end}\'',
 })
 function M.open()
 	view.Pods()
