@@ -1,6 +1,7 @@
 local hl = require("kubectl.view.highlight")
 local deployment_view = require("kubectl.deployments.views")
 local event_view = require("kubectl.events.views")
+local node_view = require("kubectl.nodes.views")
 local root_view = require("kubectl.root.views")
 local api = vim.api
 
@@ -15,12 +16,13 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 	silent = true,
 	callback = function()
 		local selection = getCurrentSelection()
-		print(selection)
 		if selection then
 			if selection == "Deployments" then
 				deployment_view.Deployments()
 			elseif selection == "Events" then
 				event_view.Events()
+			elseif selection == "Nodes" then
+				node_view.Nodes()
 			end
 			-- pod_view.PodContainers(pod_name, namespace)
 		else
@@ -28,4 +30,3 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 		end
 	end,
 })
-
