@@ -1,5 +1,6 @@
 local event_view = require("kubectl.events.views")
 local string_util = require("kubectl.utils.string")
+local root_view = require("kubectl.root.views")
 local hl = require("kubectl.view.highlight")
 local api = vim.api
 
@@ -28,5 +29,13 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
 	silent = true,
 	callback = function()
 		event_view.Events()
+	end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
+	noremap = true,
+	silent = true,
+	callback = function()
+		root_view.Root()
 	end,
 })

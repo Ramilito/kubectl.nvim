@@ -1,6 +1,7 @@
 local hl = require("kubectl.view.highlight")
 local deployment_view = require("kubectl.deployments.views")
 local event_view = require("kubectl.events.views")
+local root_view = require("kubectl.root.views")
 local api = vim.api
 
 local function getCurrentSelection()
@@ -27,3 +28,4 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 		end
 	end,
 })
+
