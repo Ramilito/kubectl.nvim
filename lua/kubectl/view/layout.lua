@@ -8,6 +8,10 @@ local function set_buf_options(buf, win, filetype)
 	api.nvim_set_option_value("cursorline", true, { win = win })
 	api.nvim_set_option_value("modified", false, { buf = buf })
 
+  -- TODO: How do we handle long text?
+  -- api.nvim_set_option_value("wrap", true, { scope = "local" })
+	-- api.nvim_set_option_value("linebreak", true, { scope = "local" })
+
 	-- TODO: Is this neaded?
 	-- vim.wo[win].winhighlight = "Normal:Normal"
 	-- TODO: Need to workout how to reuse single buffer with this setting, or not

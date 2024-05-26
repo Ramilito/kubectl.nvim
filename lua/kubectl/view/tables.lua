@@ -77,7 +77,7 @@ function M.pretty_print(data, headers)
 					.. string.rep(" ", widths[col] - #value + 1)
 			else
 				local value = tostring(row[col])
-				tbl = tbl .. value .. "  " .. string.rep(" ", widths[col] - #value + 1)
+				tbl = tbl .. value .. hl.symbols.tab .. "  " .. string.rep(" ", widths[col] - #value + 1)
 			end
 		end
 		tbl = tbl .. "\n"

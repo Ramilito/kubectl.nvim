@@ -1,5 +1,6 @@
 local hl = require("kubectl.view.highlight")
 local deployment_view = require("kubectl.deployments.views")
+local event_view = require("kubectl.events.views")
 local view = require("kubectl.view")
 local api = vim.api
 
@@ -16,7 +17,11 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 		local selection = getCurrentSelection()
 		print(selection)
 		if selection then
-
+			if selection == "Deployments" then
+				deployment_view.Deployments()
+			elseif selection == "Events" then
+				event_view.Events()
+			end
 			-- pod_view.PodContainers(pod_name, namespace)
 		else
 			print("Failed to extract containers.")

@@ -33,7 +33,10 @@ function M.getHeaders()
 end
 
 function M.getReady(row)
-	return row.status.readyReplicas .. "/" .. row.status.availableReplicas
+	if row.status.availableReplicas then
+		return row.status.readyReplicas .. "/" .. row.status.availableReplicas
+	end
+  return "nil"
 end
 
 return M

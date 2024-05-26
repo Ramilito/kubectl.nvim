@@ -25,6 +25,7 @@ M.symbols = {
 	experimental = "⚙",
 	note = "✎",
 	clear = "➤",
+	tab = "↹",
 }
 
 local tag_patterns = {
