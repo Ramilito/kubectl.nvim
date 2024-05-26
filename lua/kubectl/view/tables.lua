@@ -28,6 +28,7 @@ function M.generateHints(hintConfigs)
 		hint = hint .. hl.symbols.pending .. config.key .. hl.symbols.clear .. " " .. config.desc .. " | "
 	end
 
+	hint = hint .. hl.symbols.pending .. "<R> " .. hl.symbols.clear .. "reload | "
 	hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
 	hint = hint .. "\n\n" .. "Context: " .. CONTEXT
 	hint = hint .. "Cluster: " .. CLUSTER_NAME .. "\n"

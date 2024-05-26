@@ -1,14 +1,15 @@
 -- k8s_pods.lua in ~/.config/nvim/ftplugin
 local hl = require("kubectl.view.highlight")
+local api = vim.api
 local view = require("kubectl.view")
 
 local function getCurrentSelection()
-	local line = vim.api.nvim_get_current_line()
+	local line = api.nvim_get_current_line()
 	local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
 	return namespace, pod_name
 end
 
-vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
+api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -30,7 +31,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "t", "", {
+api.nvim_buf_set_keymap(0, "n", "t", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -38,7 +39,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "t", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
+api.nvim_buf_set_keymap(0, "n", "d", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -46,12 +47,12 @@ vim.api.nvim_buf_set_keymap(0, "n", "d", "", {
 		if pod_name and namespace then
 			view.PodDesc(pod_name, namespace)
 		else
-			vim.api.nvim_err_writeln("Failed to describe pod name or namespace.")
+			api.nvim_err_writeln("Failed to describe pod name or namespace.")
 		end
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
+api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -59,7 +60,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "l", "", {
+api.nvim_buf_set_keymap(0, "n", "l", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -72,7 +73,7 @@ vim.api.nvim_buf_set_keymap(0, "n", "l", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
@@ -85,10 +86,11 @@ vim.api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 	end,
 })
 
-vim.api.nvim_buf_set_keymap(0, "n", "R", "", {
+api.nvim_buf_set_keymap(0, "n", "R", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
 		view.Pods()
 	end,
 })
+
