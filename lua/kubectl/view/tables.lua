@@ -30,8 +30,11 @@ function M.generateHints(hintConfigs)
 
 	hint = hint .. hl.symbols.pending .. "<R> " .. hl.symbols.clear .. "reload | "
 	hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
-	hint = hint .. "\n\n" .. "Context: " .. CONTEXT
-	hint = hint .. "Cluster: " .. CLUSTER_NAME .. "\n"
+	hint = hint .. "\n\n"
+	for _, value in ipairs(vim.split(KUBE_CONFIG, "\n")) do
+		hint = hint .. value .. "\n"
+	end
+	-- hint = hint .. "Cluster: " .. CLUSTER_NAME .. "\n"
 	hint = hint .. string.rep("―", winwidth)
 	return vim.split(hint, "\n")
 end

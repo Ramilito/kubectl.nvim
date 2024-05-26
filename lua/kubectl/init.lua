@@ -4,9 +4,15 @@ local commands = require("kubectl.commands")
 
 local M = {}
 
-CONTEXT = commands.execute_shell_command("kubectl", { "config", "current-context" })
-CLUSTER_NAME =
-	commands.execute_shell_command("kubectl", { "config", "view", "--minify", "-o jsonpath='{.clusters[].name}'" })
+-- kubectl config view --minify -o jsonpath='{range .clusters[*]}{"cluster_name: "}{.name}{"\ncluster: "}{.cluster}{"\n"}{end}{range .contexts[*]}{"context: "}{.context}{"\n"}{end}{range .users[*]}{"user_name: "}{.name}{"\n"}{end}'
+KUBE_CONFIG = commands.execute_shell_command("kubectl", {
+	"config",
+	"view",
+	"--minify",
+	"-o",
+	'jsonpath=\'{range .clusters[*]}{"Cluster: "}{.name}{end} \z
+                {range .contexts[*]}{"\\nContext: "}{.context.cluster}{"\\nUsers: "}{.context.user}{end}\'',
+})
 function M.open()
 	view.Pods()
 end
