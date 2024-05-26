@@ -1,6 +1,7 @@
 local deployment_view = require("kubectl.deployments.views")
 local event_view = require("kubectl.events.views")
 local node_view = require("kubectl.nodes.views")
+local service_view = require("kubectl.services.views")
 local secret_view = require("kubectl.secrets.views")
 local api = vim.api
 
@@ -23,8 +24,9 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
 			elseif selection == "Nodes" then
 				node_view.Nodes()
 			elseif selection == "Secrets" then
-        print("correct")
 				secret_view.Secrets()
+			elseif selection == "Services" then
+				service_view.Services()
 			end
 		else
 			print("Failed to extract containers.")
