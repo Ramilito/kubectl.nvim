@@ -1,10 +1,20 @@
 -- k8s_deployments.lua in ~/.config/nvim/ftplugin
-local root_view = require("kubectl.root.views")
-local deplyoment_view = require("kubectl.deployments.views")
-local pod_view = require("kubectl.pods.views")
-local view = require("kubectl.view")
-local hl = require("kubectl.view.highlight")
 local api = vim.api
+local deplyoment_view = require("kubectl.deployments.views")
+local hl = require("kubectl.view.highlight")
+local pod_view = require("kubectl.pods.views")
+local root_view = require("kubectl.root.views")
+local string_util = require("kubectl.utils.string")
+local view = require("kubectl.view")
+
+local function getCurrentSelection()
+	local line = api.nvim_get_current_line()
+	local columns = vim.split(line, hl.symbols.tab)
+	local namespace = string_util.trim(columns[1])
+	local deployment_name = string_util.trim(columns[2])
+
+	return namespace, deployment_name
+end
 
 api.nvim_buf_set_keymap(0, "n", "g?", "", {
 	noremap = true,
@@ -28,8 +38,7 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
 	noremap = true,
 	silent = true,
 	callback = function()
-		local line = vim.api.nvim_get_current_line()
-		local namespace, deployment_name = line:match("^(%S+)%s+(%S+)")
+		local namespace, deployment_name = getCurrentSelection()
 		if deployment_name and namespace then
 			deplyoment_view.DeploymentDesc(deployment_name, namespace)
 		else

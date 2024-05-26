@@ -1,13 +1,17 @@
 -- k8s_pods.lua in ~/.config/nvim/ftplugin
-local hl = require("kubectl.view.highlight")
-local deployment_view = require("kubectl.deployments.views")
-local pod_view = require("kubectl.pods.views")
-local view = require("kubectl.view")
 local api = vim.api
+local deployment_view = require("kubectl.deployments.views")
+local hl = require("kubectl.view.highlight")
+local pod_view = require("kubectl.pods.views")
+local string_util = require("kubectl.utils.string")
+local view = require("kubectl.view")
 
 local function getCurrentSelection()
 	local line = api.nvim_get_current_line()
-	local namespace, pod_name = line:match("^(%S+)%s+(%S+)")
+	local columns = vim.split(line, hl.symbols.tab)
+	local namespace = string_util.trim(columns[1])
+	local pod_name = string_util.trim(columns[2])
+
 	return namespace, pod_name
 end
 
