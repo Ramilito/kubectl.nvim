@@ -1,6 +1,6 @@
 local hl = require("kubectl.view.highlight")
+local config = require("kubectl.config")
 local M = {}
-local api = vim.api
 
 -- Function to calculate column widths
 local function calculate_column_widths(rows, columns)
@@ -20,23 +20,29 @@ end
 
 function M.generateHints(hintConfigs)
 	local hint = ""
-	hint = hl.symbols.success .. "Hint: " .. hl.symbols.clear
 
-	local win = vim.api.nvim_get_current_win()
-	local winwidth = vim.api.nvim_win_get_width(win)
-	for _, config in ipairs(hintConfigs) do
-		hint = hint .. hl.symbols.pending .. config.key .. hl.symbols.clear .. " " .. config.desc .. " | "
+	if config.options.hints then
+		hint = hl.symbols.success .. "Hint: " .. hl.symbols.clear
+		for _, hintConfig in ipairs(hintConfigs) do
+			hint = hint .. hl.symbols.pending .. hintConfig.key .. hl.symbols.clear .. " " .. hintConfig.desc .. " | "
+		end
+		hint = hint .. hl.symbols.pending .. "<R> " .. hl.symbols.clear .. "reload | "
+		hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
+		hint = hint .. "\n\n"
 	end
 
-	hint = hint .. hl.symbols.pending .. "<R> " .. hl.symbols.clear .. "reload | "
-	hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
-	hint = hint .. "\n\n"
-	for _, value in ipairs(vim.split(KUBE_CONFIG, "\n")) do
-		hint = hint .. value .. "\n"
+	if config.options.context then
+		for _, value in ipairs(vim.split(KUBE_CONFIG, "\n")) do
+			hint = hint .. value .. "\n"
+		end
 	end
-	-- hint = hint .. "Cluster: " .. CLUSTER_NAME .. "\n"
-	hint = hint .. string.rep("―", winwidth)
-	return vim.split(hint, "\n")
+
+	if config.options.context or config.options.hints then
+		local win = vim.api.nvim_get_current_win()
+		hint = hint .. string.rep("―", vim.api.nvim_win_get_width(win))
+	end
+
+  return vim.split(hint, "\n")
 end
 
 -- Function to print the table

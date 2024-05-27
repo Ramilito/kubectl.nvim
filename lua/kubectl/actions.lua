@@ -16,7 +16,7 @@ function M.new_buffer(content, filetype, opts)
 		api.nvim_buf_set_name(buf, bufname)
 	end
 
-	if opts.hints then
+	if opts.hints and #opts.hints > 1 then
 		api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
 		api.nvim_buf_set_lines(buf, #opts.hints, -1, false, content)
 	else

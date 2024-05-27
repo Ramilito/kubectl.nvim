@@ -1,5 +1,8 @@
 local M = {}
-local defaults = {}
+local defaults = {
+	hints = true,
+	context = true,
+}
 
 M.options = {}
 
@@ -8,4 +11,5 @@ function M.setup(options)
 end
 
 M.setup()
+
 return M

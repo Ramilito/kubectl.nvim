@@ -45,7 +45,8 @@ return {
 ### Setup
 ```lua
 {
-  TBD
+  hints = true,
+  context = true,
 }
 ```
 
@@ -62,8 +63,8 @@ No startup impact since we load on demand.
 - [ ] Async operations
 - [ ] Populate the g? help buffer
 - [ ] Configuration
-  - [ ] Optional hints
-  - [ ] Optional or toggable context info
+  - [x] Optional hints
+  - [x] Optional or toggable context info
   - [ ] Bring your own colors
 - [x] Hints bar for shortcuts
 - [x] Node view
