@@ -1,7 +1,8 @@
 # kubectl.nvim
 Opens a buffer that displays processed output of kubectl
 
-![image](https://github.com/Ramilito/kubectl.nvim/assets/8473233/b60b9dca-8a52-4222-8b3e-a7483c3debfb)
+<img width="1746" alt="image" src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/c999a5cd-5a64-4787-b232-f2acffd247f2">
+
 
 ## ✨ Features
 - Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. deplyoment -> pod -> container
