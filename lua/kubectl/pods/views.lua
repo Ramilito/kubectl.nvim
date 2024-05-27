@@ -31,7 +31,6 @@ function M.PodDesc(pod_name, namespace)
 	local desc = commands.execute_shell_command("kubectl", { "describe", "pod", pod_name, "-n", namespace })
 	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = pod_name })
 end
-
 function M.PodContainers(pod_name, namespace)
 	local results = commands.execute_shell_command("kubectl", {
 		"get",
@@ -39,13 +38,11 @@ function M.PodContainers(pod_name, namespace)
 		pod_name,
 		"-n",
 		namespace,
-		"-o",
-		'jsonpath=\'{range .status.containerStatuses[*]} \z
-  {"name: "}{.name} \z
-  {"\\n ready: "}{.ready} \z
-  {"\\n state: "}{.state} \z
-  {"\\n"}{end}\'',
+		"-o=json",
 	})
-	actions.new_buffer(vim.split(results, "\n"), "yaml", { is_float = true, title = pod_name })
+
+	local data = pods.processContainerRow(vim.json.decode(results))
+	local pretty = tables.pretty_print(data, pods.getContainerHeaders())
+  actions.new_buffer(pretty, "pod_containers", { is_float = true, title = pod_name })
 end
 return M
