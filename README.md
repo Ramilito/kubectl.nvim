@@ -9,6 +9,7 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Colored output and smart highlighting
 - Floating windows for contextual stuff such as logs, description, containers..
 - Run custom commands e.g ```:Kubectl get configmaps -A```
+- Exec into containers
 
 ## ⚡️ Dependencies
 - kubectl
