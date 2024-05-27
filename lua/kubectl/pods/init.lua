@@ -5,7 +5,6 @@ local time = require("kubectl.utils.time")
 local function getPorts(ports)
 	local string_ports = ""
 	if ports then
-		print(vim.inspect(ports))
 		for index, value in ipairs(ports) do
 			string_ports = string_ports .. value.containerPort .. "/" .. value.protocol
 
