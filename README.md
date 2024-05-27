@@ -62,7 +62,6 @@ No startup impact since we load on demand.
 - [x] Services view
 - [x] Pod view
 - [x] Container viewn
-- [ ]
 - [x] Deployment view
 - [x] Secrets view
 - [ ] CRDS view
