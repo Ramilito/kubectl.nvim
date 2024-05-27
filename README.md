@@ -57,7 +57,10 @@ No startup impact since we load on demand.
 - [x] Open in split
 - [ ] Auto refresh state (should probably do async operations task first)
 - [ ] Async operations
-- [ ] Configuration, e.g don't display hints or context
+- [ ] Configuration
+  - [ ] Optional hints
+  - [ ] Optional or toggable context info
+  - [ ] Bring your own colors
 - [x] Hints bar for shortcuts
 - [x] Node view
 - [x] Services view
