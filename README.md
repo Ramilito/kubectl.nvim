@@ -1,6 +1,5 @@
 # kubectl.nvim
-Opens a buffer that displays processed output of kubectl
-
+Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 <img width="1746" alt="image" src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/c999a5cd-5a64-4787-b232-f2acffd247f2">
 
 Note: This is still incomplete in that it doesn't handle all possible resources and I might change things up in the future.
