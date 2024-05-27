@@ -55,7 +55,8 @@ No startup impact since we load on demand.
 
 ## TODO
 - [x] Open in split
-- [ ] Auto refresh state
+- [ ] Auto refresh state (should probably do async operations task first)
+- [ ] Async operations
 - [ ] Configuration, e.g don't display hints or context
 - [x] Hints bar for shortcuts
 - [x] Node view
