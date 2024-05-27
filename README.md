@@ -66,7 +66,7 @@ No startup impact since we load on demand.
 - [x] Deployment view
 - [x] Secrets view
 - [ ] CRDS view
-- [ ] Generic view for dynamic commandsn
+- [ ] Generic view for dynamic commands
 - [ ] Integrate with tooling (such as kubesses or kubediff)
 
 ## Motivation
