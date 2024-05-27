@@ -4,6 +4,8 @@ local tables = require("kubectl.view.tables")
 local actions = require("kubectl.actions")
 
 local M = {}
+local selection = {}
+
 function M.Pods()
 	local results = commands.execute_shell_command("kubectl", { "get", "pods", "-A", "-o=json" })
 	local data = pods.processRow(vim.json.decode(results))
@@ -31,7 +33,16 @@ function M.PodDesc(pod_name, namespace)
 	local desc = commands.execute_shell_command("kubectl", { "describe", "pod", pod_name, "-n", namespace })
 	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = pod_name })
 end
+
+function M.ExecContainer(container_name)
+	commands.execute_terminal(
+		"kubectl",
+		{ "exec", "-it", selection.pod, "-n", selection.ns, "-c ", container_name, "--", "/bin/sh" }
+	)
+end
+
 function M.PodContainers(pod_name, namespace)
+	selection = { pod = pod_name, ns = namespace }
 	local results = commands.execute_shell_command("kubectl", {
 		"get",
 		"pods",
@@ -43,6 +54,6 @@ function M.PodContainers(pod_name, namespace)
 
 	local data = pods.processContainerRow(vim.json.decode(results))
 	local pretty = tables.pretty_print(data, pods.getContainerHeaders())
-  actions.new_buffer(pretty, "pod_containers", { is_float = true, title = pod_name })
+	actions.new_buffer(pretty, "k8s_containers", { is_float = true, title = pod_name })
 end
 return M

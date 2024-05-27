@@ -13,4 +13,17 @@ function M.execute_shell_command(cmd, args)
 	return result
 end
 
+function M.execute_terminal(cmd, args)
+	local full_command = cmd .. " " .. table.concat(args, " ")
+	vim.fn.termopen(full_command, {
+		on_exit = function(_, code, _)
+			if code == 0 then
+				print("Command executed successfully")
+			else
+				print("Command failed with exit code " .. code)
+			end
+		end,
+	})
+end
+
 return M

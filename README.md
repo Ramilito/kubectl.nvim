@@ -56,6 +56,7 @@ No startup impact since we load on demand.
 
 ## TODO
 - [x] Open in split
+- [x] Exec into container
 - [ ] Auto refresh state (should probably do async operations task first)
 - [ ] Async operations
 - [ ] Populate the g? help buffer
