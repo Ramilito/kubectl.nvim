@@ -3,12 +3,12 @@ Opens a buffer that displays processed output of kubectl
 
 <img width="1746" alt="image" src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/c999a5cd-5a64-4787-b232-f2acffd247f2">
 
+Note: This is still incomplete in that it doesn't handle all possible resources and I might change things up in the future.
 
 ## ✨ Features
-- Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. deplyoment -> pod -> container
-- Colored output and highlighted errors
-- Floating windows for contextual stuff such as pod_logs, pod_description..
-- 
+- Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
+- Colored output and smart highlighting
+- Floating windows for contextual stuff such as logs, description, containers..
 
 ## ⚡️ Dependencies
 - kubectl
@@ -21,21 +21,21 @@ Install the plugin with your preferred package manager:
 
 ```lua
 return {
-    {
-        "ramilito/kubectl.nvim",
-        keys = {
-            {
-                "<leader>k",
-                function()
-                    require("kubectl").open()
-                end,
-                desc = "Kubectl",
-            },
-        },
-        config = function()
-            require("kubectl").setup()
+  {
+    "ramilito/kubectl.nvim",
+    keys = {
+      {
+        "<leader>k",
+        function()
+          require("kubectl").open()
         end,
+        desc = "Kubectl",
+      },
     },
+    config = function()
+      require("kubectl").setup()
+    end,
+  },
 }
 ```
 
