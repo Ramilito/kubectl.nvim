@@ -69,7 +69,10 @@ No startup impact since we load on demand.
 - [x] Deployment view
 - [x] Secrets view
 - [ ] CRDS view
-- [ ] Generic view for dynamic commands
+- [ ] Generic view for user commands
+  - [x] Add barebones to use user commands
+  - [ ] Add autocompletion
+  - [ ] Add some smartness, figure out filetype based on command
 - [ ] Integrate with tooling (such as kubesses or kubediff)
 
 ## Motivation
