@@ -54,19 +54,20 @@ return {
 No startup impact since we load on demand.
 
 ## TODO
-[x] Open in split
-[ ] Auto refresh state
-[ ] Configuration, e.g don't display hints or context
-[x] Hints bar for shortcuts
-[x] Node view
-[x] Services view
-[x] Pod view
-[x] Container view
-[x] Deployment view
-[x] Secrets view
-[ ] CRDS view
-[ ] Generic view for dynamic commands
-[ ] Integrate with tooling (such as kubesses or kubediff)
+- [x] Open in split
+- [ ] Auto refresh state
+- [ ] Configuration, e.g don't display hints or context
+- [x] Hints bar for shortcuts
+- [x] Node view
+- [x] Services view
+- [x] Pod view
+- [x] Container viewn
+- [ ]
+- [x] Deployment view
+- [x] Secrets view
+- [ ] CRDS view
+- [ ] Generic view for dynamic commandsn
+- [ ] Integrate with tooling (such as kubesses or kubediff)
 
 ## Motivation
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, ssh, edit) in the future, not sure yet.
