@@ -8,6 +8,7 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 - Colored output and smart highlighting
 - Floating windows for contextual stuff such as logs, description, containers..
+- Run custom commands e.g ```:Kubectl get configmaps -A```
 
 ## ⚡️ Dependencies
 - kubectl
@@ -57,6 +58,7 @@ No startup impact since we load on demand.
 - [x] Open in split
 - [ ] Auto refresh state (should probably do async operations task first)
 - [ ] Async operations
+- [ ] Populate the g? help buffer
 - [ ] Configuration
   - [ ] Optional hints
   - [ ] Optional or toggable context info
