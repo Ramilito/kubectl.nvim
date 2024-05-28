@@ -97,10 +97,12 @@ end
 function M.getReady(row)
 	local readyCount = 0
 	local containers = 0
-	for _, value in ipairs(row.status.containerStatuses) do
-		containers = containers + 1
-		if value.ready then
-			readyCount = readyCount + 1
+	if row.status.containerStatuses then
+		for _, value in ipairs(row.status.containerStatuses) do
+			containers = containers + 1
+			if value.ready then
+				readyCount = readyCount + 1
+			end
 		end
 	end
 	return readyCount .. "/" .. containers
