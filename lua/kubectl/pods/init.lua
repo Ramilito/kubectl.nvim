@@ -111,6 +111,11 @@ end
 function M.getRestarts(row)
 	local restartCount = 0
 	local lastState
+
+	if not row.status.containerStatuses then
+		return restartCount
+	end
+
 	for _, value in ipairs(row.status.containerStatuses) do
 		if value.lastState and value.lastState.terminated then
 			lastState = time.since(value.lastState.terminated.finishedAt)
