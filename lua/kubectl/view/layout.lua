@@ -1,4 +1,5 @@
 local hl = require("kubectl.view.highlight")
+local config = require("kubectl.config")
 local M = {}
 local api = vim.api
 
@@ -32,10 +33,10 @@ function M.float_layout(buf, filetype, title, syntax)
 	if not syntax then
 		syntax = filetype
 	end
-	local width = vim.o.columns - 20
-	local height = 40
-	local row = 5
-	local col = 10
+	local width = config.options.float_size.width * vim.o.columns
+	local height = config.options.float_size.height * vim.o.lines
+	local row = config.options.float_size.row
+	local col = config.options.float_size.col
 
 	local win = api.nvim_open_win(buf, true, {
 		relative = "editor",

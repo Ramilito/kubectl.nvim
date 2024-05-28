@@ -2,6 +2,17 @@ local M = {}
 local defaults = {
 	hints = true,
 	context = true,
+	float_size = {
+		-- Almost fullscreen:
+		-- width = 1.0,
+		-- height = 0.95, -- Setting it to 1 will be cutoff by statuscolumn
+
+		-- For more context aware size:
+		width = 0.9,
+		height = 0.8,
+		col = 10,
+		row = 5,
+	},
 }
 
 M.options = {}
