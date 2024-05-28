@@ -22,6 +22,10 @@ end
 
 -- Function to calculate the time difference and format it
 function M.since(timestamp)
+	if not timestamp then
+		return "nil"
+	end
+
 	local parsedTime = M.parse(timestamp)
 	local currentTime = getCurrentTimeUTC()
 	local diff = currentTime - parsedTime

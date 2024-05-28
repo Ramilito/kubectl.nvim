@@ -73,6 +73,8 @@ No startup impact since we load on demand.
 - [x] Exec into container
 - [ ] Auto refresh state (should probably do async operations task first)
 - [ ] Async operations
+- [ ] Filter on namespace
+- [ ] Tail logs
 - [ ] Populate the g? help buffer
 - [ ] Configuration
   - [x] Optional hints
