@@ -20,7 +20,11 @@ end
 function M.DeploymentDesc(deployment_desc, namespace)
 	local desc =
 		commands.execute_shell_command("kubectl", { "describe", "deployment", deployment_desc, "-n", namespace })
-	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = deployment_desc })
+	actions.new_buffer(
+		vim.split(desc, "\n"),
+		"deployment_desc",
+		{ is_float = true, title = deployment_desc, syntax = "yaml" }
+	)
 end
 
 return M

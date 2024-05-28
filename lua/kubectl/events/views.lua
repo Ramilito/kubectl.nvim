@@ -18,7 +18,7 @@ end
 
 function M.ShowMessage(event)
 	local msg = event
-	actions.new_buffer(vim.split(msg, "\n"), "less", { is_float = true, title = "Message" })
+	actions.new_buffer(vim.split(msg, "\n"), "event_msg", { is_float = true, title = "Message", syntax = "less" })
 end
 
 return M

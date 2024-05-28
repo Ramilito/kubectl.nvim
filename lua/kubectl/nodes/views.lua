@@ -18,7 +18,7 @@ end
 
 function M.NodeDesc(node)
 	local desc = commands.execute_shell_command("kubectl", { "describe", "node", node })
-	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = node })
+	actions.new_buffer(vim.split(desc, "\n"), "k8s_node_desc", { is_float = true, title = node, syntax = "yaml" })
 end
 
 return M

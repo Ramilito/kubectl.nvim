@@ -18,7 +18,7 @@ end
 
 function M.SecretDesc(namespace, name)
 	local desc = commands.execute_shell_command("kubectl", { "describe", "secret", name, "-n", namespace })
-	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = name })
+	actions.new_buffer(vim.split(desc, "\n"), "k8s_secret_desc", { is_float = true, title = name, syntax = "yaml" })
 end
 
 return M

@@ -26,12 +26,12 @@ end
 
 function M.PodLogs(pod_name, namespace)
 	local results = commands.execute_shell_command("kubectl", { "logs", pod_name, "-n", namespace })
-	actions.new_buffer(vim.split(results, "\n"), "less", { is_float = true, title = pod_name })
+	actions.new_buffer(vim.split(results, "\n"), "k8s_pod_logs", { is_float = true, title = pod_name, syntax = "less" })
 end
 
 function M.PodDesc(pod_name, namespace)
 	local desc = commands.execute_shell_command("kubectl", { "describe", "pod", pod_name, "-n", namespace })
-	actions.new_buffer(vim.split(desc, "\n"), "yaml", { is_float = true, title = pod_name })
+	actions.new_buffer(vim.split(desc, "\n"), "k8s_pod_desc", { is_float = true, title = pod_name, syntax = "yaml" })
 end
 
 function M.ExecContainer(container_name)

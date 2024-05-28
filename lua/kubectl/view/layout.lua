@@ -2,14 +2,15 @@ local hl = require("kubectl.view.highlight")
 local M = {}
 local api = vim.api
 
-local function set_buf_options(buf, win, filetype)
+local function set_buf_options(buf, win, filetype, syntax)
 	api.nvim_set_option_value("filetype", filetype, { buf = buf })
+	api.nvim_set_option_value("syntax", syntax, { buf = buf })
 	api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
 	api.nvim_set_option_value("cursorline", true, { win = win })
 	api.nvim_set_option_value("modified", false, { buf = buf })
 
-  -- TODO: How do we handle long text?
-  -- api.nvim_set_option_value("wrap", true, { scope = "local" })
+	-- TODO: How do we handle long text?
+	-- api.nvim_set_option_value("wrap", true, { scope = "local" })
 	-- api.nvim_set_option_value("linebreak", true, { scope = "local" })
 
 	-- TODO: Is this neaded?
@@ -18,13 +19,19 @@ local function set_buf_options(buf, win, filetype)
 	-- api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
 
-function M.main_layout(buf, filetype, title)
+function M.main_layout(buf, filetype, syntax)
+	if not syntax then
+		syntax = filetype
+	end
 	local win = api.nvim_get_current_win()
-	set_buf_options(buf, win, filetype)
+	set_buf_options(buf, win, filetype, syntax)
 	hl.set_highlighting()
 end
 
-function M.float_layout(buf, filetype, title)
+function M.float_layout(buf, filetype, title, syntax)
+	if not syntax then
+		syntax = filetype
+	end
 	local width = vim.o.columns - 20
 	local height = 40
 	local row = 5
@@ -41,7 +48,7 @@ function M.float_layout(buf, filetype, title)
 		title = filetype .. " - " .. (title or ""),
 	})
 
-	set_buf_options(buf, win, filetype)
+	set_buf_options(buf, win, filetype, syntax)
 	hl.set_highlighting()
 end
 
