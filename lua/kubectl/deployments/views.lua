@@ -12,7 +12,7 @@ function M.Deployments()
 	local hints = tables.generateHints({
 		{ key = "<d>", desc = "desc" },
 		{ key = "<enter>", desc = "pods" },
-	})
+	}, true, true)
 
 	actions.new_buffer(pretty, "k8s_deployments", { is_float = false, hints = hints, title = "Deployments" })
 end

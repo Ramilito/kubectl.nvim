@@ -11,7 +11,7 @@ function M.Events()
 	local pretty = tables.pretty_print(data, events.getHeaders())
 	local hints = tables.generateHints({
 		{ key = "<enter>", desc = "message" },
-	})
+	}, true, true)
 
 	actions.new_buffer(pretty, "k8s_events", { is_float = false, hints = hints, title = "Events" })
 end
