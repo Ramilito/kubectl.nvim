@@ -18,31 +18,47 @@ local function calculate_column_widths(rows, columns)
 	return widths
 end
 
-function M.generateHints(hintConfigs)
+local function generateHintLine(key, desc)
+	return hl.symbols.pending .. key .. " " .. hl.symbols.clear .. desc .. " | "
+end
+
+function M.generateContext()
 	local hint = ""
+	for _, value in ipairs(vim.split(KUBE_CONFIG, "\n")) do
+		hint = hint .. value .. "\n"
+	end
+
+	return hint
+end
+
+function M.generateHints(hintConfigs, include_defaults, include_context)
+	local hints = {}
 
 	if config.options.hints then
-		hint = hl.symbols.success .. "Hint: " .. hl.symbols.clear
+		local hint_line = hl.symbols.success .. "Hint: " .. hl.symbols.clear
 		for _, hintConfig in ipairs(hintConfigs) do
-			hint = hint .. hl.symbols.pending .. hintConfig.key .. hl.symbols.clear .. " " .. hintConfig.desc .. " | "
+			hint_line = hint_line .. generateHintLine(hintConfig.key, hintConfig.desc)
 		end
-		hint = hint .. hl.symbols.pending .. "<R> " .. hl.symbols.clear .. "reload | "
-		hint = hint .. hl.symbols.pending .. "<g?> " .. hl.symbols.clear .. "help"
-		hint = hint .. "\n\n"
+
+		if include_defaults then
+			hint_line = hint_line .. generateHintLine("<R>", "reload")
+			hint_line = hint_line .. generateHintLine("<C-f>", "filter")
+			hint_line = hint_line .. generateHintLine("<g?>", "help"):gsub(" | $", "") -- remove the last separator
+		end
+
+		table.insert(hints, hint_line .. "\n\n")
 	end
 
-	if config.options.context then
-		for _, value in ipairs(vim.split(KUBE_CONFIG, "\n")) do
-			hint = hint .. value .. "\n"
-		end
+	if include_context and config.options.context then
+		table.insert(hints, M.generateContext())
 	end
 
-	if config.options.context or config.options.hints then
+	if #hints > 0 then
 		local win = vim.api.nvim_get_current_win()
-		hint = hint .. string.rep("―", vim.api.nvim_win_get_width(win))
+		table.insert(hints, string.rep("―", vim.api.nvim_win_get_width(win)))
 	end
 
-  return vim.split(hint, "\n")
+	return vim.split(table.concat(hints, ""), "\n")
 end
 
 -- Function to print the table

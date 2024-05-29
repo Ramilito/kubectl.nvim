@@ -15,7 +15,7 @@ function M.Pods()
 		{ key = "<d>", desc = "desc" },
 		{ key = "<t>", desc = "top" },
 		{ key = "<enter>", desc = "containers" },
-	})
+	}, true, true)
 	actions.new_buffer(pretty, "k8s_pods", { is_float = false, hints = hints })
 end
 

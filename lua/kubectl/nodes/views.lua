@@ -11,7 +11,7 @@ function M.Nodes()
 	local pretty = tables.pretty_print(data, nodes.getHeaders())
 	local hints = tables.generateHints({
 		{ key = "<d>", desc = "describe" },
-	})
+	}, true, true)
 
 	actions.new_buffer(pretty, "k8s_nodes", { is_float = false, hints = hints, title = "Nodes" })
 end
