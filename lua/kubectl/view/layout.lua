@@ -27,7 +27,7 @@ end
 
 function M.filter_layout(buf, filetype, title)
   local width = 0.8 * vim.o.columns
-  local height = 0.1 * vim.o.lines
+  local height = 5
   local row = 10
   local col = 10
 

@@ -15,20 +15,12 @@ function M.Deployments()
     { key = "<enter>", desc = "pods" },
   }, true, true)
 
-  actions.new_buffer(
-    find.filter_line(pretty, FILTER),
-    "k8s_deployments",
-    { is_float = false, hints = hints, title = "Deployments" }
-  )
+  actions.buffer(find.filter_line(pretty, FILTER), "k8s_deployments", { hints = hints, title = "Deployments" })
 end
 
 function M.DeploymentDesc(deployment_desc, namespace)
   local desc = commands.execute_shell_command("kubectl", { "describe", "deployment", deployment_desc, "-n", namespace })
-  actions.new_buffer(
-    vim.split(desc, "\n"),
-    "deployment_desc",
-    { is_float = true, title = deployment_desc, syntax = "yaml" }
-  )
+  actions.floating_buffer(vim.split(desc, "\n"), "deployment_desc", { title = deployment_desc, syntax = "yaml" })
 end
 
 return M

@@ -3,16 +3,30 @@ local layout = require("kubectl.view.layout")
 local api = vim.api
 local M = {}
 
+local function create_or_get_buffer(bufname, buftype)
+  local buf = vim.fn.bufnr(bufname, true)
+  if buf == -1 then
+    buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(buf, bufname)
+  end
+  if buftype then
+    vim.api.nvim_buf_set_option(buf, "buftype", buftype)
+  end
+  return buf
+end
+
+local function set_buffer_lines(buf, hints, content)
+  if hints and #hints > 1 then
+    vim.api.nvim_buf_set_lines(buf, 0, #hints, false, hints)
+    vim.api.nvim_buf_set_lines(buf, #hints, -1, false, content)
+  else
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+  end
+end
+
 function M.filter_buffer(content, filetype, opts)
   local bufname = "kubectl_filter"
-
-  local buf = vim.fn.bufnr(bufname)
-
-  if buf == -1 then
-    buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_name(buf, bufname)
-    api.nvim_buf_set_option(buf, "buftype", "prompt")
-  end
+  local buf = create_or_get_buffer(bufname, "prompt")
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
   api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
@@ -35,24 +49,10 @@ function M.filter_buffer(content, filetype, opts)
 end
 
 function M.floating_buffer(content, filetype, opts)
-  local bufname = opts.title or ""
-  if bufname == "" then
-    bufname = "kubectl_float"
-  end
+  local bufname = opts.title or "kubectl_float"
 
-  local buf = vim.fn.bufnr(bufname)
-
-  if buf == -1 then
-    buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_name(buf, bufname)
-  end
-
-  if opts.hints and #opts.hints > 1 then
-    api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
-    api.nvim_buf_set_lines(buf, #opts.hints, -1, false, content)
-  else
-    api.nvim_buf_set_lines(buf, 0, -1, false, content)
-  end
+  local buf = create_or_get_buffer(bufname)
+  set_buffer_lines(buf, opts.hints, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
   vim.bo[buf].buflisted = false
@@ -63,20 +63,9 @@ function M.floating_buffer(content, filetype, opts)
 end
 
 function M.buffer(content, filetype, opts)
-  local bufname = opts.title or ""
-  local buf = vim.fn.bufnr(bufname)
-
-  if buf == -1 then
-    buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_name(buf, bufname)
-  end
-
-  if opts.hints and #opts.hints > 1 then
-    api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
-    api.nvim_buf_set_lines(buf, #opts.hints, -1, false, content)
-  else
-    api.nvim_buf_set_lines(buf, 0, -1, false, content)
-  end
+  local bufname = opts.title or "kubectl"
+  local buf = create_or_get_buffer(bufname)
+  set_buffer_lines(buf, opts.hints, content)
 
   api.nvim_set_current_buf(buf)
   local win = layout.main_layout()

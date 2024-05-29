@@ -14,16 +14,12 @@ function M.Secrets()
     { key = "<d>", desc = "describe" },
   }, true, true)
 
-  actions.new_buffer(
-    find.filter_line(pretty, FILTER),
-    "k8s_secrets",
-    { is_float = false, hints = hints, title = "Secrets" }
-  )
+  actions.buffer(find.filter_line(pretty, FILTER), "k8s_secrets", { hints = hints, title = "Secrets" })
 end
 
 function M.SecretDesc(namespace, name)
   local desc = commands.execute_shell_command("kubectl", { "describe", "secret", name, "-n", namespace })
-  actions.new_buffer(vim.split(desc, "\n"), "k8s_secret_desc", { is_float = true, title = name, syntax = "yaml" })
+  actions.floating_buffer(vim.split(desc, "\n"), "k8s_secret_desc", { title = name, syntax = "yaml" })
 end
 
 return M

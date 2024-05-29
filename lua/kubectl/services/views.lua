@@ -14,16 +14,12 @@ function M.Services()
     { key = "<d>", desc = "describe" },
   }, true, true)
 
-  actions.new_buffer(
-    find.filter_line(pretty, FILTER),
-    "k8s_services",
-    { is_float = false, hints = hints, title = "Services" }
-  )
+  actions.buffer(find.filter_line(pretty, FILTER), "k8s_services", { hints = hints, title = "Services" })
 end
 
 function M.ServiceDesc(namespace, name)
   local desc = commands.execute_shell_command("kubectl", { "describe", "svc", name, "-n", namespace })
-  actions.new_buffer(vim.split(desc, "\n"), "k8s_svc_desc", { is_float = true, title = name, syntax = "yaml" })
+  actions.floating_buffer(vim.split(desc, "\n"), "k8s_svc_desc", { title = name, syntax = "yaml" })
 end
 
 return M

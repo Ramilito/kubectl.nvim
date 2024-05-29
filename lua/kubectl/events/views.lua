@@ -14,16 +14,12 @@ function M.Events()
     { key = "<enter>", desc = "message" },
   }, true, true)
 
-  actions.new_buffer(
-    find.filter_line(pretty, FILTER),
-    "k8s_events",
-    { is_float = false, hints = hints, title = "Events" }
-  )
+  actions.buffer(find.filter_line(pretty, FILTER), "k8s_events", { hints = hints, title = "Events" })
 end
 
 function M.ShowMessage(event)
   local msg = event
-  actions.new_buffer(vim.split(msg, "\n"), "event_msg", { is_float = true, title = "Message", syntax = "less" })
+  actions.floating_buffer(vim.split(msg, "\n"), "event_msg", { title = "Message", syntax = "less" })
 end
 
 return M
