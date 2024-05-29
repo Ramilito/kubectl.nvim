@@ -16,8 +16,8 @@ function M.open_filter(content, filetype, opts)
 	local win = layout.filter_layout(buf, filetype, opts.title or "")
 
 	api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
+	vim.api.nvim_buf_set_lines(buf, #opts.hints, -1, false, { content .. FILTER })
 
-	vim.fn.prompt_setprompt(buf, content)
 	vim.fn.prompt_setcallback(buf, function(input)
 		if not input then
 			FILTER = nil
