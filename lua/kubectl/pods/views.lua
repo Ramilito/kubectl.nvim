@@ -1,7 +1,8 @@
-local pods = require("kubectl.pods")
-local commands = require("kubectl.commands")
-local tables = require("kubectl.view.tables")
 local actions = require("kubectl.actions")
+local commands = require("kubectl.commands")
+local find = require("kubectl.utils.find")
+local pods = require("kubectl.pods")
+local tables = require("kubectl.view.tables")
 
 local M = {}
 local selection = {}
@@ -10,13 +11,14 @@ function M.Pods()
 	local results = commands.execute_shell_command("kubectl", { "get", "pods", "-A", "-o=json" })
 	local data = pods.processRow(vim.json.decode(results))
 	local pretty = tables.pretty_print(data, pods.getHeaders())
+
 	local hints = tables.generateHints({
 		{ key = "<l>", desc = "logs" },
 		{ key = "<d>", desc = "desc" },
 		{ key = "<t>", desc = "top" },
 		{ key = "<enter>", desc = "containers" },
 	}, true, true)
-	actions.new_buffer(pretty, "k8s_pods", { is_float = false, hints = hints })
+	actions.new_buffer(find.filter_line(pretty, FILTER), "k8s_pods", { is_float = false, hints = hints })
 end
 
 function M.PodTop()

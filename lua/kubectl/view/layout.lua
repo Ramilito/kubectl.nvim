@@ -3,7 +3,7 @@ local config = require("kubectl.config")
 local M = {}
 local api = vim.api
 
-local function set_buf_options(buf, win, filetype, syntax)
+function M.set_buf_options(buf, win, filetype, syntax)
 	api.nvim_set_option_value("filetype", filetype, { buf = buf })
 	api.nvim_set_option_value("syntax", syntax, { buf = buf })
 	api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
@@ -25,8 +25,27 @@ function M.main_layout(buf, filetype, syntax)
 		syntax = filetype
 	end
 	local win = api.nvim_get_current_win()
-	set_buf_options(buf, win, filetype, syntax)
+	M.set_buf_options(buf, win, filetype, syntax)
 	hl.set_highlighting()
+end
+
+function M.filter_layout(buf, filetype, title)
+	local width = 0.8 * vim.o.columns
+	local height = 0.1 * vim.o.lines
+	local row = 10
+	local col = 10
+
+	local win = api.nvim_open_win(buf, true, {
+		relative = "editor",
+		style = "minimal",
+		width = math.floor(width),
+		height = math.floor(height),
+		row = row,
+		border = "rounded",
+		col = col,
+		title = filetype .. " - " .. (title or ""),
+	})
+	return win
 end
 
 function M.float_layout(buf, filetype, title, syntax)
@@ -49,7 +68,7 @@ function M.float_layout(buf, filetype, title, syntax)
 		title = filetype .. " - " .. (title or ""),
 	})
 
-	set_buf_options(buf, win, filetype, syntax)
+	M.set_buf_options(buf, win, filetype, syntax)
 	hl.set_highlighting()
 end
 
