@@ -78,13 +78,13 @@ No startup impact since we load on demand.
 - [ ] Tail logs
 - [ ] Populate the g? help buffer
 - [ ] Configuration
-- [ ] Add testing and types
-- [ ] Debug level logging
-- [ ] Kubectl diff capability
   - [x] Optional hints
   - [x] Optional or toggable context info
   - [x] Custom float size
   - [ ] Bring your own colors
+- [ ] Add testing and types
+- [ ] Debug level logging
+- [ ] Kubectl diff capability
 - [x] Hints bar for shortcuts
 - [x] Node view
 - [x] Services view
