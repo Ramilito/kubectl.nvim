@@ -22,7 +22,7 @@ end
 
 -- Function to calculate the time difference and format it
 function M.since(timestamp)
-  if not timestamp or not type(timestamp) == "string" then
+  if not timestamp or type(timestamp) ~= "string" then
     return "nil"
   end
 
