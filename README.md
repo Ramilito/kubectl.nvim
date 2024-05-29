@@ -71,7 +71,7 @@ No startup impact since we load on demand.
 - [x] Exec into container
 - [ ] Auto refresh state (should probably do async operations task first)
 - [ ] Async operations
-- [ ] Grep like filter
+- [x] Grep like filter
 - [ ] Switch namespace
 - [ ] Switch context
 - [ ] Sort on columns
