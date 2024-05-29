@@ -1,8 +1,7 @@
-local tables = require("kubectl.view.tables")
+local tables = require("kubectl.utils.tables")
+local actions = require("kubectl.actions.actions")
 
 local M = {}
-
-local actions = require("kubectl.actions")
 
 function M.filter()
   local hints = tables.generateHints({

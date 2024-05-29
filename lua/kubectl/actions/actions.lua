@@ -1,5 +1,5 @@
-local hl = require("kubectl.view.highlight")
-local layout = require("kubectl.view.layout")
+local hl = require("kubectl.actions.highlight")
+local layout = require("kubectl.actions.layout")
 local api = vim.api
 local M = {}
 

@@ -1,41 +1,41 @@
-local event_view = require("kubectl.events.views")
+local event_view = require("kubectl.views.events.views")
 local string_util = require("kubectl.utils.string")
-local root_view = require("kubectl.root.views")
-local hl = require("kubectl.view.highlight")
+local root_view = require("kubectl.views.root.views")
+local hl = require("kubectl.actions.highlight")
 local api = vim.api
 
 local function getCurrentSelection()
-	local line = api.nvim_get_current_line()
-	local columns = vim.split(line, hl.symbols.tab)
-	local message = string_util.trim(columns[6])
-	return message
+  local line = api.nvim_get_current_line()
+  local columns = vim.split(line, hl.symbols.tab)
+  local message = string_util.trim(columns[6])
+  return message
 end
 
 api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
-	noremap = true,
-	silent = true,
-	callback = function()
-		local message = getCurrentSelection()
-		if message then
-			event_view.ShowMessage(message)
-		else
-			print("Failed to extract event message.")
-		end
-	end,
+  noremap = true,
+  silent = true,
+  callback = function()
+    local message = getCurrentSelection()
+    if message then
+      event_view.ShowMessage(message)
+    else
+      print("Failed to extract event message.")
+    end
+  end,
 })
 
 api.nvim_buf_set_keymap(0, "n", "R", "", {
-	noremap = true,
-	silent = true,
-	callback = function()
-		event_view.Events()
-	end,
+  noremap = true,
+  silent = true,
+  callback = function()
+    event_view.Events()
+  end,
 })
 
 api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
-	noremap = true,
-	silent = true,
-	callback = function()
-		root_view.Root()
-	end,
+  noremap = true,
+  silent = true,
+  callback = function()
+    root_view.Root()
+  end,
 })

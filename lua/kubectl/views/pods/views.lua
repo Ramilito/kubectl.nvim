@@ -1,8 +1,8 @@
-local actions = require("kubectl.actions")
-local commands = require("kubectl.commands")
+local actions = require("kubectl.actions.actions")
+local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
-local pods = require("kubectl.pods")
-local tables = require("kubectl.view.tables")
+local pods = require("kubectl.views.pods")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 local selection = {}

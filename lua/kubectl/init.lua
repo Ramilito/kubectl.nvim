@@ -1,13 +1,13 @@
-local commands = require("kubectl.commands")
+local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local pod_view = require("kubectl.pods.views")
-local deployment_view = require("kubectl.deployments.views")
-local events_view = require("kubectl.events.views")
-local nodes_view = require("kubectl.nodes.views")
-local secrets_view = require("kubectl.secrets.views")
-local services_view = require("kubectl.services.views")
-local filter_view = require("kubectl.filter.view")
-local view = require("kubectl.view")
+local pod_view = require("kubectl.views.pods.views")
+local deployment_view = require("kubectl.views.deployments.views")
+local events_view = require("kubectl.views.events.views")
+local nodes_view = require("kubectl.views.nodes.views")
+local secrets_view = require("kubectl.views.secrets.views")
+local services_view = require("kubectl.views.services.views")
+local filter_view = require("kubectl.views.filter.view")
+local view = require("kubectl.views")
 
 local M = {}
 

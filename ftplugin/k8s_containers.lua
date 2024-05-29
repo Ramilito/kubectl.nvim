@@ -1,9 +1,9 @@
 -- k8s_containers.lua in ~/.config/nvim/ftplugin
 local api = vim.api
-local hl = require("kubectl.view.highlight")
-local pod_view = require("kubectl.pods.views")
+local hl = require("kubectl.actions.highlight")
+local pod_view = require("kubectl.views.pods.views")
 local string_util = require("kubectl.utils.string")
-local view = require("kubectl.view")
+local view = require("kubectl.views")
 
 local function getCurrentSelection()
 	local line = api.nvim_get_current_line()

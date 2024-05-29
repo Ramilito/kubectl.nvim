@@ -1,5 +1,5 @@
-local tables = require("kubectl.view.tables")
-local actions = require("kubectl.actions")
+local tables = require("kubectl.utils.tables")
+local actions = require("kubectl.actions.actions")
 
 local M = {}
 

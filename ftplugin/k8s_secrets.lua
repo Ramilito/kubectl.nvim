@@ -1,7 +1,7 @@
-local secret_view = require("kubectl.secrets.views")
+local secret_view = require("kubectl.views.secrets.views")
 local string_util = require("kubectl.utils.string")
-local root_view = require("kubectl.root.views")
-local hl = require("kubectl.view.highlight")
+local root_view = require("kubectl.views.root.views")
+local hl = require("kubectl.actions.highlight")
 local api = vim.api
 
 local function getCurrentSelection()

@@ -1,5 +1,5 @@
-local actions = require("kubectl.actions")
-local commands = require("kubectl.commands")
+local actions = require("kubectl.actions.actions")
+local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
 
 local M = {}

@@ -1,5 +1,5 @@
 local M = {}
-local hl = require("kubectl.view.highlight")
+local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 local function getPorts(ports)
