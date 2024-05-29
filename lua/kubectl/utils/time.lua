@@ -1,7 +1,7 @@
 local M = {}
 
 -- Function to parse the timestamp
-function M.parse(timestamp)
+local function parse(timestamp)
 	local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
 	local year, month, day, hour, min, sec = timestamp:match(pattern)
 	return os.time({
@@ -22,11 +22,11 @@ end
 
 -- Function to calculate the time difference and format it
 function M.since(timestamp)
-	if not timestamp then
+	if not timestamp or not type(timestamp) == "string" then
 		return "nil"
 	end
 
-	local parsedTime = M.parse(timestamp)
+	local parsedTime = parse(timestamp)
 	local currentTime = getCurrentTimeUTC()
 	local diff = currentTime - parsedTime
 

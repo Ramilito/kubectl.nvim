@@ -1,7 +1,8 @@
-local events = require("kubectl.events")
-local commands = require("kubectl.commands")
-local tables = require("kubectl.view.tables")
 local actions = require("kubectl.actions")
+local commands = require("kubectl.commands")
+local events = require("kubectl.events")
+local find = require("kubectl.utils.find")
+local tables = require("kubectl.view.tables")
 
 local M = {}
 
@@ -11,9 +12,13 @@ function M.Events()
 	local pretty = tables.pretty_print(data, events.getHeaders())
 	local hints = tables.generateHints({
 		{ key = "<enter>", desc = "message" },
-	})
+	}, true, true)
 
-	actions.new_buffer(pretty, "k8s_events", { is_float = false, hints = hints, title = "Events" })
+	actions.new_buffer(
+		find.filter_line(pretty, FILTER),
+		"k8s_events",
+		{ is_float = false, hints = hints, title = "Events" }
+	)
 end
 
 function M.ShowMessage(event)

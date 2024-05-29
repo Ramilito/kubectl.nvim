@@ -1,7 +1,8 @@
-local deployments = require("kubectl.deployments")
-local commands = require("kubectl.commands")
-local tables = require("kubectl.view.tables")
 local actions = require("kubectl.actions")
+local commands = require("kubectl.commands")
+local deployments = require("kubectl.deployments")
+local find = require("kubectl.utils.find")
+local tables = require("kubectl.view.tables")
 
 local M = {}
 
@@ -12,9 +13,13 @@ function M.Deployments()
 	local hints = tables.generateHints({
 		{ key = "<d>", desc = "desc" },
 		{ key = "<enter>", desc = "pods" },
-	})
+	}, true, true)
 
-	actions.new_buffer(pretty, "k8s_deployments", { is_float = false, hints = hints, title = "Deployments" })
+	actions.new_buffer(
+		find.filter_line(pretty, FILTER),
+		"k8s_deployments",
+		{ is_float = false, hints = hints, title = "Deployments" }
+	)
 end
 
 function M.DeploymentDesc(deployment_desc, namespace)

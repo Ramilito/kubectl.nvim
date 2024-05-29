@@ -1,7 +1,8 @@
-local services = require("kubectl.services")
-local commands = require("kubectl.commands")
-local tables = require("kubectl.view.tables")
 local actions = require("kubectl.actions")
+local commands = require("kubectl.commands")
+local find = require("kubectl.utils.find")
+local services = require("kubectl.services")
+local tables = require("kubectl.view.tables")
 
 local M = {}
 
@@ -11,9 +12,13 @@ function M.Services()
 	local pretty = tables.pretty_print(data, services.getHeaders())
 	local hints = tables.generateHints({
 		{ key = "<d>", desc = "describe" },
-	})
+	}, true, true)
 
-	actions.new_buffer(pretty, "k8s_services", { is_float = false, hints = hints, title = "Services" })
+	actions.new_buffer(
+		find.filter_line(pretty, FILTER),
+		"k8s_services",
+		{ is_float = false, hints = hints, title = "Services" }
+	)
 end
 
 function M.ServiceDesc(namespace, name)
