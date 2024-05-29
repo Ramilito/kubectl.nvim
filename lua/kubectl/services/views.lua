@@ -11,7 +11,7 @@ function M.Services()
 	local pretty = tables.pretty_print(data, services.getHeaders())
 	local hints = tables.generateHints({
 		{ key = "<d>", desc = "describe" },
-	})
+	}, true, true)
 
 	actions.new_buffer(pretty, "k8s_services", { is_float = false, hints = hints, title = "Services" })
 end
