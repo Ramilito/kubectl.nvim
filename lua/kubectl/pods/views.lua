@@ -18,22 +18,22 @@ function M.Pods()
     { key = "<t>", desc = "top" },
     { key = "<enter>", desc = "containers" },
   }, true, true)
-  actions.new_buffer(find.filter_line(pretty, FILTER), "k8s_pods", { is_float = false, hints = hints })
+  actions.buffer(find.filter_line(pretty, FILTER), "k8s_pods", { hints = hints })
 end
 
 function M.PodTop()
   local results = commands.execute_shell_command("kubectl", { "top", "pods", "-A" })
-  actions.new_buffer(vim.split(results, "\n"), "k8s_pods", { is_float = true, title = "Top" })
+  actions.floating_buffer(vim.split(results, "\n"), "k8s_pods", { title = "Top" })
 end
 
 function M.PodLogs(pod_name, namespace)
   local results = commands.execute_shell_command("kubectl", { "logs", pod_name, "-n", namespace })
-  actions.new_buffer(vim.split(results, "\n"), "k8s_pod_logs", { is_float = true, title = pod_name, syntax = "less" })
+  actions.floating_buffer(vim.split(results, "\n"), "k8s_pod_logs", { title = pod_name, syntax = "less" })
 end
 
 function M.PodDesc(pod_name, namespace)
   local desc = commands.execute_shell_command("kubectl", { "describe", "pod", pod_name, "-n", namespace })
-  actions.new_buffer(vim.split(desc, "\n"), "k8s_pod_desc", { is_float = true, title = pod_name, syntax = "yaml" })
+  actions.floating_buffer(vim.split(desc, "\n"), "k8s_pod_desc", { title = pod_name, syntax = "yaml" })
 end
 
 function M.ExecContainer(container_name)
@@ -56,6 +56,6 @@ function M.PodContainers(pod_name, namespace)
 
   local data = pods.processContainerRow(vim.json.decode(results))
   local pretty = tables.pretty_print(data, pods.getContainerHeaders())
-  actions.new_buffer(pretty, "k8s_containers", { is_float = true, title = pod_name })
+  actions.floating_buffer(pretty, "k8s_containers", { title = pod_name })
 end
 return M

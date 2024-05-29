@@ -20,13 +20,9 @@ function M.set_buf_options(buf, win, filetype, syntax)
   -- api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
 
-function M.main_layout(buf, filetype, syntax)
-  if not syntax then
-    syntax = filetype
-  end
-  local win = api.nvim_get_current_win()
-  M.set_buf_options(buf, win, filetype, syntax)
-  hl.set_highlighting()
+function M.main_layout()
+  -- TODO: Should we create a new win?
+  return api.nvim_get_current_win()
 end
 
 function M.filter_layout(buf, filetype, title)
@@ -48,10 +44,7 @@ function M.filter_layout(buf, filetype, title)
   return win
 end
 
-function M.float_layout(buf, filetype, title, syntax)
-  if not syntax then
-    syntax = filetype
-  end
+function M.float_layout(buf, filetype, title)
   local width = config.options.float_size.width * vim.o.columns
   local height = config.options.float_size.height * vim.o.lines
   local row = config.options.float_size.row
@@ -67,9 +60,7 @@ function M.float_layout(buf, filetype, title, syntax)
     col = col,
     title = filetype .. " - " .. (title or ""),
   })
-
-  M.set_buf_options(buf, win, filetype, syntax)
-  hl.set_highlighting()
+  return win
 end
 
 return M
