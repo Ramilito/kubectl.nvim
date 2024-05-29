@@ -1,4 +1,9 @@
 local pod_view = require("kubectl.pods.views")
+local deployment_view = require("kubectl.deployments.views")
+local events_view = require("kubectl.events.views")
+local nodes_view = require("kubectl.nodes.views")
+local secrets_view = require("kubectl.secrets.views")
+local services_view = require("kubectl.services.views")
 local view = require("kubectl.view")
 local config = require("kubectl.config")
 local commands = require("kubectl.commands")
@@ -22,9 +27,28 @@ function M.setup(options)
 end
 
 vim.api.nvim_create_user_command("Kubectl", function(opts)
-	view.UserCmd(opts.fargs)
+	if opts.fargs[1] == "get" then
+		if vim.tbl_contains({ "pods", "pod", "po" }, opts.fargs[2]) then
+			pod_view.Pods()
+		elseif vim.tbl_contains({ "deployments", "deployment", "deploy" }, opts.fargs[2]) then
+			deployment_view.Deployments()
+		elseif vim.tbl_contains({ "events", "event", "ev" }, opts.fargs[2]) then
+			events_view.Events()
+		elseif vim.tbl_contains({ "nodes", "node", "no" }, opts.fargs[2]) then
+			nodes_view.Nodes()
+		elseif vim.tbl_contains({ "secrets", "secret", "sec" }, opts.fargs[2]) then
+			secrets_view.Secrets()
+		elseif vim.tbl_contains({ "services", "service", "svc" }, opts.fargs[2]) then
+			services_view.Services()
+		else
+			view.UserCmd(opts.fargs)
+		end
+	else
+		view.UserCmd(opts.fargs)
+	end
 end, {
 	nargs = "*",
+	complete = commands.user_command_completion,
 })
 
 return M
