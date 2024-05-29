@@ -31,8 +31,8 @@ end
 
 function M.filter_layout(buf, filetype, title)
 	local width = 0.8 * vim.o.columns
-	local height = 0.2 * vim.o.lines
-	local row = 20
+	local height = 0.1 * vim.o.lines
+	local row = 10
 	local col = 10
 
 	local win = api.nvim_open_win(buf, true, {
