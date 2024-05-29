@@ -71,10 +71,14 @@ No startup impact since we load on demand.
 - [x] Exec into container
 - [ ] Auto refresh state (should probably do async operations task first)
 - [ ] Async operations
-- [ ] Filter on namespace
+- [ ] Grep like filter
+- [ ] Switch namespace
+- [ ] Switch context
+- [ ] Sort on columns
 - [ ] Tail logs
 - [ ] Populate the g? help buffer
 - [ ] Configuration
+- [ ] Kubectl diff capability
   - [x] Optional hints
   - [x] Optional or toggable context info
   - [x] Custom float size
