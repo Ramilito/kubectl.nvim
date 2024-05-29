@@ -1,7 +1,8 @@
-local secrets = require("kubectl.secrets")
-local commands = require("kubectl.commands")
-local tables = require("kubectl.view.tables")
 local actions = require("kubectl.actions")
+local commands = require("kubectl.commands")
+local find = require("kubectl.utils.find")
+local secrets = require("kubectl.secrets")
+local tables = require("kubectl.view.tables")
 
 local M = {}
 
@@ -13,7 +14,11 @@ function M.Secrets()
 		{ key = "<d>", desc = "describe" },
 	}, true, true)
 
-	actions.new_buffer(pretty, "k8s_secrets", { is_float = false, hints = hints, title = "Secrets" })
+	actions.new_buffer(
+		find.filter_line(pretty, FILTER),
+		"k8s_secrets",
+		{ is_float = false, hints = hints, title = "Secrets" }
+	)
 end
 
 function M.SecretDesc(namespace, name)
