@@ -56,6 +56,8 @@ function M.new_buffer(content, filetype, opts)
 
 	if opts.is_float then
 		layout.float_layout(buf, filetype, opts.title or "", opts.syntax or filetype)
+		vim.bo[buf].buflisted = false
+		vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 	else
 		api.nvim_set_current_buf(buf)
 		layout.main_layout(buf, filetype, opts.syntax or filetype)
