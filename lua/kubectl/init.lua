@@ -4,9 +4,9 @@ local pod_view = require("kubectl.views.pods")
 local deployment_view = require("kubectl.views.deployments")
 local events_view = require("kubectl.views.events")
 local nodes_view = require("kubectl.views.nodes")
-local secrets_view = require("kubectl.views.secrets.views")
-local services_view = require("kubectl.views.services.views")
-local filter_view = require("kubectl.views.filter.view")
+local secrets_view = require("kubectl.views.secrets")
+local services_view = require("kubectl.views.services")
+local filter_view = require("kubectl.views.filter")
 local view = require("kubectl.views")
 
 local M = {}

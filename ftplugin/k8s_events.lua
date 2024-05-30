@@ -1,6 +1,6 @@
 local event_view = require("kubectl.views.events")
 local string_util = require("kubectl.utils.string")
-local root_view = require("kubectl.views.root.views")
+local root_view = require("kubectl.views.root")
 local hl = require("kubectl.actions.highlight")
 local api = vim.api
 

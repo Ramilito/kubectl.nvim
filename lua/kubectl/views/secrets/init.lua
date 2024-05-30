@@ -1,42 +1,26 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
+local definition = require("kubectl.views.secrets.definition")
+
 local M = {}
-local time = require("kubectl.utils.time")
 
-local function getData(data)
-  local count = 0
-  if data then
-    for _ in pairs(data) do
-      count = count + 1
-    end
-  end
-  return count
+function M.Secrets()
+  ResourceBuilder:new("secrets", { "get", "secrets", "-A", "-o=json" })
+    :fetch()
+    :decodeJson()
+    :process(definition.processRow)
+    :prettyPrint(definition.getHeaders)
+    :addHints({
+      { key = "<d>", desc = "describe" },
+    }, true, true)
+    :setFilter(FILTER)
+    :display("k8s_secrets", "Secrets")
 end
 
-function M.processRow(rows)
-  local data = {}
-  for _, row in pairs(rows.items) do
-    local pod = {
-      namespace = row.metadata.namespace,
-      name = row.metadata.name,
-      type = row.type,
-      data = getData(row.data),
-      age = time.since(row.metadata.creationTimestamp),
-    }
-
-    table.insert(data, pod)
-  end
-  return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "TYPE",
-    "DATA",
-    "AGE",
-  }
-
-  return headers
+function M.SecretDesc(namespace, name)
+  ResourceBuilder:new("desc", { "describe", "secret", name, "-n", namespace })
+    :fetch()
+    :splitData()
+    :displayFloat("k8s_secret_desc", name, "yaml")
 end
 
 return M
