@@ -1,11 +1,7 @@
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
+local completion = require("kubectl.completion")
 local pod_view = require("kubectl.views.pods")
-local deployment_view = require("kubectl.views.deployments")
-local events_view = require("kubectl.views.events")
-local nodes_view = require("kubectl.views.nodes")
-local secrets_view = require("kubectl.views.secrets")
-local services_view = require("kubectl.views.services")
 local filter_view = require("kubectl.views.filter")
 local view = require("kubectl.views")
 
@@ -29,27 +25,9 @@ function M.setup(options)
   config.setup(options)
 end
 
-local views = {
-  pods = { "pods", "pod", "po", pod_view.Pods },
-  deployments = { "deployments", "deployment", "deploy", deployment_view.Deployments },
-  events = { "events", "event", "ev", events_view.Events },
-  nodes = { "nodes", "node", "no", nodes_view.Nodes },
-  secrets = { "secrets", "secret", "sec", secrets_view.Secrets },
-  services = { "services", "service", "svc", services_view.Services },
-}
-
-local function find_view_command(arg)
-  for _, v in pairs(views) do
-    if vim.tbl_contains(v, arg) then
-      return v[#v]
-    end
-  end
-  return nil
-end
-
 vim.api.nvim_create_user_command("Kubectl", function(opts)
   if opts.fargs[1] == "get" then
-    local cmd = find_view_command(opts.fargs[2])
+    local cmd = completion.find_view_command(opts.fargs[2])
     if cmd then
       cmd()
     else
@@ -60,7 +38,7 @@ vim.api.nvim_create_user_command("Kubectl", function(opts)
   end
 end, {
   nargs = "*",
-  complete = commands.user_command_completion,
+  complete = completion.user_command_completion,
 })
 
 local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
