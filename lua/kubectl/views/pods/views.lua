@@ -1,5 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-
 local commands = require("kubectl.actions.commands")
 local pods = require("kubectl.views.pods")
 
@@ -14,7 +13,7 @@ function M.Pods()
     :prettyPrint(pods.getHeaders)
     :addHints({
       { key = "<l>", desc = "logs" },
-      { key = "<d>", desc = "desc" },
+      { key = "<d>", desc = "describe" },
       { key = "<t>", desc = "top" },
       { key = "<enter>", desc = "containers" },
     }, true, true)
@@ -57,6 +56,7 @@ function M.PodContainers(pod_name, namespace)
     :addHints({
       { key = "<enter>", desc = "exec" },
     }, false, false)
-    :displayFloat("k8s_containers", pod_name, "")
+    :displayFloat("k8s_containers", pod_name, "", true)
 end
+
 return M

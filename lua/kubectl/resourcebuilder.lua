@@ -55,13 +55,13 @@ function ResourceBuilder:setFilter(filter)
   return self
 end
 
-function ResourceBuilder:display(bufferName)
-  actions.buffer(find.filter_line(self.prettyData, self.filter), bufferName, { hints = self.hints })
+function ResourceBuilder:display(filetype, title)
+  actions.buffer(find.filter_line(self.prettyData, self.filter), filetype, { title = title, hints = self.hints })
 end
 
-function ResourceBuilder:displayFloat(bufferName, title, syntax)
-  print(vim.inspect(self.data))
-  actions.floating_buffer(self.prettyData, bufferName, { title = title, syntax = syntax, hints = self.hints })
+function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
+  local displayData = usePrettyData and self.prettyData or self.data
+  actions.floating_buffer(displayData, filetype, { title = title, syntax = syntax, hints = self.hints })
   return self
 end
 
