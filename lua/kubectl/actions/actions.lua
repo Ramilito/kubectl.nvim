@@ -34,7 +34,7 @@ function M.filter_buffer(content, filetype, opts)
 
   vim.fn.prompt_setcallback(buf, function(input)
     if not input then
-      FILTER = nil
+      FILTER = ""
     else
       FILTER = input
     end
