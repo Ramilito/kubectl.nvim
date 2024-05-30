@@ -8,6 +8,7 @@ function M.Services()
     :fetch()
     :decodeJson()
     :process(definition.processRow)
+    :sort(SORTBY)
     :prettyPrint(definition.getHeaders)
     :addHints({
       { key = "<d>", desc = "describe" },

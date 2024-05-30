@@ -9,6 +9,7 @@ function M.Events()
     :fetch()
     :decodeJson()
     :process(definition.processRow)
+    :sort(SORTBY)
     :prettyPrint(definition.getHeaders)
     :addHints({
       { key = "<enter>", desc = "message" },
