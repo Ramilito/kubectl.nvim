@@ -19,7 +19,7 @@ function M.Pods()
       { key = "<enter>", desc = "containers" },
     }, true, true)
     :setFilter(FILTER)
-    :display("k8s_pods")
+    :display("k8s_pods", "Pods")
 end
 
 function M.PodTop()
