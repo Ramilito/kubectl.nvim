@@ -1,15 +1,7 @@
 local node_view = require("kubectl.views.nodes")
-local string_util = require("kubectl.utils.string")
 local root_view = require("kubectl.views.root")
-local hl = require("kubectl.actions.highlight")
+local tables = require("kubectl.utils.tables")
 local api = vim.api
-
-local function getCurrentSelection()
-  local line = api.nvim_get_current_line()
-  local columns = vim.split(line, hl.symbols.tab)
-  local node = string_util.trim(columns[1])
-  return node
-end
 
 api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
@@ -31,7 +23,7 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
   noremap = true,
   silent = true,
   callback = function()
-    local node = getCurrentSelection()
+    local node = tables.getCurrentSelection(unpack({ 1 }))
     if node then
       node_view.NodeDesc(node)
     else

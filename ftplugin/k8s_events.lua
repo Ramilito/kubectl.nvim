@@ -1,21 +1,13 @@
 local event_view = require("kubectl.views.events")
-local string_util = require("kubectl.utils.string")
 local root_view = require("kubectl.views.root")
-local hl = require("kubectl.actions.highlight")
+local tables = require("kubectl.utils.tables")
 local api = vim.api
-
-local function getCurrentSelection()
-  local line = api.nvim_get_current_line()
-  local columns = vim.split(line, hl.symbols.tab)
-  local message = string_util.trim(columns[6])
-  return message
-end
 
 api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
   noremap = true,
   silent = true,
   callback = function()
-    local message = getCurrentSelection()
+    local message = tables.getCurrentSelection(unpack({ 6 }))
     if message then
       event_view.ShowMessage(message)
     else
