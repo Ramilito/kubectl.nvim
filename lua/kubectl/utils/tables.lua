@@ -1,5 +1,6 @@
 local hl = require("kubectl.actions.highlight")
 local config = require("kubectl.config")
+local string_util = require("kubectl.utils.string")
 local M = {}
 
 -- Function to calculate column widths
@@ -101,6 +102,20 @@ function M.pretty_print(data, headers)
   end
 
   return vim.split(tbl, "\n")
+end
+
+function M.getCurrentSelection(...)
+  local line = vim.api.nvim_get_current_line()
+  local columns = vim.split(line, hl.symbols.tab)
+
+  local results = {}
+  local indices = { ... }
+  for i = 1, #indices do
+    local index = indices[i]
+    table.insert(results, string_util.trim(columns[index]))
+  end
+
+  return unpack(results) -- Use unpack instead of table.unpack for Lua 5.1 compatibility
 end
 
 return M
