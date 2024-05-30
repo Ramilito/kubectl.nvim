@@ -1,152 +1,62 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
+local commands = require("kubectl.actions.commands")
+local definition = require("kubectl.views.pods.definition")
+
 local M = {}
-local hl = require("kubectl.actions.highlight")
-local time = require("kubectl.utils.time")
+local selection = {}
 
-local function getPorts(ports)
-  local string_ports = ""
-  if ports then
-    for index, value in ipairs(ports) do
-      string_ports = string_ports .. value.containerPort .. "/" .. value.protocol
-
-      if index < #ports then
-        string_ports = string_ports .. ","
-      end
-    end
-  end
-  return string_ports
+function M.Pods()
+  ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" })
+    :fetch()
+    :decodeJson()
+    :process(definition.processRow)
+    :prettyPrint(definition.getHeaders)
+    :addHints({
+      { key = "<l>", desc = "logs" },
+      { key = "<d>", desc = "describe" },
+      { key = "<t>", desc = "top" },
+      { key = "<enter>", desc = "containers" },
+    }, true, true)
+    :setFilter(FILTER)
+    :display("k8s_pods")
 end
 
-local function getContainerState(state)
-  for key, _ in pairs(state) do
-    return key
-  end
+function M.PodTop()
+  ResourceBuilder:new("top", { "top", "pods", "-A" }):fetch():splitData():displayFloat("k8s_top", "Top", "")
 end
 
-function M.processContainerRow(row)
-  local data = {}
-
-  for _, container in pairs(row.spec.containers) do
-    for _, status in ipairs(row.status.containerStatuses) do
-      if status.name == container.name then
-        local result = {
-          name = container.name,
-          image = container.image,
-          ready = status.ready,
-          state = getContainerState(status.state),
-          init = false,
-          restarts = status.restartCount,
-          ports = getPorts(container.ports),
-          age = time.since(row.metadata.creationTimestamp),
-        }
-
-        table.insert(data, result)
-      end
-    end
-  end
-  return data
+function M.PodLogs(pod_name, namespace)
+  ResourceBuilder:new("logs", { "logs", pod_name, "-n", namespace })
+    :fetch()
+    :splitData()
+    :displayFloat("k8s_pod_logs", pod_name, "less")
 end
 
-function M.getContainerHeaders()
-  local headers = {
-    "NAME",
-    "IMAGE",
-    "READY",
-    "STATE",
-    "INIT",
-    "RESTARTS",
-    "PORTS",
-    "AGE",
-  }
-
-  return headers
+function M.PodDesc(pod_name, namespace)
+  ResourceBuilder:new("desc", { "describe", "pod", pod_name, "-n", namespace })
+    :fetch()
+    :splitData()
+    :displayFloat("k8s_pod_desc", pod_name, "yaml")
 end
 
-function M.processRow(rows)
-  local data = {}
-  for _, row in pairs(rows.items) do
-    local pod = {
-      namespace = row.metadata.namespace,
-      name = row.metadata.name,
-      ready = M.getReady(row),
-      status = M.getPodStatus(row.status.phase),
-      restarts = M.getRestarts(row),
-      node = row.spec.nodeName,
-      age = time.since(row.metadata.creationTimestamp),
-    }
-
-    table.insert(data, pod)
-  end
-
-  return data
+function M.ExecContainer(container_name)
+  commands.execute_terminal(
+    "kubectl",
+    { "exec", "-it", selection.pod, "-n", selection.ns, "-c ", container_name, "--", "/bin/sh" }
+  )
 end
 
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "READY",
-    "STATUS",
-    "RESTARTS",
-    "NODE",
-    "AGE",
-  }
-
-  return headers
-end
-
-function M.getReady(row)
-  local readyCount = 0
-  local containers = 0
-  if row.status.containerStatuses then
-    for _, value in ipairs(row.status.containerStatuses) do
-      containers = containers + 1
-      if value.ready then
-        readyCount = readyCount + 1
-      end
-    end
-  end
-  return readyCount .. "/" .. containers
-end
-
-function M.getRestarts(row)
-  local restartCount = 0
-  local lastState
-
-  if not row.status.containerStatuses then
-    return restartCount
-  end
-
-  for _, value in ipairs(row.status.containerStatuses) do
-    if value.lastState and value.lastState.terminated then
-      lastState = time.since(value.lastState.terminated.finishedAt)
-    end
-    restartCount = restartCount + value.restartCount
-  end
-  if lastState then
-    return restartCount .. " (" .. lastState .. " ago)"
-  else
-    return restartCount
-  end
-end
-
-function M.getPodStatus(phase)
-  local status = { symbol = "", value = phase }
-  if phase == "Running" then
-    status.symbol = hl.symbols.success
-  elseif phase == "Pending" or phase == "Terminating" or phase == "ContainerCreating" then
-    status.symbol = hl.symbols.pending
-  elseif
-    phase == "Failed"
-    or phase == "RunContainerError"
-    or phase == "ErrImagePull"
-    or phase == "ImagePullBackOff"
-    or phase == "Error"
-    or phase == "OOMKilled"
-  then
-    status.symbol = hl.symbols.error
-  end
-
-  return status
+function M.PodContainers(pod_name, namespace)
+  selection = { pod = pod_name, ns = namespace }
+  ResourceBuilder:new("containers", { "get", "pods", pod_name, "-n", namespace, "-o=json" })
+    :fetch()
+    :decodeJson()
+    :process(definition.processContainerRow)
+    :prettyPrint(definition.getContainerHeaders)
+    :addHints({
+      { key = "<enter>", desc = "exec" },
+    }, false, false)
+    :displayFloat("k8s_containers", pod_name, "", true)
 end
 
 return M

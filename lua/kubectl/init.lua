@@ -1,6 +1,6 @@
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local pod_view = require("kubectl.views.pods.views")
+local pod_view = require("kubectl.views.pods")
 local deployment_view = require("kubectl.views.deployments.views")
 local events_view = require("kubectl.views.events.views")
 local nodes_view = require("kubectl.views.nodes.views")

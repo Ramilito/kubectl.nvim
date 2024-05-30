@@ -2,7 +2,7 @@
 local api = vim.api
 local deployment_view = require("kubectl.views.deployments.views")
 local hl = require("kubectl.actions.highlight")
-local pod_view = require("kubectl.views.pods.views")
+local pod_view = require("kubectl.views.pods")
 local string_util = require("kubectl.utils.string")
 local view = require("kubectl.views")
 
