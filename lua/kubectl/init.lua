@@ -1,8 +1,8 @@
 local commands = require("kubectl.actions.commands")
-local config = require("kubectl.config")
 local completion = require("kubectl.completion")
-local pod_view = require("kubectl.views.pods")
+local config = require("kubectl.config")
 local filter_view = require("kubectl.views.filter")
+local pod_view = require("kubectl.views.pods")
 local view = require("kubectl.views")
 
 local M = {}
@@ -16,6 +16,7 @@ KUBE_CONFIG = commands.execute_shell_command("kubectl", {
                 {range .contexts[*]}{"\\nContext: "}{.context.cluster}{"\\nUsers:   "}{.context.user}{end}\'',
 })
 FILTER = ""
+SORTBY = ""
 
 function M.open()
   pod_view.Pods()
@@ -50,8 +51,20 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.api.nvim_buf_set_keymap(0, "n", "<C-f>", "", {
       noremap = true,
       silent = true,
+      desc = "Filter",
       callback = function()
         filter_view.filter()
+      end,
+    })
+
+    vim.api.nvim_buf_set_keymap(0, "n", "s", "", {
+      noremap = false,
+      silent = true,
+      desc = "Sort",
+      callback = function()
+        local current_word = vim.fn.expand("<cword>")
+        SORTBY = current_word
+        vim.api.nvim_input("R")
       end,
     })
   end,

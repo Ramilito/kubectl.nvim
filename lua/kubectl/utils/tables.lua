@@ -1,5 +1,5 @@
-local hl = require("kubectl.actions.highlight")
 local config = require("kubectl.config")
+local hl = require("kubectl.actions.highlight")
 local string_util = require("kubectl.utils.string")
 local M = {}
 

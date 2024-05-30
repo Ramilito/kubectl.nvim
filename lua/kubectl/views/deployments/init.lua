@@ -1,5 +1,5 @@
-local definition = require("kubectl.views.deployments.definition")
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local definition = require("kubectl.views.deployments.definition")
 
 local M = {}
 
@@ -8,13 +8,14 @@ function M.Deployments()
     :fetch()
     :decodeJson()
     :process(definition.processRow)
+    :sort(SORTBY)
     :prettyPrint(definition.getHeaders)
     :addHints({
       { key = "<d>", desc = "desc" },
       { key = "<enter>", desc = "pods" },
     }, true, true)
     :setFilter(FILTER)
-    :display("k8s_deployments")
+    :display("k8s_deployments", "Deployments")
 end
 
 function M.DeploymentDesc(deployment_desc, namespace)

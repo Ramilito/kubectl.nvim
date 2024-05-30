@@ -1,6 +1,6 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local actions = require("kubectl.actions.actions")
 local definition = require("kubectl.views.events.definition")
-local ResourceBuilder = require("kubectl.resourcebuilder")
 
 local M = {}
 
@@ -9,6 +9,7 @@ function M.Events()
     :fetch()
     :decodeJson()
     :process(definition.processRow)
+    :sort(SORTBY)
     :prettyPrint(definition.getHeaders)
     :addHints({
       { key = "<enter>", desc = "message" },

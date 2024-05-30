@@ -1,5 +1,5 @@
-local definition = require("kubectl.views.nodes.definition")
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local definition = require("kubectl.views.nodes.definition")
 
 local M = {}
 
@@ -8,6 +8,7 @@ function M.Nodes()
     :fetch()
     :decodeJson()
     :process(definition.processRow)
+    :sort(SORTBY)
     :prettyPrint(definition.getHeaders)
     :addHints({
       { key = "<d>", desc = "describe" },
