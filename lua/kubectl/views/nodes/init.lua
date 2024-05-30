@@ -1,5 +1,5 @@
-local definition = require("kubectl.views.nodes.definition")
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local definition = require("kubectl.views.nodes.definition")
 
 local M = {}
 
