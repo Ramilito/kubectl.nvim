@@ -1,6 +1,6 @@
 local deployment_view = require("kubectl.views.deployments")
 local event_view = require("kubectl.views.events")
-local node_view = require("kubectl.views.nodes.views")
+local node_view = require("kubectl.views.nodes")
 local service_view = require("kubectl.views.services.views")
 local secret_view = require("kubectl.views.secrets.views")
 local api = vim.api
