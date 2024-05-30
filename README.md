@@ -10,6 +10,7 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Floating windows for contextual stuff such as logs, description, containers..
 - Run custom commands e.g ```:Kubectl get configmaps -A```
 - Exec into containers
+- Sort by header
 
 ## ⚡️ Dependencies
 - kubectl
@@ -66,6 +67,14 @@ return {
 
 No startup impact since we load on demand.
 
+## Usage
+
+### Sorting
+By moving the cursor to a header word and pressing ```s```
+
+### Exec into container
+In the pod view, select a pod by pressing ```<cr>``` and then again ```<cr>``` on the container you want to exec into
+
 ## TODO
 - [x] Open in split
 - [x] Exec into container
@@ -75,6 +84,8 @@ No startup impact since we load on demand.
 - [ ] Switch namespace
 - [ ] Switch context
 - [ ] Sort on columns
+  - [x] Sort desc
+  - [ ] Sort asc
 - [ ] Tail logs
 - [ ] Populate the g? help buffer
 - [ ] Configuration
@@ -98,6 +109,7 @@ No startup impact since we load on demand.
   - [ ] Add autocompletion
   - [ ] Add some smartness, figure out filetype based on command
 - [ ] Integrate with tooling (such as kubesses or kubediff)
+
 
 ## Motivation
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, ssh, edit) in the future, not sure yet.
