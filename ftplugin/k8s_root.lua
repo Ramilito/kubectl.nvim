@@ -1,4 +1,4 @@
-local deployment_view = require("kubectl.views.deployments.views")
+local deployment_view = require("kubectl.views.deployments")
 local event_view = require("kubectl.views.events.views")
 local node_view = require("kubectl.views.nodes.views")
 local service_view = require("kubectl.views.services.views")

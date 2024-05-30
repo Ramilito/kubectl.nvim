@@ -1,6 +1,6 @@
 -- k8s_deployments.lua in ~/.config/nvim/ftplugin
 local api = vim.api
-local deplyoment_view = require("kubectl.views.deployments.views")
+local deplyoment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root.views")
