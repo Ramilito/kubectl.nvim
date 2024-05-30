@@ -1,6 +1,6 @@
-local M = {}
 local time = require("kubectl.utils.time")
 local find = require("kubectl.utils.find")
+local M = {}
 
 -- Define the custom match function for prefix and suffix
 local function match_prefix_suffix(key, _, prefix, suffix)

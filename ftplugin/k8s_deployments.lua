@@ -1,11 +1,11 @@
 -- k8s_deployments.lua in ~/.config/nvim/ftplugin
 local api = vim.api
-local deplyoment_view = require("kubectl.deployments.views")
-local hl = require("kubectl.view.highlight")
-local pod_view = require("kubectl.pods.views")
-local root_view = require("kubectl.root.views")
+local deplyoment_view = require("kubectl.views.deployments.views")
+local hl = require("kubectl.actions.highlight")
+local pod_view = require("kubectl.views.pods.views")
+local root_view = require("kubectl.views.root.views")
 local string_util = require("kubectl.utils.string")
-local view = require("kubectl.view")
+local view = require("kubectl.views")
 
 local function getCurrentSelection()
 	local line = api.nvim_get_current_line()
