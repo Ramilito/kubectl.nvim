@@ -1,4 +1,4 @@
-local event_view = require("kubectl.views.events.views")
+local event_view = require("kubectl.views.events")
 local string_util = require("kubectl.utils.string")
 local root_view = require("kubectl.views.root.views")
 local hl = require("kubectl.actions.highlight")
