@@ -38,7 +38,7 @@ vim.api.nvim_create_user_command("Kubectl", function(opts)
   end
 end, {
   nargs = "*",
-  complete = commands.user_command_completion,
+  complete = completion.user_command_completion,
 })
 
 local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
