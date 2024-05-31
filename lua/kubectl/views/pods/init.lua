@@ -26,10 +26,18 @@ function M.PodTop()
   ResourceBuilder:new("top", { "top", "pods", "-A" }):fetch():splitData():displayFloat("k8s_top", "Top", "")
 end
 
+function M.TailLogs()
+  commands.continuous_shell_command("kubectl", { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns })
+end
+
 function M.PodLogs(pod_name, namespace)
+  selection = { pod = pod_name, ns = namespace }
   ResourceBuilder:new("logs", { "logs", pod_name, "-n", namespace })
     :fetch()
     :splitData()
+    :addHints({
+      { key = "<f>", desc = "Follow" },
+    }, false, false)
     :displayFloat("k8s_pod_logs", pod_name, "less")
 end
 

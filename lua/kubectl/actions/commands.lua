@@ -1,5 +1,37 @@
 local M = {}
 
+function M.continuous_shell_command(cmd, args)
+  local loaded, Job = pcall(require, "plenary.job")
+  if not loaded then
+    vim.notify("plenary.nvim is not installed. Please install it to use this feature.")
+    return
+  end
+  Job:new({
+    command = cmd,
+    args = args,
+    on_stdout = function(err, data)
+      if err then
+        print("Error: ", err)
+      else
+        vim.schedule(function()
+          local current_buf = vim.api.nvim_get_current_buf()
+          local line_count = vim.api.nvim_buf_line_count(current_buf)
+          vim.api.nvim_buf_set_lines(current_buf, line_count, line_count, false, { data })
+        end)
+      end
+    end,
+    on_stderr = function(err, data)
+      if err then
+        print("Error: ", err)
+      else
+        vim.schedule(function()
+          vim.api.nvim_err_writeln(data)
+        end)
+      end
+    end,
+  }):start()
+end
+
 -- Function to execute a shell command and return the output as a table of strings
 function M.execute_shell_command(cmd, args)
   local full_command = cmd .. " " .. table.concat(args, " ")
