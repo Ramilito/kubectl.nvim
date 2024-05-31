@@ -13,7 +13,11 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Sort by header
 <details>
   <summary>Tail logs</summary>
-  <img src="/.github/ISSUE_TEMPLATE/tail.gif?raw=true" width="700px">
+  <img src="/.github/sort.gif?raw=true" width="700px">
+</details>
+<details>
+  <summary>Tail logs</summary>
+  <img src="/.github/tail.gif?raw=true" width="700px">
 </details>
 
 
