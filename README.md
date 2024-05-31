@@ -9,7 +9,11 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Colored output and smart highlighting
 - Floating windows for contextual stuff such as logs, description, containers..
 - Run custom commands e.g ```:Kubectl get configmaps -A```
-- Exec into containers
+
+<details>
+  <summary>Exec into containers</summary>
+  <img src="/.github/exec.gif?raw=true" width="700px">
+</details>
 <details>
   <summary>Sort by headers</summary>
   <img src="/.github/sort.gif?raw=true" width="700px">
