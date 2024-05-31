@@ -9,6 +9,7 @@ function M.continuous_shell_command(cmd, args)
 
   vim.notify("Starting to follow logs...", vim.log.levels.INFO)
   local buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
   Job:new({
     command = cmd,
     args = args,
@@ -20,6 +21,7 @@ function M.continuous_shell_command(cmd, args)
           local line_count = vim.api.nvim_buf_line_count(buf)
           vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
           vim.api.nvim_set_option_value("modified", false, { buf = buf })
+          vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
         end)
       end
     end,
