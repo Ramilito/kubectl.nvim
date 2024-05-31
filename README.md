@@ -13,7 +13,7 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Sort by header
 <details>
   <summary>Tail logs</summary>
-  ![tail](https://github.com/Ramilito/kubectl.nvim/assets/8473233/09a30fb2-0f02-4c01-a8b7-e5ea1a450cda)
+  <img src="/.github/ISSUE_TEMPLATE/tail.gif?raw=true" width="700px">
 </details>
 
 
