@@ -1,5 +1,24 @@
 local M = {}
 
+function M.shell_command(cmd, args, callback)
+  local loaded, Job = pcall(require, "plenary.job")
+  if not loaded then
+    vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
+    return
+  end
+
+  Job:new({
+    command = cmd,
+    args = args,
+    on_stdout = function(_, data)
+      callback(data)
+    end,
+    on_stderr = function(_, data)
+      callback(data)
+    end,
+  }):start()
+end
+
 -- Function to execute a shell command and return the output as a table of strings
 function M.execute_shell_command(cmd, args)
   local full_command = cmd .. " " .. table.concat(args, " ")

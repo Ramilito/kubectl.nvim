@@ -26,10 +26,36 @@ function M.PodTop()
   ResourceBuilder:new("top", { "top", "pods", "-A" }):fetch():splitData():displayFloat("k8s_top", "Top", "")
 end
 
+function M.TailLogs()
+  local buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
+
+  local function handle_output(data)
+    vim.schedule(function()
+      if vim.api.nvim_buf_is_valid(buf) then
+        local line_count = vim.api.nvim_buf_line_count(buf)
+        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
+        vim.api.nvim_set_option_value("modified", false, { buf = buf })
+        vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+      end
+    end)
+  end
+
+  commands.shell_command(
+    "kubectl",
+    { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns },
+    handle_output
+  )
+end
+
 function M.PodLogs(pod_name, namespace)
+  selection = { pod = pod_name, ns = namespace }
   ResourceBuilder:new("logs", { "logs", pod_name, "-n", namespace })
     :fetch()
     :splitData()
+    :addHints({
+      { key = "<f>", desc = "Follow" },
+    }, false, false)
     :displayFloat("k8s_pod_logs", pod_name, "less")
 end
 

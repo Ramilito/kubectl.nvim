@@ -14,6 +14,7 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 
 ## ⚡️ Dependencies
 - kubectl
+- plenary.nvim
   
 ## 📦 Installation
 
@@ -25,6 +26,7 @@ Install the plugin with your preferred package manager:
 return {
   {
     "ramilito/kubectl.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
     keys = {
       {
         "<leader>k",
