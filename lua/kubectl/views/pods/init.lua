@@ -27,7 +27,25 @@ function M.PodTop()
 end
 
 function M.TailLogs()
-  commands.continuous_shell_command("kubectl", { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns })
+  local buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
+
+  local function handle_output(data)
+    vim.schedule(function()
+      if vim.api.nvim_buf_is_valid(buf) then
+        local line_count = vim.api.nvim_buf_line_count(buf)
+        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
+        vim.api.nvim_set_option_value("modified", false, { buf = buf })
+        vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+      end
+    end)
+  end
+
+  commands.shell_command(
+    "kubectl",
+    { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns },
+    handle_output
+  )
 end
 
 function M.PodLogs(pod_name, namespace)

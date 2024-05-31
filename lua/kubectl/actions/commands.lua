@@ -1,32 +1,20 @@
 local M = {}
 
-function M.continuous_shell_command(cmd, args)
+function M.shell_command(cmd, args, callback)
   local loaded, Job = pcall(require, "plenary.job")
   if not loaded then
     vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
     return
   end
 
-  local buf = vim.api.nvim_get_current_buf()
-  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
-
-  local function handle_output(data)
-    vim.schedule(function()
-      local line_count = vim.api.nvim_buf_line_count(buf)
-      vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
-      vim.api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
-    end)
-  end
-
   Job:new({
     command = cmd,
     args = args,
     on_stdout = function(_, data)
-      handle_output(data)
+      callback(data)
     end,
     on_stderr = function(_, data)
-      handle_output(data)
+      callback(data)
     end,
   }):start()
 end
