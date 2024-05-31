@@ -10,9 +10,8 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Floating windows for contextual stuff such as logs, description, containers..
 - Run custom commands e.g ```:Kubectl get configmaps -A```
 - Exec into containers
-- Sort by header
 <details>
-  <summary>Tail logs</summary>
+  <summary>Sort by headers</summary>
   <img src="/.github/sort.gif?raw=true" width="700px">
 </details>
 <details>
