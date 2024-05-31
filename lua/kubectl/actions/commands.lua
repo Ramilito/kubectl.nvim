@@ -3,10 +3,11 @@ local M = {}
 function M.continuous_shell_command(cmd, args)
   local loaded, Job = pcall(require, "plenary.job")
   if not loaded then
-    vim.notify("plenary.nvim is not installed. Please install it to use this feature.")
+    vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
     return
   end
 
+  vim.notify("Starting to follow logs...", vim.log.levels.INFO)
   local buf = vim.api.nvim_get_current_buf()
   Job:new({
     command = cmd,
@@ -27,7 +28,9 @@ function M.continuous_shell_command(cmd, args)
         print("Error: ", err)
       else
         vim.schedule(function()
-          vim.api.nvim_err_writeln(data)
+          local line_count = vim.api.nvim_buf_line_count(buf)
+          vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
+          vim.api.nvim_set_option_value("modified", false, { buf = buf })
         end)
       end
     end,
