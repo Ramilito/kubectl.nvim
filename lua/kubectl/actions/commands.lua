@@ -6,6 +6,8 @@ function M.continuous_shell_command(cmd, args)
     vim.notify("plenary.nvim is not installed. Please install it to use this feature.")
     return
   end
+
+  local buf = vim.api.nvim_get_current_buf()
   Job:new({
     command = cmd,
     args = args,
@@ -14,9 +16,9 @@ function M.continuous_shell_command(cmd, args)
         print("Error: ", err)
       else
         vim.schedule(function()
-          local current_buf = vim.api.nvim_get_current_buf()
-          local line_count = vim.api.nvim_buf_line_count(current_buf)
-          vim.api.nvim_buf_set_lines(current_buf, line_count, line_count, false, { data })
+          local line_count = vim.api.nvim_buf_line_count(buf)
+          vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
+          vim.api.nvim_set_option_value("modified", false, { buf = buf })
         end)
       end
     end,
