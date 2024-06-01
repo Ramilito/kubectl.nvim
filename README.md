@@ -89,41 +89,5 @@ By moving the cursor to a header word and pressing ```s```
 ### Exec into container
 In the pod view, select a pod by pressing ```<cr>``` and then again ```<cr>``` on the container you want to exec into
 
-## TODO
-- [x] Open in split
-- [x] Exec into container
-- [ ] Auto refresh state (should probably do async operations task first)
-- [ ] Async operations
-- [x] Grep like filter
-- [ ] Switch namespace
-- [ ] Switch context
-- [ ] Sort on columns
-  - [x] Sort desc
-  - [ ] Sort asc
-- [ ] Tail logs
-- [ ] Populate the g? help buffer
-- [ ] Configuration
-  - [x] Optional hints
-  - [x] Optional or toggable context info
-  - [x] Custom float size
-  - [ ] Bring your own colors
-- [ ] Add testing and types
-- [ ] Debug level logging
-- [ ] Kubectl diff capability
-- [x] Hints bar for shortcuts
-- [x] Node view
-- [x] Services view
-- [x] Pod view
-- [x] Container viewn
-- [x] Deployment view
-- [x] Secrets view
-- [ ] CRDS view
-- [ ] Generic view for user commands
-  - [x] Add barebones to use user commands
-  - [ ] Add autocompletion
-  - [ ] Add some smartness, figure out filetype based on command
-- [ ] Integrate with tooling (such as kubesses or kubediff)
-
-
 ## Motivation
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, ssh, edit) in the future, not sure yet.
