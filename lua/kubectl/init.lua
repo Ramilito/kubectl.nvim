@@ -16,7 +16,7 @@ KUBE_CONFIG = vim.json.decode(commands.execute_shell_command("kubectl", {
   "json",
 }))
 
-NAMESPACE = KUBE_CONFIG.contexts[1].context.namespace
+NAMESPACE = config.options.namespace
 FILTER = ""
 SORTBY = ""
 
@@ -26,6 +26,7 @@ end
 
 function M.setup(options)
   config.setup(options)
+  NAMESPACE = config.options.namespace
 end
 
 vim.api.nvim_create_user_command("Kubectl", function(opts)
