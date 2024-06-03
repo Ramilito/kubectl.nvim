@@ -12,6 +12,9 @@ function M.Namespace()
     :sort(SORTBY)
     :prettyPrint(definition.getHeaders)
     :displayFloat("k8s_namespace", "Namespace", "", true)
+
+  local win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_cursor(win, { 2, 0 })
 end
 function M.changeNamespace(name)
   local function handle_output(_)
