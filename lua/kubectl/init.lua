@@ -64,7 +64,7 @@ vim.api.nvim_create_autocmd("FileType", {
       silent = true,
       desc = "Filter",
       callback = function()
-        namespace_view.pick()
+        namespace_view.Namespace()
       end,
     })
 

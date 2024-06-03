@@ -30,7 +30,7 @@ function M.generateContext()
     hint = hint .. "Cluster:   " .. KUBE_CONFIG.clusters[1].name .. "\n"
     hint = hint .. "Context:   " .. KUBE_CONFIG.contexts[1].context.cluster .. "\n"
     hint = hint .. "User:      " .. KUBE_CONFIG.contexts[1].context.user .. "\n"
-    hint = hint .. "Namespace: " .. KUBE_CONFIG.contexts[1].context.namespace .. "\n"
+    hint = hint .. "Namespace: " .. NAMESPACE .. "\n"
     return hint
   end
 end

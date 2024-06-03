@@ -24,31 +24,6 @@ local function set_buffer_lines(buf, hints, content)
   end
 end
 
-function M.namespace_buffer(content, filetype, opts)
-  local bufname = "kubectl_namespace"
-  local buf = create_or_get_buffer(bufname, "prompt")
-  local win = layout.filter_layout(buf, filetype, opts.title or "")
-
-  api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
-  vim.api.nvim_buf_set_lines(buf, #opts.hints, -1, false, { content .. FILTER })
-
-  vim.fn.prompt_setcallback(buf, function(input)
-    if not input then
-      FILTER = ""
-    else
-      FILTER = input
-    end
-    vim.api.nvim_win_close(win, true)
-    vim.api.nvim_input("R")
-  end)
-
-  vim.cmd("startinsert")
-
-  layout.set_buf_options(buf, win, filetype, "")
-  hl.set_highlighting(buf)
-end
-
-
 function M.filter_buffer(content, filetype, opts)
   local bufname = "kubectl_filter"
   local buf = create_or_get_buffer(bufname, "prompt")
