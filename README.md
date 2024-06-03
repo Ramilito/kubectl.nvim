@@ -60,6 +60,7 @@ return {
 ### Setup
 ```lua
 {
+  namespace = "All",
   hints = true,
   context = true,
   float_size = {
@@ -90,4 +91,4 @@ By moving the cursor to a header word and pressing ```s```
 In the pod view, select a pod by pressing ```<cr>``` and then again ```<cr>``` on the container you want to exec into
 
 ## Motivation
-This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, ssh, edit) in the future, not sure yet.
+This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, edit) in the future, not sure yet.
