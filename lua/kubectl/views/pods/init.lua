@@ -1,11 +1,9 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 
 local M = {}
-local selection = {}
-local selectedContainer = ""
+M.selection = {}
 
 function M.Pods()
   ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" })
@@ -43,26 +41,22 @@ function M.TailLogs()
     end)
   end
 
-  local args = { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns }
+  local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
   commands.shell_command("kubectl", args, handle_output)
 end
 
 function M.selectPod(pod_name, namespace)
-  selection = { pod = pod_name, ns = namespace }
-end
-
-function M.selectContainer(name)
-  selectedContainer = name
+  M.selection = { pod = pod_name, ns = namespace }
 end
 
 function M.PodLogs()
-  ResourceBuilder:new("logs", { "logs", selection.pod, "-n", selection.ns })
+  ResourceBuilder:new("logs", { "logs", M.selection.pod, "-n", M.selection.ns })
     :fetch()
     :splitData()
     :addHints({
       { key = "<f>", desc = "Follow" },
     }, false, false)
-    :displayFloat("k8s_pod_logs", selection.pod, "less")
+    :displayFloat("k8s_pod_logs", M.selection.pod, "less")
 end
 
 function M.PodDesc(pod_name, namespace)
@@ -70,56 +64,6 @@ function M.PodDesc(pod_name, namespace)
     :fetch()
     :splitData()
     :displayFloat("k8s_pod_desc", pod_name, "yaml")
-end
-
-function M.ExecContainer(container_name)
-  actions.floating_buffer({ "" }, "k8s_container_exec", { title = "ssh " .. container_name })
-  commands.execute_terminal(
-    "kubectl",
-    { "exec", "-it", selection.pod, "-n", selection.ns, "-c ", container_name, "--", "/bin/sh" }
-  )
-end
-
-function M.ContainerLogs(container_name)
-  ResourceBuilder:new("containerLogs", { "logs", selection.pod, "-n", selection.ns, "-c", container_name })
-    :fetch()
-    :splitData()
-    :addHints({
-      { key = "<f>", desc = "Follow" },
-    }, false, false)
-    :displayFloat("k8s_container_logs", "logs" .. selection.pod, "less")
-end
-
-function M.TailContainerLogs()
-  local buf = vim.api.nvim_get_current_buf()
-  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
-
-  local function handle_output(data)
-    vim.schedule(function()
-      if vim.api.nvim_buf_is_valid(buf) then
-        local line_count = vim.api.nvim_buf_line_count(buf)
-        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
-        vim.api.nvim_set_option_value("modified", false, { buf = buf })
-        vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
-      end
-    end)
-  end
-
-  local args = { "logs", "--follow", "--since=1s", selection.pod, "-c", selectedContainer, "-n", selection.ns }
-  commands.shell_command("kubectl", args, handle_output)
-end
-
-function M.PodContainers()
-  ResourceBuilder:new("containers", { "get", "pods", selection.pod, "-n", selection.ns, "-o=json" })
-    :fetch()
-    :decodeJson()
-    :process(definition.processContainerRow)
-    :prettyPrint(definition.getContainerHeaders)
-    :addHints({
-      { key = "<l>", desc = "logs" },
-      { key = "<enter>", desc = "exec" },
-    }, false, false)
-    :displayFloat("k8s_containers", selection.pod, "", true)
 end
 
 return M
