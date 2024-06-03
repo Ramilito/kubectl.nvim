@@ -1,5 +1,5 @@
--- k8s_pods.lua in ~/.config/nvim/ftplugin
 local api = vim.api
+local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local pod_view = require("kubectl.views.pods")
@@ -64,7 +64,8 @@ api.nvim_buf_set_keymap(0, "n", "l", "", {
   callback = function()
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
-      pod_view.PodLogs(pod_name, namespace)
+      pod_view.selectPod(pod_name, namespace)
+      pod_view.PodLogs()
     else
       print("Failed to extract pod name or namespace.")
     end
@@ -77,7 +78,8 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
   callback = function()
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
-      pod_view.PodContainers(pod_name, namespace)
+      pod_view.selectPod(pod_name, namespace)
+      container_view.containers(pod_view.selection.pod, pod_view.selection.ns)
     else
       print("Failed to extract containers.")
     end
@@ -91,4 +93,3 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
     pod_view.Pods()
   end,
 })
-

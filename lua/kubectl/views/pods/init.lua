@@ -3,7 +3,7 @@ local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 
 local M = {}
-local selection = {}
+M.selection = {}
 
 function M.Pods()
   ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" })
@@ -41,22 +41,22 @@ function M.TailLogs()
     end)
   end
 
-  commands.shell_command(
-    "kubectl",
-    { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns },
-    handle_output
-  )
+  local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
+  commands.shell_command("kubectl", args, handle_output)
 end
 
-function M.PodLogs(pod_name, namespace)
-  selection = { pod = pod_name, ns = namespace }
-  ResourceBuilder:new("logs", { "logs", pod_name, "-n", namespace })
+function M.selectPod(pod_name, namespace)
+  M.selection = { pod = pod_name, ns = namespace }
+end
+
+function M.PodLogs()
+  ResourceBuilder:new("logs", { "logs", M.selection.pod, "-n", M.selection.ns })
     :fetch()
     :splitData()
     :addHints({
       { key = "<f>", desc = "Follow" },
     }, false, false)
-    :displayFloat("k8s_pod_logs", pod_name, "less")
+    :displayFloat("k8s_pod_logs", M.selection.pod, "less")
 end
 
 function M.PodDesc(pod_name, namespace)
@@ -64,26 +64,6 @@ function M.PodDesc(pod_name, namespace)
     :fetch()
     :splitData()
     :displayFloat("k8s_pod_desc", pod_name, "yaml")
-end
-
-function M.ExecContainer(container_name)
-  commands.execute_terminal(
-    "kubectl",
-    { "exec", "-it", selection.pod, "-n", selection.ns, "-c ", container_name, "--", "/bin/sh" }
-  )
-end
-
-function M.PodContainers(pod_name, namespace)
-  selection = { pod = pod_name, ns = namespace }
-  ResourceBuilder:new("containers", { "get", "pods", pod_name, "-n", namespace, "-o=json" })
-    :fetch()
-    :decodeJson()
-    :process(definition.processContainerRow)
-    :prettyPrint(definition.getContainerHeaders)
-    :addHints({
-      { key = "<enter>", desc = "exec" },
-    }, false, false)
-    :displayFloat("k8s_containers", pod_name, "", true)
 end
 
 return M

@@ -6,12 +6,13 @@ local M = {}
 local function create_or_get_buffer(bufname, buftype)
   local buf = vim.fn.bufnr(bufname, true)
   if buf == -1 then
-    buf = vim.api.nvim_create_buf(false, true)
+    buf = vim.api.nvim_create_buf(false, false)
     vim.api.nvim_buf_set_name(buf, bufname)
   end
   if buftype then
     vim.api.nvim_buf_set_option(buf, "buftype", buftype)
   end
+
   return buf
 end
 
@@ -55,7 +56,6 @@ function M.floating_buffer(content, filetype, opts)
   set_buffer_lines(buf, opts.hints, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
-  vim.bo[buf].buflisted = false
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
