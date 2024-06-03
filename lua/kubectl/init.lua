@@ -2,19 +2,21 @@ local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.completion")
 local config = require("kubectl.config")
 local filter_view = require("kubectl.views.filter")
+local namespace_view = require("kubectl.views.namespace")
 local pod_view = require("kubectl.views.pods")
 local view = require("kubectl.views")
 
 local M = {}
 
-KUBE_CONFIG = commands.execute_shell_command("kubectl", {
+KUBE_CONFIG = vim.json.decode(commands.execute_shell_command("kubectl", {
   "config",
   "view",
   "--minify",
   "-o",
-  'jsonpath=\'{range .clusters[*]}{"Cluster: "}{.name}{end} \z
-                {range .contexts[*]}{"\\nContext: "}{.context.cluster}{"\\nUsers:   "}{.context.user}{end}\'',
-})
+  "json",
+}))
+
+NAMESPACE = KUBE_CONFIG.contexts[1].context.namespace
 FILTER = ""
 SORTBY = ""
 
@@ -54,6 +56,15 @@ vim.api.nvim_create_autocmd("FileType", {
       desc = "Filter",
       callback = function()
         filter_view.filter()
+      end,
+    })
+
+    vim.api.nvim_buf_set_keymap(0, "n", "<C-n>", "", {
+      noremap = true,
+      silent = true,
+      desc = "Filter",
+      callback = function()
+        namespace_view.pick()
       end,
     })
 
