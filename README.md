@@ -8,8 +8,10 @@ Note: This is still incomplete in that it doesn't handle all possible resources 
 - Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 - Colored output and smart highlighting
 - Floating windows for contextual stuff such as logs, description, containers..
-- Run custom commands e.g ```:Kubectl get configmaps -A```
-
+<details>
+  <summary>Run custom commands e.g ```:Kubectl get configmaps -A```</summary>
+  <img src="/.github/usercmd.gif?raw=true" width="700px">
+</details>
 <details>
   <summary>Exec into containers</summary>
   <img src="/.github/exec.gif?raw=true" width="700px">
