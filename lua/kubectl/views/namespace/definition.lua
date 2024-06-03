@@ -2,7 +2,8 @@ local time = require("kubectl.utils.time")
 
 local M = {}
 function M.processRow(rows)
-  local data = {}
+  local data = { { name = "All", status = "", age = "" } }
+
   for _, row in pairs(rows.items) do
     local pod = {
       name = row.metadata.name,
