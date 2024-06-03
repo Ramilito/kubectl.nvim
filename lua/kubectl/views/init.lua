@@ -1,6 +1,5 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local actions = require("kubectl.actions.actions")
-local commands = require("kubectl.actions.commands")
-local find = require("kubectl.utils.find")
 
 local M = {}
 
@@ -9,9 +8,9 @@ function M.Hints(hint)
 end
 
 function M.UserCmd(args)
-  local results = commands.execute_shell_command("kubectl", args)
-  local pretty = vim.split(results, "\n")
-  actions.buffer(find.filter_line(pretty, FILTER), "k8s_usercmd", { title = "UserCmd" })
+  local builder = ResourceBuilder:new("k8s_usercmd", args):fetch():splitData()
+  builder.prettyData = builder.data
+  builder:display("k8s_usercmd", "UserCmd")
 end
 
 return M

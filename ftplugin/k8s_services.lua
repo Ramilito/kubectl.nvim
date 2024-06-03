@@ -1,5 +1,6 @@
 local root_view = require("kubectl.views.root")
 local secret_view = require("kubectl.views.secrets")
+local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
 local api = vim.api
 
@@ -7,7 +8,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    secret_view.Secrets()
+    service_view.Services()
   end,
 })
 

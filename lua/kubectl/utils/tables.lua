@@ -25,11 +25,14 @@ end
 
 function M.generateContext()
   local hint = ""
-  for _, value in ipairs(vim.split(KUBE_CONFIG, "\n")) do
-    hint = hint .. value .. "\n"
-  end
 
-  return hint
+  if KUBE_CONFIG then
+    hint = hint .. "Cluster:   " .. KUBE_CONFIG.clusters[1].name .. "\n"
+    hint = hint .. "Context:   " .. KUBE_CONFIG.contexts[1].context.cluster .. "\n"
+    hint = hint .. "User:      " .. KUBE_CONFIG.contexts[1].context.user .. "\n"
+    hint = hint .. "Namespace: " .. NAMESPACE .. "\n"
+    return hint
+  end
 end
 
 function M.generateHints(hintConfigs, include_defaults, include_context)
@@ -44,6 +47,7 @@ function M.generateHints(hintConfigs, include_defaults, include_context)
     if include_defaults then
       hint_line = hint_line .. generateHintLine("<R>", "reload")
       hint_line = hint_line .. generateHintLine("<C-f>", "filter")
+      hint_line = hint_line .. generateHintLine("<C-n>", "namespace")
       hint_line = hint_line .. generateHintLine("<g?>", "help"):gsub(" | $", "") -- remove the last separator
     end
 
@@ -78,12 +82,8 @@ function M.pretty_print(data, headers)
 
   -- Create table header
   for i, header in pairs(headers) do
-    tbl = tbl
-      .. hl.symbols.header
-      .. header
-      .. hl.symbols.clear
-      .. "  "
-      .. string.rep(" ", widths[columns[i]] - #header + 1)
+    local column_width = widths[columns[i]] or 10
+    tbl = tbl .. hl.symbols.header .. header .. hl.symbols.clear .. "  " .. string.rep(" ", column_width - #header + 1)
   end
   tbl = tbl .. "\n"
 

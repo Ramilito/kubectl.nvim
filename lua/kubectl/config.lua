@@ -1,5 +1,6 @@
 local M = {}
 local defaults = {
+  namespace = "All",
   hints = true,
   context = true,
   float_size = {

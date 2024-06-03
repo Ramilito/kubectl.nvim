@@ -24,9 +24,11 @@ function M.filter_line(array, pattern)
     return array
   end
 
-  for _, line in ipairs(array) do
-    if line:match(pattern) then
-      table.insert(filtered_array, line)
+  if array then
+    for _, line in ipairs(array) do
+      if line:match(pattern) then
+        table.insert(filtered_array, line)
+      end
     end
   end
 
