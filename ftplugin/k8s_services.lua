@@ -1,5 +1,4 @@
 local root_view = require("kubectl.views.root")
-local secret_view = require("kubectl.views.secrets")
 local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
 local api = vim.api
@@ -26,7 +25,7 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
   callback = function()
     local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
     if namespace and name then
-      secret_view.SecretDesc(namespace, name)
+      service_view.ServiceDesc(namespace, name)
     else
       api.nvim_err_writeln("Failed to describe pod name or namespace.")
     end
