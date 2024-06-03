@@ -33,6 +33,7 @@ api.nvim_buf_set_keymap(0, "n", "l", "", {
   callback = function()
     local container_name = tables.getCurrentSelection(unpack({ 1 }))
     if container_name then
+      pod_view.selectContainer(container_name)
       pod_view.ContainerLogs(container_name)
     else
       print("Failed to extract logs.")
@@ -46,6 +47,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
   callback = function()
     local container_name = tables.getCurrentSelection(unpack({ 1 }))
     if container_name then
+      pod_view.selectContainer(container_name)
       pod_view.ExecContainer(container_name)
     else
       print("Failed to extract containers.")

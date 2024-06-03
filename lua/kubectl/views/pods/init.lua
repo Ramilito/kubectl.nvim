@@ -5,6 +5,7 @@ local definition = require("kubectl.views.pods.definition")
 
 local M = {}
 local selection = {}
+local selectedContainer = ""
 
 function M.Pods()
   ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" })
@@ -42,15 +43,16 @@ function M.TailLogs()
     end)
   end
 
-  commands.shell_command(
-    "kubectl",
-    { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns },
-    handle_output
-  )
+  local args = { "logs", "--follow", "--since=1s", selection.pod, "-n", selection.ns }
+  commands.shell_command("kubectl", args, handle_output)
 end
 
 function M.selectPod(pod_name, namespace)
   selection = { pod = pod_name, ns = namespace }
+end
+
+function M.selectContainer(name)
+  selectedContainer = name
 end
 
 function M.PodLogs()
@@ -86,6 +88,25 @@ function M.ContainerLogs(container_name)
       { key = "<f>", desc = "Follow" },
     }, false, false)
     :displayFloat("k8s_container_logs", "logs" .. selection.pod, "less")
+end
+
+function M.TailContainerLogs()
+  local buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
+
+  local function handle_output(data)
+    vim.schedule(function()
+      if vim.api.nvim_buf_is_valid(buf) then
+        local line_count = vim.api.nvim_buf_line_count(buf)
+        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
+        vim.api.nvim_set_option_value("modified", false, { buf = buf })
+        vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+      end
+    end)
+  end
+
+  local args = { "logs", "--follow", "--since=1s", selection.pod, "-c", selectedContainer, "-n", selection.ns }
+  commands.shell_command("kubectl", args, handle_output)
 end
 
 function M.PodContainers()

@@ -3,18 +3,16 @@ local layout = require("kubectl.actions.layout")
 local api = vim.api
 local M = {}
 
-local function create_or_get_buffer(bufname, buftype, filetype)
+local function create_or_get_buffer(bufname, buftype)
   local buf = vim.fn.bufnr(bufname, true)
   if buf == -1 then
-    buf = vim.api.nvim_create_buf(true, false)
+    buf = vim.api.nvim_create_buf(false, false)
     vim.api.nvim_buf_set_name(buf, bufname)
   end
   if buftype then
     vim.api.nvim_buf_set_option(buf, "buftype", buftype)
   end
 
-  vim.api.nvim_set_option_value("filetype", filetype, { buf = buf })
-  vim.api.nvim_buf_set_option(buf, "filetype", filetype)
   return buf
 end
 
@@ -54,7 +52,7 @@ end
 function M.floating_buffer(content, filetype, opts)
   local bufname = opts.title or "kubectl_float"
 
-  local buf = create_or_get_buffer(bufname, "", filetype)
+  local buf = create_or_get_buffer(bufname, "")
   set_buffer_lines(buf, opts.hints, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
