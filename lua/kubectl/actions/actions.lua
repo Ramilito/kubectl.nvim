@@ -52,7 +52,7 @@ end
 function M.floating_buffer(content, filetype, opts)
   local bufname = opts.title or "kubectl_float"
 
-  local buf = create_or_get_buffer(bufname, "")
+  local buf = create_or_get_buffer(bufname)
   set_buffer_lines(buf, opts.hints, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
