@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
+local actions = require("kubectl.actions.actions")
 local definition = require("kubectl.views.pods.definition")
 
 local M = {}
@@ -70,6 +71,7 @@ function M.PodDesc(pod_name, namespace)
 end
 
 function M.ExecContainer(container_name)
+  actions.floating_buffer("", "k8s_container_exec", { title = "ssh " .. container_name })
   commands.execute_terminal(
     "kubectl",
     { "exec", "-it", selection.pod, "-n", selection.ns, "-c ", container_name, "--", "/bin/sh" }
