@@ -82,12 +82,8 @@ function M.pretty_print(data, headers)
 
   -- Create table header
   for i, header in pairs(headers) do
-    tbl = tbl
-      .. hl.symbols.header
-      .. header
-      .. hl.symbols.clear
-      .. "  "
-      .. string.rep(" ", widths[columns[i]] - #header + 1)
+    local column_width = widths[columns[i]] or 10
+    tbl = tbl .. hl.symbols.header .. header .. hl.symbols.clear .. "  " .. string.rep(" ", column_width - #header + 1)
   end
   tbl = tbl .. "\n"
 
