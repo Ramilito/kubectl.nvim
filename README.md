@@ -1,6 +1,6 @@
 # kubectl.nvim
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
-<img src="/.github/demo.gif?raw=true" width="1700px">
+<img src="/.github/demo2.gif?raw=true" width="1700px">
 
 Note: This is still incomplete in that it doesn't handle all possible resources and I might change things up in the future.
 
