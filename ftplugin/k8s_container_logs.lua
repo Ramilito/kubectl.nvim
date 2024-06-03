@@ -15,6 +15,6 @@ vim.api.nvim_buf_set_keymap(0, "n", "f", "", {
   silent = true,
   desc = "Tail logs",
   callback = function()
-    container_view.tailContainerLogs(pod_view.selection.pod, pod_view.selection.ns)
+    container_view.tailLogs(pod_view.selection.pod, pod_view.selection.ns)
   end,
 })

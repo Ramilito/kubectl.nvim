@@ -10,7 +10,7 @@ api.nvim_buf_set_keymap(0, "n", "l", "", {
     local container_name = tables.getCurrentSelection(unpack({ 1 }))
     if container_name then
       container_view.selectContainer(container_name)
-      container_view.containerLogs(pod_view.selection.pod, pod_view.selection.ns)
+      container_view.logs(pod_view.selection.pod, pod_view.selection.ns)
     else
       print("Failed to extract logs.")
     end
@@ -24,7 +24,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
     local container_name = tables.getCurrentSelection(unpack({ 1 }))
     if container_name then
       container_view.selectContainer(container_name)
-      container_view.execContainer(pod_view.selection.pod, pod_view.selection.ns)
+      container_view.exec(pod_view.selection.pod, pod_view.selection.ns)
     else
       print("Failed to extract containers.")
     end
@@ -35,6 +35,6 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    container_view.podContainers()
+    container_view.containers()
   end,
 })

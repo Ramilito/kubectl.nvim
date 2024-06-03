@@ -79,7 +79,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
       pod_view.selectPod(pod_name, namespace)
-      container_view.podContainers(pod_view.selection.pod, pod_view.selection.ns)
+      container_view.containers(pod_view.selection.pod, pod_view.selection.ns)
     else
       print("Failed to extract containers.")
     end

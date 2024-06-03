@@ -10,7 +10,7 @@ function M.selectContainer(name)
   M.selection = name
 end
 
-function M.podContainers(pod, ns)
+function M.containers(pod, ns)
   ResourceBuilder:new("containers", { "get", "pods", pod, "-n", ns, "-o=json" })
     :fetch()
     :decodeJson()
@@ -23,7 +23,7 @@ function M.podContainers(pod, ns)
     :displayFloat("k8s_containers", pod, "", true)
 end
 
-function M.tailContainerLogs(pod, ns)
+function M.tailLogs(pod, ns)
   local buf = vim.api.nvim_get_current_buf()
   vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
 
@@ -42,12 +42,12 @@ function M.tailContainerLogs(pod, ns)
   commands.shell_command("kubectl", args, handle_output)
 end
 
-function M.execContainer(pod, ns)
+function M.exec(pod, ns)
   actions.floating_buffer({ "" }, "k8s_container_exec", { title = "ssh " .. M.selection })
   commands.execute_terminal("kubectl", { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" })
 end
 
-function M.containerLogs(pod, ns)
+function M.logs(pod, ns)
   ResourceBuilder:new("containerLogs", { "logs", pod, "-n", ns, "-c", M.selection })
     :fetch()
     :splitData()
