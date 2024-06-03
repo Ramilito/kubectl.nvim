@@ -47,14 +47,6 @@ end, {
 
 local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
 
-vim.api.nvim_create_autocmd({ "BufEnter" }, {
-  callback = function()
-    if vim.bo.filetype:match("^k8s_") then
-      vim.api.nvim_input("R")
-    end
-  end,
-})
-
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = "k8s_*",
