@@ -16,6 +16,14 @@ function ResourceBuilder:new(resource, args)
 end
 
 function ResourceBuilder:fetch()
+  if NAMESPACE ~= "All" then
+    for i, v in ipairs(self.args) do
+      if v == "-A" then
+        self.args[i] = "-n=" .. NAMESPACE
+      end
+    end
+  end
+
   self.data = commands.execute_shell_command("kubectl", self.args)
   return self
 end
