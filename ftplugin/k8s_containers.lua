@@ -27,6 +27,19 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   end,
 })
 
+api.nvim_buf_set_keymap(0, "n", "l", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    local container_name = tables.getCurrentSelection(unpack({ 1 }))
+    if container_name then
+      pod_view.ContainerLogs(container_name)
+    else
+      print("Failed to extract logs.")
+    end
+  end,
+})
+
 api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
   noremap = true,
   silent = true,
@@ -37,5 +50,13 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
     else
       print("Failed to extract containers.")
     end
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "R", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    pod_view.PodContainers()
   end,
 })

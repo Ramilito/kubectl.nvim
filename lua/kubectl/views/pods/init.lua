@@ -48,15 +48,18 @@ function M.TailLogs()
   )
 end
 
-function M.PodLogs(pod_name, namespace)
+function M.selectPod(pod_name, namespace)
   selection = { pod = pod_name, ns = namespace }
-  ResourceBuilder:new("logs", { "logs", pod_name, "-n", namespace })
+end
+
+function M.PodLogs()
+  ResourceBuilder:new("logs", { "logs", selection.pod, "-n", selection.ns })
     :fetch()
     :splitData()
     :addHints({
       { key = "<f>", desc = "Follow" },
     }, false, false)
-    :displayFloat("k8s_pod_logs", pod_name, "less")
+    :displayFloat("k8s_pod_logs", selection.pod, "less")
 end
 
 function M.PodDesc(pod_name, namespace)
@@ -73,17 +76,27 @@ function M.ExecContainer(container_name)
   )
 end
 
-function M.PodContainers(pod_name, namespace)
-  selection = { pod = pod_name, ns = namespace }
-  ResourceBuilder:new("containers", { "get", "pods", pod_name, "-n", namespace, "-o=json" })
+function M.ContainerLogs(container_name)
+  ResourceBuilder:new("containerLogs", { "logs", selection.pod, "-n", selection.ns, "-c", container_name })
+    :fetch()
+    :splitData()
+    :addHints({
+      { key = "<f>", desc = "Follow" },
+    }, false, false)
+    :displayFloat("k8s_container_logs", "logs" .. selection.pod, "less")
+end
+
+function M.PodContainers()
+  ResourceBuilder:new("containers", { "get", "pods", selection.pod, "-n", selection.ns, "-o=json" })
     :fetch()
     :decodeJson()
     :process(definition.processContainerRow)
     :prettyPrint(definition.getContainerHeaders)
     :addHints({
+      { key = "<l>", desc = "logs" },
       { key = "<enter>", desc = "exec" },
     }, false, false)
-    :displayFloat("k8s_containers", pod_name, "", true)
+    :displayFloat("k8s_containers", selection.pod, "", true)
 end
 
 return M

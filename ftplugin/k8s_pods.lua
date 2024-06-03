@@ -64,7 +64,8 @@ api.nvim_buf_set_keymap(0, "n", "l", "", {
   callback = function()
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
-      pod_view.PodLogs(pod_name, namespace)
+      pod_view.selectPod(pod_name, namespace)
+      pod_view.PodLogs()
     else
       print("Failed to extract pod name or namespace.")
     end
@@ -77,7 +78,8 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
   callback = function()
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
-      pod_view.PodContainers(pod_name, namespace)
+      pod_view.selectPod(pod_name, namespace)
+      pod_view.PodContainers()
     else
       print("Failed to extract containers.")
     end
@@ -91,4 +93,3 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
     pod_view.Pods()
   end,
 })
-
