@@ -76,7 +76,6 @@ function M.processRow(rows)
 
     table.insert(data, pod)
   end
-
   return data
 end
 

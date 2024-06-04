@@ -1,23 +1,38 @@
 local M = {}
 
 function M.shell_command(cmd, args, callback)
-  local loaded, Job = pcall(require, "plenary.job")
-  if not loaded then
-    vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
-    return
+  -- local start_time = vim.fn.reltime()
+  local full_command = {}
+
+  table.insert(full_command, cmd)
+  for _, arg in ipairs(args) do
+    table.insert(full_command, arg)
   end
 
-  Job:new({
-    command = cmd,
-    args = args,
-    on_stdout = function(_, data)
-      callback(data)
-    end,
-    on_stderr = function(_, data)
-      callback(data)
-    end,
-  }):start()
+  vim.system(full_command, { text = true }, callback)
+
+  -- local elapsed_time = vim.fn.reltimefloat(vim.fn.reltime(start_time))
+  -- print("Neovim kubectl command to file elapsed time: " .. elapsed_time .. " seconds")
 end
+
+-- function M.shell_command(cmd, args, callback)
+--   local loaded, Job = pcall(require, "plenary.job")
+--   if not loaded then
+--     vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
+--     return
+--   end
+--
+--   Job:new({
+--     command = cmd,
+--     args = args,
+--     on_stdout = function(_, data)
+--       callback(data)
+--     end,
+--     on_stderr = function(_, data)
+--       callback(data)
+--     end,
+--   }):start()
+-- end
 
 -- Function to execute a shell command and return the output as a table of strings
 function M.execute_shell_command(cmd, args)
