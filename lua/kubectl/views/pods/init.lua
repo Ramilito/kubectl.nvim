@@ -6,12 +6,13 @@ local M = {}
 M.selection = {}
 
 function M.Pods()
-  local start_time = vim.fn.reltime()
-  ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" }):fetch(function(self)
-    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders)
-
+  ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" }):fetchAsync(function(self)
     vim.schedule(function()
       self
+        :decodeJson()
+        :process(definition.processRow)
+        :sort(SORTBY)
+        :prettyPrint(definition.getHeaders)
         :addHints({
           { key = "<l>", desc = "logs" },
           { key = "<d>", desc = "describe" },
@@ -20,9 +21,6 @@ function M.Pods()
         }, true, true)
         :setFilter(FILTER)
         :display("k8s_pods", "Pods")
-
-      local elapsed_time = vim.fn.reltimefloat(vim.fn.reltime(start_time))
-      print("Neovim kubectl command to file elapsed time: " .. elapsed_time .. " seconds")
     end)
   end)
 end
