@@ -47,7 +47,7 @@ function M.TailLogs()
   end
 
   local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
-  commands.shell_command("kubectl", args, handle_output)
+  commands.shell_command_async("kubectl", args, handle_output)
 end
 
 function M.selectPod(pod_name, namespace)

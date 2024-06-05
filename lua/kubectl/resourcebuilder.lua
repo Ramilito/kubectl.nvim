@@ -12,11 +12,11 @@ function ResourceBuilder:new(resource, args)
   self.args = args
   self.hints = {}
   self.filter = ""
-  self.data = ""
+  self.data = {}
   return self
 end
 
-function ResourceBuilder:fetch(callback)
+function ResourceBuilder:NamespaceOrAll()
   if NAMESPACE ~= "All" then
     for i, v in ipairs(self.args) do
       if v == "-A" then
@@ -24,9 +24,19 @@ function ResourceBuilder:fetch(callback)
       end
     end
   end
+end
 
-  commands.shell_command("kubectl", self.args, function(data)
+function ResourceBuilder:fetch()
+  self:NamespaceOrAll()
+  self.data = commands.execute_shell_command("kubectl", self.args)
+  return self
+end
+
+function ResourceBuilder:fetchAsync(callback)
+  self:NamespaceOrAll()
+  commands.shell_command_async("kubectl", self.args, function(data)
     self.data = data.stdout
+
     callback(self)
   end)
   return self

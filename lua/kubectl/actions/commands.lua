@@ -1,7 +1,12 @@
 local M = {}
 
-function M.shell_command(cmd, args, callback)
+function M.shell_command_async(cmd, args, callback)
   -- local start_time = vim.fn.reltime()
+  -- local obj = vim.system({ "kubectl" }, { text = true }):wait()
+  --
+  -- local elapsed_time = vim.fn.reltimefloat(vim.fn.reltime(start_time))
+  -- print("Neovim kubectl command to file elapsed time: " .. elapsed_time .. " seconds")
+
   local full_command = {}
 
   table.insert(full_command, cmd)
@@ -10,9 +15,6 @@ function M.shell_command(cmd, args, callback)
   end
 
   vim.system(full_command, { text = true }, callback)
-
-  -- local elapsed_time = vim.fn.reltimefloat(vim.fn.reltime(start_time))
-  -- print("Neovim kubectl command to file elapsed time: " .. elapsed_time .. " seconds")
 end
 
 -- function M.shell_command(cmd, args, callback)
