@@ -2,6 +2,7 @@ local api = vim.api
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
+local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
@@ -93,3 +94,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
     pod_view.Pods()
   end,
 })
+
+if not loop.is_running() then
+  loop.start_loop(pod_view.Pods, "pods")
+end

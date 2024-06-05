@@ -1,7 +1,7 @@
--- k8s_deployments.lua in ~/.config/nvim/ftplugin
 local api = vim.api
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
+local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
@@ -64,3 +64,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
     deployment_view.Deployments()
   end,
 })
+
+if not loop.is_running() then
+  loop.start_loop(deployment_view.Deployments, "Deployments")
+end
