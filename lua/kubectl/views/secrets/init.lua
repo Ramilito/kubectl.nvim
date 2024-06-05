@@ -4,17 +4,21 @@ local definition = require("kubectl.views.secrets.definition")
 local M = {}
 
 function M.Secrets()
-  ResourceBuilder:new("secrets", { "get", "secrets", "-A", "-o=json" })
-    :fetch()
-    :decodeJson()
-    :process(definition.processRow)
-    :sort(SORTBY)
-    :prettyPrint(definition.getHeaders)
-    :addHints({
-      { key = "<d>", desc = "describe" },
-    }, true, true)
-    :setFilter(FILTER)
-    :display("k8s_secrets", "Secrets")
+  ResourceBuilder:new("secrets", { "get", "secrets", "-A", "-o=json" }):fetchAsync(function(self)
+    self
+      :decodeJson()
+      :process(definition.processRow)
+      :sort(SORTBY)
+      :prettyPrint(definition.getHeaders)
+      :addHints({
+        { key = "<d>", desc = "describe" },
+      }, true, true)
+      :setFilter(FILTER)
+
+    vim.schedule(function()
+      self:display("k8s_secrets", "Secrets")
+    end)
+  end)
 end
 
 function M.SecretDesc(namespace, name)

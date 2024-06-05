@@ -15,6 +15,7 @@ function M.Deployments()
         { key = "<enter>", desc = "pods" },
       }, true, true)
       :setFilter(FILTER)
+
     vim.schedule(function()
       self:display("k8s_deployments", "Deployments")
     end)
