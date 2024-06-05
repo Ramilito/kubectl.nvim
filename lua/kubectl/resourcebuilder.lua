@@ -36,7 +36,6 @@ function ResourceBuilder:fetchAsync(callback)
   self:NamespaceOrAll()
   commands.shell_command_async("kubectl", self.args, function(data)
     self.data = data.stdout
-
     callback(self)
   end)
   return self
