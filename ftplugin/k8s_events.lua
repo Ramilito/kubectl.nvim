@@ -1,4 +1,5 @@
 local event_view = require("kubectl.views.events")
+local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
 local api = vim.api
@@ -31,3 +32,7 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
     root_view.Root()
   end,
 })
+
+if not loop.is_running() then
+  loop.start_loop(event_view.Events)
+end
