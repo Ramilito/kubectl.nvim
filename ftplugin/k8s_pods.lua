@@ -96,5 +96,5 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
 })
 
 if not loop.is_running() then
-  loop.start_loop(pod_view.Pods, "pods")
+  loop.start_loop(pod_view.Pods)
 end

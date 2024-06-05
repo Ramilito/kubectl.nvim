@@ -66,5 +66,5 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
 })
 
 if not loop.is_running() then
-  loop.start_loop(deployment_view.Deployments, "Deployments")
+  loop.start_loop(deployment_view.Deployments)
 end

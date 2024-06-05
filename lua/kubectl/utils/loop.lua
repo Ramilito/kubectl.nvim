@@ -1,56 +1,49 @@
 local M = {}
 
-local timer = nil
-local current_buf = nil
+local timers = {}
 
-function M.start_loop(callback, caller)
-  current_buf = vim.api.nvim_get_current_buf()
-
-  if timer then
-    M.stop_loop()
+function M.start_loop(callback)
+  local buf = vim.api.nvim_get_current_buf()
+  if timers[buf] then
+    return
   end
 
-  timer = vim.loop.new_timer()
+  local timer = vim.loop.new_timer()
 
-  print("Caller: ", caller)
   timer:start(
     0,
     3000,
     vim.schedule_wrap(function()
-      if vim.api.nvim_get_current_buf() ~= current_buf then
-        M.stop_loop()
+      if vim.api.nvim_get_current_buf() ~= buf then
         return
       end
-      if callback then
-        callback()
-      end
+      callback(buf)
     end)
   )
 
-  vim.api.nvim_create_autocmd("BufEnter", {
-    buffer = current_buf,
-    callback = function()
-      M.start_loop(callback)
-    end,
-  })
+  timers[buf] = timer
+
   vim.api.nvim_create_autocmd("BufLeave", {
-    buffer = current_buf,
+    buffer = buf,
     callback = function()
-      M.stop_loop()
+      M.stop_loop_for_buffer(buf)
     end,
   })
 end
 
 function M.stop_loop()
+  local buf = vim.api.nvim_get_current_buf()
+  local timer = timers[buf]
   if timer then
     timer:stop()
     timer:close()
-    timer = nil
+    timers[buf] = nil
   end
 end
 
 function M.is_running()
-  return timer ~= nil
+  local current_buf = vim.api.nvim_get_current_buf()
+  return timers[current_buf] ~= nil
 end
 
 return M
