@@ -9,14 +9,20 @@ function M.start_loop_for_buffer(buf, callback)
   end
 
   local timer = vim.loop.new_timer()
+  local running = false
 
   timer:start(0, 3000, function()
+    if running then
+      return
+    end
+    running = true
     vim.schedule(function()
       if vim.api.nvim_get_current_buf() ~= buf then
         return
       end
 
       callback()
+      running = false
     end)
   end)
 
