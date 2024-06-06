@@ -64,6 +64,7 @@ return {
 {
   namespace = "All",
   hints = true,
+  auto_refresh = false,
   context = true,
   float_size = {
     -- Almost fullscreen:
