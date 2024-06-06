@@ -1,8 +1,7 @@
 local M = {}
 local defaults = {
-  namespace = "All",
-  hints = true,
   context = true,
+  hints = true,
   float_size = {
     -- Almost fullscreen:
     -- width = 1.0,
@@ -14,6 +13,8 @@ local defaults = {
     col = 10,
     row = 5,
   },
+  namespace = "All",
+  auto_refresh = false,
 }
 
 M.options = {}

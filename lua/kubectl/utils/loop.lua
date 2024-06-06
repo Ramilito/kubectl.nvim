@@ -1,3 +1,4 @@
+local config = require("kubectl.config")
 local M = {}
 
 local timers = {}
@@ -59,13 +60,15 @@ function M.is_running()
 end
 
 function M.setup()
-  vim.api.nvim_create_autocmd("BufEnter", {
-    callback = function()
-      vim.schedule(function()
-        M.start_loop()
-      end)
-    end,
-  })
+  if config.options.auto_refresh then
+    vim.api.nvim_create_autocmd("BufEnter", {
+      callback = function()
+        vim.schedule(function()
+          M.start_loop()
+        end)
+      end,
+    })
+  end
 end
 
 return M
