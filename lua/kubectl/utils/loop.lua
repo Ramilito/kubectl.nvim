@@ -22,7 +22,14 @@ function M.start_loop_for_buffer(buf, callback)
 
   timers[buf] = timer
 
-  vim.api.nvim_create_autocmd("BufLeave", {
+  vim.api.nvim_create_autocmd({ "BufEnter" }, {
+    buffer = buf,
+    callback = function()
+      M.start_loop_for_buffer(buf, callback)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
     buffer = buf,
     callback = function()
       M.stop_loop_for_buffer(buf)
