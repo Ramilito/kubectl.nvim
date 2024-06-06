@@ -82,7 +82,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
       pod_view.selectPod(pod_name, namespace)
       container_view.containers(pod_view.selection.pod, pod_view.selection.ns)
     else
-      print("Failed to extract containers.")
+      print("Failed to select pod.")
     end
   end,
 })

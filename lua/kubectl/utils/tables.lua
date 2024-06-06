@@ -112,7 +112,8 @@ function M.getCurrentSelection(...)
   local indices = { ... }
   for i = 1, #indices do
     local index = indices[i]
-    table.insert(results, string_util.trim(columns[index]))
+    local trimmed = string_util.trim(columns[index])
+    table.insert(results, trimmed)
   end
 
   return unpack(results) -- Use unpack instead of table.unpack for Lua 5.1 compatibility

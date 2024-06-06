@@ -10,16 +10,15 @@ function M.start_loop_for_buffer(buf, callback)
 
   local timer = vim.loop.new_timer()
 
-  timer:start(
-    0,
-    3000,
-    vim.schedule_wrap(function()
+  timer:start(0, 3000, function()
+    vim.schedule(function()
       if vim.api.nvim_get_current_buf() ~= buf then
         return
       end
+
       callback()
     end)
-  )
+  end)
 
   timers[buf] = timer
 
