@@ -6,18 +6,14 @@ local M = {}
 
 function M.Events()
   ResourceBuilder:new("events", { "get", "events", "-A", "-o=json" }):fetchAsync(function(self)
-    self
-      :decodeJson()
-      :process(definition.processRow)
-      :sort(SORTBY)
-      :prettyPrint(definition.getHeaders)
-      :addHints({
-        { key = "<enter>", desc = "message" },
-      }, true, true)
-      :setFilter(FILTER)
+    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
 
     vim.schedule(function()
-      self:display("k8s_events", "Events")
+      self
+        :addHints({
+          { key = "<enter>", desc = "message" },
+        }, true, true)
+        :display("k8s_events", "Events")
     end)
   end)
 end

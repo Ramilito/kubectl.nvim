@@ -7,20 +7,16 @@ M.selection = {}
 
 function M.Pods()
   ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" }):fetchAsync(function(self)
-    self
-      :decodeJson()
-      :process(definition.processRow)
-      :sort(SORTBY)
-      :prettyPrint(definition.getHeaders)
-      :addHints({
-        { key = "<l>", desc = "logs" },
-        { key = "<d>", desc = "describe" },
-        { key = "<t>", desc = "top" },
-        { key = "<enter>", desc = "containers" },
-      }, true, true)
-      :setFilter(FILTER)
+    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
     vim.schedule(function()
-      self:display("k8s_pods", "Pods")
+      self
+        :addHints({
+          { key = "<l>", desc = "logs" },
+          { key = "<d>", desc = "describe" },
+          { key = "<t>", desc = "top" },
+          { key = "<enter>", desc = "containers" },
+        }, true, true)
+        :display("k8s_pods", "Pods")
     end)
   end)
 end

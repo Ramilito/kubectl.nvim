@@ -5,19 +5,14 @@ local M = {}
 
 function M.Deployments()
   ResourceBuilder:new("deployments", { "get", "deployments", "-A", "-o=json" }):fetchAsync(function(self)
-    self
-      :decodeJson()
-      :process(definition.processRow)
-      :sort(SORTBY)
-      :prettyPrint(definition.getHeaders)
-      :addHints({
-        { key = "<d>", desc = "desc" },
-        { key = "<enter>", desc = "pods" },
-      }, true, true)
-      :setFilter(FILTER)
-
+    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
     vim.schedule(function()
-      self:display("k8s_deployments", "Deployments")
+      self
+        :addHints({
+          { key = "<d>", desc = "desc" },
+          { key = "<enter>", desc = "pods" },
+        }, true, true)
+        :display("k8s_deployments", "Deployments")
     end)
   end)
 end

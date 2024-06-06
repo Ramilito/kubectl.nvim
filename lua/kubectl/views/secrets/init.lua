@@ -5,18 +5,14 @@ local M = {}
 
 function M.Secrets()
   ResourceBuilder:new("secrets", { "get", "secrets", "-A", "-o=json" }):fetchAsync(function(self)
-    self
-      :decodeJson()
-      :process(definition.processRow)
-      :sort(SORTBY)
-      :prettyPrint(definition.getHeaders)
-      :addHints({
-        { key = "<d>", desc = "describe" },
-      }, true, true)
-      :setFilter(FILTER)
+    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
 
     vim.schedule(function()
-      self:display("k8s_secrets", "Secrets")
+      self
+        :addHints({
+          { key = "<d>", desc = "describe" },
+        }, true, true)
+        :display("k8s_secrets", "Secrets")
     end)
   end)
 end
