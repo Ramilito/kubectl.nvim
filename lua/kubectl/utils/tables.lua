@@ -66,7 +66,6 @@ function M.generateHints(hintConfigs, include_defaults, include_context)
   return vim.split(table.concat(hints, ""), "\n")
 end
 
--- Function to print the table
 function M.pretty_print(data, headers)
   local columns = {}
   for k, v in ipairs(headers) do
@@ -78,30 +77,42 @@ function M.pretty_print(data, headers)
     widths[key] = math.max(#key, value)
   end
 
-  local tbl = ""
+  local tbl = {}
+  local hl_symbols_header = hl.symbols.header
+  local hl_symbols_clear = hl.symbols.clear
+  local hl_symbols_tab = hl.symbols.tab
 
   -- Create table header
-  for i, header in pairs(headers) do
+  local header_line = {}
+  for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    tbl = tbl .. hl.symbols.header .. header .. hl.symbols.clear .. "  " .. string.rep(" ", column_width - #header + 1)
+    table.insert(
+      header_line,
+      hl_symbols_header .. header .. hl_symbols_clear .. "  " .. string.rep(" ", column_width - #header + 1)
+    )
   end
-  tbl = tbl .. "\n"
+  table.insert(tbl, table.concat(header_line, ""))
 
   -- Create table rows
   for _, row in ipairs(data) do
+    local row_line = {}
     for _, col in ipairs(columns) do
+      local value
       if type(row[col]) == "table" then
-        local value = tostring(row[col].value)
-        tbl = tbl .. row[col].symbol .. value .. hl.symbols.clear .. "  " .. string.rep(" ", widths[col] - #value + 1)
+        value = tostring(row[col].value)
+        table.insert(
+          row_line,
+          row[col].symbol .. value .. hl_symbols_clear .. "  " .. string.rep(" ", widths[col] - #value + 1)
+        )
       else
-        local value = tostring(row[col])
-        tbl = tbl .. value .. hl.symbols.tab .. "  " .. string.rep(" ", widths[col] - #value + 1)
+        value = tostring(row[col])
+        table.insert(row_line, value .. hl_symbols_tab .. "  " .. string.rep(" ", widths[col] - #value + 1))
       end
     end
-    tbl = tbl .. "\n"
+    table.insert(tbl, table.concat(row_line, ""))
   end
 
-  return vim.split(tbl, "\n")
+  return tbl
 end
 
 function M.getCurrentSelection(...)

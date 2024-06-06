@@ -8,8 +8,8 @@ function M.start_loop_for_buffer(buf, callback)
     return
   end
 
-  local timer = vim.loop.new_timer()
   local running = false
+  local timer = vim.uv.new_timer()
 
   timer:start(0, 3000, function()
     if running then

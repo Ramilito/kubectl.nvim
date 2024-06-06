@@ -3,17 +3,19 @@ local time = require("kubectl.utils.time")
 
 function M.processRow(rows)
   local data = {}
-  for _, row in pairs(rows.items) do
-    local pod = {
-      namespace = row.metadata.namespace,
-      name = row.metadata.name,
-      ready = M.getReady(row),
-      uptodate = row.status.updatedReplicas,
-      available = row.status.availableReplicas,
-      age = time.since(row.metadata.creationTimestamp),
-    }
+  if rows and rows.items then
+    for _, row in pairs(rows.items) do
+      local pod = {
+        namespace = row.metadata.namespace,
+        name = row.metadata.name,
+        ready = M.getReady(row),
+        uptodate = row.status.updatedReplicas,
+        available = row.status.availableReplicas,
+        age = time.since(row.metadata.creationTimestamp),
+      }
 
-    table.insert(data, pod)
+      table.insert(data, pod)
+    end
   end
   return data
 end
