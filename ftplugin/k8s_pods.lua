@@ -2,6 +2,7 @@ local api = vim.api
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
+local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
@@ -67,7 +68,7 @@ api.nvim_buf_set_keymap(0, "n", "l", "", {
       pod_view.selectPod(pod_name, namespace)
       pod_view.PodLogs()
     else
-      print("Failed to extract pod name or namespace.")
+      api.nvim_err_writeln("Failed to extract pod name or namespace.")
     end
   end,
 })
@@ -81,7 +82,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
       pod_view.selectPod(pod_name, namespace)
       container_view.containers(pod_view.selection.pod, pod_view.selection.ns)
     else
-      print("Failed to extract containers.")
+      api.nvim_err_writeln("Failed to select pod.")
     end
   end,
 })
@@ -93,3 +94,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
     pod_view.Pods()
   end,
 })
+
+if not loop.is_running() then
+  loop.start_loop(pod_view.Pods)
+end

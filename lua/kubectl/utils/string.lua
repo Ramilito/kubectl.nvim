@@ -1,6 +1,8 @@
 local M = {}
 function M.trim(s)
-  return s:match("^%s*(.-)%s*$")
+  if s then
+    return s:match("^%s*(.-)%s*$")
+  end
 end
 
 return M

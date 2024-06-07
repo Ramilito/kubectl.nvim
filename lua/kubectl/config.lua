@@ -1,5 +1,9 @@
 local M = {}
 local defaults = {
+  auto_refresh = {
+    enabled = false,
+    interval = 3000, -- milliseconds
+  },
   namespace = "All",
   hints = true,
   context = true,

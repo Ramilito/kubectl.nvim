@@ -1,3 +1,4 @@
+local loop = require("kubectl.utils.loop")
 local node_view = require("kubectl.views.nodes")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
@@ -31,3 +32,7 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
     end
   end,
 })
+
+if not loop.is_running() then
+  loop.start_loop(node_view.Nodes)
+end

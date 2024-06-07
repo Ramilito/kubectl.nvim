@@ -4,17 +4,17 @@ local definition = require("kubectl.views.services.definition")
 local M = {}
 
 function M.Services()
-  ResourceBuilder:new("services", { "get", "services", "-A", "-o=json" })
-    :fetch()
-    :decodeJson()
-    :process(definition.processRow)
-    :sort(SORTBY)
-    :prettyPrint(definition.getHeaders)
-    :addHints({
-      { key = "<d>", desc = "describe" },
-    }, true, true)
-    :setFilter(FILTER)
-    :display("k8s_services", "Services")
+  ResourceBuilder:new("services", { "get", "services", "-A", "-o=json" }):fetchAsync(function(self)
+    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
+
+    vim.schedule(function()
+      self
+        :addHints({
+          { key = "<d>", desc = "describe" },
+        }, true, true)
+        :display("k8s_services", "Services")
+    end)
+  end)
 end
 
 function M.ServiceDesc(namespace, name)

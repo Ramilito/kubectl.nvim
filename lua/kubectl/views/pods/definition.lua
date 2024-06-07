@@ -63,20 +63,21 @@ end
 
 function M.processRow(rows)
   local data = {}
-  for _, row in pairs(rows.items) do
-    local pod = {
-      namespace = row.metadata.namespace,
-      name = row.metadata.name,
-      ready = M.getReady(row),
-      status = M.getPodStatus(row.status.phase),
-      restarts = M.getRestarts(row),
-      node = row.spec.nodeName,
-      age = time.since(row.metadata.creationTimestamp),
-    }
+  if rows and rows.items then
+    for _, row in pairs(rows.items) do
+      local pod = {
+        namespace = row.metadata.namespace,
+        name = row.metadata.name,
+        ready = M.getReady(row),
+        status = M.getPodStatus(row.status.phase),
+        restarts = M.getRestarts(row),
+        node = row.spec.nodeName,
+        age = time.since(row.metadata.creationTimestamp),
+      }
 
-    table.insert(data, pod)
+      table.insert(data, pod)
+    end
   end
-
   return data
 end
 

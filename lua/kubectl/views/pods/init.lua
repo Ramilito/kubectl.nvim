@@ -6,20 +6,19 @@ local M = {}
 M.selection = {}
 
 function M.Pods()
-  ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" })
-    :fetch()
-    :decodeJson()
-    :process(definition.processRow)
-    :sort(SORTBY)
-    :prettyPrint(definition.getHeaders)
-    :addHints({
-      { key = "<l>", desc = "logs" },
-      { key = "<d>", desc = "describe" },
-      { key = "<t>", desc = "top" },
-      { key = "<enter>", desc = "containers" },
-    }, true, true)
-    :setFilter(FILTER)
-    :display("k8s_pods", "Pods")
+  ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" }):fetchAsync(function(self)
+    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
+    vim.schedule(function()
+      self
+        :addHints({
+          { key = "<l>", desc = "logs" },
+          { key = "<d>", desc = "describe" },
+          { key = "<t>", desc = "top" },
+          { key = "<enter>", desc = "containers" },
+        }, true, true)
+        :display("k8s_pods", "Pods")
+    end)
+  end)
 end
 
 function M.PodTop()
@@ -42,7 +41,7 @@ function M.TailLogs()
   end
 
   local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
-  commands.shell_command("kubectl", args, handle_output)
+  commands.shell_command_async("kubectl", args, handle_output)
 end
 
 function M.selectPod(pod_name, namespace)
