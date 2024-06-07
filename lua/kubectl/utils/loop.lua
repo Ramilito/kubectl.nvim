@@ -11,7 +11,7 @@ function M.start_loop_for_buffer(buf, callback)
   local running = false
   local timer = vim.uv.new_timer()
 
-  timer:start(0, 3000, function()
+  timer:start(0, config.options.auto_refresh.interval, function()
     if running then
       return
     end
@@ -53,7 +53,7 @@ function M.stop_loop_for_buffer(buf)
 end
 
 function M.start_loop(callback)
-  if config.options.auto_refresh then
+  if config.options.auto_refresh.enabled then
     local current_buf = vim.api.nvim_get_current_buf()
     M.start_loop_for_buffer(current_buf, callback)
   end

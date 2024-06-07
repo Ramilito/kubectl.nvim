@@ -1,7 +1,12 @@
 local M = {}
 local defaults = {
-  context = true,
+  auto_refresh = {
+    enabled = false,
+    interval = 3000, -- milliseconds
+  },
+  namespace = "All",
   hints = true,
+  context = true,
   float_size = {
     -- Almost fullscreen:
     -- width = 1.0,
@@ -13,8 +18,6 @@ local defaults = {
     col = 10,
     row = 5,
   },
-  namespace = "All",
-  auto_refresh = false,
 }
 
 M.options = {}
