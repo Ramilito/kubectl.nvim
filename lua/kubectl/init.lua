@@ -2,6 +2,7 @@ local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.completion")
 local config = require("kubectl.config")
 local filter_view = require("kubectl.views.filter")
+local hl = require("kubectl.actions.highlight")
 local namespace_view = require("kubectl.views.namespace")
 local pod_view = require("kubectl.views.pods")
 local view = require("kubectl.views")
@@ -21,6 +22,7 @@ FILTER = ""
 SORTBY = ""
 
 function M.open()
+  hl.register()
   pod_view.Pods()
 end
 

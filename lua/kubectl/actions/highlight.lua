@@ -47,13 +47,15 @@ local tag_patterns = {
   { pattern = M.symbols.note .. "[^" .. M.symbols.note .. M.symbols.clear .. "]*", group = "KubectlNote" }, -- Note
 }
 
+function M.register()
+  for _, tag in ipairs(tag_patterns) do
+    vim.fn.matchadd(tag.group, tag.pattern, 100, -1, { conceal = "" })
+  end
+end
+
 function M.set_highlighting(buf)
   for _, symbol in pairs(M.symbols) do
     vim.cmd("syntax match Conceal" .. ' "' .. symbol .. '" conceal')
-  end
-
-  for _, tag in ipairs(tag_patterns) do
-    vim.fn.matchadd(tag.group, tag.pattern, 100, -1, { conceal = "" })
   end
   api.nvim_buf_set_option(buf, "conceallevel", 3)
   api.nvim_buf_set_option(buf, "concealcursor", "nc")
