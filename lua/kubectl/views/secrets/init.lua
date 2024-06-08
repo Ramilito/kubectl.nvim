@@ -3,7 +3,7 @@ local definition = require("kubectl.views.secrets.definition")
 
 local M = {}
 
-function M.Secrets()
+function M.Secrets(cancellationToken)
   ResourceBuilder:new("secrets", { "get", "secrets", "-A", "-o=json" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
 
@@ -12,7 +12,7 @@ function M.Secrets()
         :addHints({
           { key = "<d>", desc = "describe" },
         }, true, true)
-        :display("k8s_secrets", "Secrets")
+        :display("k8s_secrets", "Secrets", cancellationToken)
     end)
   end)
 end
