@@ -5,7 +5,7 @@ local definition = require("kubectl.views.pods.definition")
 local M = {}
 M.selection = {}
 
-function M.Pods()
+function M.Pods(cancellationToken)
   ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
     vim.schedule(function()
@@ -16,7 +16,7 @@ function M.Pods()
           { key = "<t>", desc = "top" },
           { key = "<enter>", desc = "containers" },
         }, true, true)
-        :display("k8s_pods", "Pods")
+        :display("k8s_pods", "Pods", cancellationToken)
     end)
   end)
 end

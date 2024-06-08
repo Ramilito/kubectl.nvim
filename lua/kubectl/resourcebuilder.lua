@@ -89,7 +89,10 @@ function ResourceBuilder:setFilter(filter)
   return self
 end
 
-function ResourceBuilder:display(filetype, title)
+function ResourceBuilder:display(filetype, title, cancellationToken)
+  if cancellationToken ~= nil and cancellationToken() then
+    return
+  end
   actions.buffer(find.filter_line(self.prettyData, self.filter), filetype, { title = title, hints = self.hints })
 end
 
