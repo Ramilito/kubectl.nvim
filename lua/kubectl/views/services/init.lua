@@ -3,7 +3,7 @@ local definition = require("kubectl.views.services.definition")
 
 local M = {}
 
-function M.Services()
+function M.Services(cancellationToken)
   ResourceBuilder:new("services", { "get", "services", "-A", "-o=json" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
 
@@ -12,7 +12,7 @@ function M.Services()
         :addHints({
           { key = "<d>", desc = "describe" },
         }, true, true)
-        :display("k8s_services", "Services")
+        :display("k8s_services", "Services", cancellationToken)
     end)
   end)
 end

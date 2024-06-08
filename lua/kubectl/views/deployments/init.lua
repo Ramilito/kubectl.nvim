@@ -3,7 +3,7 @@ local definition = require("kubectl.views.deployments.definition")
 
 local M = {}
 
-function M.Deployments()
+function M.Deployments(cancellationToken)
   ResourceBuilder:new("deployments", { "get", "deployments", "-A", "-o=json" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
     vim.schedule(function()
@@ -12,7 +12,7 @@ function M.Deployments()
           { key = "<d>", desc = "desc" },
           { key = "<enter>", desc = "pods" },
         }, true, true)
-        :display("k8s_deployments", "Deployments")
+        :display("k8s_deployments", "Deployments", cancellationToken)
     end)
   end)
 end

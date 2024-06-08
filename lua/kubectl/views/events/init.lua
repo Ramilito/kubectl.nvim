@@ -4,7 +4,7 @@ local definition = require("kubectl.views.events.definition")
 
 local M = {}
 
-function M.Events()
+function M.Events(cancellationToken)
   ResourceBuilder:new("events", { "get", "events", "-A", "-o=json" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
 
@@ -13,7 +13,7 @@ function M.Events()
         :addHints({
           { key = "<enter>", desc = "message" },
         }, true, true)
-        :display("k8s_events", "Events")
+        :display("k8s_events", "Events", cancellationToken)
     end)
   end)
 end

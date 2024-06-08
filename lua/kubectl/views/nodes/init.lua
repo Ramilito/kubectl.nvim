@@ -3,7 +3,7 @@ local definition = require("kubectl.views.nodes.definition")
 
 local M = {}
 
-function M.Nodes()
+function M.Nodes(cancellationToken)
   ResourceBuilder:new("nodes", { "get", "nodes", "-A", "-o=json" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders)
     vim.schedule(function()
@@ -11,7 +11,7 @@ function M.Nodes()
         :addHints({
           { key = "<d>", desc = "describe" },
         }, true, true)
-        :display("k8s_nodes", "Nodes")
+        :display("k8s_nodes", "Nodes", cancellationToken)
     end)
   end)
 end
