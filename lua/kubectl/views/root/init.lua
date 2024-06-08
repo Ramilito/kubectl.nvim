@@ -1,5 +1,5 @@
-local tables = require("kubectl.utils.tables")
 local actions = require("kubectl.actions.actions")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -14,7 +14,7 @@ function M.Root()
   local hints = tables.generateHints({
     { key = "<enter>", desc = "Select" },
   }, true, true)
-  actions.buffer(results, "k8s_root", { hints = hints })
+  actions.buffer(results, "k8s_root", { title = "Root", hints = hints })
 end
 
 return M

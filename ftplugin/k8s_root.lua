@@ -1,8 +1,8 @@
 local deployment_view = require("kubectl.views.deployments")
 local event_view = require("kubectl.views.events")
 local node_view = require("kubectl.views.nodes")
-local service_view = require("kubectl.views.services")
 local secret_view = require("kubectl.views.secrets")
+local service_view = require("kubectl.views.services")
 local api = vim.api
 
 local function getCurrentSelection()
