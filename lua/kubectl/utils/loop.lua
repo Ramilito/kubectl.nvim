@@ -2,14 +2,16 @@ local config = require("kubectl.config")
 local M = {}
 
 local timers = {}
+local active_sessions = {}
 
 function M.start_loop_for_buffer(buf, callback)
   if timers[buf] then
     return
   end
-
   local running = false
   local timer = vim.uv.new_timer()
+  local session_id = vim.loop.hrtime()
+  active_sessions[buf] = session_id
 
   timer:start(0, config.options.auto_refresh.interval, function()
     if running then
@@ -20,8 +22,10 @@ function M.start_loop_for_buffer(buf, callback)
       if vim.api.nvim_get_current_buf() ~= buf then
         return
       end
-
-      callback()
+      local function is_cancelled()
+        return vim.api.nvim_get_current_buf() ~= buf or active_sessions[buf] ~= session_id
+      end
+      callback(is_cancelled)
       running = false
     end)
   end)
