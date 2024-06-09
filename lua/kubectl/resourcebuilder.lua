@@ -74,8 +74,6 @@ function ResourceBuilder:sort()
               return tostring(valueA.value) < tostring(valueB.value)
             end
           else
-            print("a",valueA)
-            print("b",valueB)
             return valueA < valueB
           end
         end
