@@ -1,3 +1,5 @@
+local hl = require("kubectl.actions.highlight")
+
 local M = {}
 
 -- Function to parse the timestamp
@@ -27,12 +29,13 @@ local function getCurrentTimeUTC()
 end
 
 -- Function to calculate the time difference and format it
-function M.since(timestamp)
+function M.since(timestamp, fresh)
+  local status = { symbol = "", value = "", timestamp = timestamp }
   if not timestamp or type(timestamp) ~= "string" then
-    return "nil"
+    return nil
   end
 
-  local parsedTime = parse(timestamp)
+  local parsedTime = M.parse(timestamp)
   local currentTime = getCurrentTimeUTC()
   local diff = currentTime - parsedTime
 
@@ -44,12 +47,17 @@ function M.since(timestamp)
   minutes = minutes % 60
   hours = hours % 24
   if days > 7 then
-    return string.format("%dd", days)
+    status.value = string.format("%dd", days)
   elseif days > 0 or hours > 23 then
-    return string.format("%dd%dh", days, hours)
+    status.value = string.format("%dd%dh", days, hours)
   else
-    return string.format("%dm%ds", minutes, seconds)
+    if fresh then
+      status.symbol = hl.symbols.success
+    end
+    status.value = string.format("%dm%ds", minutes, seconds)
   end
+
+  return status
 end
 
 return M
