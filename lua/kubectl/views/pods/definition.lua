@@ -1,6 +1,7 @@
-local M = {}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+local M = {}
 
 local function getPorts(ports)
   local string_ports = ""
@@ -72,7 +73,7 @@ function M.processRow(rows)
         status = M.getPodStatus(row.status.phase),
         restarts = M.getRestarts(row),
         node = row.spec.nodeName,
-        age = time.since(row.metadata.creationTimestamp),
+        age = time.since(row.metadata.creationTimestamp, true),
       }
 
       table.insert(data, pod)
@@ -131,7 +132,7 @@ function M.getRestarts(row)
     restartCount = restartCount + value.restartCount
   end
   if lastState then
-    return restartCount .. " (" .. lastState .. " ago)"
+    return restartCount .. " (" .. lastState.value .. " ago)"
   else
     return restartCount
   end

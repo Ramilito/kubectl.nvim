@@ -12,7 +12,7 @@ function M.processRow(rows)
         ready = M.getReady(row),
         uptodate = row.status.updatedReplicas,
         available = row.status.availableReplicas,
-        age = time.since(row.metadata.creationTimestamp),
+        age = time.since(row.metadata.creationTimestamp, true),
       }
 
       table.insert(data, pod)
