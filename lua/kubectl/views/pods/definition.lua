@@ -135,7 +135,7 @@ function M.getPodStatus(phase)
   if phase == "Running" then
     status.symbol = hl.symbols.success
   elseif phase == "Pending" or phase == "Terminating" or phase == "ContainerCreating" then
-    status.symbol = hl.symbols.pending
+    status.symbol = hl.symbols.debug
   elseif
     phase == "Failed"
     or phase == "RunContainerError"
