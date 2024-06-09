@@ -54,7 +54,6 @@ function M.logs(pod, ns)
     :new("containerLogs", "get --raw /api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection)
     :fetchAsync(function(self)
       self:splitData()
-
       vim.schedule(function()
         self
           :addHints({
