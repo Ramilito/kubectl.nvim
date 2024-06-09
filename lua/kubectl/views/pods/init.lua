@@ -62,10 +62,12 @@ function M.PodLogs()
 end
 
 function M.PodDesc(pod_name, namespace)
-  ResourceBuilder:new("desc", { "describe", "pod", pod_name, "-n", namespace })
-    :fetch()
-    :splitData()
-    :displayFloat("k8s_pod_desc", pod_name, "yaml")
+  ResourceBuilder:new("desc", "describe pod " .. pod_name .. " -n " .. namespace):fetchAsync(function(self)
+    self:splitData()
+    vim.schedule(function()
+      self:displayFloat("k8s_pod_desc", pod_name, "yaml")
+    end)
+  end)
 end
 
 return M
