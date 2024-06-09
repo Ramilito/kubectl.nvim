@@ -5,7 +5,7 @@ local definition = require("kubectl.views.events.definition")
 local M = {}
 
 function M.Events(cancellationToken)
-  ResourceBuilder:new("events", "get --raw /api/v1/events"):fetchAsync(function(self)
+  ResourceBuilder:new("events", "get --raw /api/v1/{{NAMESPACE}}events"):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
