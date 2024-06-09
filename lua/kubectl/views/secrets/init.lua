@@ -5,7 +5,7 @@ local M = {}
 
 function M.Secrets(cancellationToken)
   ResourceBuilder:new("secrets", { "get", "secrets", "-A", "-o=json" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
       self

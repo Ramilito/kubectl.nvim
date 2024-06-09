@@ -5,7 +5,7 @@ local M = {}
 
 function M.Nodes(cancellationToken)
   ResourceBuilder:new("nodes", { "get", "nodes", "-A", "-o=json" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders)
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
     vim.schedule(function()
       self
         :addHints({

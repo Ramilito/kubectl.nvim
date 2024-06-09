@@ -1,5 +1,6 @@
 local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
+local state = require("kubectl.utils.state")
 local api = vim.api
 local M = {}
 
@@ -31,13 +32,13 @@ function M.filter_buffer(content, filetype, opts)
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
   api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
-  vim.api.nvim_buf_set_lines(buf, #opts.hints, -1, false, { content .. FILTER })
+  vim.api.nvim_buf_set_lines(buf, #opts.hints, -1, false, { content .. state.getFilter() })
 
   vim.fn.prompt_setcallback(buf, function(input)
     if not input then
-      FILTER = ""
+      state.setFilter("")
     else
-      FILTER = input
+      state.setFilter(input)
     end
     vim.api.nvim_win_close(win, true)
     vim.api.nvim_input("R")

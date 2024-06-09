@@ -47,7 +47,7 @@ local tag_patterns = {
   { pattern = M.symbols.note .. "[^" .. M.symbols.note .. M.symbols.clear .. "]*", group = "KubectlNote" }, -- Note
 }
 
-function M.register()
+function M.setup()
   for _, tag in ipairs(tag_patterns) do
     vim.fn.matchadd(tag.group, tag.pattern, 100, -1, { conceal = "" })
   end

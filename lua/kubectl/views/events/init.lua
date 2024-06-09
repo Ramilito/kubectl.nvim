@@ -6,7 +6,7 @@ local M = {}
 
 function M.Events(cancellationToken)
   ResourceBuilder:new("events", { "get", "events", "-A", "-o=json" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
       self

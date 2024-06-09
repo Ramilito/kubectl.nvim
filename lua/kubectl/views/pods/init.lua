@@ -7,7 +7,7 @@ M.selection = {}
 
 function M.Pods(cancellationToken)
   ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
     vim.schedule(function()
       self
         :addHints({

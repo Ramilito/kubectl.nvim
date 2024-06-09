@@ -1,6 +1,7 @@
 local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
+local state = require("kubectl.utils.state")
 local tables = require("kubectl.utils.tables")
 
 local ResourceBuilder = {}
@@ -54,7 +55,8 @@ function ResourceBuilder:process(processFunc)
   return self
 end
 
-function ResourceBuilder:sort(sortby)
+function ResourceBuilder:sort()
+  local sortby = state.getSortBy()
   if sortby ~= "" then
     sortby = string.lower(sortby)
     table.sort(self.processedData, function(a, b)
@@ -84,8 +86,8 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
   return self
 end
 
-function ResourceBuilder:setFilter(filter)
-  self.filter = filter
+function ResourceBuilder:setFilter()
+  self.filter = state.getFilter()
   return self
 end
 

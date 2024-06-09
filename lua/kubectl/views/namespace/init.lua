@@ -9,8 +9,9 @@ function M.Namespace()
     :fetch()
     :decodeJson()
     :process(definition.processRow)
-    :sort(SORTBY)
+    :sort()
     :prettyPrint(definition.getHeaders)
+    :setFilter()
     :displayFloat("k8s_namespace", "Namespace", "", true)
 
   local win = vim.api.nvim_get_current_win()
@@ -32,7 +33,11 @@ function M.changeNamespace(name)
     vim.api.nvim_win_close(win, true)
     vim.api.nvim_input("R")
   else
-    commands.shell_command_async("kubectl", { "config", "set-context", "--current", "--namespace=" .. name }, handle_output)
+    commands.shell_command_async(
+      "kubectl",
+      { "config", "set-context", "--current", "--namespace=" .. name },
+      handle_output
+    )
   end
 end
 
