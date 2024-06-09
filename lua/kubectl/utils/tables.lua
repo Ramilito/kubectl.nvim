@@ -30,9 +30,14 @@ function M.generateContext()
   local context = state.getContext()
   if context then
     hint = hint .. "Cluster:   " .. context.clusters[1].name .. "\n"
-    hint = hint .. "Context:   " .. context.contexts[1].context.cluster .. "\n"
+    hint = hint
+      .. "Context:   "
+      .. hl.symbols.pending
+      .. context.contexts[1].context.cluster
+      .. hl.symbols.clear
+      .. "\n"
     hint = hint .. "User:      " .. context.contexts[1].context.user .. "\n"
-    hint = hint .. "Namespace: " .. state.getNamespace() .. "\n"
+    hint = hint .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
     return hint
   end
 end
