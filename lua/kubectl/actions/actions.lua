@@ -60,6 +60,7 @@ function M.floating_buffer(content, filetype, opts)
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
+  hl.setup()
   hl.set_highlighting(buf)
 end
 
