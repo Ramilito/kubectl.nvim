@@ -7,8 +7,17 @@ local ns = ""
 local filter = ""
 local sortby = ""
 
+local decode = function(string)
+  local success, result = pcall(vim.json.decode, string)
+  if success then
+    return result
+  else
+    vim.notify("Error: current-context unavailable", vim.log.levels.ERROR)
+  end
+end
+
 function M.setup()
-  local result = vim.json.decode(commands.execute_shell_command("kubectl", {
+  local result = decode(commands.execute_shell_command("kubectl", {
     "config",
     "view",
     "--minify",
@@ -16,10 +25,16 @@ function M.setup()
     "json",
   }))
 
+  if not result then
+    return false
+  end
+
   context = result
   ns = defaults.options.namespace
   filter = ""
   sortby = ""
+
+  return true
 end
 
 function M.getContext()

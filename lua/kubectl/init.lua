@@ -10,10 +10,12 @@ local view = require("kubectl.views")
 local M = {}
 
 function M.open()
+  local check = false
   hl.setup()
-  state.setup()
-
-  pod_view.Pods()
+  check = state.setup()
+  if check then
+    pod_view.Pods()
+  end
 end
 
 function M.setup(options)

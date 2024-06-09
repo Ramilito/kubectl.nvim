@@ -57,7 +57,10 @@ function M.generateHints(hintConfigs, include_defaults, include_context)
   end
 
   if include_context and config.options.context then
-    table.insert(hints, M.generateContext())
+    local contextHints = M.generateContext()
+    if contextHints then
+      table.insert(hints, M.generateContext())
+    end
   end
 
   if #hints > 0 then
