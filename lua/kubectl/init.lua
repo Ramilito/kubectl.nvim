@@ -53,6 +53,14 @@ vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = "k8s_*",
   callback = function()
+    vim.api.nvim_buf_set_keymap(0, "n", "<leader>k", "", {
+      noremap = true,
+      silent = true,
+      desc = "Toggle",
+      callback = function()
+        vim.cmd("bdelete!")
+      end,
+    })
     vim.api.nvim_buf_set_keymap(0, "n", "<C-f>", "", {
       noremap = true,
       silent = true,
