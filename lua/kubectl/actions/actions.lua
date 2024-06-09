@@ -47,6 +47,7 @@ function M.filter_buffer(content, filetype, opts)
   vim.cmd("startinsert")
 
   layout.set_buf_options(buf, win, filetype, "")
+  hl.setup()
   hl.set_highlighting(buf)
 end
 
