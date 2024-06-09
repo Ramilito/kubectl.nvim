@@ -1,34 +1,26 @@
-local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.completion")
 local config = require("kubectl.config")
 local filter_view = require("kubectl.views.filter")
 local hl = require("kubectl.actions.highlight")
 local namespace_view = require("kubectl.views.namespace")
 local pod_view = require("kubectl.views.pods")
+local state = require("kubectl.utils.state")
 local view = require("kubectl.views")
 
 local M = {}
 
-KUBE_CONFIG = vim.json.decode(commands.execute_shell_command("kubectl", {
-  "config",
-  "view",
-  "--minify",
-  "-o",
-  "json",
-}))
-
-NAMESPACE = config.options.namespace
-FILTER = ""
-SORTBY = ""
-
 function M.open()
-  hl.register()
-  pod_view.Pods()
+  local check = false
+  hl.setup()
+  check = state.setup()
+  if check then
+    pod_view.Pods()
+  end
 end
 
 function M.setup(options)
   config.setup(options)
-  NAMESPACE = config.options.namespace
+  state.setNS(config.options.namespace)
 end
 
 vim.api.nvim_create_user_command("Kubectl", function(opts)
@@ -85,7 +77,7 @@ vim.api.nvim_create_autocmd("FileType", {
       desc = "Sort",
       callback = function()
         local current_word = vim.fn.expand("<cword>")
-        SORTBY = current_word
+        state.setSortBy(current_word)
         vim.api.nvim_input("R")
       end,
     })

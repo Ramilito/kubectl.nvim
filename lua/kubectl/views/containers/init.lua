@@ -11,16 +11,18 @@ function M.selectContainer(name)
 end
 
 function M.containers(pod, ns)
-  ResourceBuilder:new("containers", { "get", "pods", pod, "-n", ns, "-o=json" })
-    :fetch()
-    :decodeJson()
-    :process(definition.processContainerRow)
-    :prettyPrint(definition.getContainerHeaders)
-    :addHints({
-      { key = "<l>", desc = "logs" },
-      { key = "<enter>", desc = "exec" },
-    }, false, false)
-    :displayFloat("k8s_containers", pod, "", true)
+  ResourceBuilder:new("containers", "get --raw /api/v1/namespaces/" .. ns .. "/pods/" .. pod):fetchAsync(function(self)
+    self:decodeJson():process(definition.processContainerRow):prettyPrint(definition.getContainerHeaders)
+
+    vim.schedule(function()
+      self
+        :addHints({
+          { key = "<l>", desc = "logs" },
+          { key = "<enter>", desc = "exec" },
+        }, false, false)
+        :displayFloat("k8s_containers", pod, "", true)
+    end)
+  end)
 end
 
 function M.tailLogs(pod, ns)
@@ -38,7 +40,7 @@ function M.tailLogs(pod, ns)
     end)
   end
 
-  local args = { "logs", "--follow", "--since=1s", pod, "-c", M.selection, "-n", ns }
+  local args = "logs --follow --since=1s " .. pod .. " -c " .. M.selection .. " -n " .. ns
   commands.shell_command_async("kubectl", args, handle_output)
 end
 
@@ -48,13 +50,18 @@ function M.exec(pod, ns)
 end
 
 function M.logs(pod, ns)
-  ResourceBuilder:new("containerLogs", { "logs", pod, "-n", ns, "-c", M.selection })
-    :fetch()
-    :splitData()
-    :addHints({
-      { key = "<f>", desc = "Follow" },
-    }, false, false)
-    :displayFloat("k8s_container_logs", "logs" .. pod, "less")
+  ResourceBuilder
+    :new("containerLogs", "get --raw /api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection)
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<f>", desc = "Follow" },
+          }, false, false)
+          :displayFloat("k8s_container_logs", "logs" .. pod, "less")
+      end)
+    end)
 end
 
 return M

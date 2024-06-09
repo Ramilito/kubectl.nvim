@@ -4,8 +4,8 @@ local definition = require("kubectl.views.secrets.definition")
 local M = {}
 
 function M.Secrets(cancellationToken)
-  ResourceBuilder:new("secrets", { "get", "secrets", "-A", "-o=json" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort(SORTBY):prettyPrint(definition.getHeaders):setFilter(FILTER)
+  ResourceBuilder:new("secrets", "get --raw /api/v1/{{NAMESPACE}}secrets"):fetchAsync(function(self)
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
       self
@@ -18,7 +18,7 @@ function M.Secrets(cancellationToken)
 end
 
 function M.SecretDesc(namespace, name)
-  ResourceBuilder:new("desc", { "describe", "secret", name, "-n", namespace })
+  ResourceBuilder:new("desc", "describe secret " .. name .. " -n " .. namespace)
     :fetch()
     :splitData()
     :displayFloat("k8s_secret_desc", name, "yaml")

@@ -1,5 +1,6 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
+local state = require("kubectl.utils.state")
 local string_util = require("kubectl.utils.string")
 local M = {}
 
@@ -26,11 +27,12 @@ end
 function M.generateContext()
   local hint = ""
 
-  if KUBE_CONFIG then
-    hint = hint .. "Cluster:   " .. KUBE_CONFIG.clusters[1].name .. "\n"
-    hint = hint .. "Context:   " .. KUBE_CONFIG.contexts[1].context.cluster .. "\n"
-    hint = hint .. "User:      " .. KUBE_CONFIG.contexts[1].context.user .. "\n"
-    hint = hint .. "Namespace: " .. NAMESPACE .. "\n"
+  local context = state.getContext()
+  if context then
+    hint = hint .. "Cluster:   " .. context.clusters[1].name .. "\n"
+    hint = hint .. "Context:   " .. context.contexts[1].context.cluster .. "\n"
+    hint = hint .. "User:      " .. context.contexts[1].context.user .. "\n"
+    hint = hint .. "Namespace: " .. state.getNamespace() .. "\n"
     return hint
   end
 end
@@ -55,7 +57,10 @@ function M.generateHints(hintConfigs, include_defaults, include_context)
   end
 
   if include_context and config.options.context then
-    table.insert(hints, M.generateContext())
+    local contextHints = M.generateContext()
+    if contextHints then
+      table.insert(hints, M.generateContext())
+    end
   end
 
   if #hints > 0 then
