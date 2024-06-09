@@ -6,7 +6,7 @@ local M = {}
 M.selection = {}
 
 function M.Pods(cancellationToken)
-  ResourceBuilder:new("pods", { "get", "pods", "-A", "-o=json" }):fetchAsync(function(self)
+  ResourceBuilder:new("pods", "get --raw /api/v1/{{NAMESPACE}}pods"):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
     vim.schedule(function()
       self

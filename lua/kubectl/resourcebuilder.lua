@@ -17,24 +17,22 @@ function ResourceBuilder:new(resource, args)
   return self
 end
 
-function ResourceBuilder:NamespaceOrAll()
-  if NAMESPACE ~= "All" then
-    for i, v in ipairs(self.args) do
-      if v == "-A" then
-        self.args[i] = "-n=" .. NAMESPACE
-      end
-    end
+local build_api_path = function(args)
+  if state.ns and state.ns ~= "All" and string.find(args, "{{NAMESPACE}}") then
+    return string.gsub(args, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
+  else
+    return string.gsub(args, "{{NAMESPACE}}", "")
   end
 end
 
 function ResourceBuilder:fetch()
-  self:NamespaceOrAll()
+  self.args = build_api_path(self.args)
   self.data = commands.execute_shell_command("kubectl", self.args)
   return self
 end
 
 function ResourceBuilder:fetchAsync(callback)
-  self:NamespaceOrAll()
+  self.args = build_api_path(self.args)
   commands.shell_command_async("kubectl", self.args, function(data)
     self.data = data
     callback(self)

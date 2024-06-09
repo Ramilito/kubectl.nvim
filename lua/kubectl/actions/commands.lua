@@ -9,7 +9,7 @@ function M.shell_command_async(cmd, args, callback)
   local result = {}
   Job:new({
     command = cmd,
-    args = args,
+    args = vim.split(args, " "),
     on_stdout = function(_, data)
       table.insert(result, data)
     end,
