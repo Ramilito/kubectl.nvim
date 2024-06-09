@@ -1,9 +1,15 @@
 local M = {}
 
 -- Function to parse the timestamp
-local function parse(timestamp)
-  local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
-  local year, month, day, hour, min, sec = timestamp:match(pattern)
+-- Function to parse the timestamp
+function M.parse(timestamp)
+  local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.(%d+)Z"
+  local year, month, day, hour, min, sec, frac = timestamp:match(pattern)
+  if not frac then
+    pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
+    year, month, day, hour, min, sec = timestamp:match(pattern)
+    frac = 0
+  end
   return os.time({
     year = year,
     month = month,
@@ -12,7 +18,7 @@ local function parse(timestamp)
     min = min,
     sec = sec,
     isdst = false, -- Explicitly setting isdst to false
-  })
+  }) + frac / 1000000
 end
 
 -- Function to get the current time in UTC
