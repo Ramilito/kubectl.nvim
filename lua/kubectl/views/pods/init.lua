@@ -40,7 +40,7 @@ function M.TailLogs()
     end)
   end
 
-  local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
+  local args = "logs --follow --since=1s " .. M.selection.pod .. " -n " .. M.selection.ns
   commands.shell_command_async("kubectl", args, handle_output)
 end
 
@@ -49,13 +49,16 @@ function M.selectPod(pod_name, namespace)
 end
 
 function M.PodLogs()
-  ResourceBuilder:new("logs", { "logs", M.selection.pod, "-n", M.selection.ns })
-    :fetch()
-    :splitData()
-    :addHints({
-      { key = "<f>", desc = "Follow" },
-    }, false, false)
-    :displayFloat("k8s_pod_logs", M.selection.pod, "less")
+  ResourceBuilder:new("logs", "logs " .. M.selection.pod .. " -n " .. M.selection.ns):fetchAsync(function(self)
+    self:splitData()
+    vim.schedule(function()
+      self
+        :addHints({
+          { key = "<f>", desc = "Follow" },
+        }, false, false)
+        :displayFloat("k8s_pod_logs", M.selection.pod, "less")
+    end)
+  end)
 end
 
 function M.PodDesc(pod_name, namespace)
