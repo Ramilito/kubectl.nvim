@@ -9,8 +9,8 @@ function M.processRow(rows)
       type = row.type,
       reason = row.reason,
       object = row.involvedObject.name,
+      count = tonumber(row.count) or 0,
       message = row.message,
-      count = row.count,
     }
 
     table.insert(data, pod)
@@ -25,8 +25,8 @@ function M.getHeaders()
     "TYPE",
     "REASON",
     "OBJECT",
-    "MESSAGE",
     "COUNT",
+    "MESSAGE",
   }
 
   return headers
