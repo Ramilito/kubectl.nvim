@@ -50,13 +50,19 @@ function M.exec(pod, ns)
 end
 
 function M.logs(pod, ns)
-  ResourceBuilder:new("containerLogs", { "logs", pod, "-n", ns, "-c", M.selection })
-    :fetch()
-    :splitData()
-    :addHints({
-      { key = "<f>", desc = "Follow" },
-    }, false, false)
-    :displayFloat("k8s_container_logs", "logs" .. pod, "less")
+  ResourceBuilder
+    :new("containerLogs", "get --raw /api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection)
+    :fetchAsync(function(self)
+      self:splitData()
+
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<f>", desc = "Follow" },
+          }, false, false)
+          :displayFloat("k8s_container_logs", "logs" .. pod, "less")
+      end)
+    end)
 end
 
 return M
