@@ -2,10 +2,10 @@ local commands = require("kubectl.actions.commands")
 local defaults = require("kubectl.config")
 
 local M = {}
-local context = {}
-local ns = ""
-local filter = ""
-local sortby = ""
+M.context = {}
+M.ns = ""
+M.filter = ""
+M.sortby = ""
 
 local decode = function(string)
   local success, result = pcall(vim.json.decode, string)
@@ -29,35 +29,39 @@ function M.setup()
     return false
   end
 
-  context = result
-  ns = defaults.options.namespace
-  filter = ""
-  sortby = ""
+  M.context = result
+  M.ns = defaults.options.namespace
+  M.filter = ""
+  M.sortby = ""
 
   return true
 end
 
 function M.getContext()
-  return context
+  return M.context
 end
 
 function M.getNamespace()
-  return ns
+  return M.ns
 end
 
 function M.getFilter()
-  return filter
+  return M.filter
 end
 
 function M.getSortBy()
-  return sortby
+  return M.sortby
 end
 
 function M.setSortBy(pattern)
-  sortby = pattern
-end
-function M.setFilter(pattern)
-  filter = pattern
+  M.sortby = pattern
 end
 
+function M.setFilter(pattern)
+  M.filter = pattern
+end
+
+function M.setNS(ns)
+  M.ns = ns
+end
 return M
