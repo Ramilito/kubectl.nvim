@@ -20,7 +20,7 @@ end
 
 function M.setup(options)
   config.setup(options)
-  NAMESPACE = config.options.namespace
+  state.setNS(config.options.namespace)
 end
 
 vim.api.nvim_create_user_command("Kubectl", function(opts)
