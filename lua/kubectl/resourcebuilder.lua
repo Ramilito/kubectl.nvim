@@ -18,6 +18,9 @@ function ResourceBuilder:new(resource, args)
 end
 
 local build_api_path = function(args)
+  if type(args) == "table" then
+    args = table.concat(args, " ")
+  end
   if state.ns and state.ns ~= "All" and string.find(args, "{{NAMESPACE}}") then
     return string.gsub(args, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
   else
