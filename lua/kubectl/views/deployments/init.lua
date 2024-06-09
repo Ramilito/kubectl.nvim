@@ -18,10 +18,13 @@ function M.Deployments(cancellationToken)
 end
 
 function M.DeploymentDesc(deployment_desc, namespace)
-  ResourceBuilder:new("desc", { "describe", "deployment", deployment_desc, "-n", namespace })
-    :fetch()
-    :splitData()
-    :displayFloat("k8s_deployment_desc", deployment_desc, "yaml")
+  ResourceBuilder:new("desc", "describe " .. "deployment " .. deployment_desc .. " -n " .. namespace)
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self:displayFloat("k8s_deployment_desc", deployment_desc, "yaml")
+      end)
+    end)
 end
 
 return M
