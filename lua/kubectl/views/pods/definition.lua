@@ -96,6 +96,7 @@ function M.getHeaders()
 end
 
 function M.getReady(row)
+  local status = { symbol = "", value = "" }
   local readyCount = 0
   local containers = 0
   if row.status.containerStatuses then
@@ -106,7 +107,13 @@ function M.getReady(row)
       end
     end
   end
-  return readyCount .. "/" .. containers
+  if readyCount == containers then
+    status.symbol = hl.symbols.note
+  else
+    status.symbol = hl.symbols.deprecated
+  end
+  status.value = readyCount .. "/" .. containers
+  return status
 end
 
 function M.getRestarts(row)
