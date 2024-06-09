@@ -4,7 +4,7 @@ local definition = require("kubectl.views.nodes.definition")
 local M = {}
 
 function M.Nodes(cancellationToken)
-  ResourceBuilder:new("nodes", { "get", "nodes", "-A", "-o=json" }):fetchAsync(function(self)
+  ResourceBuilder:new("nodes", "get --raw /api/v1/nodes"):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
     vim.schedule(function()
       self
@@ -17,10 +17,12 @@ function M.Nodes(cancellationToken)
 end
 
 function M.NodeDesc(node)
-  ResourceBuilder:new("desc", { "describe", "node", node })
-    :fetch()
-    :splitData()
-    :displayFloat("k8s_node_desc", "node_desc", "yaml")
+  ResourceBuilder:new("desc", "describe node " .. node):fetchAsync(function(self)
+    self:splitData()
+    vim.schedule(function()
+      self:displayFloat("k8s_node_desc", "node_desc", "yaml")
+    end)
+  end)
 end
 
 return M

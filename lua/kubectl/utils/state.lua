@@ -17,13 +17,7 @@ local decode = function(string)
 end
 
 function M.setup()
-  local result = decode(commands.execute_shell_command("kubectl", {
-    "config",
-    "view",
-    "--minify",
-    "-o",
-    "json",
-  }))
+  local result = decode(commands.execute_shell_command("kubectl", "config view --minify -o json"))
 
   if not result then
     return false
