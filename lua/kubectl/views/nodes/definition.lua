@@ -57,15 +57,33 @@ local function getStatus(row)
   end
 end
 
+local function getIPs(addrs)
+  local iIP, eIP
+  for _, value in ipairs(addrs) do
+    if value.type == "InternalIP" then
+      iIP = value.address
+    elseif value.type == "ExternalIP" then
+      eIP = value.address
+    end
+  end
+  if not eIP then
+    eIP = "<none>"
+  end
+  return iIP, eIP
+end
+
 function M.processRow(rows)
   local data = {}
   for _, row in pairs(rows.items) do
+    local iIP, eIP = getIPs(row.status.addresses)
     local pod = {
       name = row.metadata.name,
       status = getStatus(row),
       roles = getRole(row),
       age = time.since(row.metadata.creationTimestamp),
       version = row.status.nodeInfo.kubeletVersion,
+      internalip = iIP,
+      externalip = eIP,
     }
 
     table.insert(data, pod)
@@ -80,6 +98,8 @@ function M.getHeaders()
     "ROLES",
     "AGE",
     "VERSION",
+    "INTERNALIP",
+    "EXTERNALIP",
   }
 
   return headers
