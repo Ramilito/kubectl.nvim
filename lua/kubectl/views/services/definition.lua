@@ -13,6 +13,10 @@ local function getPorts(ports)
   return string_ports
 end
 
+local function getType(type)
+  return type
+end
+
 --TODO: Get externalip
 local function getExternalIP(spec)
   return ""
@@ -24,7 +28,7 @@ function M.processRow(rows)
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
-      type = row.type,
+      type = getType(row.spec.type),
       clusterip = row.spec.clusterIP,
       externalip = getExternalIP(row.spec),
       ports = getPorts(row.spec.ports),

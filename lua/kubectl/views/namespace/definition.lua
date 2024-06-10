@@ -1,3 +1,4 @@
+local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
 
 local M = {}
@@ -7,7 +8,7 @@ function M.processRow(rows)
   for _, row in pairs(rows.items) do
     local pod = {
       name = row.metadata.name,
-      status = row.status.phase,
+      status = { symbol = events.ColorStatus(row.status.phase), value = row.status.phase },
       age = time.since(row.metadata.creationTimestamp),
     }
 
