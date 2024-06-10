@@ -12,7 +12,12 @@ function M.Services(cancellationToken)
         :addHints({
           { key = "<d>", desc = "describe" },
         }, true, true)
-        :display("k8s_services", "Services", cancellationToken)
+        -- TODO: Added space to title otherwise netrw is opening for some reason..
+        :display(
+          "k8s_services",
+          "Services ",
+          cancellationToken
+        )
     end)
   end)
 end
