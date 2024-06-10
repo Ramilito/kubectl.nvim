@@ -1,6 +1,8 @@
-local M = {}
+local events = require("kubectl.utils.events")
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+local M = {}
 
 local function getPorts(ports)
   local string_ports = ""
@@ -72,7 +74,7 @@ function M.processRow(rows)
         status = M.getPodStatus(row.status.phase),
         restarts = M.getRestarts(row),
         node = row.spec.nodeName,
-        age = time.since(row.metadata.creationTimestamp),
+        age = time.since(row.metadata.creationTimestamp, true),
       }
 
       table.insert(data, pod)
@@ -96,6 +98,7 @@ function M.getHeaders()
 end
 
 function M.getReady(row)
+  local status = { symbol = "", value = "" }
   local readyCount = 0
   local containers = 0
   if row.status.containerStatuses then
@@ -106,7 +109,13 @@ function M.getReady(row)
       end
     end
   end
-  return readyCount .. "/" .. containers
+  if readyCount == containers then
+    status.symbol = hl.symbols.note
+  else
+    status.symbol = hl.symbols.deprecated
+  end
+  status.value = readyCount .. "/" .. containers
+  return status
 end
 
 function M.getRestarts(row)
@@ -124,7 +133,7 @@ function M.getRestarts(row)
     restartCount = restartCount + value.restartCount
   end
   if lastState then
-    return restartCount .. " (" .. lastState .. " ago)"
+    return restartCount .. " (" .. lastState.value .. " ago)"
   else
     return restartCount
   end
@@ -132,21 +141,7 @@ end
 
 function M.getPodStatus(phase)
   local status = { symbol = "", value = phase }
-  if phase == "Running" then
-    status.symbol = hl.symbols.success
-  elseif phase == "Pending" or phase == "Terminating" or phase == "ContainerCreating" then
-    status.symbol = hl.symbols.pending
-  elseif
-    phase == "Failed"
-    or phase == "RunContainerError"
-    or phase == "ErrImagePull"
-    or phase == "ImagePullBackOff"
-    or phase == "Error"
-    or phase == "OOMKilled"
-  then
-    status.symbol = hl.symbols.error
-  end
-
+  status.symbol = events.ColorStatus(phase)
   return status
 end
 

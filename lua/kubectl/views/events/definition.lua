@@ -1,16 +1,40 @@
+local events = require("kubectl.utils.events")
+local time = require("kubectl.utils.time")
 local M = {}
+
+local function getLastSeen(row)
+  if row.lastTimestamp ~= vim.NIL then
+    return time.since(row.lastTimestamp, true)
+  elseif row.eventTime ~= vim.NIL then
+    return time.since(row.eventTime, true)
+  else
+    return nil
+  end
+end
+
+local function getType(type)
+  local status = { symbol = "", value = type }
+  status.symbol = events.ColorStatus(type)
+  return status
+end
+
+local function getReason(reason)
+  local status = { symbol = "", value = reason }
+  status.symbol = events.ColorStatus(reason)
+  return status
+end
 
 function M.processRow(rows)
   local data = {}
   for _, row in pairs(rows.items) do
     local pod = {
       namespace = row.metadata.namespace,
-      lastseen = row.lastTimestamp,
-      type = row.type,
-      reason = row.reason,
+      lastseen = getLastSeen(row),
+      type = getType(row.type),
+      reason = getReason(row.reason),
       object = row.involvedObject.name,
+      count = tonumber(row.count) or 0,
       message = row.message,
-      count = row.count,
     }
 
     table.insert(data, pod)
@@ -25,8 +49,8 @@ function M.getHeaders()
     "TYPE",
     "REASON",
     "OBJECT",
-    "MESSAGE",
     "COUNT",
+    "MESSAGE",
   }
 
   return headers

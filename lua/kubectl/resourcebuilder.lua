@@ -3,6 +3,7 @@ local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
 local state = require("kubectl.utils.state")
 local tables = require("kubectl.utils.tables")
+local time = require("kubectl.utils.time")
 
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
@@ -61,8 +62,21 @@ function ResourceBuilder:sort()
   if sortby ~= "" then
     sortby = string.lower(sortby)
     table.sort(self.processedData, function(a, b)
-      if sortby and a[sortby] and b[sortby] then
-        return tostring(a[sortby]) < tostring(b[sortby])
+      if sortby then
+        local valueA = a[sortby]
+        local valueB = b[sortby]
+
+        if valueA and valueB then
+          if type(valueA) == "table" and type(valueB) == "table" then
+            if valueA.timestamp and valueB.timestamp then
+              return tostring(valueA.timestamp) > tostring(valueB.timestamp)
+            else
+              return tostring(valueA.value) < tostring(valueB.value)
+            end
+          else
+            return valueA < valueB
+          end
+        end
         ---@diagnostic disable-next-line: missing-return
       end
     end)

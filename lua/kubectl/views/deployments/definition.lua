@@ -1,4 +1,5 @@
 local M = {}
+local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 function M.processRow(rows)
@@ -11,7 +12,7 @@ function M.processRow(rows)
         ready = M.getReady(row),
         uptodate = row.status.updatedReplicas,
         available = row.status.availableReplicas,
-        age = time.since(row.metadata.creationTimestamp),
+        age = time.since(row.metadata.creationTimestamp, true),
       }
 
       table.insert(data, pod)
@@ -34,10 +35,20 @@ function M.getHeaders()
 end
 
 function M.getReady(row)
+  local status = { symbol = "", value = "" }
   if row.status.availableReplicas then
-    return row.status.readyReplicas .. "/" .. row.status.availableReplicas
+    status.value = row.status.readyReplicas .. "/" .. row.status.availableReplicas
+    if row.status.readyReplicas == row.status.availableReplicas then
+      status.symbol = hl.symbols.note
+    else
+      status.symbol = hl.symbols.deprecated
+    end
+  else
+    status.symbol = hl.symbols.deprecated
+    -- TODO: There should be other numbers to fetch here
+    status.value = "0/0"
   end
-  return "nil"
+  return status
 end
 
 return M

@@ -1,9 +1,18 @@
+local config = require("kubectl.config")
+local hl = require("kubectl.actions.highlight")
+
 local M = {}
 
 -- Function to parse the timestamp
-local function parse(timestamp)
-  local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
-  local year, month, day, hour, min, sec = timestamp:match(pattern)
+-- Function to parse the timestamp
+function M.parse(timestamp)
+  local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.(%d+)Z"
+  local year, month, day, hour, min, sec, frac = timestamp:match(pattern)
+  if not frac then
+    pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
+    year, month, day, hour, min, sec = timestamp:match(pattern)
+    frac = 0
+  end
   return os.time({
     year = year,
     month = month,
@@ -12,7 +21,7 @@ local function parse(timestamp)
     min = min,
     sec = sec,
     isdst = false, -- Explicitly setting isdst to false
-  })
+  }) + frac / 1000000
 end
 
 -- Function to get the current time in UTC
@@ -21,12 +30,13 @@ local function getCurrentTimeUTC()
 end
 
 -- Function to calculate the time difference and format it
-function M.since(timestamp)
+function M.since(timestamp, fresh)
+  local status = { symbol = "", value = "", timestamp = timestamp }
   if not timestamp or type(timestamp) ~= "string" then
-    return "nil"
+    return nil
   end
 
-  local parsedTime = parse(timestamp)
+  local parsedTime = M.parse(timestamp)
   local currentTime = getCurrentTimeUTC()
   local diff = currentTime - parsedTime
 
@@ -38,12 +48,20 @@ function M.since(timestamp)
   minutes = minutes % 60
   hours = hours % 24
   if days > 7 then
-    return string.format("%dd", days)
+    status.value = string.format("%dd", days)
   elseif days > 0 or hours > 23 then
-    return string.format("%dd%dh", days, hours)
+    status.value = string.format("%dd%dh", days, hours)
+  elseif hours > 0 then
+    status.value = string.format("%dh%dm", hours, minutes)
   else
-    return string.format("%dm%ds", minutes, seconds)
+    status.value = string.format("%dm%ds", minutes, seconds)
   end
+
+  if fresh and config.options.obj_fresh > math.floor(diff / 60) then
+    status.symbol = hl.symbols.success
+  end
+
+  return status
 end
 
 return M
