@@ -2,8 +2,6 @@
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 <img src="/.github/demo2.gif?raw=true" width="1700px">
 
-Note: This is still incomplete in that it doesn't handle all possible resources and I might change things up in the future.
-
 ## ✨ Features
 - Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 - Colored output and smart highlighting
@@ -99,6 +97,11 @@ By moving the cursor to a header word and pressing ```s```
 
 ### Exec into container
 In the pod view, select a pod by pressing ```<cr>``` and then again ```<cr>``` on the container you want to exec into
+
+## Versioning
+> [!WARNING]
+> As we have not yet reached v1.0.0, we may have some breaking changes
+> in cases where it is deemed necessary.
 
 ## Motivation
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, edit) in the future, not sure yet.
