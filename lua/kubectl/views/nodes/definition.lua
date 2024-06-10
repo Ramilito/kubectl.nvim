@@ -1,5 +1,8 @@
-local time = require("kubectl.utils.time")
+local events = require("kubectl.utils.events")
 local find = require("kubectl.utils.find")
+local hl = require("kubectl.actions.highlight")
+local tables = require("kubectl.utils.tables")
+local time = require("kubectl.utils.time")
 local M = {}
 
 -- Define the custom match function for prefix and suffix
@@ -22,10 +25,38 @@ local function getRole(row)
   return ""
 end
 
+local nodeConditions = {
+  NodeReady = "Ready",
+  NodeMemoryPressure = "MemoryPressure",
+  NodeDiskPressure = "DiskPressure",
+  NodePIDPressure = "PIDPressure",
+  NodeNetworkUnavailable = "NetworkUnavailable",
+}
+
 local function getStatus(row)
-  --TODO: Get status based on conditions
-  return ""
+  local conditions = {}
+  local exempt = row.spec.unschedulable
+
+  for _, cond in ipairs(row.status.conditions) do
+    if cond.type then
+      conditions[cond.type] = cond
+    end
+  end
+
+  if tables.isEmpty(conditions) then
+    return { symbol = events.ColorStatus("Error"), value = "Unknown" }
+  end
+
+  if exempt then
+    return { symbol = hl.symbols.warning, value = "SchedulingDisabled" }
+  end
+
+  local ready = conditions[nodeConditions.NodeReady]
+  if ready and ready.status == "True" then
+    return { symbol = hl.symbols.success, value = nodeConditions.NodeReady }
+  end
 end
+
 function M.processRow(rows)
   local data = {}
   for _, row in pairs(rows.items) do
