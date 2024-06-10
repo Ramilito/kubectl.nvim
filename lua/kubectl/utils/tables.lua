@@ -140,4 +140,11 @@ function M.getCurrentSelection(...)
   return unpack(results) -- Use unpack instead of table.unpack for Lua 5.1 compatibility
 end
 
+function M.isEmpty(table)
+  for _ in pairs(table) do
+    return false
+  end
+  return true
+end
+
 return M
