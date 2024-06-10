@@ -81,7 +81,8 @@ return {
     -- Might need to tweak these to get it centered when float is smaller
     col = 10,
     row = 5,
-  }
+  },
+  obj_fresh = 0 -- highlight if creation newer than number (in minutes)
 }
 ```
 

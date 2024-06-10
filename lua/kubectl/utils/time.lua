@@ -1,3 +1,4 @@
+local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 
 local M = {}
@@ -50,11 +51,14 @@ function M.since(timestamp, fresh)
     status.value = string.format("%dd", days)
   elseif days > 0 or hours > 23 then
     status.value = string.format("%dd%dh", days, hours)
+  elseif hours > 0 then
+    status.value = string.format("%dh%dm", hours, minutes)
   else
-    if fresh then
-      status.symbol = hl.symbols.success
-    end
     status.value = string.format("%dm%ds", minutes, seconds)
+  end
+
+  if fresh and config.options.obj_fresh > math.floor(diff / 60) then
+    status.symbol = hl.symbols.success
   end
 
   return status
