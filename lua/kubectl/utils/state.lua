@@ -17,18 +17,13 @@ local decode = function(string)
 end
 
 function M.setup()
-  local result = decode(commands.execute_shell_command("kubectl", "config view --minify -o json"))
-
-  if not result then
-    return false
-  end
-
-  M.context = result
-  M.ns = defaults.options.namespace
-  M.filter = ""
-  M.sortby = ""
-
-  return true
+  commands.shell_command_async("kubectl", "config view --minify -o json", function(data)
+    local result = decode(data)
+    M.context = result
+    M.ns = defaults.options.namespace
+    M.filter = ""
+    M.sortby = ""
+  end)
 end
 
 function M.getContext()

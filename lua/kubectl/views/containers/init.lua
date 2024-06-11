@@ -1,7 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.pods.definition")
+local definition = require("kubectl.views.containers.definition")
 
 local M = {}
 M.selection = {}
