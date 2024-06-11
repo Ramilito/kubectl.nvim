@@ -4,26 +4,6 @@ local time = require("kubectl.utils.time")
 
 local M = {}
 
-function M.processRow(rows)
-  local data = {}
-  if rows and rows.items then
-    for _, row in pairs(rows.items) do
-      local pod = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        ready = M.getReady(row),
-        status = M.getPodStatus(row.status.phase),
-        restarts = M.getRestarts(row.status.containerStatuses),
-        node = row.spec.nodeName,
-        age = time.since(row.metadata.creationTimestamp, true),
-      }
-
-      table.insert(data, pod)
-    end
-  end
-  return data
-end
-
 function M.getHeaders()
   local headers = {
     "NAMESPACE",
@@ -38,7 +18,7 @@ function M.getHeaders()
   return headers
 end
 
-function M.getReady(row)
+local function getReady(row)
   local status = { symbol = "", value = "" }
   local readyCount = 0
   local containers = 0
@@ -59,7 +39,7 @@ function M.getReady(row)
   return status
 end
 
-function M.getRestarts(containerStatuses)
+local function getRestarts(containerStatuses)
   if not containerStatuses then
     return 0
   end
@@ -80,9 +60,28 @@ function M.getRestarts(containerStatuses)
   end
 end
 
-function M.getPodStatus(phase)
+local function getPodStatus(phase)
   local status = { symbol = events.ColorStatus(phase), value = phase }
   return status
+end
+
+function M.processRow(rows)
+  local data = {}
+  if rows and rows.items then
+    for i = 1, #rows.items do
+      local row = rows.items[i]
+      data[i] = {
+        namespace = row.metadata.namespace,
+        name = row.metadata.name,
+        ready = getReady(row),
+        status = getPodStatus(row.status.phase),
+        restarts = getRestarts(row.status.containerStatuses),
+        node = row.spec.nodeName,
+        age = time.since(row.metadata.creationTimestamp, true),
+      }
+    end
+  end
+  return data
 end
 
 return M
