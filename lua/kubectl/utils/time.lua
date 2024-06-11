@@ -2,17 +2,18 @@ local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 
 local M = {}
+local pattern_with_frac = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.(%d+)Z"
+local pattern_without_frac = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
 
--- Function to parse the timestamp
--- Function to parse the timestamp
 function M.parse(timestamp)
-  local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.(%d+)Z"
-  local year, month, day, hour, min, sec, frac = timestamp:match(pattern)
+  local year, month, day, hour, min, sec, frac
+  year, month, day, hour, min, sec, frac = timestamp:match(pattern_with_frac)
+  
   if not frac then
-    pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
-    year, month, day, hour, min, sec = timestamp:match(pattern)
+    year, month, day, hour, min, sec = timestamp:match(pattern_without_frac)
     frac = 0
   end
+
   return os.time({
     year = year,
     month = month,
@@ -41,12 +42,10 @@ function M.since(timestamp, fresh)
   local diff = currentTime - parsedTime
 
   local seconds = diff % 60
-  local minutes = math.floor(diff / 60)
-  local hours = math.floor(minutes / 60)
-  local days = math.floor(hours / 24)
+  local minutes = math.floor(diff / 60) % 60
+  local hours = math.floor(diff / 3600) % 24
+  local days = math.floor(diff / 86400)
 
-  minutes = minutes % 60
-  hours = hours % 24
   if days > 7 then
     status.value = string.format("%dd", days)
   elseif days > 0 or hours > 23 then
