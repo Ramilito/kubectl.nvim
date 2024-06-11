@@ -4,16 +4,12 @@ local state = require("kubectl.utils.state")
 local api = vim.api
 local M = {}
 
-local function create_or_get_buffer(bufname, buftype)
-  local buf = vim.fn.bufnr(bufname, true)
-  if buf == -1 then
-    buf = vim.api.nvim_create_buf(false, false)
-    vim.api.nvim_buf_set_name(buf, bufname)
-  end
+local function create_buffer(bufname, buftype)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(buf, bufname)
   if buftype then
     vim.api.nvim_buf_set_option(buf, "buftype", buftype)
   end
-
   return buf
 end
 
@@ -28,7 +24,12 @@ end
 
 function M.filter_buffer(content, filetype, opts)
   local bufname = "kubectl_filter"
-  local buf = create_or_get_buffer(bufname, "prompt")
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if buf == -1 then
+    buf = create_buffer(bufname, "prompt")
+  end
+
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
   api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
@@ -53,8 +54,12 @@ end
 
 function M.floating_buffer(content, filetype, opts)
   local bufname = opts.title or "kubectl_float"
+  local buf = vim.fn.bufnr(bufname, false)
 
-  local buf = create_or_get_buffer(bufname)
+  if buf == -1 then
+    buf = create_buffer(bufname)
+  end
+
   set_buffer_lines(buf, opts.hints, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
@@ -67,13 +72,17 @@ end
 
 function M.buffer(content, filetype, opts)
   local bufname = opts.title or "kubectl"
-  local buf = create_or_get_buffer(bufname)
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if buf == -1 then
+    buf = create_buffer(bufname)
+    local win = layout.main_layout()
+    layout.set_buf_options(buf, win, filetype, filetype)
+  end
+
   set_buffer_lines(buf, opts.hints, content)
 
   api.nvim_set_current_buf(buf)
-  local win = layout.main_layout()
-
-  layout.set_buf_options(buf, win, filetype, filetype)
   hl.set_highlighting(buf)
 end
 
