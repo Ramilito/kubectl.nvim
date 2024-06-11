@@ -2,19 +2,15 @@ local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 
 local M = {}
-local pattern_with_frac = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.(%d+)Z"
-local pattern_without_frac = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)Z"
+local pattern = "(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)%.?(%d*)"
 local obj_fresh = config.options.obj_fresh
 local success_symbol = hl.symbols.success
 
 function M.parse(timestamp)
   local year, month, day, hour, min, sec, frac
-  year, month, day, hour, min, sec, frac = timestamp:match(pattern_with_frac)
+  year, month, day, hour, min, sec, frac = timestamp:match(pattern)
 
-  if not frac then
-    year, month, day, hour, min, sec = timestamp:match(pattern_without_frac)
-    frac = 0
-  end
+  frac = frac ~= "" and frac or 0
 
   return os.time({
     year = year,
