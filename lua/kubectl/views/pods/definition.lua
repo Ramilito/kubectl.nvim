@@ -4,20 +4,6 @@ local time = require("kubectl.utils.time")
 
 local M = {}
 
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "READY",
-    "STATUS",
-    "RESTARTS",
-    "NODE",
-    "AGE",
-  }
-
-  return headers
-end
-
 local function getReady(row)
   local status = { symbol = "", value = "" }
   local readyCount = 0
@@ -39,7 +25,7 @@ local function getReady(row)
   return status
 end
 
-local function getRestarts(containerStatuses)
+local function getRestarts(containerStatuses, currentTime)
   if not containerStatuses then
     return 0
   end
@@ -49,7 +35,7 @@ local function getRestarts(containerStatuses)
 
   for _, value in ipairs(containerStatuses) do
     if value.lastState and value.lastState.terminated then
-      lastState = time.since(value.lastState.terminated.finishedAt)
+      lastState = time.since(value.lastState.terminated.finishedAt, false, currentTime)
     end
     restartCount = restartCount + value.restartCount
   end
@@ -67,6 +53,7 @@ end
 
 function M.processRow(rows)
   local data = {}
+  local currentTime = os.time(os.date("!*t"))
   if rows and rows.items then
     for i = 1, #rows.items do
       local row = rows.items[i]
@@ -75,13 +62,27 @@ function M.processRow(rows)
         name = row.metadata.name,
         ready = getReady(row),
         status = getPodStatus(row.status.phase),
-        restarts = getRestarts(row.status.containerStatuses),
+        restarts = getRestarts(row.status.containerStatuses, currentTime),
         node = row.spec.nodeName,
-        age = time.since(row.metadata.creationTimestamp, true),
+        age = time.since(row.metadata.creationTimestamp, true, currentTime),
       }
     end
   end
   return data
+end
+
+function M.getHeaders()
+  local headers = {
+    "NAMESPACE",
+    "NAME",
+    "READY",
+    "STATUS",
+    "RESTARTS",
+    "NODE",
+    "AGE",
+  }
+
+  return headers
 end
 
 return M

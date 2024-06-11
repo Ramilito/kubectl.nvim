@@ -24,13 +24,16 @@ function M.parse(timestamp)
 end
 
 -- Function to calculate the time difference and format it
-function M.since(timestamp, fresh)
+function M.since(timestamp, fresh, currentTime)
   if not timestamp or type(timestamp) ~= "string" then
     return nil
   end
 
+  if not currentTime then
+    currentTime = os.time(os.date("!*t"))
+  end
+
   local parsedTime = M.parse(timestamp)
-  local currentTime = os.time(os.date("!*t"))
   local diff = currentTime - parsedTime
 
   local days = math.floor(diff / 86400)
@@ -54,6 +57,10 @@ function M.since(timestamp, fresh)
   end
 
   return status
+end
+
+function M.currentTime()
+  return os.time(os.date("!*t"))
 end
 
 return M
