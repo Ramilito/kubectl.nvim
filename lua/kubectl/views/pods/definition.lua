@@ -72,7 +72,7 @@ function M.processRow(rows)
         name = row.metadata.name,
         ready = M.getReady(row),
         status = M.getPodStatus(row.status.phase),
-        restarts = M.getRestarts(row),
+        restarts = M.getRestarts(row.status.containerStatuses),
         node = row.spec.nodeName,
         age = time.since(row.metadata.creationTimestamp, true),
       }
@@ -118,30 +118,29 @@ function M.getReady(row)
   return status
 end
 
-function M.getRestarts(row)
+function M.getRestarts(containerStatuses)
+  if not containerStatuses then
+    return 0
+  end
+
   local restartCount = 0
   local lastState
 
-  if not row.status.containerStatuses then
-    return restartCount
-  end
-
-  for _, value in ipairs(row.status.containerStatuses) do
+  for _, value in ipairs(containerStatuses) do
     if value.lastState and value.lastState.terminated then
       lastState = time.since(value.lastState.terminated.finishedAt)
     end
     restartCount = restartCount + value.restartCount
   end
   if lastState then
-    return restartCount .. " (" .. lastState.value .. " ago)"
+    return string.format("%d (%s ago)", restartCount, lastState.value)
   else
     return restartCount
   end
 end
 
 function M.getPodStatus(phase)
-  local status = { symbol = "", value = phase }
-  status.symbol = events.ColorStatus(phase)
+  local status = { symbol = events.ColorStatus(phase), value = phase }
   return status
 end
 
