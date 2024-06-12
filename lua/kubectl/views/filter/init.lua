@@ -6,6 +6,7 @@ local M = {}
 function M.filter()
   local hints = tables.generateHints({
     { key = "<enter>", desc = "apply" },
+    { key = "<q>", desc = "close" },
   }, false, false)
   actions.filter_buffer("Filter: ", "k8s_filter", { title = "Filter", hints = hints })
 end
