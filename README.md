@@ -80,7 +80,7 @@ return {
     col = 10,
     row = 5,
   },
-  obj_fresh = 0 -- highlight if creation newer than number (in minutes)
+  obj_fresh = 0, -- highlight if creation newer than number (in minutes)
 }
 ```
 
