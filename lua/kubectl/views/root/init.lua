@@ -10,6 +10,7 @@ function M.Root()
     "Nodes",
     "Secrets",
     "Services",
+    "Configmaps"
   }
   local hints = tables.generateHints({
     { key = "<enter>", desc = "Select" },

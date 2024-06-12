@@ -21,11 +21,7 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
         .. hl.symbols.pending
         .. " d "
         .. hl.symbols.clear
-        .. "desc | "
-        .. hl.symbols.pending
-        .. "<cr> "
-        .. hl.symbols.clear
-        .. "containers",
+        .. "desc",
     })
   end,
 })

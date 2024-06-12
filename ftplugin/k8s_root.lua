@@ -3,6 +3,7 @@ local event_view = require("kubectl.views.events")
 local node_view = require("kubectl.views.nodes")
 local secret_view = require("kubectl.views.secrets")
 local service_view = require("kubectl.views.services")
+local configmaps_view = require("kubectl.views.configmaps")
 local api = vim.api
 
 local function getCurrentSelection()
@@ -27,6 +28,8 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
         secret_view.Secrets()
       elseif selection == "Services" then
         service_view.Services()
+      elseif selection == "Configmaps" then
+        configmaps_view.Configmaps()
       end
     else
       print("Failed to extract containers.")
