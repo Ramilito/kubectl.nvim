@@ -14,7 +14,7 @@ function M.shell_command_async(cmd, args, callback)
       table.insert(result, data)
     end,
     on_stderr = function(_, data)
-      callback(data)
+      vim.notify(data)
     end,
     on_exit = function(_, _)
       callback(table.concat(result, "\n"))
