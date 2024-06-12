@@ -1,5 +1,6 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
+local mappings = require("kubectl.mappings")
 local state = require("kubectl.utils.state")
 
 local M = {}
@@ -21,7 +22,7 @@ function M.setup(options)
     group = group,
     pattern = "k8s_*",
     callback = function()
-      require("kubectl.mappings")
+      mappings.register()
     end,
   })
 
