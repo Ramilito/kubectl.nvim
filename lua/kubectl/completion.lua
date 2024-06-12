@@ -4,6 +4,7 @@ local nodes_view = require("kubectl.views.nodes")
 local secrets_view = require("kubectl.views.secrets")
 local services_view = require("kubectl.views.services")
 local pod_view = require("kubectl.views.pods")
+local configmaps_view = require("kubectl.views.configmaps")
 
 local M = {}
 local top_level_commands = {
@@ -59,6 +60,7 @@ local views = {
   nodes = { "nodes", "node", "no", nodes_view.Nodes },
   secrets = { "secrets", "secret", "sec", secrets_view.Secrets },
   services = { "services", "service", "svc", services_view.Services },
+  configmaps = { "configmaps", "configmap", "configmaps", configmaps_view.Configmaps },
 }
 
 function M.user_command_completion(_, cmd)
