@@ -1,7 +1,6 @@
 local api = vim.api
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
-local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
@@ -12,17 +11,13 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    view.Hints({
-      "      Hint: "
-        .. hl.symbols.pending
-        .. "l"
-        .. hl.symbols.clear
-        .. " logs | "
-        .. hl.symbols.pending
-        .. " d "
-        .. hl.symbols.clear
-        .. "desc",
-    })
+    local hints = ""
+    hints = hints .. tables.generateHintLine("<l>", "Shows logs for all containers in pod \n")
+    hints = hints .. tables.generateHintLine("<d>", "Describe selected pod \n")
+    hints = hints .. tables.generateHintLine("<t>", "Show resources used \n")
+    hints = hints .. tables.generateHintLine("<enter>", "Opens container view \n")
+    hints = hints .. tables.generateHintLine("<R>", "Refresh view \n")
+    view.Hints(hints)
   end,
 })
 

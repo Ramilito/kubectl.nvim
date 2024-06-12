@@ -20,8 +20,12 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
-local function generateHintLine(key, desc)
-  return hl.symbols.pending .. key .. " " .. hl.symbols.clear .. desc .. " | "
+function M.generateHintLine(key, desc, includePipe)
+  local line = hl.symbols.pending .. key .. " " .. hl.symbols.clear .. desc
+  if includePipe then
+    line = line .. " | "
+  end
+  return line
 end
 
 function M.generateContext()
@@ -48,14 +52,14 @@ function M.generateHints(hintConfigs, include_defaults, include_context)
   if config.options.hints then
     local hint_line = hl.symbols.success .. "Hint: " .. hl.symbols.clear
     for _, hintConfig in ipairs(hintConfigs) do
-      hint_line = hint_line .. generateHintLine(hintConfig.key, hintConfig.desc)
+      hint_line = hint_line .. M.generateHintLine(hintConfig.key, hintConfig.desc, true)
     end
 
     if include_defaults then
-      hint_line = hint_line .. generateHintLine("<R>", "reload")
-      hint_line = hint_line .. generateHintLine("<C-f>", "filter")
-      hint_line = hint_line .. generateHintLine("<C-n>", "namespace")
-      hint_line = hint_line .. generateHintLine("<g?>", "help"):gsub(" | $", "") -- remove the last separator
+      hint_line = hint_line .. M.generateHintLine("<R>", "reload", true)
+      hint_line = hint_line .. M.generateHintLine("<C-f>", "filter", true)
+      hint_line = hint_line .. M.generateHintLine("<C-n>", "namespace", true)
+      hint_line = hint_line .. M.generateHintLine("<g?>", "help")
     end
 
     table.insert(hints, hint_line .. "\n\n")
