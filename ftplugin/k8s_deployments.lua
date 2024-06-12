@@ -11,9 +11,11 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    view.Hints({
-      "      Hint: " .. hl.symbols.pending .. "d " .. hl.symbols.clear .. "desc",
-    })
+    local hints = ""
+    hints = hints .. tables.generateHintLine("<d>", "Describe selected deployment \n")
+    hints = hints .. tables.generateHintLine("<enter>", "Opens pods view \n")
+
+    view.Hints(hints)
   end,
 })
 

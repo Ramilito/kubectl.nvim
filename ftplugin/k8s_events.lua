@@ -1,14 +1,25 @@
+local api = vim.api
 local event_view = require("kubectl.views.events")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
-local api = vim.api
+local view = require("kubectl.views")
+
+api.nvim_buf_set_keymap(0, "n", "g?", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    local hints = ""
+    hints = hints .. tables.generateHintLine("<enter>", "Read message \n")
+    view.Hints(hints)
+  end,
+})
 
 api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
   noremap = true,
   silent = true,
   callback = function()
-    local message = tables.getCurrentSelection(unpack({ 6 }))
+    local message = tables.getCurrentSelection(unpack({ 7 }))
     if message then
       event_view.ShowMessage(message)
     else

@@ -1,13 +1,11 @@
 local configmaps_view = require("kubectl.views.configmaps")
 local deployments_view = require("kubectl.views.deployments")
 local filter_view = require("kubectl.views.filter")
-local hl = require("kubectl.actions.highlight")
 local namespace_view = require("kubectl.views.namespace")
 local pods_view = require("kubectl.views.pods")
 local secrets_view = require("kubectl.views.secrets")
 local services_view = require("kubectl.views.services")
 local state = require("kubectl.utils.state")
-local view = require("kubectl.views")
 
 local M = {}
 
@@ -91,40 +89,6 @@ function M.register()
     desc = "Services",
     callback = function()
       services_view.Services()
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(0, "n", "g?", "", {
-    noremap = true,
-    silent = true,
-    callback = function()
-      view.Hints({
-        "      Hint: "
-          .. hl.symbols.pending
-          .. "l"
-          .. hl.symbols.clear
-          .. " logs | "
-          .. hl.symbols.pending
-          .. " d "
-          .. hl.symbols.clear
-          .. "desc | "
-          .. hl.symbols.pending
-          .. "<1> "
-          .. hl.symbols.clear
-          .. "deployments | "
-          .. hl.symbols.pending
-          .. "<2> "
-          .. hl.symbols.clear
-          .. "pods | "
-          .. hl.symbols.pending
-          .. "<3> "
-          .. hl.symbols.clear
-          .. "deployments | "
-          .. hl.symbols.pending
-          .. "<4> "
-          .. hl.symbols.clear
-          .. "secrets",
-      })
     end,
   })
 end

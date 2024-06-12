@@ -1,19 +1,17 @@
+local api = vim.api
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
-local api = vim.api
-
-local hl = require("kubectl.actions.highlight")
 local view = require("kubectl.views")
 
 api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    view.Hints({
-      "      Hint: " .. hl.symbols.pending .. " d " .. hl.symbols.clear .. "desc | ",
-    })
+    local hints = ""
+    hints = hints .. tables.generateHintLine("<d>", "Describe selected service \n")
+    view.Hints(hints)
   end,
 })
 

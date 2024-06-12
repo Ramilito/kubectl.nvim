@@ -1,8 +1,19 @@
+local api = vim.api
 local loop = require("kubectl.utils.loop")
 local node_view = require("kubectl.views.nodes")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
-local api = vim.api
+local view = require("kubectl.views")
+
+api.nvim_buf_set_keymap(0, "n", "g?", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    local hints = ""
+    hints = hints .. tables.generateHintLine("<d>", "Describe selected node \n")
+    view.Hints(hints)
+  end,
+})
 
 api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
