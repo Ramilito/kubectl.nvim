@@ -54,7 +54,6 @@ function M.register()
     silent = true,
     desc = "Deployments",
     callback = function()
-      print("pressed deployment")
       deployments_view.Deployments()
     end,
   })
@@ -64,7 +63,6 @@ function M.register()
     silent = true,
     desc = "Pods",
     callback = function()
-      print("pressed pods")
       pods_view.Pods()
     end,
   })
