@@ -116,7 +116,12 @@ function M.pretty_print(data, headers)
         value = tostring(row[col].value)
         table.insert(
           row_line,
-          row[col].symbol .. value .. hl_symbols_clear .. "  " .. string.rep(" ", widths[col] - #value + 1)
+          row[col].symbol
+            .. value
+            .. hl_symbols_clear
+            .. hl_symbols_tab
+            .. "  "
+            .. string.rep(" ", widths[col] - #value + 1)
         )
       else
         value = tostring(row[col])

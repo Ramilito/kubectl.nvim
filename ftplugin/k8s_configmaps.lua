@@ -3,24 +3,17 @@ local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
 local api = vim.api
 local configmaps_view = require("kubectl.views.configmaps")
-local hl = require("kubectl.actions.highlight")
 local view = require("kubectl.views")
 
 api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    view.Hints({
-      "      Hint: "
-        .. hl.symbols.pending
-        .. "l"
-        .. hl.symbols.clear
-        .. " logs | "
-        .. hl.symbols.pending
-        .. " d "
-        .. hl.symbols.clear
-        .. "desc",
-    })
+    local hints = ""
+    hints = hints .. tables.generateHintLine("<d>", "Describe selected pod \n")
+    hints = hints .. tables.generateHintLine("<R>", "Refresh view \n")
+    hints = hints .. tables.generateHintLine("<bs>", "Go to root view \n")
+    view.Hints(hints)
   end,
 })
 
