@@ -11,8 +11,6 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   callback = function()
     local hints = ""
     hints = hints .. tables.generateHintLine("<enter>", "Read message \n")
-    hints = hints .. tables.generateHintLine("<R>", "Refresh view \n")
-    hints = hints .. tables.generateHintLine("<bs>", "Go to root view \n")
     view.Hints(hints)
   end,
 })

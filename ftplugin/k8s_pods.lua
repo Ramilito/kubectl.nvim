@@ -16,8 +16,6 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
     hints = hints .. tables.generateHintLine("<d>", "Describe selected pod \n")
     hints = hints .. tables.generateHintLine("<t>", "Show resources used \n")
     hints = hints .. tables.generateHintLine("<enter>", "Opens container view \n")
-    hints = hints .. tables.generateHintLine("<R>", "Refresh view \n")
-    hints = hints .. tables.generateHintLine("<bs>", "Go to deployment view")
     view.Hints(hints)
   end,
 })
