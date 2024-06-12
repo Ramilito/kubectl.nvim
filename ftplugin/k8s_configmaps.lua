@@ -1,12 +1,9 @@
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
-local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
 local api = vim.api
-
-local view = require("kubectl.views")
 local hl = require("kubectl.actions.highlight")
-
+local view = require("kubectl.views")
 local configmaps_view = require("kubectl.views.configmaps")
 local deployments_view = require("kubectl.views.deployments")
 local pod_view = require("kubectl.views.pods")
@@ -36,10 +33,6 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
         .. hl.symbols.clear
         .. "pods | "
         .. hl.symbols.pending
-        .. "<3> "
-        .. hl.symbols.clear
-        .. "configmaps | "
-        .. hl.symbols.pending
         .. "<4> "
         .. hl.symbols.clear
         .. "secrets",
@@ -51,7 +44,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    service_view.Services()
+    configmaps_view.Configmaps()
   end,
 })
 
@@ -69,7 +62,7 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
   callback = function()
     local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
     if namespace and name then
-      service_view.ServiceDesc(namespace, name)
+      configmaps_view.ConfigmapsDesc(namespace, name)
     else
       api.nvim_err_writeln("Failed to describe pod name or namespace.")
     end
@@ -112,6 +105,15 @@ api.nvim_buf_set_keymap(0, "n", "4", "", {
   end,
 })
 
+api.nvim_buf_set_keymap(0, "n", "5", "", {
+  noremap = true,
+  silent = true,
+  desc = "Services",
+  callback = function()
+    services_view.Services()
+  end,
+})
+
 if not loop.is_running() then
-  loop.start_loop(service_view.Services)
+  loop.start_loop(configmaps_view.Configmaps)
 end

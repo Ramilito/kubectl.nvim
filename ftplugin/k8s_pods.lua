@@ -1,11 +1,14 @@
 local api = vim.api
-local container_view = require("kubectl.views.containers")
-local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
-local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
+local configmaps_view = require("kubectl.views.configmaps")
+local container_view = require("kubectl.views.containers")
+local deployments_view = require("kubectl.views.deployments")
+local pod_view = require("kubectl.views.pods")
+local secrets_view = require("kubectl.views.secrets")
+local services_view = require("kubectl.views.services")
 
 local col_indices = { 1, 2 }
 api.nvim_buf_set_keymap(0, "n", "g?", "", {
@@ -23,9 +26,17 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
         .. hl.symbols.clear
         .. "desc | "
         .. hl.symbols.pending
-        .. "<cr> "
+        .. "<1> "
         .. hl.symbols.clear
-        .. "containers",
+        .. "deployments | "
+        .. hl.symbols.pending
+        .. "<3> "
+        .. hl.symbols.clear
+        .. "configmaps | "
+        .. hl.symbols.pending
+        .. "<4> "
+        .. hl.symbols.clear
+        .. "secrets",
     })
   end,
 })
@@ -48,14 +59,6 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
     else
       api.nvim_err_writeln("Failed to describe pod name or namespace.")
     end
-  end,
-})
-
-api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
-  noremap = true,
-  silent = true,
-  callback = function()
-    deployment_view.Deployments()
   end,
 })
 
@@ -92,6 +95,42 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   silent = true,
   callback = function()
     pod_view.Pods()
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "1", "", {
+  noremap = true,
+  silent = true,
+  desc = "Deployments",
+  callback = function()
+    deployments_view.Deployments()
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "3", "", {
+  noremap = true,
+  silent = true,
+  desc = "Configmaps",
+  callback = function()
+    configmaps_view.Configmaps()
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "4", "", {
+  noremap = true,
+  silent = true,
+  desc = "Secrets",
+  callback = function()
+    secrets_view.Secrets()
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "5", "", {
+  noremap = true,
+  silent = true,
+  desc = "Services",
+  callback = function()
+    services_view.Services()
   end,
 })
 
