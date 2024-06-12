@@ -1,4 +1,5 @@
 local api = vim.api
+local Menu = require("nui.menu")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
@@ -22,6 +23,54 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
         .. hl.symbols.clear
         .. "pods",
     })
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "r", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    local menu = Menu({
+      position = "50%",
+      size = {
+        width = 25,
+        height = 5,
+      },
+      border = {
+        style = "single",
+        text = {
+          top = "Are you sure that you want to restart the deployment?",
+          top_align = "center",
+        },
+      },
+      win_options = {
+        winhighlight = "Normal:Normal,FloatBorder:Normal",
+      },
+    }, {
+      lines = {
+        Menu.item("Yes"),
+        Menu.item("Cancel"),
+      },
+      max_width = 20,
+      keymap = {
+        close = { "<Esc>", "<C-c>" },
+        submit = { "<CR>", "<Space>" },
+      },
+      on_close = function()
+        print("Cancelled!")
+      end,
+      on_submit = function(item)
+        if item.text == "Yes" then
+          local namespace, deployment_name = tables.getCurrentSelection(unpack({ 1, 2 }))
+          local output = vim.fn.system("kubectl rollout restart deployment/" .. deployment_name .. " -n " .. namespace)
+          print(output)
+        else
+          print("Cancelled!")
+        end
+      end,
+    })
+
+    menu:mount()
   end,
 })
 
