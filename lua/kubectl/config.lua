@@ -18,7 +18,7 @@ local defaults = {
     col = 10,
     row = 5,
   },
-  obj_fresh = 0, -- age in minutes
+  obj_fresh = 0, -- highghlight if age is less than minutes
 }
 
 M.options = {}
