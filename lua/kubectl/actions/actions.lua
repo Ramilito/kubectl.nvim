@@ -28,6 +28,10 @@ function M.filter_buffer(content, filetype, opts)
 
   if buf == -1 then
     buf = create_buffer(bufname, "prompt")
+    vim.keymap.set("n", "q", function()
+      vim.bo.modified = false
+      vim.cmd.close()
+    end, { buffer = buf, silent = true })
   end
 
   local win = layout.filter_layout(buf, filetype, opts.title or "")
