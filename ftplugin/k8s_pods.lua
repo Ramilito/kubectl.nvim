@@ -1,5 +1,6 @@
 local api = vim.api
 local container_view = require("kubectl.views.containers")
+local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
@@ -43,6 +44,14 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
     else
       api.nvim_err_writeln("Failed to describe pod name or namespace.")
     end
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    deployment_view.Deployments()
   end,
 })
 
