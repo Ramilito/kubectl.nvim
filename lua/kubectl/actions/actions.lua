@@ -56,6 +56,51 @@ function M.filter_buffer(content, filetype, opts)
   hl.set_highlighting(buf)
 end
 
+function M.confirmation_buffer(prompt, filetype, onConfirm)
+  local bufname = "kubectl_confirmation"
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if buf == -1 then
+    buf = create_buffer(bufname)
+  end
+  local content = { "[y]es [n]o" }
+
+  local opts = {
+    size = {
+      width = #prompt + 4,
+      height = #content + 1,
+      col = (vim.api.nvim_win_get_width(0) - #prompt + 2) * 0.5,
+      row = (vim.api.nvim_win_get_height(0) - #content + 1) * 0.5,
+    },
+    relative = "win",
+  }
+
+  set_buffer_lines(buf, opts.hints, content)
+  local win = layout.float_layout(buf, filetype, prompt, opts)
+
+  vim.api.nvim_buf_set_keymap(buf, "n", "y", "", {
+    noremap = true,
+    silent = true,
+    callback = function()
+      vim.api.nvim_win_close(win, true)
+      onConfirm(true)
+    end,
+  })
+  vim.api.nvim_buf_set_keymap(buf, "n", "n", "", {
+    noremap = true,
+    silent = true,
+    callback = function()
+      vim.api.nvim_win_close(win, true)
+      onConfirm(false)
+    end,
+  })
+  vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
+
+  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
+  hl.setup()
+  hl.set_highlighting(buf)
+end
+
 function M.floating_buffer(content, filetype, opts)
   local bufname = opts.title or "kubectl_float"
   local buf = vim.fn.bufnr(bufname, false)
