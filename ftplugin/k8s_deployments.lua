@@ -13,6 +13,7 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   silent = true,
   callback = function()
     local hints = ""
+    hints = hints .. tables.generateHintLine("<r>", "Restart selected deployment \n")
     hints = hints .. tables.generateHintLine("<d>", "Describe selected deployment \n")
     hints = hints .. tables.generateHintLine("<enter>", "Opens pods view \n")
 
