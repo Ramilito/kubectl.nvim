@@ -19,6 +19,9 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
+  mappings = {
+    exit = "<leader>k",
+  }
 }
 
 M.options = {}
