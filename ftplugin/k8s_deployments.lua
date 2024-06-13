@@ -1,6 +1,7 @@
 local api = vim.api
+local actions = require("kubectl.actions.actions")
+local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
-local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root")
@@ -51,6 +52,26 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
   end,
 })
 
+api.nvim_buf_set_keymap(0, "n", "r", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
+    actions.confirmation_buffer("Are you sure that you want to restart the deployment: " .. name, nil, function(confirm)
+      if confirm then
+        commands.shell_command_async(
+          "kubectl",
+          "rollout restart deployment/" .. name .. " -n " .. ns,
+          function(response)
+            vim.schedule(function()
+              vim.notify(response)
+            end)
+          end
+        )
+      end
+    end)
+  end,
+})
 api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
