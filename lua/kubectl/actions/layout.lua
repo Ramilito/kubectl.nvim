@@ -43,21 +43,23 @@ function M.filter_layout(buf, filetype, title)
   return win
 end
 
-function M.float_layout(buf, filetype, title)
-  local width = config.options.float_size.width * vim.o.columns
-  local height = config.options.float_size.height * vim.o.lines
-  local row = config.options.float_size.row
-  local col = config.options.float_size.col
+function M.float_layout(buf, filetype, title, opts)
+  opts = opts or {}
+  local size = opts.size or {}
+  if filetype then
+    title = filetype .. " - " .. (title or "")
+  end
+  -- title = filetype .. " - " .. (title or "")
 
   local win = api.nvim_open_win(buf, true, {
-    relative = "editor",
+    relative = opts.relative or "editor",
     style = "minimal",
-    width = math.floor(width),
-    height = math.floor(height),
-    row = row,
+    width = size.width or math.floor(config.options.float_size.width * vim.o.columns),
+    height = size.height or math.floor(config.options.float_size.height * vim.o.lines),
+    row = size.row or config.options.float_size.row,
+    col = size.col or config.options.float_size.col,
     border = "rounded",
-    col = col,
-    title = filetype .. " - " .. (title or ""),
+    title = title,
   })
   return win
 end
