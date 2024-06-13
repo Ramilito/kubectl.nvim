@@ -110,7 +110,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   if cancellationToken ~= nil and cancellationToken() then
     return
   end
-  actions.buffer(find.filter_line(self.prettyData, self.filter), filetype, { title = title, hints = self.hints })
+  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), filetype, { title = title, hints = self.hints })
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
