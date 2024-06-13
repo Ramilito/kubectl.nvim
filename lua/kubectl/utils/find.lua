@@ -18,14 +18,19 @@ function M.escape(s)
   return (s:gsub(".", matches))
 end
 
-function M.filter_line(array, pattern)
+function M.filter_line(array, pattern, startAt)
   local filtered_array = {}
   if not pattern then
     return array
   end
+  startAt = startAt or 1
 
   if array then
-    for _, line in ipairs(array) do
+    for index = 1, startAt - 1 do
+      table.insert(filtered_array, array[index])
+    end
+    for index = startAt, #array do
+      local line = array[index]
       if line:match(pattern) then
         table.insert(filtered_array, line)
       end
