@@ -6,11 +6,12 @@ local pods_view = require("kubectl.views.pods")
 local secrets_view = require("kubectl.views.secrets")
 local services_view = require("kubectl.views.services")
 local state = require("kubectl.utils.state")
+local config = require("kubectl.config")
 
 local M = {}
 
 function M.register()
-  vim.api.nvim_buf_set_keymap(0, "n", "<leader>k", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", config.options.mappings.exit, "", {
     noremap = true,
     silent = true,
     desc = "Toggle",
@@ -18,6 +19,7 @@ function M.register()
       vim.cmd("bdelete!")
     end,
   })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<C-f>", "", {
     noremap = true,
     silent = true,
