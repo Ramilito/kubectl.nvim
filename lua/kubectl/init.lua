@@ -8,7 +8,8 @@ local M = {}
 function M.open()
   local pod_view = require("kubectl.views.pods")
   hl.setup()
-  state.setup()
+  -- state.setup()
+  state.startProxy()
   pod_view.Pods()
 end
 

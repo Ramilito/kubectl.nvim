@@ -3,7 +3,6 @@ local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
 local state = require("kubectl.utils.state")
 local tables = require("kubectl.utils.tables")
-local time = require("kubectl.utils.time")
 
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
@@ -19,25 +18,25 @@ function ResourceBuilder:new(resource, args)
 end
 
 local build_api_path = function(args)
-  if type(args) == "table" then
-    args = table.concat(args, " ")
+  for i, arg in ipairs(args) do
+    if state.ns and state.ns ~= "All" and string.find(arg, "{{NAMESPACE}}") then
+      args[i] = string.gsub(arg, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
+    elseif string.find(arg, "{{NAMESPACE}}") then
+      args[i] = string.gsub(arg, "{{NAMESPACE}}", "")
+    end
   end
-  if state.ns and state.ns ~= "All" and string.find(args, "{{NAMESPACE}}") then
-    return string.gsub(args, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
-  else
-    return string.gsub(args, "{{NAMESPACE}}", "")
-  end
+  return args
 end
 
 function ResourceBuilder:fetch()
   self.args = build_api_path(self.args)
-  self.data = commands.execute_shell_command("kubectl", self.args)
+  self.data = commands.execute_shell_command("curl", self.args)
   return self
 end
 
 function ResourceBuilder:fetchAsync(callback)
   self.args = build_api_path(self.args)
-  commands.shell_command_async("kubectl", self.args, function(data)
+  commands.shell_command_async("curl", self.args, function(data)
     self.data = data
     callback(self)
   end)

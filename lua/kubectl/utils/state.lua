@@ -53,4 +53,8 @@ end
 function M.setNS(ns)
   M.ns = ns
 end
+
+function M.startProxy()
+  -- commands.shell_command_async("kubectl", "proxy --port=8080")
+end
 return M
