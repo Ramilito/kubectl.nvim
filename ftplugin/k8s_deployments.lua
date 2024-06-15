@@ -53,6 +53,43 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
   end,
 })
 
+-- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
+api.nvim_buf_set_keymap(0, "n", "i", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
+
+    local get_images = "get deploy "
+      .. name
+      .. " -n "
+      .. ns
+      .. ' -o jsonpath="{.spec.template.spec.containers[*].image}"'
+
+    local container_images = {}
+
+    for image in commands.execute_shell_command("kubectl", get_images):gmatch("[^\r\n]+") do
+      table.insert(container_images, image)
+    end
+
+    if #container_images > 1 then
+      vim.notify("Setting new container image for multiple containers are NOT supported yet", vim.log.levels.WARN)
+    else
+      vim.ui.input({ prompt = "Update image", default = container_images[1] }, function(input)
+        if input ~= nil then
+          local set_image = "set image deployment/" .. name .. " " .. name .. "=" .. input .. " -n " .. ns
+
+          commands.shell_command_async("kubectl", set_image, function(response)
+            vim.schedule(function()
+              vim.notify(response)
+            end)
+          end)
+        end
+      end)
+    end
+  end,
+})
+
 api.nvim_buf_set_keymap(0, "n", "r", "", {
   noremap = true,
   silent = true,
