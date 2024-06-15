@@ -6,7 +6,11 @@ local M = {}
 M.selection = {}
 
 function M.Pods(cancellationToken)
-  ResourceBuilder:new("pods", {"-sS", "http://127.0.0.1:8080/api/v1/{{NAMESPACE}}pods"}):fetchAsync(function(self)
+  -- -H "Content-Type: application/json"
+  ResourceBuilder:new(
+    "pods",
+    { "-H", "Content-Type: application/json", "-sS", "http://127.0.0.1:8080/api/v1/{{NAMESPACE}}pods?pretty=false", "-w", "\n" }
+  ):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
     vim.schedule(function()
       self
@@ -62,15 +66,12 @@ function M.PodLogs()
 end
 
 function M.PodDesc(pod_name, namespace)
-  ResourceBuilder:new(
-    "desc",
-    {
-      "-sS",
-      "-H",
-      "Accept: application/yaml",
-      "http://127.0.0.1:8080/api/v1/namespaces/" .. namespace .. "/pods/" .. pod_name,
-    }
-  ):fetchAsync(function(self)
+  ResourceBuilder:new("desc", {
+    "-sS",
+    "-H",
+    "Accept: application/yaml",
+    "http://127.0.0.1:8080/api/v1/namespaces/" .. namespace .. "/pods/" .. pod_name,
+  }):fetchAsync(function(self)
     self:splitData()
     vim.schedule(function()
       self:displayFloat("k8s_pod_desc", pod_name, "yaml")

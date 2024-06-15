@@ -22,7 +22,7 @@ function M.shell_command_async(cmd, args, callback)
     end,
     on_exit = function(_, _)
       local output = table.concat(result, "\n")
-      callback(output .. "}")
+      callback(output)
     end,
   }):start()
 end

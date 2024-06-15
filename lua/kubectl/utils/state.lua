@@ -12,12 +12,14 @@ local decode = function(string)
   if success then
     return result
   else
-    vim.notify("Error: current-context unavailable", vim.log.levels.ERROR)
+    vim.schedule(function()
+      vim.notify("Error: current-context unavailable", vim.log.levels.ERROR)
+    end)
   end
 end
 
 function M.setup()
-  commands.shell_command_async("kubectl", "config view --minify -o json", function(data)
+  commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
     local result = decode(data)
     M.context = result
     M.ns = defaults.options.namespace
@@ -55,6 +57,6 @@ function M.setNS(ns)
 end
 
 function M.startProxy()
-  -- commands.shell_command_async("kubectl", "proxy --port=8080")
+  -- commands.shell_command_async("kubectl", { "proxy", "--port=8080" })
 end
 return M
