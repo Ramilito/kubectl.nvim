@@ -1,17 +1,20 @@
 local M = {}
 
-function M.shell_command_async(cmd, args, callback)
+function M.shell_command_async(cmd, args, callback, on_stdout)
   local loaded, Job = pcall(require, "plenary.job")
   if not loaded then
     vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
     return
   end
   local result = {}
-  Job:new({
+  local job = Job:new({
     command = cmd,
     args = args,
     on_stdout = function(_, data)
       table.insert(result, data)
+      if on_stdout then
+        on_stdout()
+      end
     end,
     on_stderr = function(_, data)
       vim.schedule(function()
@@ -22,9 +25,12 @@ function M.shell_command_async(cmd, args, callback)
     end,
     on_exit = function(_, _)
       local output = table.concat(result, "\n")
-      callback(output)
+      if callback then
+        callback(output)
+      end
     end,
   }):start()
+  return job
 end
 
 function M.execute_shell_command(cmd, args)

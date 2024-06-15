@@ -1,5 +1,6 @@
 local commands = require("kubectl.actions.commands")
 local defaults = require("kubectl.config")
+local kube = require("kubectl.utils.kube")
 
 local M = {}
 M.context = {}
@@ -57,6 +58,7 @@ function M.setNS(ns)
 end
 
 function M.startProxy()
+  local jobId = kube.startProxy()
   -- commands.shell_command_async("kubectl", { "proxy", "--port=8080" })
 end
 return M

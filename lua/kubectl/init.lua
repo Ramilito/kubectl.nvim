@@ -1,16 +1,18 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
+local kube = require("kubectl.utils.kube")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.utils.state")
 
 local M = {}
 
 function M.open()
-  local pod_view = require("kubectl.views.pods")
   hl.setup()
-  -- state.setup()
-  state.startProxy()
-  pod_view.Pods()
+  kube.startProxy(function()
+    local pod_view = require("kubectl.views.pods")
+    state.setup()
+    pod_view.Pods()
+  end)
 end
 
 function M.setup(options)
