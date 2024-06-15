@@ -7,10 +7,14 @@ M.selection = {}
 
 function M.Pods(cancellationToken)
   -- -H "Content-Type: application/json"
-  ResourceBuilder:new(
-    "pods",
-    { "-H", "Content-Type: application/json", "-sS", "http://127.0.0.1:8080/api/v1/{{NAMESPACE}}pods?pretty=false", "-w", "\n" }
-  ):fetchAsync(function(self)
+  ResourceBuilder:new("pods", {
+    "-H",
+    "Content-Type: application/json",
+    "-sS",
+    "http://127.0.0.1:8080/api/v1/{{NAMESPACE}}pods?pretty=false",
+    "-w",
+    "\n",
+  }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
     vim.schedule(function()
       self
@@ -53,16 +57,23 @@ function M.selectPod(pod_name, namespace)
 end
 
 function M.PodLogs()
-  ResourceBuilder:new("logs", "logs " .. M.selection.pod .. " -n " .. M.selection.ns):fetchAsync(function(self)
-    self:splitData()
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<f>", desc = "Follow" },
-        }, false, false)
-        :displayFloat("k8s_pod_logs", M.selection.pod, "less")
+  ResourceBuilder
+    :new("logs", {
+      -- "-H",
+      -- "Content-Type: application/json",
+      "-sS",
+      "http://127.0.0.1:8080/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
+    })
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<f>", desc = "Follow" },
+          }, false, false)
+          :displayFloat("k8s_pod_logs", M.selection.pod, "less")
+      end)
     end)
-  end)
 end
 
 function M.PodDesc(pod_name, namespace)
