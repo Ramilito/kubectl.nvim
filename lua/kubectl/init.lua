@@ -1,7 +1,9 @@
+local async = require("plenary.async")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local kube = require("kubectl.utils.kube")
 local mappings = require("kubectl.mappings")
+local pod_view = require("kubectl.views.pods")
 local state = require("kubectl.utils.state")
 
 local M = {}
@@ -9,9 +11,8 @@ local M = {}
 function M.open()
   hl.setup()
   kube.startProxy(function()
-    local pod_view = require("kubectl.views.pods")
-    state.setup()
-    pod_view.Pods()
+    async.void(state.setup())
+    async.void(pod_view.Pods())
   end)
 end
 
