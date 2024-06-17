@@ -34,6 +34,9 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
 end
 
 function M.execute_shell_command(cmd, args)
+  if type(args) == "table" then
+    args = table.concat(args, " ")
+  end
   local full_command = cmd .. " " .. args
   local handle = io.popen(full_command, "r")
   if handle == nil then

@@ -71,12 +71,6 @@ function M.PodLogs()
 end
 
 function M.PodDesc(pod_name, namespace)
-  -- local data = commands.execute_shell_command(
-  --   "curl",
-  --   "-X 'GET' 'http://localhost:8080/api/v1/namespaces/tools/pods/echoserver-fb487f4c-d6hdv' -H 'accept: application/yaml'"
-  -- )
-  --
-  -- ResourceBuilder:new("", {}, {}):setData(data):splitData():displayFloat("",pod_name, "yaml")
   ResourceBuilder:new("desc", {
     "{{BASE}}/api/v1/namespaces/" .. namespace .. "/pods/" .. pod_name,
   }, { contentType = "yaml" }):fetchAsync(function(self)

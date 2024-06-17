@@ -19,8 +19,7 @@ function ResourceBuilder:new(resource, args, opts)
   return self
 end
 
-local build_api_path = function(args, contentType)
-  -- handle namespace
+local function buildPath(args, contentType)
   for i, arg in ipairs(args) do
     if string.find(arg, "{{BASE}}") then
       local base = state.getProxyUrl()
@@ -39,13 +38,23 @@ local build_api_path = function(args, contentType)
 
   if contentType == "yaml" then
     table.insert(args, 1, "Content-Type: application/yaml")
+    table.insert(args, 1, "-H")
+    table.insert(args, 1, "Accept: application/yaml")
+    table.insert(args, 1, "-H")
   elseif contentType == "text/html" then
-    table.insert(args, 1, "Content-Type: text/html")
+    table.insert(args, 1, "Content-Type: text/plain")
+    table.insert(args, 1, "-H")
+
+    table.insert(args, 1, "Accept: application/yaml")
+    table.insert(args, 1, "-H")
   else
     table.insert(args, 1, "Content-Type: application/json")
+    table.insert(args, 1, "-H")
   end
-  table.insert(args, 1, "-H")
+
   table.insert(args, 1, "-sS")
+  table.insert(args, 1, "GET")
+  table.insert(args, 1, "-X")
   return args
 end
 
@@ -54,17 +63,17 @@ function ResourceBuilder:setData(data)
   return self
 end
 function ResourceBuilder:fetch()
-  self.args = build_api_path(self.args, self.contentType)
+  self.args = buildPath(self.args, self.contentType)
   self.data = commands.execute_shell_command("curl", self.args)
   return self
 end
 
 function ResourceBuilder:fetchAsync(callback)
-  self.args = build_api_path(self.args, self.contentType)
+  self.args = buildPath(self.args, self.contentType)
   commands.shell_command_async("curl", self.args, function(data)
     self.data = data
     callback(self)
-  end, nil, self.contentType)
+  end, nil)
   return self
 end
 
