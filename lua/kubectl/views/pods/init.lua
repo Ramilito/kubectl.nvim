@@ -1,17 +1,15 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
+local timeme = require("kubectl.utils.timeme")
 
 local M = {}
 M.selection = {}
 
 function M.Pods(cancellationToken)
-  -- -H "Content-Type: application/json"
+  timeme.start()
   ResourceBuilder:new("pods", {
-    "-H",
-    "Content-Type: application/json",
-    "-sS",
-    "http://127.0.0.1:8080/api/v1/{{NAMESPACE}}pods?pretty=false",
+    "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
     "-w",
     "\n",
   }):fetchAsync(function(self)
@@ -25,6 +23,7 @@ function M.Pods(cancellationToken)
           { key = "<enter>", desc = "containers" },
         }, true, true)
         :display("k8s_pods", "Pods", cancellationToken)
+      timeme.stop()
     end)
   end)
 end
@@ -57,32 +56,30 @@ function M.selectPod(pod_name, namespace)
 end
 
 function M.PodLogs()
-  ResourceBuilder
-    :new("logs", {
-      -- "-H",
-      -- "Content-Type: application/json",
-      "-sS",
-      "http://127.0.0.1:8080/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
-    })
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self
-          :addHints({
-            { key = "<f>", desc = "Follow" },
-          }, false, false)
-          :displayFloat("k8s_pod_logs", M.selection.pod, "less")
-      end)
+  ResourceBuilder:new("logs", {
+    "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
+  }, { contentType = "text/html" }):fetchAsync(function(self)
+    self:splitData()
+    vim.schedule(function()
+      self
+        :addHints({
+          { key = "<f>", desc = "Follow" },
+        }, false, false)
+        :displayFloat("k8s_pod_logs", M.selection.pod, "less")
     end)
+  end)
 end
 
 function M.PodDesc(pod_name, namespace)
+  -- local data = commands.execute_shell_command(
+  --   "curl",
+  --   "-X 'GET' 'http://localhost:8080/api/v1/namespaces/tools/pods/echoserver-fb487f4c-d6hdv' -H 'accept: application/yaml'"
+  -- )
+  --
+  -- ResourceBuilder:new("", {}, {}):setData(data):splitData():displayFloat("",pod_name, "yaml")
   ResourceBuilder:new("desc", {
-    "-sS",
-    "-H",
-    "Accept: application/yaml",
-    "http://127.0.0.1:8080/api/v1/namespaces/" .. namespace .. "/pods/" .. pod_name,
-  }):fetchAsync(function(self)
+    "{{BASE}}/api/v1/namespaces/" .. namespace .. "/pods/" .. pod_name,
+  }, { contentType = "yaml" }):fetchAsync(function(self)
     self:splitData()
     vim.schedule(function()
       self:displayFloat("k8s_pod_desc", pod_name, "yaml")

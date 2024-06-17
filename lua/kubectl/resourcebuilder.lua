@@ -39,6 +39,8 @@ local build_api_path = function(args, contentType)
 
   if contentType == "yaml" then
     table.insert(args, 1, "Content-Type: application/yaml")
+  elseif contentType == "text/html" then
+    table.insert(args, 1, "Content-Type: text/html")
   else
     table.insert(args, 1, "Content-Type: application/json")
   end
@@ -47,6 +49,10 @@ local build_api_path = function(args, contentType)
   return args
 end
 
+function ResourceBuilder:setData(data)
+  self.data = data
+  return self
+end
 function ResourceBuilder:fetch()
   self.args = build_api_path(self.args, self.contentType)
   self.data = commands.execute_shell_command("curl", self.args)
@@ -58,7 +64,7 @@ function ResourceBuilder:fetchAsync(callback)
   commands.shell_command_async("curl", self.args, function(data)
     self.data = data
     callback(self)
-  end)
+  end, nil, self.contentType)
   return self
 end
 

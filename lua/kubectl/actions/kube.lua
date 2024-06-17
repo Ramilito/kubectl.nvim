@@ -1,6 +1,5 @@
 local uv = vim.loop
 local state = require("kubectl.utils.state")
-local timeme = require("kubectl.utils.timeme")
 
 local M = {}
 M.handle = {}
@@ -17,7 +16,6 @@ function M.stop_kubectl_proxy()
 end
 
 function M.startProxy(callback)
-  timeme.start()
   local stdout = uv.new_pipe(false)
   local stderr = uv.new_pipe(false)
 
@@ -42,7 +40,6 @@ function M.startProxy(callback)
   uv.read_start(
     stdout,
     vim.schedule_wrap(function(err, data)
-      timeme.stop()
       if err then
         print("Error reading stdout:", err)
         return
