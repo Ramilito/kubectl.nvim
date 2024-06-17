@@ -1,4 +1,5 @@
 local uv = vim.loop
+local state = require("kubectl.utils.state")
 local timeme = require("kubectl.utils.timeme")
 
 local M = {}
@@ -23,7 +24,7 @@ function M.startProxy(callback)
   M.handle, M.pid = uv.spawn(
     "kubectl",
     {
-      args = { "proxy", "--port=8080" },
+      args = { "proxy", "--port=0" },
       stdio = { nil, stdout, stderr },
     },
     vim.schedule_wrap(function(code, signal)
@@ -47,7 +48,18 @@ function M.startProxy(callback)
         return
       end
       if data then
-        callback(data)
+        local port = data:match(":(%d+)")
+        if port then
+          port = tonumber(port)
+          if port and port > 0 and port <= 65535 then
+            state.setProxyUrl(port)
+            callback()
+          else
+            print("Invalid port number: " .. tostring(port))
+          end
+        else
+          print("No port number found in the text.")
+        end
       end
     end)
   )

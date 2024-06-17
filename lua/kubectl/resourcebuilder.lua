@@ -7,35 +7,54 @@ local tables = require("kubectl.utils.tables")
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
 
-function ResourceBuilder:new(resource, args)
+function ResourceBuilder:new(resource, args, opts)
+  opts = opts or {}
   local self = setmetatable({}, ResourceBuilder)
   self.resource = resource
   self.args = args
   self.hints = {}
+  self.contentType = opts.contentType or "json"
   self.filter = ""
   self.data = {}
   return self
 end
 
-local build_api_path = function(args)
+local build_api_path = function(args, contentType)
+  -- handle namespace
   for i, arg in ipairs(args) do
-    if state.ns and state.ns ~= "All" and string.find(arg, "{{NAMESPACE}}") then
-      args[i] = string.gsub(arg, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
-    elseif string.find(arg, "{{NAMESPACE}}") then
-      args[i] = string.gsub(arg, "{{NAMESPACE}}", "")
+    if string.find(arg, "{{BASE}}") then
+      local base = state.getProxyUrl()
+      arg = string.gsub(arg, "{{BASE}}", base)
+      args[i] = arg
+    end
+
+    if string.find(arg, "{{NAMESPACE}}") then
+      if state.ns and state.ns ~= "All" then
+        args[i] = string.gsub(arg, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
+      else
+        args[i] = string.gsub(arg, "{{NAMESPACE}}", "")
+      end
     end
   end
+
+  if contentType == "yaml" then
+    table.insert(args, 1, "Content-Type: application/yaml")
+  else
+    table.insert(args, 1, "Content-Type: application/json")
+  end
+  table.insert(args, 1, "-H")
+  table.insert(args, 1, "-sS")
   return args
 end
 
 function ResourceBuilder:fetch()
-  self.args = build_api_path(self.args)
+  self.args = build_api_path(self.args, self.contentType)
   self.data = commands.execute_shell_command("curl", self.args)
   return self
 end
 
 function ResourceBuilder:fetchAsync(callback)
-  self.args = build_api_path(self.args)
+  self.args = build_api_path(self.args, self.contentType)
   commands.shell_command_async("curl", self.args, function(data)
     self.data = data
     callback(self)

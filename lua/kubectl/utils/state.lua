@@ -6,6 +6,7 @@ M.context = {}
 M.ns = ""
 M.filter = ""
 M.sortby = ""
+M.proxyUrl = ""
 
 local decode = function(string)
   local success, result = pcall(vim.json.decode, string)
@@ -40,6 +41,10 @@ function M.getFilter()
   return M.filter
 end
 
+function M.getProxyUrl()
+  return M.proxyUrl
+end
+
 function M.getSortBy()
   return M.sortby
 end
@@ -50,6 +55,10 @@ end
 
 function M.setFilter(pattern)
   M.filter = pattern
+end
+
+function M.setProxyUrl(port)
+  M.proxyUrl = "http://127.0.0.1:" .. port
 end
 
 function M.setNS(ns)
