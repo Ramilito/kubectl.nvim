@@ -1,6 +1,6 @@
 local M = {}
 
-function M.shell_command_async(cmd, args, callback, on_stdout)
+function M.shell_command_async(cmd, args, on_exit, on_stdout)
   local loaded, Job = pcall(require, "plenary.job")
   if not loaded then
     vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
@@ -25,8 +25,8 @@ function M.shell_command_async(cmd, args, callback, on_stdout)
     end,
     on_exit = function(_, _)
       local output = table.concat(result, "\n")
-      if callback then
-        callback(output)
+      if on_exit then
+        on_exit(output)
       end
     end,
   }):start()
