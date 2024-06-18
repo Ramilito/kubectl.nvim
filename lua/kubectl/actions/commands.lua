@@ -7,7 +7,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
     return
   end
   local result = {}
-  local job = Job:new({
+  Job:new({
     command = cmd,
     args = args,
     on_stdout = function(_, data)
@@ -30,7 +30,6 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
       end
     end,
   }):start()
-  return job
 end
 
 function M.execute_shell_command(cmd, args)
