@@ -35,7 +35,7 @@ function ResourceBuilder:fetchAsync(callback)
   commands.shell_command_async("curl", self.args, function(data)
     self.data = data
     callback(self)
-  end, nil)
+  end)
   return self
 end
 

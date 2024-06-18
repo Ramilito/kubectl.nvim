@@ -13,7 +13,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
     on_stdout = function(_, data)
       table.insert(result, data)
       if on_stdout then
-        on_stdout()
+        on_stdout(data)
       end
     end,
     on_stderr = function(_, data)
@@ -24,9 +24,8 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
       end)
     end,
     on_exit = function(_, _)
-      local output = table.concat(result, "\n")
       if on_exit then
-        on_exit(output)
+        on_exit(table.concat(result, "\n"))
       end
     end,
   }):start()
