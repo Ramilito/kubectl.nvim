@@ -1,8 +1,9 @@
 local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local url = require("kubectl.utils.url")
 
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
@@ -19,57 +20,18 @@ function ResourceBuilder:new(resource, args, opts)
   return self
 end
 
-local function buildPath(args, contentType)
-  for i, arg in ipairs(args) do
-    if string.find(arg, "{{BASE}}") then
-      local base = state.getProxyUrl()
-      arg = string.gsub(arg, "{{BASE}}", base)
-      args[i] = arg
-    end
-
-    if string.find(arg, "{{NAMESPACE}}") then
-      if state.ns and state.ns ~= "All" then
-        args[i] = string.gsub(arg, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
-      else
-        args[i] = string.gsub(arg, "{{NAMESPACE}}", "")
-      end
-    end
-  end
-
-  if contentType == "yaml" then
-    table.insert(args, 1, "Content-Type: application/yaml")
-    table.insert(args, 1, "-H")
-    table.insert(args, 1, "Accept: application/yaml")
-    table.insert(args, 1, "-H")
-  elseif contentType == "text/html" then
-    table.insert(args, 1, "Content-Type: text/plain")
-    table.insert(args, 1, "-H")
-
-    table.insert(args, 1, "Accept: application/yaml")
-    table.insert(args, 1, "-H")
-  else
-    table.insert(args, 1, "Content-Type: application/json")
-    table.insert(args, 1, "-H")
-  end
-
-  table.insert(args, 1, "-sS")
-  table.insert(args, 1, "GET")
-  table.insert(args, 1, "-X")
-  return args
-end
-
 function ResourceBuilder:setData(data)
   self.data = data
   return self
 end
 function ResourceBuilder:fetch()
-  self.args = buildPath(self.args, self.contentType)
+  self.args = url.build(self.args, self.contentType)
   self.data = commands.execute_shell_command("curl", self.args)
   return self
 end
 
 function ResourceBuilder:fetchAsync(callback)
-  self.args = buildPath(self.args, self.contentType)
+  self.args = url.build(self.args, self.contentType)
   commands.shell_command_async("curl", self.args, function(data)
     self.data = data
     callback(self)

@@ -4,7 +4,7 @@ local hl = require("kubectl.actions.highlight")
 local kube = require("kubectl.actions.kube")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 
 local M = {}
 

@@ -1,5 +1,5 @@
 local uv = vim.loop
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 
 local M = {}
 M.handle = {}

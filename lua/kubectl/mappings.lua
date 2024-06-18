@@ -7,7 +7,7 @@ local namespace_view = require("kubectl.views.namespace")
 local pods_view = require("kubectl.views.pods")
 local secrets_view = require("kubectl.views.secrets")
 local services_view = require("kubectl.views.services")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 
 local M = {}
 

@@ -1,6 +1,6 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local M = {}
 
@@ -37,12 +37,7 @@ function M.generateContext()
       hint = hint .. "Cluster:   " .. context.clusters[1].name .. "\n"
     end
     if context.contexts then
-      hint = hint
-        .. "Context:   "
-        .. hl.symbols.pending
-        .. context.contexts[1].context.cluster
-        .. hl.symbols.clear
-        .. "\n"
+      hint = hint .. "Context:   " .. hl.symbols.pending .. context.contexts[1].context.cluster .. hl.symbols.clear .. "\n"
       hint = hint .. "User:      " .. context.contexts[1].context.user .. "\n"
     end
     hint = hint .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
@@ -104,10 +99,7 @@ function M.pretty_print(data, headers)
   local header_line = {}
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    table.insert(
-      header_line,
-      hl_symbols_header .. header .. hl_symbols_clear .. "  " .. string.rep(" ", column_width - #header + 1)
-    )
+    table.insert(header_line, hl_symbols_header .. header .. hl_symbols_clear .. "  " .. string.rep(" ", column_width - #header + 1))
   end
   table.insert(tbl, table.concat(header_line, ""))
 
@@ -120,12 +112,7 @@ function M.pretty_print(data, headers)
         value = tostring(row[col].value)
         table.insert(
           row_line,
-          row[col].symbol
-            .. value
-            .. hl_symbols_clear
-            .. hl_symbols_tab
-            .. "  "
-            .. string.rep(" ", widths[col] - #value + 1)
+          row[col].symbol .. value .. hl_symbols_clear .. hl_symbols_tab .. "  " .. string.rep(" ", widths[col] - #value + 1)
         )
       else
         value = tostring(row[col])

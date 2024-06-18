@@ -1,7 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.namespace.definition")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 
 local M = {}
 
