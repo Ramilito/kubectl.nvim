@@ -77,12 +77,16 @@ api.nvim_buf_set_keymap(0, "n", "i", "", {
     else
       vim.ui.input({ prompt = "Update image", default = container_images[1] }, function(input)
         if input ~= nil then
-          local set_image = "set image deployment/" .. name .. " " .. name .. "=" .. input .. " -n " .. ns
+          actions.confirmation_buffer("Are you sure that you want to update the image?", nil, function(confirm)
+            if confirm then
+              local set_image = "set image deployment/" .. name .. " " .. name .. "=" .. input .. " -n " .. ns
 
-          commands.shell_command_async("kubectl", set_image, function(response)
-            vim.schedule(function()
-              vim.notify(response)
-            end)
+              commands.shell_command_async("kubectl", set_image, function(response)
+                vim.schedule(function()
+                  vim.notify(response)
+                end)
+              end)
+            end
           end)
         end
       end)
