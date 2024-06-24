@@ -119,27 +119,4 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   return self
 end
 
-function ResourceBuilder:fetchAndProcess(
-  urlArgs,
-  curlCmd,
-  cancellationToken,
-  headersFunc,
-  processFunc,
-  displayFunc,
-  hintsFunc,
-  displayParams
-)
-  self:setCmd(urlArgs, curlCmd):fetchAsync(function(self)
-    self:decodeJson():process(processFunc):sort():prettyPrint(headersFunc):setFilter()
-
-    vim.schedule(function()
-      if hintsFunc then
-        hintsFunc(self)
-      end
-      displayFunc(self, unpack(displayParams))
-    end)
-  end)
-  return self
-end
-
 return ResourceBuilder
