@@ -26,7 +26,6 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 
 ## ⚡️ Dependencies
 - kubectl
-- plenary.nvim
   
 ## 📦 Installation
 
@@ -38,7 +37,6 @@ Install the plugin with your preferred package manager:
 return {
   {
     "ramilito/kubectl.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
     keys = {
       {
         "<leader>k",
