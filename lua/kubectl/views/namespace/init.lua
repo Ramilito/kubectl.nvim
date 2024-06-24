@@ -6,7 +6,7 @@ local state = require("kubectl.state")
 local M = {}
 
 function M.Namespace()
-  ResourceBuilder:new("namespace", "get --raw /api/v1/namespaces"):fetchAsync(function(self)
+  ResourceBuilder:new("namespace", { "get", "--raw", "/api/v1/namespaces" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
@@ -32,7 +32,7 @@ function M.changeNamespace(name)
     vim.api.nvim_win_close(win, true)
     vim.api.nvim_input("R")
   else
-    commands.shell_command_async("kubectl", "config set-context --current --namespace=" .. name, handle_output)
+    commands.shell_command_async("kubectl", { "config", "set-context", "--current", "--namespace=" .. name }, handle_output)
   end
 end
 

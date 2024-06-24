@@ -29,7 +29,7 @@ function M.Pods(cancellationToken)
 end
 
 function M.PodTop()
-  ResourceBuilder:new("top", "top pods -A"):fetch():splitData():displayFloat("k8s_top", "Top", "")
+  ResourceBuilder:new("top", { "top", "pods", "-A" }):fetch():splitData():displayFloat("k8s_top", "Top", "")
 end
 
 function M.TailLogs()

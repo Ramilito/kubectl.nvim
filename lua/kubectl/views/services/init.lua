@@ -4,7 +4,7 @@ local definition = require("kubectl.views.services.definition")
 local M = {}
 
 function M.Services(cancellationToken)
-  ResourceBuilder:new("services", "get --raw /api/v1/{{NAMESPACE}}services"):fetchAsync(function(self)
+  ResourceBuilder:new("services", { "get", "--raw", "/api/v1/{{NAMESPACE}}services" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
@@ -23,10 +23,7 @@ function M.Services(cancellationToken)
 end
 
 function M.ServiceDesc(namespace, name)
-  ResourceBuilder:new("desc", "describe svc " .. name .. " -n " .. namespace)
-    :fetch()
-    :splitData()
-    :displayFloat("k8s_svc_desc", name, "yaml")
+  ResourceBuilder:new("desc", { "describe", "svc", name, "-n", namespace }):fetch():splitData():displayFloat("k8s_svc_desc", name, "yaml")
 end
 
 return M

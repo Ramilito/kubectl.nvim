@@ -4,7 +4,7 @@ local definition = require("kubectl.views.configmaps.definition")
 local M = {}
 
 function M.Configmaps(cancellationToken)
-  ResourceBuilder:new("configmaps", "get --raw /api/v1/{{NAMESPACE}}configmaps"):fetchAsync(function(self)
+  ResourceBuilder:new("configmaps", { "get", "--raw", "/api/v1/{{NAMESPACE}}configmaps" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
@@ -18,7 +18,7 @@ function M.Configmaps(cancellationToken)
 end
 
 function M.ConfigmapsDesc(namespace, name)
-  ResourceBuilder:new("desc", "describe configmaps " .. name .. " -n " .. namespace)
+  ResourceBuilder:new("desc", { "describe", "configmaps", name, "-n", namespace })
     :fetch()
     :splitData()
     :displayFloat("k8s_configmaps_desc", name, "yaml")
