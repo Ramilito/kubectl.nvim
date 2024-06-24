@@ -21,11 +21,14 @@ end
 
 function M.setup()
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
+    local pod_view = require("kubectl.views.pods")
     local result = decode(data)
     M.context = result
     M.ns = defaults.options.namespace
     M.filter = ""
     M.sortby = ""
+
+    pod_view.Pods()
   end)
 end
 
