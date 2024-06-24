@@ -26,6 +26,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 
 ## ⚡️ Dependencies
 - kubectl
+- neovim >= 0.10
   
 ## 📦 Installation
 
