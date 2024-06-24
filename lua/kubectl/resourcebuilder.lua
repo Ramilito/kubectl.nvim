@@ -9,8 +9,8 @@ local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
 
 function ResourceBuilder:new(resource, args, opts)
-  opts = opts or {}
   local self = setmetatable({}, ResourceBuilder)
+  opts = opts or {}
   self.resource = resource
   self.args = args
   self.hints = {}
@@ -24,15 +24,31 @@ function ResourceBuilder:setData(data)
   self.data = data
   return self
 end
-function ResourceBuilder:fetch()
-  self.args = url.build(self.args, self.contentType)
-  self.data = commands.execute_shell_command("curl", self.args)
+function ResourceBuilder:fetch(opts)
+  opts = opts or {}
+  self.args = url.build(self.args)
+  if not opts.cmd then
+    opts.cmd = "kubectl"
+  else
+    opts.cmd = opts.cmd
+    self.args = url.addHeaders(self.args, self.contentType)
+  end
+
+  self.data = commands.execute_shell_command(opts.cmd, self.args)
   return self
 end
 
-function ResourceBuilder:fetchAsync(callback)
-  self.args = url.build(self.args, self.contentType)
-  commands.shell_command_async("curl", self.args, function(data)
+function ResourceBuilder:fetchAsync(callback, opts)
+  opts = opts or {}
+  self.args = url.build(self.args)
+  if not opts.cmd or opts.cmd == "kubectl" then
+    opts.cmd = "kubectl"
+  else
+    opts.cmd = "curl"
+    self.args = url.addHeaders(self.args, self.contentType)
+  end
+
+  commands.shell_command_async(opts.cmd, self.args, function(data)
     self.data = data
     callback(self)
   end)

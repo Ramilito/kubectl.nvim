@@ -25,7 +25,7 @@ function M.Pods(cancellationToken)
         :display("k8s_pods", "Pods", cancellationToken)
       timeme.stop()
     end)
-  end)
+  end, { cmd = "curl" })
 end
 
 function M.PodTop()
@@ -67,18 +67,16 @@ function M.PodLogs()
         }, false, false)
         :displayFloat("k8s_pod_logs", M.selection.pod, "less")
     end)
-  end)
+  end, { cmd = "curl" })
 end
 
 function M.PodDesc(pod_name, namespace)
-  ResourceBuilder:new("desc", {
-    "{{BASE}}/api/v1/namespaces/" .. namespace .. "/pods/" .. pod_name,
-  }, { contentType = "yaml" }):fetchAsync(function(self)
+  ResourceBuilder:new("desc", { "describe", "pod", pod_name, "-n", namespace }):fetchAsync(function(self)
     self:splitData()
     vim.schedule(function()
       self:displayFloat("k8s_pod_desc", pod_name, "yaml")
     end)
-  end)
+  end, { cmd = "kubectl" })
 end
 
 return M

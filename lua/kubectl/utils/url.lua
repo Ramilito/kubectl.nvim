@@ -10,8 +10,7 @@ local function replacePlaceholders(arg)
   end
   return arg
 end
-
-function M.build(args, contentType)
+function M.addHeaders(args, contentType)
   local headers = {
     yaml = {
       "-H",
@@ -31,10 +30,6 @@ function M.build(args, contentType)
     },
   }
 
-  for i, arg in ipairs(args) do
-    args[i] = replacePlaceholders(arg)
-  end
-
   local selectedHeaders = headers[contentType] or headers.default
   for i = #selectedHeaders, 1, -1 do
     table.insert(args, 1, selectedHeaders[i])
@@ -43,6 +38,13 @@ function M.build(args, contentType)
   table.insert(args, 1, "-sS")
   table.insert(args, 1, "GET")
   table.insert(args, 1, "-X")
+  return args
+end
+
+function M.build(args)
+  for i, arg in ipairs(args) do
+    args[i] = replacePlaceholders(arg)
+  end
 
   return args
 end
