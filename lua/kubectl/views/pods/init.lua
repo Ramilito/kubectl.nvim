@@ -15,6 +15,7 @@ function M.Pods(cancellationToken)
           { key = "<d>", desc = "describe" },
           { key = "<t>", desc = "top" },
           { key = "<enter>", desc = "containers" },
+          { key = "<C-k>", desc = "kill pod" },
         }, true, true)
         :display("k8s_pods", "Pods", cancellationToken)
     end)
