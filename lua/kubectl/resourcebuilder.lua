@@ -8,15 +8,21 @@ local url = require("kubectl.utils.url")
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
 
-function ResourceBuilder:new(resource, args, opts)
+function ResourceBuilder:new(resource, args)
   local self = setmetatable({}, ResourceBuilder)
-  opts = opts or {}
   self.resource = resource
   self.args = args
-  self.hints = {}
-  self.contentType = opts.contentType or "json"
-  self.filter = ""
-  self.data = {}
+  return self
+end
+
+function ResourceBuilder:setCmd(args, cmd, contentType)
+  self.cmd = cmd or "kubectl"
+  self.args = url.build(args)
+
+  if self.cmd ~= "kubectl" then
+    self.args = url.addHeaders(self.args, contentType)
+  end
+
   return self
 end
 
@@ -24,31 +30,14 @@ function ResourceBuilder:setData(data)
   self.data = data
   return self
 end
-function ResourceBuilder:fetch(opts)
-  opts = opts or {}
-  self.args = url.build(self.args)
-  if not opts.cmd then
-    opts.cmd = "kubectl"
-  else
-    opts.cmd = opts.cmd
-    self.args = url.addHeaders(self.args, self.contentType)
-  end
 
-  self.data = commands.execute_shell_command(opts.cmd, self.args)
+function ResourceBuilder:fetch()
+  self.data = commands.execute_shell_command(self.cmd, self.args)
   return self
 end
 
-function ResourceBuilder:fetchAsync(callback, opts)
-  opts = opts or {}
-  self.args = url.build(self.args)
-  if not opts.cmd or opts.cmd == "kubectl" then
-    opts.cmd = "kubectl"
-  else
-    opts.cmd = "curl"
-    self.args = url.addHeaders(self.args, self.contentType)
-  end
-
-  commands.shell_command_async(opts.cmd, self.args, function(data)
+function ResourceBuilder:fetchAsync(callback)
+  commands.shell_command_async(self.cmd, self.args, function(data)
     self.data = data
     callback(self)
   end)
@@ -127,6 +116,29 @@ end
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   local displayData = usePrettyData and self.prettyData or self.data
   actions.floating_buffer(displayData, filetype, { title = title, syntax = syntax, hints = self.hints })
+  return self
+end
+
+function ResourceBuilder:fetchAndProcess(
+  urlArgs,
+  curlCmd,
+  cancellationToken,
+  headersFunc,
+  processFunc,
+  displayFunc,
+  hintsFunc,
+  displayParams
+)
+  self:setCmd(urlArgs, curlCmd):fetchAsync(function(self)
+    self:decodeJson():process(processFunc):sort():prettyPrint(headersFunc):setFilter()
+
+    vim.schedule(function()
+      if hintsFunc then
+        hintsFunc(self)
+      end
+      displayFunc(self, unpack(displayParams))
+    end)
+  end)
   return self
 end
 

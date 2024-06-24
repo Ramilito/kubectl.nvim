@@ -2,6 +2,8 @@ local M = {}
 
 function M.shell_command_async(cmd, args, on_exit, on_stdout)
   local loaded, Job = pcall(require, "plenary.job")
+  print(vim.inspect(args))
+  print(cmd)
   if not loaded then
     vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
     return

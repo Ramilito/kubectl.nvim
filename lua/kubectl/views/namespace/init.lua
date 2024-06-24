@@ -6,7 +6,7 @@ local state = require("kubectl.state")
 local M = {}
 
 function M.Namespace()
-  ResourceBuilder:new("namespace", { "get", "--raw", "/api/v1/namespaces" }):fetchAsync(function(self)
+  ResourceBuilder:new("namespace"):setCmd({ "get", "--raw", "/api/v1/namespaces" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
 
     vim.schedule(function()
