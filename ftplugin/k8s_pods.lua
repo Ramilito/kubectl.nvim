@@ -116,28 +116,19 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
 
       local current_port_result = commands.execute_shell_command("kubectl", current_port_query)
 
-      vim.ui.input({ prompt = "Port forward " .. current_port_result }, function(input)
+      vim.ui.input({ prompt = "source: " .. current_port_result .. ", destination: " }, function(input)
         if input ~= nil then
-          actions.confirmation_buffer(
-            "Are you sure that you want to port forward to " .. input .. "?",
-            nil,
-            function(confirm)
-              if confirm then
-                local port_forward_query = "port-forward pods/"
-                  .. pod_name
-                  .. " "
-                  .. input
-                  .. ":"
-                  .. current_port_result
-
-                commands.shell_command_async("kubectl", port_forward_query, function(response)
-                  vim.schedule(function()
-                    vim.notify(response)
-                  end)
+          actions.confirmation_buffer("Are you sure that you want to port forward to " .. input .. "?", nil, function(confirm)
+            if confirm then
+              local port_forward_query = { "port-forward", "pods/" .. pod_name, input .. ":" .. current_port_result }
+              print(vim.inspect(port_forward_query))
+              commands.shell_command_async("kubectl", port_forward_query, function(response)
+                vim.schedule(function()
+                  vim.notify(response)
                 end)
-              end
+              end)
             end
-          )
+          end)
         end
       end)
     else
