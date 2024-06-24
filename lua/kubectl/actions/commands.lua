@@ -1,34 +1,36 @@
 local M = {}
 
 function M.shell_command_async(cmd, args, on_exit, on_stdout)
-  local loaded, Job = pcall(require, "plenary.job")
-  if not loaded then
-    vim.notify("plenary.nvim is not installed. Please install it to use this feature.", vim.log.levels.ERROR)
-    return
-  end
-  local result = {}
-  Job:new({
-    command = cmd,
-    args = args,
-    on_stdout = function(_, data)
-      table.insert(result, data)
-      if on_stdout then
-        on_stdout(data)
+  local result = ""
+
+  table.insert(args, 1, cmd)
+
+  vim.system(args, {
+    text = true,
+    stdout = function(err, data)
+      if err then
+        return
+      end
+      if data then
+        result = result .. data
+        if on_stdout then
+          on_stdout(data)
+        end
       end
     end,
-    on_stderr = function(_, data)
+
+    stderr = function(err, data)
       vim.schedule(function()
         if data then
-          vim.notify(data, vim.log.levels.ERROR)
+          vim.notify(data, err, vim.log.levels.ERROR)
         end
       end)
     end,
-    on_exit = function(_, _)
-      if on_exit then
-        on_exit(table.concat(result, "\n"))
-      end
-    end,
-  }):start()
+  }, function()
+    if on_exit then
+      on_exit(result)
+    end
+  end)
 end
 
 function M.execute_shell_command(cmd, args)
