@@ -19,6 +19,7 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
     hints = hints .. tables.generateHintLine("<t>", "Show resources used \n")
     hints = hints .. tables.generateHintLine("<enter>", "Opens container view \n")
     hints = hints .. tables.generateHintLine("<shift-f>", "Port forward \n")
+    hints = hints .. tables.generateHintLine("<C-k>", "Kill pod \n")
     view.Hints(hints)
   end,
 })
@@ -85,6 +86,23 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   silent = true,
   callback = function()
     pod_view.Pods()
+  end,
+})
+
+api.nvim_buf_set_keymap(0, "n", "<C-k>", "", {
+  noremap = true,
+  silent = true,
+  callback = function()
+    local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
+
+    if pod_name and namespace then
+      local delete_pod_query = "delete pod " .. pod_name
+      print("Deleting pod..")
+      commands.execute_shell_command("kubectl", delete_pod_query)
+      pod_view.Pods()
+    else
+      api.nvim_err_writeln("Failed to select pod.")
+    end
   end,
 })
 
