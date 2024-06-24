@@ -2,11 +2,12 @@ local config = require("kubectl.config")
 local configmaps_view = require("kubectl.views.configmaps")
 local deployments_view = require("kubectl.views.deployments")
 local filter_view = require("kubectl.views.filter")
+local kube = require("kubectl.actions.kube")
 local namespace_view = require("kubectl.views.namespace")
 local pods_view = require("kubectl.views.pods")
 local secrets_view = require("kubectl.views.secrets")
 local services_view = require("kubectl.views.services")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 
 local M = {}
 
@@ -16,6 +17,7 @@ function M.register()
     silent = true,
     desc = "Toggle",
     callback = function()
+      kube.stop_kubectl_proxy()()
       vim.api.nvim_buf_delete(0, { force = true })
     end,
   })

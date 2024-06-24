@@ -6,25 +6,35 @@ local M = {}
 M.selection = {}
 
 function M.Pods(cancellationToken)
-  ResourceBuilder:new("pods", "get --raw /api/v1/{{NAMESPACE}}pods"):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<l>", desc = "logs" },
-          { key = "<d>", desc = "describe" },
-          { key = "<t>", desc = "top" },
-          { key = "<enter>", desc = "containers" },
-          { key = "<shift-f>", desc = "port forward" },
-          { key = "<C-k>", desc = "kill pod" },
-        }, true, true)
-        :display("k8s_pods", "Pods", cancellationToken)
+  ResourceBuilder:new("pods")
+    :setCmd({
+      "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
+      "-w",
+      "\n",
+    }, "curl")
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<l>", desc = "logs" },
+            { key = "<d>", desc = "describe" },
+            { key = "<t>", desc = "top" },
+            { key = "<enter>", desc = "containers" },
+            { key = "<shift-f>", desc = "port forward" },
+            { key = "<C-k>", desc = "kill pod" },
+          }, true, true)
+          :display("k8s_pods", "Pods", cancellationToken)
+      end)
     end)
-  end)
 end
 
 function M.PodTop()
-  ResourceBuilder:new("top", "top pods -A"):fetch():splitData():displayFloat("k8s_top", "Top", "")
+  ResourceBuilder:new("top"):setCmd({ "top", "pods", "-A" }):fetchAsync(function(self)
+    vim.schedule(function()
+      self:splitData():displayFloat("k8s_top", "Top", "")
+    end)
+  end)
 end
 
 function M.TailLogs()
@@ -42,7 +52,7 @@ function M.TailLogs()
     end)
   end
 
-  local args = "logs --follow --since=1s " .. M.selection.pod .. " -n " .. M.selection.ns
+  local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
   commands.shell_command_async("kubectl", args, handle_output)
 end
 
@@ -51,20 +61,24 @@ function M.selectPod(pod_name, namespace)
 end
 
 function M.PodLogs()
-  ResourceBuilder:new("logs", "logs " .. M.selection.pod .. " -n " .. M.selection.ns):fetchAsync(function(self)
-    self:splitData()
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<f>", desc = "Follow" },
-        }, false, false)
-        :displayFloat("k8s_pod_logs", M.selection.pod, "less")
+  ResourceBuilder:new("logs")
+    :setCmd({
+      "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
+    }, "curl", "text/html")
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<f>", desc = "Follow" },
+          }, false, false)
+          :displayFloat("k8s_pod_logs", M.selection.pod, "less")
+      end)
     end)
-  end)
 end
 
 function M.PodDesc(pod_name, namespace)
-  ResourceBuilder:new("desc", "describe pod " .. pod_name .. " -n " .. namespace):fetchAsync(function(self)
+  ResourceBuilder:new("desc"):setCmd({ "describe", "pod", pod_name, "-n", namespace }):fetchAsync(function(self)
     self:splitData()
     vim.schedule(function()
       self:displayFloat("k8s_pod_desc", pod_name, "yaml")

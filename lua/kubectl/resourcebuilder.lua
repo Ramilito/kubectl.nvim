@@ -1,9 +1,9 @@
 local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local time = require("kubectl.utils.time")
+local url = require("kubectl.utils.url")
 
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
@@ -12,32 +12,32 @@ function ResourceBuilder:new(resource, args)
   local self = setmetatable({}, ResourceBuilder)
   self.resource = resource
   self.args = args
-  self.hints = {}
-  self.filter = ""
-  self.data = {}
   return self
 end
 
-local build_api_path = function(args)
-  if type(args) == "table" then
-    args = table.concat(args, " ")
+function ResourceBuilder:setCmd(args, cmd, contentType)
+  self.cmd = cmd or "kubectl"
+  self.args = url.build(args)
+
+  if self.cmd ~= "kubectl" then
+    self.args = url.addHeaders(self.args, contentType)
   end
-  if state.ns and state.ns ~= "All" and string.find(args, "{{NAMESPACE}}") then
-    return string.gsub(args, "{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
-  else
-    return string.gsub(args, "{{NAMESPACE}}", "")
-  end
+
+  return self
+end
+
+function ResourceBuilder:setData(data)
+  self.data = data
+  return self
 end
 
 function ResourceBuilder:fetch()
-  self.args = build_api_path(self.args)
-  self.data = commands.execute_shell_command("kubectl", self.args)
+  self.data = commands.execute_shell_command(self.cmd, self.args)
   return self
 end
 
 function ResourceBuilder:fetchAsync(callback)
-  self.args = build_api_path(self.args)
-  commands.shell_command_async("kubectl", self.args, function(data)
+  commands.shell_command_async(self.cmd, self.args, function(data)
     self.data = data
     callback(self)
   end)
@@ -107,7 +107,7 @@ function ResourceBuilder:setFilter()
 end
 
 function ResourceBuilder:display(filetype, title, cancellationToken)
-  if cancellationToken ~= nil and cancellationToken() then
+  if cancellationToken and cancellationToken() then
     return
   end
   actions.buffer(find.filter_line(self.prettyData, self.filter, 2), filetype, { title = title, hints = self.hints })

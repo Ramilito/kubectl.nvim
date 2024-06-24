@@ -1,6 +1,6 @@
 local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
-local state = require("kubectl.utils.state")
+local state = require("kubectl.state")
 local api = vim.api
 local M = {}
 

@@ -30,7 +30,7 @@ function M.Hints(hint)
 end
 
 function M.UserCmd(args)
-  local builder = ResourceBuilder:new("k8s_usercmd", args):fetch():splitData()
+  local builder = ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetch():splitData()
   builder.prettyData = builder.data
   builder:display("k8s_usercmd", "UserCmd")
 end
