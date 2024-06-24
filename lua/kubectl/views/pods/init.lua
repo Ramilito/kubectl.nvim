@@ -1,13 +1,11 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
-local timeme = require("kubectl.utils.timeme")
 
 local M = {}
 M.selection = {}
 
 function M.Pods(cancellationToken)
-  timeme.start()
   ResourceBuilder:new("pods", {
     "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
     "-w",
@@ -25,7 +23,6 @@ function M.Pods(cancellationToken)
           { key = "<C-k>", desc = "kill pod" },
         }, true, true)
         :display("k8s_pods", "Pods", cancellationToken)
-      timeme.stop()
     end)
   end, { cmd = "curl" })
 end
