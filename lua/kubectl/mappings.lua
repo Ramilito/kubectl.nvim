@@ -18,7 +18,7 @@ function M.register()
     desc = "Toggle",
     callback = function()
       kube.stop_kubectl_proxy()()
-      vim.api.nvim_win_close(vim.api.nvim_get_current_win(), true)
+      vim.api.nvim_buf_delete(0, { force = true })
     end,
   })
 
