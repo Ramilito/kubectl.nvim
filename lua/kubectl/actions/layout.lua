@@ -20,8 +20,8 @@ function M.set_buf_options(buf, win, filetype, syntax)
 end
 
 function M.main_layout()
-  local win = api.nvim_get_current_win()
-  return win
+  -- TODO: Should we create a new win?
+  return api.nvim_get_current_win()
 end
 
 function M.filter_layout(buf, filetype, title)
