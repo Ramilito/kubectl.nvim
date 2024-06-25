@@ -96,7 +96,7 @@ api.nvim_buf_set_keymap(0, "n", "<C-k>", "", {
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
 
     if pod_name and namespace then
-      local delete_pod_query = "delete pod " .. pod_name
+      local delete_pod_query = "delete pod " .. pod_name .. " -n " .. namespace
       print("Deleting pod..")
       commands.execute_shell_command("kubectl", delete_pod_query)
       pod_view.Pods()
