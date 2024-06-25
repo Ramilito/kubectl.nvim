@@ -1,5 +1,6 @@
 local commands = require("kubectl.actions.commands")
 local defaults = require("kubectl.config")
+local hl = require("kubectl.actions.highlight")
 
 local M = {}
 M.context = {}
@@ -20,6 +21,20 @@ local decode = function(string)
 end
 
 function M.setup()
+  local original_win = vim.fn.getwininfo(vim.api.nvim_get_current_win())[1]
+
+  vim.api.nvim_open_win(0, true, {
+    relative = "win",
+    width = original_win.width or vim.o.columns,
+    height = original_win.height or vim.o.lines,
+    row = original_win.winrow or 0,
+    col = original_win.wincol or 0,
+    style = "minimal",
+  })
+  hl.setup()
+end
+
+function M.setConfig()
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
     local pod_view = require("kubectl.views.pods")
     local result = decode(data)
@@ -30,6 +45,10 @@ function M.setup()
 
     pod_view.Pods()
   end)
+end
+
+function M.getOriginalWin()
+  return M.original_win
 end
 
 function M.getContext()

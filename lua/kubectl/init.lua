@@ -9,8 +9,9 @@ local M = {}
 
 function M.open()
   hl.setup()
+  state.setup()
   kube.startProxy(function()
-    state.setup()
+    state.setConfig()
     pod_view.Pods()
   end)
 end
