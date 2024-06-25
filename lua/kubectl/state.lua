@@ -1,6 +1,5 @@
 local commands = require("kubectl.actions.commands")
 local defaults = require("kubectl.config")
-local hl = require("kubectl.actions.highlight")
 
 local M = {}
 M.context = {}
@@ -20,9 +19,7 @@ local decode = function(string)
   end
 end
 
-function M.setup() end
-
-function M.setConfig()
+function M.setup()
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
     local pod_view = require("kubectl.views.pods")
     local result = decode(data)
@@ -33,10 +30,6 @@ function M.setConfig()
 
     pod_view.Pods()
   end)
-end
-
-function M.getOriginalWin()
-  return M.original_win
 end
 
 function M.getContext()
