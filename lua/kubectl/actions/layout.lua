@@ -5,7 +5,7 @@ local api = vim.api
 function M.set_buf_options(buf, win, filetype, syntax)
   api.nvim_set_option_value("filetype", filetype, { buf = buf })
   api.nvim_set_option_value("syntax", syntax, { buf = buf })
-  api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
+  api.nvim_set_option_value("bufhidden", "hide", { scope = "local" })
   api.nvim_set_option_value("cursorline", true, { win = win })
   api.nvim_set_option_value("modified", false, { buf = buf })
 

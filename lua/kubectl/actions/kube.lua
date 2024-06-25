@@ -34,15 +34,18 @@ function M.startProxy(callback)
     end
   end
 
-  M.handle = vim.system({ "kubectl", "proxy", "--port=0" }, {
+  local handle = vim.system({ "kubectl", "proxy", "--port=0" }, {
     stdin = false,
     stderr = false,
     stdout = on_stdout,
     detach = false,
   }, M.stop_kubectl_proxy())
 
+  M.handle = handle
   vim.api.nvim_create_autocmd("VimLeavePre", {
-    callback = M.stop_kubectl_proxy(),
+    callback = function()
+      handle:kill(2)
+    end,
   })
 end
 
