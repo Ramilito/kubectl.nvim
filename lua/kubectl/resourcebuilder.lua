@@ -73,8 +73,10 @@ function ResourceBuilder:sort()
             else
               return tostring(valueA.value) < tostring(valueB.value)
             end
-          else
+          elseif tonumber(valueA) and tonumber(valueB) then
             return valueA < valueB
+          else
+            return tostring(valueA) < tostring(valueB)
           end
         end
         ---@diagnostic disable-next-line: missing-return
