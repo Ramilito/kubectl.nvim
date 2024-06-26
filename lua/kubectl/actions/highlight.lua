@@ -24,30 +24,30 @@ M.symbols = {
   pending = "☐",
   deprecated = "☠",
   experimental = "⚙",
-  gray= "░",
+  gray = "░",
   note = "✎",
   clear = "➤",
   tab = "↹",
 }
 
 local tag_patterns = {
-  { pattern = M.symbols.header .. "[^" .. M.symbols.header .. M.symbols.clear .. "]*", group = "KubectlHeader" }, -- Headers
-  { pattern = M.symbols.warning .. "[^" .. M.symbols.warning .. M.symbols.clear .. "]*", group = "KubectlWarning" }, -- Warnings
-  { pattern = M.symbols.error .. "[^" .. M.symbols.error .. M.symbols.clear .. "]*", group = "KubectlError" }, -- Errors
-  { pattern = M.symbols.info .. "[^" .. M.symbols.info .. M.symbols.clear .. "]*", group = "KubectlInfo" }, -- Info
-  { pattern = M.symbols.debug .. "[^" .. M.symbols.debug .. M.symbols.clear .. "]*", group = "KubectlDebug" }, -- Debug
-  { pattern = M.symbols.success .. "[^" .. M.symbols.success .. M.symbols.clear .. "]*", group = "KubectlSuccess" }, -- Success
-  { pattern = M.symbols.pending .. "[^" .. M.symbols.pending .. M.symbols.clear .. "]*", group = "KubectlPending" }, -- Pending
-  { pattern = M.symbols.gray .. "[^" .. M.symbols.pending .. M.symbols.clear .. "]*", group = "KubectlGray" }, -- Pending
+  { pattern = M.symbols.header .. "[^" .. M.symbols.header .. M.symbols.clear .. "]*", group = "KubectlHeader" },
+  { pattern = M.symbols.warning .. "[^" .. M.symbols.warning .. M.symbols.clear .. "]*", group = "KubectlWarning" },
+  { pattern = M.symbols.error .. "[^" .. M.symbols.error .. M.symbols.clear .. "]*", group = "KubectlError" },
+  { pattern = M.symbols.info .. "[^" .. M.symbols.info .. M.symbols.clear .. "]*", group = "KubectlInfo" },
+  { pattern = M.symbols.debug .. "[^" .. M.symbols.debug .. M.symbols.clear .. "]*", group = "KubectlDebug" },
+  { pattern = M.symbols.success .. "[^" .. M.symbols.success .. M.symbols.clear .. "]*", group = "KubectlSuccess" },
+  { pattern = M.symbols.pending .. "[^" .. M.symbols.pending .. M.symbols.clear .. "]*", group = "KubectlPending" },
+  { pattern = M.symbols.gray .. "[^" .. M.symbols.pending .. M.symbols.clear .. "]*", group = "KubectlGray" },
   {
     pattern = M.symbols.deprecated .. "[^" .. M.symbols.deprecated .. M.symbols.clear .. "]*",
     group = "KubectlDeprecated",
-  }, -- Deprecated
+  },
   {
     pattern = M.symbols.experimental .. "[^" .. M.symbols.experimental .. M.symbols.clear .. "]*",
     group = "KubectlExperimental",
-  }, -- Experimental
-  { pattern = M.symbols.note .. "[^" .. M.symbols.note .. M.symbols.clear .. "]*", group = "KubectlNote" }, -- Note
+  },
+  { pattern = M.symbols.note .. "[^" .. M.symbols.note .. M.symbols.clear .. "]*", group = "KubectlNote" },
 }
 
 function M.setup(win)
