@@ -135,11 +135,11 @@ function M.buffer(content, filetype, opts)
   hl.set_highlighting(win)
 end
 
-function M.notification_buffer(content, close)
+function M.notification_buffer(content, opts)
   local bufname = "notification"
   local buf = vim.fn.bufnr(bufname, false)
 
-  if close then
+  if opts.close then
     local status, err = pcall(function()
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
@@ -150,28 +150,8 @@ function M.notification_buffer(content, close)
     buf = create_buffer(bufname)
   end
 
-  local width = 0
-  local max_width = 100
-  for _, value in ipairs(content) do
-    if #value > width then
-      width = #value
-      if #value > max_width then
-        width = max_width
-      end
-    end
-  end
-  local aligned_lines = {}
-  for _, line in ipairs(content) do
-    local padding = string.rep(" ", width - #line)
-    if #line > max_width then
-      padding = string.rep(" ", width - max_width)
-      line = string.sub(line, 1, max_width - 3)
-      line = line .. "..."
-    end
-    table.insert(aligned_lines, padding .. line)
-  end
-  set_buffer_lines(buf, {}, aligned_lines)
-  local win = layout.notification_layout(buf, bufname, { width = width })
+  set_buffer_lines(buf, {}, content)
+  local win = layout.notification_layout(buf, bufname, { width = opts.width })
 
   layout.set_buf_options(buf, win, bufname, bufname)
 

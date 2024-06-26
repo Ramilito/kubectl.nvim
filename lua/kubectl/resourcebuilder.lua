@@ -2,6 +2,7 @@ local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
@@ -39,7 +40,7 @@ end
 
 function ResourceBuilder:fetchAsync(callback)
   vim.schedule(function()
-    actions.notification_buffer({
+    notifications.Open({
       hl.symbols.experimental .. "Loading: " .. self.resource,
       hl.symbols.experimental .. "calling " .. self.cmd .. " with args " .. vim.inspect(self.args),
     })
@@ -119,13 +120,13 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   if cancellationToken and cancellationToken() then
     return
   end
-  actions.notification_buffer({ "" }, true)
+  notifications.Close()
   actions.buffer(find.filter_line(self.prettyData, self.filter, 2), filetype, { title = title, hints = self.hints })
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   local displayData = usePrettyData and self.prettyData or self.data
-  actions.notification_buffer({ "" }, true)
+  notifications.Close()
   actions.floating_buffer(displayData, filetype, { title = title, syntax = syntax, hints = self.hints })
 
   return self
