@@ -40,8 +40,8 @@ end
 function ResourceBuilder:fetchAsync(callback)
   vim.schedule(function()
     actions.notification_buffer({
-      hl.symbols.success .. "Loading" .. hl.symbols.clear .. hl.symbols.tab,
-      hl.symbols.pending .. "Testing" .. hl.symbols.clear .. hl.symbols.tab,
+      hl.symbols.experimental .. "Loading: " .. self.resource .. hl.symbols.clear .. hl.symbols.tab,
+      -- hl.symbols.pending .. "Testing" .. hl.symbols.clear .. hl.symbols.tab,
     })
   end)
   commands.shell_command_async(self.cmd, self.args, function(data)

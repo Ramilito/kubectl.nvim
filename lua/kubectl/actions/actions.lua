@@ -149,27 +149,19 @@ function M.notification_buffer(content, close)
   end
   set_buffer_lines(buf, {}, content)
 
-  local editor_width, editor_height = layout.get_editor_dimensions()
-  local height = math.min(2, editor_height)
-  local width = math.min(40, editor_width - 4) -- guess width of signcolumn etc.
+  local width = 0
+  for _, value in ipairs(content) do
+    if #value > width then
+      width = #value
+    end
+  end
 
-  local row_max = vim.api.nvim_win_get_height(0)
-
-  local win = api.nvim_open_win(buf, false, {
-    relative = "editor",
-    style = "minimal",
-    width = width,
-    height = height,
-    row = row_max - 2,
-    col = vim.o.columns - 10,
-    focusable = false,
-    border = "none",
-    anchor = "SE",
-    title = bufname,
-    noautocmd = true,
-  })
+  local win = layout.notification_laout(buf, bufname, { width = width })
 
   layout.set_buf_options(buf, win, bufname, bufname)
+
+  api.nvim_set_option_value("cursorline", false, { win = win })
+  api.nvim_set_option_value("winblend", 100, { win = win })
   hl.setup(win)
   hl.set_highlighting(win)
 end
