@@ -115,6 +115,7 @@ function M.floating_buffer(content, filetype, opts)
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
+
   hl.setup()
   hl.set_highlighting(win)
 end
@@ -156,7 +157,6 @@ function M.notification_buffer(content, opts)
   layout.set_buf_options(buf, win, bufname, bufname)
 
   api.nvim_set_option_value("cursorline", false, { win = win })
-  api.nvim_set_option_value("winblend", 100, { win = win })
   hl.setup(win)
   hl.set_highlighting(win)
 end

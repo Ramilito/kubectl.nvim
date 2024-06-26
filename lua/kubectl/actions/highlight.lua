@@ -11,7 +11,7 @@ vim.api.nvim_set_hl(0, "KubectlPending", { fg = "#C586C0" }) -- Purple
 vim.api.nvim_set_hl(0, "KubectlDeprecated", { fg = "#D4A5A5" }) -- Pink
 vim.api.nvim_set_hl(0, "KubectlExperimental", { fg = "#CE9178" }) -- Brown
 vim.api.nvim_set_hl(0, "KubectlNote", { fg = "#9CDCFE" }) -- Light Blue
-vim.api.nvim_set_hl(0, "KubectlGray", { fg = "#A9A9A9" }) -- Dark Gray
+vim.api.nvim_set_hl(0, "KubectlGray", { fg = "#666666" }) -- Dark Gray
 
 -- Define M.symbols for tags
 M.symbols = {
