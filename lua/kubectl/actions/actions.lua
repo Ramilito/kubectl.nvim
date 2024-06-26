@@ -140,7 +140,9 @@ function M.notification_buffer(content, close)
   local buf = vim.fn.bufnr(bufname, false)
 
   if close then
-    vim.api.nvim_buf_delete(buf, { force = true })
+    local status, err = pcall(function()
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
     return
   end
 
