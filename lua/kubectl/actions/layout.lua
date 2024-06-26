@@ -49,7 +49,6 @@ function M.float_layout(buf, filetype, title, opts)
   if filetype then
     title = filetype .. " - " .. (title or "")
   end
-  -- title = filetype .. " - " .. (title or "")
 
   local win = api.nvim_open_win(buf, true, {
     relative = opts.relative or "editor",
@@ -62,6 +61,30 @@ function M.float_layout(buf, filetype, title, opts)
     title = title,
   })
   return win
+end
+
+--- Copied from: https://github.com/j-hui/fidget.nvim/blob/main/lua/fidget/notification/window.lua#L189
+--- Get the current width and height of the editor window.
+---
+---@return number width
+---@return number height
+function M.get_editor_dimensions()
+  local statusline_height = 0
+  local laststatus = vim.opt.laststatus:get()
+  if laststatus == 2 or laststatus == 3 or (laststatus == 1 and #vim.api.nvim_tabpage_list_wins(0) > 1) then
+    statusline_height = 1
+  end
+
+  local height = vim.opt.lines:get() - (statusline_height + vim.opt.cmdheight:get())
+
+  -- Does not account for &signcolumn or &foldcolumn, but there is no amazing way to get the
+  -- actual "viewable" width of the editor
+  --
+  -- However, I cannot imagine that many people will render fidgets on the left side of their
+  -- editor as it will more often overlay text
+  local width = vim.opt.columns:get()
+
+  return width, height
 end
 
 return M

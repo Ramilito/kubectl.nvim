@@ -53,7 +53,7 @@ function M.filter_buffer(content, filetype, opts)
 
   layout.set_buf_options(buf, win, filetype, "")
   hl.setup()
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
 end
 
 function M.confirmation_buffer(prompt, filetype, onConfirm)
@@ -98,7 +98,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
   hl.setup()
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
 end
 
 function M.floating_buffer(content, filetype, opts)
@@ -116,23 +116,62 @@ function M.floating_buffer(content, filetype, opts)
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
   hl.setup()
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
 end
 
 function M.buffer(content, filetype, opts)
   local bufname = opts.title or "kubectl"
   local buf = vim.fn.bufnr(bufname, false)
 
+  local win = layout.main_layout()
   if buf == -1 then
     buf = create_buffer(bufname)
-    local win = layout.main_layout()
     layout.set_buf_options(buf, win, filetype, filetype)
   end
 
   set_buffer_lines(buf, opts.hints, content)
 
   api.nvim_set_current_buf(buf)
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
+end
+
+function M.notification_buffer(content, close)
+  local bufname = "notification"
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if close then
+    vim.api.nvim_buf_delete(buf, { force = true })
+    return
+  end
+
+  if buf == -1 then
+    buf = create_buffer(bufname)
+  end
+  set_buffer_lines(buf, {}, content)
+
+  local editor_width, editor_height = layout.get_editor_dimensions()
+  local height = math.min(2, editor_height)
+  local width = math.min(40, editor_width - 4) -- guess width of signcolumn etc.
+
+  local row_max = vim.api.nvim_win_get_height(0)
+
+  local win = api.nvim_open_win(buf, false, {
+    relative = "editor",
+    style = "minimal",
+    width = width,
+    height = height,
+    row = row_max - 2,
+    col = vim.o.columns - 10,
+    focusable = false,
+    border = "none",
+    anchor = "SE",
+    title = bufname,
+    noautocmd = true,
+  })
+
+  layout.set_buf_options(buf, win, bufname, bufname)
+  hl.setup(win)
+  hl.set_highlighting(win)
 end
 
 return M
