@@ -53,7 +53,7 @@ function M.filter_buffer(content, filetype, opts)
 
   layout.set_buf_options(buf, win, filetype, "")
   hl.setup()
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
 end
 
 function M.confirmation_buffer(prompt, filetype, onConfirm)
@@ -98,7 +98,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
   hl.setup()
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
 end
 
 function M.floating_buffer(content, filetype, opts)
@@ -116,23 +116,49 @@ function M.floating_buffer(content, filetype, opts)
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
   hl.setup()
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
 end
 
 function M.buffer(content, filetype, opts)
   local bufname = opts.title or "kubectl"
   local buf = vim.fn.bufnr(bufname, false)
 
+  local win = layout.main_layout()
   if buf == -1 then
     buf = create_buffer(bufname)
-    local win = layout.main_layout()
     layout.set_buf_options(buf, win, filetype, filetype)
   end
 
   set_buffer_lines(buf, opts.hints, content)
 
   api.nvim_set_current_buf(buf)
-  hl.set_highlighting(buf)
+  hl.set_highlighting(win)
+end
+
+function M.notification_buffer(content, opts)
+  local bufname = "notification"
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if opts.close then
+    local status, err = pcall(function()
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+    return
+  end
+
+  if buf == -1 then
+    buf = create_buffer(bufname)
+  end
+
+  set_buffer_lines(buf, {}, content)
+  local win = layout.notification_layout(buf, bufname, { width = opts.width })
+
+  layout.set_buf_options(buf, win, bufname, bufname)
+
+  api.nvim_set_option_value("cursorline", false, { win = win })
+  api.nvim_set_option_value("winblend", 100, { win = win })
+  hl.setup(win)
+  hl.set_highlighting(win)
 end
 
 return M
