@@ -147,16 +147,29 @@ function M.notification_buffer(content, close)
   if buf == -1 then
     buf = create_buffer(bufname)
   end
-  set_buffer_lines(buf, {}, content)
 
   local width = 0
+  local max_width = 100
   for _, value in ipairs(content) do
     if #value > width then
       width = #value
+      if #value > max_width then
+        width = max_width
+      end
     end
   end
-
-  local win = layout.notification_laout(buf, bufname, { width = width })
+  local aligned_lines = {}
+  for _, line in ipairs(content) do
+    local padding = string.rep(" ", width - #line)
+    if #line > max_width then
+      padding = string.rep(" ", width - max_width)
+      line = string.sub(line, 1, max_width - 3)
+      line = line .. "..."
+    end
+    table.insert(aligned_lines, padding .. line)
+  end
+  set_buffer_lines(buf, {}, aligned_lines)
+  local win = layout.notification_layout(buf, bufname, { width = width })
 
   layout.set_buf_options(buf, win, bufname, bufname)
 

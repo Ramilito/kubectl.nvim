@@ -40,8 +40,8 @@ end
 function ResourceBuilder:fetchAsync(callback)
   vim.schedule(function()
     actions.notification_buffer({
-      hl.symbols.experimental .. "Loading: " .. self.resource .. hl.symbols.clear .. hl.symbols.tab,
-      -- hl.symbols.pending .. "Testing" .. hl.symbols.clear .. hl.symbols.tab,
+      hl.symbols.experimental .. "Loading: " .. self.resource,
+      hl.symbols.experimental .. "calling " .. self.cmd .. " with args " .. vim.inspect(self.args),
     })
   end)
   commands.shell_command_async(self.cmd, self.args, function(data)
@@ -119,13 +119,13 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   if cancellationToken and cancellationToken() then
     return
   end
-  -- actions.notification_buffer({ "" }, true)
+  actions.notification_buffer({ "" }, true)
   actions.buffer(find.filter_line(self.prettyData, self.filter, 2), filetype, { title = title, hints = self.hints })
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   local displayData = usePrettyData and self.prettyData or self.data
-  -- actions.notification_buffer({ "" }, true)
+  actions.notification_buffer({ "" }, true)
   actions.floating_buffer(displayData, filetype, { title = title, syntax = syntax, hints = self.hints })
 
   return self

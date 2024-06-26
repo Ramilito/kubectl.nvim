@@ -63,19 +63,20 @@ function M.float_layout(buf, filetype, title, opts)
   return win
 end
 
-function M.notification_laout(buf, title, opts)
+function M.notification_layout(buf, title, opts)
   local editor_width, editor_height = M.get_editor_dimensions()
   local height = math.min(2, editor_height)
   local width = math.min(opts.width, editor_width - 4) -- guess width of signcolumn etc.
   local row_max = vim.api.nvim_win_get_height(0)
 
+  local col = vim.api.nvim_win_get_width(0)
   local win = api.nvim_open_win(buf, false, {
     relative = "editor",
     style = "minimal",
     width = width,
     height = height,
     row = row_max - 2,
-    col = vim.o.columns - 10,
+    col = col,
     focusable = false,
     border = "none",
     anchor = "SE",
