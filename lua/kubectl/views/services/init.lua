@@ -23,11 +23,12 @@ function M.Services(cancellationToken)
 end
 
 function M.ServiceDesc(namespace, name)
-  ResourceBuilder:new("desc")
-    :setCmd({ "describe", "svc", name, "-n", namespace })
-    :fetch()
-    :splitData()
-    :displayFloat("k8s_svc_desc", name, "yaml")
+  ResourceBuilder:new("desc"):setCmd({ "describe", "svc", name, "-n", namespace }):fetchAsync(function(self)
+    self:splitData()
+    vim.schedule(function()
+      self:displayFloat("k8s_svc_desc", name, "yaml")
+    end)
+  end)
 end
 
 return M
