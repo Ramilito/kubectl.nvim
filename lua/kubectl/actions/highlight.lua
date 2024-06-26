@@ -11,6 +11,7 @@ vim.api.nvim_set_hl(0, "KubectlPending", { fg = "#C586C0" }) -- Purple
 vim.api.nvim_set_hl(0, "KubectlDeprecated", { fg = "#D4A5A5" }) -- Pink
 vim.api.nvim_set_hl(0, "KubectlExperimental", { fg = "#CE9178" }) -- Brown
 vim.api.nvim_set_hl(0, "KubectlNote", { fg = "#9CDCFE" }) -- Light Blue
+vim.api.nvim_set_hl(0, "KubectlGray", { fg = "#A9A9A9" }) -- Dark Gray
 
 -- Define M.symbols for tags
 M.symbols = {
@@ -23,6 +24,7 @@ M.symbols = {
   pending = "☐",
   deprecated = "☠",
   experimental = "⚙",
+  gray= "░",
   note = "✎",
   clear = "➤",
   tab = "↹",
@@ -36,6 +38,7 @@ local tag_patterns = {
   { pattern = M.symbols.debug .. "[^" .. M.symbols.debug .. M.symbols.clear .. "]*", group = "KubectlDebug" }, -- Debug
   { pattern = M.symbols.success .. "[^" .. M.symbols.success .. M.symbols.clear .. "]*", group = "KubectlSuccess" }, -- Success
   { pattern = M.symbols.pending .. "[^" .. M.symbols.pending .. M.symbols.clear .. "]*", group = "KubectlPending" }, -- Pending
+  { pattern = M.symbols.gray .. "[^" .. M.symbols.pending .. M.symbols.clear .. "]*", group = "KubectlGray" }, -- Pending
   {
     pattern = M.symbols.deprecated .. "[^" .. M.symbols.deprecated .. M.symbols.clear .. "]*",
     group = "KubectlDeprecated",
