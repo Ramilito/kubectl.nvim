@@ -3,7 +3,7 @@ local M = {}
 
 function M.process_row(rows)
   local width = 0
-  local max_width = 100
+  local max_width = 60
   for _, value in ipairs(rows) do
     if #value > width then
       width = #value

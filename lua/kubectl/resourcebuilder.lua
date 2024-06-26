@@ -42,7 +42,7 @@ function ResourceBuilder:fetchAsync(callback)
   vim.schedule(function()
     notifications.Open({
       hl.symbols.gray .. "Loading: " .. self.resource,
-      hl.symbols.gray .. "calling " .. self.cmd .. " with args " .. vim.inspect(self.args),
+      hl.symbols.gray .. "args: " .. " " .. vim.inspect(self.args),
     })
   end)
   commands.shell_command_async(self.cmd, self.args, function(data)
