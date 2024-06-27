@@ -122,15 +122,18 @@ end
 
 local function apply_extmarks(bufnr, extmarks)
   local ns_id = api.nvim_create_namespace("highlight_namespace")
+  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
-  for _, mark in ipairs(extmarks) do
-    local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
-      end_line = mark.row,
-      end_col = mark.end_col,
-      hl_group = mark.hl_group,
-      strict = false
-    })
-  end
+  vim.schedule(function()
+    for _, mark in ipairs(extmarks) do
+      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+        end_line = mark.row,
+        end_col = mark.end_col,
+        hl_group = mark.hl_group,
+        strict = false,
+      })
+    end
+  end)
 end
 
 function M.buffer(content, extmarks, filetype, opts)
