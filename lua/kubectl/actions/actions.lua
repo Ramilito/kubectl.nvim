@@ -151,7 +151,14 @@ function M.notification_buffer(content, opts)
     buf = create_buffer(bufname)
   end
 
-  set_buffer_lines(buf, {}, content)
+  if opts.append then
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    for _, line in ipairs(lines) do
+      table.insert(content, #content, line)
+    end
+  end
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
   local win = layout.notification_layout(buf, bufname, { width = opts.width })
 
   layout.set_buf_options(buf, win, bufname, bufname)

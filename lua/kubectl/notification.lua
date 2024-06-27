@@ -2,8 +2,8 @@ local actions = require("kubectl.actions.actions")
 local M = {}
 
 function M.process_row(rows)
-  local width = 0
-  local max_width = 60
+  local width = 40
+  local max_width = 40
   for _, value in ipairs(rows) do
     if #value > width then
       width = #value
@@ -28,11 +28,22 @@ function M.process_row(rows)
 end
 
 function M.Close()
-  actions.notification_buffer({ "" }, { close = true })
+  vim.defer_fn(function()
+    actions.notification_buffer({ "" }, { close = true })
+  end, 100)
 end
+function M.Add(rows)
+  vim.schedule(function()
+    local content, width = M.process_row(rows)
+    actions.notification_buffer(content, { width = width, close = false, append = true })
+  end)
+end
+
 function M.Open(rows)
-  local content, width = M.process_row(rows)
-  actions.notification_buffer(content, { width = width, close = false })
+  vim.schedule(function()
+    local content, width = M.process_row(rows)
+    actions.notification_buffer(content, { width = width, close = false, append = false })
+  end)
 end
 
 return M
