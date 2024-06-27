@@ -5,6 +5,9 @@ local defaults = {
     interval = 3000, -- milliseconds
   },
   namespace = "All",
+  notifications = {
+    enabled = true,
+  },
   hints = true,
   context = true,
   float_size = {
@@ -21,7 +24,7 @@ local defaults = {
   obj_fresh = 0, -- highghlight if age is less than minutes
   mappings = {
     exit = "<leader>k",
-  }
+  },
 }
 
 M.options = {}
