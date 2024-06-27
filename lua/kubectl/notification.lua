@@ -1,4 +1,5 @@
 local actions = require("kubectl.actions.actions")
+local config = require("kubectl.config")
 local M = {}
 
 function M.process_row(rows)
@@ -28,11 +29,17 @@ function M.process_row(rows)
 end
 
 function M.Close()
+  if not config.options.notifications.enabled then
+    return
+  end
   vim.defer_fn(function()
     actions.notification_buffer({ "" }, { close = true })
   end, 100)
 end
 function M.Add(rows)
+  if not config.options.notifications.enabled then
+    return
+  end
   vim.schedule(function()
     local content, width = M.process_row(rows)
     actions.notification_buffer(content, { width = width, close = false, append = true })
@@ -40,6 +47,9 @@ function M.Add(rows)
 end
 
 function M.Open(rows)
+  if not config.options.notifications.enabled then
+    return
+  end
   vim.schedule(function()
     local content, width = M.process_row(rows)
     actions.notification_buffer(content, { width = width, close = false, append = false })
