@@ -52,8 +52,6 @@ function M.filter_buffer(content, filetype, opts)
   vim.cmd("startinsert")
 
   layout.set_buf_options(buf, win, filetype, "")
-  hl.setup()
-  hl.set_highlighting(win)
 end
 
 function M.confirmation_buffer(prompt, filetype, onConfirm)
@@ -97,8 +95,6 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
-  hl.setup()
-  hl.set_highlighting(win)
 end
 
 function M.floating_buffer(content, filetype, opts)
@@ -115,19 +111,17 @@ function M.floating_buffer(content, filetype, opts)
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
-
-  hl.setup()
-  hl.set_highlighting(win)
 end
 
-local function apply_extmarks(bufnr, extmarks)
+local function apply_extmarks(bufnr, extmarks, start_line)
   local ns_id = api.nvim_create_namespace("highlight_namespace")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
   vim.schedule(function()
     for _, mark in ipairs(extmarks) do
-      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
-        end_line = mark.row,
+      local start_row = start_line + mark.row
+      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
+        end_line = start_row,
         end_col = mark.end_col,
         hl_group = mark.hl_group,
         strict = false,
@@ -139,20 +133,16 @@ end
 function M.buffer(content, extmarks, filetype, opts)
   local bufname = opts.title or "kubectl"
   local buf = vim.fn.bufnr(bufname, false)
-
   local win = layout.main_layout()
+
   if buf == -1 then
     buf = create_buffer(bufname)
     layout.set_buf_options(buf, win, filetype, filetype)
   end
 
   set_buffer_lines(buf, opts.hints, content)
-
   api.nvim_set_current_buf(buf)
-  hl.set_highlighting(win)
-  apply_extmarks(buf, extmarks)
-  -- hl.setup()
-  -- hl.set_highlighting()
+  apply_extmarks(buf, extmarks, #opts.hints)
 end
 
 function M.notification_buffer(content, opts)
@@ -181,10 +171,7 @@ function M.notification_buffer(content, opts)
   local win = layout.notification_layout(buf, bufname, { width = opts.width })
 
   layout.set_buf_options(buf, win, bufname, bufname)
-
   api.nvim_set_option_value("cursorline", false, { win = win })
-  hl.setup(win)
-  hl.set_highlighting(win)
 end
 
 return M
