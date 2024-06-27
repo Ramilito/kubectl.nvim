@@ -120,7 +120,20 @@ function M.floating_buffer(content, filetype, opts)
   hl.set_highlighting(win)
 end
 
-function M.buffer(content, filetype, opts)
+local function apply_extmarks(bufnr, extmarks)
+  local ns_id = api.nvim_create_namespace("highlight_namespace")
+
+  for _, mark in ipairs(extmarks) do
+    local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+      end_line = mark.row,
+      end_col = mark.end_col,
+      hl_group = mark.hl_group,
+      strict = false
+    })
+  end
+end
+
+function M.buffer(content, extmarks, filetype, opts)
   local bufname = opts.title or "kubectl"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -134,6 +147,9 @@ function M.buffer(content, filetype, opts)
 
   api.nvim_set_current_buf(buf)
   hl.set_highlighting(win)
+  apply_extmarks(buf, extmarks)
+  -- hl.setup()
+  -- hl.set_highlighting()
 end
 
 function M.notification_buffer(content, opts)

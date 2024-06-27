@@ -15,19 +15,19 @@ vim.api.nvim_set_hl(0, "KubectlGray", { fg = "#666666" }) -- Dark Gray
 
 -- Define M.symbols for tags
 M.symbols = {
-  header = "◆",
-  warning = "⚠",
-  error = "✖",
-  info = "ℹ",
-  debug = "⚑",
-  success = "✓",
-  pending = "☐",
-  deprecated = "☠",
-  experimental = "⚙",
-  gray = "░",
-  note = "✎",
-  clear = "➤",
-  tab = "↹",
+  header = "KubectlHeader",
+  warning = "KubectlWarning",
+  error = "KubectlError",
+  info = "KubectlInfo",
+  debug = "KubectlDebug",
+  success = "KubectlSuccess",
+  pending = "KubectlPending",
+  deprecated = "KubectlDeprecated",
+  experimental = "KubectlExperimental",
+  gray = "KubectlGray",
+  note = "KubectlNote",
+  clear = "KubectlClear",
+  tab = "KubectlTab",
 }
 
 local tag_patterns = {
@@ -51,20 +51,20 @@ local tag_patterns = {
 }
 
 function M.setup(win)
-  win = win or vim.api.nvim_get_current_win()
-  for _, tag in ipairs(tag_patterns) do
-    vim.fn.matchadd(tag.group, tag.pattern, 100, -1, { conceal = "", window = win })
-  end
+  -- win = win or vim.api.nvim_get_current_win()
+  -- for _, tag in ipairs(tag_patterns) do
+  --   vim.fn.matchadd(tag.group, tag.pattern, 100, -1, { conceal = "", window = win })
+  -- end
 end
 
 function M.set_highlighting(win)
-  win = win or vim.api.nvim_get_current_win()
-  for _, symbol in pairs(M.symbols) do
-    vim.cmd("call win_execute(" .. win .. ", 'syntax match Conceal" .. ' "' .. symbol .. '" conceal' .. "')")
-  end
-
-  api.nvim_set_option_value("conceallevel", 3, { scope = "local", win = win })
-  api.nvim_set_option_value("concealcursor", "nc", { scope = "local", win = win })
+  -- win = win or vim.api.nvim_get_current_win()
+  -- for _, symbol in pairs(M.symbols) do
+  --   vim.cmd("call win_execute(" .. win .. ", 'syntax match Conceal" .. ' "' .. symbol .. '" conceal' .. "')")
+  -- end
+  --
+  -- api.nvim_set_option_value("conceallevel", 3, { scope = "local", win = win })
+  -- api.nvim_set_option_value("concealcursor", "nc", { scope = "local", win = win })
 end
 
 return M

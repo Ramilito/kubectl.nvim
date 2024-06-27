@@ -91,43 +91,59 @@ function M.pretty_print(data, headers)
   end
 
   local tbl = {}
-  local hl_symbols_header = hl.symbols.header
-  local hl_symbols_clear = hl.symbols.clear
-  local hl_symbols_tab = hl.symbols.tab
+  local extmarks = {}
 
   -- Create table header
   local header_line = {}
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    table.insert(header_line, hl_symbols_header .. header .. hl_symbols_clear .. "  " .. string.rep(" ", column_width - #header + 1))
+    local value = header .. "  " .. string.rep(" ", column_width - #header + 1)
+    table.insert(header_line, value)
+
+    table.insert(extmarks, {
+      row = 0,
+      start_col = #table.concat(header_line, "") - #value,
+      end_col = #table.concat(header_line, ""),
+      hl_group = hl.symbols.header,
+    })
   end
   table.insert(tbl, table.concat(header_line, ""))
 
   -- Create table rows
-  for _, row in ipairs(data) do
+  for row_index, row in ipairs(data) do
     local row_line = {}
-    for _, col in ipairs(columns) do
+    for col_index, col in ipairs(columns) do
       local value
+      local hl_group
       if type(row[col]) == "table" then
         value = tostring(row[col].value)
-        table.insert(
-          row_line,
-          row[col].symbol .. value .. hl_symbols_clear .. hl_symbols_tab .. "  " .. string.rep(" ", widths[col] - #value + 1)
-        )
+        hl_group = row[col].symbol
       else
         value = tostring(row[col])
-        table.insert(row_line, value .. hl_symbols_tab .. "  " .. string.rep(" ", widths[col] - #value + 1))
+        hl_group = nil
+      end
+
+      local display_value = value .. "  " .. string.rep(" ", widths[col] - #value + 1)
+      table.insert(row_line, display_value)
+
+      if hl_group then
+        table.insert(extmarks, {
+          row = row_index,
+          start_col = #table.concat(row_line, "") - #display_value,
+          end_col = #table.concat(row_line, ""),
+          hl_group = hl_group,
+        })
       end
     end
     table.insert(tbl, table.concat(row_line, ""))
   end
 
-  return tbl
+  return tbl, extmarks
 end
 
 function M.getCurrentSelection(...)
   local line = vim.api.nvim_get_current_line()
-  local columns = vim.split(line, hl.symbols.tab)
+  local columns = vim.split(line, "%s%s+")
 
   local results = {}
   local indices = { ... }
@@ -137,7 +153,7 @@ function M.getCurrentSelection(...)
     table.insert(results, trimmed)
   end
 
-  return unpack(results) -- Use unpack instead of table.unpack for Lua 5.1 compatibility
+  return unpack(results)
 end
 
 function M.isEmpty(table)

@@ -113,7 +113,7 @@ function ResourceBuilder:prettyPrint(headersFunc)
   notifications.Add({
     hl.symbols.gray .. "prettify table " .. "[" .. self.resource .. "]",
   })
-  self.prettyData = tables.pretty_print(self.processedData, headersFunc())
+  self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc())
   return self
 end
 
@@ -138,7 +138,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), filetype, { title = title, hints = self.hints })
+  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, hints = self.hints })
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
