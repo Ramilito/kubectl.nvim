@@ -39,9 +39,6 @@ local function apply_marks(bufnr, marks, header)
     if marks then
       for _, mark in ipairs(marks) do
         local start_row = #header.data + mark.row
-        if mark.is_header then
-          start_row = mark.row
-        end
         local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
           end_line = start_row,
           end_col = mark.end_col,
