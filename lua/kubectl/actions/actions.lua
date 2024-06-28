@@ -26,8 +26,8 @@ local function apply_marks(bufnr, marks, header)
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
   vim.schedule(function()
-    if header and header.extmarks then
-      for _, mark in ipairs(header.extmarks) do
+    if header and header.marks then
+      for _, mark in ipairs(header.marks) do
         local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
           end_line = mark.row,
           end_col = mark.end_col,
@@ -53,7 +53,7 @@ local function apply_marks(bufnr, marks, header)
   end)
 end
 
-function M.filter_buffer(content, filetype, opts)
+function M.filter_buffer(content, marks, filetype, opts)
   local bufname = "kubectl_filter"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -67,8 +67,8 @@ function M.filter_buffer(content, filetype, opts)
 
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
-  api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
-  vim.api.nvim_buf_set_lines(buf, #opts.hints, -1, false, { content .. state.getFilter() })
+  api.nvim_buf_set_lines(buf, 0, #opts.header.data, false, opts.header.data)
+  vim.api.nvim_buf_set_lines(buf, #opts.header.data, -1, false, { content .. state.getFilter() })
 
   vim.fn.prompt_setcallback(buf, function(input)
     if not input then
@@ -83,6 +83,7 @@ function M.filter_buffer(content, filetype, opts)
   vim.cmd("startinsert")
 
   layout.set_buf_options(buf, win, filetype, "")
+  apply_marks(buf, marks, opts.header)
 end
 
 function M.confirmation_buffer(prompt, filetype, onConfirm)
