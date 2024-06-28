@@ -36,6 +36,7 @@ function M.generateHeader(headers, include_defaults, include_context)
     end
   end
 
+  -- Add hints rows
   if config.options.hints then
     local hint_line = "Hint: "
     local length = #hint_line
@@ -53,30 +54,43 @@ function M.generateHeader(headers, include_defaults, include_context)
     table.insert(hints, hint_line .. "\n\n")
   end
 
+  -- Add context rows
   if include_context and config.options.context then
-    local context_line = ""
-
     local context = state.getContext()
     if context then
-      if context.cluster then
-        context_line = context_line .. "Cluster:   " .. context.clusters[1].name .. "\n"
+      if context.clusters then
+        local line = "Cluster:   " .. context.clusters[1].name .. "\n"
+        table.insert(hints, line)
       end
       if context.contexts then
-        context_line = context_line .. "Context:   " .. context.contexts[1].context.cluster .. "\n"
+        local desc = "Context:   "
+        local line = desc .. context.contexts[1].context.cluster .. "\n"
+        table.insert(hints, line)
 
         table.insert(extmarks, {
-          row = #hints + 1,
-          start_col = #context_line - #context.contexts[1].context.cluster - 1,
-          end_col = #context_line,
+          row = #hints,
+          start_col = #desc,
+          end_col = #line,
           hl_group = hl.symbols.pending,
         })
-        context_line = context_line .. "User:      " .. context.contexts[1].context.user .. "\n"
+
+        line = "User:      " .. context.contexts[1].context.user .. "\n"
+        table.insert(hints, line)
       end
-      context_line = context_line .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
-      table.insert(hints, context_line)
+      local desc = "Namespace: "
+      local line = desc .. state.getNamespace() .. "\n"
+      table.insert(hints, line)
+
+      table.insert(extmarks, {
+        row = #hints,
+        start_col = #desc,
+        end_col = #line,
+        hl_group = hl.symbols.pending,
+      })
     end
   end
 
+  -- Add separator row
   if #hints > 0 then
     local win = vim.api.nvim_get_current_win()
     table.insert(hints, string.rep("―", vim.api.nvim_win_get_width(win)))

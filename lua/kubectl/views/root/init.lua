@@ -12,10 +12,10 @@ function M.Root()
     "Services",
     "Configmaps",
   }
-  local hints = tables.generateHeader({
+  local header, marks = tables.generateHeader({
     { key = "<enter>", desc = "Select" },
   }, true, true)
-  actions.buffer(results, {}, "k8s_root", { title = "Root", hints = hints })
+  actions.buffer(results, {}, "k8s_root", { title = "Root", header = { data = header, marks = marks } })
 end
 
 return M
