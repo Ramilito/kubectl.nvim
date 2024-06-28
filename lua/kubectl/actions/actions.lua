@@ -132,6 +132,7 @@ end
 
 function M.floating_buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl_float"
+  opts.header = opts.header or {}
   local buf = vim.fn.bufnr(bufname, false)
 
   if buf == -1 then
@@ -149,6 +150,7 @@ end
 
 function M.buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl"
+  opts.header = opts.header or {}
   local buf = vim.fn.bufnr(bufname, false)
   local win = layout.main_layout()
 
