@@ -90,7 +90,10 @@ function M.generateHeader(headers, include_defaults, include_context)
     table.insert(hints, string.rep("―", vim.api.nvim_win_get_width(win)))
   end
 
-  return vim.split(table.concat(hints, ""), "\n"), extmarks
+  print("hints:", vim.inspect(hints))
+  if #hints > 0 then
+    return vim.split(table.concat(hints, ""), "\n"), extmarks
+  end
 end
 
 function M.pretty_print(data, headers)
