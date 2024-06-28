@@ -19,14 +19,14 @@ local function calculate_column_widths(rows, columns)
 
   return widths
 end
-local function addExtmark(extmarks, row, start_col, end_col, hl_group)
+function M.add_mark(extmarks, row, start_col, end_col, hl_group)
   table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
 end
 
-function M.addHeaderRow(headers, hints, marks)
+local function addHeaderRow(headers, hints, marks)
   local hint_line = "Hint: "
   local length = #hint_line
-  addExtmark(marks, #hints, 0, length, hl.symbols.success)
+  M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 
   for index, hintConfig in ipairs(headers) do
     length = #hint_line
@@ -34,7 +34,7 @@ function M.addHeaderRow(headers, hints, marks)
     if index < #headers then
       hint_line = hint_line .. " | "
     end
-    addExtmark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
+    M.add_mark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
   end
 
   table.insert(hints, hint_line .. "\n")
@@ -48,7 +48,7 @@ local function addContextRows(context, hints, marks)
   if context.contexts then
     local desc, context_info = "Context:   ", context.contexts[1].context
     local line = desc .. context_info.cluster
-    addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
+    M.add_mark(marks, #hints, #desc, #line, hl.symbols.pending)
     table.insert(hints, line .. "\n")
 
     line = "User:      " .. context_info.user .. "\n"
@@ -56,7 +56,7 @@ local function addContextRows(context, hints, marks)
   end
   local desc, namespace = "Namespace: ", state.getNamespace()
   local line = desc .. namespace
-  addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
+  M.add_mark(marks, #hints, #desc, #line, hl.symbols.pending)
   table.insert(hints, line .. "\n")
 end
 
@@ -78,7 +78,7 @@ function M.generateHeader(headers, include_defaults, include_context)
 
   -- Add hints rows
   if config.options.hints then
-    M.addHeaderRow(headers, hints, marks)
+    addHeaderRow(headers, hints, marks)
     table.insert(hints, "\n")
   end
 
@@ -123,7 +123,7 @@ function M.pretty_print(data, headers)
     local value = header .. "  " .. string.rep(" ", column_width - #header + 1)
     table.insert(header_line, value)
 
-    addExtmark(extmarks, 0, #table.concat(header_line, "") - #value, #table.concat(header_line, ""), hl.symbols.header)
+    M.add_mark(extmarks, 0, #table.concat(header_line, "") - #value, #table.concat(header_line, ""), hl.symbols.header)
   end
   table.insert(tbl, table.concat(header_line, ""))
 

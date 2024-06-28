@@ -8,30 +8,44 @@ local M = {}
 function M.Hints(headers)
   local marks = {}
   local hints = {}
-  tables.addHeaderRow(headers, hints, marks)
-  print(vim.inspect(headers))
-  print(vim.inspect(hints))
-  -- local hints = {}
-  -- local line = hl.symbols.success
-  --   .. "Buffer mappings: \n"
-  --   .. hl.symbols.clear
-  --   .. hint
-  --   .. "\n"
-  --   .. hl.symbols.success
-  --   .. "Global mappings: \n"
-  --   .. hl.symbols.clear
-  --   .. tables.generateHintLine("<C-f>", "Filter on a phrase\n")
-  --   .. tables.generateHintLine("<C-n>", "Change namespace \n")
-  --   .. tables.generateHintLine("<bs> ", "Go up a level \n")
-  --   .. tables.generateHintLine("<R>  ", "Refresh view \n")
-  --   .. tables.generateHintLine("<1>  ", "Deployments \n")
-  --   .. tables.generateHintLine("<2>  ", "Pods \n")
-  --   .. tables.generateHintLine("<3>  ", "Configmaps \n")
-  --   .. tables.generateHintLine("<4>  ", "Secrets \n")
-  --   .. tables.generateHintLine("<5>  ", "Services \n")
-  --
-  -- table.insert(hints, line)
-  -- actions.floating_buffer(vim.split(table.concat(hints, ""), "\n"), "k8s_hints", { title = "Hints" })
+  local globals = {
+    { key = "<C-f>", desc = "Filter on a phrase" },
+    { key = "<C-n>", desc = "Change namespace" },
+    { key = "<bs> ", desc = "Go up a level" },
+    { key = "<R>  ", desc = "Refresh view" },
+    { key = "<1>  ", desc = "Deployments" },
+    { key = "<2>  ", desc = "Pods " },
+    { key = "<3>  ", desc = "Configmaps " },
+    { key = "<4>  ", desc = "Secrets " },
+    { key = "<5>  ", desc = "Services" },
+  }
+
+  local title = "Buffer mappings: "
+  tables.add_mark(marks, #hints, 0, #title, hl.symbols.success)
+  table.insert(hints, title .. "\n")
+  table.insert(hints, "\n")
+
+  local start_row = #hints
+  for index, header in ipairs(headers) do
+    local line = header.key .. " " .. header.desc
+    table.insert(hints, line .. "\n")
+    tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
+  end
+
+  table.insert(hints, "\n")
+  title = "Global mappings: "
+  tables.add_mark(marks, #hints, 0, #title, hl.symbols.success)
+  table.insert(hints, title .. "\n")
+  table.insert(hints, "\n")
+
+  start_row = #hints
+  for index, header in ipairs(globals) do
+    local line = header.key .. " " .. header.desc
+    table.insert(hints, line .. "\n")
+    tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
+  end
+
+  actions.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints", header = {} })
 end
 
 function M.UserCmd(args)

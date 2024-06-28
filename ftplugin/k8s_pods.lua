@@ -21,14 +21,6 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
       { key = "<shift-f>", desc = "Port forward" },
       { key = "<C-k>", desc = "Kill pod" },
     }
-
-
-    -- hints = hints .. tables.generateHintLine("<l>", "Shows logs for all containers in pod \n")
-    -- hints = hints .. tables.generateHintLine("<d>", "Describe selected pod \n")
-    -- hints = hints .. tables.generateHintLine("<t>", "Show resources used \n")
-    -- hints = hints .. tables.generateHintLine("<enter>", "Opens container view \n")
-    -- hints = hints .. tables.generateHintLine("<shift-f>", "Port forward \n")
-    -- hints = hints .. tables.generateHintLine("<C-k>", "Kill pod \n")
     view.Hints(hints)
   end,
 })
