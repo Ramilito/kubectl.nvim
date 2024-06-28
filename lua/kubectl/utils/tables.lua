@@ -19,9 +19,45 @@ local function calculate_column_widths(rows, columns)
 
   return widths
 end
-
 local function addExtmark(extmarks, row, start_col, end_col, hl_group)
   table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
+end
+
+function M.addHeaderRow(headers, hints, marks)
+  local hint_line = "Hint: "
+  local length = #hint_line
+  addExtmark(marks, #hints, 0, length, hl.symbols.success)
+
+  for index, hintConfig in ipairs(headers) do
+    length = #hint_line
+    hint_line = hint_line .. hintConfig.key .. " " .. hintConfig.desc
+    if index < #headers then
+      hint_line = hint_line .. " | "
+    end
+    addExtmark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
+  end
+
+  table.insert(hints, hint_line .. "\n")
+end
+
+local function addContextRows(context, hints, marks)
+  if context.clusters then
+    local line = "Cluster:   " .. context.clusters[1].name .. "\n"
+    table.insert(hints, line)
+  end
+  if context.contexts then
+    local desc, context_info = "Context:   ", context.contexts[1].context
+    local line = desc .. context_info.cluster
+    addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
+    table.insert(hints, line .. "\n")
+
+    line = "User:      " .. context_info.user .. "\n"
+    table.insert(hints, line)
+  end
+  local desc, namespace = "Namespace: ", state.getNamespace()
+  local line = desc .. namespace
+  addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
+  table.insert(hints, line .. "\n")
 end
 
 function M.generateHeader(headers, include_defaults, include_context)
@@ -42,20 +78,7 @@ function M.generateHeader(headers, include_defaults, include_context)
 
   -- Add hints rows
   if config.options.hints then
-    local hint_line = "Hint: "
-    local length = #hint_line
-    addExtmark(marks, #hints, 0, length, hl.symbols.success)
-
-    for index, hintConfig in ipairs(headers) do
-      length = #hint_line
-      hint_line = hint_line .. hintConfig.key .. " " .. hintConfig.desc
-      if index < #headers then
-        hint_line = hint_line .. " | "
-      end
-      addExtmark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
-    end
-
-    table.insert(hints, hint_line .. "\n")
+    M.addHeaderRow(headers, hints, marks)
     table.insert(hints, "\n")
   end
 
@@ -63,23 +86,7 @@ function M.generateHeader(headers, include_defaults, include_context)
   if include_context and config.options.context then
     local context = state.getContext()
     if context then
-      if context.clusters then
-        local line = "Cluster:   " .. context.clusters[1].name .. "\n"
-        table.insert(hints, line)
-      end
-      if context.contexts then
-        local desc, context_info = "Context:   ", context.contexts[1].context
-        local line = desc .. context_info.cluster
-        addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
-        table.insert(hints, line .. "\n")
-
-        line = "User:      " .. context_info.user .. "\n"
-        table.insert(hints, line)
-      end
-      local desc, namespace = "Namespace: ", state.getNamespace()
-      local line = desc .. namespace
-      addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
-      table.insert(hints, line .. "\n")
+      addContextRows(context, hints, marks)
     end
   end
 
