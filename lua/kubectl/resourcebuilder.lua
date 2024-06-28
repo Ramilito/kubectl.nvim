@@ -139,7 +139,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header})
+  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header })
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
@@ -149,7 +149,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
     hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.floating_buffer(displayData, filetype, { title = title, syntax = syntax, hints = self.hints })
+  actions.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
 
   return self
 end

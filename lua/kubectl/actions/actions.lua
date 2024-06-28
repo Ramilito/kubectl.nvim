@@ -1,4 +1,3 @@
-local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local api = vim.api
@@ -20,6 +19,38 @@ local function set_buffer_lines(buf, header, content)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
   end
+end
+
+local function apply_marks(bufnr, marks, header)
+  local ns_id = api.nvim_create_namespace("highlight_namespace")
+  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+
+  vim.schedule(function()
+    if header and header.extmarks then
+      for _, mark in ipairs(header.extmarks) do
+        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+          end_line = mark.row,
+          end_col = mark.end_col,
+          hl_group = mark.hl_group,
+          strict = false,
+        })
+      end
+    end
+    if marks then
+      for _, mark in ipairs(marks) do
+        local start_row = #header.data + mark.row
+        if mark.is_header then
+          start_row = mark.row
+        end
+        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
+          end_line = start_row,
+          end_col = mark.end_col,
+          hl_group = mark.hl_group,
+          strict = false,
+        })
+      end
+    end
+  end)
 end
 
 function M.filter_buffer(content, filetype, opts)
@@ -73,7 +104,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
     relative = "win",
   }
 
-  set_buffer_lines(buf, opts.hints, content)
+  set_buffer_lines(buf, opts.header.data, content)
   local win = layout.float_layout(buf, filetype, prompt, opts)
 
   vim.api.nvim_buf_set_keymap(buf, "n", "y", "", {
@@ -97,7 +128,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
 end
 
-function M.floating_buffer(content, filetype, opts)
+function M.floating_buffer(content, extmarks, filetype, opts)
   local bufname = opts.title or "kubectl_float"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -105,40 +136,13 @@ function M.floating_buffer(content, filetype, opts)
     buf = create_buffer(bufname)
   end
 
-  set_buffer_lines(buf, opts.hints, content)
+  set_buffer_lines(buf, opts.header.data, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
-end
-
-local function apply_extmarks(bufnr, extmarks, header)
-  local ns_id = api.nvim_create_namespace("highlight_namespace")
-  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-
-  vim.schedule(function()
-    for _, mark in ipairs(header.extmarks) do
-      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
-        end_line = mark.row,
-        end_col = mark.end_col,
-        hl_group = mark.hl_group,
-        strict = false,
-      })
-    end
-    for _, mark in ipairs(extmarks) do
-      local start_row = #header.data + mark.row
-      if mark.is_header then
-        start_row = mark.row
-      end
-      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
-        end_line = start_row,
-        end_col = mark.end_col,
-        hl_group = mark.hl_group,
-        strict = false,
-      })
-    end
-  end)
+  apply_marks(buf, extmarks, opts.header)
 end
 
 function M.buffer(content, extmarks, filetype, opts)
@@ -153,7 +157,7 @@ function M.buffer(content, extmarks, filetype, opts)
 
   set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
-  apply_extmarks(buf, extmarks, opts.header)
+  apply_marks(buf, extmarks, opts.header)
 end
 
 function M.notification_buffer(content, opts)
