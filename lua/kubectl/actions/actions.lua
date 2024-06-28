@@ -22,7 +22,7 @@ local function set_buffer_lines(buf, header, content)
 end
 
 local function apply_marks(bufnr, marks, header)
-  local ns_id = api.nvim_create_namespace("highlight_namespace")
+  local ns_id = api.nvim_create_namespace("__kubectl_namespace")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
   vim.schedule(function()
