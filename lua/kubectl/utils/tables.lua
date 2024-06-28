@@ -26,7 +26,7 @@ end
 
 function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
-  local extmarks = {}
+  local marks = {}
 
   if include_defaults then
     local defaults = {
@@ -44,7 +44,7 @@ function M.generateHeader(headers, include_defaults, include_context)
   if config.options.hints then
     local hint_line = "Hint: "
     local length = #hint_line
-    addExtmark(extmarks, 0, 0, length, hl.symbols.success)
+    addExtmark(marks, #hints, 0, length, hl.symbols.success)
 
     for index, hintConfig in ipairs(headers) do
       length = #hint_line
@@ -52,7 +52,7 @@ function M.generateHeader(headers, include_defaults, include_context)
       if index < #headers then
         hint_line = hint_line .. " | "
       end
-      addExtmark(extmarks, 0, length, length + #hintConfig.key, hl.symbols.pending)
+      addExtmark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
     end
 
     table.insert(hints, hint_line .. "\n\n")
@@ -68,19 +68,17 @@ function M.generateHeader(headers, include_defaults, include_context)
       end
       if context.contexts then
         local desc, context_info = "Context:   ", context.contexts[1].context
-        local line = desc .. context_info.cluster .. "\n"
-        table.insert(hints, line)
-
-        addExtmark(extmarks, #hints, #desc, #line, hl.symbols.pending)
+        local line = desc .. context_info.cluster
+        table.insert(hints, line .. "\n")
+        addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
 
         line = "User:      " .. context_info.user .. "\n"
         table.insert(hints, line)
       end
       local desc, namespace = "Namespace: ", state.getNamespace()
-      local line = desc .. namespace .. "\n"
-      table.insert(hints, line)
-
-      addExtmark(extmarks, #hints, #desc, #line, hl.symbols.pending)
+      local line = desc .. namespace
+      table.insert(hints, line .. "\n")
+      addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
     end
   end
 
@@ -90,10 +88,10 @@ function M.generateHeader(headers, include_defaults, include_context)
     table.insert(hints, string.rep("―", vim.api.nvim_win_get_width(win)))
   end
 
-  print("hints:", vim.inspect(hints))
   if #hints > 0 then
-    return vim.split(table.concat(hints, ""), "\n"), extmarks
+    return vim.split(table.concat(hints, ""), "\n"), marks
   end
+  return hints, marks
 end
 
 function M.pretty_print(data, headers)

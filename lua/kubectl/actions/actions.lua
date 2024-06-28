@@ -32,7 +32,6 @@ local function apply_marks(bufnr, marks, header)
           end_line = mark.row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
-          strict = false,
         })
       end
     end
@@ -46,7 +45,6 @@ local function apply_marks(bufnr, marks, header)
           end_line = start_row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
-          strict = false,
         })
       end
     end
