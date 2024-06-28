@@ -13,15 +13,14 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    local hints = {
+    view.Hints({
       { key = "<l>", desc = "Shows logs for all containers in pod" },
       { key = "<d>", desc = "Describe selected pod" },
       { key = "<t>", desc = "Show resources used" },
       { key = "<enter>", desc = "Opens container view" },
       { key = "<shift-f>", desc = "Port forward" },
       { key = "<C-k>", desc = "Kill pod" },
-    }
-    view.Hints(hints)
+    })
   end,
 })
 
