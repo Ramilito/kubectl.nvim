@@ -24,6 +24,10 @@ function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
   local extmarks = {}
 
+  local function addExtmark(row, start_col, end_col, hl_group)
+    table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
+  end
+
   if include_defaults then
     local defaults = {
       { key = "<R>", desc = "reload" },
@@ -40,7 +44,7 @@ function M.generateHeader(headers, include_defaults, include_context)
   if config.options.hints then
     local hint_line = "Hint: "
     local length = #hint_line
-    table.insert(extmarks, { row = 0, start_col = 0, end_col = #hint_line, hl_group = hl.symbols.success })
+    addExtmark(0, 0, length, hl.symbols.success)
 
     for index, hintConfig in ipairs(headers) do
       length = #hint_line
@@ -48,7 +52,7 @@ function M.generateHeader(headers, include_defaults, include_context)
       if index < #headers then
         hint_line = hint_line .. " | "
       end
-      table.insert(extmarks, { row = 0, start_col = length, end_col = length + #hintConfig.key, hl_group = hl.symbols.pending })
+      addExtmark(0, length, length + #hintConfig.key, hl.symbols.pending)
     end
 
     table.insert(hints, hint_line .. "\n\n")
@@ -63,30 +67,20 @@ function M.generateHeader(headers, include_defaults, include_context)
         table.insert(hints, line)
       end
       if context.contexts then
-        local desc = "Context:   "
-        local line = desc .. context.contexts[1].context.cluster .. "\n"
+        local desc, context_info = "Context:   ", context.contexts[1].context
+        local line = desc .. context_info.cluster .. "\n"
         table.insert(hints, line)
 
-        table.insert(extmarks, {
-          row = #hints,
-          start_col = #desc,
-          end_col = #line,
-          hl_group = hl.symbols.pending,
-        })
+        addExtmark(#hints, #desc, #line, hl.symbols.pending)
 
-        line = "User:      " .. context.contexts[1].context.user .. "\n"
+        line = "User:      " .. context_info.user .. "\n"
         table.insert(hints, line)
       end
-      local desc = "Namespace: "
-      local line = desc .. state.getNamespace() .. "\n"
+      local desc, namespace = "Namespace: ", state.getNamespace()
+      local line = desc .. namespace .. "\n"
       table.insert(hints, line)
 
-      table.insert(extmarks, {
-        row = #hints,
-        start_col = #desc,
-        end_col = #line,
-        hl_group = hl.symbols.pending,
-      })
+      addExtmark(#hints, #desc, #line, hl.symbols.pending)
     end
   end
 
