@@ -20,7 +20,7 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
-function M.generateHeader(hintConfigs, include_defaults, include_context)
+function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
   local extmarks = {}
 
@@ -32,7 +32,7 @@ function M.generateHeader(hintConfigs, include_defaults, include_context)
       { key = "<g?>", desc = "help" },
     }
     for _, default in ipairs(defaults) do
-      table.insert(hintConfigs, default)
+      table.insert(headers, default)
     end
   end
 
@@ -40,10 +40,11 @@ function M.generateHeader(hintConfigs, include_defaults, include_context)
     local hint_line = "Hint: "
     local length = #hint_line
     table.insert(extmarks, { row = 0, start_col = 0, end_col = #hint_line, hl_group = hl.symbols.success })
-    for index, hintConfig in ipairs(hintConfigs) do
+
+    for index, hintConfig in ipairs(headers) do
       length = #hint_line
       hint_line = hint_line .. hintConfig.key .. " " .. hintConfig.desc
-      if index < #hintConfigs then
+      if index < #headers then
         hint_line = hint_line .. " | "
       end
       table.insert(extmarks, { row = 0, start_col = length, end_col = length + #hintConfig.key, hl_group = hl.symbols.pending })
@@ -53,26 +54,26 @@ function M.generateHeader(hintConfigs, include_defaults, include_context)
   end
 
   if include_context and config.options.context then
-    local hint = ""
+    local context_line = ""
 
     local context = state.getContext()
     if context then
       if context.cluster then
-        hint = hint .. "Cluster:   " .. context.clusters[1].name .. "\n"
+        context_line = context_line .. "Cluster:   " .. context.clusters[1].name .. "\n"
       end
       if context.contexts then
-        hint = hint .. "Context:   " .. context.contexts[1].context.cluster .. "\n"
+        context_line = context_line .. "Context:   " .. context.contexts[1].context.cluster .. "\n"
 
         table.insert(extmarks, {
           row = #hints + 1,
-          start_col = #hint - #context.contexts[1].context.cluster - 1,
-          end_col = #hint,
+          start_col = #context_line - #context.contexts[1].context.cluster - 1,
+          end_col = #context_line,
           hl_group = hl.symbols.pending,
         })
-        hint = hint .. "User:      " .. context.contexts[1].context.user .. "\n"
+        context_line = context_line .. "User:      " .. context.contexts[1].context.user .. "\n"
       end
-      hint = hint .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
-      table.insert(hints, hint)
+      context_line = context_line .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
+      table.insert(hints, context_line)
     end
   end
 
