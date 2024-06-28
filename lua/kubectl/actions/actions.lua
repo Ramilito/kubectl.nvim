@@ -105,6 +105,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
       row = (vim.api.nvim_win_get_height(0) - #content + 1) * 0.5,
     },
     relative = "win",
+    header = {}
   }
 
   set_buffer_lines(buf, opts.header.data, content)
