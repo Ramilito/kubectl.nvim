@@ -14,6 +14,7 @@ function ResourceBuilder:new(resource, args)
   local self = setmetatable({}, ResourceBuilder)
   self.resource = resource
   self.args = args
+  self.header = { data = nil, marks = nil }
   return self
 end
 
@@ -113,7 +114,7 @@ function ResourceBuilder:prettyPrint(headersFunc)
   notifications.Add({
     hl.symbols.gray .. "prettify table " .. "[" .. self.resource .. "]",
   })
-  self.prettyData = tables.pretty_print(self.processedData, headersFunc())
+  self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc())
   return self
 end
 
@@ -121,7 +122,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
   notifications.Add({
     hl.symbols.gray .. "adding hints " .. "[" .. self.resource .. "]",
   })
-  self.hints = tables.generateHints(hints, include_defaults, include_context)
+  self.header.data, self.header.marks = tables.generateHeader(hints, include_defaults, include_context)
   return self
 end
 
@@ -138,7 +139,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), filetype, { title = title, hints = self.hints })
+  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header })
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
@@ -148,7 +149,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
     hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.floating_buffer(displayData, filetype, { title = title, syntax = syntax, hints = self.hints })
+  actions.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
 
   return self
 end

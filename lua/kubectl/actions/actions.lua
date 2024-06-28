@@ -1,4 +1,3 @@
-local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local api = vim.api
@@ -13,16 +12,46 @@ local function create_buffer(bufname, buftype)
   return buf
 end
 
-local function set_buffer_lines(buf, hints, content)
-  if hints and #hints > 1 then
-    vim.api.nvim_buf_set_lines(buf, 0, #hints, false, hints)
-    vim.api.nvim_buf_set_lines(buf, #hints, -1, false, content)
+local function set_buffer_lines(buf, header, content)
+  if header and #header > 1 then
+    vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+    vim.api.nvim_buf_set_lines(buf, #header, -1, false, content)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
   end
 end
 
-function M.filter_buffer(content, filetype, opts)
+local function apply_marks(bufnr, marks, header)
+  local ns_id = api.nvim_create_namespace("__kubectl_namespace")
+  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+
+  vim.schedule(function()
+    if header and header.marks then
+      for _, mark in ipairs(header.marks) do
+        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+          end_line = mark.row,
+          end_col = mark.end_col,
+          hl_group = mark.hl_group,
+        })
+      end
+    end
+    if marks then
+      for _, mark in ipairs(marks) do
+        local start_row = mark.row
+        if header and header.data then
+          start_row = start_row + #header.data
+        end
+        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
+          end_line = start_row,
+          end_col = mark.end_col,
+          hl_group = mark.hl_group,
+        })
+      end
+    end
+  end)
+end
+
+function M.filter_buffer(content, marks, filetype, opts)
   local bufname = "kubectl_filter"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -36,8 +65,8 @@ function M.filter_buffer(content, filetype, opts)
 
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
-  api.nvim_buf_set_lines(buf, 0, #opts.hints, false, opts.hints)
-  vim.api.nvim_buf_set_lines(buf, #opts.hints, -1, false, { content .. state.getFilter() })
+  api.nvim_buf_set_lines(buf, 0, #opts.header.data, false, opts.header.data)
+  vim.api.nvim_buf_set_lines(buf, #opts.header.data, -1, false, { content .. state.getFilter() })
 
   vim.fn.prompt_setcallback(buf, function(input)
     if not input then
@@ -45,15 +74,16 @@ function M.filter_buffer(content, filetype, opts)
     else
       state.setFilter(input)
     end
-    vim.api.nvim_win_close(win, true)
+
+    vim.bo.modified = false
+    vim.cmd.close()
     vim.api.nvim_input("R")
   end)
 
   vim.cmd("startinsert")
 
   layout.set_buf_options(buf, win, filetype, "")
-  hl.setup()
-  hl.set_highlighting(win)
+  apply_marks(buf, marks, opts.header)
 end
 
 function M.confirmation_buffer(prompt, filetype, onConfirm)
@@ -73,9 +103,10 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
       row = (vim.api.nvim_win_get_height(0) - #content + 1) * 0.5,
     },
     relative = "win",
+    header = {},
   }
 
-  set_buffer_lines(buf, opts.hints, content)
+  set_buffer_lines(buf, opts.header.data, content)
   local win = layout.float_layout(buf, filetype, prompt, opts)
 
   vim.api.nvim_buf_set_keymap(buf, "n", "y", "", {
@@ -97,43 +128,40 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
-  hl.setup()
-  hl.set_highlighting(win)
 end
 
-function M.floating_buffer(content, filetype, opts)
+function M.floating_buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl_float"
+  opts.header = opts.header or {}
   local buf = vim.fn.bufnr(bufname, false)
 
   if buf == -1 then
     buf = create_buffer(bufname)
   end
 
-  set_buffer_lines(buf, opts.hints, content)
+  set_buffer_lines(buf, opts.header.data, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
-
-  hl.setup()
-  hl.set_highlighting(win)
+  apply_marks(buf, marks, opts.header)
 end
 
-function M.buffer(content, filetype, opts)
+function M.buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl"
+  opts.header = opts.header or {}
   local buf = vim.fn.bufnr(bufname, false)
-
   local win = layout.main_layout()
+
   if buf == -1 then
     buf = create_buffer(bufname)
     layout.set_buf_options(buf, win, filetype, filetype)
   end
 
-  set_buffer_lines(buf, opts.hints, content)
-
+  set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
-  hl.set_highlighting(win)
+  apply_marks(buf, marks, opts.header)
 end
 
 function M.notification_buffer(content, opts)
@@ -162,10 +190,7 @@ function M.notification_buffer(content, opts)
   local win = layout.notification_layout(buf, bufname, { width = opts.width })
 
   layout.set_buf_options(buf, win, bufname, bufname)
-
   api.nvim_set_option_value("cursorline", false, { win = win })
-  hl.setup(win)
-  hl.set_highlighting(win)
 end
 
 return M

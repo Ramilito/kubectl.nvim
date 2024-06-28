@@ -9,9 +9,7 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    local hints = ""
-    hints = hints .. tables.generateHintLine("<enter>", "Read message \n")
-    view.Hints(hints)
+    view.Hints({ { key = "<enter>", desc = "Read message" } })
   end,
 })
 

@@ -13,14 +13,14 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    local hints = ""
-    hints = hints .. tables.generateHintLine("<l>", "Shows logs for all containers in pod \n")
-    hints = hints .. tables.generateHintLine("<d>", "Describe selected pod \n")
-    hints = hints .. tables.generateHintLine("<t>", "Show resources used \n")
-    hints = hints .. tables.generateHintLine("<enter>", "Opens container view \n")
-    hints = hints .. tables.generateHintLine("<shift-f>", "Port forward \n")
-    hints = hints .. tables.generateHintLine("<C-k>", "Kill pod \n")
-    view.Hints(hints)
+    view.Hints({
+      { key = "<l>", desc = "Shows logs for all containers in pod" },
+      { key = "<d>", desc = "Describe selected pod" },
+      { key = "<t>", desc = "Show resources used" },
+      { key = "<enter>", desc = "Opens container view" },
+      { key = "<shift-f>", desc = "Port forward" },
+      { key = "<C-k>", desc = "Kill pod" },
+    })
   end,
 })
 
@@ -96,9 +96,8 @@ api.nvim_buf_set_keymap(0, "n", "<C-k>", "", {
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
 
     if pod_name and namespace then
-      local delete_pod_query = "delete pod " .. pod_name .. " -n " .. namespace
       print("Deleting pod..")
-      commands.execute_shell_command("kubectl", delete_pod_query)
+      commands.shell_command_async("kubectl", { "delete", "pod", pod_name, "-n", namespace })
       pod_view.Pods()
     else
       api.nvim_err_writeln("Failed to select pod.")

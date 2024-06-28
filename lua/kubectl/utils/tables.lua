@@ -19,64 +19,87 @@ local function calculate_column_widths(rows, columns)
 
   return widths
 end
-
-function M.generateHintLine(key, desc, includePipe)
-  local line = hl.symbols.pending .. key .. " " .. hl.symbols.clear .. desc
-  if includePipe then
-    line = line .. " | "
-  end
-  return line
+function M.add_mark(extmarks, row, start_col, end_col, hl_group)
+  table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
 end
 
-function M.generateContext()
-  local hint = ""
+local function addHeaderRow(headers, hints, marks)
+  local hint_line = "Hint: "
+  local length = #hint_line
+  M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 
-  local context = state.getContext()
-  if context then
-    if context.cluster then
-      hint = hint .. "Cluster:   " .. context.clusters[1].name .. "\n"
+  for index, hintConfig in ipairs(headers) do
+    length = #hint_line
+    hint_line = hint_line .. hintConfig.key .. " " .. hintConfig.desc
+    if index < #headers then
+      hint_line = hint_line .. " | "
     end
-    if context.contexts then
-      hint = hint .. "Context:   " .. hl.symbols.pending .. context.contexts[1].context.cluster .. hl.symbols.clear .. "\n"
-      hint = hint .. "User:      " .. context.contexts[1].context.user .. "\n"
-    end
-    hint = hint .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
-    return hint
+    M.add_mark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
   end
+
+  table.insert(hints, hint_line .. "\n")
 end
 
-function M.generateHints(hintConfigs, include_defaults, include_context)
+local function addContextRows(context, hints, marks)
+  if context.clusters then
+    local line = "Cluster:   " .. context.clusters[1].name .. "\n"
+    table.insert(hints, line)
+  end
+  if context.contexts then
+    local desc, context_info = "Context:   ", context.contexts[1].context
+    local line = desc .. context_info.cluster
+    M.add_mark(marks, #hints, #desc, #line, hl.symbols.pending)
+    table.insert(hints, line .. "\n")
+
+    line = "User:      " .. context_info.user .. "\n"
+    table.insert(hints, line)
+  end
+  local desc, namespace = "Namespace: ", state.getNamespace()
+  local line = desc .. namespace
+  M.add_mark(marks, #hints, #desc, #line, hl.symbols.pending)
+  table.insert(hints, line .. "\n")
+end
+
+function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
+  local marks = {}
 
+  if include_defaults then
+    local defaults = {
+      { key = "<R>", desc = "reload" },
+      { key = "<C-f>", desc = "filter" },
+      { key = "<C-n>", desc = "namespace" },
+      { key = "<g?>", desc = "help" },
+    }
+    for _, default in ipairs(defaults) do
+      table.insert(headers, default)
+    end
+  end
+
+  -- Add hints rows
   if config.options.hints then
-    local hint_line = hl.symbols.success .. "Hint: " .. hl.symbols.clear
-    for _, hintConfig in ipairs(hintConfigs) do
-      hint_line = hint_line .. M.generateHintLine(hintConfig.key, hintConfig.desc, true)
-    end
-
-    if include_defaults then
-      hint_line = hint_line .. M.generateHintLine("<R>", "reload", true)
-      hint_line = hint_line .. M.generateHintLine("<C-f>", "filter", true)
-      hint_line = hint_line .. M.generateHintLine("<C-n>", "namespace", true)
-      hint_line = hint_line .. M.generateHintLine("<g?>", "help")
-    end
-
-    table.insert(hints, hint_line .. "\n\n")
+    addHeaderRow(headers, hints, marks)
+    table.insert(hints, "\n")
   end
 
+  -- Add context rows
   if include_context and config.options.context then
-    local contextHints = M.generateContext()
-    if contextHints then
-      table.insert(hints, M.generateContext())
+    local context = state.getContext()
+    if context then
+      addContextRows(context, hints, marks)
     end
   end
 
+  -- Add separator row
   if #hints > 0 then
     local win = vim.api.nvim_get_current_win()
     table.insert(hints, string.rep("―", vim.api.nvim_win_get_width(win)))
   end
 
-  return vim.split(table.concat(hints, ""), "\n")
+  if #hints > 0 then
+    return vim.split(table.concat(hints, ""), "\n"), marks
+  end
+  return hints, marks
 end
 
 function M.pretty_print(data, headers)
@@ -91,43 +114,54 @@ function M.pretty_print(data, headers)
   end
 
   local tbl = {}
-  local hl_symbols_header = hl.symbols.header
-  local hl_symbols_clear = hl.symbols.clear
-  local hl_symbols_tab = hl.symbols.tab
+  local extmarks = {}
 
   -- Create table header
   local header_line = {}
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    table.insert(header_line, hl_symbols_header .. header .. hl_symbols_clear .. "  " .. string.rep(" ", column_width - #header + 1))
+    local value = header .. "  " .. string.rep(" ", column_width - #header + 1)
+    table.insert(header_line, value)
+
+    M.add_mark(extmarks, 0, #table.concat(header_line, "") - #value, #table.concat(header_line, ""), hl.symbols.header)
   end
   table.insert(tbl, table.concat(header_line, ""))
 
   -- Create table rows
-  for _, row in ipairs(data) do
+  for row_index, row in ipairs(data) do
     local row_line = {}
     for _, col in ipairs(columns) do
       local value
+      local hl_group
       if type(row[col]) == "table" then
         value = tostring(row[col].value)
-        table.insert(
-          row_line,
-          row[col].symbol .. value .. hl_symbols_clear .. hl_symbols_tab .. "  " .. string.rep(" ", widths[col] - #value + 1)
-        )
+        hl_group = row[col].symbol
       else
         value = tostring(row[col])
-        table.insert(row_line, value .. hl_symbols_tab .. "  " .. string.rep(" ", widths[col] - #value + 1))
+        hl_group = nil
+      end
+
+      local display_value = value .. "  " .. string.rep(" ", widths[col] - #value + 1)
+      table.insert(row_line, display_value)
+
+      if hl_group then
+        table.insert(extmarks, {
+          row = row_index,
+          start_col = #table.concat(row_line, "") - #display_value,
+          end_col = #table.concat(row_line, ""),
+          hl_group = hl_group,
+        })
       end
     end
     table.insert(tbl, table.concat(row_line, ""))
   end
 
-  return tbl
+  return tbl, extmarks
 end
 
 function M.getCurrentSelection(...)
   local line = vim.api.nvim_get_current_line()
-  local columns = vim.split(line, hl.symbols.tab)
+  local columns = vim.split(line, "%s%s+")
 
   local results = {}
   local indices = { ... }
@@ -137,7 +171,7 @@ function M.getCurrentSelection(...)
     table.insert(results, trimmed)
   end
 
-  return unpack(results) -- Use unpack instead of table.unpack for Lua 5.1 compatibility
+  return unpack(results)
 end
 
 function M.isEmpty(table)
