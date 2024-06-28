@@ -129,7 +129,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
 end
 
-function M.floating_buffer(content, extmarks, filetype, opts)
+function M.floating_buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl_float"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -143,10 +143,10 @@ function M.floating_buffer(content, extmarks, filetype, opts)
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
-  apply_marks(buf, extmarks, opts.header)
+  apply_marks(buf, marks, opts.header)
 end
 
-function M.buffer(content, extmarks, filetype, opts)
+function M.buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl"
   local buf = vim.fn.bufnr(bufname, false)
   local win = layout.main_layout()
@@ -158,7 +158,7 @@ function M.buffer(content, extmarks, filetype, opts)
 
   set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
-  apply_marks(buf, extmarks, opts.header)
+  apply_marks(buf, marks, opts.header)
 end
 
 function M.notification_buffer(content, opts)
