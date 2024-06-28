@@ -76,7 +76,9 @@ function M.filter_buffer(content, marks, filetype, opts)
     else
       state.setFilter(input)
     end
-    vim.api.nvim_win_close(win, true)
+
+    vim.bo.modified = false
+    vim.cmd.close()
     vim.api.nvim_input("R")
   end)
 
