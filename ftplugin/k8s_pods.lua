@@ -13,13 +13,22 @@ api.nvim_buf_set_keymap(0, "n", "g?", "", {
   noremap = true,
   silent = true,
   callback = function()
-    local hints = ""
-    hints = hints .. tables.generateHintLine("<l>", "Shows logs for all containers in pod \n")
-    hints = hints .. tables.generateHintLine("<d>", "Describe selected pod \n")
-    hints = hints .. tables.generateHintLine("<t>", "Show resources used \n")
-    hints = hints .. tables.generateHintLine("<enter>", "Opens container view \n")
-    hints = hints .. tables.generateHintLine("<shift-f>", "Port forward \n")
-    hints = hints .. tables.generateHintLine("<C-k>", "Kill pod \n")
+    local hints = {
+      { key = "<l>", desc = "Shows logs for all containers in pod" },
+      { key = "<d>", desc = "Describe selected pod" },
+      { key = "<t>", desc = "Show resources used" },
+      { key = "<enter>", desc = "Opens container view" },
+      { key = "<shift-f>", desc = "Port forward" },
+      { key = "<C-k>", desc = "Kill pod" },
+    }
+
+
+    -- hints = hints .. tables.generateHintLine("<l>", "Shows logs for all containers in pod \n")
+    -- hints = hints .. tables.generateHintLine("<d>", "Describe selected pod \n")
+    -- hints = hints .. tables.generateHintLine("<t>", "Show resources used \n")
+    -- hints = hints .. tables.generateHintLine("<enter>", "Opens container view \n")
+    -- hints = hints .. tables.generateHintLine("<shift-f>", "Port forward \n")
+    -- hints = hints .. tables.generateHintLine("<C-k>", "Kill pod \n")
     view.Hints(hints)
   end,
 })
