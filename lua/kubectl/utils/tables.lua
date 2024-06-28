@@ -55,7 +55,8 @@ function M.generateHeader(headers, include_defaults, include_context)
       addExtmark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
     end
 
-    table.insert(hints, hint_line .. "\n\n")
+    table.insert(hints, hint_line .. "\n")
+    table.insert(hints, "\n")
   end
 
   -- Add context rows
@@ -69,16 +70,16 @@ function M.generateHeader(headers, include_defaults, include_context)
       if context.contexts then
         local desc, context_info = "Context:   ", context.contexts[1].context
         local line = desc .. context_info.cluster
-        table.insert(hints, line .. "\n")
         addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
+        table.insert(hints, line .. "\n")
 
         line = "User:      " .. context_info.user .. "\n"
         table.insert(hints, line)
       end
       local desc, namespace = "Namespace: ", state.getNamespace()
       local line = desc .. namespace
-      table.insert(hints, line .. "\n")
       addExtmark(marks, #hints, #desc, #line, hl.symbols.pending)
+      table.insert(hints, line .. "\n")
     end
   end
 
