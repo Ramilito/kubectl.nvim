@@ -14,6 +14,7 @@ function ResourceBuilder:new(resource, args)
   local self = setmetatable({}, ResourceBuilder)
   self.resource = resource
   self.args = args
+  self.header = { data = nil, extmarks = nil }
   return self
 end
 
@@ -121,7 +122,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
   notifications.Add({
     hl.symbols.gray .. "adding hints " .. "[" .. self.resource .. "]",
   })
-  self.hints = tables.generateHints(hints, include_defaults, include_context)
+  self.header.data, self.header.extmarks = tables.generateHints(hints, include_defaults, include_context)
   return self
 end
 
@@ -138,7 +139,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, hints = self.hints })
+  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header})
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)

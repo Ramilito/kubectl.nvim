@@ -20,54 +20,59 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
-function M.generateHintLine(key, desc, includePipe)
-  local line = hl.symbols.pending .. key .. " " .. hl.symbols.clear .. desc
-  if includePipe then
-    line = line .. " | "
-  end
-  return line
-end
-
-function M.generateContext()
-  local hint = ""
-
-  local context = state.getContext()
-  if context then
-    if context.cluster then
-      hint = hint .. "Cluster:   " .. context.clusters[1].name .. "\n"
-    end
-    if context.contexts then
-      hint = hint .. "Context:   " .. hl.symbols.pending .. context.contexts[1].context.cluster .. hl.symbols.clear .. "\n"
-      hint = hint .. "User:      " .. context.contexts[1].context.user .. "\n"
-    end
-    hint = hint .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
-    return hint
-  end
-end
-
 function M.generateHints(hintConfigs, include_defaults, include_context)
   local hints = {}
+  local extmarks = {}
+
+  if include_defaults then
+    local defaults = {
+      { key = "<R>", desc = "reload" },
+      { key = "<C-f>", desc = "filter" },
+      { key = "<C-n>", desc = "namespace" },
+      { key = "<g?>", desc = "help" },
+    }
+    for _, default in ipairs(defaults) do
+      table.insert(hintConfigs, default)
+    end
+  end
 
   if config.options.hints then
-    local hint_line = hl.symbols.success .. "Hint: " .. hl.symbols.clear
-    for _, hintConfig in ipairs(hintConfigs) do
-      hint_line = hint_line .. M.generateHintLine(hintConfig.key, hintConfig.desc, true)
-    end
-
-    if include_defaults then
-      hint_line = hint_line .. M.generateHintLine("<R>", "reload", true)
-      hint_line = hint_line .. M.generateHintLine("<C-f>", "filter", true)
-      hint_line = hint_line .. M.generateHintLine("<C-n>", "namespace", true)
-      hint_line = hint_line .. M.generateHintLine("<g?>", "help")
+    local hint_line = "Hint: "
+    local length = #hint_line
+    table.insert(extmarks, { row = 0, start_col = 0, end_col = #hint_line, hl_group = hl.symbols.success })
+    for index, hintConfig in ipairs(hintConfigs) do
+      length = #hint_line
+      hint_line = hint_line .. hintConfig.key .. " " .. hintConfig.desc
+      if index < #hintConfigs then
+        hint_line = hint_line .. " | "
+      end
+      table.insert(extmarks, { row = 0, start_col = length, end_col = length + #hintConfig.key, hl_group = hl.symbols.pending })
     end
 
     table.insert(hints, hint_line .. "\n\n")
   end
 
   if include_context and config.options.context then
-    local contextHints = M.generateContext()
-    if contextHints then
-      table.insert(hints, M.generateContext())
+    local hint = ""
+
+    local context = state.getContext()
+    if context then
+      if context.cluster then
+        hint = hint .. "Cluster:   " .. context.clusters[1].name .. "\n"
+      end
+      if context.contexts then
+        hint = hint .. "Context:   " .. context.contexts[1].context.cluster .. "\n"
+
+        table.insert(extmarks, {
+          row = #hints + 1,
+          start_col = #hint - #context.contexts[1].context.cluster - 1,
+          end_col = #hint,
+          hl_group = hl.symbols.pending,
+        })
+        hint = hint .. "User:      " .. context.contexts[1].context.user .. "\n"
+      end
+      hint = hint .. "Namespace: " .. hl.symbols.pending .. state.getNamespace() .. hl.symbols.clear .. "\n"
+      table.insert(hints, hint)
     end
   end
 
@@ -76,7 +81,7 @@ function M.generateHints(hintConfigs, include_defaults, include_context)
     table.insert(hints, string.rep("―", vim.api.nvim_win_get_width(win)))
   end
 
-  return vim.split(table.concat(hints, ""), "\n")
+  return vim.split(table.concat(hints, ""), "\n"), extmarks
 end
 
 function M.pretty_print(data, headers)

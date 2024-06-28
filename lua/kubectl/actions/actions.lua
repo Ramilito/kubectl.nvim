@@ -13,10 +13,10 @@ local function create_buffer(bufname, buftype)
   return buf
 end
 
-local function set_buffer_lines(buf, hints, content)
-  if hints and #hints > 1 then
-    vim.api.nvim_buf_set_lines(buf, 0, #hints, false, hints)
-    vim.api.nvim_buf_set_lines(buf, #hints, -1, false, content)
+local function set_buffer_lines(buf, header, content)
+  if header and #header > 1 then
+    vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+    vim.api.nvim_buf_set_lines(buf, #header, -1, false, content)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
   end
@@ -113,13 +113,24 @@ function M.floating_buffer(content, filetype, opts)
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
 end
 
-local function apply_extmarks(bufnr, extmarks, start_line)
+local function apply_extmarks(bufnr, extmarks, header)
   local ns_id = api.nvim_create_namespace("highlight_namespace")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
   vim.schedule(function()
+    for _, mark in ipairs(header.extmarks) do
+      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+        end_line = mark.row,
+        end_col = mark.end_col,
+        hl_group = mark.hl_group,
+        strict = false,
+      })
+    end
     for _, mark in ipairs(extmarks) do
-      local start_row = start_line + mark.row
+      local start_row = #header.data + mark.row
+      if mark.is_header then
+        start_row = mark.row
+      end
       local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
         end_col = mark.end_col,
@@ -140,9 +151,9 @@ function M.buffer(content, extmarks, filetype, opts)
     layout.set_buf_options(buf, win, filetype, filetype)
   end
 
-  set_buffer_lines(buf, opts.hints, content)
+  set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
-  apply_extmarks(buf, extmarks, #opts.hints)
+  apply_extmarks(buf, extmarks, opts.header)
 end
 
 function M.notification_buffer(content, opts)
