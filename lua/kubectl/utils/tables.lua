@@ -20,7 +20,7 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
-function M.generateHints(hintConfigs, include_defaults, include_context)
+function M.generateHeader(hintConfigs, include_defaults, include_context)
   local hints = {}
   local extmarks = {}
 

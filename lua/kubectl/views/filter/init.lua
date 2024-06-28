@@ -4,7 +4,7 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.filter()
-  local hints = tables.generateHints({
+  local hints = tables.generateHeader({
     { key = "<enter>", desc = "apply" },
     { key = "<q>", desc = "close" },
   }, false, false)

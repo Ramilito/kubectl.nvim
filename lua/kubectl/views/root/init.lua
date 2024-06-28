@@ -12,7 +12,7 @@ function M.Root()
     "Services",
     "Configmaps",
   }
-  local hints = tables.generateHints({
+  local hints = tables.generateHeader({
     { key = "<enter>", desc = "Select" },
   }, true, true)
   actions.buffer(results, {}, "k8s_root", { title = "Root", hints = hints })
