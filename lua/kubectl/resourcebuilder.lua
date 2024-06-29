@@ -141,6 +141,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   })
   notifications.Close()
   actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header })
+  self:postRender()
   return self
 end
 
