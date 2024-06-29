@@ -17,10 +17,8 @@ function M.get_current_mark()
 end
 
 function M.set_virtual_text_on_mark(bufnr, ns_id, mark, virt_text)
-  local start_row = mark[2]
-  local start_col = mark[3]
-
-  vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, start_col, {
+  vim.api.nvim_buf_set_extmark(bufnr, ns_id, mark[2], mark[3], {
+    id = mark[1],
     virt_text = { { virt_text, hl.symbols.header } },
     virt_text_pos = "overlay",
   })

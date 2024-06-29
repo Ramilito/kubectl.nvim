@@ -5,6 +5,7 @@ local hl = require("kubectl.actions.highlight")
 local marks = require("kubectl.utils.marks")
 local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
+local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 
@@ -158,17 +159,28 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
 end
 
 function ResourceBuilder:postRender()
-  local sortby = state.sortby
-  if #sortby.mark > 0 then
-    vim.schedule(function()
+  vim.schedule(function()
+    local sortby = state.sortby
+    if #sortby.mark == 0 then
+      local extmark = vim.api.nvim_buf_get_extmark_by_id(0, state.marks.ns_id, state.marks.header[1], { details = true })
+      local lines = vim.api.nvim_buf_get_text(0, extmark[1], extmark[2], extmark[3].end_row, extmark[3].end_col, {})
+      local word = string_utils.trim(table.concat(lines, "\n"))
+      sortby.current_word = word
+
+      sortby.mark[1] = state.marks.header[1]
+      sortby.mark[2] = extmark[1]
+      sortby.mark[3] = extmark[2]
+    end
+
+    if #sortby.mark > 0 then
       marks.set_virtual_text_on_mark(
         0,
         state.marks.ns_id,
         { sortby.mark[1], sortby.mark[2], sortby.mark[3] },
         sortby.current_word .. " ▼"
       )
-    end)
-  end
+    end
+  end)
   return self
 end
 
