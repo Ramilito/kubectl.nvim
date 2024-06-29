@@ -37,6 +37,7 @@ local function apply_marks(bufnr, marks, header)
       end
     end
     if marks then
+      state.marks.header = {}
       for _, mark in ipairs(marks) do
         local start_row = mark.row
         if header and header.data then
@@ -47,6 +48,9 @@ local function apply_marks(bufnr, marks, header)
           end_col = mark.end_col,
           hl_group = mark.hl_group,
         })
+        if mark.row == 0 then
+          table.insert(state.marks.header, result)
+        end
       end
     end
   end)
