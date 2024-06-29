@@ -3,6 +3,7 @@ local configmaps_view = require("kubectl.views.configmaps")
 local deployments_view = require("kubectl.views.deployments")
 local filter_view = require("kubectl.views.filter")
 local kube = require("kubectl.actions.kube")
+local marks = require("kubectl.utils.marks")
 local namespace_view = require("kubectl.views.namespace")
 local pods_view = require("kubectl.views.pods")
 local secrets_view = require("kubectl.views.secrets")
@@ -45,8 +46,9 @@ function M.register()
     silent = true,
     desc = "Sort",
     callback = function()
-      local current_word = vim.fn.expand("<cword>")
-      state.setSortBy(current_word)
+      local mark, word = marks.get_current_mark()
+      state.sortby.mark = mark
+      state.sortby.current_word = word
       vim.api.nvim_input("R")
     end,
   })

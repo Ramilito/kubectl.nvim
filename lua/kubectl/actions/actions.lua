@@ -24,6 +24,7 @@ end
 local function apply_marks(bufnr, marks, header)
   local ns_id = api.nvim_create_namespace("__kubectl_namespace")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  state.marks.ns_id = ns_id
 
   vim.schedule(function()
     if header and header.marks then

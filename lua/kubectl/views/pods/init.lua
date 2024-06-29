@@ -25,6 +25,7 @@ function M.Pods(cancellationToken)
             { key = "<C-k>", desc = "kill pod" },
           }, true, true)
           :display("k8s_pods", "Pods", cancellationToken)
+          :postRender()
       end)
     end)
 end
