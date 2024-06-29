@@ -2,8 +2,10 @@ local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local marks = require("kubectl.utils.marks")
 local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
+local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 
@@ -75,7 +77,7 @@ function ResourceBuilder:sort()
   notifications.Add({
     hl.symbols.gray .. "sorting " .. "[" .. self.resource .. "]",
   })
-  local sortby = state.getSortBy()
+  local sortby = state.sortby.current_word
   if sortby ~= "" then
     sortby = string.lower(sortby)
     table.sort(self.processedData, function(a, b)
@@ -140,6 +142,8 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   })
   notifications.Close()
   actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header })
+  self:postRender()
+  return self
 end
 
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
@@ -151,6 +155,13 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   notifications.Close()
   actions.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
 
+  return self
+end
+
+function ResourceBuilder:postRender()
+  vim.schedule(function()
+    marks.set_sortby_header()
+  end)
   return self
 end
 

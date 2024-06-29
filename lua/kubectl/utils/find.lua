@@ -40,9 +40,9 @@ function M.filter_line(array, pattern, startAt)
   return filtered_array
 end
 
-function M.array(array, match_func)
+function M.array(array, pattern)
   for _, item in ipairs(array) do
-    if match_func(item) then
+    if item == pattern then
       return item
     end
   end

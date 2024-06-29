@@ -5,8 +5,9 @@ local M = {}
 M.context = {}
 M.ns = ""
 M.filter = ""
-M.sortby = ""
 M.proxyUrl = ""
+M.marks = { ns_id = 0, header = {} }
+M.sortby = { mark = {}, current_word = "" }
 
 local decode = function(string)
   local success, result = pcall(vim.json.decode, string)
@@ -26,7 +27,6 @@ function M.setup()
     M.context = result
     M.ns = defaults.options.namespace
     M.filter = ""
-    M.sortby = ""
 
     pod_view.Pods()
   end)
@@ -46,14 +46,6 @@ end
 
 function M.getProxyUrl()
   return M.proxyUrl
-end
-
-function M.getSortBy()
-  return M.sortby
-end
-
-function M.setSortBy(pattern)
-  M.sortby = pattern
 end
 
 function M.setFilter(pattern)
