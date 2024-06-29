@@ -2,6 +2,7 @@ local config = require("kubectl.config")
 local configmaps_view = require("kubectl.views.configmaps")
 local deployments_view = require("kubectl.views.deployments")
 local filter_view = require("kubectl.views.filter")
+local find = require("kubectl.utils.find")
 local kube = require("kubectl.actions.kube")
 local marks = require("kubectl.utils.marks")
 local namespace_view = require("kubectl.views.namespace")
@@ -47,9 +48,15 @@ function M.register()
     desc = "Sort",
     callback = function()
       local mark, word = marks.get_current_mark()
-      state.sortby.mark = mark
-      state.sortby.current_word = word
-      vim.api.nvim_input("R")
+      if mark then
+        local is_header = find.array(state.marks.header, mark[1])
+        if is_header then
+          print("isheader", is_header)
+          state.sortby.mark = mark
+          state.sortby.current_word = word
+          vim.api.nvim_input("R")
+        end
+      end
     end,
   })
 
