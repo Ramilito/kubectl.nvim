@@ -51,7 +51,6 @@ function M.register()
       if mark then
         local is_header = find.array(state.marks.header, mark[1])
         if is_header then
-          print("isheader", is_header)
           state.sortby.mark = mark
           state.sortby.current_word = word
           vim.api.nvim_input("R")
