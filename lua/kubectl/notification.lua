@@ -35,7 +35,7 @@ function M.Close()
   end
   vim.defer_fn(function()
     actions.notification_buffer({ "" }, { close = true })
-  end, 100)
+  end, 300)
 end
 function M.Add(rows)
   if not config.options.notifications.enabled then
