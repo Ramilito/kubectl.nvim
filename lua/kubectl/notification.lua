@@ -22,6 +22,7 @@ function M.process_row(rows)
       line = string.sub(line, 1, max_width - 3)
       line = line .. "..."
     end
+
     table.insert(aligned_lines, padding .. line)
   end
 

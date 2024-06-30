@@ -1,3 +1,4 @@
+local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local api = vim.api
@@ -171,6 +172,7 @@ end
 
 function M.notification_buffer(content, opts)
   local bufname = "notification"
+  local marks = {}
   local buf = vim.fn.bufnr(bufname, false)
 
   if opts.close then
@@ -186,16 +188,18 @@ function M.notification_buffer(content, opts)
 
   if opts.append then
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for _, line in ipairs(lines) do
+    for index, line in ipairs(lines) do
       table.insert(content, #content, line)
     end
   end
 
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
-  local win = layout.notification_layout(buf, bufname, { width = opts.width })
+  for index, line in ipairs(content) do
+    table.insert(marks, { row = index - 1, start_col = 0, end_col = #line, hl_group = hl.symbols.gray })
+  end
 
-  layout.set_buf_options(buf, win, bufname, bufname)
-  api.nvim_set_option_value("cursorline", false, { win = win })
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+  layout.notification_layout(buf, bufname, { width = opts.width })
+  apply_marks(buf, marks, {})
 end
 
 return M
