@@ -25,11 +25,8 @@ function M.set_sortby_header()
     local start_row, start_col, end_row, end_col = extmark[1], extmark[2], extmark[3].end_row, extmark[3].end_col
     local lines = vim.api.nvim_buf_get_text(0, start_row, start_col, end_row, end_col, {})
     local word = string_utils.trim(table.concat(lines, "\n"))
-    sortby.current_word = word
 
-    sortby.mark[1] = state.marks.header[1]
-    sortby.mark[2] = start_row
-    sortby.mark[3] = start_col
+    M.set_virtual_text_on_mark(0, state.marks.ns_id, { state.marks.header[1], start_row, start_col }, word .. " ▼")
   end
 
   if #sortby.mark > 0 then
