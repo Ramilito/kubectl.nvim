@@ -43,8 +43,8 @@ end
 
 function ResourceBuilder:fetchAsync(callback)
   notifications.Open({
-    hl.symbols.gray .. "fetching " .. "[" .. self.resource .. "]",
-    hl.symbols.gray .. "args: " .. " " .. vim.inspect(self.args),
+    "fetching " .. "[" .. self.resource .. "]",
+    "args: " .. " " .. vim.inspect(self.args),
   })
   commands.shell_command_async(self.cmd, self.args, function(data)
     self.data = data
@@ -58,7 +58,7 @@ function ResourceBuilder:decodeJson()
 
   if success then
     notifications.Add({
-      hl.symbols.gray .. "json decode successful " .. "[" .. self.resource .. "]",
+      "json decode successful " .. "[" .. self.resource .. "]",
     })
     self.data = decodedData
   end
@@ -67,7 +67,7 @@ end
 
 function ResourceBuilder:process(processFunc)
   notifications.Add({
-    hl.symbols.gray .. "processing table " .. "[" .. self.resource .. "]",
+    "processing table " .. "[" .. self.resource .. "]",
   })
   self.processedData = processFunc(self.data)
   return self
@@ -75,7 +75,7 @@ end
 
 function ResourceBuilder:sort()
   notifications.Add({
-    hl.symbols.gray .. "sorting " .. "[" .. self.resource .. "]",
+    "sorting " .. "[" .. self.resource .. "]",
   })
   local sortby = state.sortby.current_word
   if sortby ~= "" then
@@ -114,7 +114,7 @@ end
 
 function ResourceBuilder:prettyPrint(headersFunc)
   notifications.Add({
-    hl.symbols.gray .. "prettify table " .. "[" .. self.resource .. "]",
+    "prettify table " .. "[" .. self.resource .. "]",
   })
   self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc())
   return self
@@ -122,7 +122,7 @@ end
 
 function ResourceBuilder:addHints(hints, include_defaults, include_context)
   notifications.Add({
-    hl.symbols.gray .. "adding hints " .. "[" .. self.resource .. "]",
+    "adding hints " .. "[" .. self.resource .. "]",
   })
   self.header.data, self.header.marks = tables.generateHeader(hints, include_defaults, include_context)
   return self
@@ -138,7 +138,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     return
   end
   notifications.Add({
-    hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
+    "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
   actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header })
@@ -150,7 +150,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   local displayData = usePrettyData and self.prettyData or self.data
 
   notifications.Add({
-    hl.symbols.gray .. "display data " .. "[" .. self.resource .. "]",
+    "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
   actions.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
