@@ -42,7 +42,7 @@ function ResourceBuilder:fetch()
 end
 
 function ResourceBuilder:fetchAsync(callback)
-  notifications.Open({
+  notifications.Add({
     "fetching " .. "[" .. self.resource .. "]",
     "args: " .. " " .. vim.inspect(self.args),
   })

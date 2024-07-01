@@ -1,10 +1,27 @@
 local actions = require("kubectl.actions.actions")
 local config = require("kubectl.config")
+local state = require("kubectl.state")
 local M = {}
+
+local spinner = {
+  "⠋",
+  "⠙",
+  "⠹",
+  "⠸",
+  "⠼",
+  "⠴",
+  "⠦",
+  "⠧",
+  "⠇",
+  "⠏",
+}
+local count = 1
 
 function M.process_row(rows)
   local width = 40
   local max_width = 40
+  local aligned_lines = {}
+
   for _, value in ipairs(rows) do
     if #value > width then
       width = #value
@@ -14,7 +31,6 @@ function M.process_row(rows)
     end
   end
 
-  local aligned_lines = {}
   for _, line in ipairs(rows) do
     local padding = string.rep(" ", width - #line)
     if #line > max_width then
@@ -26,7 +42,7 @@ function M.process_row(rows)
     table.insert(aligned_lines, padding .. line)
   end
 
-  return aligned_lines, width
+  return aligned_lines
 end
 
 function M.Close()
@@ -34,27 +50,41 @@ function M.Close()
     return
   end
   vim.defer_fn(function()
-    actions.notification_buffer({ "" }, { close = true })
+    actions.notification_buffer({ close = true })
   end, 300)
 end
+
 function M.Add(rows)
   if not config.options.notifications.enabled then
     return
   end
-  vim.schedule(function()
-    local content, width = M.process_row(rows)
-    actions.notification_buffer(content, { width = width, close = false, append = true })
-  end)
-end
+  if not config.options.notifications.verbose then
+    state.notifications = {}
+    local content = M.process_row({ spinner[count] })
+    for i = 1, 5, 1 do
+      table.insert(state.notifications, i, "")
+    end
+    table.insert(state.notifications, content[1])
+    count = count + 1
+    if count > 5 then
+      count = 1
+    end
 
-function M.Open(rows)
-  if not config.options.notifications.enabled then
-    return
+    vim.schedule(function()
+      actions.notification_buffer({ close = false, append = false })
+    end)
+  else
+    local content = M.process_row(rows)
+    for _, value in ipairs(content) do
+      table.insert(state.notifications, 1, value)
+      if #state.notifications > 5 then
+        table.remove(state.notifications)
+      end
+    end
+    vim.schedule(function()
+      actions.notification_buffer({ close = false, append = false })
+    end)
   end
-  vim.schedule(function()
-    local content, width = M.process_row(rows)
-    actions.notification_buffer(content, { width = width, close = false, append = false })
-  end)
 end
 
 return M

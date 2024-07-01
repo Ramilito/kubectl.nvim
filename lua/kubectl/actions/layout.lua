@@ -65,7 +65,7 @@ end
 
 function M.notification_layout(buf, title, opts)
   local editor_width, editor_height = M.get_editor_dimensions()
-  local height = math.min(4, editor_height)
+  local height = math.min(opts.height, editor_height)
   local width = math.min(opts.width, editor_width - 4) -- guess width of signcolumn etc.
   local row_max = vim.api.nvim_win_get_height(0)
 
