@@ -24,6 +24,18 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "e", "", {
+    noremap = true,
+    silent = true,
+    desc = "Edit",
+    callback = function()
+      local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+
+      local view = require("kubectl.views." .. string.lower(buf_name))
+      pcall(view[buf_name] )
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<C-f>", "", {
     noremap = true,
     silent = true,
