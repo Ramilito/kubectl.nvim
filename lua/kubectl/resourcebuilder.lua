@@ -42,7 +42,7 @@ function ResourceBuilder:fetch()
 end
 
 function ResourceBuilder:fetchAsync(callback)
-  notifications.Open({
+  notifications.Add({
     "fetching " .. "[" .. self.resource .. "]",
     "args: " .. " " .. vim.inspect(self.args),
   })
@@ -140,7 +140,6 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   notifications.Add({
     "display data " .. "[" .. self.resource .. "]",
   })
-  notifications.Close()
   actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header })
   self:postRender()
   return self
@@ -152,7 +151,6 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   notifications.Add({
     "display data " .. "[" .. self.resource .. "]",
   })
-  notifications.Close()
   actions.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
 
   return self

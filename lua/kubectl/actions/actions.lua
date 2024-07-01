@@ -170,17 +170,11 @@ function M.buffer(content, marks, filetype, opts)
   apply_marks(buf, marks, opts.header)
 end
 
-function M.notification_buffer(content, opts)
+function M.notification_buffer(opts)
+  opts.width = opts.width or 40
   local bufname = "notification"
   local marks = {}
   local buf = vim.fn.bufnr(bufname, false)
-
-  if opts.close then
-    local status, err = pcall(function()
-      vim.api.nvim_buf_delete(buf, { force = true })
-    end)
-    return
-  end
 
   if buf == -1 then
     buf = create_buffer(bufname)
@@ -188,19 +182,25 @@ function M.notification_buffer(content, opts)
 
   if opts.append then
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for index, line in ipairs(lines) do
-      table.insert(content, #content, line)
+    for _, line in ipairs(lines) do
+      table.insert(state.notifications, #state.notifications, line)
     end
   end
 
-  for index, line in ipairs(content) do
+  for index, line in ipairs(state.notifications) do
     table.insert(marks, { row = index - 1, start_col = 0, end_col = #line, hl_group = hl.symbols.gray })
   end
 
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, state.notifications)
   local win = layout.notification_layout(buf, bufname, { width = opts.width })
   vim.api.nvim_win_set_option(win, "winblend", 100)
   apply_marks(buf, marks, {})
+
+  vim.defer_fn(function()
+    local status, err = pcall(function()
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+  end, 1000)
 end
 
 return M

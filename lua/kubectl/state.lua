@@ -6,6 +6,7 @@ M.context = {}
 M.ns = ""
 M.filter = ""
 M.proxyUrl = ""
+M.notifications = {}
 M.marks = { ns_id = 0, header = {} }
 M.sortby = { mark = {}, current_word = "" }
 
