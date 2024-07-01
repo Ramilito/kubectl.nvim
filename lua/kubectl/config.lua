@@ -7,6 +7,7 @@ local defaults = {
   namespace = "All",
   notifications = {
     enabled = true,
+    verbose = false,
   },
   hints = true,
   context = true,
