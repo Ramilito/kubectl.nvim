@@ -2,12 +2,13 @@ local config = require("kubectl.config")
 local M = {}
 local api = vim.api
 
-function M.set_buf_options(buf, win, filetype, syntax)
+function M.set_buf_options(buf, win, filetype, syntax, bufname)
   api.nvim_set_option_value("filetype", filetype, { buf = buf })
   api.nvim_set_option_value("syntax", syntax, { buf = buf })
   api.nvim_set_option_value("bufhidden", "hide", { scope = "local" })
   api.nvim_set_option_value("cursorline", true, { win = win })
   api.nvim_set_option_value("modified", false, { buf = buf })
+  api.nvim_buf_set_var(buf, "buf_name", bufname)
 
   -- TODO: How do we handle long text?
   -- api.nvim_set_option_value("wrap", true, { scope = "local" })

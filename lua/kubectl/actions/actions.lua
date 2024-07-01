@@ -88,7 +88,7 @@ function M.filter_buffer(content, marks, filetype, opts)
 
   vim.cmd("startinsert")
 
-  layout.set_buf_options(buf, win, filetype, "")
+  layout.set_buf_options(buf, win, filetype, "", bufname)
   apply_marks(buf, marks, opts.header)
 end
 
@@ -133,7 +133,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
   })
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
-  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
+  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
 end
 
 function M.floating_buffer(content, marks, filetype, opts)
@@ -150,7 +150,7 @@ function M.floating_buffer(content, marks, filetype, opts)
   local win = layout.float_layout(buf, filetype, opts.title or "")
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
-  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype)
+  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
   apply_marks(buf, marks, opts.header)
 end
 
@@ -162,7 +162,7 @@ function M.buffer(content, marks, filetype, opts)
 
   if buf == -1 then
     buf = create_buffer(bufname)
-    layout.set_buf_options(buf, win, filetype, filetype)
+    layout.set_buf_options(buf, win, filetype, filetype, bufname)
   end
 
   set_buffer_lines(buf, opts.header.data, content)
