@@ -176,6 +176,13 @@ function M.notification_buffer(opts)
   local marks = {}
   local buf = vim.fn.bufnr(bufname, false)
 
+  if opts.close then
+    local _, _ = pcall(function()
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+    return
+  end
+
   if buf == -1 then
     buf = create_buffer(bufname)
   end
@@ -192,15 +199,9 @@ function M.notification_buffer(opts)
   end
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, state.notifications)
-  local win = layout.notification_layout(buf, bufname, { width = opts.width })
+  local win = layout.notification_layout(buf, bufname, { width = opts.width, height = #state.notifications })
   vim.api.nvim_win_set_option(win, "winblend", 100)
   apply_marks(buf, marks, {})
-
-  vim.defer_fn(function()
-    local status, err = pcall(function()
-      vim.api.nvim_buf_delete(buf, { force = true })
-    end)
-  end, 1000)
 end
 
 return M
