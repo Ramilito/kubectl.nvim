@@ -198,7 +198,8 @@ function M.notification_buffer(content, opts)
   end
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
-  layout.notification_layout(buf, bufname, { width = opts.width })
+  local win = layout.notification_layout(buf, bufname, { width = opts.width })
+  vim.api.nvim_win_set_option(win, "winblend", 100)
   apply_marks(buf, marks, {})
 end
 
