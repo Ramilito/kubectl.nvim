@@ -40,7 +40,7 @@ function M.tailLogs(pod, ns)
     end)
   end
 
-  local args = "logs --follow --since=1s " .. pod .. " -c " .. M.selection .. " -n " .. ns
+  local args = { "logs", "--follow", "--since=1s", pod, "-c", M.selection, "-n", ns }
   commands.shell_command_async("kubectl", args, handle_output)
 end
 
