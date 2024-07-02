@@ -6,7 +6,7 @@ local M = {}
 
 function M.Services(cancellationToken)
   ResourceBuilder:new("services"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}services" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
     vim.schedule(function()
       self

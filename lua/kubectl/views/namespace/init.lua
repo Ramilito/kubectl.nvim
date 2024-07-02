@@ -7,7 +7,7 @@ local M = {}
 
 function M.Namespace()
   ResourceBuilder:new("namespace"):setCmd({ "get", "--raw", "/api/v1/namespaces" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
     vim.schedule(function()
       self:displayFloat("k8s_namespace", "Namespace", "", true)

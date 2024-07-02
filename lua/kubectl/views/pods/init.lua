@@ -14,7 +14,7 @@ function M.Pods(cancellationToken)
       "\n",
     }, "curl")
     :fetchAsync(function(self)
-      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders):setFilter()
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         self
           :addHints({
