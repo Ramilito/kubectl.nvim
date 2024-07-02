@@ -63,12 +63,17 @@ function ResourceBuilder:decodeJson()
   return self
 end
 
-function ResourceBuilder:process(processFunc)
+function ResourceBuilder:process(processFunc, no_filter)
   notifications.Add({
     "processing table " .. "[" .. self.resource .. "]",
   })
   self.processedData = processFunc(self.data)
+
+  if no_filter then
+    return self
+  end
   self.processedData = find.filter_line(self.processedData, state.getFilter(), 1)
+
   return self
 end
 
