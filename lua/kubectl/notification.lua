@@ -60,10 +60,7 @@ function M.Add(rows)
   end
   if not config.options.notifications.verbose then
     state.notifications = {}
-    local content = M.process_row({ spinner[count] })
-    for i = 1, 5, 1 do
-      table.insert(state.notifications, i, "")
-    end
+    local content = { spinner[count] }
     table.insert(state.notifications, content[1])
     count = count + 1
     if count > 5 then
@@ -71,7 +68,7 @@ function M.Add(rows)
     end
 
     vim.schedule(function()
-      actions.notification_buffer({ close = false, append = false })
+      actions.notification_buffer({ close = false, append = false, width = 1 })
     end)
   else
     local content = M.process_row(rows)
