@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local actions = require("kubectl.actions.actions")
 local definition = require("kubectl.views.services.definition")
 
 local M = {}
@@ -20,6 +21,12 @@ function M.Services(cancellationToken)
         )
     end)
   end)
+end
+
+function M.Edit(name, namespace)
+  actions.floating_buffer({}, {}, "yaml", {})
+  local cmd = "kubectl edit services/" .. name .. " -n " .. namespace
+  vim.fn.termopen(cmd)
 end
 
 function M.ServiceDesc(namespace, name)

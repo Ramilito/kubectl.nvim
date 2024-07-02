@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 
@@ -75,6 +76,12 @@ function M.PodLogs()
           :displayFloat("k8s_pod_logs", M.selection.pod, "less")
       end)
     end)
+end
+
+function M.Edit(name, namespace)
+  actions.floating_buffer({}, {}, "yaml", {})
+  local cmd = "kubectl edit pod/" .. name .. " -n " .. namespace
+  vim.fn.termopen(cmd)
 end
 
 function M.PodDesc(pod_name, namespace)

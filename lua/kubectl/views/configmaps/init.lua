@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local actions = require("kubectl.actions.actions")
 local definition = require("kubectl.views.configmaps.definition")
 
 local M = {}
@@ -15,6 +16,12 @@ function M.Configmaps(cancellationToken)
         :display("k8s_configmaps", "Configmaps", cancellationToken)
     end)
   end)
+end
+
+function M.Edit(name, namespace)
+  actions.floating_buffer({}, {}, "yaml", {})
+  local cmd = "kubectl edit configmaps/" .. name .. " -n " .. namespace
+  vim.fn.termopen(cmd)
 end
 
 function M.ConfigmapsDesc(namespace, name)

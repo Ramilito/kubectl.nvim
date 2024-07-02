@@ -10,6 +10,8 @@ local pods_view = require("kubectl.views.pods")
 local secrets_view = require("kubectl.views.secrets")
 local services_view = require("kubectl.views.services")
 local state = require("kubectl.state")
+local string_utils = require("kubectl.utils.string")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -21,6 +23,18 @@ function M.register()
     callback = function()
       kube.stop_kubectl_proxy()()
       vim.api.nvim_buf_delete(0, { force = true })
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "e", "", {
+    noremap = true,
+    silent = true,
+    desc = "Edit",
+    callback = function()
+      local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      local ns, name = tables.getCurrentSelection(1, 2)
+      pcall(view.Edit, name, ns)
     end,
   })
 
