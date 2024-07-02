@@ -1,6 +1,7 @@
 local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
+local config = require("kubectl.config")
 local api = vim.api
 local M = {}
 
@@ -200,7 +201,7 @@ function M.notification_buffer(opts)
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, state.notifications)
   local win = layout.notification_layout(buf, bufname, { width = opts.width, height = #state.notifications })
-  vim.api.nvim_win_set_option(win, "winblend", 100)
+  vim.api.nvim_win_set_option(win, "winblend", config.options.notifications.blend)
   apply_marks(buf, marks, {})
 end
 

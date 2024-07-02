@@ -8,6 +8,7 @@ local defaults = {
   notifications = {
     enabled = true,
     verbose = false,
+    blend = 100,
   },
   hints = true,
   context = true,

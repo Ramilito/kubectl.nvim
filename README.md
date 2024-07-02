@@ -64,6 +64,11 @@ return {
     interval = 3000, -- milliseconds
   },
   namespace = "All",
+  notifications = {
+    enabled = true,
+    verbose = false,
+    blend = 100,
+  },
   hints = true,
   context = true,
   float_size = {
