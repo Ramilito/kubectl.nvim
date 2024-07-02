@@ -12,7 +12,7 @@ end
 
 function M.containers(pod, ns)
   ResourceBuilder:new("containers"):setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processContainerRow):prettyPrint(definition.getContainerHeaders)
+    self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
 
     vim.schedule(function()
       self

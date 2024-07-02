@@ -1,11 +1,9 @@
 local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
-local hl = require("kubectl.actions.highlight")
 local marks = require("kubectl.utils.marks")
 local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
-local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 
@@ -65,11 +63,17 @@ function ResourceBuilder:decodeJson()
   return self
 end
 
-function ResourceBuilder:process(processFunc)
+function ResourceBuilder:process(processFunc, no_filter)
   notifications.Add({
     "processing table " .. "[" .. self.resource .. "]",
   })
   self.processedData = processFunc(self.data)
+
+  if no_filter then
+    return self
+  end
+  self.processedData = find.filter_line(self.processedData, state.getFilter(), 1)
+
   return self
 end
 
@@ -128,11 +132,6 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
   return self
 end
 
-function ResourceBuilder:setFilter()
-  self.filter = state.getFilter()
-  return self
-end
-
 function ResourceBuilder:display(filetype, title, cancellationToken)
   if cancellationToken and cancellationToken() then
     return
@@ -141,7 +140,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.buffer(find.filter_line(self.prettyData, self.filter, 2), self.extmarks, filetype, { title = title, header = self.header })
+  actions.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
   self:postRender()
   return self
 end
