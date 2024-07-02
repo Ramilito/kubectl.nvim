@@ -22,7 +22,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
     stderr = function(err, data)
       vim.schedule(function()
         if data then
-          vim.notify(data, err, vim.log.levels.ERROR)
+          vim.notify(data, vim.log.levels.ERROR)
         end
       end)
     end,
