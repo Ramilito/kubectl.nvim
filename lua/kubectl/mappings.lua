@@ -10,6 +10,7 @@ local pods_view = require("kubectl.views.pods")
 local secrets_view = require("kubectl.views.secrets")
 local services_view = require("kubectl.views.services")
 local state = require("kubectl.state")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -30,9 +31,9 @@ function M.register()
     desc = "Edit",
     callback = function()
       local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-
       local view = require("kubectl.views." .. string.lower(buf_name))
-      pcall(view[buf_name] )
+      local ns, name = tables.getCurrentSelection(1, 2)
+      pcall(view.Edit, name, ns)
     end,
   })
 
