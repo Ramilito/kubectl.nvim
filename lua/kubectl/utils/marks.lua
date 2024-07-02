@@ -22,11 +22,13 @@ function M.set_sortby_header()
   local sortby = state.sortby
   if #sortby.mark == 0 then
     local extmark = vim.api.nvim_buf_get_extmark_by_id(0, state.marks.ns_id, state.marks.header[1], { details = true })
-    local start_row, start_col, end_row, end_col = extmark[1], extmark[2], extmark[3].end_row, extmark[3].end_col
-    local lines = vim.api.nvim_buf_get_text(0, start_row, start_col, end_row, end_col, {})
-    local word = string_utils.trim(table.concat(lines, "\n"))
+    if extmark then
+      local start_row, start_col, end_row, end_col = extmark[1], extmark[2], extmark[3].end_row, extmark[3].end_col
+      local lines = vim.api.nvim_buf_get_text(0, start_row, start_col, end_row, end_col, {})
+      local word = string_utils.trim(table.concat(lines, "\n"))
 
-    M.set_virtual_text_on_mark(0, state.marks.ns_id, { state.marks.header[1], start_row, start_col }, word .. " ▼")
+      M.set_virtual_text_on_mark(0, state.marks.ns_id, { state.marks.header[1], start_row, start_col }, word .. " ▼")
+    end
   end
 
   if #sortby.mark > 0 then

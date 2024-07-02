@@ -80,7 +80,6 @@ end
 
 function M.Edit(name, namespace)
   actions.floating_buffer({}, {}, "yaml", {})
-
   local cmd = "kubectl edit pod/" .. name .. " -n " .. namespace
   vim.fn.termopen(cmd)
 end
