@@ -46,7 +46,8 @@ function M.TailLogs()
     vim.schedule(function()
       if vim.api.nvim_buf_is_valid(buf) then
         local line_count = vim.api.nvim_buf_line_count(buf)
-        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, { data })
+
+        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n"))
         vim.api.nvim_set_option_value("modified", false, { buf = buf })
         vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
       end
