@@ -1,7 +1,7 @@
+local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
-local config = require("kubectl.config")
 local api = vim.api
 local M = {}
 
@@ -24,7 +24,7 @@ local function set_buffer_lines(buf, header, content)
 end
 
 local function apply_marks(bufnr, marks, header)
-  local ns_id = api.nvim_create_namespace("__kubectl_namespace")
+  local ns_id = api.nvim_create_namespace("__kubectl_views")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   state.marks.ns_id = ns_id
 
@@ -35,6 +35,9 @@ local function apply_marks(bufnr, marks, header)
           end_line = mark.row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
+          hl_eol = mark.hl_eol or nil,
+          virt_text = mark.virt_text or nil,
+          virt_text_pos = mark.virt_text_pos or nil,
         })
       end
     end
@@ -202,7 +205,15 @@ function M.notification_buffer(opts)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, state.notifications)
   local win = layout.notification_layout(buf, bufname, { width = opts.width, height = #state.notifications })
   vim.api.nvim_win_set_option(win, "winblend", config.options.notifications.blend)
-  apply_marks(buf, marks, {})
+
+  local ns_id = api.nvim_create_namespace("__kubectl_notifications")
+  for _, mark in ipairs(marks) do
+    pcall(api.nvim_buf_set_extmark, buf, ns_id, mark.row, mark.start_col, {
+      end_line = mark.row,
+      end_col = mark.end_col,
+      hl_group = mark.hl_group,
+    })
+  end
 end
 
 return M

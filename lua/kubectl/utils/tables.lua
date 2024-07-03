@@ -93,7 +93,13 @@ function M.generateHeader(headers, include_defaults, include_context)
   -- Add separator row
   if #hints > 0 then
     local win = vim.api.nvim_get_current_win()
-    table.insert(hints, string.rep("―", vim.api.nvim_win_get_width(win)))
+    local divider = string.rep("―", vim.api.nvim_win_get_width(win))
+    table.insert(marks, {
+      row = #hints,
+      start_col = 0,
+      virt_text = { { divider, hl.symbols.success } },
+      virt_text_pos = "overlay",
+    })
   end
 
   if #hints > 0 then
