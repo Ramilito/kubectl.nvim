@@ -1,3 +1,4 @@
+local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 
 local M = {}
@@ -47,6 +48,16 @@ function M.startProxy(callback)
       handle:kill(2)
     end,
   })
+end
+
+function M.start_port_forward(namespace, pod_name, local_port, port)
+  local port_forward_query = { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. port }
+  print(vim.inspect(port_forward_query))
+  commands.shell_command_async("kubectl", port_forward_query, function(response)
+    vim.schedule(function()
+      vim.notify(response)
+    end)
+  end)
 end
 
 return M

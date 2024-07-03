@@ -3,6 +3,7 @@ local actions = require("kubectl.actions.actions")
 local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
+local kube_actions = require("kubectl.actions.kube")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
@@ -114,19 +115,34 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
       local current_port_query =
         { "get", "pod", pod_name, "-n", namespace, "-o", 'jsonpath="{.spec.containers[*].ports[*].containerPort}"' }
 
-      local current_port_result = commands.execute_shell_command("kubectl", current_port_query)
+      local raw_output = commands.execute_shell_command("kubectl", current_port_query)
+      local current_ports_result = vim.split(raw_output, " ")
+      local current_port_result = current_ports_result[1]
 
-      vim.ui.input({ prompt = "source: " .. current_port_result .. ", destination: " }, function(input)
-        if input ~= nil then
-          actions.confirmation_buffer("Are you sure that you want to port forward to " .. input .. "?", nil, function(confirm)
+      local confirmation_str = function(local_port, dest_port)
+        return "Are you sure that you want to port forward from " .. dest_port .. " on " .. pod_name .. " to " .. local_port .. " locally?"
+      end
+
+      vim.ui.input({ prompt = "Local port: " }, function(local_port)
+        if not local_port then
+          return
+        end
+        if #current_ports_result > 1 then
+          vim.ui.select(current_ports_result, { prompt = "Destination port: " }, function(dest_port)
+            if not dest_port then
+              return
+            end
+            current_port_result = dest_port
+            actions.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
+              if confirm then
+                kube_actions.start_port_forward(namespace, pod_name, local_port, dest_port)
+              end
+            end)
+          end)
+        else
+          actions.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
             if confirm then
-              local port_forward_query = { "port-forward", "-n", namespace, "pods/" .. pod_name, input .. ":" .. current_port_result }
-              print(vim.inspect(port_forward_query))
-              commands.shell_command_async("kubectl", port_forward_query, function(response)
-                vim.schedule(function()
-                  vim.notify(response)
-                end)
-              end)
+              kube_actions.start_port_forward(namespace, pod_name, input, current_port_result)
             end
           end)
         end
