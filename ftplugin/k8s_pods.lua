@@ -111,7 +111,8 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
   callback = function()
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
-      local current_port_query = "get pod " .. pod_name .. ' -o jsonpath="{.spec.containers[*].ports[*].containerPort}"'
+      local current_port_query =
+        { "get", "pod", pod_name, "-n", namespace, "-o", 'jsonpath="{.spec.containers[*].ports[*].containerPort}"' }
 
       local current_port_result = commands.execute_shell_command("kubectl", current_port_query)
 
@@ -119,7 +120,7 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
         if input ~= nil then
           actions.confirmation_buffer("Are you sure that you want to port forward to " .. input .. "?", nil, function(confirm)
             if confirm then
-              local port_forward_query = { "port-forward", "pods/" .. pod_name, input .. ":" .. current_port_result }
+              local port_forward_query = { "port-forward", "-n", namespace, "pods/" .. pod_name, input .. ":" .. current_port_result }
               print(vim.inspect(port_forward_query))
               commands.shell_command_async("kubectl", port_forward_query, function(response)
                 vim.schedule(function()
