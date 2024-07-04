@@ -7,7 +7,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 - Colored output and smart highlighting
 - Floating windows for contextual stuff such as logs, description, containers..
 <details>
-  <summary>Run custom commands e.g ```:Kubectl get configmaps -A```</summary>
+  <summary>Run custom commands e.g `:Kubectl get configmaps -A`</summary>
   <img src="/.github/usercmd.gif?raw=true" width="700px">
 </details>
 <details>
