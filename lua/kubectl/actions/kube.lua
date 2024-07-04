@@ -1,4 +1,3 @@
-local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 
 local M = {}
