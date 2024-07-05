@@ -31,7 +31,7 @@ local function apply_marks(bufnr, marks, header)
   vim.schedule(function()
     if header and header.marks then
       for _, mark in ipairs(header.marks) do
-        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+        local _, _ = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
           end_line = mark.row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
@@ -53,7 +53,8 @@ local function apply_marks(bufnr, marks, header)
           end_col = mark.end_col,
           hl_group = mark.hl_group,
         })
-        if mark.row == 0 then
+        if mark.row == 0 and ok then
+          state.content_row_start = start_row + 1
           table.insert(state.marks.header, result)
         end
       end
