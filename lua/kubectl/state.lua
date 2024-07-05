@@ -4,6 +4,7 @@ M.ns = ""
 M.filter = ""
 M.proxyUrl = ""
 M.notifications = {}
+M.content_row_start = 0
 M.marks = { ns_id = 0, header = {} }
 M.sortby = { mark = {}, current_word = "" }
 
