@@ -1,13 +1,11 @@
-local config = require("kubectl.config")
-local hl = require("kubectl.actions.highlight")
-local kube = require("kubectl.actions.kube")
-local mappings = require("kubectl.mappings")
-local pod_view = require("kubectl.views.pods")
 local state = require("kubectl.state")
 
 local M = {}
 
 function M.open()
+  local pod_view = require("kubectl.views.pods")
+  local hl = require("kubectl.actions.highlight")
+  local kube = require("kubectl.actions.kube")
   hl.setup()
   kube.startProxy(function()
     state.setup()
@@ -17,6 +15,8 @@ end
 
 function M.setup(options)
   local completion = require("kubectl.completion")
+  local mappings = require("kubectl.mappings")
+  local config = require("kubectl.config")
   config.setup(options)
   state.setNS(config.options.namespace)
 
