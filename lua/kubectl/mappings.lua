@@ -44,7 +44,7 @@ function M.register()
     desc = "Filter",
     callback = function()
       local namespace_view = require("kubectl.views.namespace")
-      namespace_view.Namespace()
+      namespace_view.View()
     end,
   })
 
@@ -75,7 +75,7 @@ function M.register()
     desc = "Deployments",
     callback = function()
       local deployments_view = require("kubectl.views.deployments")
-      deployments_view.Deployments()
+      deployments_view.View()
     end,
   })
 
@@ -85,7 +85,7 @@ function M.register()
     desc = "Pods",
     callback = function()
       local pods_view = require("kubectl.views.pods")
-      pods_view.Pods()
+      pods_view.View()
     end,
   })
 
@@ -95,7 +95,7 @@ function M.register()
     desc = "Configmaps",
     callback = function()
       local configmaps_view = require("kubectl.views.configmaps")
-      configmaps_view.Configmaps()
+      configmaps_view.View()
     end,
   })
 
@@ -105,7 +105,7 @@ function M.register()
     desc = "Secrets",
     callback = function()
       local secrets_view = require("kubectl.views.secrets")
-      secrets_view.Secrets()
+      secrets_view.View()
     end,
   })
 
@@ -115,7 +115,7 @@ function M.register()
     desc = "Services",
     callback = function()
       local services_view = require("kubectl.views.services")
-      services_view.Services()
+      services_view.View()
     end,
   })
 end

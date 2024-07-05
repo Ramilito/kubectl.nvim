@@ -30,7 +30,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    event_view.Events()
+    event_view.View()
   end,
 })
 
@@ -38,10 +38,10 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
   noremap = true,
   silent = true,
   callback = function()
-    root_view.Root()
+    root_view.View()
   end,
 })
 
 if not loop.is_running() then
-  loop.start_loop(event_view.Events)
+  loop.start_loop(event_view.View)
 end

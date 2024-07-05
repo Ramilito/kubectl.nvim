@@ -4,7 +4,7 @@ local definition = require("kubectl.views.services.definition")
 
 local M = {}
 
-function M.Services(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("services"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}services" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 

@@ -4,7 +4,7 @@ local definition = require("kubectl.views.deployments.definition")
 
 local M = {}
 
-function M.Deployments(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("deployments"):setCmd({ "get", "--raw", "/apis/apps/v1/{{NAMESPACE}}deployments" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
     vim.schedule(function()

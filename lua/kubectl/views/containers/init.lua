@@ -10,7 +10,7 @@ function M.selectContainer(name)
   M.selection = name
 end
 
-function M.containers(pod, ns)
+function M.View(pod, ns)
   ResourceBuilder:new("containers"):setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod }):fetchAsync(function(self)
     self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
 

@@ -29,7 +29,7 @@ function M.setup()
     M.ns = config.options.namespace
     M.filter = ""
 
-    pod_view.Pods()
+    pod_view.View()
   end)
 end
 

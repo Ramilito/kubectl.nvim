@@ -4,7 +4,7 @@ local definition = require("kubectl.views.nodes.definition")
 
 local M = {}
 
-function M.Nodes(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("nodes"):setCmd({ "get", "--raw", "/api/v1/nodes" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
     vim.schedule(function()

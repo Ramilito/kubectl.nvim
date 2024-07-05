@@ -9,7 +9,7 @@ function M.open()
   hl.setup()
   kube.startProxy(function()
     state.setup()
-    pod_view.Pods()
+    pod_view.View()
   end)
 end
 

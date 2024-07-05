@@ -6,7 +6,7 @@ local definition = require("kubectl.views.pods.definition")
 local M = {}
 M.selection = {}
 
-function M.Pods(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("pods")
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",

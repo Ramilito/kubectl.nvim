@@ -4,7 +4,7 @@ local definition = require("kubectl.views.secrets.definition")
 
 local M = {}
 
-function M.Secrets(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("secrets"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}secrets" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 

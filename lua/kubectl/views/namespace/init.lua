@@ -5,7 +5,7 @@ local state = require("kubectl.state")
 
 local M = {}
 
-function M.Namespace()
+function M.View()
   ResourceBuilder:new("namespace"):setCmd({ "get", "--raw", "/api/v1/namespaces" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 

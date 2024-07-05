@@ -39,7 +39,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
   silent = true,
   desc = "kgp",
   callback = function()
-    pod_view.Pods()
+    pod_view.View()
   end,
 })
 
@@ -48,7 +48,7 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
   silent = true,
   desc = "Back",
   callback = function()
-    root_view.Root()
+    root_view.View()
   end,
 })
 
@@ -108,10 +108,10 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    deployment_view.Deployments()
+    deployment_view.View()
   end,
 })
 
 if not loop.is_running() then
-  loop.start_loop(deployment_view.Deployments)
+  loop.start_loop(deployment_view.View)
 end
