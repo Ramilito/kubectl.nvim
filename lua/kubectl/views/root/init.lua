@@ -3,7 +3,7 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
-function M.Root()
+function M.View()
   local results = {
     "Deployments",
     "Events",

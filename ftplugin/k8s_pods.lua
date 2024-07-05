@@ -49,7 +49,7 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
   noremap = true,
   silent = true,
   callback = function()
-    deployment_view.Deployments()
+    deployment_view.View()
   end,
 })
 
@@ -74,7 +74,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
       pod_view.selectPod(pod_name, namespace)
-      container_view.containers(pod_view.selection.pod, pod_view.selection.ns)
+      container_view.View(pod_view.selection.pod, pod_view.selection.ns)
     else
       api.nvim_err_writeln("Failed to select pod.")
     end
@@ -85,7 +85,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    pod_view.Pods()
+    pod_view.View()
   end,
 })
 
@@ -98,7 +98,7 @@ api.nvim_buf_set_keymap(0, "n", "<C-k>", "", {
     if pod_name and namespace then
       print("Deleting pod..")
       commands.shell_command_async("kubectl", { "delete", "pod", pod_name, "-n", namespace })
-      pod_view.Pods()
+      pod_view.View()
     else
       api.nvim_err_writeln("Failed to select pod.")
     end
@@ -163,5 +163,5 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
 })
 
 if not loop.is_running() then
-  loop.start_loop(pod_view.Pods)
+  loop.start_loop(pod_view.View)
 end

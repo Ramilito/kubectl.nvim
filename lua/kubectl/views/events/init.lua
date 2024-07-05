@@ -4,7 +4,7 @@ local definition = require("kubectl.views.events.definition")
 
 local M = {}
 
-function M.Events(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("events"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}events" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 

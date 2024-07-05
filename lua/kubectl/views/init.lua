@@ -50,9 +50,17 @@ function M.Hints(headers)
 end
 
 function M.UserCmd(args)
-  local builder = ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetch():splitData()
-  builder.prettyData = builder.data
-  builder:display("k8s_usercmd", "UserCmd")
+  ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetchAsync(function(self)
+    if self.data == "" then
+      return
+    end
+    self:splitData()
+    self.prettyData = self.data
+
+    vim.schedule(function()
+      self:display("k8s_usercmd", "UserCmd")
+    end)
+  end)
 end
 
 return M

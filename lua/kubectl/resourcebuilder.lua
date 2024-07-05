@@ -1,11 +1,8 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local find = require("kubectl.utils.find")
-local marks = require("kubectl.utils.marks")
 local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local url = require("kubectl.utils.url")
 
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
@@ -19,6 +16,7 @@ function ResourceBuilder:new(resource, args)
 end
 
 function ResourceBuilder:setCmd(args, cmd, contentType)
+  local url = require("kubectl.utils.url")
   self.cmd = cmd or "kubectl"
   self.args = url.build(args)
 
@@ -64,6 +62,7 @@ function ResourceBuilder:decodeJson()
 end
 
 function ResourceBuilder:process(processFunc, no_filter)
+  local find = require("kubectl.utils.find")
   notifications.Add({
     "processing table " .. "[" .. self.resource .. "]",
   })
@@ -72,6 +71,7 @@ function ResourceBuilder:process(processFunc, no_filter)
   if no_filter then
     return self
   end
+
   self.processedData = find.filter_line(self.processedData, state.getFilter(), 1)
 
   return self
@@ -158,6 +158,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
 end
 
 function ResourceBuilder:postRender()
+  local marks = require("kubectl.utils.marks")
   vim.schedule(function()
     marks.set_sortby_header()
   end)

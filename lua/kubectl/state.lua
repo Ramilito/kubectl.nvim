@@ -1,6 +1,3 @@
-local commands = require("kubectl.actions.commands")
-local defaults = require("kubectl.config")
-
 local M = {}
 M.context = {}
 M.ns = ""
@@ -22,14 +19,17 @@ local decode = function(string)
 end
 
 function M.setup()
+  local commands = require("kubectl.actions.commands")
+  local config = require("kubectl.config")
+
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
     local pod_view = require("kubectl.views.pods")
     local result = decode(data)
     M.context = result
-    M.ns = defaults.options.namespace
+    M.ns = config.options.namespace
     M.filter = ""
 
-    pod_view.Pods()
+    pod_view.View()
   end)
 end
 

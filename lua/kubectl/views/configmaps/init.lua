@@ -4,7 +4,7 @@ local definition = require("kubectl.views.configmaps.definition")
 
 local M = {}
 
-function M.Configmaps(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("configmaps"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}configmaps" }):fetchAsync(function(self)
     self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
