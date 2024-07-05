@@ -1,4 +1,4 @@
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local find = require("kubectl.utils.find")
 local marks = require("kubectl.utils.marks")
@@ -140,7 +140,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
+  buffers.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
   self:postRender()
   return self
 end
@@ -152,7 +152,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
     "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  actions.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
+  buffers.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
 
   return self
 end

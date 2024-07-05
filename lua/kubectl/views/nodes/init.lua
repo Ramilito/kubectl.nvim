@@ -1,5 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.nodes.definition")
 
 local M = {}
@@ -27,7 +27,7 @@ function M.NodeDesc(node)
 end
 
 function M.Edit(_, name)
-  actions.floating_buffer({}, {}, "yaml", {})
+  buffers.floating_buffer({}, {}, "yaml", {})
   local cmd = "kubectl edit nodes/" .. name
   vim.fn.termopen(cmd)
 end

@@ -1,5 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.containers.definition")
 
@@ -45,7 +45,7 @@ function M.tailLogs(pod, ns)
 end
 
 function M.exec(pod, ns)
-  actions.floating_buffer({ "" }, {}, "k8s_container_exec", { title = "ssh " .. M.selection })
+  buffers.floating_buffer({ "" }, {}, "k8s_container_exec", { title = "ssh " .. M.selection })
   commands.execute_terminal("kubectl", { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" })
 end
 

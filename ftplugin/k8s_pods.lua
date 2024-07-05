@@ -1,5 +1,5 @@
 local api = vim.api
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
@@ -132,7 +132,7 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
               return
             end
             current_port_result = dest_port
-            actions.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
+            buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
               if confirm then
                 local port_forward_query = { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. dest_port }
                 commands.shell_command_async("kubectl", port_forward_query, function(response)
@@ -144,7 +144,7 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
             end)
           end)
         else
-          actions.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
+          buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
             if confirm then
               local port_forward_query = { "port-forward", "-n", namespace, "pods/" .. pod_name, input .. ":" .. current_port_result }
               commands.shell_command_async("kubectl", port_forward_query, function(response)
