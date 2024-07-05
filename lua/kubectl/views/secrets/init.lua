@@ -1,6 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.secrets.definition")
-local actions    = require("kubectl.actions.actions")
 
 local M = {}
 
@@ -19,7 +19,7 @@ function M.Secrets(cancellationToken)
 end
 
 function M.Edit(name, namespace)
-  actions.floating_buffer({}, {}, "yaml", {})
+  buffers.floating_buffer({}, {}, "yaml", {})
   local cmd = "kubectl edit secrets/" .. name .. " -n " .. namespace
   vim.fn.termopen(cmd)
 end

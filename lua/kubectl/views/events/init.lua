@@ -1,5 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.events.definition")
 
 local M = {}
@@ -20,7 +20,7 @@ end
 
 function M.ShowMessage(event)
   local msg = event
-  actions.floating_buffer(vim.split(msg, "\n"), "event_msg", { title = "Message", syntax = "less" })
+  buffers.floating_buffer(vim.split(msg, "\n"), "event_msg", { title = "Message", syntax = "less" })
 end
 
 return M

@@ -1,5 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 
@@ -80,7 +80,7 @@ function M.PodLogs()
 end
 
 function M.Edit(name, namespace)
-  actions.floating_buffer({}, {}, "yaml", {})
+  buffers.floating_buffer({}, {}, "yaml", {})
   local cmd = "kubectl edit pod/" .. name .. " -n " .. namespace
   vim.fn.termopen(cmd)
 end
