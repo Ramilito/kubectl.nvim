@@ -24,7 +24,9 @@ function M.register()
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
       local ns, name = tables.getCurrentSelection(1, 2)
-      pcall(view.Edit, name, ns)
+      if name then
+        pcall(view.Edit, name, ns)
+      end
     end,
   })
 

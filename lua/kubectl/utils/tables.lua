@@ -166,6 +166,10 @@ function M.pretty_print(data, headers)
 end
 
 function M.getCurrentSelection(...)
+  local line_number = vim.api.nvim_win_get_cursor(0)[1]
+  if line_number <= state.content_row_start then
+    return nil
+  end
   local line = vim.api.nvim_get_current_line()
   local columns = vim.split(line, "%s%s+")
 
