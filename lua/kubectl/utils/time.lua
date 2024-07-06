@@ -30,17 +30,7 @@ function M.since(timestamp, fresh, currentTime)
   end
 
   if not currentTime then
-    local date = os.date("!*t")
-    if date then
-      currentTime = os.time({
-        year = date.year,
-        month = date.month,
-        day = date.day,
-        hour = date.hour,
-        min = date.min,
-        sec = date.sec,
-      })
-    end
+    currentTime = M.currentTime()
   end
 
   local parsedTime = M.parse(timestamp)
@@ -70,7 +60,17 @@ function M.since(timestamp, fresh, currentTime)
 end
 
 function M.currentTime()
-  return os.time(os.date("!*t"))
+  local date = os.date("!*t")
+  if date then
+    return os.time({
+      year = date.year,
+      month = date.month,
+      day = date.day,
+      hour = date.hour,
+      min = date.min,
+      sec = date.sec,
+    })
+  end
 end
 
 return M
