@@ -185,10 +185,7 @@ function M.getCurrentSelection(...)
 end
 
 function M.isEmpty(table)
-  for _ in pairs(table) do
-    return false
-  end
-  return true
+  return next(table) == nil
 end
 
 return M

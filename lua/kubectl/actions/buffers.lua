@@ -69,7 +69,7 @@ function M.filter_buffer(content, marks, filetype, opts)
   if buf == -1 then
     buf = create_buffer(bufname, "prompt")
     vim.keymap.set("n", "q", function()
-      vim.bo.modified = false
+      api.nvim_set_option_value("modified", false, { buf = buf })
       vim.cmd.close()
     end, { buffer = buf, silent = true })
   end
@@ -86,7 +86,7 @@ function M.filter_buffer(content, marks, filetype, opts)
       state.setFilter(input)
     end
 
-    vim.bo.modified = false
+    api.nvim_set_option_value("modified", false, { buf = buf })
     vim.cmd.close()
     vim.api.nvim_input("R")
   end)

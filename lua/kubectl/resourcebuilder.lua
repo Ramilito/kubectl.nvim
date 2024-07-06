@@ -7,8 +7,8 @@ local tables = require("kubectl.utils.tables")
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
 
-function ResourceBuilder:new(resource, args)
-  local self = setmetatable({}, ResourceBuilder)
+function ResourceBuilder:new(resource, args) -- luacheck: ignore
+  self = setmetatable({}, ResourceBuilder)
   self.resource = resource
   self.args = args
   self.header = { data = nil, marks = nil }
@@ -152,7 +152,12 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
     "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  buffers.floating_buffer(displayData, self.extmarks, filetype, { title = title, syntax = syntax, header = self.header })
+  buffers.floating_buffer(
+    displayData,
+    self.extmarks,
+    filetype,
+    { title = title, syntax = syntax, header = self.header }
+  )
 
   return self
 end
