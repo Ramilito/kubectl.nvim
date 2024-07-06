@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.configmaps.definition")
 
 local M = {}
@@ -21,9 +22,8 @@ function M.View(cancellationToken)
 end
 
 function M.Edit(name, namespace)
-  buffers.floating_buffer({}, {}, "yaml", {})
-  local cmd = "kubectl edit configmaps/" .. name .. " -n " .. namespace
-  vim.fn.termopen(cmd)
+  buffers.floating_buffer({}, {}, "k8s_configmap_edit", { title = name, syntax = "yaml" })
+  commands.execute_terminal("kubectl", { "edit", "configmaps/" .. name, "-n", namespace })
 end
 
 function M.ConfigmapsDesc(namespace, name)

@@ -59,6 +59,8 @@ function M.execute_terminal(cmd, args)
       end
     end,
   })
+
+  vim.cmd("startinsert")
 end
 
 return M

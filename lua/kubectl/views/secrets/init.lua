@@ -1,6 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.secrets.definition")
+local commands   = require("kubectl.actions.commands")
 
 local M = {}
 
@@ -19,9 +20,8 @@ function M.View(cancellationToken)
 end
 
 function M.Edit(name, namespace)
-  buffers.floating_buffer({}, {}, "yaml", {})
-  local cmd = "kubectl edit secrets/" .. name .. " -n " .. namespace
-  vim.fn.termopen(cmd)
+  buffers.floating_buffer({}, {}, "k8s_secret_edit", { title = name, syntax = "yaml" })
+  commands.execute_terminal("kubectl", { "edit", "secrets/" .. name, "-n", namespace })
 end
 
 function M.SecretDesc(namespace, name)
