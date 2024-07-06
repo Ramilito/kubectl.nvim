@@ -13,7 +13,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "e", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<C-e>", "", {
     noremap = true,
     silent = true,
     desc = "Edit",
