@@ -18,7 +18,8 @@ local function getType(type)
 end
 
 --TODO: Get externalip
-local function getExternalIP(spec)
+---@diagnostic disable-next-line: unused-local
+local function getExternalIP(spec) -- luacheck: ignore
   return ""
 end
 

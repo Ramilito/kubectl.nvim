@@ -1,0 +1,19 @@
+name: Type Check Code Base
+on:
+  pull_request: ~
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    name: Type Check Code Base
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Type Check Code Base
+        uses: mrcjkb/lua-typecheck-action@v0
+        with:
+          directories: |
+            lua
+          configpath: .luarc.json

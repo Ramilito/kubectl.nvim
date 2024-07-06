@@ -1,4 +1,3 @@
-
 local M = {}
 local time = require("kubectl.utils.time")
 

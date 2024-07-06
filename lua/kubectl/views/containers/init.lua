@@ -11,18 +11,20 @@ function M.selectContainer(name)
 end
 
 function M.View(pod, ns)
-  ResourceBuilder:new("containers"):setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
+  ResourceBuilder:new("containers")
+    :setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod })
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
 
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<l>", desc = "logs" },
-          { key = "<enter>", desc = "exec" },
-        }, false, false)
-        :displayFloat("k8s_containers", pod, "", true)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<l>", desc = "logs" },
+            { key = "<enter>", desc = "exec" },
+          }, false, false)
+          :displayFloat("k8s_containers", pod, "", true)
+      end)
     end)
-  end)
 end
 
 function M.tailLogs(pod, ns)

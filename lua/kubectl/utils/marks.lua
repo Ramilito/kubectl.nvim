@@ -32,7 +32,12 @@ function M.set_sortby_header()
   end
 
   if #sortby.mark > 0 then
-    M.set_virtual_text_on_mark(0, state.marks.ns_id, { sortby.mark[1], sortby.mark[2], sortby.mark[3] }, sortby.current_word .. " ▼")
+    M.set_virtual_text_on_mark(
+      0,
+      state.marks.ns_id,
+      { sortby.mark[1], sortby.mark[2], sortby.mark[3] },
+      sortby.current_word .. " ▼"
+    )
   end
 end
 function M.set_virtual_text_on_mark(bufnr, ns_id, mark, virt_text)

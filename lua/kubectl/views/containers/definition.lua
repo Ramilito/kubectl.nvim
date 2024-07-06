@@ -15,10 +15,10 @@ local function getPorts(ports)
   end
   return string_ports
 end
+
 local function getContainerState(state)
-  for key, _ in pairs(state) do
-    return key
-  end
+  local key = next(state)
+  return key
 end
 
 function M.processContainerRow(row)

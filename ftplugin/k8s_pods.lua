@@ -119,7 +119,13 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
       local current_port_result = current_ports_result[1]
 
       local confirmation_str = function(local_port, dest_port)
-        return "Are you sure that you want to port forward from " .. dest_port .. " on " .. pod_name .. " to " .. local_port .. " locally?"
+        return "Are you sure that you want to port forward from "
+          .. dest_port
+          .. " on "
+          .. pod_name
+          .. " to "
+          .. local_port
+          .. " locally?"
       end
 
       vim.ui.input({ prompt = "Local port: " }, function(local_port)
@@ -134,7 +140,8 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
             current_port_result = dest_port
             buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
               if confirm then
-                local port_forward_query = { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. dest_port }
+                local port_forward_query =
+                  { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. dest_port }
                 commands.shell_command_async("kubectl", port_forward_query, function(response)
                   vim.schedule(function()
                     vim.notify(response)
@@ -146,7 +153,8 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
         else
           buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
             if confirm then
-              local port_forward_query = { "port-forward", "-n", namespace, "pods/" .. pod_name, input .. ":" .. current_port_result }
+              local port_forward_query =
+                { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. current_port_result }
               commands.shell_command_async("kubectl", port_forward_query, function(response)
                 vim.schedule(function()
                   vim.notify(response)

@@ -59,7 +59,11 @@ api.nvim_buf_set_keymap(0, "n", "i", "", {
   callback = function()
     local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
 
-    local get_images = "get deploy " .. name .. " -n " .. ns .. ' -o jsonpath="{.spec.template.spec.containers[*].image}"'
+    local get_images = "get deploy "
+      .. name
+      .. " -n "
+      .. ns
+      .. ' -o jsonpath="{.spec.template.spec.containers[*].image}"'
 
     local container_images = {}
 
@@ -95,11 +99,15 @@ api.nvim_buf_set_keymap(0, "n", "r", "", {
     local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
     buffers.confirmation_buffer("Are you sure that you want to restart the deployment: " .. name, nil, function(confirm)
       if confirm then
-        commands.shell_command_async("kubectl", { "rollout", "restart", "deployment/" .. name, "-n", ns }, function(response)
-          vim.schedule(function()
-            vim.notify(response)
-          end)
-        end)
+        commands.shell_command_async(
+          "kubectl",
+          { "rollout", "restart", "deployment/" .. name, "-n", ns },
+          function(response)
+            vim.schedule(function()
+              vim.notify(response)
+            end)
+          end
+        )
       end
     end)
   end,
