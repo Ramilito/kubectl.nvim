@@ -82,7 +82,6 @@ end
 function M.Edit(name, namespace)
   buffers.floating_buffer({}, {}, "yaml", { title = "Edit pod", syntax = "yaml" })
   commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", namespace })
-  vim.cmd("startinsert")
 end
 
 function M.PodDesc(pod_name, namespace)
