@@ -13,19 +13,22 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "e", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<C-e>", "", {
     noremap = true,
     silent = true,
     desc = "Edit",
     callback = function()
-      local tables = require("kubectl.utils.tables")
-      local string_utils = require("kubectl.utils.string")
+      local win_config = vim.api.nvim_win_get_config(0)
+      if win_config.relative == "" then
+        local tables = require("kubectl.utils.tables")
+        local string_utils = require("kubectl.utils.string")
 
-      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-      local ns, name = tables.getCurrentSelection(1, 2)
-      if name then
-        pcall(view.Edit, name, ns)
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        local ns, name = tables.getCurrentSelection(1, 2)
+        if name then
+          pcall(view.Edit, name, ns)
+        end
       end
     end,
   })
