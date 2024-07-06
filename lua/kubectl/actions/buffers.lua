@@ -48,7 +48,7 @@ local function apply_marks(bufnr, marks, header)
         if header and header.data then
           start_row = start_row + #header.data
         end
-        local _, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
+        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
           end_line = start_row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
