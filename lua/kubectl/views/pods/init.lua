@@ -80,7 +80,7 @@ function M.PodLogs()
 end
 
 function M.Edit(name, namespace)
-  buffers.floating_buffer({}, {}, "yaml", { title = "Edit pod", syntax = "yaml" })
+  buffers.floating_buffer({}, {}, "k8s_pod_edit", { title = name, syntax = "yaml" })
   commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", namespace })
 end
 

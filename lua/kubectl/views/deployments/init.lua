@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.deployments.definition")
 
 local M = {}
@@ -22,10 +23,8 @@ function M.View(cancellationToken)
 end
 
 function M.Edit(name, namespace)
-  buffers.floating_buffer({}, {}, "yaml", {})
-
-  local cmd = "kubectl edit deployments/" .. name .. " -n " .. namespace
-  vim.fn.termopen(cmd)
+  buffers.floating_buffer({}, {}, "k8s_deployment_edit", { title = name, syntax = "yaml" })
+  commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", namespace })
 end
 
 function M.DeploymentDesc(deployment_desc, namespace)
