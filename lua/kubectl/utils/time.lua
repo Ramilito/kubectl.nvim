@@ -30,6 +30,7 @@ function M.since(timestamp, fresh, currentTime)
   end
 
   if not currentTime then
+    ---@diagnostic disable-next-line: param-type-mismatch
     currentTime = os.time(os.date("!*t"))
   end
 
