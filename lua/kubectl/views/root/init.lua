@@ -1,9 +1,9 @@
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
 
-function M.Root()
+function M.View()
   local results = {
     "Deployments",
     "Events",
@@ -15,7 +15,7 @@ function M.Root()
   local header, marks = tables.generateHeader({
     { key = "<enter>", desc = "Select" },
   }, true, true)
-  actions.buffer(results, {}, "k8s_root", { title = "Root", header = { data = header, marks = marks } })
+  buffers.buffer(results, {}, "k8s_root", { title = "Root", header = { data = header, marks = marks } })
 end
 
 return M

@@ -19,17 +19,17 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
     local selection = getCurrentSelection()
     if selection then
       if selection == "Deployments" then
-        deployment_view.Deployments()
+        deployment_view.View()
       elseif selection == "Events" then
-        event_view.Events()
+        event_view.View()
       elseif selection == "Nodes" then
-        node_view.Nodes()
+        node_view.View()
       elseif selection == "Secrets" then
-        secret_view.Secrets()
+        secret_view.View()
       elseif selection == "Services" then
-        service_view.Services()
+        service_view.View()
       elseif selection == "Configmaps" then
-        configmaps_view.Configmaps()
+        configmaps_view.View()
       end
     else
       print("Failed to extract containers.")

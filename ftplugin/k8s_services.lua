@@ -17,7 +17,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    service_view.Services()
+    service_view.View()
   end,
 })
 
@@ -25,7 +25,7 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
   noremap = true,
   silent = true,
   callback = function()
-    root_view.Root()
+    root_view.View()
   end,
 })
 
@@ -43,5 +43,5 @@ api.nvim_buf_set_keymap(0, "n", "d", "", {
 })
 
 if not loop.is_running() then
-  loop.start_loop(service_view.Services)
+  loop.start_loop(service_view.View)
 end

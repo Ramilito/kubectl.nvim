@@ -19,6 +19,6 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    namespace_view.Namespace()
+    namespace_view.View()
   end,
 })

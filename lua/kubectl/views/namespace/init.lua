@@ -5,16 +5,18 @@ local state = require("kubectl.state")
 
 local M = {}
 
-function M.Namespace()
-  ResourceBuilder:new("namespace"):setCmd({ "get", "--raw", "/api/v1/namespaces" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+function M.View()
+  ResourceBuilder:new("namespace")
+    :setCmd({ "{{BASE}}/api/v1/namespaces?pretty=false" }, "curl")
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
-    vim.schedule(function()
-      self:displayFloat("k8s_namespace", "Namespace", "", true)
-      local win = vim.api.nvim_get_current_win()
-      vim.api.nvim_win_set_cursor(win, { 2, 0 })
+      vim.schedule(function()
+        self:displayFloat("k8s_namespace", "Namespace", "", true)
+        local win = vim.api.nvim_get_current_win()
+        vim.api.nvim_win_set_cursor(win, { 2, 0 })
+      end)
     end)
-  end)
 end
 function M.changeNamespace(name)
   local function handle_output(_)
@@ -32,7 +34,11 @@ function M.changeNamespace(name)
     vim.api.nvim_win_close(win, true)
     vim.api.nvim_input("R")
   else
-    commands.shell_command_async("kubectl", { "config", "set-context", "--current", "--namespace=" .. name }, handle_output)
+    commands.shell_command_async(
+      "kubectl",
+      { "config", "set-context", "--current", "--namespace=" .. name },
+      handle_output
+    )
   end
 end
 

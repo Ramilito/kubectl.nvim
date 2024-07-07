@@ -31,7 +31,7 @@ local function apply_marks(bufnr, marks, header)
   vim.schedule(function()
     if header and header.marks then
       for _, mark in ipairs(header.marks) do
-        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+        local _, _ = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
           end_line = mark.row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
@@ -53,7 +53,8 @@ local function apply_marks(bufnr, marks, header)
           end_col = mark.end_col,
           hl_group = mark.hl_group,
         })
-        if mark.row == 0 then
+        if mark.row == 0 and ok then
+          state.content_row_start = start_row + 1
           table.insert(state.marks.header, result)
         end
       end
@@ -68,7 +69,7 @@ function M.filter_buffer(content, marks, filetype, opts)
   if buf == -1 then
     buf = create_buffer(bufname, "prompt")
     vim.keymap.set("n", "q", function()
-      vim.bo.modified = false
+      api.nvim_set_option_value("modified", false, { buf = buf })
       vim.cmd.close()
     end, { buffer = buf, silent = true })
   end
@@ -85,7 +86,7 @@ function M.filter_buffer(content, marks, filetype, opts)
       state.setFilter(input)
     end
 
-    vim.bo.modified = false
+    api.nvim_set_option_value("modified", false, { buf = buf })
     vim.cmd.close()
     vim.api.nvim_input("R")
   end)

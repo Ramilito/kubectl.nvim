@@ -1,27 +1,29 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.secrets.definition")
-local actions    = require("kubectl.actions.actions")
 
 local M = {}
 
-function M.Secrets(cancellationToken)
-  ResourceBuilder:new("secrets"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}secrets" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+function M.View(cancellationToken)
+  ResourceBuilder:new("secrets")
+    :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}secrets?pretty=false" }, "curl")
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<d>", desc = "describe" },
-        }, true, true)
-        :display("k8s_secrets", "Secrets", cancellationToken)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<d>", desc = "describe" },
+          }, true, true)
+          :display("k8s_secrets", "Secrets", cancellationToken)
+      end)
     end)
-  end)
 end
 
 function M.Edit(name, namespace)
-  actions.floating_buffer({}, {}, "yaml", {})
-  local cmd = "kubectl edit secrets/" .. name .. " -n " .. namespace
-  vim.fn.termopen(cmd)
+  buffers.floating_buffer({}, {}, "k8s_secret_edit", { title = name, syntax = "yaml" })
+  commands.execute_terminal("kubectl", { "edit", "secrets/" .. name, "-n", namespace })
 end
 
 function M.SecretDesc(namespace, name)

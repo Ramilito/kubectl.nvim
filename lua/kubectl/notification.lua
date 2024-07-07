@@ -1,4 +1,4 @@
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local config = require("kubectl.config")
 local state = require("kubectl.state")
 local M = {}
@@ -50,7 +50,7 @@ function M.Close()
     return
   end
   vim.defer_fn(function()
-    actions.notification_buffer({ close = true })
+    buffers.notification_buffer({ close = true })
   end, 300)
 end
 
@@ -68,7 +68,7 @@ function M.Add(rows)
     end
 
     vim.schedule(function()
-      actions.notification_buffer({ close = false, append = false, width = 1 })
+      buffers.notification_buffer({ close = false, append = false, width = 1 })
     end)
   else
     local content = M.process_row(rows)
@@ -79,7 +79,7 @@ function M.Add(rows)
       end
     end
     vim.schedule(function()
-      actions.notification_buffer({ close = false, append = false })
+      buffers.notification_buffer({ close = false, append = false })
     end)
   end
 end

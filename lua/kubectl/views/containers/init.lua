@@ -1,5 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.containers.definition")
 
@@ -10,19 +10,21 @@ function M.selectContainer(name)
   M.selection = name
 end
 
-function M.containers(pod, ns)
-  ResourceBuilder:new("containers"):setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
+function M.View(pod, ns)
+  ResourceBuilder:new("containers")
+    :setCmd({ "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }, "curl")
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
 
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<l>", desc = "logs" },
-          { key = "<enter>", desc = "exec" },
-        }, false, false)
-        :displayFloat("k8s_containers", pod, "", true)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<l>", desc = "logs" },
+            { key = "<enter>", desc = "exec" },
+          }, false, false)
+          :displayFloat("k8s_containers", pod, "", true)
+      end)
     end)
-  end)
 end
 
 function M.tailLogs(pod, ns)
@@ -45,13 +47,13 @@ function M.tailLogs(pod, ns)
 end
 
 function M.exec(pod, ns)
-  actions.floating_buffer({ "" }, {}, "k8s_container_exec", { title = "ssh " .. M.selection })
+  buffers.floating_buffer({ "" }, {}, "k8s_container_exec", { title = "ssh " .. M.selection })
   commands.execute_terminal("kubectl", { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" })
 end
 
 function M.logs(pod, ns)
   ResourceBuilder:new("containerLogs")
-    :setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection })
+    :setCmd({ "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true" }, "curl")
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()

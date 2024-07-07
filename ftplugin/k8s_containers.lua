@@ -35,6 +35,6 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    container_view.containers()
+    container_view.View()
   end,
 })

@@ -1,11 +1,3 @@
-local deployment_view = require("kubectl.views.deployments")
-local events_view = require("kubectl.views.events")
-local nodes_view = require("kubectl.views.nodes")
-local secrets_view = require("kubectl.views.secrets")
-local services_view = require("kubectl.views.services")
-local pod_view = require("kubectl.views.pods")
-local configmaps_view = require("kubectl.views.configmaps")
-
 local M = {}
 local top_level_commands = {
   "annotate",
@@ -54,13 +46,13 @@ local top_level_commands = {
 }
 
 local views = {
-  pods = { "pods", "pod", "po", pod_view.Pods },
-  deployments = { "deployments", "deployment", "deploy", deployment_view.Deployments },
-  events = { "events", "event", "ev", events_view.Events },
-  nodes = { "nodes", "node", "no", nodes_view.Nodes },
-  secrets = { "secrets", "secret", "sec", secrets_view.Secrets },
-  services = { "services", "service", "svc", services_view.Services },
-  configmaps = { "configmaps", "configmap", "configmaps", configmaps_view.Configmaps },
+  pods = { "pods", "pod", "po" },
+  deployments = { "deployments", "deployment", "deploy" },
+  events = { "events", "event", "ev" },
+  nodes = { "nodes", "node", "no" },
+  secrets = { "secrets", "secret", "sec" },
+  services = { "services", "service", "svc" },
+  configmaps = { "configmaps", "configmap", "configmaps" },
 }
 
 function M.user_command_completion(_, cmd)
@@ -74,9 +66,10 @@ function M.user_command_completion(_, cmd)
 end
 
 function M.find_view_command(arg)
-  for _, v in pairs(views) do
+  for k, v in pairs(views) do
     if vim.tbl_contains(v, arg) then
-      return v[#v]
+      local view = require("kubectl.views." .. k)
+      return view.View
     end
   end
   return nil

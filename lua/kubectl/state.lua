@@ -1,12 +1,10 @@
-local commands = require("kubectl.actions.commands")
-local defaults = require("kubectl.config")
-
 local M = {}
 M.context = {}
 M.ns = ""
 M.filter = ""
 M.proxyUrl = ""
 M.notifications = {}
+M.content_row_start = 0
 M.marks = { ns_id = 0, header = {} }
 M.sortby = { mark = {}, current_word = "" }
 
@@ -22,14 +20,17 @@ local decode = function(string)
 end
 
 function M.setup()
+  local commands = require("kubectl.actions.commands")
+  local config = require("kubectl.config")
+
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
     local pod_view = require("kubectl.views.pods")
     local result = decode(data)
     M.context = result
-    M.ns = defaults.options.namespace
+    M.ns = config.options.namespace
     M.filter = ""
 
-    pod_view.Pods()
+    pod_view.View()
   end)
 end
 

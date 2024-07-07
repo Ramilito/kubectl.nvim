@@ -1,12 +1,12 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 
 local M = {}
 M.selection = {}
 
-function M.Pods(cancellationToken)
+function M.View(cancellationToken)
   ResourceBuilder:new("pods")
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
@@ -80,9 +80,8 @@ function M.PodLogs()
 end
 
 function M.Edit(name, namespace)
-  actions.floating_buffer({}, {}, "yaml", {})
-  local cmd = "kubectl edit pod/" .. name .. " -n " .. namespace
-  vim.fn.termopen(cmd)
+  buffers.floating_buffer({}, {}, "k8s_pod_edit", { title = name, syntax = "yaml" })
+  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", namespace })
 end
 
 function M.PodDesc(pod_name, namespace)

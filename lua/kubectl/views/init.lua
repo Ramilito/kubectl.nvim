@@ -1,5 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 
@@ -9,6 +9,7 @@ function M.Hints(headers)
   local marks = {}
   local hints = {}
   local globals = {
+    { key = "<C-e>  ", desc = "Edit resource" },
     { key = "<C-f>", desc = "Filter on a phrase" },
     { key = "<C-n>", desc = "Change namespace" },
     { key = "<bs> ", desc = "Go up a level" },
@@ -45,13 +46,21 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  actions.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
+  buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
 end
 
 function M.UserCmd(args)
-  local builder = ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetch():splitData()
-  builder.prettyData = builder.data
-  builder:display("k8s_usercmd", "UserCmd")
+  ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetchAsync(function(self)
+    if self.data == "" then
+      return
+    end
+    self:splitData()
+    self.prettyData = self.data
+
+    vim.schedule(function()
+      self:display("k8s_usercmd", "UserCmd")
+    end)
+  end)
 end
 
 return M

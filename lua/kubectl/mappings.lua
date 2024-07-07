@@ -1,21 +1,8 @@
-local config = require("kubectl.config")
-local configmaps_view = require("kubectl.views.configmaps")
-local deployments_view = require("kubectl.views.deployments")
-local filter_view = require("kubectl.views.filter")
-local find = require("kubectl.utils.find")
-local kube = require("kubectl.actions.kube")
-local marks = require("kubectl.utils.marks")
-local namespace_view = require("kubectl.views.namespace")
-local pods_view = require("kubectl.views.pods")
-local secrets_view = require("kubectl.views.secrets")
-local services_view = require("kubectl.views.services")
-local state = require("kubectl.state")
-local string_utils = require("kubectl.utils.string")
-local tables = require("kubectl.utils.tables")
-
 local M = {}
 
 function M.register()
+  local config = require("kubectl.config")
+  local kube = require("kubectl.actions.kube")
   vim.api.nvim_buf_set_keymap(0, "n", config.options.mappings.exit, "", {
     noremap = true,
     silent = true,
@@ -26,15 +13,23 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "e", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<C-e>", "", {
     noremap = true,
     silent = true,
     desc = "Edit",
     callback = function()
-      local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-      local ns, name = tables.getCurrentSelection(1, 2)
-      pcall(view.Edit, name, ns)
+      local win_config = vim.api.nvim_win_get_config(0)
+      if win_config.relative == "" then
+        local tables = require("kubectl.utils.tables")
+        local string_utils = require("kubectl.utils.string")
+
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        local ns, name = tables.getCurrentSelection(1, 2)
+        if name then
+          pcall(view.Edit, name, ns)
+        end
+      end
     end,
   })
 
@@ -43,6 +38,7 @@ function M.register()
     silent = true,
     desc = "Filter",
     callback = function()
+      local filter_view = require("kubectl.views.filter")
       filter_view.filter()
     end,
   })
@@ -52,7 +48,8 @@ function M.register()
     silent = true,
     desc = "Filter",
     callback = function()
-      namespace_view.Namespace()
+      local namespace_view = require("kubectl.views.namespace")
+      namespace_view.View()
     end,
   })
 
@@ -61,8 +58,12 @@ function M.register()
     silent = true,
     desc = "Sort",
     callback = function()
+      local marks = require("kubectl.utils.marks")
+      local state = require("kubectl.state")
       local mark, word = marks.get_current_mark()
+
       if mark then
+        local find = require("kubectl.utils.find")
         local is_header = find.array(state.marks.header, mark[1])
         if is_header then
           state.sortby.mark = mark
@@ -78,7 +79,8 @@ function M.register()
     silent = true,
     desc = "Deployments",
     callback = function()
-      deployments_view.Deployments()
+      local deployments_view = require("kubectl.views.deployments")
+      deployments_view.View()
     end,
   })
 
@@ -87,7 +89,8 @@ function M.register()
     silent = true,
     desc = "Pods",
     callback = function()
-      pods_view.Pods()
+      local pods_view = require("kubectl.views.pods")
+      pods_view.View()
     end,
   })
 
@@ -96,7 +99,8 @@ function M.register()
     silent = true,
     desc = "Configmaps",
     callback = function()
-      configmaps_view.Configmaps()
+      local configmaps_view = require("kubectl.views.configmaps")
+      configmaps_view.View()
     end,
   })
 
@@ -105,7 +109,8 @@ function M.register()
     silent = true,
     desc = "Secrets",
     callback = function()
-      secrets_view.Secrets()
+      local secrets_view = require("kubectl.views.secrets")
+      secrets_view.View()
     end,
   })
 
@@ -114,7 +119,8 @@ function M.register()
     silent = true,
     desc = "Services",
     callback = function()
-      services_view.Services()
+      local services_view = require("kubectl.views.services")
+      services_view.View()
     end,
   })
 end

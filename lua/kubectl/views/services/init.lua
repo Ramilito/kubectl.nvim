@@ -1,32 +1,28 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
 
 local M = {}
 
-function M.Services(cancellationToken)
-  ResourceBuilder:new("services"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}services" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
-
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<d>", desc = "describe" },
-        }, true, true)
-        -- TODO: Added space to title otherwise netrw is opening for some reason..
-        :display(
-          "k8s_services",
-          "Services ",
-          cancellationToken
-        )
+function M.View(cancellationToken)
+  ResourceBuilder:new("services")
+    :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" }, "curl")
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<d>", desc = "describe" },
+          }, true, true)
+          :display("k8s_services", "Services", cancellationToken)
+      end)
     end)
-  end)
 end
 
 function M.Edit(name, namespace)
-  actions.floating_buffer({}, {}, "yaml", {})
-  local cmd = "kubectl edit services/" .. name .. " -n " .. namespace
-  vim.fn.termopen(cmd)
+  buffers.floating_buffer({}, {}, "k8s_service_edit", { title = name, syntax = "yaml" })
+  commands.execute_terminal("kubectl", { "edit", "services/" .. name, "-n", namespace })
 end
 
 function M.ServiceDesc(namespace, name)

@@ -1,5 +1,5 @@
 local api = vim.api
-local actions = require("kubectl.actions.actions")
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
@@ -49,7 +49,7 @@ api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
   noremap = true,
   silent = true,
   callback = function()
-    deployment_view.Deployments()
+    deployment_view.View()
   end,
 })
 
@@ -74,7 +74,7 @@ api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
     local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
     if pod_name and namespace then
       pod_view.selectPod(pod_name, namespace)
-      container_view.containers(pod_view.selection.pod, pod_view.selection.ns)
+      container_view.View(pod_view.selection.pod, pod_view.selection.ns)
     else
       api.nvim_err_writeln("Failed to select pod.")
     end
@@ -85,7 +85,7 @@ api.nvim_buf_set_keymap(0, "n", "R", "", {
   noremap = true,
   silent = true,
   callback = function()
-    pod_view.Pods()
+    pod_view.View()
   end,
 })
 
@@ -98,7 +98,7 @@ api.nvim_buf_set_keymap(0, "n", "<C-k>", "", {
     if pod_name and namespace then
       print("Deleting pod..")
       commands.shell_command_async("kubectl", { "delete", "pod", pod_name, "-n", namespace })
-      pod_view.Pods()
+      pod_view.View()
     else
       api.nvim_err_writeln("Failed to select pod.")
     end
@@ -119,11 +119,13 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
       local current_port_result = current_ports_result[1]
 
       local confirmation_str = function(local_port, dest_port)
-        return "Are you sure that you want to port forward from " .. dest_port .. " on " .. pod_name .. " to " .. local_port .. " locally?"
-      end
-
-      local port_forward_query = function(local_port, dest_port)
-        return { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. dest_port }
+        return "Are you sure that you want to port forward from "
+          .. dest_port
+          .. " on "
+          .. pod_name
+          .. " to "
+          .. local_port
+          .. " locally?"
       end
 
       vim.ui.input({ prompt = "Local port: " }, function(local_port)
@@ -136,9 +138,11 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
               return
             end
             current_port_result = dest_port
-            actions.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
+            buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
               if confirm then
-                commands.shell_command_async("kubectl", port_forward_query(local_port, dest_port), function(response)
+                local port_forward_query =
+                  { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. dest_port }
+                commands.shell_command_async("kubectl", port_forward_query, function(response)
                   vim.schedule(function()
                     vim.notify(response)
                   end)
@@ -147,9 +151,11 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
             end)
           end)
         else
-          actions.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
+          buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
             if confirm then
-              commands.shell_command_async("kubectl", port_forward_query(input, current_port_result), function(response)
+              local port_forward_query =
+                { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. current_port_result }
+              commands.shell_command_async("kubectl", port_forward_query, function(response)
                 vim.schedule(function()
                   vim.notify(response)
                 end)
@@ -165,5 +171,5 @@ api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
 })
 
 if not loop.is_running() then
-  loop.start_loop(pod_view.Pods)
+  loop.start_loop(pod_view.View)
 end

@@ -53,7 +53,7 @@ end
 
 function M.processRow(rows)
   local data = {}
-  local currentTime = os.time(os.date("!*t"))
+  local currentTime = time.currentTime()
   if rows and rows.items then
     for i = 1, #rows.items do
       local row = rows.items[i]
