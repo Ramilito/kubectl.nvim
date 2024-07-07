@@ -1,6 +1,9 @@
 local M = {}
 local time = require("kubectl.utils.time")
 
+--- Get the count of items in the provided data table
+---@param data table
+---@return number
 local function getData(data)
   local count = 0
   if data then
@@ -11,6 +14,9 @@ local function getData(data)
   return count
 end
 
+--- Process rows and transform them into a structured table
+---@param rows { items: table[] }
+---@return table[]
 function M.processRow(rows)
   local data = {}
   for _, row in pairs(rows.items) do
@@ -27,6 +33,8 @@ function M.processRow(rows)
   return data
 end
 
+--- Get the headers for the processed data table
+---@return string[]
 function M.getHeaders()
   local headers = {
     "NAMESPACE",

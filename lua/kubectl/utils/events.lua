@@ -1,6 +1,9 @@
 local hl = require("kubectl.actions.highlight")
 local M = {}
 
+--- Color a status based on its severity
+---@param status string
+---@return string
 function M.ColorStatus(status)
   local errorStatuses = {
     Failed = true,

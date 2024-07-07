@@ -3,6 +3,7 @@ local config = require("kubectl.config")
 local state = require("kubectl.state")
 local M = {}
 
+---@type string[]
 local spinner = {
   "⠋",
   "⠙",
@@ -15,8 +16,13 @@ local spinner = {
   "⠇",
   "⠏",
 }
+
+---@type number
 local count = 1
 
+--- Process rows and align them
+--- @param rows string[] The rows to process
+--- @return string[] aligned_lines The aligned lines
 function M.process_row(rows)
   local width = 40
   local max_width = 40
@@ -45,6 +51,7 @@ function M.process_row(rows)
   return aligned_lines
 end
 
+--- Close the notification buffer
 function M.Close()
   if not config.options.notifications.enabled then
     return
@@ -54,6 +61,8 @@ function M.Close()
   end, 300)
 end
 
+--- Add rows to the notification buffer
+--- @param rows string[] The rows to add
 function M.Add(rows)
   if not config.options.notifications.enabled then
     return

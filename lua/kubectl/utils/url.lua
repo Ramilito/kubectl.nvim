@@ -1,6 +1,9 @@
 local state = require("kubectl.state")
 local M = {}
 
+--- Replace placeholders in the argument string
+---@param arg string
+---@return string
 local function replacePlaceholders(arg)
   arg = arg:gsub("{{BASE}}", state.getProxyUrl())
   if state.ns and state.ns ~= "All" then
@@ -10,6 +13,11 @@ local function replacePlaceholders(arg)
   end
   return arg
 end
+
+--- Add headers to the argument list based on content type
+---@param args string[]
+---@param contentType? string
+---@return string[]
 function M.addHeaders(args, contentType)
   local headers = {
     yaml = {
@@ -41,6 +49,9 @@ function M.addHeaders(args, contentType)
   return args
 end
 
+--- Build the argument list by replacing placeholders
+---@param args string[]
+---@return string[]
 function M.build(args)
   for i, arg in ipairs(args) do
     args[i] = replacePlaceholders(arg)

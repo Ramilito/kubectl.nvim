@@ -4,6 +4,9 @@ local M = {}
 local timers = {}
 local active_sessions = {}
 
+--- Start a loop for a specific buffer
+---@param buf number
+---@param callback fun(is_cancelled: fun(): boolean)
 function M.start_loop_for_buffer(buf, callback)
   if timers[buf] then
     return
@@ -47,6 +50,8 @@ function M.start_loop_for_buffer(buf, callback)
   })
 end
 
+--- Stop the loop for a specific buffer
+---@param buf number
 function M.stop_loop_for_buffer(buf)
   local timer = timers[buf]
   if timer then
@@ -56,6 +61,8 @@ function M.stop_loop_for_buffer(buf)
   end
 end
 
+--- Start the loop
+---@param callback fun(is_cancelled: fun(): boolean)
 function M.start_loop(callback)
   if config.options.auto_refresh.enabled then
     local current_buf = vim.api.nvim_get_current_buf()
@@ -63,15 +70,21 @@ function M.start_loop(callback)
   end
 end
 
+--- Stop the loop
 function M.stop_loop()
   local current_buf = vim.api.nvim_get_current_buf()
   M.stop_loop_for_buffer(current_buf)
 end
 
+--- Check if the loop is running for a specific buffer
+---@param buf number
+---@return boolean
 function M.is_running_for_buffer(buf)
   return timers[buf] ~= nil
 end
 
+--- Check if the loop is running
+---@return boolean
 function M.is_running()
   local current_buf = vim.api.nvim_get_current_buf()
   return M.is_running_for_buffer(current_buf)
