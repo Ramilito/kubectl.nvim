@@ -1,5 +1,8 @@
 local M = {}
 
+--- Escape special characters in a string for use in a Lua pattern
+---@param s string
+---@return string
 function M.escape(s)
   local matches = {
     ["^"] = "%^",
@@ -18,6 +21,10 @@ function M.escape(s)
   return (s:gsub(".", matches))
 end
 
+--- Check if a string is in a table, recursively
+---@param tbl table
+---@param str string
+---@return boolean
 local function is_in_table(tbl, str)
   if str == nil then
     return true
@@ -34,6 +41,11 @@ local function is_in_table(tbl, str)
   return false
 end
 
+--- Filter lines in an array based on a pattern starting from a given index
+---@param array table[]
+---@param pattern string
+---@param startAt number
+---@return table[]
 function M.filter_line(array, pattern, startAt)
   local filtered_array = {}
   if not pattern then
@@ -56,6 +68,10 @@ function M.filter_line(array, pattern, startAt)
   return filtered_array
 end
 
+--- Find an item in an array that matches a pattern
+---@param array table[]
+---@param pattern any
+---@return any
 function M.array(array, pattern)
   for _, item in ipairs(array) do
     if item == pattern then
@@ -65,6 +81,10 @@ function M.array(array, pattern)
   return nil
 end
 
+--- Find a key-value pair in a dictionary that matches a given function
+---@param dict table
+---@param match_func fun(key: any, value: any): boolean
+---@return any, any
 function M.dictionary(dict, match_func)
   for key, value in pairs(dict) do
     if match_func(key, value) then

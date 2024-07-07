@@ -4,7 +4,10 @@ local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local M = {}
 
--- Function to calculate column widths
+--- Calculate column widths for table data
+---@param rows table[]
+---@param columns string[]
+---@return table
 local function calculate_column_widths(rows, columns)
   local widths = {}
   for _, row in ipairs(rows) do
@@ -19,10 +22,21 @@ local function calculate_column_widths(rows, columns)
 
   return widths
 end
+
+--- Add a mark to the extmarks table
+---@param extmarks table[]
+---@param row number
+---@param start_col number
+---@param end_col number
+---@param hl_group string
 function M.add_mark(extmarks, row, start_col, end_col, hl_group)
   table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
 end
 
+--- Add a header row to the hints and marks tables
+---@param headers table[]
+---@param hints table[]
+---@param marks table[]
 local function addHeaderRow(headers, hints, marks)
   local hint_line = "Hint: "
   local length = #hint_line
@@ -40,6 +54,10 @@ local function addHeaderRow(headers, hints, marks)
   table.insert(hints, hint_line .. "\n")
 end
 
+--- Add context rows to the hints and marks tables
+---@param context table
+---@param hints table[]
+---@param marks table[]
 local function addContextRows(context, hints, marks)
   if context.clusters then
     local line = "Cluster:   " .. context.clusters[1].name .. "\n"
@@ -60,6 +78,11 @@ local function addContextRows(context, hints, marks)
   table.insert(hints, line .. "\n")
 end
 
+--- Generate header hints and marks
+---@param headers table[]
+---@param include_defaults boolean
+---@param include_context boolean
+---@return table[], table[]
 function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
   local marks = {}
@@ -108,6 +131,10 @@ function M.generateHeader(headers, include_defaults, include_context)
   return hints, marks
 end
 
+--- Pretty print data in a table format
+---@param data table[]
+---@param headers string[]
+---@return table[], table[]
 function M.pretty_print(data, headers)
   local columns = {}
   for k, v in ipairs(headers) do
@@ -165,6 +192,9 @@ function M.pretty_print(data, headers)
   return tbl, extmarks
 end
 
+--- Get the current selection from the buffer
+---@vararg number
+---@return string|nil
 function M.getCurrentSelection(...)
   local line_number = vim.api.nvim_win_get_cursor(0)[1]
   if line_number <= state.content_row_start then
@@ -184,6 +214,9 @@ function M.getCurrentSelection(...)
   return unpack(results)
 end
 
+--- Check if a table is empty
+---@param table table
+---@return boolean
 function M.isEmpty(table)
   return next(table) == nil
 end
