@@ -5,6 +5,9 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
+--- Generate hints and display them in a floating buffer
+---@alias Hint { key: string, desc: string }
+---@param headers Hint[]
 function M.Hints(headers)
   local marks = {}
   local hints = {}
@@ -49,6 +52,8 @@ function M.Hints(headers)
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
 end
 
+--- Execute a user command and handle the response
+---@param args table
 function M.UserCmd(args)
   ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetchAsync(function(self)
     if self.data == "" then

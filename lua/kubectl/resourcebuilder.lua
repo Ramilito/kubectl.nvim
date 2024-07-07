@@ -197,7 +197,7 @@ end
 ---@param filetype string The filetype to use for the floating window
 ---@param title string The title for the floating window
 ---@param syntax string The syntax to use for the floating window
----@param usePrettyData boolean Whether to use pretty data or raw data
+---@param usePrettyData? boolean Whether to use pretty data or raw data
 ---@return ResourceBuilder
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
   local displayData = usePrettyData and self.prettyData or self.data
