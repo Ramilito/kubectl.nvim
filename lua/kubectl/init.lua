@@ -2,6 +2,7 @@ local state = require("kubectl.state")
 
 local M = {}
 
+--- Open the kubectl view
 function M.open()
   local pod_view = require("kubectl.views.pods")
   local hl = require("kubectl.actions.highlight")
@@ -13,6 +14,8 @@ function M.open()
   end)
 end
 
+--- Setup kubectl with options
+--- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")

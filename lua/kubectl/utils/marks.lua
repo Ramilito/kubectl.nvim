@@ -3,6 +3,9 @@ local state = require("kubectl.state")
 local string_utils = require("kubectl.utils.string")
 
 local M = {}
+
+--- Get the current mark and the current word under the cursor
+---@return table|nil, string
 function M.get_current_mark()
   local cursor = vim.api.nvim_win_get_cursor(0)
   local row = cursor[1] - 1 -- Convert to 0-based indexing
@@ -14,10 +17,11 @@ function M.get_current_mark()
   if #marks > 0 then
     return marks[1], current_word
   else
-    return nil
+    return nil, current_word
   end
 end
 
+--- Set the sortby header based on the current state
 function M.set_sortby_header()
   local sortby = state.sortby
   if #sortby.mark == 0 and state.marks.header[1] then
@@ -40,6 +44,12 @@ function M.set_sortby_header()
     )
   end
 end
+
+--- Set virtual text on a specific mark
+---@param bufnr number
+---@param ns_id number
+---@param mark table
+---@param virt_text string
 function M.set_virtual_text_on_mark(bufnr, ns_id, mark, virt_text)
   vim.api.nvim_buf_set_extmark(bufnr, ns_id, mark[2], mark[3], {
     id = mark[1],

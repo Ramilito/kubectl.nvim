@@ -1,4 +1,6 @@
 local M = {}
+
+---@type string[]
 local top_level_commands = {
   "annotate",
   "api-resources",
@@ -45,6 +47,7 @@ local top_level_commands = {
   "wait",
 }
 
+---@type table<string, string[]>
 local views = {
   pods = { "pods", "pod", "po" },
   deployments = { "deployments", "deployment", "deploy" },
@@ -55,6 +58,10 @@ local views = {
   configmaps = { "configmaps", "configmap", "configmaps" },
 }
 
+--- User command completion
+--- @param _ any Unused parameter
+--- @param cmd string The command to complete
+--- @return string[]|nil commands The list of top-level commands if applicable
 function M.user_command_completion(_, cmd)
   local parts = {}
   for part in string.gmatch(cmd, "%S+") do
@@ -65,6 +72,9 @@ function M.user_command_completion(_, cmd)
   end
 end
 
+--- Find the view command
+--- @param arg string The argument to match with the views
+--- @return function|nil view The view function if found, nil otherwise
 function M.find_view_command(arg)
   for k, v in pairs(views) do
     if vim.tbl_contains(v, arg) then
