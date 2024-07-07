@@ -19,20 +19,20 @@ ResourceBuilder.__index = ResourceBuilder
 
 --- Create a new ResourceBuilder
 ---@param resource string The resource to build
----@param args table The arguments for the resource
+---@param args table? The arguments for the resource
 ---@return ResourceBuilder
-function ResourceBuilder:new(resource, args) -- luacheck: ignore
-  self = setmetatable({}, ResourceBuilder)
+function ResourceBuilder:new(resource, args)
+  ---@diagnostic disable-next-line: redefined-local
+  local self = setmetatable({}, ResourceBuilder)
   self.resource = resource
-  self.args = args
+  self.args = args or {}
   self.header = { data = nil, marks = nil }
   return self
 end
-
 --- Set the command and arguments for the ResourceBuilder
 ---@param args table The arguments for the command
 ---@param cmd string The command to set
----@param contentType string The content type for headers
+---@param contentType? string The content type for headers
 ---@return ResourceBuilder
 function ResourceBuilder:setCmd(args, cmd, contentType)
   local url = require("kubectl.utils.url")
