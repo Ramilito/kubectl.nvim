@@ -53,7 +53,7 @@ end
 
 function M.logs(pod, ns)
   ResourceBuilder:new("containerLogs")
-    :setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection })
+    :setCmd({ "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true" }, "curl")
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
