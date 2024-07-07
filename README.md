@@ -1,6 +1,6 @@
 # kubectl.nvim
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
-<img src="/.github/demo2.gif?raw=true" width="1700px">
+<img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/1d624569-b6d9-4c2e-8037-7727352ad822" width="1700px">
 
 ## ✨ Features
 - Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
@@ -8,19 +8,19 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 - Floating windows for contextual stuff such as logs, description, containers..
 <details>
   <summary>Run custom commands e.g `:Kubectl get configmaps -A`</summary>
-  <img src="/.github/usercmd.gif?raw=true" width="700px">
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
 </details>
 <details>
   <summary>Exec into containers</summary>
-  <img src="/.github/exec.gif?raw=true" width="700px">
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/24e15963-bfd2-43a5-9e35-9d33cf5d976e" width="700px">
 </details>
 <details>
   <summary>Sort by headers</summary>
-  <img src="/.github/sort.gif?raw=true" width="700px">
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/9f96e943-eda4-458e-a4ba-cf23e0417963" width="700px">
 </details>
 <details>
   <summary>Tail logs</summary>
-  <img src="/.github/tail.gif?raw=true" width="700px">
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
 </details>
 
 
