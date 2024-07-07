@@ -7,7 +7,7 @@ local M = {}
 
 function M.View(cancellationToken)
   ResourceBuilder:new("deployments")
-    :setCmd({ "get", "--raw", "/apis/apps/v1/{{NAMESPACE}}deployments" })
+    :setCmd({ "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
