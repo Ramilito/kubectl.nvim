@@ -11,6 +11,10 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
 </details>
 <details>
+  <summary>Change context using cmd`:Kubectx context-name`</summary>
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/9ca4f5b6-fb8c-47bf-a588-560e219c439c" width="700px">
+</details>
+<details>
   <summary>Exec into containers</summary>
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/24e15963-bfd2-43a5-9e35-9d33cf5d976e" width="700px">
 </details>
