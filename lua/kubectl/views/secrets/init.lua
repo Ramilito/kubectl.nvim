@@ -1,22 +1,24 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.secrets.definition")
-local commands   = require("kubectl.actions.commands")
 
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:new("secrets"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}secrets" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+  ResourceBuilder:new("secrets")
+    :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}secrets?pretty=false" }, "curl")
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<d>", desc = "describe" },
-        }, true, true)
-        :display("k8s_secrets", "Secrets", cancellationToken)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<d>", desc = "describe" },
+          }, true, true)
+          :display("k8s_secrets", "Secrets", cancellationToken)
+      end)
     end)
-  end)
 end
 
 function M.Edit(name, namespace)
