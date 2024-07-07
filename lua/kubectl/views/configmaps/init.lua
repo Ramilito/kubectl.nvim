@@ -7,7 +7,7 @@ local M = {}
 
 function M.View(cancellationToken)
   ResourceBuilder:new("configmaps")
-    :setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}configmaps" })
+    :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}configmaps?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 

@@ -12,7 +12,7 @@ end
 
 function M.View(pod, ns)
   ResourceBuilder:new("containers")
-    :setCmd({ "get", "--raw", "/api/v1/namespaces/" .. ns .. "/pods/" .. pod })
+    :setCmd({ "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
 
