@@ -16,7 +16,7 @@ end
 
 --- Add headers to the argument list based on content type
 ---@param args string[]
----@param contentType string
+---@param contentType? string
 ---@return string[]
 function M.addHeaders(args, contentType)
   local headers = {
