@@ -1,4 +1,3 @@
--- @module kubectl
 local state = require("kubectl.state")
 
 local M = {}
@@ -16,7 +15,7 @@ function M.open()
 end
 
 --- Setup kubectl with options
--- @param options KubectlOptions The configuration options for kubectl
+--- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")

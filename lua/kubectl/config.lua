@@ -1,4 +1,3 @@
--- @module kubectl.options
 local M = {}
 
 ---@class KubectlOptions
@@ -44,11 +43,9 @@ local defaults = {
 M.options = vim.deepcopy(defaults)
 
 --- Setup kubectl options
--- @param options KubectlOptions The configuration options for kubectl
+--- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
 end
-
-M.setup()
 
 return M
