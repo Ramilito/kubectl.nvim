@@ -1,6 +1,6 @@
 # kubectl.nvim
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
-<img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/682db4a5-7387-4b89-8e2f-f0739058f728" width="1700px">
+<img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/1d624569-b6d9-4c2e-8037-7727352ad822" width="1700px">
 
 ## ✨ Features
 - Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
@@ -8,27 +8,26 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 - Floating windows for contextual stuff such as logs, description, containers..
 <details>
   <summary>Run custom commands e.g `:Kubectl get configmaps -A`</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/2a3507da-cfe3-4922-bd2f-ed0d8a696375" width="700px">
-https://github.com/Ramilito/kubectl.nvim/assets/17252601/2a3507da-cfe3-4922-bd2f-ed0d8a696375
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
 </details>
 <details>
   <summary>Exec into containers</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/812fb83c-d74a-4e81-98c2-c24981eb429f" width="700px">
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/24e15963-bfd2-43a5-9e35-9d33cf5d976e" width="700px">
 </details>
 <details>
   <summary>Sort by headers</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/69299d58-c884-43b5-b715-29e8808bf032" width="700px">
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/9f96e943-eda4-458e-a4ba-cf23e0417963" width="700px">
 </details>
 <details>
   <summary>Tail logs</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8276f2c1-0cfa-4930-87d1-c4ec7a5dd9de" width="700px">
+  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
 </details>
 
 
 ## ⚡️ Dependencies
 - kubectl
 - neovim >= 0.10
-
+  
 ## 📦 Installation
 
 Install the plugin with your preferred package manager:
