@@ -28,8 +28,8 @@ end
 
 --- Calculate the time difference since the given timestamp and format it
 ---@param timestamp string
----@param fresh boolean
----@param currentTime number
+---@param fresh? boolean
+---@param currentTime? number
 ---@return table|nil
 function M.since(timestamp, fresh, currentTime)
   if not timestamp or type(timestamp) ~= "string" then
