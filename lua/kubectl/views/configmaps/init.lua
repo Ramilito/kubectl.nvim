@@ -5,6 +5,8 @@ local definition = require("kubectl.views.configmaps.definition")
 
 local M = {}
 
+--- View configmaps using ResourceBuilder
+---@param cancellationToken? boolean
 function M.View(cancellationToken)
   ResourceBuilder:new("configmaps")
     :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}configmaps?pretty=false" }, "curl")
@@ -21,11 +23,17 @@ function M.View(cancellationToken)
     end)
 end
 
+--- Edit a configmap
+---@param name string
+---@param namespace string
 function M.Edit(name, namespace)
   buffers.floating_buffer({}, {}, "k8s_configmap_edit", { title = name, syntax = "yaml" })
   commands.execute_terminal("kubectl", { "edit", "configmaps/" .. name, "-n", namespace })
 end
 
+--- Describe a configmap
+---@param namespace string
+---@param name string
 function M.ConfigmapsDesc(namespace, name)
   ResourceBuilder:new("desc")
     :setCmd({ "describe", "configmaps", name, "-n", namespace })
