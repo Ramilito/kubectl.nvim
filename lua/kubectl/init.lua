@@ -48,6 +48,13 @@ function M.setup(options)
     nargs = "*",
     complete = completion.user_command_completion,
   })
+
+  vim.api.nvim_create_user_command("Kubectx", function(opts)
+    completion.change_context(opts.fargs[1])
+  end, {
+    nargs = "*",
+    complete = completion.list_contexts,
+  })
 end
 
 return M
