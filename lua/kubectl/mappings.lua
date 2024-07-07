@@ -1,5 +1,6 @@
 local M = {}
 
+--- Register kubectl key mappings
 function M.register()
   local config = require("kubectl.config")
   local kube = require("kubectl.actions.kube")
