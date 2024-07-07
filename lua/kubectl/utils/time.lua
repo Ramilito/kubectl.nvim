@@ -6,6 +6,9 @@ local pattern = "(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)%.?(%d*)"
 local obj_fresh = config.options.obj_fresh
 local success_symbol = hl.symbols.success
 
+--- Parse a timestamp into an os.time value
+---@param timestamp string
+---@return number
 function M.parse(timestamp)
   local year, month, day, hour, min, sec, frac
   year, month, day, hour, min, sec, frac = timestamp:match(pattern)
@@ -23,7 +26,11 @@ function M.parse(timestamp)
   }) + frac / 1000000
 end
 
--- Function to calculate the time difference and format it
+--- Calculate the time difference since the given timestamp and format it
+---@param timestamp string
+---@param fresh boolean
+---@param currentTime number
+---@return table|nil
 function M.since(timestamp, fresh, currentTime)
   if not timestamp or type(timestamp) ~= "string" then
     return nil
@@ -59,18 +66,18 @@ function M.since(timestamp, fresh, currentTime)
   return status
 end
 
+--- Get the current time in os.time format
+---@return number
 function M.currentTime()
   local date = os.date("!*t")
-  if date then
-    return os.time({
-      year = date.year,
-      month = date.month,
-      day = date.day,
-      hour = date.hour,
-      min = date.min,
-      sec = date.sec,
-    })
-  end
+  return os.time({
+    year = date.year,
+    month = date.month,
+    day = date.day,
+    hour = date.hour,
+    min = date.min,
+    sec = date.sec,
+  })
 end
 
 return M
