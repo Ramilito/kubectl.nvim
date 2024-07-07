@@ -13,8 +13,8 @@ local function getCurrentSelection()
 end
 
 --- Set key mappings for the buffer
-local function set_keymaps()
-  api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+local function set_keymaps(bufnr)
+  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -42,7 +42,7 @@ end
 
 --- Initialize the module
 local function init()
-  set_keymaps()
+  set_keymaps(0)
 end
 
 init()

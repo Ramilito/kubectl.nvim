@@ -9,9 +9,9 @@ local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
-local function set_keymaps()
+local function set_keymaps(bufnr)
   local col_indices = { 1, 2 }
-  api.nvim_buf_set_keymap(0, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -26,7 +26,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "t", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "t", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -34,7 +34,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "d", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "d", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -47,7 +47,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -55,7 +55,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "l", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "l", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -69,7 +69,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -83,7 +83,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "R", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -91,7 +91,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "<C-k>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<C-k>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -107,7 +107,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "<S-f>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<S-f>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -175,7 +175,7 @@ end
 
 --- Initialize the module
 local function init()
-  set_keymaps()
+  set_keymaps(0)
   if not loop.is_running() then
     loop.start_loop(pod_view.View)
   end

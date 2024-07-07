@@ -4,8 +4,8 @@ local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
-local function set_keymaps()
-  api.nvim_buf_set_keymap(0, "n", "l", "", {
+local function set_keymaps(bufnr)
+  api.nvim_buf_set_keymap(bufnr, "n", "l", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -19,7 +19,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -33,7 +33,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "R", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -44,7 +44,7 @@ end
 
 --- Initialize the module
 local function init()
-  set_keymaps()
+  set_keymaps(0)
 end
 
 init()

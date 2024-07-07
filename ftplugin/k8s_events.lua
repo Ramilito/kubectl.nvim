@@ -6,8 +6,8 @@ local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
-local function set_keymaps()
-  api.nvim_buf_set_keymap(0, "n", "g?", "", {
+local function set_keymaps(bufnr)
+  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -15,7 +15,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -28,7 +28,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "R", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -36,7 +36,7 @@ local function set_keymaps()
     end,
   })
 
-  api.nvim_buf_set_keymap(0, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
     noremap = true,
     silent = true,
     callback = function()
@@ -47,7 +47,7 @@ end
 
 --- Initialize the module
 local function init()
-  set_keymaps()
+  set_keymaps(0)
   if not loop.is_running() then
     loop.start_loop(event_view.View)
   end
