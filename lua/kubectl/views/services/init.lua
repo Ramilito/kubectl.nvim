@@ -6,22 +6,18 @@ local definition = require("kubectl.views.services.definition")
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:new("services"):setCmd({ "get", "--raw", "/api/v1/{{NAMESPACE}}services" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
-
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<d>", desc = "describe" },
-        }, true, true)
-        -- TODO: Added space to title otherwise netrw is opening for some reason..
-        :display(
-          "k8s_services",
-          "Services ",
-          cancellationToken
-        )
+  ResourceBuilder:new("services")
+    :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" }, "curl")
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<d>", desc = "describe" },
+          }, true, true)
+          :display("k8s_services", "Services", cancellationToken)
+      end)
     end)
-  end)
 end
 
 function M.Edit(name, namespace)
