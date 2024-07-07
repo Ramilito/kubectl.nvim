@@ -13,7 +13,6 @@ local tables = require("kubectl.utils.tables")
 ---@field prettyData any
 ---@field extmarks table
 ---@field header table
-
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
 
@@ -22,17 +21,16 @@ ResourceBuilder.__index = ResourceBuilder
 ---@param args table? The arguments for the resource
 ---@return ResourceBuilder
 function ResourceBuilder:new(resource, args)
-  ---@diagnostic disable-next-line: redefined-local
-  local self = setmetatable({}, ResourceBuilder)
   self.resource = resource
   self.args = args or {}
   self.header = { data = nil, marks = nil }
-  return self
+  return setmetatable({}, ResourceBuilder)
 end
---- Set the command and arguments for the ResourceBuilder
----@param args table The arguments for the command
----@param cmd string The command to set
----@param contentType? string The content type for headers
+
+--- Sets a command for the ResourceBuilder instance.
+---@param args table
+---@param cmd? string
+---@param contentType? string
 ---@return ResourceBuilder
 function ResourceBuilder:setCmd(args, cmd, contentType)
   local url = require("kubectl.utils.url")
