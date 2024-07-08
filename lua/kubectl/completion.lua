@@ -1,3 +1,4 @@
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local kube = require("kubectl.actions.kube")
 local M = {}
@@ -104,6 +105,19 @@ function M.change_context(cmd)
   kube.startProxy(function()
     vim.api.nvim_input("R")
   end)
+end
+
+function M.diff(cmd)
+  local inline_script = "nvim $2"
+  -- local inline_script = "echo  $1 $2"
+
+  buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff", syntax = "yaml" })
+  local results = commands.execute_terminal(
+    "kubectl",
+    { "diff", "-f", "./k8s/base/echoserver.yaml" }
+    -- { env = { KUBECTL_EXTERNAL_DIFF = inline_script } }
+  )
+  print(results)
 end
 
 return M

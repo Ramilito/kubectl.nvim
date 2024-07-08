@@ -1,6 +1,6 @@
 local M = {}
 
-function M.shell_command(cmd, args)
+function M.shell_command(cmd, args, opts)
   local result = ""
   local error_result = ""
 
@@ -8,6 +8,7 @@ function M.shell_command(cmd, args)
 
   local job = vim.system(args, {
     text = true,
+    env = opts.env,
     stdout = function(_, data)
       if data then
         result = result .. data
@@ -78,9 +79,12 @@ function M.execute_shell_command(cmd, args)
   return result
 end
 
-function M.execute_terminal(cmd, args)
+function M.execute_terminal(cmd, args, opts)
+  opts = opts or {}
   local full_command = cmd .. " " .. table.concat(args, " ")
+  -- print(vim.inspect(opts.env))
   vim.fn.termopen(full_command, {
+    env = opts.env,
     on_exit = function(_, code, _)
       if code == 0 then
         print("Command executed successfully")
