@@ -1,5 +1,35 @@
 local M = {}
 
+function M.shell_command(cmd, args)
+  local result = ""
+  local error_result = ""
+
+  table.insert(args, 1, cmd)
+
+  local job = vim.system(args, {
+    text = true,
+    stdout = function(_, data)
+      if data then
+        result = result .. data
+      end
+    end,
+    stderr = function(_, data)
+      if data then
+        error_result = error_result .. data
+      end
+    end,
+  })
+
+  -- Wait for the job to complete
+  local exit_code = job:wait()
+
+  if exit_code ~= 0 then
+    vim.notify(error_result, vim.log.levels.ERROR)
+  end
+
+  return result
+end
+
 function M.shell_command_async(cmd, args, on_exit, on_stdout)
   local result = ""
 

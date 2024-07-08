@@ -1,3 +1,5 @@
+local commands = require("kubectl.actions.commands")
+local kube = require("kubectl.actions.kube")
 local M = {}
 
 ---@type string[]
@@ -83,6 +85,25 @@ function M.find_view_command(arg)
     end
   end
   return nil
+end
+
+--- Returns a list of context-names
+--- @return string[]
+function M.list_contexts()
+  local contexts = commands.execute_shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
+  return vim.split(contexts, "\n")
+end
+
+--- Change context and restart proxy
+--- @param cmd string
+function M.change_context(cmd)
+  local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
+
+  vim.notify(results, vim.log.levels.INFO)
+  kube.stop_kubectl_proxy()
+  kube.startProxy(function()
+    vim.api.nvim_input("R")
+  end)
 end
 
 return M
