@@ -108,16 +108,13 @@ function M.change_context(cmd)
 end
 
 function M.diff(cmd)
-  local inline_script = "nvim $2"
-  -- local inline_script = "echo  $1 $2"
+  -- local inline_script = "find $@ -type f"
+  local inline_script = "diff $@"
 
   buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff", syntax = "yaml" })
-  local results = commands.execute_terminal(
-    "kubectl",
-    { "diff", "-f", "./k8s/base/echoserver.yaml" }
-    -- { env = { KUBECTL_EXTERNAL_DIFF = inline_script } }
-  )
-  print(results)
+  commands.shell_command("kubectl", { "diff", "-R", "-f", "./k8s/base/echoserver.yaml" }, {
+    env = { KUBECTL_EXTERNAL_DIFF = inline_script },
+  })
 end
 
 return M

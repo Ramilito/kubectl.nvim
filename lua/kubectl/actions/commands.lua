@@ -85,6 +85,8 @@ function M.execute_terminal(cmd, args, opts)
   -- print(vim.inspect(opts.env))
   vim.fn.termopen(full_command, {
     env = opts.env,
+    stdin = opts.stdin,
+    on_stdout = opts.on_stdout,
     on_exit = function(_, code, _)
       if code == 0 then
         print("Command executed successfully")
