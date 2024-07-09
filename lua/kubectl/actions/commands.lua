@@ -1,5 +1,9 @@
 local M = {}
 
+--- Execute a shell command synchronously
+--- @param cmd string The command to execute
+--- @param args string[] The arguments for the command
+--- @return string The result of the command execution
 function M.shell_command(cmd, args, opts)
   local result = ""
   local error_result = ""
@@ -34,6 +38,11 @@ function M.shell_command(cmd, args, opts)
   return result
 end
 
+--- Execute a shell command asynchronously
+--- @param cmd string The command to execute
+--- @param args string[] The arguments for the command
+--- @param on_exit? function The callback function to execute when the command exits
+--- @param on_stdout? function The callback function to execute when there is stdout output (optional)
 function M.shell_command_async(cmd, args, on_exit, on_stdout)
   local result = ""
 
@@ -67,6 +76,10 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
   end)
 end
 
+--- Execute a shell command using io.popen
+--- @param cmd string The command to execute
+--- @param args string|string[] The arguments for the command
+--- @return string result The result of the command execution
 function M.execute_shell_command(cmd, args)
   if type(args) == "table" then
     args = table.concat(args, " ")
@@ -74,7 +87,7 @@ function M.execute_shell_command(cmd, args)
   local full_command = cmd .. " " .. args
   local handle = io.popen(full_command, "r")
   if handle == nil then
-    return { "Failed to execute command: " .. cmd }
+    return "Failed to execute command: " .. cmd
   end
   local result = handle:read("*a")
   handle:close()
@@ -82,6 +95,9 @@ function M.execute_shell_command(cmd, args)
   return result
 end
 
+--- Execute a command in a terminal
+--- @param cmd string The command to execute
+--- @param args string[] The arguments for the command
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}
   if type(args) == "table" then
