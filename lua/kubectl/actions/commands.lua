@@ -12,6 +12,9 @@ function M.shell_command(cmd, args, opts)
     stdout = function(_, data)
       if data then
         result = result .. data
+        if opts.on_stdout then
+          opts.on_stdout(data)
+        end
       end
     end,
     stderr = function(_, data)
@@ -81,8 +84,11 @@ end
 
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}
-  local full_command = cmd .. " " .. table.concat(args, " ")
-  -- print(vim.inspect(opts.env))
+  if type(args) == "table" then
+    args = table.concat(args, " ")
+  end
+  local full_command = cmd .. " " .. args
+
   vim.fn.termopen(full_command, {
     env = opts.env,
     stdin = opts.stdin,
