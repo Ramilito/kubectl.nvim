@@ -1,38 +1,44 @@
 local M = {}
+
 function M.parse_ansi_code(line)
   local parts = {}
-  local idx = 1
   local active_color = nil
+  local pattern = "([^\27]*)\27%[([%d;]*)m"
 
-  while idx <= #line do
-    local text, color, reset = line:match("(.-)\27%[38;5;(%d+)m", idx)
-    if not text then
-      text, reset = line:match("(.-)\27%[0m", idx)
+  local function get_color(code)
+    if code == "0" then
+      return nil
+    elseif code:match("38;5;%d+") then
+      return tonumber(code:match("38;5;(%d+)"))
+    elseif code:match("3[0-7]") then
+      return tonumber(code:match("3([0-7])"))
+    elseif code:match("9[0-7]") then
+      return 8 + tonumber(code:match("9([0-7])")) -- ANSI bright colors
+    end
+    return active_color
+  end
+
+  for pre_text, code, post_text in line:gmatch(pattern) do
+    if #pre_text > 0 then
+      table.insert(parts, { text = pre_text, color = active_color })
     end
 
-    if text then
-      if #text > 0 then
-        table.insert(parts, { text = text, color = active_color })
-      end
-      idx = idx + #text + (color and #("\27[38;5;" .. color .. "m") or #"\27[0m")
-    else
-      text = line:sub(idx)
-      table.insert(parts, { text = text, color = active_color })
-      idx = #line + 1
-    end
+    active_color = get_color(code)
 
-    if color then
-      active_color = tonumber(color)
-    elseif reset then
-      active_color = nil
-    end
+    -- Update the line to the remaining text after the ANSI code
+    line = post_text
+  end
+
+  -- Add any remaining text after the last escape sequence
+  if line and #line > 0 then
+    table.insert(parts, { text = line, color = active_color })
   end
 
   return parts
 end
 
 function M.strip_ansi_codes(line)
-  return line:gsub("\27%[%d+;?%d*;?%d*m", ""):gsub("\27%[0m", "")
+  return line:gsub("\27%[%d+;?%d*;?%d*;?%d*;?%d*;?%d*;?%d*m", ""):gsub("\27%[m", "")
 end
 
 function M.apply_highlighting(bufnr, lines, stripped_lines)
