@@ -109,10 +109,11 @@ function M.change_context(cmd)
   end)
 end
 
-function M.diff(cmd, path)
+function M.diff(path)
   local buf = buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff" })
 
-  local content = vim.split(commands.shell_command(config.options.diff.bin, { "-p", path }), "\n")
+  local column_size = vim.api.nvim_win_get_width(0)
+  local content = vim.split(commands.shell_command(config.options.diff.bin, { "-p", path, "-t", column_size }), "\n")
   local stripped_output = {}
   for _, line in ipairs(content) do
     local stripped = ansi.strip_ansi_codes(line)
