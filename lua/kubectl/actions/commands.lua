@@ -5,6 +5,7 @@ local M = {}
 --- @param args string[] The arguments for the command
 --- @return string The result of the command execution
 function M.shell_command(cmd, args, opts)
+  opts = opts or {}
   local result = ""
   local error_result = ""
 

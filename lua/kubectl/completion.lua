@@ -1,3 +1,4 @@
+local ansi = require("kubectl.utils.ansi")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local kube = require("kubectl.actions.kube")
@@ -108,20 +109,13 @@ function M.change_context(cmd)
 end
 
 function M.diff(cmd)
-  local inline_script = "find $@ -type f"
-  local paths = {}
-  -- local inline_script = "diff $@"
+  ansi.setup_highlight_groups()
+  local buf = buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff", syntax = "yaml" })
 
-  buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff", syntax = "yaml" })
-  commands.shell_command("kubectl", { "diff", "-R", "-f", "./k8s/base/echoserver.yaml" }, {
-    env = { KUBECTL_EXTERNAL_DIFF = inline_script },
-    on_stdout = function(data)
-      paths = vim.split(data, "\n")
-      vim.schedule(function()
-        commands.execute_terminal("nvim", { "-d", table.concat(paths, " ") })
-      end)
-    end,
-  })
+  local content = vim.split(commands.shell_command("kubediff", { "-p", "./k8s/base" }), "\n")
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+  ansi.apply_highlighting(buf, content)
 end
 
 return M
