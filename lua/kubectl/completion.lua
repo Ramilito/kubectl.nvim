@@ -112,15 +112,19 @@ end
 function M.diff(path)
   local buf = buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff" })
 
-  local column_size = vim.api.nvim_win_get_width(0)
-  local content = vim.split(commands.shell_command(config.options.diff.bin, { "-p", path, "-t", column_size }), "\n")
-  local stripped_output = {}
-  for _, line in ipairs(content) do
-    local stripped = ansi.strip_ansi_codes(line)
-    table.insert(stripped_output, stripped)
+  if config.options.diff.bin == "kubediff" then
+    local column_size = vim.api.nvim_win_get_width(0)
+    local content = vim.split(commands.shell_command(config.options.diff.bin, { "-p", path, "-t", column_size }), "\n")
+    local stripped_output = {}
+    for _, line in ipairs(content) do
+      local stripped = ansi.strip_ansi_codes(line)
+      table.insert(stripped_output, stripped)
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, stripped_output)
+    ansi.apply_highlighting(buf, content, stripped_output)
+  elseif config.options.diff.bin == "DirDiff" then
+    commands.execute_terminal("kubectl", { "diff", "-f", path }, { env = { KUBECTL_EXTERNAL_DIFF = "kdiff" }})
   end
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, stripped_output)
-  ansi.apply_highlighting(buf, content, stripped_output)
 end
 
 return M
