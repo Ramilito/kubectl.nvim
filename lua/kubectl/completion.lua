@@ -109,8 +109,7 @@ function M.change_context(cmd)
 end
 
 function M.diff(cmd)
-  ansi.setup_highlight_groups()
-  local buf = buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff", syntax = "yaml" })
+  local buf = buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff" })
 
   local content = vim.split(commands.shell_command("kubediff", { "-p", "./k8s/base" }), "\n")
   local stripped_output = {}
