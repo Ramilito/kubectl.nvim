@@ -70,6 +70,9 @@ return {
     enabled = false,
     interval = 3000, -- milliseconds
   },
+  diff = {
+    bin = "kubediff" -- or DirDiff
+  },
   namespace = "All",
   notifications = {
     enabled = true,
