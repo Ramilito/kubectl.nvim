@@ -98,7 +98,7 @@ end
 
 --- Execute a command in a terminal
 --- @param cmd string The command to execute
---- @param args string[] The arguments for the command
+--- @param args string|string[] The arguments for the command
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}
   if type(args) == "table" then
