@@ -28,10 +28,13 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 
 
-## ⚡️ Dependencies
+## ⚡️ Required Dependencies
 - kubectl
 - neovim >= 0.10
-  
+ 
+## ⚡️ Optional Dependencies
+- [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
+
 ## 📦 Installation
 
 Install the plugin with your preferred package manager:
@@ -66,6 +69,9 @@ return {
   auto_refresh = {
     enabled = false,
     interval = 3000, -- milliseconds
+  },
+  diff = {
+    bin = "kubediff" -- or DirDiff
   },
   namespace = "All",
   notifications = {

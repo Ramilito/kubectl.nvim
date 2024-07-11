@@ -4,7 +4,8 @@ local M = {}
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
 --- @return string The result of the command execution
-function M.shell_command(cmd, args)
+function M.shell_command(cmd, args, opts)
+  opts = opts or {}
   local result = ""
   local error_result = ""
 
@@ -12,9 +13,13 @@ function M.shell_command(cmd, args)
 
   local job = vim.system(args, {
     text = true,
+    env = opts.env,
     stdout = function(_, data)
       if data then
         result = result .. data
+        if opts.on_stdout then
+          opts.on_stdout(data)
+        end
       end
     end,
     stderr = function(_, data)
@@ -93,10 +98,18 @@ end
 
 --- Execute a command in a terminal
 --- @param cmd string The command to execute
---- @param args string[] The arguments for the command
-function M.execute_terminal(cmd, args)
-  local full_command = cmd .. " " .. table.concat(args, " ")
+--- @param args string|string[] The arguments for the command
+function M.execute_terminal(cmd, args, opts)
+  opts = opts or {}
+  if type(args) == "table" then
+    args = table.concat(args, " ")
+  end
+  local full_command = cmd .. " " .. args
+
   vim.fn.termopen(full_command, {
+    env = opts.env,
+    stdin = opts.stdin,
+    on_stdout = opts.on_stdout,
     on_exit = function(_, code, _)
       if code == 0 then
         print("Command executed successfully")
