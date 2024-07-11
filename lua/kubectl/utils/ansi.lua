@@ -44,12 +44,10 @@ function M.apply_highlighting(bufnr, lines, stripped_lines)
 
     vim.api.nvim_buf_set_lines(bufnr, linenr - 1, linenr, false, { stripped_line })
 
-    local colnr = 0
     local stripped_colnr = 0
     for _, part in ipairs(parts) do
       local start_col = stripped_colnr
       local end_col = stripped_colnr + #part.text:gsub("\27%[0m", "")
-      print(stripped_colnr, part.text)
       if part.color then
         vim.api.nvim_buf_add_highlight(bufnr, namespace_id, "AnsiColor" .. part.color, linenr - 1, start_col, end_col)
       end
