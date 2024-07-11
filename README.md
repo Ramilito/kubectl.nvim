@@ -27,11 +27,10 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
 </details>
 <details>
-  <summary>Diff view: <code>:Kubectl diff (path)</summary>
-  <img src="htt</code>s://github.com/user-attachments/assets/52662db4-698b-4059-a5a2-2c9ddfe8d146" width="700px">
- <code>/details>
-
-
+  <summary>Diff view: <code>:Kubectl diff (path) </code></summary>
+  <img src="https://github.com/user-attachments/assets/52662db4-698b-4059-a5a2-2c9ddfe8d146" width="700px">
+</details>
+   
 ## ⚡️ Requ</code>red Dependencies
 - kubectl
 - neovim >= 0.10
