@@ -42,7 +42,7 @@ function M.setup(options)
         view.UserCmd(opts.fargs)
       end
     elseif opts.fargs[1] == "diff" then
-      completion.diff(opts.fargs[2])
+      completion.diff(opts.fargs[2], opts.fargs[3])
     else
       view.UserCmd(opts.fargs)
     end

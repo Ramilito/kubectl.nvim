@@ -1,6 +1,7 @@
 local ansi = require("kubectl.utils.ansi")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local kube = require("kubectl.actions.kube")
 local M = {}
 
@@ -108,10 +109,10 @@ function M.change_context(cmd)
   end)
 end
 
-function M.diff(cmd)
+function M.diff(cmd, path)
   local buf = buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff" })
 
-  local content = vim.split(commands.shell_command("kubediff", { "-p", "./k8s/base" }), "\n")
+  local content = vim.split(commands.shell_command(config.options.diff.bin, { "-p", path }), "\n")
   local stripped_output = {}
   for _, line in ipairs(content) do
     local stripped = ansi.strip_ansi_codes(line)

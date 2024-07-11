@@ -14,6 +14,9 @@ local defaults = {
     enabled = false,
     interval = 3000, -- milliseconds
   },
+  diff = {
+    bin = "kubediff",
+  },
   namespace = "All",
   notifications = {
     enabled = true,
