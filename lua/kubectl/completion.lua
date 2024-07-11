@@ -113,9 +113,13 @@ function M.diff(cmd)
   local buf = buffers.floating_buffer({}, {}, "k8s_diff", { title = "diff", syntax = "yaml" })
 
   local content = vim.split(commands.shell_command("kubediff", { "-p", "./k8s/base" }), "\n")
-
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
-  ansi.apply_highlighting(buf, content)
+  local stripped_output = {}
+  for _, line in ipairs(content) do
+    local stripped = ansi.strip_ansi_codes(line)
+    table.insert(stripped_output, stripped)
+  end
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, stripped_output)
+  ansi.apply_highlighting(buf, content, stripped_output)
 end
 
 return M
