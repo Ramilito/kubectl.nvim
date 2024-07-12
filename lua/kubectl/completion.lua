@@ -122,8 +122,12 @@ function M.diff(path)
     end
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, stripped_output)
     ansi.apply_highlighting(buf, content, stripped_output)
-  elseif config.options.diff.bin == "DirDiff" then
-    commands.execute_terminal("kubectl", { "diff", "-f", path }, { env = { KUBECTL_EXTERNAL_DIFF = "kdiff" }})
+  else
+    commands.execute_terminal(
+      "kubectl",
+      { "diff", "-f", path },
+      { env = { KUBECTL_EXTERNAL_DIFF = config.options.diff.bin } }
+    )
   end
 end
 

@@ -74,7 +74,7 @@ return {
     interval = 3000, -- milliseconds
   },
   diff = {
-    bin = "kubediff" -- or DirDiff
+    bin = "kubediff" -- or any other binary
   },
   namespace = "All",
   notifications = {
