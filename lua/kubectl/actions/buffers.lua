@@ -5,6 +5,10 @@ local state = require("kubectl.state")
 local api = vim.api
 local M = {}
 
+--- Creates a buffer with a given name and type.
+--- @param bufname string: The name of the buffer.
+--- @param buftype string|nil: The type of the buffer (optional).
+--- @return integer: The buffer number.
 local function create_buffer(bufname, buftype)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(buf, bufname)
@@ -14,6 +18,10 @@ local function create_buffer(bufname, buftype)
   return buf
 end
 
+--- Sets the lines in a buffer.
+--- @param buf integer: The buffer number.
+--- @param header table|nil: The header lines (optional).
+--- @param content table: The content lines.
 local function set_buffer_lines(buf, header, content)
   if header and #header > 1 then
     vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
@@ -23,6 +31,10 @@ local function set_buffer_lines(buf, header, content)
   end
 end
 
+--- Applies marks to a buffer.
+--- @param bufnr integer: The buffer number.
+--- @param marks table|nil: The marks to apply (optional).
+--- @param header table|nil: The header data (optional).
 local function apply_marks(bufnr, marks, header)
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
@@ -62,6 +74,11 @@ local function apply_marks(bufnr, marks, header)
   end)
 end
 
+--- Creates a filter buffer.
+--- @param content string: The content of the buffer.
+--- @param marks table: The marks to apply.
+--- @param filetype string: The filetype of the buffer.
+--- @param opts table: Options for the buffer.
 function M.filter_buffer(content, marks, filetype, opts)
   local bufname = "kubectl_filter"
   local buf = vim.fn.bufnr(bufname, false)
@@ -97,6 +114,10 @@ function M.filter_buffer(content, marks, filetype, opts)
   apply_marks(buf, marks, opts.header)
 end
 
+--- Creates a confirmation buffer.
+--- @param prompt string: The prompt to display.
+--- @param filetype string: The filetype of the buffer.
+--- @param onConfirm function: The function to call on confirmation.
 function M.confirmation_buffer(prompt, filetype, onConfirm)
   local bufname = "kubectl_confirmation"
   local buf = vim.fn.bufnr(bufname, false)
@@ -141,6 +162,12 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
 end
 
+--- Creates a floating buffer.
+--- @param content table: The content lines.
+--- @param marks table: The marks to apply.
+--- @param filetype string: The filetype of the buffer.
+--- @param opts table: Options for the buffer.
+--- @return integer: The buffer number.
 function M.floating_buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl_float"
   opts.header = opts.header or {}
@@ -161,6 +188,11 @@ function M.floating_buffer(content, marks, filetype, opts)
   return buf
 end
 
+--- Creates or updates a buffer.
+--- @param content table: The content lines.
+--- @param marks table: The marks to apply.
+--- @param filetype string: The filetype of the buffer.
+--- @param opts table: Options for the buffer.
 function M.buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl"
   opts.header = opts.header or {}
@@ -177,6 +209,8 @@ function M.buffer(content, marks, filetype, opts)
   apply_marks(buf, marks, opts.header)
 end
 
+--- Creates or updates a notification buffer.
+--- @param opts table: Options for the buffer.
 function M.notification_buffer(opts)
   opts.width = opts.width or 40
   local bufname = "notification"
