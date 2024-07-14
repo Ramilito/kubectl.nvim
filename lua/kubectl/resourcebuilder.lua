@@ -171,7 +171,13 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
   notifications.Add({
     "adding hints " .. "[" .. self.resource .. "]",
   })
-  self.header.data, self.header.marks = tables.generateHeader(hints, include_defaults, include_context)
+  local divider_text = self.resource
+  if self.prettyData then
+    divider_text = divider_text .. "[" .. #self.prettyData - 1 .. "]"
+  elseif self.data then
+    divider_text = divider_text .. "[" .. #self.data - 1 .. "]"
+  end
+  self.header.data, self.header.marks = tables.generateHeader(hints, include_defaults, include_context, divider_text)
   return self
 end
 
