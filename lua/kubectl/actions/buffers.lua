@@ -78,7 +78,7 @@ end
 --- @param content string: The content of the buffer.
 --- @param marks table: The marks to apply.
 --- @param filetype string: The filetype of the buffer.
---- @param opts table: Options for the buffer.
+--- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.filter_buffer(content, marks, filetype, opts)
   local bufname = "kubectl_filter"
   local buf = vim.fn.bufnr(bufname, false)
@@ -118,7 +118,8 @@ end
 --- @param prompt string: The prompt to display.
 --- @param filetype string: The filetype of the buffer.
 --- @param onConfirm function: The function to call on confirmation.
-function M.confirmation_buffer(prompt, filetype, onConfirm)
+--- @param opts { syntax: string|nil }: Options for the buffer.
+function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   local bufname = "kubectl_confirmation"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -127,7 +128,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
   end
   local content = { "[y]es [n]o" }
 
-  local opts = {
+  local layout_opts = {
     size = {
       width = #prompt + 4,
       height = #content + 1,
@@ -138,8 +139,8 @@ function M.confirmation_buffer(prompt, filetype, onConfirm)
     header = {},
   }
 
-  set_buffer_lines(buf, opts.header.data, content)
-  local win = layout.float_layout(buf, filetype, prompt, opts)
+  set_buffer_lines(buf, layout_opts.header.data, content)
+  local win = layout.float_layout(buf, filetype, prompt, layout_opts)
 
   vim.api.nvim_buf_set_keymap(buf, "n", "y", "", {
     noremap = true,
@@ -166,7 +167,7 @@ end
 --- @param content table: The content lines.
 --- @param marks table: The marks to apply.
 --- @param filetype string: The filetype of the buffer.
---- @param opts table: Options for the buffer.
+--- @param opts { title: string|nil, syntax: string|nil, header: { data: table }}: Options for the buffer.
 --- @return integer: The buffer number.
 function M.floating_buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl_float"
@@ -192,7 +193,7 @@ end
 --- @param content table: The content lines.
 --- @param marks table: The marks to apply.
 --- @param filetype string: The filetype of the buffer.
---- @param opts table: Options for the buffer.
+--- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl"
   opts.header = opts.header or {}
@@ -210,7 +211,7 @@ function M.buffer(content, marks, filetype, opts)
 end
 
 --- Creates or updates a notification buffer.
---- @param opts table: Options for the buffer.
+--- @param opts { width: integer|nil, close: boolean|nil, append: boolean|nil }: Options for the buffer.
 function M.notification_buffer(opts)
   opts.width = opts.width or 40
   local bufname = "notification"
