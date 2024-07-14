@@ -61,7 +61,7 @@ end
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
 --- @param title string|nil: The title for the buffer (optional).
---- @param opts { relative: string|nil, size: { width: number|nil, height: number|nil, row: number|nil,col: number|nil }}: The options for the float layout (optional).
+--- @param opts { relative: string|nil, size: { width: number|nil, height: number|nil, row: number|nil,col: number|nil }}|nil: The options for the float layout (optional).
 --- @return integer: The window number.
 function M.float_layout(buf, filetype, title, opts)
   opts = opts or {}

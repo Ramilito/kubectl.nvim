@@ -3,6 +3,7 @@ local M = {}
 --- Execute a shell command synchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
+--- @param opts { env: string, on_stdout: function }|nil The arguments for the command
 --- @return string The result of the command execution
 function M.shell_command(cmd, args, opts)
   opts = opts or {}
@@ -49,7 +50,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
 
   table.insert(args, 1, cmd)
 
-  vim.system(args, {
+  local handle = vim.system(args, {
     text = true,
     stdout = function(err, data)
       if err then
@@ -75,6 +76,8 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout)
       on_exit(result)
     end
   end)
+
+  return handle
 end
 
 --- Execute a shell command using io.popen
