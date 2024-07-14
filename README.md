@@ -7,11 +7,11 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 - Colored output and smart highlighting
 - Floating windows for contextual stuff such as logs, description, containers..
 <details>
-  <summary>Run custom commands e.g `:Kubectl get configmaps -A`</summary>
+  <summary>Run custom commands e.g <code>:Kubectl get configmaps -A</code></summary>
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
 </details>
 <details>
-  <summary>Change context using cmd`:Kubectx context-name`</summary>
+  <summary>Change context using cmd <code>:Kubectx context-name</code></summary>
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/9ca4f5b6-fb8c-47bf-a588-560e219c439c" width="700px">
 </details>
 <details>
@@ -26,12 +26,18 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <summary>Tail logs</summary>
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
 </details>
-
-
-## ⚡️ Dependencies
+<details>
+  <summary>Diff view: <code>:Kubectl diff (path) </code></summary>
+  <img src="https://github.com/user-attachments/assets/52662db4-698b-4059-a5a2-2c9ddfe8d146" width="700px">
+</details>
+   
+## ⚡️ Requ</code>red Dependencies
 - kubectl
 - neovim >= 0.10
-  
+ 
+## ⚡️ Optional Dependencies
+- [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
+
 ## 📦 Installation
 
 Install the plugin with your preferred package manager:
@@ -66,6 +72,9 @@ return {
   auto_refresh = {
     enabled = false,
     interval = 3000, -- milliseconds
+  },
+  diff = {
+    bin = "kubediff" -- or any other binary
   },
   namespace = "All",
   notifications = {

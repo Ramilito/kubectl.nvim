@@ -157,6 +157,8 @@ function M.floating_buffer(content, marks, filetype, opts)
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
   apply_marks(buf, marks, opts.header)
+
+  return buf
 end
 
 function M.buffer(content, marks, filetype, opts)
