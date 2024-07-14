@@ -3,7 +3,7 @@ local M = {}
 --- Execute a shell command synchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
---- @param opts { env: string, on_stdout: function } The arguments for the command
+--- @param opts { env: string, on_stdout: function }|nil The arguments for the command
 --- @return string The result of the command execution
 function M.shell_command(cmd, args, opts)
   opts = opts or {}
