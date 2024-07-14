@@ -55,7 +55,14 @@ function M.TailLogs()
   end
 
   local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
-  commands.shell_command_async("kubectl", args, nil, handle_output)
+  local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
+
+  vim.api.nvim_create_autocmd("BufWinLeave", {
+    buffer = buf,
+    callback = function()
+      handle:kill(2)
+    end,
+  })
 end
 
 function M.selectPod(pod_name, namespace)
