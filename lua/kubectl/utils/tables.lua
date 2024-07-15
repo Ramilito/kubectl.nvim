@@ -46,7 +46,9 @@ local function addHeaderRow(headers, hints, marks)
     length = #hint_line
     hint_line = hint_line .. hintConfig.key .. " " .. hintConfig.desc
     if index < #headers then
-      hint_line = hint_line .. " | "
+      local divider = " | "
+      hint_line = hint_line .. divider
+      M.add_mark(marks, #hints, #hint_line - #divider, #hint_line, hl.symbols.success)
     end
     M.add_mark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
   end
