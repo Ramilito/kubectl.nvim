@@ -43,7 +43,15 @@ function M.tailLogs(pod, ns)
   end
 
   local args = { "logs", "--follow", "--since=1s", pod, "-c", M.selection, "-n", ns }
-  commands.shell_command_async("kubectl", args, nil, handle_output)
+  local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
+
+  vim.notify("Following : " .. pod .. "-c " .. M.selection, vim.log.levels.INFO)
+  vim.api.nvim_create_autocmd("BufWinLeave", {
+    buffer = buf,
+    callback = function()
+      handle:kill(2)
+    end,
+  })
 end
 
 function M.exec(pod, ns)
@@ -64,7 +72,7 @@ function M.logs(pod, ns)
           :addHints({
             { key = "<f>", desc = "Follow" },
           }, false, false)
-          :displayFloat("k8s_container_logs", "logs" .. pod, "less")
+          :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
       end)
     end)
 end

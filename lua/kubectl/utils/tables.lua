@@ -82,8 +82,9 @@ end
 ---@param headers table[]
 ---@param include_defaults boolean
 ---@param include_context boolean
+---@param divider_text string
 ---@return table[], table[]
-function M.generateHeader(headers, include_defaults, include_context)
+function M.generateHeader(headers, include_defaults, include_context, divider_text)
   local hints = {}
   local marks = {}
 
@@ -116,7 +117,19 @@ function M.generateHeader(headers, include_defaults, include_context)
   -- Add separator row
   if #hints > 0 then
     local win = vim.api.nvim_get_current_win()
-    local divider = string.rep("―", vim.api.nvim_win_get_width(win))
+    local win_width = vim.api.nvim_win_get_width(win)
+    local divider = ""
+    if divider_text then
+      local half_width = math.floor((win_width - #divider_text) / 2)
+      divider = string.rep("―", half_width)
+        .. " "
+        .. string_util.capitalize(divider_text)
+        .. " "
+        .. string.rep("―", half_width)
+    else
+      divider = string.rep("―", win_width)
+    end
+
     table.insert(marks, {
       row = #hints,
       start_col = 0,

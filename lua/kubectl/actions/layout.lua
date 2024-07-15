@@ -2,6 +2,12 @@ local config = require("kubectl.config")
 local M = {}
 local api = vim.api
 
+--- Set buffer options.
+--- @param buf integer: The buffer number.
+--- @param win integer: The window number.
+--- @param filetype string: The filetype for the buffer.
+--- @param syntax string: The syntax for the buffer.
+--- @param bufname string: The name of the buffer.
 function M.set_buf_options(buf, win, filetype, syntax, bufname)
   api.nvim_set_option_value("filetype", filetype, { buf = buf })
   api.nvim_set_option_value("syntax", syntax, { buf = buf })
@@ -20,11 +26,18 @@ function M.set_buf_options(buf, win, filetype, syntax, bufname)
   -- api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
 
+--- Get the main layout window.
+--- @return integer: The current window number.
 function M.main_layout()
   -- TODO: Should we create a new win?
   return api.nvim_get_current_win()
 end
 
+--- Create a filter layout.
+--- @param buf integer: The buffer number.
+--- @param filetype string: The filetype for the buffer.
+--- @param title string|nil: The title for the buffer (optional).
+--- @return integer: The window number.
 function M.filter_layout(buf, filetype, title)
   local width = 0.8 * vim.o.columns
   local height = 5
@@ -44,6 +57,12 @@ function M.filter_layout(buf, filetype, title)
   return win
 end
 
+--- Create a float layout.
+--- @param buf integer: The buffer number.
+--- @param filetype string: The filetype for the buffer.
+--- @param title string|nil: The title for the buffer (optional).
+--- @param opts { relative: string|nil, size: { width: number|nil, height: number|nil, row: number|nil,col: number|nil }}|nil: The options for the float layout (optional).
+--- @return integer: The window number.
 function M.float_layout(buf, filetype, title, opts)
   opts = opts or {}
   local size = opts.size or {}
@@ -64,6 +83,11 @@ function M.float_layout(buf, filetype, title, opts)
   return win
 end
 
+--- Create a notification layout.
+--- @param buf integer: The buffer number.
+--- @param title string: The title for the buffer.
+--- @param opts { width: number, height: number }: The options for the notification layout.
+--- @return integer: The window number.
 function M.notification_layout(buf, title, opts)
   local editor_width, editor_height = M.get_editor_dimensions()
   local height = math.min(opts.height, editor_height)
