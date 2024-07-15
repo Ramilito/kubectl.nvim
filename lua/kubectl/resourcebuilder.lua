@@ -178,7 +178,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
     divider_text = divider_text .. "[" .. #self.data - 1 .. "]"
   end
   if state.filter ~= "" then
-    divider_text = divider_text .. "</" .. state.filter .. ">"
+    divider_text = divider_text .. " " .. "</" .. state.filter .. ">"
   end
   self.header.data, self.header.marks = tables.generateHeader(hints, include_defaults, include_context, divider_text)
   return self
