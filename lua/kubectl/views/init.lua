@@ -12,7 +12,7 @@ function M.Hints(headers)
   local marks = {}
   local hints = {}
   local globals = {
-    { key = "<C-e>  ", desc = "Edit resource" },
+    { key = "<C-e>", desc = "Edit resource" },
     { key = "<C-f>", desc = "Filter on a phrase" },
     { key = "<C-n>", desc = "Change namespace" },
     { key = "<bs> ", desc = "Go up a level" },
