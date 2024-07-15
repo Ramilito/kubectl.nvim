@@ -71,7 +71,9 @@ local function addContextRows(context, hints, marks)
   local desc, namespace = "Namespace: ", state.getNamespace()
   local line = desc .. namespace
   if context.clusters then
-    line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
+    if context.contexts then
+      line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
+    end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
   end
 
