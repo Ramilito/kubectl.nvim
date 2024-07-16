@@ -14,7 +14,7 @@ function M.View()
   }
   local header, marks = tables.generateHeader({
     { key = "<enter>", desc = "Select" },
-  }, true, true, "Root")
+  }, true, true, { resource = " Root " })
   buffers.buffer(results, {}, "k8s_root", { title = "Root", header = { data = header, marks = marks } })
 end
 
