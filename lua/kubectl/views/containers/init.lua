@@ -63,7 +63,6 @@ end
 
 function M.logs(pod, ns)
   ResourceBuilder:new("containerLogs")
-    :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
     :setCmd(
       { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true" },
       "curl"
