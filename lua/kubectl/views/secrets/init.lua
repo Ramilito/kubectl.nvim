@@ -28,6 +28,7 @@ end
 
 function M.SecretDesc(namespace, name)
   ResourceBuilder:new("desc")
+    :displayFloat("k8s_secret_desc", name, "yaml")
     :setCmd({ "describe", "secret", name, "-n", namespace })
     :fetch()
     :splitData()

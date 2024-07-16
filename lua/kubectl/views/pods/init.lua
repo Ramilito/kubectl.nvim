@@ -31,11 +31,14 @@ function M.View(cancellationToken)
 end
 
 function M.PodTop()
-  ResourceBuilder:new("top"):setCmd({ "top", "pods", "-A" }):fetchAsync(function(self)
-    vim.schedule(function()
-      self:splitData():displayFloat("k8s_top", "Top", "")
+  ResourceBuilder:new("top")
+    :displayFloat("k8s_top", "Top", "")
+    :setCmd({ "top", "pods", "-A" })
+    :fetchAsync(function(self)
+      vim.schedule(function()
+        self:splitData():displayFloat("k8s_top", "Top", "")
+      end)
     end)
-  end)
 end
 
 function M.TailLogs()

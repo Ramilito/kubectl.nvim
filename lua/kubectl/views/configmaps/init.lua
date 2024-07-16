@@ -36,6 +36,7 @@ end
 ---@param name string
 function M.ConfigmapsDesc(namespace, name)
   ResourceBuilder:new("desc")
+    :displayFloat("k8s_configmaps_desc", name, "yaml")
     :setCmd({ "describe", "configmaps", name, "-n", namespace })
     :fetch()
     :splitData()
