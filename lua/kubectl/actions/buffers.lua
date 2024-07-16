@@ -23,7 +23,7 @@ end
 --- @param header table|nil: The header lines (optional).
 --- @param content table: The content lines.
 local function set_buffer_lines(buf, header, content)
-  if header and #header > 1 then
+  if header and #header >= 1 then
     vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
     vim.api.nvim_buf_set_lines(buf, #header, -1, false, content)
   else

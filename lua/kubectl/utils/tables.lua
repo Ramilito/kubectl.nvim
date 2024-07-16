@@ -118,33 +118,28 @@ function M.generateHeader(headers, include_defaults, include_context, divider_te
   end
 
   -- Add separator row
-  if #hints > 0 then
-    local win = vim.api.nvim_get_current_win()
-    local win_width = vim.api.nvim_win_get_width(win)
-    local divider = ""
-    if divider_text then
-      local half_width = math.floor((win_width - #divider_text) / 2)
-      divider = string.rep("―", half_width)
-        .. " "
-        .. string_util.capitalize(divider_text)
-        .. " "
-        .. string.rep("―", half_width)
-    else
-      divider = string.rep("―", win_width)
-    end
-
-    table.insert(marks, {
-      row = #hints,
-      start_col = 0,
-      virt_text = { { divider, hl.symbols.success } },
-      virt_text_pos = "overlay",
-    })
+  local win = vim.api.nvim_get_current_win()
+  local win_width = vim.api.nvim_win_get_width(win)
+  local divider = ""
+  if divider_text then
+    local half_width = math.floor((win_width - #divider_text) / 2)
+    divider = string.rep("―", half_width)
+      .. " "
+      .. string_util.capitalize(divider_text)
+      .. " "
+      .. string.rep("―", half_width)
+  else
+    divider = string.rep("―", win_width)
   end
 
-  if #hints > 0 then
-    return vim.split(table.concat(hints, ""), "\n"), marks
-  end
-  return hints, marks
+  table.insert(marks, {
+    row = #hints,
+    start_col = 0,
+    virt_text = { { divider, hl.symbols.success } },
+    virt_text_pos = "overlay",
+  })
+
+  return vim.split(table.concat(hints, ""), "\n"), marks
 end
 
 --- Pretty print data in a table format
