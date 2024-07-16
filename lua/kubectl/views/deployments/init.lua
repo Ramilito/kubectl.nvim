@@ -16,7 +16,7 @@ function M.View(cancellationToken)
             { key = "<r>", desc = "restart" },
             { key = "<d>", desc = "desc" },
             { key = "<enter>", desc = "pods" },
-          }, true, true)
+          }, true, true, true)
           :display("k8s_deployments", "Deployments", cancellationToken)
       end)
     end)

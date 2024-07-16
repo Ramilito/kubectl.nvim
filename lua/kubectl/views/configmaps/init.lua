@@ -17,7 +17,7 @@ function M.View(cancellationToken)
         self
           :addHints({
             { key = "<d>", desc = "describe" },
-          }, true, true)
+          }, true, true, true)
           :display("k8s_configmaps", "Configmaps", cancellationToken)
       end)
     end)
@@ -36,6 +36,7 @@ end
 ---@param name string
 function M.ConfigmapsDesc(namespace, name)
   ResourceBuilder:new("desc")
+    :displayFloat("k8s_configmaps_desc", name, "yaml")
     :setCmd({ "describe", "configmaps", name, "-n", namespace })
     :fetch()
     :splitData()

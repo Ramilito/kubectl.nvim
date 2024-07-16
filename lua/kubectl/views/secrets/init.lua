@@ -15,7 +15,7 @@ function M.View(cancellationToken)
         self
           :addHints({
             { key = "<d>", desc = "describe" },
-          }, true, true)
+          }, true, true, true)
           :display("k8s_secrets", "Secrets", cancellationToken)
       end)
     end)
@@ -28,6 +28,7 @@ end
 
 function M.SecretDesc(namespace, name)
   ResourceBuilder:new("desc")
+    :displayFloat("k8s_secret_desc", name, "yaml")
     :setCmd({ "describe", "secret", name, "-n", namespace })
     :fetch()
     :splitData()
