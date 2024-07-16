@@ -180,13 +180,15 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
     count = "[" .. #self.data - 1 .. "]"
   end
   if state.filter ~= "" then
-    filter = "</" .. state.filter .. ">"
+    filter = " </" .. state.filter .. "> "
+  else
+    filter = " "
   end
   self.header.data, self.header.marks = tables.generateHeader(
     hints,
     include_defaults,
     include_context,
-    { resource = " " .. string_util.capitalize(self.resource), count = count, filter = " " .. filter .. " " }
+    { resource = " " .. string_util.capitalize(self.resource), count = count, filter = filter }
   )
   return self
 end
@@ -216,7 +218,7 @@ end
 ---@param usePrettyData? boolean Whether to use pretty data or raw data
 ---@return ResourceBuilder
 function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
-  local displayData = usePrettyData and self.prettyData or self.data
+  local displayData = usePrettyData and self.prettyData or self.data or {}
 
   notifications.Add({
     "display data " .. "[" .. self.resource .. "]",
