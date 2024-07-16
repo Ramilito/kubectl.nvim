@@ -24,7 +24,7 @@ function M.View(cancellationToken)
             { key = "<enter>", desc = "containers" },
             { key = "<shift-f>", desc = "port forward" },
             { key = "<C-k>", desc = "kill pod" },
-          }, true, true)
+          }, true, true, true)
           :display("k8s_pods", "Pods", cancellationToken)
       end)
     end)
@@ -83,7 +83,7 @@ function M.PodLogs()
         self
           :addHints({
             { key = "<f>", desc = "Follow" },
-          }, false, false)
+          }, false, false, false)
           :displayFloat("k8s_pod_logs", M.selection.pod, "less")
       end)
     end)

@@ -167,8 +167,9 @@ end
 ---@param hints table The hints to add
 ---@param include_defaults boolean Whether to include default hints or not
 ---@param include_context boolean Whether to include context hints or not
+---@param include_filter boolean Whether to include filter or not
 ---@return ResourceBuilder
-function ResourceBuilder:addHints(hints, include_defaults, include_context)
+function ResourceBuilder:addHints(hints, include_defaults, include_context, include_filter)
   notifications.Add({
     "adding hints " .. "[" .. self.resource .. "]",
   })
@@ -179,7 +180,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
   elseif self.data then
     count = "[" .. #self.data - 1 .. "]"
   end
-  if state.filter ~= "" then
+  if include_filter and state.filter ~= "" then
     filter = " </" .. state.filter .. "> "
   else
     filter = " "
