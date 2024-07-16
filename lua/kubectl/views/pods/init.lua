@@ -72,6 +72,7 @@ end
 
 function M.PodLogs()
   ResourceBuilder:new("logs")
+    :displayFloat("k8s_pod_logs", M.selection.pod, "less")
     :setCmd({
       "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
     }, "curl", "text/html")
@@ -93,12 +94,15 @@ function M.Edit(name, namespace)
 end
 
 function M.PodDesc(pod_name, namespace)
-  ResourceBuilder:new("desc"):setCmd({ "describe", "pod", pod_name, "-n", namespace }):fetchAsync(function(self)
-    self:splitData()
-    vim.schedule(function()
-      self:displayFloat("k8s_pod_desc", pod_name, "yaml")
+  ResourceBuilder:new("desc")
+    :displayFloat("k8s_pod_desc", pod_name, "yaml")
+    :setCmd({ "describe", "pod", pod_name, "-n", namespace })
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self:displayFloat("k8s_pod_desc", pod_name, "yaml")
+      end)
     end)
-  end)
 end
 
 return M
