@@ -97,7 +97,7 @@ local function addDividerRow(divider, hints, marks)
     local count = divider.count or ""
     local filter = divider.filter or ""
     local info = resource .. count .. filter
-    local padding = string.rep("―", half_width - #resource - #filter - #count)
+    local padding = string.rep("―", half_width - #info / 2)
     row = padding .. info .. padding
 
     -- Left padding
