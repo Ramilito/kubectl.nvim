@@ -7,7 +7,7 @@ function M.filter()
   local header, marks = tables.generateHeader({
     { key = "<enter>", desc = "apply" },
     { key = "<q>", desc = "close" },
-  }, false, false, "Filter")
+  }, false, false)
   buffers.filter_buffer(
     "Filter: ",
     marks,

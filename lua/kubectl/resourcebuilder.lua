@@ -2,6 +2,7 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
+local string_util = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 
 ---@class ResourceBuilder
@@ -171,16 +172,22 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context)
   notifications.Add({
     "adding hints " .. "[" .. self.resource .. "]",
   })
-  local divider_text = self.resource
+  local count = ""
+  local filter = ""
   if self.prettyData then
-    divider_text = divider_text .. "[" .. #self.prettyData - 1 .. "]"
+    count = "[" .. #self.prettyData - 1 .. "]"
   elseif self.data then
-    divider_text = divider_text .. "[" .. #self.data - 1 .. "]"
+    count = "[" .. #self.data - 1 .. "]"
   end
   if state.filter ~= "" then
-    divider_text = divider_text .. " " .. "</" .. state.filter .. ">"
+    filter = "</" .. state.filter .. ">"
   end
-  self.header.data, self.header.marks = tables.generateHeader(hints, include_defaults, include_context, divider_text)
+  self.header.data, self.header.marks = tables.generateHeader(
+    hints,
+    include_defaults,
+    include_context,
+    { resource = " " .. string_util.capitalize(self.resource), count = count, filter = " " .. filter .. " " }
+  )
   return self
 end
 

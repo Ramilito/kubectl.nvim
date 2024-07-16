@@ -81,13 +81,92 @@ local function addContextRows(context, hints, marks)
   table.insert(hints, line .. "\n")
 end
 
+--- Add divider row
+---@param divider { resource: string, count: string, filter: string }|nil
+---@param hints table[]
+---@param marks table[]
+local function addDividerRow(divider, hints, marks)
+  -- Add separator row
+  local win = vim.api.nvim_get_current_win()
+  local win_width = vim.api.nvim_win_get_width(win)
+  local half_width = math.floor(win_width / 2)
+
+  local row = ""
+  if divider then
+    local resource = divider.resource or ""
+    local count = divider.count or ""
+    local filter = divider.filter or ""
+    local info = resource .. count .. filter
+    local padding = string.rep("―", half_width - #resource - #filter - #count)
+    row = padding .. info .. padding
+
+    -- Left padding
+    table.insert(marks, {
+      row = #hints,
+      start_col = 0,
+      end_col = #padding,
+      hl_group = hl.symbols.success,
+    })
+
+    -- Resource
+    table.insert(marks, {
+      row = #hints,
+      start_col = #padding,
+      end_col = #padding + #resource,
+      hl_group = hl.symbols.header,
+    })
+
+    -- [ for count
+    table.insert(marks, {
+      row = #hints,
+      start_col = #padding + #resource,
+      end_col = #padding + #resource + 1,
+      hl_group = hl.symbols.header,
+    })
+
+    -- ] for count
+    table.insert(marks, {
+      row = #hints,
+      start_col = #padding + #resource + #count - 1,
+      end_col = #padding + #resource + #count,
+      hl_group = hl.symbols.header,
+    })
+
+    -- Filter
+    table.insert(marks, {
+      row = #hints,
+      start_col = #padding + #resource + #count,
+      end_col = #padding + #resource + #count + #filter,
+      hl_group = hl.symbols.pending,
+    })
+
+    -- Right padding
+    table.insert(marks, {
+      row = #hints,
+      start_col = #padding + #info,
+      end_col = #padding + #info + #padding,
+      hl_group = hl.symbols.success,
+    })
+  else
+    local padding = string.rep("―", half_width)
+    row = padding .. padding
+    table.insert(marks, {
+      row = #hints,
+      start_col = 0,
+      end_col = #padding + #padding,
+      hl_group = hl.symbols.success,
+    })
+  end
+
+  table.insert(hints, row)
+end
 --- Generate header hints and marks
 ---@param headers table[]
 ---@param include_defaults boolean
 ---@param include_context boolean
----@param divider_text string
+---@param divider { resource: string, count: string, filter: string }|nil
 ---@return table[], table[]
-function M.generateHeader(headers, include_defaults, include_context, divider_text)
+function M.generateHeader(headers, include_defaults, include_context, divider)
   local hints = {}
   local marks = {}
 
@@ -117,27 +196,7 @@ function M.generateHeader(headers, include_defaults, include_context, divider_te
     end
   end
 
-  -- Add separator row
-  local win = vim.api.nvim_get_current_win()
-  local win_width = vim.api.nvim_win_get_width(win)
-  local divider = ""
-  if divider_text then
-    local half_width = math.floor((win_width - #divider_text) / 2)
-    divider = string.rep("―", half_width)
-      .. " "
-      .. string_util.capitalize(divider_text)
-      .. " "
-      .. string.rep("―", half_width)
-  else
-    divider = string.rep("―", win_width)
-  end
-
-  table.insert(marks, {
-    row = #hints,
-    start_col = 0,
-    virt_text = { { divider, hl.symbols.success } },
-    virt_text_pos = "overlay",
-  })
+  addDividerRow(divider, hints, marks)
 
   return vim.split(table.concat(hints, ""), "\n"), marks
 end
