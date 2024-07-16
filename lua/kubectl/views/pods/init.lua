@@ -57,11 +57,12 @@ function M.TailLogs()
   local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
   local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
 
-  vim.notify("Following pod: " .. M.selection.pod, vim.log.levels.INFO)
+  vim.notify("Start tailing: " .. M.selection.pod, vim.log.levels.INFO)
   vim.api.nvim_create_autocmd("BufWinLeave", {
     buffer = buf,
     callback = function()
       handle:kill(2)
+      vim.notify("Stopped tailing: " .. M.selection.pod, vim.log.levels.INFO)
     end,
   })
 end
