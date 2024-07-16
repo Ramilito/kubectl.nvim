@@ -46,11 +46,12 @@ function M.tailLogs(pod, ns)
   local args = { "logs", "--follow", "--since=1s", pod, "-c", M.selection, "-n", ns }
   local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
 
-  vim.notify("Following : " .. pod .. "-c " .. M.selection, vim.log.levels.INFO)
+  vim.notify("Start tailing : " .. pod .. "-c " .. M.selection, vim.log.levels.INFO)
   vim.api.nvim_create_autocmd("BufWinLeave", {
     buffer = buf,
     callback = function()
       handle:kill(2)
+      vim.notify("Stopped tailing : " .. pod .. "-c " .. M.selection, vim.log.levels.INFO)
     end,
   })
 end
@@ -62,7 +63,6 @@ end
 
 function M.logs(pod, ns)
   ResourceBuilder:new("containerLogs")
-    :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
     :setCmd(
       { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true" },
       "curl"
