@@ -118,8 +118,9 @@ end
 --- @param prompt string: The prompt to display.
 --- @param filetype string: The filetype of the buffer.
 --- @param onConfirm function: The function to call on confirmation.
---- @param opts { syntax: string|nil }: Options for the buffer.
+--- @param opts { syntax: string|nil }|nil: Options for the buffer.
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
+  opts = opts or {}
   local bufname = "kubectl_confirmation"
   local buf = vim.fn.bufnr(bufname, false)
 
