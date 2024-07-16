@@ -12,7 +12,7 @@ function M.View(cancellationToken)
       self
         :addHints({
           { key = "<d>", desc = "describe" },
-        }, true, true)
+        }, true, true, true)
         :display("k8s_nodes", "Nodes", cancellationToken)
     end)
   end)

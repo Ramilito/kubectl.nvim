@@ -21,7 +21,7 @@ function M.View(pod, ns)
           :addHints({
             { key = "<l>", desc = "logs" },
             { key = "<enter>", desc = "exec" },
-          }, false, false)
+          }, false, false, false)
           :displayFloat("k8s_containers", pod, "", true)
       end)
     end)
@@ -71,7 +71,7 @@ function M.logs(pod, ns)
         self
           :addHints({
             { key = "<f>", desc = "Follow" },
-          }, false, false)
+          }, false, false, false)
           :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
       end)
     end)
