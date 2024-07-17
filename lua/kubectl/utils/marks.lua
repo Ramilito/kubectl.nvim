@@ -31,17 +31,24 @@ function M.set_sortby_header()
       local lines = vim.api.nvim_buf_get_text(0, start_row, start_col, end_row, end_col, {})
       local word = string_utils.trim(table.concat(lines, "\n"))
 
-      M.set_virtual_text_on_mark(0, state.marks.ns_id, { state.marks.header[1], start_row, start_col }, word .. " ▼")
+      local indicator = word
+      if sortby.order == "asc" then
+        indicator = indicator .. " ▲"
+      else
+        indicator = indicator .. " ▼"
+      end
+      M.set_virtual_text_on_mark(0, state.marks.ns_id, { state.marks.header[1], start_row, start_col }, indicator)
     end
   end
 
   if #sortby.mark > 0 then
-    M.set_virtual_text_on_mark(
-      0,
-      state.marks.ns_id,
-      { sortby.mark[1], sortby.mark[2], sortby.mark[3] },
-      sortby.current_word .. " ▼"
-    )
+    local indicator = sortby.current_word
+    if sortby.order == "asc" then
+      indicator = indicator .. " ▲"
+    else
+      indicator = indicator .. " ▼"
+    end
+    M.set_virtual_text_on_mark(0, state.marks.ns_id, { sortby.mark[1], sortby.mark[2], sortby.mark[3] }, indicator)
   end
 end
 

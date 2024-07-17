@@ -15,7 +15,8 @@ M.content_row_start = 0
 ---@type table
 M.marks = { ns_id = 0, header = {} }
 ---@type table
-M.sortby = { mark = {}, current_word = "" }
+M.sortby = { mark = {}, current_word = "", order = "asc" }
+M.sortby_old = { current_word = "" }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode

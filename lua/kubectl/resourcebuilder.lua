@@ -115,7 +115,9 @@ function ResourceBuilder:sort()
   notifications.Add({
     "sorting " .. "[" .. self.resource .. "]",
   })
+
   local sortby = state.sortby.current_word
+
   if sortby ~= "" then
     sortby = string.lower(sortby)
     table.sort(self.processedData, function(a, b)
@@ -124,22 +126,33 @@ function ResourceBuilder:sort()
         local valueB = b[sortby]
 
         if valueA and valueB then
+          local comp
+          if state.sortby.order == "asc" then
+            comp = function(x, y)
+              return x < y
+            end
+          else
+            comp = function(x, y)
+              return x > y
+            end
+          end
           if type(valueA) == "table" and type(valueB) == "table" then
             if valueA.timestamp and valueB.timestamp then
-              return tostring(valueA.timestamp) > tostring(valueB.timestamp)
+              return comp(tostring(valueA.timestamp), tostring(valueB.timestamp))
             else
-              return tostring(valueA.value) < tostring(valueB.value)
+              return comp(tostring(valueA.value), tostring(valueB.value))
             end
           elseif tonumber(valueA) and tonumber(valueB) then
-            return valueA < valueB
+            return comp(valueA, valueB)
           else
-            return tostring(valueA) < tostring(valueB)
+            return comp(tostring(valueA), tostring(valueB))
           end
         end
-        ---@diagnostic disable-next-line: missing-return
       end
+      return true
     end)
   end
+
   return self
 end
 
