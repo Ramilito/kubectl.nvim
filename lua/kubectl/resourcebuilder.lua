@@ -115,31 +115,48 @@ function ResourceBuilder:sort()
   notifications.Add({
     "sorting " .. "[" .. self.resource .. "]",
   })
-  local sortby = state.sortby.current_word
-  if sortby ~= "" then
-    sortby = string.lower(sortby)
-    table.sort(self.processedData, function(a, b)
-      if sortby then
-        local valueA = a[sortby]
-        local valueB = b[sortby]
 
-        if valueA and valueB then
-          if type(valueA) == "table" and type(valueB) == "table" then
-            if valueA.timestamp and valueB.timestamp then
-              return tostring(valueA.timestamp) > tostring(valueB.timestamp)
-            else
-              return tostring(valueA.value) < tostring(valueB.value)
-            end
-          elseif tonumber(valueA) and tonumber(valueB) then
-            return valueA < valueB
-          else
-            return tostring(valueA) < tostring(valueB)
+  local sortby = state.sortby[self.resource]
+  if sortby == nil then
+    return self
+  end
+  local word = string.lower(sortby.current_word)
+  if word == "" then
+    return self
+  end
+
+  table.sort(self.processedData, function(a, b)
+    if sortby then
+      local valueA = a[word]
+      local valueB = b[word]
+
+      if valueA and valueB then
+        local comp
+        if sortby.order == "asc" then
+          comp = function(x, y)
+            return x < y
+          end
+        else
+          comp = function(x, y)
+            return x > y
           end
         end
-        ---@diagnostic disable-next-line: missing-return
+        if type(valueA) == "table" and type(valueB) == "table" then
+          if valueA.timestamp and valueB.timestamp then
+            return comp(tostring(valueA.timestamp), tostring(valueB.timestamp))
+          else
+            return comp(tostring(valueA.value), tostring(valueB.value))
+          end
+        elseif tonumber(valueA) and tonumber(valueB) then
+          return comp(valueA, valueB)
+        else
+          return comp(tostring(valueA), tostring(valueB))
+        end
       end
-    end)
-  end
+    end
+    return false
+  end)
+
   return self
 end
 
@@ -240,7 +257,7 @@ end
 function ResourceBuilder:postRender()
   local marks = require("kubectl.utils.marks")
   vim.schedule(function()
-    marks.set_sortby_header()
+    marks.set_sortby_header(self.resource)
   end)
   return self
 end

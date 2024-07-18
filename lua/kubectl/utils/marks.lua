@@ -22,8 +22,17 @@ function M.get_current_mark()
 end
 
 --- Set the sortby header based on the current state
-function M.set_sortby_header()
-  local sortby = state.sortby
+--- @param resource string Resource for sort lookup
+function M.set_sortby_header(resource)
+  local sortby = state.sortby[resource]
+  if not sortby then
+    return
+  end
+
+  local function get_indicator(word, order)
+    return word .. (order == "asc" and " ▲" or " ▼")
+  end
+
   if #sortby.mark == 0 and state.marks.header[1] then
     local extmark = vim.api.nvim_buf_get_extmark_by_id(0, state.marks.ns_id, state.marks.header[1], { details = true })
     if extmark and #extmark >= 3 then
@@ -31,17 +40,14 @@ function M.set_sortby_header()
       local lines = vim.api.nvim_buf_get_text(0, start_row, start_col, end_row, end_col, {})
       local word = string_utils.trim(table.concat(lines, "\n"))
 
-      M.set_virtual_text_on_mark(0, state.marks.ns_id, { state.marks.header[1], start_row, start_col }, word .. " ▼")
+      local indicator = get_indicator(word, sortby.order)
+      M.set_virtual_text_on_mark(0, state.marks.ns_id, { state.marks.header[1], start_row, start_col }, indicator)
+      state.sortby[resource].current_word = word
+      state.sortby_old.current_word = word
     end
-  end
-
-  if #sortby.mark > 0 then
-    M.set_virtual_text_on_mark(
-      0,
-      state.marks.ns_id,
-      { sortby.mark[1], sortby.mark[2], sortby.mark[3] },
-      sortby.current_word .. " ▼"
-    )
+  elseif #sortby.mark > 0 then
+    local indicator = get_indicator(sortby.current_word, sortby.order)
+    M.set_virtual_text_on_mark(0, state.marks.ns_id, { sortby.mark[1], sortby.mark[2], sortby.mark[3] }, indicator)
   end
 end
 
