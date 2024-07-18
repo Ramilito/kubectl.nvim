@@ -121,40 +121,41 @@ function ResourceBuilder:sort()
     return self
   end
   local word = string.lower(sortby.current_word)
+  if word == "" then
+    return self
+  end
 
-  if word ~= "" then
-    table.sort(self.processedData, function(a, b)
-      if sortby then
-        local valueA = a[word]
-        local valueB = b[word]
+  table.sort(self.processedData, function(a, b)
+    if sortby then
+      local valueA = a[word]
+      local valueB = b[word]
 
-        if valueA and valueB then
-          local comp
-          if sortby.order == "asc" then
-            comp = function(x, y)
-              return x < y
-            end
-          else
-            comp = function(x, y)
-              return x > y
-            end
+      if valueA and valueB then
+        local comp
+        if sortby.order == "asc" then
+          comp = function(x, y)
+            return x < y
           end
-          if type(valueA) == "table" and type(valueB) == "table" then
-            if valueA.timestamp and valueB.timestamp then
-              return comp(tostring(valueA.timestamp), tostring(valueB.timestamp))
-            else
-              return comp(tostring(valueA.value), tostring(valueB.value))
-            end
-          elseif tonumber(valueA) and tonumber(valueB) then
-            return comp(valueA, valueB)
-          else
-            return comp(tostring(valueA), tostring(valueB))
+        else
+          comp = function(x, y)
+            return x > y
           end
         end
+        if type(valueA) == "table" and type(valueB) == "table" then
+          if valueA.timestamp and valueB.timestamp then
+            return comp(tostring(valueA.timestamp), tostring(valueB.timestamp))
+          else
+            return comp(tostring(valueA.value), tostring(valueB.value))
+          end
+        elseif tonumber(valueA) and tonumber(valueB) then
+          return comp(valueA, valueB)
+        else
+          return comp(tostring(valueA), tostring(valueB))
+        end
       end
-      return true
-    end)
-  end
+    end
+    return true
+  end)
 
   return self
 end
