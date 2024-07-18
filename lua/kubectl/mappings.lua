@@ -61,33 +61,42 @@ function M.register()
     callback = function()
       local marks = require("kubectl.utils.marks")
       local state = require("kubectl.state")
+      local find = require("kubectl.utils.find")
+
       local mark, word = marks.get_current_mark()
 
-      if mark then
-        local find = require("kubectl.utils.find")
-        local is_header = find.array(state.marks.header, mark[1])
-        if is_header then
-          local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-          if ok then
-            buf_name = string.lower(buf_name)
-            local sortby = state.sortby[buf_name]
-            if sortby then
-              sortby.mark = mark
-              sortby.current_word = word
+      if not mark then
+        return
+      end
 
-              if state.sortby_old.current_word == sortby.current_word then
-                if state.sortby[buf_name].order == "asc" then
-                  state.sortby[buf_name].order = "desc"
-                else
-                  state.sortby[buf_name].order = "asc"
-                end
-              end
-              state.sortby_old.current_word = sortby.current_word
-            end
-          end
-          vim.api.nvim_input("R")
+      if not find.array(state.marks.header, mark[1]) then
+        return
+      end
+
+      local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      if not ok then
+        return
+      end
+
+      buf_name = string.lower(buf_name)
+      local sortby = state.sortby[buf_name]
+
+      if not sortby then
+        return
+      end
+      sortby.mark = mark
+      sortby.current_word = word
+
+      if state.sortby_old.current_word == sortby.current_word then
+        if state.sortby[buf_name].order == "asc" then
+          state.sortby[buf_name].order = "desc"
+        else
+          state.sortby[buf_name].order = "asc"
         end
       end
+      state.sortby_old.current_word = sortby.current_word
+
+      vim.api.nvim_input("R")
     end,
   })
 
