@@ -89,7 +89,8 @@ local function addDividerRow(divider, hints, marks)
   -- Add separator row
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
-  local half_width = math.floor(win_width / 2)
+  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
+  local half_width = math.floor(text_width / 2)
 
   local row = ""
   if divider then
