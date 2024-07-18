@@ -154,7 +154,7 @@ function ResourceBuilder:sort()
         end
       end
     end
-    return true
+    return false
   end)
 
   return self
