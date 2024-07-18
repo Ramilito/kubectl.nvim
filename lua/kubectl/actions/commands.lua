@@ -47,7 +47,6 @@ end
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
 function M.shell_command_async(cmd, args, on_exit, on_stdout)
   local result = ""
-
   table.insert(args, 1, cmd)
 
   local handle = vim.system(args, {

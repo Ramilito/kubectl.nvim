@@ -14,8 +14,9 @@ M.notifications = {}
 M.content_row_start = 0
 ---@type table
 M.marks = { ns_id = 0, header = {} }
----@type table
-M.sortby = { mark = {}, current_word = "" }
+---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
+M.sortby = {}
+M.sortby_old = { current_word = "" }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -32,9 +33,14 @@ local decode = function(string)
 end
 
 --- Setup the kubectl state
-function M.setup()
+--- @params views ViewTable
+function M.setup(views)
   local commands = require("kubectl.actions.commands")
   local config = require("kubectl.config")
+
+  for k, _ in pairs(views) do
+    M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
+  end
 
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
     local pod_view = require("kubectl.views.pods")
