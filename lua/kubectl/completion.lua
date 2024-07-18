@@ -118,6 +118,7 @@ function M.diff(path)
       end
       vim.schedule(function()
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, stripped_output)
+        vim.api.nvim_set_option_value("modified", false, { buf = buf })
         ansi.apply_highlighting(buf, content, stripped_output)
       end)
     end)
