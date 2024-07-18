@@ -69,6 +69,15 @@ function M.register()
         if is_header then
           state.sortby.mark = mark
           state.sortby.current_word = word
+
+          if state.sortby_old.current_word == state.sortby.current_word then
+            if state.sortby.order == "asc" then
+              state.sortby.order = "desc"
+            else
+              state.sortby.order = "asc"
+            end
+          end
+          state.sortby_old.current_word = state.sortby.current_word
           vim.api.nvim_input("R")
         end
       end
