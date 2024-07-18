@@ -22,9 +22,10 @@ function M.get_current_mark()
 end
 
 --- Set the sortby header based on the current state
-function M.set_sortby_header()
-  local sortby = state.sortby
-  if #sortby.mark == 0 and state.marks.header[1] then
+--- @param resource string Resource for sort lookup
+function M.set_sortby_header(resource)
+  local sortby = state.sortby[resource]
+  if sortby and #sortby.mark == 0 and state.marks.header[1] then
     local extmark = vim.api.nvim_buf_get_extmark_by_id(0, state.marks.ns_id, state.marks.header[1], { details = true })
     if extmark and #extmark >= 3 then
       local start_row, start_col, end_row, end_col = extmark[1], extmark[2], extmark[3].end_row, extmark[3].end_col
@@ -41,7 +42,7 @@ function M.set_sortby_header()
     end
   end
 
-  if #sortby.mark > 0 then
+  if sortby and #sortby.mark > 0 then
     local indicator = sortby.current_word
     if sortby.order == "asc" then
       indicator = indicator .. " ▲"

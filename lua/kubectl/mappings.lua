@@ -67,17 +67,24 @@ function M.register()
         local find = require("kubectl.utils.find")
         local is_header = find.array(state.marks.header, mark[1])
         if is_header then
-          state.sortby.mark = mark
-          state.sortby.current_word = word
+          local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+          if ok then
+            buf_name = string.lower(buf_name)
+            local sortby = state.sortby[buf_name]
+            if sortby then
+              sortby.mark = mark
+              sortby.current_word = word
 
-          if state.sortby_old.current_word == state.sortby.current_word then
-            if state.sortby.order == "asc" then
-              state.sortby.order = "desc"
-            else
-              state.sortby.order = "asc"
+              if state.sortby_old.current_word == sortby.current_word then
+                if state.sortby[buf_name].order == "asc" then
+                  state.sortby[buf_name].order = "desc"
+                else
+                  state.sortby[buf_name].order = "asc"
+                end
+              end
+              state.sortby_old.current_word = sortby.current_word
             end
           end
-          state.sortby_old.current_word = state.sortby.current_word
           vim.api.nvim_input("R")
         end
       end

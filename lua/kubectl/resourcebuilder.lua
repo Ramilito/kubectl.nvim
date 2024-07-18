@@ -116,18 +116,21 @@ function ResourceBuilder:sort()
     "sorting " .. "[" .. self.resource .. "]",
   })
 
-  local sortby = state.sortby.current_word
+  local sortby = state.sortby[self.resource]
+  if sortby == nil then
+    return self
+  end
+  local word = string.lower(sortby.current_word)
 
-  if sortby ~= "" then
-    sortby = string.lower(sortby)
+  if word ~= "" then
     table.sort(self.processedData, function(a, b)
       if sortby then
-        local valueA = a[sortby]
-        local valueB = b[sortby]
+        local valueA = a[word]
+        local valueB = b[word]
 
         if valueA and valueB then
           local comp
-          if state.sortby.order == "asc" then
+          if sortby.order == "asc" then
             comp = function(x, y)
               return x < y
             end
@@ -253,7 +256,7 @@ end
 function ResourceBuilder:postRender()
   local marks = require("kubectl.utils.marks")
   vim.schedule(function()
-    marks.set_sortby_header()
+    marks.set_sortby_header(self.resource)
   end)
   return self
 end
