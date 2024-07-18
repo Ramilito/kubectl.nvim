@@ -33,6 +33,7 @@ local decode = function(string)
 end
 
 --- Setup the kubectl state
+--- @params views ViewTable
 function M.setup(views)
   local commands = require("kubectl.actions.commands")
   local config = require("kubectl.config")
