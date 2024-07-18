@@ -140,7 +140,7 @@ local function set_keymaps(bufnr)
                 return
               end
               current_port_result = dest_port
-              buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
+              buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), "prompt", function(confirm)
                 if confirm then
                   local port_forward_query =
                     { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. dest_port }
@@ -153,7 +153,7 @@ local function set_keymaps(bufnr)
               end)
             end)
           else
-            buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), nil, function(confirm)
+            buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), "prompt", function(confirm)
               if confirm then
                 local port_forward_query =
                   { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. current_port_result }

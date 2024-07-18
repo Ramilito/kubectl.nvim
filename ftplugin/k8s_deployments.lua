@@ -78,7 +78,7 @@ local function set_keymaps(bufnr)
       else
         vim.ui.input({ prompt = "Update image", default = container_images[1] }, function(input)
           if input ~= nil then
-            buffers.confirmation_buffer("Are you sure that you want to update the image?", nil, function(confirm)
+            buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
               if confirm then
                 local set_image = { "set", "image", "deployment/" .. name, name .. "=" .. input, "-n", ns }
                 commands.shell_command_async("kubectl", set_image, function(response)
@@ -101,7 +101,7 @@ local function set_keymaps(bufnr)
       local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
       buffers.confirmation_buffer(
         "Are you sure that you want to restart the deployment: " .. name,
-        nil,
+        "prompt",
         function(confirm)
           if confirm then
             commands.shell_command_async(

@@ -15,7 +15,7 @@ function M.parse(timestamp)
 
   frac = frac ~= "" and frac or 0
 
-  return os.time({
+  local localTime = os.time({
     year = year,
     month = month,
     day = day,
@@ -24,6 +24,9 @@ function M.parse(timestamp)
     sec = sec,
     isdst = false, -- Explicitly setting isdst to false
   }) + frac / 1000000
+
+  ---@diagnostic disable-next-line: param-type-mismatch
+  return os.time(os.date("!*t", localTime))
 end
 
 --- Calculate the time difference since the given timestamp and format it

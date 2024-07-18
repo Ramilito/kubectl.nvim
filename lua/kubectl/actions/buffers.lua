@@ -118,8 +118,9 @@ end
 --- @param prompt string: The prompt to display.
 --- @param filetype string: The filetype of the buffer.
 --- @param onConfirm function: The function to call on confirmation.
---- @param opts { syntax: string|nil }: Options for the buffer.
+--- @param opts { syntax: string|nil }|nil: Options for the buffer.
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
+  opts = opts or {}
   local bufname = "kubectl_confirmation"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -181,7 +182,9 @@ function M.floating_buffer(content, marks, filetype, opts)
   set_buffer_lines(buf, opts.header.data, content)
 
   local win = layout.float_layout(buf, filetype, opts.title or "")
-  vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
+  vim.keymap.set("n", "q", function()
+    vim.cmd("bdelete")
+  end, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
   apply_marks(buf, marks, opts.header)

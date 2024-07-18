@@ -12,6 +12,7 @@ end
 
 function M.View(pod, ns)
   ResourceBuilder:new("containers")
+    :displayFloat("k8s_containers", pod, "", true)
     :setCmd({ "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
@@ -21,7 +22,7 @@ function M.View(pod, ns)
           :addHints({
             { key = "<l>", desc = "logs" },
             { key = "<enter>", desc = "exec" },
-          }, false, false)
+          }, false, false, false)
           :displayFloat("k8s_containers", pod, "", true)
       end)
     end)
@@ -45,11 +46,12 @@ function M.tailLogs(pod, ns)
   local args = { "logs", "--follow", "--since=1s", pod, "-c", M.selection, "-n", ns }
   local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
 
-  vim.notify("Following : " .. pod .. "-c " .. M.selection, vim.log.levels.INFO)
+  vim.notify("Start tailing : " .. pod .. "-c " .. M.selection, vim.log.levels.INFO)
   vim.api.nvim_create_autocmd("BufWinLeave", {
     buffer = buf,
     callback = function()
       handle:kill(2)
+      vim.notify("Stopped tailing : " .. pod .. "-c " .. M.selection, vim.log.levels.INFO)
     end,
   })
 end
@@ -71,7 +73,7 @@ function M.logs(pod, ns)
         self
           :addHints({
             { key = "<f>", desc = "Follow" },
-          }, false, false)
+          }, false, false, false)
           :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
       end)
     end)

@@ -24,18 +24,21 @@ function M.View(cancellationToken)
             { key = "<enter>", desc = "containers" },
             { key = "<shift-f>", desc = "port forward" },
             { key = "<C-k>", desc = "kill pod" },
-          }, true, true)
+          }, true, true, true)
           :display("k8s_pods", "Pods", cancellationToken)
       end)
     end)
 end
 
 function M.PodTop()
-  ResourceBuilder:new("top"):setCmd({ "top", "pods", "-A" }):fetchAsync(function(self)
-    vim.schedule(function()
-      self:splitData():displayFloat("k8s_top", "Top", "")
+  ResourceBuilder:new("top")
+    :displayFloat("k8s_top", "Top", "")
+    :setCmd({ "top", "pods", "-A" })
+    :fetchAsync(function(self)
+      vim.schedule(function()
+        self:splitData():displayFloat("k8s_top", "Top", "")
+      end)
     end)
-  end)
 end
 
 function M.TailLogs()
@@ -57,11 +60,12 @@ function M.TailLogs()
   local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
   local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
 
-  vim.notify("Following pod: " .. M.selection.pod, vim.log.levels.INFO)
+  vim.notify("Start tailing: " .. M.selection.pod, vim.log.levels.INFO)
   vim.api.nvim_create_autocmd("BufWinLeave", {
     buffer = buf,
     callback = function()
       handle:kill(2)
+      vim.notify("Stopped tailing: " .. M.selection.pod, vim.log.levels.INFO)
     end,
   })
 end
@@ -72,6 +76,7 @@ end
 
 function M.PodLogs()
   ResourceBuilder:new("logs")
+    :displayFloat("k8s_pod_logs", M.selection.pod, "less")
     :setCmd({
       "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
     }, "curl", "text/html")
@@ -81,7 +86,7 @@ function M.PodLogs()
         self
           :addHints({
             { key = "<f>", desc = "Follow" },
-          }, false, false)
+          }, false, false, false)
           :displayFloat("k8s_pod_logs", M.selection.pod, "less")
       end)
     end)
@@ -93,12 +98,15 @@ function M.Edit(name, namespace)
 end
 
 function M.PodDesc(pod_name, namespace)
-  ResourceBuilder:new("desc"):setCmd({ "describe", "pod", pod_name, "-n", namespace }):fetchAsync(function(self)
-    self:splitData()
-    vim.schedule(function()
-      self:displayFloat("k8s_pod_desc", pod_name, "yaml")
+  ResourceBuilder:new("desc")
+    :displayFloat("k8s_pod_desc", pod_name, "yaml")
+    :setCmd({ "describe", "pod", pod_name, "-n", namespace })
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self:displayFloat("k8s_pod_desc", pod_name, "yaml")
+      end)
     end)
-  end)
 end
 
 return M

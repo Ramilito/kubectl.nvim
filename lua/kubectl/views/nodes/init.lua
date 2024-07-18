@@ -12,19 +12,22 @@ function M.View(cancellationToken)
       self
         :addHints({
           { key = "<d>", desc = "describe" },
-        }, true, true)
+        }, true, true, true)
         :display("k8s_nodes", "Nodes", cancellationToken)
     end)
   end)
 end
 
 function M.NodeDesc(node)
-  ResourceBuilder:new("desc"):setCmd({ "describe", "node", node }):fetchAsync(function(self)
-    self:splitData()
-    vim.schedule(function()
-      self:displayFloat("k8s_node_desc", "node_desc", "yaml")
+  ResourceBuilder:new("desc")
+    :displayFloat("k8s_node_desc", "node_desc", "yaml")
+    :setCmd({ "describe", "node", node })
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self:displayFloat("k8s_node_desc", "node_desc", "yaml")
+      end)
     end)
-  end)
 end
 
 function M.Edit(_, name)

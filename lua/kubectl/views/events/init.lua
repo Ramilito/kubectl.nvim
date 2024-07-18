@@ -14,7 +14,7 @@ function M.View(cancellationToken)
         self
           :addHints({
             { key = "<enter>", desc = "message" },
-          }, true, true)
+          }, true, true, true)
           :display("k8s_events", "Events", cancellationToken)
       end)
     end)

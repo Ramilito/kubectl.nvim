@@ -4,9 +4,13 @@ local M = {}
 
 --- Open the kubectl view
 function M.open()
+  local buffers = require("kubectl.actions.buffers")
+  buffers.buffer({ "Loading..." }, {}, "k8s_pods", { title = "Pods" })
+
   local pod_view = require("kubectl.views.pods")
   local hl = require("kubectl.actions.highlight")
   local kube = require("kubectl.actions.kube")
+
   hl.setup()
   kube.startProxy(function()
     state.setup()
