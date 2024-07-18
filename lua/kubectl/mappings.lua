@@ -55,7 +55,7 @@ function M.register()
   })
 
   vim.api.nvim_buf_set_keymap(0, "n", "s", "", {
-    noremap = false,
+    noremap = true,
     silent = true,
     desc = "Sort",
     callback = function()
