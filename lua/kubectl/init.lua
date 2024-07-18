@@ -2,6 +2,19 @@ local state = require("kubectl.state")
 
 local M = {}
 
+-- All main views
+---@alias ViewTable table<string, string[]>
+---@type ViewTable
+M.views = {
+  pods = { "pods", "pod", "po" },
+  deployments = { "deployments", "deployment", "deploy" },
+  events = { "events", "event", "ev" },
+  nodes = { "nodes", "node", "no" },
+  secrets = { "secrets", "secret", "sec" },
+  services = { "services", "service", "svc" },
+  configmaps = { "configmaps", "configmap", "configmaps" },
+}
+
 --- Open the kubectl view
 function M.open()
   local buffers = require("kubectl.actions.buffers")
@@ -13,7 +26,7 @@ function M.open()
 
   hl.setup()
   kube.startProxy(function()
-    state.setup()
+    state.setup(M.views)
     pod_view.View()
   end)
 end
@@ -39,7 +52,7 @@ function M.setup(options)
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local view = require("kubectl.views")
     if opts.fargs[1] == "get" then
-      local cmd = completion.find_view_command(opts.fargs[2])
+      local cmd = completion.find_view_command(opts.fargs[2], M.views)
       if cmd then
         cmd()
       else

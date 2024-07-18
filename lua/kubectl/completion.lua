@@ -52,17 +52,6 @@ local top_level_commands = {
   "wait",
 }
 
----@type table<string, string[]>
-local views = {
-  pods = { "pods", "pod", "po" },
-  deployments = { "deployments", "deployment", "deploy" },
-  events = { "events", "event", "ev" },
-  nodes = { "nodes", "node", "no" },
-  secrets = { "secrets", "secret", "sec" },
-  services = { "services", "service", "svc" },
-  configmaps = { "configmaps", "configmap", "configmaps" },
-}
-
 --- User command completion
 --- @param _ any Unused parameter
 --- @param cmd string The command to complete
@@ -79,8 +68,9 @@ end
 
 --- Find the view command
 --- @param arg string The argument to match with the views
+--- @param views ViewTable
 --- @return function|nil view The view function if found, nil otherwise
-function M.find_view_command(arg)
+function M.find_view_command(arg, views)
   for k, v in pairs(views) do
     if vim.tbl_contains(v, arg) then
       local view = require("kubectl.views." .. k)

@@ -15,11 +15,7 @@ M.content_row_start = 0
 ---@type table
 M.marks = { ns_id = 0, header = {} }
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
-M.sortby = {
-  -- TODO: Dynamically populate these or just add them when used
-  pods = { mark = {}, current_word = "", order = "asc" },
-  deployments = { mark = {}, current_word = "", order = "asc" },
-}
+M.sortby = {}
 M.sortby_old = { current_word = "" }
 
 --- Decode a JSON string
@@ -37,9 +33,13 @@ local decode = function(string)
 end
 
 --- Setup the kubectl state
-function M.setup()
+function M.setup(views)
   local commands = require("kubectl.actions.commands")
   local config = require("kubectl.config")
+
+  for k, _ in pairs(views) do
+    M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
+  end
 
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
     local pod_view = require("kubectl.views.pods")
