@@ -14,8 +14,11 @@ M.notifications = {}
 M.content_row_start = 0
 ---@type table
 M.marks = { ns_id = 0, header = {} }
----@type {pods: { mark: table, current_word: string, order: "asc"|"desc" }}
-M.sortby = { pods = { mark = {}, current_word = "", order = "asc" } }
+---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
+M.sortby = {
+  pods = { mark = {}, current_word = "", order = "asc" },
+  deployments = { mark = {}, current_word = "", order = "asc" },
+}
 M.sortby_old = { current_word = "" }
 
 --- Decode a JSON string
