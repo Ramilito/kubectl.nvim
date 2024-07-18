@@ -16,6 +16,7 @@ M.content_row_start = 0
 M.marks = { ns_id = 0, header = {} }
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {
+  -- TODO: Dynamically populate these or just add them when used
   pods = { mark = {}, current_word = "", order = "asc" },
   deployments = { mark = {}, current_word = "", order = "asc" },
 }

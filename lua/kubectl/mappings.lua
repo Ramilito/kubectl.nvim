@@ -78,6 +78,7 @@ function M.register()
         return
       end
 
+      -- TODO: Get the current view in a different way
       buf_name = string.lower(buf_name)
       local sortby = state.sortby[buf_name]
 
