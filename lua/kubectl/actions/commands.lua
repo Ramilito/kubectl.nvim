@@ -3,7 +3,7 @@ local M = {}
 --- Execute a shell command synchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
---- @param opts { env: string, on_stdout: function }|nil The arguments for the command
+--- @param opts { env: string, on_stdout: function, stdin: string }|nil The arguments for the command
 --- @return string The result of the command execution
 function M.shell_command(cmd, args, opts)
   opts = opts or {}
@@ -15,6 +15,7 @@ function M.shell_command(cmd, args, opts)
   local job = vim.system(args, {
     text = true,
     env = opts.env,
+    stdin = opts.stdin,
     stdout = function(_, data)
       if data then
         result = result .. data
@@ -45,12 +46,15 @@ end
 --- @param args string[] The arguments for the command
 --- @param on_exit? function The callback function to execute when the command exits
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
-function M.shell_command_async(cmd, args, on_exit, on_stdout)
+--- @param opts { env: string, stdin: string }|nil The arguments for the command
+function M.shell_command_async(cmd, args, on_exit, on_stdout, opts)
+  opts = opts or {}
   local result = ""
   table.insert(args, 1, cmd)
 
   local handle = vim.system(args, {
     text = true,
+    stdin = opts.stdin,
     stdout = function(err, data)
       if err then
         return
