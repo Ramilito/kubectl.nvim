@@ -15,6 +15,7 @@ function M.Hints(headers)
     { key = "<C-e>", desc = "Edit resource" },
     { key = "<C-f>", desc = "Filter on a phrase" },
     { key = "<C-n>", desc = "Change namespace" },
+    { key = "<C-d>", desc = "Delete resource" },
     { key = "<bs> ", desc = "Go up a level" },
     { key = "<R>  ", desc = "Refresh view" },
     { key = "<1>  ", desc = "Deployments" },

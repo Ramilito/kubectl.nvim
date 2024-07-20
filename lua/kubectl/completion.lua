@@ -131,4 +131,15 @@ function M.diff(path)
   end
 end
 
+function M.apply()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local file_name = vim.api.nvim_buf_get_name(0)
+  local content = table.concat(lines, "\n")
+  buffers.confirmation_buffer("Apply " .. file_name .. "?", "", function(confirm)
+    if confirm then
+      commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, { stdin = content })
+    end
+  end)
+end
+
 return M

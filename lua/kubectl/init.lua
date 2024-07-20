@@ -57,6 +57,8 @@ function M.setup(options)
       end
     elseif opts.fargs[1] == "diff" then
       completion.diff(opts.fargs[2])
+    elseif opts.fargs[1] == "apply" then
+      completion.apply()
     else
       view.UserCmd(opts.fargs)
     end

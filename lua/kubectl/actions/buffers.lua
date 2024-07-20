@@ -131,7 +131,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
 
   local layout_opts = {
     size = {
-      width = #prompt + 4,
+      width = #prompt + #filetype + 4,
       height = #content + 1,
       col = (vim.api.nvim_win_get_width(0) - #prompt + 2) * 0.5,
       row = (vim.api.nvim_win_get_height(0) - #content + 1) * 0.5,
