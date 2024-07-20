@@ -1,3 +1,5 @@
+local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local M = {}
 
 --- Register kubectl key mappings
@@ -11,6 +13,31 @@ function M.register()
     callback = function()
       kube.stop_kubectl_proxy()()
       vim.api.nvim_buf_delete(0, { force = true })
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<C-d>", "", {
+    noremap = true,
+    silent = true,
+    desc = "Delete",
+    callback = function()
+      local win_config = vim.api.nvim_win_get_config(0)
+      if win_config.relative == "" then
+        local tables = require("kubectl.utils.tables")
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local ns, name = tables.getCurrentSelection(1, 2)
+        if name and ns then
+          buffers.confirmation_buffer(
+            "Do you want to delete: " .. buf_name .. "/" .. name .. " in namespace: " .. ns,
+            "yaml",
+            function(confirm)
+              if confirm then
+                commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
+              end
+            end
+          )
+        end
+      end
     end,
   })
 
