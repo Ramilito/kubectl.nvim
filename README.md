@@ -16,10 +16,12 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Exec into containers</summary>
+  <sub>In the pod view, select a pod by pressing <code><cr></code> and then again <code><cr></code> on the container you want to exec into</sub>
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/24e15963-bfd2-43a5-9e35-9d33cf5d976e" width="700px">
 </details>
 <details>
   <summary>Sort by headers</summary>
+    <sub>By moving the cursor to a header word and pressing <code>s</code></sub>
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/9f96e943-eda4-458e-a4ba-cf23e0417963" width="700px">
 </details>
 <details>
@@ -31,8 +33,9 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/user-attachments/assets/52662db4-698b-4059-a5a2-2c9ddfe8d146" width="700px">
 </details>
    
-## ⚡️ Requ</code>red Dependencies
+## ⚡️ Required Dependencies
 - kubectl
+- curl
 - neovim >= 0.10
  
 ## ⚡️ Optional Dependencies
@@ -106,15 +109,8 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { nor
 
 ### Startup
 
-No startup impact since we load on demand.
-
-## Usage
-
-### Sorting
-By moving the cursor to a header word and pressing ```s```
-
-### Exec into container
-In the pod view, select a pod by pressing ```<cr>``` and then again ```<cr>``` on the container you want to exec into
+The setup function only adds ~1ms to startup.
+We use kubectl proxy and curl to reduce latency.
 
 ## Versioning
 > [!WARNING]
@@ -122,4 +118,4 @@ In the pod view, select a pod by pressing ```<cr>``` and then again ```<cr>``` o
 > in cases where it is deemed necessary.
 
 ## Motivation
-This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for filebrowsing. I might add a way to act on the cluster (delete resources, edit) in the future, not sure yet.
+This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for file browsing.
