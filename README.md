@@ -5,10 +5,9 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 ## ✨ Features
 - Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 - Colored output and smart highlighting
-- Floating windows for contextual stuff such as logs, description, containers..
 <details>
   <summary>Floating windows for contextual stuff such as logs, description, containers..</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
+  <img src="https://github.com/user-attachments/assets/d5c927b4-cfa7-4906-8a73-a0b7c822a00b" width="700px">
 </details>
 <details>
   <summary>Run custom commands e.g <code>:Kubectl get configmaps -A</code></summary>
