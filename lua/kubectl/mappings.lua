@@ -28,8 +28,8 @@ function M.register()
         local ns, name = tables.getCurrentSelection(1, 2)
         if name and ns then
           buffers.confirmation_buffer(
-            "Do you want to delete: " .. buf_name .. "/" .. name .. " in namespace: " .. ns,
-            "yaml",
+            "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name .. " -ns " .. ns,
+            "",
             function(confirm)
               if confirm then
                 commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
