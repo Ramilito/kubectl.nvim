@@ -1,6 +1,6 @@
 # kubectl.nvim
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
-<img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/1d624569-b6d9-4c2e-8037-7727352ad822" width="1700px">
+<img src="https://github.com/user-attachments/assets/3c070dc5-1b93-47a0-9412-bf34ae611267" width="1700px">
 
 ## ✨ Features
 <details>
