@@ -22,10 +22,11 @@ ResourceBuilder.__index = ResourceBuilder
 ---@param args table? The arguments for the resource
 ---@return ResourceBuilder
 function ResourceBuilder:new(resource, args)
+  self = setmetatable({}, ResourceBuilder)
   self.resource = resource
   self.args = args or {}
   self.header = { data = nil, marks = nil }
-  return setmetatable({}, ResourceBuilder)
+  return self
 end
 
 --- Sets a command for the ResourceBuilder instance.
