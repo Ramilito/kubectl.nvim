@@ -3,8 +3,15 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/1d624569-b6d9-4c2e-8037-7727352ad822" width="1700px">
 
 ## ✨ Features
-- Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
-- Colored output and smart highlighting
+<details>
+  <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
+</summary>
+  <img src="https://github.com/user-attachments/assets/422fa6e3-1e3d-4efc-85a2-e6087bdd8815" width="700px">
+</details>
+<details>
+  <summary>Colored output and smart highlighting</summary>
+  <img src="https://github.com/user-attachments/assets/d9b34465-7644-486a-8ad2-8d4ae960a8f3" width="700px">
+</details>
 <details>
   <summary>Floating windows for contextual stuff such as logs, description, containers..</summary>
   <img src="https://github.com/user-attachments/assets/d5c927b4-cfa7-4906-8a73-a0b7c822a00b" width="700px">
@@ -32,7 +39,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
 </details>
 <details>
-  <summary>Diff view: <code>:Kubectl diff (path) </code></summary>
+  <summary>Diff view: <code>:Kubectl diff (path)</code></summary>
   <img src="https://github.com/user-attachments/assets/52662db4-698b-4059-a5a2-2c9ddfe8d146" width="700px">
 </details>
    
