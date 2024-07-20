@@ -48,20 +48,18 @@ Install the plugin with your preferred package manager:
 return {
   {
     "ramilito/kubectl.nvim",
-    keys = {
-      {
-        "<leader>k",
-        function()
-          require("kubectl").open()
-        end,
-        desc = "Kubectl",
-      },
-    },
     config = function()
       require("kubectl").setup()
     end,
   },
 }
+```
+
+## ⌨️ Keymaps
+
+```lua
+-- Recommended is to have the same open mapping as your close (```<leader>k```) the plugin for a toggle effect.
+vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { noremap = true, silent = true })
 ```
 
 ## ⚙️ Configuration
