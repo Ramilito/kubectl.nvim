@@ -24,7 +24,7 @@ function M.changeNamespace(name)
       state.ns = name
       local win = vim.api.nvim_get_current_win()
       vim.api.nvim_win_close(win, true)
-      vim.api.nvim_input("R")
+      vim.api.nvim_input("gr")
     end)
   end
   if name == "All" then
@@ -32,7 +32,7 @@ function M.changeNamespace(name)
 
     local win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_close(win, true)
-    vim.api.nvim_input("R")
+    vim.api.nvim_input("gr")
   else
     commands.shell_command_async(
       "kubectl",

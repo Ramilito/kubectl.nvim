@@ -95,7 +95,7 @@ function M.change_context(cmd)
   vim.notify(results, vim.log.levels.INFO)
   kube.stop_kubectl_proxy()
   kube.startProxy(function()
-    vim.api.nvim_input("R")
+    vim.api.nvim_input("gr")
   end)
 end
 

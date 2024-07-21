@@ -98,7 +98,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gS", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "gs", "", {
     noremap = true,
     silent = true,
     desc = "Sort",
@@ -141,7 +141,7 @@ function M.register()
       end
       state.sortby_old.current_word = sortby.current_word
 
-      vim.api.nvim_input("R")
+      vim.api.nvim_input("gr")
     end,
   })
 
