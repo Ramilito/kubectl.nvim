@@ -12,11 +12,11 @@ function M.Hints(headers)
   local marks = {}
   local hints = {}
   local globals = {
-    { key = "<ge>", desc = "Edit resource" },
     { key = "<C-f>", desc = "Filter on a phrase" },
     { key = "<C-n>", desc = "Change namespace" },
-    { key = "<gD>", desc = "Delete resource" },
     { key = "<bs> ", desc = "Go up a level" },
+    { key = "<gD>", desc = "Delete resource" },
+    { key = "<ge>", desc = "Edit resource" },
     { key = "<gr>  ", desc = "Refresh view" },
     { key = "<1>  ", desc = "Deployments" },
     { key = "<2>  ", desc = "Pods " },

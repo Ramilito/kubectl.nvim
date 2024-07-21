@@ -173,7 +173,7 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
 
   if include_defaults then
     local defaults = {
-      { key = "<R>", desc = "reload" },
+      { key = "<gr>", desc = "reload" },
       { key = "<C-f>", desc = "filter" },
       { key = "<C-n>", desc = "namespace" },
       { key = "<g?>", desc = "help" },
