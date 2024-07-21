@@ -13,7 +13,7 @@ local function create_buffer(bufname, buftype)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(buf, bufname)
   if buftype then
-    vim.api.nvim_buf_set_option(buf, "buftype", buftype)
+    vim.api.nvim_set_option_value("buftype", buftype, { buf = buf })
   end
   return buf
 end
@@ -245,7 +245,7 @@ function M.notification_buffer(opts)
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, state.notifications)
   local win = layout.notification_layout(buf, bufname, { width = opts.width, height = #state.notifications })
-  vim.api.nvim_win_set_option(win, "winblend", config.options.notifications.blend)
+  vim.api.nvim_set_option_value("winblend", config.options.notifications.blend, { win = win })
 
   local ns_id = api.nvim_create_namespace("__kubectl_notifications")
   for _, mark in ipairs(marks) do
