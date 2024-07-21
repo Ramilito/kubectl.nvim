@@ -7,6 +7,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
+    desc = "Select",
     callback = function()
       local name = tables.getCurrentSelection(unpack({ 1 }))
       if name then
@@ -14,14 +15,6 @@ local function set_keymaps(bufnr)
       else
         print("Failed to get namespace.")
       end
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
-    noremap = true,
-    silent = true,
-    callback = function()
-      namespace_view.View()
     end,
   })
 end

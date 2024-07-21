@@ -20,7 +20,7 @@ function M.View(pod, ns)
       vim.schedule(function()
         self
           :addHints({
-            { key = "<l>", desc = "logs" },
+            { key = "<gl>", desc = "logs" },
             { key = "<enter>", desc = "exec" },
           }, false, false, false)
           :displayFloat("k8s_containers", pod, "", true)

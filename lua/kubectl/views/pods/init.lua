@@ -18,12 +18,12 @@ function M.View(cancellationToken)
       vim.schedule(function()
         self
           :addHints({
-            { key = "<l>", desc = "logs" },
-            { key = "<d>", desc = "describe" },
-            { key = "<t>", desc = "top" },
+            { key = "<gl>", desc = "logs" },
+            { key = "<gd>", desc = "describe" },
+            { key = "<gu>", desc = "usage" },
             { key = "<enter>", desc = "containers" },
-            { key = "<shift-f>", desc = "port forward" },
-            { key = "<C-k>", desc = "kill pod" },
+            { key = "<gp>", desc = "port forward" },
+            { key = "<gk>", desc = "kill pod" },
           }, true, true, true)
           :display("k8s_pods", "Pods", cancellationToken)
       end)

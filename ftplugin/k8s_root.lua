@@ -17,6 +17,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
+    desc = "Select",
     callback = function()
       local selection = getCurrentSelection()
       if selection then

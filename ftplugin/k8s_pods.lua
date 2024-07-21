@@ -14,29 +14,32 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
     noremap = true,
     silent = true,
+    desc = "Help",
     callback = function()
       view.Hints({
-        { key = "<l>", desc = "Shows logs for all containers in pod" },
-        { key = "<d>", desc = "Describe selected pod" },
-        { key = "<t>", desc = "Show resources used" },
+        { key = "<gl>", desc = "Shows logs for all containers in pod" },
+        { key = "<gd>", desc = "Describe selected pod" },
+        { key = "<gu>", desc = "Show resources used" },
         { key = "<enter>", desc = "Opens container view" },
         { key = "<shift-f>", desc = "Port forward" },
-        { key = "<C-k>", desc = "Kill pod" },
+        { key = "<gk>", desc = "Kill pod" },
       })
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "t", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gu", "", {
     noremap = true,
     silent = true,
+    desc = "Resources used",
     callback = function()
       pod_view.PodTop()
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "d", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
     noremap = true,
     silent = true,
+    desc = "Describe resource",
     callback = function()
       local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
       if pod_name and namespace then
@@ -50,14 +53,16 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
     noremap = true,
     silent = true,
+    desc = "Go up",
     callback = function()
       deployment_view.View()
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "l", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gl", "", {
     noremap = true,
     silent = true,
+    desc = "View logs",
     callback = function()
       local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
       if pod_name and namespace then
@@ -72,6 +77,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
+    desc = "Select",
     callback = function()
       local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
       if pod_name and namespace then
@@ -83,17 +89,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gk", "", {
     noremap = true,
     silent = true,
-    callback = function()
-      pod_view.View()
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<C-k>", "", {
-    noremap = true,
-    silent = true,
+    desc = "Kill pod",
     callback = function()
       local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
 
@@ -107,9 +106,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<S-f>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
     noremap = true,
     silent = true,
+    desc = "Port forward",
     callback = function()
       local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
       if pod_name and namespace then
