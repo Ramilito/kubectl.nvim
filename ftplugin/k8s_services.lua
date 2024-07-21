@@ -10,30 +10,25 @@ local function set_keymap(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
     noremap = true,
     silent = true,
+    desc = "Help",
     callback = function()
       view.Hints({ { key = "<d>", desc = "Describe selected service" } })
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
-    noremap = true,
-    silent = true,
-    callback = function()
-      service_view.View()
     end,
   })
 
   api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
     noremap = true,
     silent = true,
+    desc = "Go up",
     callback = function()
       root_view.View()
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "d", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
     noremap = true,
     silent = true,
+    desc = "Describe resource",
     callback = function()
       local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
       if namespace and name then

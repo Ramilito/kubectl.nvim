@@ -10,6 +10,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
     noremap = true,
     silent = true,
+    desc = "Help",
     callback = function()
       view.Hints({ { key = "<enter>", desc = "Read message" } })
     end,
@@ -18,6 +19,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
+    desc = "View message",
     callback = function()
       local message = tables.getCurrentSelection(unpack({ 7 }))
       if message then
@@ -28,17 +30,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
-    noremap = true,
-    silent = true,
-    callback = function()
-      event_view.View()
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
     noremap = true,
     silent = true,
+    desc = "Go up",
     callback = function()
       root_view.View()
     end,

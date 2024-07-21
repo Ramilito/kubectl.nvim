@@ -16,7 +16,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "D", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "gD", "", {
     noremap = true,
     silent = true,
     desc = "Delete",
@@ -41,10 +41,27 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-e>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "gr", "", {
     noremap = true,
     silent = true,
-    desc = "Edit",
+    desc = "Reload",
+    callback = function()
+      local win_config = vim.api.nvim_win_get_config(0)
+      if win_config.relative == "" then
+        local string_utils = require("kubectl.utils.string")
+
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
+        pcall(view.View)
+      end
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "ge", "", {
+    noremap = true,
+    silent = true,
+    desc = "Edit resource",
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative == "" then
@@ -74,14 +91,14 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", "<C-n>", "", {
     noremap = true,
     silent = true,
-    desc = "Filter",
+    desc = "Change namespace",
     callback = function()
       local namespace_view = require("kubectl.views.namespace")
       namespace_view.View()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "s", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "gS", "", {
     noremap = true,
     silent = true,
     desc = "Sort",

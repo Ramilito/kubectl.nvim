@@ -13,6 +13,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
     noremap = true,
     silent = true,
+    desc = "Help",
     callback = function()
       view.Hints({
         { key = "<r>", desc = "Restart selected deployment" },
@@ -22,10 +23,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "d", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
     noremap = true,
     silent = true,
-    desc = "Desc",
+    desc = "Describe resource",
     callback = function()
       local namespace, deployment_name = tables.getCurrentSelection(unpack({ 1, 2 }))
       if deployment_name and namespace then
@@ -39,7 +40,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
-    desc = "kgp",
+    desc = "Go to pods",
     callback = function()
       pod_view.View()
     end,
@@ -48,16 +49,17 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
     noremap = true,
     silent = true,
-    desc = "Back",
+    desc = "Go up",
     callback = function()
       root_view.View()
     end,
   })
 
   -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
-  api.nvim_buf_set_keymap(bufnr, "n", "i", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
     noremap = true,
     silent = true,
+    desc = "Set image",
     callback = function()
       local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
 
@@ -94,9 +96,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "r", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
     noremap = true,
     silent = true,
+    desc = "Rollout restart",
     callback = function()
       local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
       buffers.confirmation_buffer(
@@ -116,13 +119,6 @@ local function set_keymaps(bufnr)
           end
         end
       )
-    end,
-  })
-  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
-    noremap = true,
-    silent = true,
-    callback = function()
-      deployment_view.View()
     end,
   })
 end

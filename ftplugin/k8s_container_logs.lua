@@ -1,17 +1,8 @@
-local api = vim.api
 local container_view = require("kubectl.views.containers")
 local pod_view = require("kubectl.views.pods")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
-    noremap = true,
-    silent = true,
-    callback = function()
-      container_view.PodContainers()
-    end,
-  })
-
   vim.api.nvim_buf_set_keymap(bufnr, "n", "f", "", {
     noremap = true,
     silent = true,

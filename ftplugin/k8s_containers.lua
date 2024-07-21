@@ -5,9 +5,10 @@ local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "l", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gl", "", {
     noremap = true,
     silent = true,
+    desc = "View logs",
     callback = function()
       local container_name = tables.getCurrentSelection(unpack({ 1 }))
       if container_name then
@@ -22,6 +23,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
+    desc = "Exec into",
     callback = function()
       local container_name = tables.getCurrentSelection(unpack({ 1 }))
       if container_name then
@@ -30,14 +32,6 @@ local function set_keymaps(bufnr)
       else
         print("Failed to extract containers.")
       end
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "R", "", {
-    noremap = true,
-    silent = true,
-    callback = function()
-      container_view.View()
     end,
   })
 end
