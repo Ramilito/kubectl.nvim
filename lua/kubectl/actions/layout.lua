@@ -66,7 +66,7 @@ end
 function M.float_layout(buf, filetype, title, opts)
   opts = opts or {}
   local size = opts.size or {}
-  if filetype then
+  if filetype ~= "" then
     title = filetype .. " - " .. (title or "")
   end
 

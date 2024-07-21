@@ -118,6 +118,7 @@ function M.diff(path)
       end
       vim.schedule(function()
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, stripped_output)
+        vim.api.nvim_set_option_value("modified", false, { buf = buf })
         ansi.apply_highlighting(buf, content, stripped_output)
       end)
     end)
@@ -128,6 +129,17 @@ function M.diff(path)
       { env = { KUBECTL_EXTERNAL_DIFF = config.options.diff.bin } }
     )
   end
+end
+
+function M.apply()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local file_name = vim.api.nvim_buf_get_name(0)
+  local content = table.concat(lines, "\n")
+  buffers.confirmation_buffer("Apply " .. file_name .. "?", "", function(confirm)
+    if confirm then
+      commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, { stdin = content })
+    end
+  end)
 end
 
 return M
