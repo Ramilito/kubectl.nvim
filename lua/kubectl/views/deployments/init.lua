@@ -13,8 +13,8 @@ function M.View(cancellationToken)
       vim.schedule(function()
         self
           :addHints({
-            { key = "<r>", desc = "restart" },
-            { key = "<d>", desc = "desc" },
+            { key = "<grr>", desc = "restart" },
+            { key = "<gd>", desc = "desc" },
             { key = "<enter>", desc = "pods" },
           }, true, true, true)
           :display("k8s_deployments", "Deployments", cancellationToken)

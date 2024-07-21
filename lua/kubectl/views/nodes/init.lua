@@ -11,7 +11,7 @@ function M.View(cancellationToken)
     vim.schedule(function()
       self
         :addHints({
-          { key = "<d>", desc = "describe" },
+          { key = "<gd>", desc = "describe" },
         }, true, true, true)
         :display("k8s_nodes", "Nodes", cancellationToken)
     end)

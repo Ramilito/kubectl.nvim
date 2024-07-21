@@ -12,7 +12,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<d>", desc = "Describe selected secret" } })
+      view.Hints({ { key = "<gd>", desc = "Describe selected secret" } })
     end,
   })
 
