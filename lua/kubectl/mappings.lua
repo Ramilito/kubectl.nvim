@@ -16,7 +16,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-d>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "D", "", {
     noremap = true,
     silent = true,
     desc = "Delete",
