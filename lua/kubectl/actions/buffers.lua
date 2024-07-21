@@ -23,12 +23,14 @@ end
 --- @param header table|nil: The header lines (optional).
 --- @param content table: The content lines.
 local function set_buffer_lines(buf, header, content)
+  vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
   if header and #header >= 1 then
     vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
     vim.api.nvim_buf_set_lines(buf, #header, -1, false, content)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
   end
+  vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
 
 --- Applies marks to a buffer.
