@@ -2,7 +2,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
-local timeme = require("kubectl.utils.timeme")
 
 local M = {}
 M.selection = {}
@@ -18,7 +17,6 @@ function M.View(cancellationToken)
       self:decodeJson()
       self:process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       if vim.fn.has("win32") ~= 1 then
-        timeme.start()
         local port_forwards = {}
         local result = commands.execute_shell_command("ps", "-A -eo args | grep '[k]ubectl port-forward'")
         local pfs = vim.split(result, "\n")
@@ -29,7 +27,6 @@ function M.View(cancellationToken)
           end
         end
         definition.getPortForwards(self.extmarks, self.prettyData, port_forwards)
-        timeme.stop()
       end
       vim.schedule(function()
         self
