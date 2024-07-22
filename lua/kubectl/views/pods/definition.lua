@@ -51,6 +51,26 @@ local function getPodStatus(phase)
   return status
 end
 
+function M.getPortForwards(marks, data, port_forwards)
+  for _, pf in ipairs(port_forwards) do
+    for row, line in ipairs(data) do
+      local col = line:find(pf.resource, 1, true)
+
+      if col then
+        local mark = {
+          row = row - 1,
+          start_col = col + #pf.resource - 1,
+          end_col = col + #pf.resource - 1 + 3,
+          virt_text = { { " ⇄ ", hl.symbols.success } },
+          virt_text_pos = "overlay",
+        }
+        table.insert(marks, #marks, mark)
+      end
+    end
+  end
+  return marks
+end
+
 function M.processRow(rows)
   local data = {}
   local currentTime = time.currentTime()
