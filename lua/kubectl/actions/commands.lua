@@ -102,6 +102,19 @@ function M.execute_shell_command(cmd, args)
   return result
 end
 
+--- Execute a shell command with a pipe asynchronously using vim.system
+--- @param cmd string The shell command to execute
+--- @param callback function The callback function to handle the result of the command execution
+function M.execute_shell_command_async(cmd, callback)
+  vim.system({ "sh", "-c", cmd }, { text = true }, function(obj)
+    if obj.code == 0 then
+      callback(nil, obj.stdout)
+    else
+      callback("Failed to execute command: " .. cmd, nil)
+    end
+  end)
+end
+
 --- Execute a command in a terminal
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command
