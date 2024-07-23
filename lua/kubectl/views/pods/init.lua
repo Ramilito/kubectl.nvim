@@ -8,20 +8,7 @@ M.selection = {}
 
 function M.View(cancellationToken)
   local pfs = {}
-  if vim.fn.has("win32") ~= 1 then
-    local port_forwards = {}
-    commands.execute_shell_command_async("ps -eo args | grep '[k]ubectl port-forward'", function(_, data)
-      for _, line in ipairs(vim.split(data, "\n")) do
-        local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
-        if resource and port then
-          table.insert(port_forwards, { resource = resource, port = port })
-        end
-      end
-
-      pfs = port_forwards
-    end)
-  end
-
+  definition.getPortForwards(pfs)
   ResourceBuilder:new("pods")
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",

@@ -1,3 +1,4 @@
+local commands = require("kubectl.actions.commands")
 local events = require("kubectl.utils.events")
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
@@ -51,8 +52,24 @@ local function getPodStatus(phase)
   return status
 end
 
+function M.getPortForwards(port_forwards)
+  if vim.fn.has("win32") ~= 1 then
+    commands.execute_shell_command_async("ps -eo args | grep '[k]ubectl port-forward'", function(_, data)
+      for _, line in ipairs(vim.split(data, "\n")) do
+        local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
+        if resource and port then
+          table.insert(port_forwards, { resource = resource, port = port })
+        end
+      end
+    end)
+  end
+end
+
 function M.setPortForwards(marks, data, port_forwards)
   for _, pf in ipairs(port_forwards) do
+    if not pf.resource then
+      return
+    end
     for row, line in ipairs(data) do
       local col = line:find(pf.resource, 1, true)
 
