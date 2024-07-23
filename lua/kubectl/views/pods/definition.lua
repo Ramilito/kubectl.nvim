@@ -51,7 +51,7 @@ local function getPodStatus(phase)
   return status
 end
 
-function M.getPortForwards(marks, data, port_forwards)
+function M.setPortForwards(marks, data, port_forwards)
   for _, pf in ipairs(port_forwards) do
     for row, line in ipairs(data) do
       local col = line:find(pf.resource, 1, true)
