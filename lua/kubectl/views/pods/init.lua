@@ -10,13 +10,11 @@ function M.View(cancellationToken)
   local pfs = {}
   if vim.fn.has("win32") ~= 1 then
     local port_forwards = {}
-    commands.shell_command_async("ps", { "-A", "-eo", "args" }, function(data)
+    commands.execute_shell_command_async("ps -A -eo args | grep '[k]ubectl port-forward'", function(error, data)
       for _, line in ipairs(vim.split(data, "\n")) do
-        if line:find("kubectl port%-forward") then
-          local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
-          if resource and port then
-            table.insert(port_forwards, { resource = resource, port = port })
-          end
+        local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
+        if resource and port then
+          table.insert(port_forwards, { resource = resource, port = port })
         end
       end
 
