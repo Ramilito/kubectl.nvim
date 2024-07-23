@@ -11,7 +11,7 @@ function M.View(cancellationToken)
   if vim.fn.has("win32") ~= 1 then
     local port_forwards = {}
     commands.shell_command_async("ps", { "-A", "-eo", "args" }, function(data)
-      for line in data:gmatch("[^\r\n]+") do
+      for _, line in ipairs(vim.split(data, "\n")) do
         if line:find("kubectl port%-forward") then
           local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
           if resource and port then
