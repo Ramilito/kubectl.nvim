@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
+local hl = require("kubectl.actions.highlight")
 
 local M = {}
 M.selection = {}
@@ -18,6 +19,7 @@ function M.View(cancellationToken)
     :fetchAsync(function(self)
       self:decodeJson()
       self:process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+
       definition.setPortForwards(self.extmarks, self.prettyData, pfs)
       vim.schedule(function()
         self
@@ -111,6 +113,32 @@ function M.PodDesc(pod_name, namespace)
         self:displayFloat("k8s_pod_desc", pod_name, "yaml")
       end)
     end)
+end
+
+function M.PodPF()
+  local pfs = {}
+  definition.getPortForwards(pfs)
+
+  vim.defer_fn(function()
+    local builder = ResourceBuilder:new("desc")
+
+    builder.data = {}
+    builder.extmarks = {}
+    for index, value in ipairs(pfs) do
+      local line = value.resource .. " | " .. value.port
+      table.insert(builder.data, line)
+      table.insert(
+        builder.extmarks,
+        { row = index - 1, start_col = 0, end_col = #value.resource, hl_group = hl.symbols.success }
+      )
+      table.insert(
+        builder.extmarks,
+        { row = index - 1, start_col = #line - #value.port, end_col = #line, hl_group = hl.symbols.pending }
+      )
+    end
+
+    builder:displayFloat("", "Port forwards", "", false)
+  end, 100)
 end
 
 return M
