@@ -34,7 +34,7 @@ function M.shell_command(cmd, args, opts)
   -- Wait for the job to complete
   local exit_code = job:wait()
 
-  if exit_code.code ~= 0 then
+  if exit_code.code ~= 0 and error_result ~= "" then
     vim.notify(error_result, vim.log.levels.ERROR)
   end
 
