@@ -53,16 +53,20 @@ local function getPodStatus(phase)
 end
 
 function M.getPortForwards(port_forwards)
-  if vim.fn.has("win32") ~= 1 then
-    commands.execute_shell_command_async("ps -eo args | grep '[k]ubectl port-forward'", function(_, data)
-      for _, line in ipairs(vim.split(data, "\n")) do
-        local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
-        if resource and port then
-          table.insert(port_forwards, { resource = resource, port = port })
-        end
-      end
-    end)
+  if vim.fn.has("win32") == 1 then
+    return
   end
+  commands.execute_shell_command_async("ps -eo args | grep '[k]ubectl port-forward'", function(_, data)
+    if not data then
+      return
+    end
+    for _, line in ipairs(vim.split(data, "\n")) do
+      local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
+      if resource and port then
+        table.insert(port_forwards, { resource = resource, port = port })
+      end
+    end
+  end)
 end
 
 function M.setPortForwards(marks, data, port_forwards)
