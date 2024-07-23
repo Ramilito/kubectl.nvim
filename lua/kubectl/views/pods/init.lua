@@ -9,7 +9,7 @@ M.selection = {}
 
 function M.View(cancellationToken)
   local pfs = {}
-  definition.getPortForwards(pfs)
+  definition.getPortForwards(pfs, true)
   ResourceBuilder:new("pods")
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
@@ -118,28 +118,26 @@ end
 
 function M.PodPF()
   local pfs = {}
-  definition.getPortForwards(pfs)
+  pfs = definition.getPortForwards(pfs, false)
 
-  vim.defer_fn(function()
-    local builder = ResourceBuilder:new("desc")
+  local builder = ResourceBuilder:new("desc")
 
-    builder.data = {}
-    builder.extmarks = {}
-    for index, value in ipairs(pfs) do
-      local line = value.resource .. " | " .. value.port
-      table.insert(builder.data, line)
-      table.insert(
-        builder.extmarks,
-        { row = index - 1, start_col = 0, end_col = #value.resource, hl_group = hl.symbols.success }
-      )
-      table.insert(
-        builder.extmarks,
-        { row = index - 1, start_col = #line - #value.port, end_col = #line, hl_group = hl.symbols.pending }
-      )
-    end
+  builder.data = {}
+  builder.extmarks = {}
+  for index, value in ipairs(pfs) do
+    local line = value.resource .. " | " .. value.port
+    table.insert(builder.data, line)
+    table.insert(
+      builder.extmarks,
+      { row = index - 1, start_col = 0, end_col = #value.resource, hl_group = hl.symbols.success }
+    )
+    table.insert(
+      builder.extmarks,
+      { row = index - 1, start_col = #line - #value.port, end_col = #line, hl_group = hl.symbols.pending }
+    )
+  end
 
-    builder:displayFloat("", "Port forwards", "", false)
-  end, 100)
+  builder:displayFloat("", "Port forwards", "", false)
 end
 
 return M
