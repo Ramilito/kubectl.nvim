@@ -4,6 +4,7 @@ local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
+local pod_definition = require("kubectl.views.pods.definition")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
@@ -98,7 +99,15 @@ local function set_keymaps(bufnr)
       local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
 
       if pod_name and namespace then
-        print("Deleting pod..")
+        local port_forwards = {}
+        pod_definition.getPortForwards(port_forwards, false)
+        for _, pf in ipairs(port_forwards) do
+          if pf.resource == pod_name then
+            vim.notify("Killing port forward for " .. pf.resource)
+            commands.shell_command_async("kill", { pf.pid })
+          end
+        end
+        vim.notify("Deleting pod " .. pod_name)
         commands.shell_command_async("kubectl", { "delete", "pod", pod_name, "-n", namespace })
         pod_view.View()
       else
