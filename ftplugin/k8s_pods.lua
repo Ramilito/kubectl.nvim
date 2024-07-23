@@ -4,6 +4,7 @@ local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
+local pod_definition = require("kubectl.views.pods.definition")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
@@ -17,12 +18,13 @@ local function set_keymaps(bufnr)
     desc = "Help",
     callback = function()
       view.Hints({
-        { key = "<gl>", desc = "Shows logs for all containers in pod" },
         { key = "<gd>", desc = "Describe selected pod" },
+        { key = "<gk>", desc = "Kill pod" },
+        { key = "<gl>", desc = "Shows logs for all containers in pod" },
+        { key = "<gp>", desc = "Port forward" },
+        { key = "<gP>", desc = "View active Port forwards" },
         { key = "<gu>", desc = "Show resources used" },
         { key = "<enter>", desc = "Opens container view" },
-        { key = "<shift-f>", desc = "Port forward" },
-        { key = "<gk>", desc = "Kill pod" },
       })
     end,
   })
@@ -97,7 +99,15 @@ local function set_keymaps(bufnr)
       local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
 
       if pod_name and namespace then
-        print("Deleting pod..")
+        local port_forwards = {}
+        pod_definition.getPortForwards(port_forwards, false)
+        for _, pf in ipairs(port_forwards) do
+          if pf.resource == pod_name then
+            vim.notify("Killing port forward for " .. pf.resource)
+            commands.shell_command_async("kill", { pf.pid })
+          end
+        end
+        vim.notify("Deleting pod " .. pod_name)
         commands.shell_command_async("kubectl", { "delete", "pod", pod_name, "-n", namespace })
         pod_view.View()
       else
@@ -106,6 +116,14 @@ local function set_keymaps(bufnr)
     end,
   })
 
+  api.nvim_buf_set_keymap(bufnr, "n", "gP", "", {
+    noremap = true,
+    silent = true,
+    desc = "View Port Forwards",
+    callback = function()
+      pod_view.PodPF()
+    end,
+  })
   api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
     noremap = true,
     silent = true,

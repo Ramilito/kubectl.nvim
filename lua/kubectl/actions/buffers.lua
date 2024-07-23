@@ -63,7 +63,9 @@ local function apply_marks(bufnr, marks, header)
         local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
           end_line = start_row,
           end_col = mark.end_col,
-          hl_group = mark.hl_group,
+          hl_group = mark.hl_group or nil,
+          virt_text = mark.virt_text or nil,
+          virt_text_pos = mark.virt_text_pos or nil,
         })
         if mark.row == 0 and ok then
           state.content_row_start = start_row + 1

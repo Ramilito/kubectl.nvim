@@ -42,7 +42,11 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <summary>Diff view: <code>:Kubectl diff (path)</code></summary>
   <img src="https://github.com/user-attachments/assets/52662db4-698b-4059-a5a2-2c9ddfe8d146" width="700px">
 </details>
-   
+<details>
+  <summary>Port forward</summary>
+  <img src="https://github.com/user-attachments/assets/d3957b71-584e-45f2-9256-4fb5d16d6b5f" width="700px">
+</details>
+
 ## ⚡️ Required Dependencies
 - kubectl
 - curl
