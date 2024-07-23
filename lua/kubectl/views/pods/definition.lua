@@ -70,7 +70,7 @@ function M.getPortForwards(port_forwards, async)
   end
 
   if async then
-    commands.execute_shell_command_async("ps -eo args | grep '[k]ubectl port-forward'", function(_, data)
+    commands.shell_command_async("sh", { "-c", "ps -eo args | grep '[k]ubectl port-forward'" }, function(data)
       if not data then
         return
       end

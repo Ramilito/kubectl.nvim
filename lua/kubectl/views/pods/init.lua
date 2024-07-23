@@ -19,9 +19,8 @@ function M.View(cancellationToken)
     :fetchAsync(function(self)
       self:decodeJson()
       self:process(definition.processRow):sort():prettyPrint(definition.getHeaders)
-
-      definition.setPortForwards(self.extmarks, self.prettyData, pfs)
       vim.schedule(function()
+        definition.setPortForwards(self.extmarks, self.prettyData, pfs)
         self
           :addHints({
             { key = "<gl>", desc = "logs" },
