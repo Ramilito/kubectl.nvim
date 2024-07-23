@@ -133,7 +133,6 @@ function M.PodPF()
   end
 
   builder.prettyData, builder.extmarks = tables.pretty_print(data, { "PID", "RESOURCE", "PORT" })
-  print(vim.inspect(builder.prettyData))
   builder
     :addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
     :displayFloat("k8s_pod_pf", "Port forwards", "", true)
