@@ -18,8 +18,7 @@ function M.View(cancellationToken)
       "\n",
     }, "curl")
     :fetchAsync(function(self)
-      self:decodeJson()
-      self:process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         definition.setPortForwards(self.extmarks, self.prettyData, pfs)
         self
