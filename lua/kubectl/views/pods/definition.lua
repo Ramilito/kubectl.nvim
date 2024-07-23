@@ -1,6 +1,7 @@
 local commands = require("kubectl.actions.commands")
 local events = require("kubectl.utils.events")
 local hl = require("kubectl.actions.highlight")
+local string_utils = require("kubectl.utils.string")
 local time = require("kubectl.utils.time")
 
 local M = {}
@@ -62,22 +63,24 @@ function M.getPortForwards(port_forwards, async)
 
   local function parse(data)
     for _, line in ipairs(vim.split(data, "\n")) do
+      local pid = string_utils.trim(line):match("^(%d+)")
       local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
       if resource and port then
-        table.insert(port_forwards, { resource = resource, port = port })
+        table.insert(port_forwards, { pid = pid, resource = resource, port = port })
       end
     end
   end
 
+  local args = "ps -eo pid,args | grep '[k]ubectl port-forward'"
   if async then
-    commands.shell_command_async("sh", { "-c", "ps -eo args | grep '[k]ubectl port-forward'" }, function(data)
+    commands.shell_command_async("sh", { "-c", args }, function(data)
       if not data then
         return
       end
       parse(data)
     end)
   else
-    local data = commands.shell_command("sh", { "-c", "ps -eo args | grep '[k]ubectl port-forward'" })
+    local data = commands.shell_command("sh", { "-c", args })
     parse(data)
   end
   return port_forwards
