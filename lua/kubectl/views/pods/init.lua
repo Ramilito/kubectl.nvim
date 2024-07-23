@@ -7,6 +7,23 @@ local M = {}
 M.selection = {}
 
 function M.View(cancellationToken)
+  local pfs = {}
+  if vim.fn.has("win32") ~= 1 then
+    local port_forwards = {}
+    commands.shell_command_async("ps", { "-A", "-eo", "args" }, function(data)
+      for line in data:gmatch("[^\r\n]+") do
+        if line:find("kubectl port%-forward") then
+          local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
+          if resource and port then
+            table.insert(port_forwards, { resource = resource, port = port })
+          end
+        end
+      end
+
+      pfs = port_forwards
+    end)
+  end
+
   ResourceBuilder:new("pods")
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
@@ -16,18 +33,7 @@ function M.View(cancellationToken)
     :fetchAsync(function(self)
       self:decodeJson()
       self:process(definition.processRow):sort():prettyPrint(definition.getHeaders)
-      if vim.fn.has("win32") ~= 1 then
-        local port_forwards = {}
-        local result = commands.execute_shell_command("ps", "-A -eo args | grep '[k]ubectl port-forward'")
-        local pfs = vim.split(result, "\n")
-        for _, pf in ipairs(pfs) do
-          local resource, port = pf:match("pods/([^%s]+)%s+(%d+:%d+)")
-          if resource and port then
-            table.insert(port_forwards, { resource = resource, port = port })
-          end
-        end
-        definition.getPortForwards(self.extmarks, self.prettyData, port_forwards)
-      end
+      definition.getPortForwards(self.extmarks, self.prettyData, pfs)
       vim.schedule(function()
         self
           :addHints({
