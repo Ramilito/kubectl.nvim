@@ -124,6 +124,7 @@ local function set_keymaps(bufnr)
       pod_view.PodPF()
     end,
   })
+
   api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
     noremap = true,
     silent = true,
