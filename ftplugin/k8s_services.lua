@@ -43,6 +43,15 @@ local function set_keymap(bufnr)
     end,
   })
 
+  api.nvim_buf_set_keymap(bufnr, "n", "gP", "", {
+    noremap = true,
+    silent = true,
+    desc = "View Port Forwards",
+    callback = function()
+      service_view.ServicePF()
+    end,
+  })
+
   api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
     noremap = true,
     silent = true,
@@ -72,7 +81,10 @@ local function set_keymap(bufnr)
             self.prettyData, self.extmarks = tables.pretty_print(data, { "NAME", "PORT", "PROTOCOL" })
 
             table.insert(self.prettyData, "")
-            table.insert(self.prettyData, "Container port: " .. data[1].name.value .. "::" .. data[1].port.value)
+            table.insert(
+              self.prettyData,
+              "Container port: " .. (data[1].name.value or "<unset>") .. "::" .. data[1].port.value
+            )
             table.insert(self.prettyData, "Local port: " .. data[1].port.value)
             table.insert(self.prettyData, "")
 
