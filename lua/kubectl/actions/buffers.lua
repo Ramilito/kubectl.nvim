@@ -120,7 +120,7 @@ end
 --- @param prompt string: The prompt to display.
 --- @param filetype string: The filetype of the buffer.
 --- @param onConfirm function: The function to call on confirmation.
---- @param opts { syntax: string|nil }|nil: Options for the buffer.
+--- @param opts { syntax: string|nil, content: table|nil, marks: table|nil, width: number|nil }|nil: Options for the buffer.
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   opts = opts or {}
   local bufname = "kubectl_confirmation"
@@ -129,11 +129,11 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   if buf == -1 then
     buf = create_buffer(bufname)
   end
-  local content = { "[y]es [n]o" }
+  local content = opts.content or { "[y]es [n]o" }
 
   local layout_opts = {
     size = {
-      width = #prompt + #filetype + 4,
+      width = math.max(#prompt + #filetype + 4, opts.width or 0),
       height = #content + 1,
       col = (vim.api.nvim_win_get_width(0) - #prompt + 2) * 0.5,
       row = (vim.api.nvim_win_get_height(0) - #content + 1) * 0.5,
@@ -149,21 +149,22 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
     noremap = true,
     silent = true,
     callback = function()
-      vim.api.nvim_win_close(win, true)
       onConfirm(true)
+      vim.api.nvim_win_close(win, true)
     end,
   })
   vim.api.nvim_buf_set_keymap(buf, "n", "n", "", {
     noremap = true,
     silent = true,
     callback = function()
-      vim.api.nvim_win_close(win, true)
       onConfirm(false)
+      vim.api.nvim_win_close(win, true)
     end,
   })
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
+  apply_marks(buf, opts.marks, nil)
 end
 
 --- Creates a floating buffer.
