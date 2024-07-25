@@ -16,9 +16,15 @@ function M.getPortForwards(port_forwards, async)
     if not data then
       return
     end
+
     for _, line in ipairs(vim.split(data, "\n")) do
       local pid = string_utils.trim(line):match("^(%d+)")
-      local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)")
+
+      local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
+      if not resource then
+        resource, port = line:match("svc/([^%s]+)%s+(%d+:%d+)$")
+      end
+
       if resource and port then
         table.insert(port_forwards, { pid = pid, resource = resource, port = port })
       end

@@ -2,13 +2,14 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
+local root_definition = require("kubectl.views.definition")
 
 local M = {}
 M.selection = {}
 
 function M.View(cancellationToken)
   local pfs = {}
-  -- definition.getPortForwards(pfs, true)
+  root_definition.getPortForwards(pfs, true)
   ResourceBuilder:new("pods")
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
@@ -18,7 +19,7 @@ function M.View(cancellationToken)
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
-        -- definition.setPortForwards(self.extmarks, self.prettyData, pfs)
+        root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
         self
           :addHints({
             { key = "<gl>", desc = "logs" },

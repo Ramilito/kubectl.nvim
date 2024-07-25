@@ -2,18 +2,19 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
+local root_definition = require("kubectl.views.definition")
 
 local M = {}
 
 function M.View(cancellationToken)
   local pfs = {}
-  definition.getPortForwards(pfs, true)
+  root_definition.getPortForwards(pfs, true)
   ResourceBuilder:new("services")
     :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
-        definition.setPortForwards(self.extmarks, self.prettyData, pfs)
+        root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
         self
           :addHints({
             { key = "<gd>", desc = "describe" },

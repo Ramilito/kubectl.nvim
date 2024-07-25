@@ -43,15 +43,6 @@ local function set_keymap(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gP", "", {
-    noremap = true,
-    silent = true,
-    desc = "View Port Forwards",
-    callback = function()
-      service_view.ServicePF()
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
     noremap = true,
     silent = true,
