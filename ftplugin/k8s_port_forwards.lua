@@ -1,6 +1,6 @@
 local commands = require("kubectl.actions.commands")
-local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
+local views = require("kubectl.views")
 
 local function set_keymaps(bufnr)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "gk", "", {
@@ -10,8 +10,11 @@ local function set_keymaps(bufnr)
     callback = function()
       local pid, resource = tables.getCurrentSelection(1, 2)
       vim.notify("Killing port forward for resource " .. resource .. " with pid: " .. pid)
-      commands.shell_command("kill", { pid })
-      pod_view.PodPF()
+      commands.shell_command_async("sh", { "-c", "kill " .. pid }, function()
+        vim.schedule(function()
+          views.PortForwards()
+        end)
+      end)
     end,
   })
 end

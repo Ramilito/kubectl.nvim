@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local views = require("kubectl.views")
 local M = {}
 
 --- Register kubectl key mappings
@@ -13,6 +14,15 @@ function M.register()
     callback = function()
       kube.stop_kubectl_proxy()()
       vim.api.nvim_buf_delete(0, { force = true })
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "gP", "", {
+    noremap = true,
+    silent = true,
+    desc = "View Port Forwards",
+    callback = function()
+      views.PortForwards()
     end,
   })
 

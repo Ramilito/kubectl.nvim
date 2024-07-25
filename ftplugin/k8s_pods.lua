@@ -1,8 +1,10 @@
 local api = vim.api
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
+local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local pod_definition = require("kubectl.views.pods.definition")
 local pod_view = require("kubectl.views.pods")
@@ -116,77 +118,91 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gP", "", {
-    noremap = true,
-    silent = true,
-    desc = "View Port Forwards",
-    callback = function()
-      pod_view.PodPF()
-    end,
-  })
   api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
     noremap = true,
     silent = true,
     desc = "Port forward",
     callback = function()
-      local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
-      if pod_name and namespace then
-        local current_port_query =
-          { "get", "pod", pod_name, "-n", namespace, "-o", 'jsonpath="{.spec.containers[*].ports[*].containerPort}"' }
+      local namespace, name = tables.getCurrentSelection(unpack(col_indices))
 
-        local raw_output = commands.execute_shell_command("kubectl", current_port_query)
-        local current_ports_result = vim.split(raw_output, " ")
-        local current_port_result = current_ports_result[1]
+      if not namespace or not name then
+        api.nvim_err_writeln("Failed to select pod for port forward")
+        return
+      end
 
-        local confirmation_str = function(local_port, dest_port)
-          return "Are you sure that you want to port forward from "
-            .. dest_port
-            .. " on "
-            .. pod_name
-            .. " to "
-            .. local_port
-            .. " locally?"
-        end
-
-        vim.ui.input({ prompt = "Local port: " }, function(local_port)
-          if not local_port then
-            return
-          end
-          if #current_ports_result > 1 then
-            vim.ui.select(current_ports_result, { prompt = "Destination port: " }, function(dest_port)
-              if not dest_port then
-                return
+      ResourceBuilder:new("pods_pf")
+        :setCmd({
+          "{{BASE}}/api/v1/namespaces/" .. namespace .. "/pods/" .. name .. "?pretty=false",
+        }, "curl")
+        :fetchAsync(function(self)
+          self:decodeJson()
+          local data = {}
+          for _, container in ipairs(self.data.spec.containers) do
+            if container.ports then
+              for _, port in ipairs(container.ports) do
+                table.insert(data, {
+                  name = { value = port.name, symbol = hl.symbols.pending },
+                  port = { value = port.containerPort, symbol = hl.symbols.success },
+                  protocol = port.protocol,
+                })
               end
-              current_port_result = dest_port
-              buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), "prompt", function(confirm)
-                if confirm then
-                  local port_forward_query =
-                    { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. dest_port }
-                  commands.shell_command_async("kubectl", port_forward_query, function(response)
+            end
+          end
+
+          vim.schedule(function()
+            if next(data) == nil then
+              api.nvim_err_writeln("No container ports exposed in pod")
+              return
+            end
+            self.prettyData, self.extmarks = tables.pretty_print(data, { "NAME", "PORT", "PROTOCOL" })
+
+            table.insert(self.prettyData, "")
+            table.insert(
+              self.prettyData,
+              "Container port: " .. (data[1].name.value or "<unset>") .. "::" .. data[1].port.value
+            )
+            table.insert(self.prettyData, "Local port: " .. data[1].port.value)
+            table.insert(self.prettyData, "")
+
+            local max_width = 0
+            for _, value in ipairs(self.prettyData) do
+              if max_width < #value then
+                max_width = #value
+              end
+            end
+            local confirmation = "[y]es [n]o:"
+            local padding = string.rep(" ", (max_width - #confirmation) / 2)
+            table.insert(self.prettyData, padding .. confirmation)
+
+            buffers.confirmation_buffer("Confirm port forward", "PortForward", function(confirm)
+              if confirm then
+                local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+                local container_port, local_port
+
+                for _, line in ipairs(lines) do
+                  if line:match("Container port:") then
+                    container_port = line:match("::(%d+)$")
+                  elseif line:match("Local port:") then
+                    local_port = line:match("Local port: (.*)")
+                  end
+                end
+                commands.shell_command_async(
+                  "kubectl",
+                  { "port-forward", "-n", namespace, "pods/" .. name, local_port .. ":" .. container_port },
+                  function(response)
                     vim.schedule(function()
                       vim.notify(response)
                     end)
-                  end)
-                end
-              end)
-            end)
-          else
-            buffers.confirmation_buffer(confirmation_str(local_port, current_port_result), "prompt", function(confirm)
-              if confirm then
-                local port_forward_query =
-                  { "port-forward", "-n", namespace, "pods/" .. pod_name, local_port .. ":" .. current_port_result }
-                commands.shell_command_async("kubectl", port_forward_query, function(response)
-                  vim.schedule(function()
-                    vim.notify(response)
-                  end)
-                end)
+                  end
+                )
               end
-            end)
-          end
+            end, {
+              content = self.prettyData,
+              marks = self.extmarks,
+              width = max_width,
+            })
+          end)
         end)
-      else
-        api.nvim_err_writeln("Failed to select pod.")
-      end
     end,
   })
 end
