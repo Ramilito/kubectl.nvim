@@ -106,13 +106,12 @@ local function set_keymap(bufnr)
                 end
                 commands.shell_command_async(
                   "kubectl",
-                  { "port-forward", "-n", namespace, "svc/" .. name, local_port .. ":" .. container_port },
-                  function(response)
-                    vim.schedule(function()
-                      vim.notify(response)
-                    end)
-                  end
+                  { "port-forward", "-n", namespace, "svc/" .. name, local_port .. ":" .. container_port }
                 )
+
+                vim.schedule(function()
+                  service_view.View()
+                end)
               end
             end, {
               content = self.prettyData,
