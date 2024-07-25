@@ -66,13 +66,14 @@ function M.PortForwards()
   builder.extmarks = {}
   for _, value in ipairs(pfs) do
     table.insert(data, {
-      pid = { value = value.pid, symbol = hl.symbols.pending },
+      pid = { value = value.pid, symbol = hl.symbols.gray },
+      type = { value = value.type, symbol = hl.symbols.info },
       resource = { value = value.resource, symbol = hl.symbols.success },
       port = { value = value.port, symbol = hl.symbols.pending },
     })
   end
 
-  builder.prettyData, builder.extmarks = tables.pretty_print(data, { "PID", "RESOURCE", "PORT" })
+  builder.prettyData, builder.extmarks = tables.pretty_print(data, { "PID", "TYPE", "RESOURCE", "PORT" })
   builder
     :addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
     :displayFloat("k8s_port_forwards", "Port forwards", "", true)

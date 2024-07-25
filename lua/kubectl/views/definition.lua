@@ -20,6 +20,7 @@ function M.getPortForwards(port_forwards, async, kind)
 
     for _, line in ipairs(vim.split(data, "\n")) do
       local pid = string_utils.trim(line):match("^(%d+)")
+      local resource_type = line:match("%s(pods)/") or line:match("%s(svc)/")
 
       local resource, port
       if kind == "pods" then
@@ -31,7 +32,7 @@ function M.getPortForwards(port_forwards, async, kind)
       end
 
       if resource and port then
-        table.insert(port_forwards, { pid = pid, resource = resource, port = port })
+        table.insert(port_forwards, { pid = pid, type = resource_type, resource = resource, port = port })
       end
     end
   end
