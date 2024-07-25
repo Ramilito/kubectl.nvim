@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local definition = require("kubectl.views.definition")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 
@@ -16,6 +17,7 @@ function M.Hints(headers)
     { key = "<C-n>", desc = "Change namespace" },
     { key = "<bs> ", desc = "Go up a level" },
     { key = "<gD> ", desc = "Delete resource" },
+    { key = "<gP> ", desc = "Port forwards" },
     { key = "<gs> ", desc = "Sort column" },
     { key = "<ge> ", desc = "Edit resource" },
     { key = "<gr> ", desc = "Refresh view" },
@@ -52,6 +54,28 @@ function M.Hints(headers)
   end
 
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
+end
+
+function M.PortForwards()
+  local pfs = {}
+  pfs = definition.getPortForwards(pfs, false)
+
+  local builder = ResourceBuilder:new("Port forward")
+
+  local data = {}
+  builder.extmarks = {}
+  for _, value in ipairs(pfs) do
+    table.insert(data, {
+      pid = { value = value.pid, symbol = hl.symbols.pending },
+      resource = { value = value.resource, symbol = hl.symbols.success },
+      port = { value = value.port, symbol = hl.symbols.pending },
+    })
+  end
+
+  builder.prettyData, builder.extmarks = tables.pretty_print(data, { "PID", "RESOURCE", "PORT" })
+  builder
+    :addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
+    :displayFloat("k8s_port_forwards", "Port forwards", "", true)
 end
 
 --- Execute a user command and handle the response
