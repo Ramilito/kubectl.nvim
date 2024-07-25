@@ -56,9 +56,12 @@ function M.Hints(headers)
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
 end
 
+--- PortForwards function retrieves port forwards and displays them in a float window.
+-- @function PortForwards
+-- @return nil
 function M.PortForwards()
   local pfs = {}
-  pfs = definition.getPortForwards(pfs, false)
+  pfs = definition.getPortForwards(pfs, false, "all")
 
   local builder = ResourceBuilder:new("Port forward")
 

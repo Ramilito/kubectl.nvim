@@ -27,7 +27,6 @@ function M.View(cancellationToken)
             { key = "<gu>", desc = "usage" },
             { key = "<enter>", desc = "containers" },
             { key = "<gp>", desc = "PF" },
-            { key = "<gP>", desc = "view PF" },
             { key = "<gk>", desc = "kill pod" },
           }, true, true, true)
           :display("k8s_pods", "Pods", cancellationToken)

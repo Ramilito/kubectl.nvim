@@ -4,11 +4,11 @@ local string_utils = require("kubectl.utils.string")
 
 local M = {}
 
----@param port_forwards table[] @Array of port forwards where each item has `resource` and `port` keys
+---@param port_forwards {pid: string, type: string, resource: string, port: string} @Array of port forwards
 ---@param async boolean @Indicates whether the function should run asynchronously
+---@param kind "pods"|"svc"|"all" @What types we want to retrieve
 ---@return table[] @Returns the modified array of port forwards
 function M.getPortForwards(port_forwards, async, kind)
-  kind = kind or "all"
   if vim.fn.has("win32") == 1 then
     return port_forwards
   end
@@ -27,7 +27,7 @@ function M.getPortForwards(port_forwards, async, kind)
         resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
       elseif kind == "svc" then
         resource, port = line:match("svc/([^%s]+)%s+(%d+:%d+)$")
-      else
+      elseif kind == "all" then
         resource, port = line:match("/([^%s]+)%s+(%d+:%d+)$")
       end
 
