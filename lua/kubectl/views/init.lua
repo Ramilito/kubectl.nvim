@@ -78,6 +78,7 @@ function M.PortForwards()
 
   builder.prettyData, builder.extmarks = tables.pretty_print(data, { "PID", "TYPE", "RESOURCE", "PORT" })
   builder
+    :displayFloat("k8s_port_forwards", "Port forwards", "", true)
     :addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
     :displayFloat("k8s_port_forwards", "Port forwards", "", true)
 end
