@@ -188,13 +188,12 @@ local function set_keymaps(bufnr)
                 end
                 commands.shell_command_async(
                   "kubectl",
-                  { "port-forward", "-n", namespace, "pods/" .. name, local_port .. ":" .. container_port },
-                  function(response)
-                    vim.schedule(function()
-                      vim.notify(response)
-                    end)
-                  end
+                  { "port-forward", "-n", namespace, "pods/" .. name, local_port .. ":" .. container_port }
                 )
+
+                vim.schedule(function()
+                  pod_view.View()
+                end)
               end
             end, {
               content = self.prettyData,
