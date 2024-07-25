@@ -14,6 +14,7 @@ function M.set_buf_options(buf, win, filetype, syntax, bufname)
   api.nvim_set_option_value("bufhidden", "hide", { scope = "local" })
   api.nvim_set_option_value("cursorline", true, { win = win })
   api.nvim_set_option_value("modified", false, { buf = buf })
+  api.nvim_set_option_value("wrap", false, { win = win })
   api.nvim_buf_set_var(buf, "buf_name", bufname)
 
   -- TODO: How do we handle long text?
