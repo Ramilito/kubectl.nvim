@@ -150,6 +150,10 @@ local function set_keymaps(bufnr)
           end
 
           vim.schedule(function()
+            if next(data) == nil then
+              api.nvim_err_writeln("No container ports exposed in pod")
+              return
+            end
             self.prettyData, self.extmarks = tables.pretty_print(data, { "NAME", "PORT", "PROTOCOL" })
 
             table.insert(self.prettyData, "")
@@ -184,7 +188,7 @@ local function set_keymaps(bufnr)
                 end
                 commands.shell_command_async(
                   "kubectl",
-                  { "port-forward", "-n", namespace, "svc/" .. name, local_port .. ":" .. container_port },
+                  { "port-forward", "-n", namespace, "pods/" .. name, local_port .. ":" .. container_port },
                   function(response)
                     vim.schedule(function()
                       vim.notify(response)
