@@ -11,7 +11,7 @@ local M = {}
 ---@field mappings { exit: string }
 local defaults = {
   auto_refresh = {
-    enabled = false,
+    enabled = true,
     interval = 3000, -- milliseconds
   },
   diff = {
