@@ -6,7 +6,7 @@ local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
-local pod_definition = require("kubectl.views.pods.definition")
+local root_definition = require("kubectl.views.definition")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
@@ -102,7 +102,7 @@ local function set_keymaps(bufnr)
 
       if pod_name and namespace then
         local port_forwards = {}
-        pod_definition.getPortForwards(port_forwards, false)
+        root_definition.getPortForwards(port_forwards, false, "pods")
         for _, pf in ipairs(port_forwards) do
           if pf.resource == pod_name then
             vim.notify("Killing port forward for " .. pf.resource)
