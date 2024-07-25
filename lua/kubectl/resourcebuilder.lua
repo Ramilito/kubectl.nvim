@@ -236,7 +236,8 @@ end
 ---@param syntax string The syntax to use for the floating window
 ---@param usePrettyData? boolean Whether to use pretty data or raw data
 ---@return ResourceBuilder
-function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
+function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData, opts)
+  opts = opts or {}
   local displayData = usePrettyData and self.prettyData or self.data or {}
 
   notifications.Add({
@@ -247,7 +248,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
     displayData,
     self.extmarks,
     filetype,
-    { title = title, syntax = syntax, header = self.header }
+    { title = title, syntax = syntax, header = self.header, width = opts.width, size = opts.size }
   )
 
   return self

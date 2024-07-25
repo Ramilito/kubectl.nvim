@@ -171,7 +171,7 @@ end
 --- @param content table: The content lines.
 --- @param marks table: The marks to apply.
 --- @param filetype string: The filetype of the buffer.
---- @param opts { title: string|nil, syntax: string|nil, header: { data: table }}: Options for the buffer.
+--- @param opts { title: string|nil, syntax: string|nil, header: { data: table }, size: { width: number|nil, height: number|nil, row: number|nil,col: number|nil }}: Options for the buffer.
 --- @return integer: The buffer number.
 function M.floating_buffer(content, marks, filetype, opts)
   local bufname = opts.title or "kubectl_float"
@@ -184,7 +184,7 @@ function M.floating_buffer(content, marks, filetype, opts)
 
   set_buffer_lines(buf, opts.header.data, content)
 
-  local win = layout.float_layout(buf, filetype, opts.title or "")
+  local win = layout.float_layout(buf, filetype, opts.title or "", { size = opts.size })
   vim.keymap.set("n", "q", function()
     vim.cmd("bdelete")
   end, { buffer = buf, silent = true })

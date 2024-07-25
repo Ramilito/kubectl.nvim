@@ -77,10 +77,30 @@ function M.PortForwards()
   end
 
   builder.prettyData, builder.extmarks = tables.pretty_print(data, { "PID", "TYPE", "RESOURCE", "PORT" })
+
+  local max_width = 0
+  local height = 0
+  for _, value in ipairs(builder.prettyData) do
+    height = height + 1
+    if max_width < #value then
+      max_width = #value
+    end
+  end
+  local layout_opts = {
+    size = {
+      width = max_width,
+      height = height + 10,
+      col = (vim.api.nvim_win_get_width(0) - max_width + 2) * 0.5,
+      row = (vim.api.nvim_win_get_height(0) - height + 1) * 0.5,
+    },
+    relative = "win",
+    header = {},
+  }
+
   builder
-    :displayFloat("k8s_port_forwards", "Port forwards", "", true)
+    :displayFloat("k8s_port_forwards", "Port forwards", "", true, layout_opts)
     :addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
-    :displayFloat("k8s_port_forwards", "Port forwards", "", true)
+    :displayFloat("k8s_port_forwards", "Port forwards", "", true, layout_opts)
 
   local group = "k8s_port_forwards"
   vim.api.nvim_create_augroup(group, { clear = true })
