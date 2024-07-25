@@ -81,6 +81,16 @@ function M.PortForwards()
     :displayFloat("k8s_port_forwards", "Port forwards", "", true)
     :addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
     :displayFloat("k8s_port_forwards", "Port forwards", "", true)
+
+  local group = "k8s_port_forwards"
+  vim.api.nvim_create_augroup(group, { clear = true })
+  vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
+    group = group,
+    buffer = builder.buf_nr,
+    callback = function()
+      vim.api.nvim_input("gr")
+    end,
+  })
 end
 
 --- Execute a user command and handle the response
