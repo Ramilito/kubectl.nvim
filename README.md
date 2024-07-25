@@ -44,7 +44,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Port forward</summary>
-  <img src="https://github.com/user-attachments/assets/d3957b71-584e-45f2-9256-4fb5d16d6b5f" width="700px">
+  <img src="https://github.com/user-attachments/assets/ff52acdb-6341-456a-a6df-1bb88bec4ef8" width="700px">
 </details>
 
 ## ⚡️ Required Dependencies
