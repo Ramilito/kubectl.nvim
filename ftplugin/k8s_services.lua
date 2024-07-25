@@ -50,11 +50,14 @@ local function set_keymap(bufnr)
     callback = function()
       local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
 
+      if not namespace or not name then
+        api.nvim_err_writeln("Failed to select service for port forward")
+        return
+      end
+
       ResourceBuilder:new("services_pf")
         :setCmd({
           "{{BASE}}/api/v1/namespaces/" .. namespace .. "/services/" .. name .. "?pretty=false",
-          "-w",
-          "\n",
         }, "curl")
         :fetchAsync(function(self)
           self:decodeJson()
