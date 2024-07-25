@@ -10,8 +10,11 @@ local function set_keymaps(bufnr)
     callback = function()
       local pid, resource = tables.getCurrentSelection(1, 2)
       vim.notify("Killing port forward for resource " .. resource .. " with pid: " .. pid)
-      commands.shell_command("kill", { pid })
-      views.PortForwards()
+      commands.shell_command_async("sh", { "-c", "kill " .. pid }, function()
+        vim.schedule(function()
+          views.PortForwards()
+        end)
+      end)
     end,
   })
 end
