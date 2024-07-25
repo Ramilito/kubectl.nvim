@@ -7,7 +7,8 @@ local M = {}
 ---@param port_forwards table[] @Array of port forwards where each item has `resource` and `port` keys
 ---@param async boolean @Indicates whether the function should run asynchronously
 ---@return table[] @Returns the modified array of port forwards
-function M.getPortForwards(port_forwards, async)
+function M.getPortForwards(port_forwards, async, kind)
+  kind = kind or "all"
   if vim.fn.has("win32") == 1 then
     return port_forwards
   end
@@ -20,9 +21,13 @@ function M.getPortForwards(port_forwards, async)
     for _, line in ipairs(vim.split(data, "\n")) do
       local pid = string_utils.trim(line):match("^(%d+)")
 
-      local resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
-      if not resource then
+      local resource, port
+      if kind == "pods" then
+        resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
+      elseif kind == "svc" then
         resource, port = line:match("svc/([^%s]+)%s+(%d+:%d+)$")
+      else
+        resource, port = line:match("/([^%s]+)%s+(%d+:%d+)$")
       end
 
       if resource and port then

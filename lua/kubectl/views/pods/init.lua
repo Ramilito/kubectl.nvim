@@ -9,7 +9,7 @@ M.selection = {}
 
 function M.View(cancellationToken)
   local pfs = {}
-  root_definition.getPortForwards(pfs, true)
+  root_definition.getPortForwards(pfs, true, "pods")
   ResourceBuilder:new("pods")
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
