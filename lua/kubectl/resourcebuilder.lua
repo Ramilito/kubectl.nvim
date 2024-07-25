@@ -243,7 +243,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
     "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  buffers.floating_buffer(
+  self.buf_nr = buffers.floating_buffer(
     displayData,
     self.extmarks,
     filetype,
