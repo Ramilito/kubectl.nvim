@@ -2,8 +2,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
-local hl = require("kubectl.actions.highlight")
-local tables = require("kubectl.utils.tables")
 
 local M = {}
 
