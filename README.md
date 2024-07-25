@@ -85,7 +85,7 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { nor
 ```lua
 {
   auto_refresh = {
-    enabled = false,
+    enabled = true,
     interval = 3000, -- milliseconds
   },
   diff = {
