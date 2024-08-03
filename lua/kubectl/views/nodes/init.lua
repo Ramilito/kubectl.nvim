@@ -19,8 +19,16 @@ function M.View(cancellationToken)
   end)
 end
 
-function M.Cordone(node)
-  commands.shell_command_async("kubectl", { "cordone", "nodes/" .. node })
+function M.Drain(node)
+  commands.shell_command_async("kubectl", { "drain", "nodes/" .. node })
+end
+
+function M.UnCordon(node)
+  commands.shell_command_async("kubectl", { "uncordon", "nodes/" .. node })
+end
+
+function M.Cordon(node)
+  commands.shell_command_async("kubectl", { "cordon", "nodes/" .. node })
 end
 
 function M.Desc(node)

@@ -31,11 +31,11 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "gC", "", {
     noremap = true,
     silent = true,
-    desc = "Cordone node",
+    desc = "Cordon node",
     callback = function()
       local node = tables.getCurrentSelection(unpack({ 1 }))
       if node then
-        node_view.Cordone(node)
+        node_view.Cordon(node)
       else
         api.nvim_err_writeln("Failed to cordone node.")
       end
