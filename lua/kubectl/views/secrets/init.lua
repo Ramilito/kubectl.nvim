@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.secrets.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -33,6 +34,12 @@ function M.SecretDesc(namespace, name)
     :fetch()
     :splitData()
     :displayFloat("k8s_secret_desc", name, "yaml")
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(2, 1)
 end
 
 return M

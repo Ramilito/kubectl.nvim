@@ -1,6 +1,5 @@
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
-local tables = require("kubectl.utils.tables")
 local api = vim.api
 local configmaps_view = require("kubectl.views.configmaps")
 local view = require("kubectl.views")
@@ -30,11 +29,11 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Describe resource",
     callback = function()
-      local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
-      if namespace and name then
-        configmaps_view.ConfigmapsDesc(namespace, name)
+      local name, ns = configmaps_view.getCurrentSelection()
+      if ns and name then
+        configmaps_view.ConfigmapsDesc(ns, name)
       else
-        api.nvim_err_writeln("Failed to describe pod name or namespace.")
+        api.nvim_err_writeln("Failed to describe configmap.")
       end
     end,
   })

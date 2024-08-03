@@ -3,6 +3,7 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
 local root_definition = require("kubectl.views.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -18,6 +19,7 @@ function M.View(cancellationToken)
         self
           :addHints({
             { key = "<gd>", desc = "describe" },
+            { key = "<gp>", desc = "Port forward" },
           }, true, true, true)
           :display("k8s_services", "Services", cancellationToken)
       end)
@@ -39,6 +41,12 @@ function M.ServiceDesc(namespace, name)
         self:displayFloat("k8s_svc_desc", name, "yaml")
       end)
     end)
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(2, 1)
 end
 
 return M

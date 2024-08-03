@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.deployments.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -22,11 +23,6 @@ function M.View(cancellationToken)
     end)
 end
 
-function M.Edit(name, namespace)
-  buffers.floating_buffer({}, {}, "k8s_deployment_edit", { title = name, syntax = "yaml" })
-  commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", namespace })
-end
-
 function M.DeploymentDesc(deployment_desc, namespace)
   ResourceBuilder:new("desc")
     :setCmd({ "describe", "deployment", deployment_desc, "-n", namespace })
@@ -36,6 +32,17 @@ function M.DeploymentDesc(deployment_desc, namespace)
         self:displayFloat("k8s_deployment_desc", deployment_desc, "yaml")
       end)
     end)
+end
+
+function M.Edit(name, namespace)
+  buffers.floating_buffer({}, {}, "k8s_deployment_edit", { title = name, syntax = "yaml" })
+  commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", namespace })
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(2, 1)
 end
 
 return M

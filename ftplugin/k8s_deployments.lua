@@ -5,7 +5,6 @@ local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root")
-local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
@@ -28,9 +27,9 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Describe resource",
     callback = function()
-      local namespace, deployment_name = tables.getCurrentSelection(unpack({ 1, 2 }))
-      if deployment_name and namespace then
-        deployment_view.DeploymentDesc(deployment_name, namespace)
+      local name, ns = deployment_view.getCurrentSelection()
+      if name and ns then
+        deployment_view.DeploymentDesc(name, ns)
       else
         vim.api.nvim_err_writeln("Failed to describe pod name or namespace.")
       end
@@ -61,7 +60,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Set image",
     callback = function()
-      local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
+      local name, ns = deployment_view.getCurrentSelection()
 
       local get_images = "get deploy "
         .. name
@@ -101,7 +100,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Rollout restart",
     callback = function()
-      local ns, name = tables.getCurrentSelection(unpack({ 1, 2 }))
+      local name, ns = deployment_view.getCurrentSelection()
       buffers.confirmation_buffer(
         "Are you sure that you want to restart the deployment: " .. name,
         "prompt",

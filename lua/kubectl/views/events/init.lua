@@ -1,6 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.events.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -22,6 +23,12 @@ end
 
 function M.ShowMessage(event)
   buffers.floating_buffer(vim.split(event, "\n"), {}, "event_msg", { title = "Message", syntax = "less" })
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(4, 1)
 end
 
 return M
