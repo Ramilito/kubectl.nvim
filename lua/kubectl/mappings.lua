@@ -32,21 +32,23 @@ function M.register()
     desc = "Delete",
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
-      if win_config.relative == "" then
-        local tables = require("kubectl.utils.tables")
-        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local ns, name = tables.getCurrentSelection(1, 2)
-        if name and ns then
-          buffers.confirmation_buffer(
-            "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name .. " -ns " .. ns,
-            "",
-            function(confirm)
-              if confirm then
-                commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
-              end
+      if win_config.relative ~= "" then
+        return
+      end
+
+      local tables = require("kubectl.utils.tables")
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local ns, name = tables.getCurrentSelection(1, 2)
+      if name and ns then
+        buffers.confirmation_buffer(
+          "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name .. " -ns " .. ns,
+          "",
+          function(confirm)
+            if confirm then
+              commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
             end
-          )
-        end
+          end
+        )
       end
     end,
   })
