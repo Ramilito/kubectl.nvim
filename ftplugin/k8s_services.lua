@@ -16,7 +16,10 @@ local function set_keymap(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<gd>", desc = "Describe selected service" } })
+      view.Hints({
+        { key = "<gd>", desc = "Describe selected service" },
+        { key = "<gp>", desc = "Port forward" },
+      })
     end,
   })
 
@@ -34,9 +37,9 @@ local function set_keymap(bufnr)
     silent = true,
     desc = "Describe resource",
     callback = function()
-      local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
-      if namespace and name then
-        service_view.ServiceDesc(namespace, name)
+      local name, ns = service_view.getCurrentSelection()
+      if ns and name then
+        service_view.ServiceDesc(ns, name)
       else
         api.nvim_err_writeln("Failed to describe pod name or namespace.")
       end
@@ -48,16 +51,16 @@ local function set_keymap(bufnr)
     silent = true,
     desc = "Port forward",
     callback = function()
-      local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
+      local name, ns = service_view.getCurrentSelection()
 
-      if not namespace or not name then
+      if not ns or not name then
         api.nvim_err_writeln("Failed to select service for port forward")
         return
       end
 
       ResourceBuilder:new("services_pf")
         :setCmd({
-          "{{BASE}}/api/v1/namespaces/" .. namespace .. "/services/" .. name .. "?pretty=false",
+          "{{BASE}}/api/v1/namespaces/" .. ns .. "/services/" .. name .. "?pretty=false",
         }, "curl")
         :fetchAsync(function(self)
           self:decodeJson()

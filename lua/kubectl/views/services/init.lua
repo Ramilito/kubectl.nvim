@@ -19,6 +19,7 @@ function M.View(cancellationToken)
         self
           :addHints({
             { key = "<gd>", desc = "describe" },
+            { key = "<gp>", desc = "Port forward" },
           }, true, true, true)
           :display("k8s_services", "Services", cancellationToken)
       end)
