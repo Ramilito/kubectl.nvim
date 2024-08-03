@@ -172,8 +172,8 @@ function M.register()
     silent = true,
     desc = "Pods",
     callback = function()
-      local pods_view = require("kubectl.views.pods")
-      pods_view.View()
+      local view = require("kubectl.views.pods")
+      view.View()
     end,
   })
 
@@ -182,8 +182,8 @@ function M.register()
     silent = true,
     desc = "Configmaps",
     callback = function()
-      local configmaps_view = require("kubectl.views.configmaps")
-      configmaps_view.View()
+      local view = require("kubectl.views.configmaps")
+      view.View()
     end,
   })
 
@@ -192,8 +192,8 @@ function M.register()
     silent = true,
     desc = "Secrets",
     callback = function()
-      local secrets_view = require("kubectl.views.secrets")
-      secrets_view.View()
+      local view = require("kubectl.views.secrets")
+      view.View()
     end,
   })
 
@@ -202,8 +202,8 @@ function M.register()
     silent = true,
     desc = "Services",
     callback = function()
-      local services_view = require("kubectl.views.services")
-      services_view.View()
+      local view = require("kubectl.views.services")
+      view.View()
     end,
   })
 end
