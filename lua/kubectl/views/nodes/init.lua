@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.nodes.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -48,6 +49,12 @@ end
 function M.Edit(_, name)
   buffers.floating_buffer({}, {}, "k8s_node_edit", { title = name, syntax = "yaml" })
   commands.execute_terminal("kubectl", { "edit", "nodes/" .. name })
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(1)
 end
 
 return M

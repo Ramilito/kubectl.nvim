@@ -3,6 +3,7 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 local root_definition = require("kubectl.views.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 M.selection = {}
@@ -111,6 +112,12 @@ function M.PodDesc(pod_name, namespace)
         self:displayFloat("k8s_pod_desc", pod_name, "yaml")
       end)
     end)
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(2, 1)
 end
 
 return M

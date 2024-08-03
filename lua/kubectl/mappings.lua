@@ -35,20 +35,21 @@ function M.register()
       if win_config.relative ~= "" then
         return
       end
-
-      local tables = require("kubectl.utils.tables")
+      local string_utils = require("kubectl.utils.string")
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local ns, name = tables.getCurrentSelection(1, 2)
-      if name and ns then
-        buffers.confirmation_buffer(
-          "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name .. " -ns " .. ns,
-          "",
-          function(confirm)
-            if confirm then
-              commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
-            end
+      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+
+      local name, ns = view.getCurrentSelection()
+      if name then
+        local cmd = "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name
+        if ns then
+          cmd = cmd .. " -ns " .. ns
+        end
+        buffers.confirmation_buffer(cmd, "", function(confirm)
+          if confirm then
+            commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
           end
-        )
+        end)
       end
     end,
   })
