@@ -1,6 +1,5 @@
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
-local tables = require("kubectl.utils.tables")
 local api = vim.api
 local secrets_view = require("kubectl.views.secrets")
 local view = require("kubectl.views")
@@ -30,9 +29,9 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Describe resource",
     callback = function()
-      local namespace, name = tables.getCurrentSelection(unpack({ 1, 2 }))
-      if namespace and name then
-        secrets_view.SecretDesc(namespace, name)
+      local name, ns = secrets_view.getCurrentSelection()
+      if ns and name then
+        secrets_view.SecretDesc(ns, name)
       else
         api.nvim_err_writeln("Failed to describe pod name or namespace.")
       end
