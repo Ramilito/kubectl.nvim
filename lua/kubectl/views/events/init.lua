@@ -14,6 +14,7 @@ function M.View(cancellationToken)
       vim.schedule(function()
         self
           :addHints({
+            { key = "<gd>", desc = "describe" },
             { key = "<enter>", desc = "message" },
           }, true, true, true)
           :display("k8s_events", "Events", cancellationToken)
