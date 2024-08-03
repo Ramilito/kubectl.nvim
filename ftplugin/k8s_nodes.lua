@@ -2,7 +2,6 @@ local api = vim.api
 local loop = require("kubectl.utils.loop")
 local node_view = require("kubectl.views.nodes")
 local root_view = require("kubectl.views.root")
-local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
@@ -35,7 +34,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Drain node",
     callback = function()
-      local node = tables.getCurrentSelection(unpack({ 1 }))
+      local node = node_view.getCurrentSelection()
       if node then
         node_view.Drain(node)
       else
@@ -49,7 +48,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "UnCordon node",
     callback = function()
-      local node = tables.getCurrentSelection(unpack({ 1 }))
+      local node = node_view.getCurrentSelection()
       if node then
         node_view.UnCordon(node)
       else
@@ -63,7 +62,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Cordon node",
     callback = function()
-      local node = tables.getCurrentSelection(unpack({ 1 }))
+      local node = node_view.getCurrentSelection()
       if node then
         node_view.Cordon(node)
       else
@@ -77,7 +76,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Describe resource",
     callback = function()
-      local node = tables.getCurrentSelection(unpack({ 1 }))
+      local node = node_view.getCurrentSelection()
       if node then
         node_view.Desc(node)
       else
