@@ -12,13 +12,18 @@ function M.View(cancellationToken)
       self
         :addHints({
           { key = "<gd>", desc = "describe" },
+          { key = "<gC>", desc = "cordone" },
         }, true, true, true)
         :display("k8s_nodes", "Nodes", cancellationToken)
     end)
   end)
 end
 
-function M.NodeDesc(node)
+function M.Cordone(node)
+  commands.shell_command_async("kubectl", { "cordone", "nodes/" .. node })
+end
+
+function M.Desc(node)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_node_desc", "node_desc", "yaml")
     :setCmd({ "describe", "node", node })

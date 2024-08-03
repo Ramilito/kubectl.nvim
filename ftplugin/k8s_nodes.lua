@@ -12,7 +12,10 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<gd>", desc = "Describe selected node" } })
+      view.Hints({
+        { key = "<gd>", desc = "Describe selected node" },
+        { key = "<gC>", desc = "Cordone selected node" },
+      })
     end,
   })
 
@@ -25,6 +28,20 @@ local function set_keymaps(bufnr)
     end,
   })
 
+  api.nvim_buf_set_keymap(bufnr, "n", "gC", "", {
+    noremap = true,
+    silent = true,
+    desc = "Cordone node",
+    callback = function()
+      local node = tables.getCurrentSelection(unpack({ 1 }))
+      if node then
+        node_view.Cordone(node)
+      else
+        api.nvim_err_writeln("Failed to cordone node.")
+      end
+    end,
+  })
+
   api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
     noremap = true,
     silent = true,
@@ -32,9 +49,9 @@ local function set_keymaps(bufnr)
     callback = function()
       local node = tables.getCurrentSelection(unpack({ 1 }))
       if node then
-        node_view.NodeDesc(node)
+        node_view.Desc(node)
       else
-        api.nvim_err_writeln("Failed to describe pod name or namespace.")
+        api.nvim_err_writeln("Failed to describe node.")
       end
     end,
   })
