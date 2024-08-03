@@ -157,13 +157,23 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "0", "", {
+    noremap = true,
+    silent = true,
+    desc = "Root",
+    callback = function()
+      local view = require("kubectl.views.root")
+      view.View()
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "1", "", {
     noremap = true,
     silent = true,
     desc = "Deployments",
     callback = function()
-      local deployments_view = require("kubectl.views.deployments")
-      deployments_view.View()
+      local view = require("kubectl.views.deployments")
+      view.View()
     end,
   })
 
