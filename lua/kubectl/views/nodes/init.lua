@@ -36,12 +36,12 @@ end
 
 function M.Desc(node)
   ResourceBuilder:new("desc")
-    :displayFloat("k8s_node_desc", "node_desc", "yaml")
+    :displayFloat("k8s_node_desc", node, "yaml")
     :setCmd({ "describe", "node", node })
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_node_desc", "node_desc", "yaml")
+        self:displayFloat("k8s_node_desc", node, "yaml")
       end)
     end)
 end
