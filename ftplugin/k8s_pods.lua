@@ -39,20 +39,6 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
-    noremap = true,
-    silent = true,
-    desc = "Describe resource",
-    callback = function()
-      local name, ns = pod_view.getCurrentSelection()
-      if name and ns then
-        pod_view.PodDesc(name, ns)
-      else
-        api.nvim_err_writeln("Failed to describe pod name or namespace.")
-      end
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
     noremap = true,
     silent = true,

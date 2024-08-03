@@ -70,20 +70,6 @@ local function set_keymaps(bufnr)
       end
     end,
   })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
-    noremap = true,
-    silent = true,
-    desc = "Describe resource",
-    callback = function()
-      local node = node_view.getCurrentSelection()
-      if node then
-        node_view.Desc(node)
-      else
-        api.nvim_err_writeln("Failed to describe node.")
-      end
-    end,
-  })
 end
 
 --- Initialize the module

@@ -53,6 +53,27 @@ function M.register()
       end
     end,
   })
+  vim.api.nvim_buf_set_keymap(0, "n", "gd", "", {
+    noremap = true,
+    silent = true,
+    desc = "Describe resource",
+    callback = function()
+      local win_config = vim.api.nvim_win_get_config(0)
+      if win_config.relative == "" then
+        local string_utils = require("kubectl.utils.string")
+
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        local name, ns = view.getCurrentSelection()
+        if name then
+          local ok = pcall(view.Desc, name, ns)
+          if not ok then
+            vim.api.nvim_err_writeln("Failed to describe " .. buf_name .. ".")
+          end
+        end
+      end
+    end,
+  })
 
   vim.api.nvim_buf_set_keymap(0, "n", "gr", "", {
     noremap = true,

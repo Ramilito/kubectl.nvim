@@ -12,7 +12,10 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<enter>", desc = "Read message" } })
+      view.Hints({
+        { key = "<enter>", desc = "Read message" },
+        { key = "<gd>", desc = "Describe selected event" },
+      })
     end,
   })
 
