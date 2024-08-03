@@ -22,20 +22,6 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
-    noremap = true,
-    silent = true,
-    desc = "Describe resource",
-    callback = function()
-      local name, ns = deployment_view.getCurrentSelection()
-      if name and ns then
-        deployment_view.DeploymentDesc(name, ns)
-      else
-        vim.api.nvim_err_writeln("Failed to describe pod name or namespace.")
-      end
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,

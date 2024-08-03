@@ -23,20 +23,6 @@ local function set_keymaps(bufnr)
       root_view.View()
     end,
   })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
-    noremap = true,
-    silent = true,
-    desc = "Describe resource",
-    callback = function()
-      local name, ns = configmaps_view.getCurrentSelection()
-      if ns and name then
-        configmaps_view.ConfigmapsDesc(ns, name)
-      else
-        api.nvim_err_writeln("Failed to describe configmap.")
-      end
-    end,
-  })
 end
 
 --- Initialize the module
