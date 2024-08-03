@@ -26,15 +26,15 @@ function M.View(cancellationToken)
     end)
 end
 
-function M.Edit(name, namespace)
+function M.Edit(name, ns)
   buffers.floating_buffer({}, {}, "k8s_service_edit", { title = name, syntax = "yaml" })
-  commands.execute_terminal("kubectl", { "edit", "services/" .. name, "-n", namespace })
+  commands.execute_terminal("kubectl", { "edit", "services/" .. name, "-n", ns })
 end
 
-function M.ServiceDesc(namespace, name)
+function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_svc_desc", name, "yaml")
-    :setCmd({ "describe", "svc", name, "-n", namespace })
+    :setCmd({ "describe", "svc", name, "-n", ns })
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()

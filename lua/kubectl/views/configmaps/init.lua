@@ -33,12 +33,12 @@ function M.Edit(name, namespace)
 end
 
 --- Describe a configmap
----@param namespace string
 ---@param name string
-function M.ConfigmapsDesc(namespace, name)
+---@param ns string
+function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_configmaps_desc", name, "yaml")
-    :setCmd({ "describe", "configmaps", name, "-n", namespace })
+    :setCmd({ "describe", "configmaps", name, "-n", ns })
     :fetch()
     :splitData()
     :displayFloat("k8s_configmaps_desc", name, "yaml")

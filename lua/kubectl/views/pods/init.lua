@@ -97,19 +97,19 @@ function M.PodLogs()
     end)
 end
 
-function M.Edit(name, namespace)
+function M.Edit(name, ns)
   buffers.floating_buffer({}, {}, "k8s_pod_edit", { title = name, syntax = "yaml" })
-  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", namespace })
+  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", ns })
 end
 
-function M.PodDesc(pod_name, namespace)
+function M.Desc(name, ns)
   ResourceBuilder:new("desc")
-    :displayFloat("k8s_pod_desc", pod_name, "yaml")
-    :setCmd({ "describe", "pod", pod_name, "-n", namespace })
+    :displayFloat("k8s_pod_desc", name, "yaml")
+    :setCmd({ "describe", "pod", name, "-n", ns })
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_pod_desc", pod_name, "yaml")
+        self:displayFloat("k8s_pod_desc", name, "yaml")
       end)
     end)
 end
