@@ -35,7 +35,7 @@ function M.View(cancellationToken)
     end)
 end
 
-function M.PodTop()
+function M.Top()
   ResourceBuilder:new("top")
     :displayFloat("k8s_top", "Top", "")
     :setCmd({ "top", "pods", "-A" })
@@ -79,7 +79,7 @@ function M.selectPod(pod_name, namespace)
   M.selection = { pod = pod_name, ns = namespace }
 end
 
-function M.PodLogs()
+function M.Logs()
   ResourceBuilder:new("logs")
     :displayFloat("k8s_pod_logs", M.selection.pod, "less")
     :setCmd({
