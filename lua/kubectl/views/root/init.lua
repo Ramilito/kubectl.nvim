@@ -6,6 +6,7 @@ local M = {}
 function M.View()
   local results = {
     "Deployments",
+    "└── Pods",
     "Events",
     "Nodes",
     "Secrets",
