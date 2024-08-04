@@ -45,14 +45,16 @@ function M.since(timestamp, fresh, currentTime)
 
   local parsedTime = M.parse(timestamp)
   local diff = currentTime - parsedTime
-
   local days = math.floor(diff / 86400)
+  local years = math.floor(days / 365)
   local hours = math.floor((diff % 86400) / 3600)
   local minutes = math.floor((diff % 3600) / 60)
   local seconds = diff % 60
 
   local status = { symbol = "", value = "", timestamp = timestamp }
-  if days > 7 then
+  if days > 365 then
+    status.value = string.format("%dy", years)
+  elseif days > 7 then
     status.value = string.format("%dd", days)
   elseif days > 0 or hours > 23 then
     status.value = string.format("%dd%dh", days, hours)
