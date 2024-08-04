@@ -35,7 +35,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Resources used",
     callback = function()
-      pod_view.PodTop()
+      pod_view.Top()
     end,
   })
 
@@ -56,7 +56,7 @@ local function set_keymaps(bufnr)
       local name, ns = pod_view.getCurrentSelection()
       if name and ns then
         pod_view.selectPod(name, ns)
-        pod_view.PodLogs()
+        pod_view.Logs()
       else
         api.nvim_err_writeln("Failed to extract pod name or namespace.")
       end
