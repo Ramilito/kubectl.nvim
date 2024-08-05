@@ -3,7 +3,8 @@ local api = vim.api
 
 local function getCurrentSelection()
   local line = api.nvim_get_current_line()
-  local selection = line:match("([a-zA-z]+)")
+  local selection = line:match("^(%S+)")
+
   return selection
 end
 
@@ -24,8 +25,7 @@ local function set_keymaps(bufnr)
           pcall(view.View)
         else
           local fallback_view = require("kubectl.views.fallback")
-          fallback_view.View()
-          print("fallback view")
+          fallback_view.View(nil, selection)
         end
       end
     end,
