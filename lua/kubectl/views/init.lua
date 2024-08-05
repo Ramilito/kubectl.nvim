@@ -78,6 +78,7 @@ function M.Aliases()
 
     vim.schedule(function()
       local current_suggestion_index = 0
+      local original_input = ""
       local header, marks = tables.generateHeader({
         { key = "<enter>", desc = "apply" },
         { key = "<q>", desc = "close" },
@@ -85,7 +86,13 @@ function M.Aliases()
 
       local function update_prompt_with_suggestion(bufnr, suggestion)
         local prompt = "% "
-        vim.api.nvim_buf_set_lines(bufnr, #header + 1, -1, false, { prompt .. suggestion })
+        vim.api.nvim_buf_set_lines(
+          bufnr,
+          #header + 1,
+          -1,
+          false,
+          { prompt .. original_input .. suggestion:sub(#original_input + 1) }
+        )
         vim.api.nvim_win_set_cursor(0, { #header, #prompt + #suggestion })
       end
 
@@ -98,23 +105,29 @@ function M.Aliases()
       vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
         noremap = true,
         callback = function()
-          local input = vim.api.nvim_get_current_line():sub(3)
-          -- Filter suggestions based on inpu
+          local line = vim.api.nvim_get_current_line()
+          local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+
+          if current_suggestion_index == 0 then
+            original_input = input
+          end
+
+          -- Filter suggestions based on input
           local filtered_suggestions = {}
           for _, suggestion in ipairs(self.data) do
-            if suggestion:sub(1, #input) == input then
+            if suggestion:sub(1, #original_input) == original_input then
               table.insert(filtered_suggestions, suggestion)
             end
           end
 
-          -- Display filtered suggestions
+          -- Cycle through the suggestions
           if #filtered_suggestions > 0 then
             current_suggestion_index = (current_suggestion_index % #filtered_suggestions) + 1
             update_prompt_with_suggestion(buf, filtered_suggestions[current_suggestion_index])
           else
             current_suggestion_index = 0 -- Reset the index if no suggestions are available
           end
-          return "" -- Necessary for <Tab> to not insert a tab character
+          return ""
         end,
       })
 
