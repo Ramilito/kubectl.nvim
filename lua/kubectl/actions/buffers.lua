@@ -76,11 +76,11 @@ function M.apply_marks(bufnr, marks, header)
   end)
 end
 
---- Creates a filter buffer.
+--- Creates an alias buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param opts { title: string|nil, header: { data: table }, suggestions: table}: Options for the buffer.
 function M.aliases_buffer(filetype, callback, opts)
-  local bufname = "kubectl_filter"
+  local bufname = "kubectl_aliases"
   local buf = vim.fn.bufnr(bufname, false)
 
   if buf == -1 then

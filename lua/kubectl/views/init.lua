@@ -63,9 +63,32 @@ local function on_prompt_input()
 end
 
 function M.Aliases()
-  ResourceBuilder:new("cmd"):setCmd({ "api-resources", "-o", "name", "--cached=true" }):fetchAsync(function(self)
-    self:splitData():decodeJson()
+  ResourceBuilder:new("aliases"):setCmd({ "get", "--raw", "/" }):fetchAsync(function(self)
+    self:decodeJson()
+
+    local data = {}
+    for _, row in pairs(self.data.paths) do
+      local pattern = "^/apis/(.*)"
+      local match = string.match(row, pattern)
+      if match then
+        table.insert(data, match)
+      end
+    end
+    self.data = data
+
     vim.schedule(function()
+      local current_suggestion_index = 0
+      local header, marks = tables.generateHeader({
+        { key = "<enter>", desc = "apply" },
+        { key = "<q>", desc = "close" },
+      }, false, false)
+
+      local function update_prompt_with_suggestion(bufnr, suggestion)
+        local prompt = "% "
+        vim.api.nvim_buf_set_lines(bufnr, #header + 1, -1, false, { prompt .. suggestion })
+        vim.api.nvim_win_set_cursor(0, { #header, #prompt + #suggestion })
+      end
+
       local buf = buffers.aliases_buffer(
         "k8s_aliases",
         on_prompt_input,
@@ -79,7 +102,6 @@ function M.Aliases()
           -- Filter suggestions based on inpu
           local filtered_suggestions = {}
           for _, suggestion in ipairs(self.data) do
-            print(suggestion)
             if suggestion:sub(1, #input) == input then
               table.insert(filtered_suggestions, suggestion)
             end
@@ -87,17 +109,14 @@ function M.Aliases()
 
           -- Display filtered suggestions
           if #filtered_suggestions > 0 then
-            print("Suggestions: " .. table.concat(filtered_suggestions, ", "))
+            current_suggestion_index = (current_suggestion_index % #filtered_suggestions) + 1
+            update_prompt_with_suggestion(buf, filtered_suggestions[current_suggestion_index])
           else
-            print("No matching suggestions.")
+            current_suggestion_index = 0 -- Reset the index if no suggestions are available
           end
+          return "" -- Necessary for <Tab> to not insert a tab character
         end,
       })
-
-      local header, marks = tables.generateHeader({
-        { key = "<enter>", desc = "apply" },
-        { key = "<q>", desc = "close" },
-      }, false, false)
 
       vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
       vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
