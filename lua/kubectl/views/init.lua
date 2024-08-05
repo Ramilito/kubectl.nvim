@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.definition")
 local hl = require("kubectl.actions.highlight")
+local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -58,26 +59,28 @@ function M.Hints(headers)
 end
 
 function M.Aliases()
-  local getHeaders = function()
-    return { "NAME" }
-  end
   ResourceBuilder:new("cmd"):setCmd({ "api-resources", "-o", "name", "--cached=true" }):fetchAsync(function(self)
-    self
-      :splitData()
-      :decodeJson()
-      :process(function(rows)
-        local data = {}
-        for _, row in ipairs(rows) do
-          table.insert(data, {
-            name = row,
-          })
-        end
-        return data
-      end)
-      :sort()
-      :prettyPrint(getHeaders)
+    self:splitData():decodeJson()
     vim.schedule(function()
-      self:displayFloat("k8s_aliases", "Aliases", "", true)
+      local buf = buffers.filter_buffer("k8s_aliases", { title = "Aliases", header = { data = {} } })
+
+      vim.fn.prompt_setprompt(buf, " ")
+      vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
+        noremap = true,
+        callback = function()
+          vim.api.nvim_feedkeys(":Kubectl api-resources ", "n", false)
+        end,
+      })
+
+      local header, marks = tables.generateHeader({
+        { key = "<enter>", desc = "apply" },
+        { key = "<q>", desc = "close" },
+      }, false, false)
+
+      vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+      vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
+
+      buffers.apply_marks(buf, marks, header)
     end)
   end)
 end
