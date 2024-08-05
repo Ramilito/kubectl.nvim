@@ -58,17 +58,39 @@ function M.Hints(headers)
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
 end
 
+local function on_prompt_input()
+  print("selected view")
+end
+
 function M.Aliases()
   ResourceBuilder:new("cmd"):setCmd({ "api-resources", "-o", "name", "--cached=true" }):fetchAsync(function(self)
     self:splitData():decodeJson()
     vim.schedule(function()
-      local buf = buffers.filter_buffer("k8s_aliases", { title = "Aliases", header = { data = {} } })
+      local buf = buffers.aliases_buffer(
+        "k8s_aliases",
+        on_prompt_input,
+        { title = "Aliases", header = { data = {} }, suggestions = self.data }
+      )
 
-      vim.fn.prompt_setprompt(buf, " ")
       vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
         noremap = true,
         callback = function()
-          vim.api.nvim_feedkeys(":Kubectl api-resources ", "n", false)
+          local input = vim.api.nvim_get_current_line():sub(3)
+          -- Filter suggestions based on inpu
+          local filtered_suggestions = {}
+          for _, suggestion in ipairs(self.data) do
+            print(suggestion)
+            if suggestion:sub(1, #input) == input then
+              table.insert(filtered_suggestions, suggestion)
+            end
+          end
+
+          -- Display filtered suggestions
+          if #filtered_suggestions > 0 then
+            print("Suggestions: " .. table.concat(filtered_suggestions, ", "))
+          else
+            print("No matching suggestions.")
+          end
         end,
       })
 
