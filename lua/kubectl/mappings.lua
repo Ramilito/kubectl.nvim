@@ -112,6 +112,16 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<C-a>", "", {
+    noremap = true,
+    silent = true,
+    desc = "Aliases",
+    callback = function()
+      local view = require("kubectl.views")
+      view.Aliases()
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<C-f>", "", {
     noremap = true,
     silent = true,

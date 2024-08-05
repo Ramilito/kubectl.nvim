@@ -57,6 +57,31 @@ function M.Hints(headers)
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
 end
 
+function M.Aliases()
+  local getHeaders = function()
+    return { "NAME" }
+  end
+  ResourceBuilder:new("cmd"):setCmd({ "api-resources", "-o", "name", "--cached=true" }):fetchAsync(function(self)
+    self
+      :splitData()
+      :decodeJson()
+      :process(function(rows)
+        local data = {}
+        for _, row in ipairs(rows) do
+          table.insert(data, {
+            name = row,
+          })
+        end
+        return data
+      end)
+      :sort()
+      :prettyPrint(getHeaders)
+    vim.schedule(function()
+      self:displayFloat("k8s_aliases", "Aliases", "", true)
+    end)
+  end)
+end
+
 --- PortForwards function retrieves port forwards and displays them in a float window.
 -- @function PortForwards
 -- @return nil
