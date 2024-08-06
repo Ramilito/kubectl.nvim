@@ -64,7 +64,6 @@ local function on_prompt_input(input)
   local ok, view = pcall(require, "kubectl.views." .. parsed_input)
   if ok then
     pcall(view.View)
-    print("selected view", input)
   else
     view = require("kubectl.views.fallback")
     view.View(nil, parsed_input)
