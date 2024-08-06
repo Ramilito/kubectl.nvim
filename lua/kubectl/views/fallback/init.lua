@@ -6,19 +6,23 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
+M.resource = ""
 
 function M.View(cancellationToken, resource)
+  if resource then
+    M.resource = resource
+  end
   local ns_filter = state.getNamespace()
-  local args = { "get", resource, "-o=json" }
+  local args = { "get", M.resource, "-o=json" }
   if ns_filter == "All" then
     table.insert(args, "-A")
   else
     table.insert(args, "--namespace")
     table.insert(args, ns_filter)
   end
-  ResourceBuilder:new("fallback"):setCmd({ "get", resource, "-o=json" }):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
+  ResourceBuilder:new("fallback"):setCmd(args):fetchAsync(function(self)
+    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
     vim.schedule(function()
       self
         :addHints({

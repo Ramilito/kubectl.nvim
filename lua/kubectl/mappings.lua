@@ -89,6 +89,9 @@ function M.register()
         if ok then
           vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
           pcall(view.View)
+        else
+          view = require("kubectl.views.fallback")
+          view.View()
         end
       end
     end,
