@@ -41,13 +41,18 @@ function M.register()
 
       local name, ns = view.getCurrentSelection()
       if name then
-        local cmd = "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name
-        if ns then
-          cmd = cmd .. " -ns " .. ns
+        local resource = string.lower(buf_name)
+        if buf_name == "fallback" then
+          resource = view.resource
         end
-        buffers.confirmation_buffer(cmd, "", function(confirm)
+        local args = { "delete", resource, name }
+        if ns and ns ~= "nil" then
+          table.insert(args, "-n")
+          table.insert(args, ns)
+        end
+        buffers.confirmation_buffer("execute: kubectl " .. table.concat(args, " "), "", function(confirm)
           if confirm then
-            commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
+            commands.shell_command_async("kubectl", args)
           end
         end)
       end
@@ -85,9 +90,14 @@ function M.register()
         local string_utils = require("kubectl.utils.string")
 
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-        vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
-        pcall(view.View)
+        local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        if ok then
+          vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
+          pcall(view.View)
+        else
+          view = require("kubectl.views.fallback")
+          view.View()
+        end
       end
     end,
   })
@@ -109,6 +119,16 @@ function M.register()
           pcall(view.Edit, name, ns)
         end
       end
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<C-a>", "", {
+    noremap = true,
+    silent = true,
+    desc = "Aliases",
+    callback = function()
+      local view = require("kubectl.views")
+      view.Aliases()
     end,
   })
 

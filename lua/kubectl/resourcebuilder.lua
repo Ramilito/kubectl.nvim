@@ -177,7 +177,7 @@ function ResourceBuilder:prettyPrint(headersFunc)
   notifications.Add({
     "prettify table " .. "[" .. self.resource .. "]",
   })
-  self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc())
+  self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc(self.data))
   return self
 end
 
@@ -225,7 +225,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     "display data " .. "[" .. self.resource .. "]",
   })
   notifications.Close()
-  buffers.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
+  self.buf_nr = buffers.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
   self:postRender()
   return self
 end

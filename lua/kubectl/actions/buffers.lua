@@ -76,6 +76,36 @@ function M.apply_marks(bufnr, marks, header)
   end)
 end
 
+--- Creates an alias buffer.
+--- @param filetype string: The filetype of the buffer.
+--- @param opts { title: string|nil, header: { data: table }, suggestions: table}: Options for the buffer.
+function M.aliases_buffer(filetype, callback, opts)
+  local bufname = "kubectl_aliases"
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if buf == -1 then
+    buf = create_buffer(bufname, "prompt")
+    vim.keymap.set("n", "q", function()
+      api.nvim_set_option_value("modified", false, { buf = buf })
+      vim.cmd.close()
+    end, { buffer = buf, silent = true })
+  end
+
+  local win = layout.filter_layout(buf, filetype, opts.title or "")
+
+  vim.fn.prompt_setcallback(buf, function(input)
+    callback(input)
+    vim.cmd("stopinsert")
+    api.nvim_set_option_value("modified", false, { buf = buf })
+    vim.cmd.close()
+  end)
+
+  vim.cmd("startinsert")
+
+  layout.set_buf_options(buf, win, filetype, "", bufname)
+  return buf
+end
+
 --- Creates a filter buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
@@ -209,6 +239,8 @@ function M.buffer(content, marks, filetype, opts)
   set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
   M.apply_marks(buf, marks, opts.header)
+
+  return buf
 end
 
 --- Creates or updates a notification buffer.
