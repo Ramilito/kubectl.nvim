@@ -9,38 +9,41 @@ local function getStatus(row)
   end
 
   if row.status.conditions then
-    local conditions = {}
+    local conditionMap = {}
 
     for _, cond in ipairs(row.status.conditions) do
       if cond.type then
-        conditions[cond.type] = cond
+        conditionMap[cond.type] = cond
       end
     end
 
-    if tables.isEmpty(conditions) then
+    if tables.isEmpty(conditionMap) then
       return { symbol = events.ColorStatus("Error"), value = "Unknown" }
     end
 
-    -- Prioritize ready condition
-    if conditions["Ready"].status == "True" then
-      local value = conditions["Ready"].reason
-      if not value then
-        value = conditions["Ready"].status
-      end
-      return { symbol = events.ColorStatus("Ready"), value = value }
+    -- Check "Ready" condition first
+    local readyCondition = conditionMap["Ready"]
+    if readyCondition and readyCondition.status == "True" then
+      return {
+        symbol = events.ColorStatus("Ready"),
+        value = readyCondition.reason or readyCondition.status,
+      }
     end
-    for _, condition in pairs(conditions) do
-      if condition and condition.status == "True" then
-        local value = condition.reason
-        if condition.reason == "" then
-          value = condition.type
-        end
-        return { symbol = events.ColorStatus(condition.type), value = value }
+
+    -- Check other conditions
+    for _, condition in pairs(conditionMap) do
+      if condition.status == "True" then
+        return {
+          symbol = events.ColorStatus(condition.type),
+          value = condition.reason ~= "" and condition.reason or condition.type,
+        }
       end
     end
 
     return { symbol = events.ColorStatus("Error"), value = "Unknown" }
-  elseif row.status.health then
+  end
+
+  if row.status.health then
     return { symbol = events.ColorStatus(string_utils.capitalize(row.status.health)), value = row.status.health }
   end
 end
