@@ -3,6 +3,7 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 local root_definition = require("kubectl.views.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 M.selection = {}
@@ -34,7 +35,7 @@ function M.View(cancellationToken)
     end)
 end
 
-function M.PodTop()
+function M.Top()
   ResourceBuilder:new("top")
     :displayFloat("k8s_top", "Top", "")
     :setCmd({ "top", "pods", "-A" })
@@ -78,7 +79,7 @@ function M.selectPod(pod_name, namespace)
   M.selection = { pod = pod_name, ns = namespace }
 end
 
-function M.PodLogs()
+function M.Logs()
   ResourceBuilder:new("logs")
     :displayFloat("k8s_pod_logs", M.selection.pod, "less")
     :setCmd({
@@ -96,21 +97,27 @@ function M.PodLogs()
     end)
 end
 
-function M.Edit(name, namespace)
+function M.Edit(name, ns)
   buffers.floating_buffer({}, {}, "k8s_pod_edit", { title = name, syntax = "yaml" })
-  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", namespace })
+  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", ns })
 end
 
-function M.PodDesc(pod_name, namespace)
+function M.Desc(name, ns)
   ResourceBuilder:new("desc")
-    :displayFloat("k8s_pod_desc", pod_name, "yaml")
-    :setCmd({ "describe", "pod", pod_name, "-n", namespace })
+    :displayFloat("k8s_pod_desc", name, "yaml")
+    :setCmd({ "describe", "pod", name, "-n", ns })
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_pod_desc", pod_name, "yaml")
+        self:displayFloat("k8s_pod_desc", name, "yaml")
       end)
     end)
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(2, 1)
 end
 
 return M

@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.configmaps.definition")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -32,15 +33,21 @@ function M.Edit(name, namespace)
 end
 
 --- Describe a configmap
----@param namespace string
 ---@param name string
-function M.ConfigmapsDesc(namespace, name)
+---@param ns string
+function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_configmaps_desc", name, "yaml")
-    :setCmd({ "describe", "configmaps", name, "-n", namespace })
+    :setCmd({ "describe", "configmaps", name, "-n", ns })
     :fetch()
     :splitData()
     :displayFloat("k8s_configmaps_desc", name, "yaml")
+end
+
+--- Get current seletion for view
+---@return string|nil
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(2, 1)
 end
 
 return M

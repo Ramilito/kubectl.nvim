@@ -32,20 +32,49 @@ function M.register()
     desc = "Delete",
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
+      if win_config.relative ~= "" then
+        return
+      end
+      local string_utils = require("kubectl.utils.string")
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+
+      local name, ns = view.getCurrentSelection()
+      if name then
+        local resource = string.lower(buf_name)
+        if buf_name == "fallback" then
+          resource = view.resource
+        end
+        local args = { "delete", resource, name }
+        if ns and ns ~= "nil" then
+          table.insert(args, "-n")
+          table.insert(args, ns)
+        end
+        buffers.confirmation_buffer("execute: kubectl " .. table.concat(args, " "), "", function(confirm)
+          if confirm then
+            commands.shell_command_async("kubectl", args)
+          end
+        end)
+      end
+    end,
+  })
+  vim.api.nvim_buf_set_keymap(0, "n", "gd", "", {
+    noremap = true,
+    silent = true,
+    desc = "Describe resource",
+    callback = function()
+      local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative == "" then
-        local tables = require("kubectl.utils.tables")
+        local string_utils = require("kubectl.utils.string")
+
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local ns, name = tables.getCurrentSelection(1, 2)
-        if name and ns then
-          buffers.confirmation_buffer(
-            "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name .. " -ns " .. ns,
-            "",
-            function(confirm)
-              if confirm then
-                commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
-              end
-            end
-          )
+        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        local name, ns = view.getCurrentSelection()
+        if name then
+          local ok = pcall(view.Desc, name, ns)
+          if not ok then
+            vim.api.nvim_err_writeln("Failed to describe " .. buf_name .. ".")
+          end
         end
       end
     end,
@@ -61,9 +90,14 @@ function M.register()
         local string_utils = require("kubectl.utils.string")
 
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-        vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
-        pcall(view.View)
+        local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        if ok then
+          vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
+          pcall(view.View)
+        else
+          view = require("kubectl.views.fallback")
+          view.View()
+        end
       end
     end,
   })
@@ -85,6 +119,16 @@ function M.register()
           pcall(view.Edit, name, ns)
         end
       end
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<C-a>", "", {
+    noremap = true,
+    silent = true,
+    desc = "Aliases",
+    callback = function()
+      local view = require("kubectl.views")
+      view.Aliases()
     end,
   })
 
@@ -155,13 +199,23 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "0", "", {
+    noremap = true,
+    silent = true,
+    desc = "Root",
+    callback = function()
+      local view = require("kubectl.views.root")
+      view.View()
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "1", "", {
     noremap = true,
     silent = true,
     desc = "Deployments",
     callback = function()
-      local deployments_view = require("kubectl.views.deployments")
-      deployments_view.View()
+      local view = require("kubectl.views.deployments")
+      view.View()
     end,
   })
 
@@ -170,8 +224,8 @@ function M.register()
     silent = true,
     desc = "Pods",
     callback = function()
-      local pods_view = require("kubectl.views.pods")
-      pods_view.View()
+      local view = require("kubectl.views.pods")
+      view.View()
     end,
   })
 
@@ -180,8 +234,8 @@ function M.register()
     silent = true,
     desc = "Configmaps",
     callback = function()
-      local configmaps_view = require("kubectl.views.configmaps")
-      configmaps_view.View()
+      local view = require("kubectl.views.configmaps")
+      view.View()
     end,
   })
 
@@ -190,8 +244,8 @@ function M.register()
     silent = true,
     desc = "Secrets",
     callback = function()
-      local secrets_view = require("kubectl.views.secrets")
-      secrets_view.View()
+      local view = require("kubectl.views.secrets")
+      view.View()
     end,
   })
 
@@ -200,8 +254,8 @@ function M.register()
     silent = true,
     desc = "Services",
     callback = function()
-      local services_view = require("kubectl.views.services")
-      services_view.View()
+      local view = require("kubectl.views.services")
+      view.View()
     end,
   })
 end

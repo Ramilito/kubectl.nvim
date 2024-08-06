@@ -35,7 +35,7 @@ end
 --- @param bufnr integer: The buffer number.
 --- @param marks table|nil: The marks to apply (optional).
 --- @param header table|nil: The header data (optional).
-local function apply_marks(bufnr, marks, header)
+function M.apply_marks(bufnr, marks, header)
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   state.marks.ns_id = ns_id
@@ -76,13 +76,11 @@ local function apply_marks(bufnr, marks, header)
   end)
 end
 
---- Creates a filter buffer.
---- @param content string: The content of the buffer.
---- @param marks table: The marks to apply.
+--- Creates an alias buffer.
 --- @param filetype string: The filetype of the buffer.
---- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
-function M.filter_buffer(content, marks, filetype, opts)
-  local bufname = "kubectl_filter"
+--- @param opts { title: string|nil, header: { data: table }, suggestions: table}: Options for the buffer.
+function M.aliases_buffer(filetype, callback, opts)
+  local bufname = "kubectl_aliases"
   local buf = vim.fn.bufnr(bufname, false)
 
   if buf == -1 then
@@ -95,8 +93,35 @@ function M.filter_buffer(content, marks, filetype, opts)
 
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
-  api.nvim_buf_set_lines(buf, 0, #opts.header.data, false, opts.header.data)
-  vim.api.nvim_buf_set_lines(buf, #opts.header.data, -1, false, { content .. state.getFilter() })
+  vim.fn.prompt_setcallback(buf, function(input)
+    callback(input)
+    vim.cmd("stopinsert")
+    api.nvim_set_option_value("modified", false, { buf = buf })
+    vim.cmd.close()
+  end)
+
+  vim.cmd("startinsert")
+
+  layout.set_buf_options(buf, win, filetype, "", bufname)
+  return buf
+end
+
+--- Creates a filter buffer.
+--- @param filetype string: The filetype of the buffer.
+--- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
+function M.filter_buffer(filetype, opts)
+  local bufname = "kubectl_filter"
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if buf == -1 then
+    buf = create_buffer(bufname, "prompt")
+    vim.keymap.set("n", "q", function()
+      api.nvim_set_option_value("modified", false, { buf = buf })
+      vim.cmd.close()
+    end, { buffer = buf, silent = true })
+  end
+
+  local win = layout.filter_layout(buf, filetype, opts.title or "")
 
   vim.fn.prompt_setcallback(buf, function(input)
     if not input then
@@ -113,7 +138,7 @@ function M.filter_buffer(content, marks, filetype, opts)
   vim.cmd("startinsert")
 
   layout.set_buf_options(buf, win, filetype, "", bufname)
-  apply_marks(buf, marks, opts.header)
+  return buf
 end
 
 --- Creates a confirmation buffer.
@@ -164,7 +189,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
-  apply_marks(buf, opts.marks, nil)
+  M.apply_marks(buf, opts.marks, nil)
 end
 
 --- Creates a floating buffer.
@@ -190,7 +215,7 @@ function M.floating_buffer(content, marks, filetype, opts)
   end, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
-  apply_marks(buf, marks, opts.header)
+  M.apply_marks(buf, marks, opts.header)
 
   return buf
 end
@@ -213,7 +238,9 @@ function M.buffer(content, marks, filetype, opts)
 
   set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
-  apply_marks(buf, marks, opts.header)
+  M.apply_marks(buf, marks, opts.header)
+
+  return buf
 end
 
 --- Creates or updates a notification buffer.

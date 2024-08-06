@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.definition")
 local hl = require("kubectl.actions.highlight")
+local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -13,6 +14,7 @@ function M.Hints(headers)
   local marks = {}
   local hints = {}
   local globals = {
+    { key = "<C-a>", desc = "Aliases" },
     { key = "<C-f>", desc = "Filter on a phrase" },
     { key = "<C-n>", desc = "Change namespace" },
     { key = "<bs> ", desc = "Go up a level" },
@@ -21,6 +23,7 @@ function M.Hints(headers)
     { key = "<gs> ", desc = "Sort column" },
     { key = "<ge> ", desc = "Edit resource" },
     { key = "<gr> ", desc = "Refresh view" },
+    { key = "<0>  ", desc = "Root" },
     { key = "<1>  ", desc = "Deployments" },
     { key = "<2>  ", desc = "Pods " },
     { key = "<3>  ", desc = "Configmaps " },
@@ -54,6 +57,85 @@ function M.Hints(headers)
   end
 
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
+end
+
+local function on_prompt_input(input)
+  local parsed_input = string.lower(string_utils.trim(input:gsub("%.apps$", "")))
+  local ok, view = pcall(require, "kubectl.views." .. parsed_input)
+  if ok then
+    pcall(view.View)
+  else
+    view = require("kubectl.views.fallback")
+    view.View(nil, parsed_input)
+  end
+end
+
+function M.Aliases()
+  ResourceBuilder:new("aliases"):setCmd({ "api-resources", "-o", "name", "--cached" }):fetchAsync(function(self)
+    self:splitData():decodeJson()
+
+    vim.schedule(function()
+      local current_suggestion_index = 0
+      local original_input = ""
+      local header, marks = tables.generateHeader({
+        { key = "<enter>", desc = "go to" },
+        { key = "<tab>", desc = "suggestion" },
+        { key = "<q>", desc = "close" },
+      }, false, false)
+
+      local function update_prompt_with_suggestion(bufnr, suggestion)
+        local prompt = "% "
+        vim.api.nvim_buf_set_lines(
+          bufnr,
+          #header + 1,
+          -1,
+          false,
+          { prompt .. original_input .. suggestion:sub(#original_input + 1) }
+        )
+        vim.api.nvim_win_set_cursor(0, { #header, #prompt + #suggestion })
+      end
+
+      local buf = buffers.aliases_buffer(
+        "k8s_aliases",
+        on_prompt_input,
+        { title = "Aliases", header = { data = {} }, suggestions = self.data }
+      )
+
+      vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
+        noremap = true,
+        callback = function()
+          local line = vim.api.nvim_get_current_line()
+          local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+
+          if current_suggestion_index == 0 then
+            original_input = input
+          end
+
+          -- Filter suggestions based on input
+          local filtered_suggestions = {}
+          for _, suggestion in ipairs(self.data) do
+            if suggestion:sub(1, #original_input) == original_input then
+              table.insert(filtered_suggestions, suggestion)
+            end
+          end
+
+          -- Cycle through the suggestions
+          if #filtered_suggestions > 0 then
+            current_suggestion_index = (current_suggestion_index % #filtered_suggestions) + 1
+            update_prompt_with_suggestion(buf, filtered_suggestions[current_suggestion_index])
+          else
+            current_suggestion_index = 0 -- Reset the index if no suggestions are available
+          end
+          return ""
+        end,
+      })
+
+      vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+      vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
+
+      buffers.apply_marks(buf, marks, header)
+    end)
+  end)
 end
 
 --- PortForwards function retrieves port forwards and displays them in a float window.

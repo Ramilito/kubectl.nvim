@@ -6,14 +6,13 @@ local container_view = require("kubectl.views.containers")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
-local pod_definition = require("kubectl.views.pods.definition")
 local pod_view = require("kubectl.views.pods")
+local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  local col_indices = { 1, 2 }
   api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
     noremap = true,
     silent = true,
@@ -36,21 +35,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Resources used",
     callback = function()
-      pod_view.PodTop()
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
-    noremap = true,
-    silent = true,
-    desc = "Describe resource",
-    callback = function()
-      local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
-      if pod_name and namespace then
-        pod_view.PodDesc(pod_name, namespace)
-      else
-        api.nvim_err_writeln("Failed to describe pod name or namespace.")
-      end
+      pod_view.Top()
     end,
   })
 
@@ -68,10 +53,10 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "View logs",
     callback = function()
-      local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
-      if pod_name and namespace then
-        pod_view.selectPod(pod_name, namespace)
-        pod_view.PodLogs()
+      local name, ns = pod_view.getCurrentSelection()
+      if name and ns then
+        pod_view.selectPod(name, ns)
+        pod_view.Logs()
       else
         api.nvim_err_writeln("Failed to extract pod name or namespace.")
       end
@@ -83,9 +68,9 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Select",
     callback = function()
-      local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
-      if pod_name and namespace then
-        pod_view.selectPod(pod_name, namespace)
+      local name, ns = pod_view.getCurrentSelection()
+      if name and ns then
+        pod_view.selectPod(name, ns)
         container_view.View(pod_view.selection.pod, pod_view.selection.ns)
       else
         api.nvim_err_writeln("Failed to select pod.")
@@ -98,19 +83,19 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Kill pod",
     callback = function()
-      local namespace, pod_name = tables.getCurrentSelection(unpack(col_indices))
+      local name, ns = pod_view.getCurrentSelection()
 
-      if pod_name and namespace then
+      if name and ns then
         local port_forwards = {}
-        pod_definition.getPortForwards(port_forwards, false)
+        root_definition.getPortForwards(port_forwards, false, "pods")
         for _, pf in ipairs(port_forwards) do
-          if pf.resource == pod_name then
+          if pf.resource == name then
             vim.notify("Killing port forward for " .. pf.resource)
             commands.shell_command_async("kill", { pf.pid })
           end
         end
-        vim.notify("Deleting pod " .. pod_name)
-        commands.shell_command_async("kubectl", { "delete", "pod", pod_name, "-n", namespace })
+        vim.notify("Deleting pod " .. name)
+        commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
         pod_view.View()
       else
         api.nvim_err_writeln("Failed to select pod.")
@@ -123,16 +108,16 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Port forward",
     callback = function()
-      local namespace, name = tables.getCurrentSelection(unpack(col_indices))
+      local name, ns = pod_view.getCurrentSelection()
 
-      if not namespace or not name then
+      if not ns or not name then
         api.nvim_err_writeln("Failed to select pod for port forward")
         return
       end
 
       ResourceBuilder:new("pods_pf")
         :setCmd({
-          "{{BASE}}/api/v1/namespaces/" .. namespace .. "/pods/" .. name .. "?pretty=false",
+          "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. name .. "?pretty=false",
         }, "curl")
         :fetchAsync(function(self)
           self:decodeJson()
@@ -188,7 +173,7 @@ local function set_keymaps(bufnr)
                 end
                 commands.shell_command_async(
                   "kubectl",
-                  { "port-forward", "-n", namespace, "pods/" .. name, local_port .. ":" .. container_port }
+                  { "port-forward", "-n", ns, "pods/" .. name, local_port .. ":" .. container_port }
                 )
 
                 vim.schedule(function()

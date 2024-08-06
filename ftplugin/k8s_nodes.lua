@@ -2,7 +2,6 @@ local api = vim.api
 local loop = require("kubectl.utils.loop")
 local node_view = require("kubectl.views.nodes")
 local root_view = require("kubectl.views.root")
-local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
@@ -12,7 +11,12 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<gd>", desc = "Describe selected node" } })
+      view.Hints({
+        { key = "<gd>", desc = "Describe selected node" },
+        { key = "<gC>", desc = "Cordon selected node" },
+        { key = "<gU>", desc = "UnCordon selected node" },
+        { key = "<gR>", desc = "Drain selected node" },
+      })
     end,
   })
 
@@ -25,16 +29,44 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gd", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gR", "", {
     noremap = true,
     silent = true,
-    desc = "Describe resource",
+    desc = "Drain node",
     callback = function()
-      local node = tables.getCurrentSelection(unpack({ 1 }))
+      local node = node_view.getCurrentSelection()
       if node then
-        node_view.NodeDesc(node)
+        node_view.Drain(node)
       else
-        api.nvim_err_writeln("Failed to describe pod name or namespace.")
+        api.nvim_err_writeln("Failed to drain node.")
+      end
+    end,
+  })
+
+  api.nvim_buf_set_keymap(bufnr, "n", "gU", "", {
+    noremap = true,
+    silent = true,
+    desc = "UnCordon node",
+    callback = function()
+      local node = node_view.getCurrentSelection()
+      if node then
+        node_view.UnCordon(node)
+      else
+        api.nvim_err_writeln("Failed to cordone node.")
+      end
+    end,
+  })
+
+  api.nvim_buf_set_keymap(bufnr, "n", "gC", "", {
+    noremap = true,
+    silent = true,
+    desc = "Cordon node",
+    callback = function()
+      local node = node_view.getCurrentSelection()
+      if node then
+        node_view.Cordon(node)
+      else
+        api.nvim_err_writeln("Failed to cordone node.")
       end
     end,
   })
