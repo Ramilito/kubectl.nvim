@@ -46,7 +46,7 @@ function M.Desc(name, ns)
     :splitData()
     :displayFloat("k8s_fallback_desc", name, "yaml")
 end
---
+
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()

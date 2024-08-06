@@ -41,13 +41,17 @@ function M.register()
 
       local name, ns = view.getCurrentSelection()
       if name then
-        local cmd = "run - kubectl delete " .. string.lower(buf_name) .. "/" .. name
+        local resource = string.lower(buf_name)
+        if buf_name == "fallback" then
+          resource = view.resource
+        end
+        local cmd = "execute: kubectl delete " .. resource .. "/" .. name
         if ns then
           cmd = cmd .. " -ns " .. ns
         end
         buffers.confirmation_buffer(cmd, "", function(confirm)
           if confirm then
-            commands.shell_command_async("kubectl", { "delete", buf_name, name, "-n", ns })
+            commands.shell_command_async("kubectl", { "delete", resource, name, "-n", ns })
           end
         end)
       end
