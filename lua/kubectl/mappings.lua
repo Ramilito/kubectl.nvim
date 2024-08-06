@@ -45,13 +45,14 @@ function M.register()
         if buf_name == "fallback" then
           resource = view.resource
         end
-        local cmd = "execute: kubectl delete " .. resource .. "/" .. name
-        if ns then
-          cmd = cmd .. " -ns " .. ns
+        local args = { "delete", resource, name }
+        if ns and ns ~= "nil" then
+          table.insert(args, "-n")
+          table.insert(args, ns)
         end
-        buffers.confirmation_buffer(cmd, "", function(confirm)
+        buffers.confirmation_buffer("execute: kubectl " .. table.concat(args, " "), "", function(confirm)
           if confirm then
-            commands.shell_command_async("kubectl", { "delete", resource, name, "-n", ns })
+            commands.shell_command_async("kubectl", args)
           end
         end)
       end
