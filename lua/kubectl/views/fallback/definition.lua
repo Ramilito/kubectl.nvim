@@ -73,7 +73,6 @@ function M.getHeaders(rows)
     "NAME",
   }
 
-
   local firstItem = rows.items[1] or {}
   if firstItem.status and (firstItem.status.conditions or firstItem.status.health) then
     table.insert(headers, "STATUS")
