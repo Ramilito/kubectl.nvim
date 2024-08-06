@@ -98,13 +98,11 @@ function M.aliases_buffer(filetype, callback, opts)
     vim.cmd("stopinsert")
     api.nvim_set_option_value("modified", false, { buf = buf })
     vim.cmd.close()
-    -- vim.api.nvim_input("gr")
   end)
 
   vim.cmd("startinsert")
 
   layout.set_buf_options(buf, win, filetype, "", bufname)
-  -- vim.fn.prompt_setprompt(buf, "Search: ")
   return buf
 end
 
