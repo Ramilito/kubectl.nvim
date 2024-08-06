@@ -72,11 +72,14 @@ function M.getHeaders(rows)
     "NAMESPACE",
     "NAME",
   }
-  if rows.items[1].status and (rows.items[1].status.conditions or rows.items[1].status.health) then
+
+
+  local firstItem = rows.items[1] or {}
+  if firstItem.status and (firstItem.status.conditions or firstItem.status.health) then
     table.insert(headers, "STATUS")
   end
 
-  if rows.items[1].spec and rows.items[1].spec.version then
+  if firstItem.spec and firstItem.spec.version then
     table.insert(headers, "VERSION")
   end
   return headers
