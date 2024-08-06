@@ -241,6 +241,8 @@ function M.buffer(content, marks, filetype, opts)
   set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
   M.apply_marks(buf, marks, opts.header)
+
+  return buf
 end
 
 --- Creates or updates a notification buffer.
