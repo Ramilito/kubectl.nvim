@@ -58,29 +58,25 @@ function M.Hints(headers)
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
 end
 
-local function on_prompt_input()
-  print("selected view")
+local function on_prompt_input(input)
+  local parsed_input = string.lower(string_utils.trim(input:gsub("%.apps$", "")))
+  local ok, view = pcall(require, "kubectl.views." .. parsed_input)
+  if ok then
+    pcall(view.View)
+    print("selected view", input)
+  end
 end
 
 function M.Aliases()
-  ResourceBuilder:new("aliases"):setCmd({ "get", "--raw", "/" }):fetchAsync(function(self)
-    self:decodeJson()
-
-    local data = {}
-    for _, row in pairs(self.data.paths) do
-      local pattern = "^/apis/(.*)"
-      local match = string.match(row, pattern)
-      if match then
-        table.insert(data, match)
-      end
-    end
-    self.data = data
+  ResourceBuilder:new("aliases"):setCmd({ "api-resources", "-o", "name", "--cached" }):fetchAsync(function(self)
+    self:splitData():decodeJson()
 
     vim.schedule(function()
       local current_suggestion_index = 0
       local original_input = ""
       local header, marks = tables.generateHeader({
-        { key = "<enter>", desc = "apply" },
+        { key = "<enter>", desc = "go to" },
+        { key = "<tab>", desc = "suggestion" },
         { key = "<q>", desc = "close" },
       }, false, false)
 
