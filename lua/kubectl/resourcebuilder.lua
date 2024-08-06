@@ -177,7 +177,7 @@ function ResourceBuilder:prettyPrint(headersFunc)
   notifications.Add({
     "prettify table " .. "[" .. self.resource .. "]",
   })
-  self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc())
+  self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc(self.data))
   return self
 end
 

@@ -21,6 +21,14 @@ local function getStatus(row)
       return { symbol = events.ColorStatus("Error"), value = "Unknown" }
     end
 
+    -- Prioritize ready condition
+    if conditions["Ready"].status == "True" then
+      local value = conditions["Ready"].reason
+      if not value then
+        value = conditions["Ready"].status
+      end
+      return { symbol = events.ColorStatus("Ready"), value = value }
+    end
     for _, condition in pairs(conditions) do
       if condition and condition.status == "True" then
         local value = condition.reason
@@ -40,10 +48,15 @@ end
 function M.processRow(rows)
   local data = {}
   for _, row in pairs(rows.items) do
+    local version = ""
+    if row.spec and row.spec.version then
+      version = row.spec.version
+    end
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
       status = getStatus(row),
+      version = version,
     }
 
     table.insert(data, pod)
@@ -51,13 +64,18 @@ function M.processRow(rows)
   return data
 end
 
-function M.getHeaders()
+function M.getHeaders(rows)
   local headers = {
     "NAMESPACE",
     "NAME",
-    "STATUS",
   }
+  if rows.items[1].status and (rows.items[1].status.conditions or rows.items[1].status.health) then
+    table.insert(headers, "STATUS")
+  end
 
+  if rows.items[1].spec and rows.items[1].spec.version then
+    table.insert(headers, "VERSION")
+  end
   return headers
 end
 
