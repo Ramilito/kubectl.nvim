@@ -6,6 +6,7 @@ local M = {}
 ---@return string
 function M.ColorStatus(status)
   local errorStatuses = {
+    Red = true,
     Failed = true,
     BackOff = true,
     ExceededGracePeriod = true,
@@ -48,6 +49,7 @@ function M.ColorStatus(status)
   }
 
   local warningStatuses = {
+    Yellow = true,
     Killing = true,
     Preempting = true,
     Pulling = true,
@@ -72,6 +74,7 @@ function M.ColorStatus(status)
   }
 
   local successStatuses = {
+    Green = true,
     Running = true,
     Completed = true,
     Pulled = true,

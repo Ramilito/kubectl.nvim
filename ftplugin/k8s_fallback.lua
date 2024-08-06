@@ -11,7 +11,9 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<gd>", desc = "Describe selected resource" } })
+      view.Hints({
+        { key = "<gd>", desc = "Describe selected resource" },
+      })
     end,
   })
 
