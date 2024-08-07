@@ -42,6 +42,7 @@ local function save_history(input)
 
   if not exists and input ~= "" then
     table.insert(result, 1, input)
+    table.remove(result, #result)
   end
 
   local ok, encoded = pcall(vim.json.encode, result)
