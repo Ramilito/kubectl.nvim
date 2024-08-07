@@ -73,4 +73,15 @@ function M.setPortForwards(marks, data, port_forwards)
   return marks
 end
 
+function M.on_prompt_input(input)
+  local parsed_input = string.lower(string_utils.trim(input:gsub("%.apps$", "")))
+  local ok, view = pcall(require, "kubectl.views." .. parsed_input)
+  if ok then
+    pcall(view.View)
+  else
+    view = require("kubectl.views.fallback")
+    view.View(nil, parsed_input)
+  end
+end
+
 return M
