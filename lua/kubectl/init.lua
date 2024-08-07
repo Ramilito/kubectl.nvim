@@ -49,9 +49,14 @@ function M.setup(options)
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local view = require("kubectl.views")
     if opts.fargs[1] == "get" then
-      local cmd = completion.find_view_command(opts.fargs[2], M.views)
-      if cmd then
-        cmd()
+      if #opts.fargs == 2 then
+        local ok, x_view = pcall(require, "kubectl.views." .. opts.fargs[2])
+        if ok then
+          pcall(x_view.View)
+        else
+          view = require("kubectl.views.fallback")
+          view.View(nil, opts.fargs[2])
+        end
       else
         view.UserCmd(opts.fargs)
       end
