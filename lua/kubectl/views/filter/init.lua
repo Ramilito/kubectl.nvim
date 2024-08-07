@@ -1,20 +1,72 @@
 local buffers = require("kubectl.actions.buffers")
+local find = require("kubectl.utils.find")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
 
-M.old_filter = { "test", "pest", "foo", "bar" }
+local function load_history()
+  local file_path = vim.fn.stdpath("data") .. "/kubectl_filter_history.json"
+  local file = io.open(file_path, "r")
+  if not file then
+    return nil
+  end
+
+  local json_data = file:read("*a")
+  file:close()
+
+  local ok, decoded = pcall(vim.json.decode, json_data)
+  if ok then
+    return decoded
+  end
+  return nil
+end
+
+local function save_history(input)
+  local history = load_history()
+
+  if history == nil then
+    history = {}
+  end
+
+  local result = {}
+  local exists = false
+  for i = 1, math.min(5, #history - 1) do
+    if history[i] ~= input then
+      table.insert(result, history[i])
+    else
+      exists = true
+    end
+  end
+
+  if not exists and input ~= "" then
+    table.insert(result, 1, input)
+  end
+
+  local ok, encoded = pcall(vim.json.encode, result)
+  if ok then
+    local file_path = vim.fn.stdpath("data") .. "/kubectl_filter_history.json"
+    local file = io.open(file_path, "w")
+    if file then
+      file:write(encoded)
+      file:close()
+    end
+  end
+end
+
 function M.filter()
-  local buf = buffers.filter_buffer("k8s_filter", { title = "Filter", header = { data = {} } })
+  local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
   local header, marks = tables.generateHeader({
     { key = "<enter>", desc = "apply" },
     { key = "<q>", desc = "close" },
   }, false, false)
 
   table.insert(header, "History:")
-  for _, value in ipairs(M.old_filter) do
-    table.insert(header, value)
+  local history = load_history()
+  if history then
+    for _, value in ipairs(history) do
+      table.insert(header, value)
+    end
   end
 
   table.insert(header, "")
