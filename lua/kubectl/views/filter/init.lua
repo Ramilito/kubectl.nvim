@@ -31,10 +31,11 @@ local function save_history(input)
 
   local result = {}
   local exists = false
-  for i = 1, math.min(5, #history - 1) do
+  for i = 1, math.min(5, #history) do
     if history[i] ~= input then
       table.insert(result, history[i])
     else
+      table.insert(result, 1, input)
       exists = true
     end
   end
