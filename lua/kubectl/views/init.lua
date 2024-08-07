@@ -121,9 +121,15 @@ function M.Aliases()
 
           -- Cycle through the suggestions
           if #filtered_suggestions > 0 then
-            current_suggestion_index = (current_suggestion_index % #filtered_suggestions) + 1
-            update_prompt_with_suggestion(buf, filtered_suggestions[current_suggestion_index])
+            current_suggestion_index = current_suggestion_index + 1
+            if current_suggestion_index >= #filtered_suggestions + 1 then
+              update_prompt_with_suggestion(buf, original_input)
+              current_suggestion_index = 0 -- Reset the index if no suggestions are available
+            else
+              update_prompt_with_suggestion(buf, filtered_suggestions[current_suggestion_index])
+            end
           else
+            update_prompt_with_suggestion(buf, original_input)
             current_suggestion_index = 0 -- Reset the index if no suggestions are available
           end
           return ""
