@@ -24,6 +24,7 @@ end
 
 local function save_history(input)
   local history = load_history()
+  local history_size = 5
 
   if history == nil then
     history = {}
@@ -31,7 +32,7 @@ local function save_history(input)
 
   local result = {}
   local exists = false
-  for i = 1, math.min(5, #history) do
+  for i = 1, math.min(history_size, #history) do
     if history[i] ~= input then
       table.insert(result, history[i])
     else
@@ -42,7 +43,9 @@ local function save_history(input)
 
   if not exists and input ~= "" then
     table.insert(result, 1, input)
-    table.remove(result, #result)
+    if #result > history_size then
+      table.remove(result, #result)
+    end
   end
 
   local ok, encoded = pcall(vim.json.encode, result)
@@ -63,15 +66,14 @@ function M.filter()
     { key = "<q>", desc = "close" },
   }, false, false)
 
-  table.insert(header, "History:")
   local history = load_history()
   if history then
+    table.insert(header, "History:")
     for _, value in ipairs(history) do
       table.insert(header, value)
     end
+    table.insert(header, "")
   end
-
-  table.insert(header, "")
 
   vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
