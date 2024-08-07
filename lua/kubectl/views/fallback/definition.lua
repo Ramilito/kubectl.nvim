@@ -50,21 +50,23 @@ end
 
 function M.processRow(rows)
   local data = {}
+  if rows.items then
+    for _, row in pairs(rows.items) do
+      local version = ""
+      if row.spec and row.spec.version then
+        version = row.spec.version
+      end
+      local pod = {
+        namespace = row.metadata.namespace,
+        name = row.metadata.name,
+        status = getStatus(row),
+        version = version,
+      }
 
-  for _, row in pairs(rows.items) do
-    local version = ""
-    if row.spec and row.spec.version then
-      version = row.spec.version
+      table.insert(data, pod)
     end
-    local pod = {
-      namespace = row.metadata.namespace,
-      name = row.metadata.name,
-      status = getStatus(row),
-      version = version,
-    }
-
-    table.insert(data, pod)
   end
+
   return data
 end
 
@@ -74,13 +76,15 @@ function M.getHeaders(rows)
     "NAME",
   }
 
-  local firstItem = rows.items[1] or {}
-  if firstItem.status and (firstItem.status.conditions or firstItem.status.health) then
-    table.insert(headers, "STATUS")
-  end
+  if rows.items then
+    local firstItem = rows.items[1]
+    if firstItem.status and (firstItem.status.conditions or firstItem.status.health) then
+      table.insert(headers, "STATUS")
+    end
 
-  if firstItem.spec and firstItem.spec.version then
-    table.insert(headers, "VERSION")
+    if firstItem.spec and firstItem.spec.version then
+      table.insert(headers, "VERSION")
+    end
   end
   return headers
 end
