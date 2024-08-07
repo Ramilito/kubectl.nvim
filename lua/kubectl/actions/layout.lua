@@ -34,6 +34,30 @@ function M.main_layout()
   return api.nvim_get_current_win()
 end
 
+--- Create an Aliases layout.
+--- @param buf integer: The buffer number.
+--- @param filetype string: The filetype for the buffer.
+--- @param title string|nil: The title for the buffer (optional).
+--- @return integer: The window number.
+function M.aliases_layout(buf, filetype, title)
+  local width = 0.8 * vim.o.columns
+  local height = 5
+  local row = 10
+  local col = 10
+
+  local win = api.nvim_open_win(buf, true, {
+    relative = "editor",
+    style = "minimal",
+    width = math.floor(width),
+    height = math.floor(height),
+    row = row,
+    border = "rounded",
+    col = col,
+    title = filetype .. " - " .. (title or ""),
+  })
+  return win
+end
+
 --- Create a filter layout.
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
@@ -41,7 +65,7 @@ end
 --- @return integer: The window number.
 function M.filter_layout(buf, filetype, title)
   local width = 0.8 * vim.o.columns
-  local height = 5
+  local height = 13
   local row = 10
   local col = 10
 
