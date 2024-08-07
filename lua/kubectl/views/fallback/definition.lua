@@ -50,9 +50,6 @@ end
 
 function M.processRow(rows)
   local data = {}
-  if #rows == 0 then
-    return data
-  end
 
   for _, row in pairs(rows.items) do
     local version = ""
@@ -72,10 +69,6 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
-  if #rows == 0 then
-    return {}
-  end
-
   local headers = {
     "NAMESPACE",
     "NAME",
