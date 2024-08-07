@@ -1,11 +1,23 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.definition")
 local hl = require("kubectl.actions.highlight")
-local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
+
+M.cached_api_resources = { values = {}, timestamp = nil }
+
+local one_day_in_seconds = 24 * 60 * 60
+local current_time = os.time()
+
+if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+  commands.shell_command_async("kubectl", { "api-resources", "-o", "name", "--cached" }, function(data)
+    M.cached_api_resources.values = data
+    M.timestamp = os.time()
+  end)
+end
 
 --- Generate hints and display them in a floating buffer
 ---@alias Hint { key: string, desc: string }
@@ -59,89 +71,77 @@ function M.Hints(headers)
   buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
 end
 
-local function on_prompt_input(input)
-  local parsed_input = string.lower(string_utils.trim(input:gsub("%.apps$", "")))
-  local ok, view = pcall(require, "kubectl.views." .. parsed_input)
-  if ok then
-    pcall(view.View)
-  else
-    view = require("kubectl.views.fallback")
-    view.View(nil, parsed_input)
-  end
-end
-
 function M.Aliases()
-  ResourceBuilder:new("aliases"):setCmd({ "api-resources", "-o", "name", "--cached" }):fetchAsync(function(self)
-    self:splitData():decodeJson()
+  local self = ResourceBuilder:new("aliases")
 
-    vim.schedule(function()
-      local current_suggestion_index = 0
-      local original_input = ""
-      local header, marks = tables.generateHeader({
-        { key = "<enter>", desc = "go to" },
-        { key = "<tab>", desc = "suggestion" },
-        { key = "<q>", desc = "close" },
-      }, false, false)
+  self.data = M.cached_api_resources.values
+  self:splitData():decodeJson()
 
-      local function update_prompt_with_suggestion(bufnr, suggestion)
-        local prompt = "% "
-        vim.api.nvim_buf_set_lines(
-          bufnr,
-          #header + 1,
-          -1,
-          false,
-          { prompt .. original_input .. suggestion:sub(#original_input + 1) }
-        )
-        vim.api.nvim_win_set_cursor(0, { #header, #prompt + #suggestion })
+  local current_suggestion_index = 0
+  local original_input = ""
+  local header, marks = tables.generateHeader({
+    { key = "<enter>", desc = "go to" },
+    { key = "<tab>", desc = "suggestion" },
+    { key = "<q>", desc = "close" },
+  }, false, false)
+
+  local function update_prompt_with_suggestion(bufnr, suggestion)
+    local prompt = "% "
+    vim.api.nvim_buf_set_lines(
+      bufnr,
+      #header + 1,
+      -1,
+      false,
+      { prompt .. original_input .. suggestion:sub(#original_input + 1) }
+    )
+    vim.api.nvim_win_set_cursor(0, { #header, #prompt + #suggestion })
+  end
+
+  local buf = buffers.aliases_buffer(
+    "k8s_aliases",
+    definition.on_prompt_input,
+    { title = "Aliases", header = { data = {} }, suggestions = self.data }
+  )
+
+  vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
+    noremap = true,
+    callback = function()
+      local line = vim.api.nvim_get_current_line()
+      local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+
+      if current_suggestion_index == 0 then
+        original_input = input
       end
 
-      local buf = buffers.aliases_buffer(
-        "k8s_aliases",
-        on_prompt_input,
-        { title = "Aliases", header = { data = {} }, suggestions = self.data }
-      )
+      -- Filter suggestions based on input
+      local filtered_suggestions = {}
+      for _, suggestion in ipairs(self.data) do
+        if suggestion:sub(1, #original_input) == original_input then
+          table.insert(filtered_suggestions, suggestion)
+        end
+      end
 
-      vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
-        noremap = true,
-        callback = function()
-          local line = vim.api.nvim_get_current_line()
-          local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+      -- Cycle through the suggestions
+      if #filtered_suggestions > 0 then
+        current_suggestion_index = current_suggestion_index + 1
+        if current_suggestion_index >= #filtered_suggestions + 1 then
+          update_prompt_with_suggestion(buf, original_input)
+          current_suggestion_index = 0 -- Reset the index if no suggestions are available
+        else
+          update_prompt_with_suggestion(buf, filtered_suggestions[current_suggestion_index])
+        end
+      else
+        update_prompt_with_suggestion(buf, original_input)
+        current_suggestion_index = 0 -- Reset the index if no suggestions are available
+      end
+      return ""
+    end,
+  })
 
-          if current_suggestion_index == 0 then
-            original_input = input
-          end
+  vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+  vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
 
-          -- Filter suggestions based on input
-          local filtered_suggestions = {}
-          for _, suggestion in ipairs(self.data) do
-            if suggestion:sub(1, #original_input) == original_input then
-              table.insert(filtered_suggestions, suggestion)
-            end
-          end
-
-          -- Cycle through the suggestions
-          if #filtered_suggestions > 0 then
-            current_suggestion_index = current_suggestion_index + 1
-            if current_suggestion_index >= #filtered_suggestions + 1 then
-              update_prompt_with_suggestion(buf, original_input)
-              current_suggestion_index = 0 -- Reset the index if no suggestions are available
-            else
-              update_prompt_with_suggestion(buf, filtered_suggestions[current_suggestion_index])
-            end
-          else
-            update_prompt_with_suggestion(buf, original_input)
-            current_suggestion_index = 0 -- Reset the index if no suggestions are available
-          end
-          return ""
-        end,
-      })
-
-      vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
-      vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
-
-      buffers.apply_marks(buf, marks, header)
-    end)
-  end)
+  buffers.apply_marks(buf, marks, header)
 end
 
 --- PortForwards function retrieves port forwards and displays them in a float window.
