@@ -34,7 +34,7 @@ function M.main_layout()
   return api.nvim_get_current_win()
 end
 
---- Create a filter layout.
+--- Create an Aliases layout.
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
 --- @param title string|nil: The title for the buffer (optional).
