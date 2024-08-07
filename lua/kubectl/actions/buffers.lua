@@ -91,7 +91,7 @@ function M.aliases_buffer(filetype, callback, opts)
     end, { buffer = buf, silent = true })
   end
 
-  local win = layout.filter_layout(buf, filetype, opts.title or "")
+  local win = layout.aliases_layout(buf, filetype, opts.title or "")
 
   vim.fn.prompt_setcallback(buf, function(input)
     callback(input)
@@ -109,7 +109,7 @@ end
 --- Creates a filter buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
-function M.filter_buffer(filetype, opts)
+function M.filter_buffer(filetype, callback, opts)
   local bufname = "kubectl_filter"
   local buf = vim.fn.bufnr(bufname, false)
 
@@ -124,6 +124,7 @@ function M.filter_buffer(filetype, opts)
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
   vim.fn.prompt_setcallback(buf, function(input)
+    callback(input)
     if not input then
       state.setFilter("")
     else
