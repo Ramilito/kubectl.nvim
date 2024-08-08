@@ -258,6 +258,7 @@ end
 --- @param buf number: Buffer number
 --- @param opts { content: table, marks: table,  header: { data: table }}
 function M.set_content(buf, opts)
+  opts.header = opts.header or {}
   set_buffer_lines(buf, opts.header.data, opts.content)
   M.apply_marks(buf, opts.marks, opts.header)
 

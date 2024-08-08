@@ -68,7 +68,10 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
+  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints")
+
+  local content = vim.split(table.concat(hints, ""), "\n")
+  buffers.set_content(buf, { content = content, marks = marks })
 end
 
 function M.Aliases()
