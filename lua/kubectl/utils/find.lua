@@ -29,7 +29,9 @@ local function is_in_table(tbl, str)
   if str == nil then
     return false
   end
-  for _, value in pairs(tbl) do
+
+  local lowered_str = str:lower()
+
   for key, value in pairs(tbl) do
     if key == "symbol" then
       return false
@@ -38,7 +40,7 @@ local function is_in_table(tbl, str)
       if is_in_table(value, str) then
         return true
       end
-    elseif tostring(value):lower():match(str:lower()) then
+    elseif value:lower():match(lowered_str) then
       return true
     end
   end
