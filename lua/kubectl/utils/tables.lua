@@ -102,7 +102,7 @@ local function addDividerRow(divider, hints, marks)
 
     local virt_text = {
       { padding, hl.symbols.success },
-      { resource, hl.symbols.header },
+      { " " .. resource, hl.symbols.header },
       { "[", hl.symbols.header },
       { count },
       { "]", hl.symbols.header },
@@ -113,7 +113,7 @@ local function addDividerRow(divider, hints, marks)
       table.insert(virt_text, { filter, hl.symbols.pending })
       table.insert(virt_text, { ">", hl.symbols.header })
     end
-    table.insert(virt_text, { padding, hl.symbols.success })
+    table.insert(virt_text, { " " .. padding, hl.symbols.success })
 
     table.insert(marks, {
       row = #hints,
