@@ -27,7 +27,7 @@ end
 ---@return boolean
 local function is_in_table(tbl, str)
   if str == nil then
-    return true
+    return false
   end
   for _, value in pairs(tbl) do
   for key, value in pairs(tbl) do
