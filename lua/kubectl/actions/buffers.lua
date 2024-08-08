@@ -199,6 +199,7 @@ function M.floating_dynamic_buffer(filetype, title, opts)
   opts.header = opts.header or {}
   local buf = vim.fn.bufnr(bufname, false)
   local win
+
   if buf == -1 then
     buf = create_buffer(bufname)
     win = layout.float_dynamic_layout(buf, filetype, title or "")
