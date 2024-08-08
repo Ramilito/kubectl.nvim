@@ -210,22 +210,12 @@ function M.floating_dynamic_buffer(filetype, title, opts)
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
 
-  local group = filetype
-  vim.api.nvim_create_augroup(group, { clear = true })
-  vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
-    group = group,
-    buffer = buf,
-    callback = function()
-      vim.api.nvim_input("gr")
-    end,
-  })
-
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function(
       _, -- use nil as first argument (since it is buffer handle)
       buf_nr, -- buffer number
-      changedtick, -- buffer changedtick
-      firstline, -- first line number of the change (0-indexed)
+      _, -- buffer changedtick
+      _, -- first line number of the change (0-indexed)
       lastline, -- last line number of the change
       new_lastline -- last line number after the change
     )
@@ -233,6 +223,7 @@ function M.floating_dynamic_buffer(filetype, title, opts)
         local win_config = vim.api.nvim_win_get_config(win)
 
         local rows = vim.api.nvim_buf_line_count(buf_nr)
+
         -- Calculate the maximum width (number of columns of the widest line)
         local max_columns = 100
         local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)

@@ -99,9 +99,8 @@ function M.float_dynamic_layout(buf, filetype, title, opts)
     style = "minimal",
     width = 100,
     height = 5,
-
     col = (vim.api.nvim_win_get_width(0) - 100 + 2) * 0.5,
-    row = (vim.api.nvim_win_get_height(0) + 5) * 0.5,
+    row = (vim.api.nvim_win_get_height(0) - 20) * 0.5,
     border = "rounded",
     title = title,
   })
