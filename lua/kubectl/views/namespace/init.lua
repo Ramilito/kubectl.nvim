@@ -9,7 +9,7 @@ function M.View()
   ResourceBuilder:new("namespace")
     :setCmd({ "{{BASE}}/api/v1/namespaces?pretty=false" }, "curl")
     :fetchAsync(function(self)
-      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      self:decodeJson():process(definition.processRow, true):sort():prettyPrint(definition.getHeaders)
 
       vim.schedule(function()
         self:displayFloat("k8s_namespace", "Namespace", "", true)
