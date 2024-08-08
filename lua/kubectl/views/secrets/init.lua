@@ -30,10 +30,17 @@ end
 function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_secret_desc", name, "yaml")
-    :setCmd({ "describe", "secret", name, "-n", ns })
-    :fetch()
-    :splitData()
-    :displayFloat("k8s_secret_desc", name, "yaml")
+    :setCmd({ "get", "secret", name, "-n", ns, "-o", "yaml" })
+    :fetchAsync(function(self)
+      self:splitData()
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<cr>", desc = "base64decode" },
+          }, false, false, false)
+          :displayFloat("k8s_secret_desc", name, "yaml", false)
+      end)
+    end)
 end
 
 --- Get current seletion for view
