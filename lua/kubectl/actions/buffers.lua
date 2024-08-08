@@ -193,6 +193,68 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   M.apply_marks(buf, opts.marks, nil)
 end
 
+function M.floating_dynamic_buffer(filetype, title, opts)
+  opts = opts or {}
+  local bufname = title or "kubectl_dynamic_float"
+  opts.header = opts.header or {}
+  local buf = vim.fn.bufnr(bufname, false)
+  local win
+
+  if buf == -1 then
+    buf = create_buffer(bufname)
+    win = layout.float_dynamic_layout(buf, filetype, title or "")
+    layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
+  end
+
+  vim.keymap.set("n", "q", function()
+    vim.api.nvim_buf_delete(buf, { force = false })
+  end, { buffer = buf, silent = true })
+
+  vim.api.nvim_buf_attach(buf, false, {
+    on_lines = function(
+      _, -- use nil as first argument (since it is buffer handle)
+      buf_nr, -- buffer number
+      changedtick, -- buffer changedtick
+      firstline, -- first line number of the change (0-indexed)
+      lastline, -- last line number of the change
+      new_lastline -- last line number after the change
+    )
+      if lastline ~= new_lastline then
+        local win_config = vim.api.nvim_win_get_config(win)
+
+        local rows = vim.api.nvim_buf_line_count(buf_nr)
+        -- Calculate the maximum width (number of columns of the widest line)
+        local max_columns = 100
+        local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)
+
+        for _, line in ipairs(lines) do
+          local line_width = vim.api.nvim_strwidth(line)
+          if line_width > max_columns then
+            max_columns = line_width
+          end
+        end
+
+        win_config.height = rows
+        win_config.width = max_columns
+
+        vim.api.nvim_win_set_config(win, win_config)
+      end
+    end,
+  })
+
+  return buf
+end
+
+--- @param buf number: Buffer number
+--- @param opts { content: table, marks: table,  header: { data: table }}
+function M.set_content(buf, opts)
+  opts.header = opts.header or {}
+  set_buffer_lines(buf, opts.header.data, opts.content)
+  M.apply_marks(buf, opts.marks, opts.header)
+
+  api.nvim_set_option_value("modified", false, { buf = buf })
+end
+
 --- Creates a floating buffer.
 --- @param content table: The content lines.
 --- @param marks table: The marks to apply.

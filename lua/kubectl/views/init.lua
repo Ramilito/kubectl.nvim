@@ -68,7 +68,10 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  buffers.floating_buffer(vim.split(table.concat(hints, ""), "\n"), marks, "k8s_hints", { title = "Hints" })
+  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints")
+
+  local content = vim.split(table.concat(hints, ""), "\n")
+  buffers.set_content(buf, { content = content, marks = marks })
 end
 
 function M.Aliases()
@@ -149,36 +152,14 @@ end
 -- @return nil
 function M.PortForwards()
   local pfs = {}
-  pfs = definition.getPortForwards(pfs, false, "all")
+  pfs = definition.getPFData(pfs, false, "all")
 
-  local builder = ResourceBuilder:new("Port forward")
+  local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
+  self.data = definition.getPFRows(pfs)
+  self.extmarks = {}
 
-  local data = {}
-  builder.extmarks = {}
-  for _, value in ipairs(pfs) do
-    table.insert(data, {
-      pid = { value = value.pid, symbol = hl.symbols.gray },
-      type = { value = value.type, symbol = hl.symbols.info },
-      resource = { value = value.resource, symbol = hl.symbols.success },
-      port = { value = value.port, symbol = hl.symbols.pending },
-    })
-  end
-
-  builder.prettyData, builder.extmarks = tables.pretty_print(data, { "PID", "TYPE", "RESOURCE", "PORT" })
-  builder
-    :displayFloat("k8s_port_forwards", "Port forwards", "", true)
-    :addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
-    :displayFloat("k8s_port_forwards", "Port forwards", "", true)
-
-  local group = "k8s_port_forwards"
-  vim.api.nvim_create_augroup(group, { clear = true })
-  vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
-    group = group,
-    buffer = builder.buf_nr,
-    callback = function()
-      vim.api.nvim_input("gr")
-    end,
-  })
+  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "PID", "TYPE", "RESOURCE", "PORT" })
+  self:addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false):setContent()
 end
 
 --- Execute a user command and handle the response
