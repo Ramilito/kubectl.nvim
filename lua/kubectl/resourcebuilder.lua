@@ -77,7 +77,6 @@ function ResourceBuilder:displayFloatFit(filetype, title, syntax)
   notifications.Add({
     "display buffer " .. "[" .. self.resource .. "]",
   })
-  notifications.Close()
   self.buf_nr = buffers.floating_dynamic_buffer(filetype, title, syntax)
 
   return self
@@ -267,6 +266,7 @@ end
 function ResourceBuilder:setContent()
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
 
+  notifications.Close()
   return self
 end
 

@@ -82,6 +82,32 @@ function M.filter_layout(buf, filetype, title)
   return win
 end
 
+--- Create a float dynamic layout.
+--- @param buf integer: The buffer number.
+--- @param filetype string: The filetype for the buffer.
+--- @param title string|nil: The title for the buffer (optional).
+--- @param opts { relative: string|nil }|nil: The options for the float layout (optional).
+--- @return integer: The window number.
+function M.float_dynamic_layout(buf, filetype, title, opts)
+  opts = opts or {}
+  if filetype ~= "" then
+    title = filetype .. " - " .. (title or "")
+  end
+
+  local win = api.nvim_open_win(buf, true, {
+    relative = opts.relative or "editor",
+    style = "minimal",
+    width = 100,
+    height = 5,
+
+    col = (vim.api.nvim_win_get_width(0) - 100 + 2) * 0.5,
+    row = (vim.api.nvim_win_get_height(0) + 5) * 0.5,
+    border = "rounded",
+    title = title,
+  })
+  return win
+end
+
 --- Create a float layout.
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.

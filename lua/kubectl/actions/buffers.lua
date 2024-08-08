@@ -203,7 +203,7 @@ function M.floating_dynamic_buffer(filetype, title, opts)
     buf = create_buffer(bufname)
   end
 
-  local win = layout.float_layout(buf, filetype, title or "")
+  local win = layout.float_dynamic_layout(buf, filetype, title or "")
   vim.keymap.set("n", "q", function()
     vim.cmd("bdelete")
   end, { buffer = buf, silent = true })
@@ -234,7 +234,7 @@ function M.floating_dynamic_buffer(filetype, title, opts)
 
         local rows = vim.api.nvim_buf_line_count(buf_nr)
         -- Calculate the maximum width (number of columns of the widest line)
-        local max_columns = 0
+        local max_columns = 100
         local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)
 
         for _, line in ipairs(lines) do
