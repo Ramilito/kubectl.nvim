@@ -92,61 +92,34 @@ local function addDividerRow(divider, hints, marks)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local half_width = math.floor(text_width / 2)
 
-  local row = ""
+  local row = " "
   if divider then
     local resource = divider.resource or ""
     local count = divider.count or ""
     local filter = divider.filter or ""
     local info = resource .. count .. filter
     local padding = string.rep("―", half_width - #info / 2)
-    row = padding .. info .. padding
 
-    -- Left padding
+    local virt_text = {
+      { padding, hl.symbols.success },
+      { resource, hl.symbols.header },
+      { "[", hl.symbols.header },
+      { count },
+      { "]", hl.symbols.header },
+    }
+
+    if filter ~= "" then
+      table.insert(virt_text, { " </", hl.symbols.header })
+      table.insert(virt_text, { filter, hl.symbols.pending })
+      table.insert(virt_text, { ">", hl.symbols.header })
+    end
+    table.insert(virt_text, { padding, hl.symbols.success })
+
     table.insert(marks, {
       row = #hints,
       start_col = 0,
-      end_col = #padding,
-      hl_group = hl.symbols.success,
-    })
-
-    -- Resource
-    table.insert(marks, {
-      row = #hints,
-      start_col = #padding,
-      end_col = #padding + #resource,
-      hl_group = hl.symbols.header,
-    })
-
-    -- [ for count
-    table.insert(marks, {
-      row = #hints,
-      start_col = #padding + #resource,
-      end_col = #padding + #resource + 1,
-      hl_group = hl.symbols.header,
-    })
-
-    -- ] for count
-    table.insert(marks, {
-      row = #hints,
-      start_col = #padding + #resource + #count - 1,
-      end_col = #padding + #resource + #count,
-      hl_group = hl.symbols.header,
-    })
-
-    -- Filter
-    table.insert(marks, {
-      row = #hints,
-      start_col = #padding + #resource + #count,
-      end_col = #padding + #resource + #count + #filter,
-      hl_group = hl.symbols.pending,
-    })
-
-    -- Right padding
-    table.insert(marks, {
-      row = #hints,
-      start_col = #padding + #info,
-      end_col = #padding + #info + #padding,
-      hl_group = hl.symbols.success,
+      virt_text = virt_text,
+      virt_text_pos = "overlay",
     })
   else
     local padding = string.rep("―", half_width)
@@ -155,7 +128,11 @@ local function addDividerRow(divider, hints, marks)
       row = #hints,
       start_col = 0,
       end_col = #padding + #padding,
-      hl_group = hl.symbols.success,
+      virt_text = {
+        { padding, hl.symbols.success },
+        { padding, hl.symbols.success },
+      },
+      virt_text_pos = "overlay",
     })
   end
 

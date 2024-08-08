@@ -248,26 +248,25 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   local count = ""
   local filter = ""
   if self.prettyData then
-    count = "[" .. #self.prettyData - 1 .. "]"
+    count = tostring(#self.prettyData - 1)
   elseif self.data then
-    count = "[" .. #self.data - 1 .. "]"
+    count = tostring(#self.data - 1)
   end
   if include_filter and state.filter ~= "" then
-    filter = " </" .. state.filter .. "> "
-  else
-    filter = " "
+    filter = state.filter
   end
   self.header.data, self.header.marks = tables.generateHeader(
     hints,
     include_defaults,
     include_context,
-    { resource = " " .. string_util.capitalize(self.resource), count = count, filter = filter }
+    { resource = string_util.capitalize(self.resource), count = count, filter = filter }
   )
   return self
 end
 
 function ResourceBuilder:setContent()
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
+
   return self
 end
 
