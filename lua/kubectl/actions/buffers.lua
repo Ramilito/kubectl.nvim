@@ -198,24 +198,23 @@ function M.floating_dynamic_buffer(filetype, title, opts)
   local bufname = title or "kubectl_dynamic_float"
   opts.header = opts.header or {}
   local buf = vim.fn.bufnr(bufname, false)
-
+  local win
   if buf == -1 then
     buf = create_buffer(bufname)
+    win = layout.float_dynamic_layout(buf, filetype, title or "")
+    layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
   end
 
-  local win = layout.float_dynamic_layout(buf, filetype, title or "")
   vim.keymap.set("n", "q", function()
-    vim.cmd("bdelete")
+    vim.api.nvim_buf_delete(buf, { force = false })
   end, { buffer = buf, silent = true })
-
-  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
 
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function(
       _, -- use nil as first argument (since it is buffer handle)
       buf_nr, -- buffer number
-      _, -- buffer changedtick
-      _, -- first line number of the change (0-indexed)
+      changedtick, -- buffer changedtick
+      firstline, -- first line number of the change (0-indexed)
       lastline, -- last line number of the change
       new_lastline -- last line number after the change
     )
@@ -223,7 +222,6 @@ function M.floating_dynamic_buffer(filetype, title, opts)
         local win_config = vim.api.nvim_win_get_config(win)
 
         local rows = vim.api.nvim_buf_line_count(buf_nr)
-
         -- Calculate the maximum width (number of columns of the widest line)
         local max_columns = 100
         local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)
