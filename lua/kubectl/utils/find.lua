@@ -27,14 +27,20 @@ end
 ---@return boolean
 local function is_in_table(tbl, str)
   if str == nil then
-    return true
+    return false
   end
-  for _, value in pairs(tbl) do
+
+  local lowered_str = str:lower()
+
+  for key, value in pairs(tbl) do
+    if key == "symbol" then
+      return false
+    end
     if type(value) == "table" then
       if is_in_table(value, str) then
         return true
       end
-    elseif tostring(value):lower():match(str:lower()) then
+    elseif tostring(value):lower():match(lowered_str) then
       return true
     end
   end
@@ -47,21 +53,17 @@ end
 ---@param startAt number
 ---@return table[]
 function M.filter_line(array, pattern, startAt)
-  local filtered_array = {}
   if not pattern then
     return array
   end
   startAt = startAt or 1
+  local filtered_array = {}
 
-  if array then
-    for index = 1, startAt - 1 do
-      table.insert(filtered_array, array[index])
-    end
-    for index = startAt, #array do
-      local line = array[index]
-      if is_in_table(line, pattern) then
-        table.insert(filtered_array, line)
-      end
+  -- Filter the array starting from startAt
+  for index = startAt, #array do
+    local line = array[index]
+    if is_in_table(line, pattern) then
+      table.insert(filtered_array, line)
     end
   end
 
