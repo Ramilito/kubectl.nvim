@@ -30,6 +30,10 @@ local function is_in_table(tbl, str)
     return true
   end
   for _, value in pairs(tbl) do
+  for key, value in pairs(tbl) do
+    if key == "symbol" then
+      return false
+    end
     if type(value) == "table" then
       if is_in_table(value, str) then
         return true
