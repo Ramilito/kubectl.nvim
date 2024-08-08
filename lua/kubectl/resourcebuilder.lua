@@ -19,13 +19,67 @@ ResourceBuilder.__index = ResourceBuilder
 
 --- Create a new ResourceBuilder
 ---@param resource string The resource to build
----@param args table? The arguments for the resource
 ---@return ResourceBuilder
-function ResourceBuilder:new(resource, args)
+function ResourceBuilder:new(resource)
   self = setmetatable({}, ResourceBuilder)
   self.resource = resource
-  self.args = args or {}
   self.header = { data = nil, marks = nil }
+  return self
+end
+
+--- Display the data in a buffer
+---@param filetype string The filetype to use for the buffer
+---@param title string The title for the buffer
+---@param cancellationToken function The function to check for cancellation
+---@return ResourceBuilder|nil
+function ResourceBuilder:display(filetype, title, cancellationToken)
+  if cancellationToken and cancellationToken() then
+    return nil
+  end
+  notifications.Add({
+    "display data " .. "[" .. self.resource .. "]",
+  })
+  notifications.Close()
+  self.buf_nr = buffers.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
+  self:postRender()
+  return self
+end
+
+--- Display the data in a floating window
+---@param filetype string The filetype to use for the floating window
+---@param title string The title for the floating window
+---@param syntax string The syntax to use for the floating window
+---@param usePrettyData? boolean Whether to use pretty data or raw data
+---@return ResourceBuilder
+function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
+  local displayData = usePrettyData and self.prettyData or self.data or {}
+
+  notifications.Add({
+    "display data " .. "[" .. self.resource .. "]",
+  })
+  notifications.Close()
+  self.buf_nr = buffers.floating_buffer(
+    displayData,
+    self.extmarks,
+    filetype,
+    { title = title, syntax = syntax, header = self.header }
+  )
+
+  return self
+end
+
+--- Display the data in a floating fit to size window
+---@param filetype string The filetype to use for the floating window
+---@param title string The title for the floating window
+---@param syntax? string The syntax to use for the floating window
+---@return ResourceBuilder
+function ResourceBuilder:displayFloatFit(filetype, title, syntax)
+  notifications.Add({
+    "display buffer " .. "[" .. self.resource .. "]",
+  })
+  notifications.Close()
+  self.buf_nr = buffers.floating_dynamic_buffer(filetype, title, syntax)
+
   return self
 end
 
@@ -212,44 +266,8 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   return self
 end
 
---- Display the data in a buffer
----@param filetype string The filetype to use for the buffer
----@param title string The title for the buffer
----@param cancellationToken function The function to check for cancellation
----@return ResourceBuilder|nil
-function ResourceBuilder:display(filetype, title, cancellationToken)
-  if cancellationToken and cancellationToken() then
-    return nil
-  end
-  notifications.Add({
-    "display data " .. "[" .. self.resource .. "]",
-  })
-  notifications.Close()
-  self.buf_nr = buffers.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
-  self:postRender()
-  return self
-end
-
---- Display the data in a floating window
----@param filetype string The filetype to use for the floating window
----@param title string The title for the floating window
----@param syntax string The syntax to use for the floating window
----@param usePrettyData? boolean Whether to use pretty data or raw data
----@return ResourceBuilder
-function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
-  local displayData = usePrettyData and self.prettyData or self.data or {}
-
-  notifications.Add({
-    "display data " .. "[" .. self.resource .. "]",
-  })
-  notifications.Close()
-  self.buf_nr = buffers.floating_buffer(
-    displayData,
-    self.extmarks,
-    filetype,
-    { title = title, syntax = syntax, header = self.header }
-  )
-
+function ResourceBuilder:setContent()
+  buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
   return self
 end
 

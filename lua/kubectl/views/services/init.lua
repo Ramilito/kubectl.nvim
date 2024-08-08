@@ -9,7 +9,7 @@ local M = {}
 
 function M.View(cancellationToken)
   local pfs = {}
-  root_definition.getPortForwards(pfs, true, "svc")
+  root_definition.getPFData(pfs, true, "svc")
   ResourceBuilder:new("services")
     :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" }, "curl")
     :fetchAsync(function(self)

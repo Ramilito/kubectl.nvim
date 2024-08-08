@@ -193,6 +193,45 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   M.apply_marks(buf, opts.marks, nil)
 end
 
+function M.floating_dynamic_buffer(filetype, title, opts)
+  opts = opts or {}
+  local bufname = title or "kubectl_dynamic_float"
+  opts.header = opts.header or {}
+  local buf = vim.fn.bufnr(bufname, false)
+
+  if buf == -1 then
+    buf = create_buffer(bufname)
+  end
+
+  local win = layout.float_layout(buf, filetype, title or "")
+  vim.keymap.set("n", "q", function()
+    vim.cmd("bdelete")
+  end, { buffer = buf, silent = true })
+
+  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
+
+  local group = filetype
+  vim.api.nvim_create_augroup(group, { clear = true })
+  vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
+    group = group,
+    buffer = buf,
+    callback = function()
+      vim.api.nvim_input("gr")
+    end,
+  })
+
+  return buf
+end
+
+--- @param buf number: Buffer number
+--- @param opts { content: table, marks: table,  header: { data: table }}
+function M.set_content(buf, opts)
+  set_buffer_lines(buf, opts.header.data, opts.content)
+  M.apply_marks(buf, opts.marks, opts.header)
+
+  api.nvim_set_option_value("modified", false, { buf = buf })
+end
+
 --- Creates a floating buffer.
 --- @param content table: The content lines.
 --- @param marks table: The marks to apply.

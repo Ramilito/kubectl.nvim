@@ -8,7 +8,7 @@ local M = {}
 ---@param async boolean @Indicates whether the function should run asynchronously
 ---@param kind "pods"|"svc"|"all" @What types we want to retrieve
 ---@return table[] @Returns the modified array of port forwards
-function M.getPortForwards(port_forwards, async, kind)
+function M.getPFData(port_forwards, async, kind)
   if vim.fn.has("win32") == 1 then
     return port_forwards
   end
@@ -48,6 +48,19 @@ function M.getPortForwards(port_forwards, async, kind)
   end
 
   return port_forwards
+end
+
+function M.getPFRows(pfs)
+  local data = {}
+  for _, value in ipairs(pfs) do
+    table.insert(data, {
+      pid = { value = value.pid, symbol = hl.symbols.gray },
+      type = { value = value.type, symbol = hl.symbols.info },
+      resource = { value = value.resource, symbol = hl.symbols.success },
+      port = { value = value.port, symbol = hl.symbols.pending },
+    })
+  end
+  return data
 end
 
 function M.setPortForwards(marks, data, port_forwards)
