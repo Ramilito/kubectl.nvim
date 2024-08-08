@@ -156,8 +156,7 @@ function M.PortForwards()
   self.extmarks = {}
 
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "PID", "TYPE", "RESOURCE", "PORT" })
-  self:addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false)
-  self:setContent()
+  self:addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false):setContent()
 end
 
 --- Execute a user command and handle the response
