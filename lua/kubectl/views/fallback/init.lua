@@ -8,10 +8,7 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 M.resource = ""
 
-function M.View(cancellationToken, resource)
-  if resource then
-    M.resource = resource
-  end
+local function get_args()
   local ns_filter = state.getNamespace()
   local args = { "get", M.resource, "-o=json" }
   if ns_filter == "All" then
@@ -20,10 +17,17 @@ function M.View(cancellationToken, resource)
     table.insert(args, "--namespace")
     table.insert(args, ns_filter)
   end
+  return args
+end
+
+function M.View(cancellationToken, resource)
+  if resource then
+    M.resource = resource
+  end
 
   ResourceBuilder:new(M.resource)
     :display("k8s_fallback", "fallback", cancellationToken)
-    :setCmd(args)
+    :setCmd(get_args())
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
@@ -32,7 +36,6 @@ function M.View(cancellationToken, resource)
             { key = "<gd>", desc = "describe" },
           }, true, true, true)
           :setContent(cancellationToken)
-          :display("k8s_fallback", "fallback", cancellationToken)
       end)
     end)
 end
