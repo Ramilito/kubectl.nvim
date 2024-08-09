@@ -74,8 +74,31 @@ end
 --- Returns a list of context-names
 --- @return string[]
 function M.list_contexts()
-  local contexts = commands.execute_shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
+  local contexts = commands.shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
   return vim.split(contexts, "\n")
+end
+
+--- Returns a list of namespaces
+--- @return string[]
+function M.list_namespace()
+  local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
+  local ns = {}
+  for line in output:gmatch("[^\r\n]+") do
+    local namespace = line:match("^namespace/(.+)$")
+    if namespace then
+      table.insert(ns, namespace)
+    end
+  end
+
+  return ns
+end
+
+--- Change namespace
+--- @param cmd string
+function M.change_namespace(cmd)
+  local results = commands.shell_command("kubectl", { "config", "set-context", "--current", "--namespace=" .. cmd })
+
+  vim.notify(results, vim.log.levels.INFO)
 end
 
 --- Change context and restart proxy

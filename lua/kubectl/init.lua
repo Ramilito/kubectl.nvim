@@ -74,6 +74,13 @@ function M.setup(options)
     complete = completion.user_command_completion,
   })
 
+  vim.api.nvim_create_user_command("Kubens", function(opts)
+    completion.change_namespace(opts.fargs[1])
+  end, {
+    nargs = "*",
+    complete = completion.list_namespace,
+  })
+
   vim.api.nvim_create_user_command("Kubectx", function(opts)
     completion.change_context(opts.fargs[1])
   end, {
