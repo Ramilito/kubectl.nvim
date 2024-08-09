@@ -75,7 +75,7 @@ function M.logs(pod, ns)
           :addHints({
             { key = "<f>", desc = "Follow" },
           }, false, false, false)
-          :setContent()
+          :setContentRaw()
       end)
     end)
 end
