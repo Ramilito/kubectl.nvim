@@ -18,9 +18,7 @@ local defaults = {
     bin = "kubediff",
   },
   namespace = "All",
-  namespace_fallback = {
-    "tools",
-  },
+  namespace_fallback = {},
   notifications = {
     enabled = true,
     verbose = false,

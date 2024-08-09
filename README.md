@@ -97,6 +97,7 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { nor
     bin = "kubediff" -- or any other binary
   },
   namespace = "All",
+  namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
   notifications = {
     enabled = true,
     verbose = false,
