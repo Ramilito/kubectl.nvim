@@ -13,15 +13,14 @@ function M.View()
     :fetchAsync(function(self)
       self:decodeJson()
       if self.data.reason == "Forbidden" then
-        self.data = {}
-        local data = { items = {} }
+        self.data = { items = {} }
+
         for _, value in ipairs(config.options.namespace_fallback) do
-          table.insert(
-            data.items,
-            { metadata = { name = value, creationTImestamp = "nil" }, status = { phase = "nil" } }
-          )
+          table.insert(self.data.items, {
+            metadata = { name = value, creationTimestamp = "nil" },
+            status = { phase = "nil" },
+          })
         end
-        self.data = data
         self:process(definition.processLimitedRow, true)
       else
         self:process(definition.processRow, true)
@@ -30,8 +29,12 @@ function M.View()
       vim.schedule(function()
         self:setContent()
 
-        local win = vim.api.nvim_get_current_win()
-        vim.api.nvim_win_set_cursor(win, { 2, 0 })
+        local line_count = vim.api.nvim_buf_line_count(self.buf_nr)
+
+        if line_count >= 2 then
+          local win = vim.api.nvim_get_current_win()
+          vim.api.nvim_win_set_cursor(win, { 2, 0 })
+        end
       end)
     end)
 end
