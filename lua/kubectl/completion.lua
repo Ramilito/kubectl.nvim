@@ -91,7 +91,8 @@ function M.change_context(cmd)
 end
 
 function M.diff(path)
-  local buf = buffers.floating_buffer({ "Loading..." }, {}, "k8s_diff", { title = "diff" })
+  local buf = buffers.floating_buffer("k8s_diff", "diff")
+
   if config.options.diff.bin == "kubediff" then
     local column_size = vim.api.nvim_win_get_width(0)
     local args = { "-t", column_size }
