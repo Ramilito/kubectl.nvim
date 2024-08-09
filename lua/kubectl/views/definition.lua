@@ -94,8 +94,10 @@ function M.on_prompt_input(input)
       pcall(view.View)
     end)
   else
-    view = require("kubectl.views.fallback")
-    view.View(nil, parsed_input)
+    vim.schedule(function()
+      view = require("kubectl.views.fallback")
+      view.View(nil, parsed_input)
+    end)
   end
 end
 

@@ -35,7 +35,6 @@ function M.View(cancellationToken, resource)
           :addHints({
             { key = "<gd>", desc = "describe" },
           }, true, true, true)
-          :display("k8s_fallback", "fallback", cancellationToken)
           :setContent(cancellationToken)
       end)
     end)
