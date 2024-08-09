@@ -41,13 +41,13 @@ function M.Desc(node)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_node_desc", node, "yaml")
+        self:setContent()
       end)
     end)
 end
 
 function M.Edit(_, name)
-  buffers.floating_buffer({}, {}, "k8s_node_edit", { title = name, syntax = "yaml" })
+  buffers.floating_buffer("k8s_node_edit", name, "yaml")
   commands.execute_terminal("kubectl", { "edit", "nodes/" .. name })
 end
 

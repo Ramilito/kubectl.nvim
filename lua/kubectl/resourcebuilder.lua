@@ -39,31 +39,20 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   notifications.Add({
     "display data " .. "[" .. self.resource .. "]",
   })
-  notifications.Close()
-  self.buf_nr = buffers.buffer(self.prettyData, self.extmarks, filetype, { title = title, header = self.header })
-  self:postRender()
+  self.buf_nr = buffers.buffer(filetype, title)
   return self
 end
 
 --- Display the data in a floating window
 ---@param filetype string The filetype to use for the floating window
 ---@param title string The title for the floating window
----@param syntax string The syntax to use for the floating window
----@param usePrettyData? boolean Whether to use pretty data or raw data
+---@param syntax string? The syntax to use for the floating window
 ---@return ResourceBuilder
-function ResourceBuilder:displayFloat(filetype, title, syntax, usePrettyData)
-  local displayData = usePrettyData and self.prettyData or self.data or {}
-
+function ResourceBuilder:displayFloat(filetype, title, syntax)
   notifications.Add({
     "display data " .. "[" .. self.resource .. "]",
   })
-  notifications.Close()
-  self.buf_nr = buffers.floating_buffer(
-    displayData,
-    self.extmarks,
-    filetype,
-    { title = title, syntax = syntax, header = self.header }
-  )
+  self.buf_nr = buffers.floating_buffer(filetype, title, syntax)
 
   return self
 end
@@ -263,10 +252,29 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   return self
 end
 
-function ResourceBuilder:setContent()
-  buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
+--- Sets the data in a buffer
+function ResourceBuilder:setContentRaw(cancellationToken)
+  if cancellationToken and cancellationToken() then
+    return nil
+  end
 
+  buffers.set_content(self.buf_nr, { content = self.data, marks = self.extmarks, header = self.header })
   notifications.Close()
+  self:postRender()
+
+  return self
+end
+
+--- Sets the data in a buffer
+function ResourceBuilder:setContent(cancellationToken)
+  if cancellationToken and cancellationToken() then
+    return nil
+  end
+
+  buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
+  notifications.Close()
+  self:postRender()
+
   return self
 end
 

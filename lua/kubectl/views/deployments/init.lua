@@ -8,6 +8,7 @@ local M = {}
 
 function M.View(cancellationToken)
   ResourceBuilder:new("deployments")
+    :display("k8s_deployments", "Deployments", cancellationToken)
     :setCmd({ "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
@@ -18,25 +19,26 @@ function M.View(cancellationToken)
             { key = "<gd>", desc = "desc" },
             { key = "<enter>", desc = "pods" },
           }, true, true, true)
-          :display("k8s_deployments", "Deployments", cancellationToken)
+          :setContent(cancellationToken)
       end)
     end)
 end
 
 function M.Desc(name, ns)
   ResourceBuilder:new("desc")
+    :displayFloat("k8s_deployment_desc", name, "yaml")
     :setCmd({ "describe", "deployment", name, "-n", ns })
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_deployment_desc", name, "yaml")
+        self.setContent()
       end)
     end)
 end
 
 function M.Edit(name, ns)
-  buffers.floating_buffer({}, {}, "k8s_deployment_edit", { title = name, syntax = "yaml" })
-  commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", ns })
+  buffers.floating_buffer("k8s_deployment_edit", name, "yaml")
+  buffers.commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", ns })
 end
 
 --- Get current seletion for view

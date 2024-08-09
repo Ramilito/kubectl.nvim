@@ -8,6 +8,7 @@ local M = {}
 
 function M.View(cancellationToken)
   ResourceBuilder:new("secrets")
+    :display("k8s_secrets", "Secrets", cancellationToken)
     :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}secrets?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
@@ -17,13 +18,13 @@ function M.View(cancellationToken)
           :addHints({
             { key = "<gd>", desc = "describe" },
           }, true, true, true)
-          :display("k8s_secrets", "Secrets", cancellationToken)
+          :setContent(cancellationToken)
       end)
     end)
 end
 
 function M.Edit(name, ns)
-  buffers.floating_buffer({}, {}, "k8s_secret_edit", { title = name, syntax = "yaml" })
+  buffers.floating_buffer("k8s_secret_edit", name, "yaml")
   commands.execute_terminal("kubectl", { "edit", "secrets/" .. name, "-n", ns })
 end
 
@@ -38,7 +39,8 @@ function M.Desc(name, ns)
           :addHints({
             { key = "<cr>", desc = "base64decode" },
           }, false, false, false)
-          :displayFloat("k8s_secret_desc", name, "yaml", false)
+          :setContent()
+        -- :displayFloat("k8s_secret_desc", name, "yaml", false)
       end)
     end)
 end

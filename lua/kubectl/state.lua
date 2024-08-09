@@ -51,7 +51,9 @@ function M.setup(views)
     M.ns = config.options.namespace
     M.filter = ""
 
-    pod_view.View()
+    vim.schedule(function()
+      pod_view.View()
+    end)
   end)
 end
 

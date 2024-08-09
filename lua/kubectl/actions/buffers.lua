@@ -256,41 +256,33 @@ function M.set_content(buf, opts)
 end
 
 --- Creates a floating buffer.
---- @param content table: The content lines.
---- @param marks table: The marks to apply.
 --- @param filetype string: The filetype of the buffer.
---- @param opts { title: string|nil, syntax: string|nil, header: { data: table }}: Options for the buffer.
+--- @param title string: The buffer title
+--- @param syntax string?: The buffer title
 --- @return integer: The buffer number.
-function M.floating_buffer(content, marks, filetype, opts)
-  local bufname = opts.title or "kubectl_float"
-  opts.header = opts.header or {}
+function M.floating_buffer(filetype, title, syntax)
+  local bufname = title or "kubectl_float"
   local buf = vim.fn.bufnr(bufname, false)
 
   if buf == -1 then
     buf = create_buffer(bufname)
   end
 
-  set_buffer_lines(buf, opts.header.data, content)
-
-  local win = layout.float_layout(buf, filetype, opts.title or "")
+  local win = layout.float_layout(buf, filetype, title or "")
   vim.keymap.set("n", "q", function()
     vim.cmd("bdelete")
   end, { buffer = buf, silent = true })
 
-  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
-  M.apply_marks(buf, marks, opts.header)
+  layout.set_buf_options(buf, win, filetype, syntax or filetype, bufname)
 
   return buf
 end
 
 --- Creates or updates a buffer.
---- @param content table: The content lines.
---- @param marks table: The marks to apply.
 --- @param filetype string: The filetype of the buffer.
---- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
-function M.buffer(content, marks, filetype, opts)
-  local bufname = opts.title or "kubectl"
-  opts.header = opts.header or {}
+--- @param title string: The buffer title
+function M.buffer(filetype, title)
+  local bufname = title or "kubectl"
   local buf = vim.fn.bufnr(bufname, false)
   local win = layout.main_layout()
 
@@ -299,9 +291,7 @@ function M.buffer(content, marks, filetype, opts)
     layout.set_buf_options(buf, win, filetype, filetype, bufname)
   end
 
-  set_buffer_lines(buf, opts.header.data, content)
   api.nvim_set_current_buf(buf)
-  M.apply_marks(buf, marks, opts.header)
 
   return buf
 end
