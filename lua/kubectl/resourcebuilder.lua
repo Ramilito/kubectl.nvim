@@ -30,7 +30,7 @@ end
 --- Display the data in a buffer
 ---@param filetype string The filetype to use for the buffer
 ---@param title string The title for the buffer
----@param cancellationToken function The function to check for cancellation
+---@param cancellationToken function|nil The function to check for cancellation
 ---@return ResourceBuilder|nil
 function ResourceBuilder:display(filetype, title, cancellationToken)
   if cancellationToken and cancellationToken() then
