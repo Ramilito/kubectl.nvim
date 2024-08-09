@@ -40,7 +40,7 @@ function M.View()
 
           vim.keymap.set("n", "q", function()
             api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
-            api.nvim_buf_delete(0, { force = true })
+            api.nvim_buf_delete(self.buf_nr, { force = true })
           end, { buffer = self.buf_nr, silent = true })
         else
           self:setContent()
