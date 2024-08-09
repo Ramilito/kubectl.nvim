@@ -22,8 +22,11 @@ function M.View()
           )
         end
         self.data = data
+        self:process(definition.processLimitedRow, true)
+      else
+        self:process(definition.processRow, true)
       end
-      self:process(definition.processRow, true):sort():prettyPrint(definition.getHeaders)
+      self:sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         self:setContent()
 

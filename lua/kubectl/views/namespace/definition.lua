@@ -2,6 +2,13 @@ local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
 
 local M = {}
+
+function M.processLimitedRow(rows)
+  local data = M.processRow(rows)
+  table.remove(data, 1)
+
+  return data
+end
 function M.processRow(rows)
   local data = { { name = "All", status = "", age = "" } }
 
