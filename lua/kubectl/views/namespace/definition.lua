@@ -5,6 +5,10 @@ local M = {}
 function M.processRow(rows)
   local data = { { name = "All", status = "", age = "" } }
 
+  if not rows.items then
+    return data
+  end
+
   for _, row in pairs(rows.items) do
     local pod = {
       name = row.metadata.name,
