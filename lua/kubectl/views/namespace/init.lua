@@ -42,8 +42,7 @@ function M.changeNamespace(name)
   end
   if name == "All" then
     state.ns = "All"
-    vim.api.nvim_buf_delete(0, { force = false })
-    vim.api.nvim_input("gr")
+    handle_output()
   else
     commands.shell_command_async(
       "kubectl",
