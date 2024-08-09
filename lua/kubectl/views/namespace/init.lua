@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.namespace.definition")
+local api = vim.api
 local state = require("kubectl.state")
 
 local M = {}
@@ -27,13 +28,27 @@ function M.View()
       end
       self:sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
-        self:setContent()
+        if #self.prettyData == 1 then
+          api.nvim_set_current_line("Access to namespaces denied, please input your desired namespace")
+          api.nvim_set_option_value("buftype", "prompt", { buf = self.buf_nr })
+          vim.fn.prompt_setcallback(self.buf_nr, function(input)
+            api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
+            M.changeNamespace(input)
+          end)
 
-        local line_count = vim.api.nvim_buf_line_count(self.buf_nr)
+          vim.cmd("startinsert")
 
-        if line_count >= 2 then
-          local win = vim.api.nvim_get_current_win()
-          vim.api.nvim_win_set_cursor(win, { 2, 0 })
+          vim.keymap.set("n", "q", function()
+            api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
+            api.nvim_buf_delete(self.buf_nr, { force = true })
+          end, { buffer = self.buf_nr, silent = true })
+        else
+          self:setContent()
+          local line_count = api.nvim_buf_line_count(self.buf_nr)
+          if line_count >= 2 then
+            local win = api.nvim_get_current_win()
+            api.nvim_win_set_cursor(win, { 2, 0 })
+          end
         end
       end)
     end)
@@ -42,8 +57,8 @@ function M.changeNamespace(name)
   local function handle_output(_)
     vim.schedule(function()
       state.ns = name
-      vim.api.nvim_buf_delete(0, { force = false })
-      vim.api.nvim_input("gr")
+      api.nvim_buf_delete(0, { force = true })
+      api.nvim_input("gr")
     end)
   end
   if name == "All" then
