@@ -11,6 +11,7 @@ M.selection = {}
 function M.View(cancellationToken)
   local pfs = {}
   root_definition.getPFData(pfs, true, "pods")
+
   ResourceBuilder:new("pods")
     :display("k8s_pods", "Pods", cancellationToken)
     :setCmd({
