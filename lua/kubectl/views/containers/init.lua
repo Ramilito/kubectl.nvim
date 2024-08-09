@@ -12,7 +12,7 @@ end
 
 function M.View(pod, ns)
   ResourceBuilder:new("containers")
-    :displayFloat("k8s_containers", pod, "", true)
+    :displayFloat("k8s_containers", pod, "")
     :setCmd({ "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
@@ -23,7 +23,7 @@ function M.View(pod, ns)
             { key = "<gl>", desc = "logs" },
             { key = "<enter>", desc = "exec" },
           }, false, false, false)
-          :displayFloat("k8s_containers", pod, "", true)
+          :setContent()
       end)
     end)
 end
@@ -57,12 +57,13 @@ function M.tailLogs(pod, ns)
 end
 
 function M.exec(pod, ns)
-  buffers.floating_buffer({ "" }, {}, "k8s_container_exec", { title = "ssh " .. M.selection })
+  buffers.floating_buffer("k8s_container_exec", "ssh " .. M.selection)
   commands.execute_terminal("kubectl", { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" })
 end
 
 function M.logs(pod, ns)
   ResourceBuilder:new("containerLogs")
+    :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
     :setCmd(
       { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true" },
       "curl"
@@ -74,7 +75,7 @@ function M.logs(pod, ns)
           :addHints({
             { key = "<f>", desc = "Follow" },
           }, false, false, false)
-          :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
+          :setContentRaw()
       end)
     end)
 end

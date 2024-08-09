@@ -21,20 +21,23 @@ function M.View(cancellationToken, resource)
     table.insert(args, ns_filter)
   end
 
-  ResourceBuilder:new(M.resource):setCmd(args):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<gd>", desc = "describe" },
-        }, true, true, true)
-        :display("k8s_fallback", "fallback", cancellationToken)
+  ResourceBuilder:new(M.resource)
+    :display("k8s_fallback", "fallback", cancellationToken)
+    :setCmd(args)
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<gd>", desc = "describe" },
+          }, true, true, true)
+          :setContent(cancellationToken)
+      end)
     end)
-  end)
 end
 
 function M.Edit(name, ns)
-  buffers.floating_buffer({}, {}, "k8s_fallback_edit", { title = name, syntax = "yaml" })
+  buffers.floating_buffer("k8s_fallback_edit", name, "yaml")
   commands.execute_terminal("kubectl", { "edit", M.resource .. "/" .. name, "-n", ns })
 end
 
@@ -44,7 +47,7 @@ function M.Desc(name, ns)
     :setCmd({ "describe", M.resource, name, "-n", ns })
     :fetch()
     :splitData()
-    :displayFloat("k8s_fallback_desc", name, "yaml")
+    :setContent()
 end
 
 --- Get current seletion for view

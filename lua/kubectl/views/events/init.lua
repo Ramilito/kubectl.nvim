@@ -7,6 +7,7 @@ local M = {}
 
 function M.View(cancellationToken)
   ResourceBuilder:new("events")
+    :display("k8s_events", "Events", cancellationToken)
     :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
@@ -17,13 +18,14 @@ function M.View(cancellationToken)
             { key = "<gd>", desc = "describe" },
             { key = "<enter>", desc = "message" },
           }, true, true, true)
-          :display("k8s_events", "Events", cancellationToken)
+          :setContent(cancellationToken)
       end)
     end)
 end
 
 function M.ShowMessage(event)
-  buffers.floating_buffer(vim.split(event, "\n"), {}, "event_msg", { title = "Message", syntax = "less" })
+  local buf = buffers.floating_buffer("event_msg", "Message", "less")
+  buffers.set_content(buf, { content = vim.split(event, "\n"), {}, {} })
 end
 
 function M.Desc(name, ns)
@@ -33,7 +35,7 @@ function M.Desc(name, ns)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_event_desc", name, "yaml")
+        self:setContentRaw()
       end)
     end)
 end

@@ -24,7 +24,9 @@ function M.open()
   hl.setup()
   kube.startProxy(function()
     state.setup(M.views)
-    pod_view.View()
+    vim.schedule(function()
+      pod_view.View()
+    end)
   end)
 end
 

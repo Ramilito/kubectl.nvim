@@ -12,6 +12,7 @@ function M.View(cancellationToken)
   local pfs = {}
   root_definition.getPFData(pfs, true, "pods")
   ResourceBuilder:new("pods")
+    :display("k8s_pods", "Pods", cancellationToken)
     :setCmd({
       "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
       "-w",
@@ -30,20 +31,17 @@ function M.View(cancellationToken)
             { key = "<gp>", desc = "PF" },
             { key = "<gk>", desc = "kill pod" },
           }, true, true, true)
-          :display("k8s_pods", "Pods", cancellationToken)
+          :setContent(cancellationToken)
       end)
     end)
 end
 
 function M.Top()
-  ResourceBuilder:new("top")
-    :displayFloat("k8s_top", "Top", "")
-    :setCmd({ "top", "pods", "-A" })
-    :fetchAsync(function(self)
-      vim.schedule(function()
-        self:splitData():displayFloat("k8s_top", "Top", "")
-      end)
+  ResourceBuilder:new("top"):displayFloat("k8s_top", "Top"):setCmd({ "top", "pods", "-A" }):fetchAsync(function(self)
+    vim.schedule(function()
+      self:splitData():setContentRaw()
     end)
+  end)
 end
 
 function M.TailLogs()
@@ -92,13 +90,13 @@ function M.Logs()
           :addHints({
             { key = "<f>", desc = "Follow" },
           }, false, false, false)
-          :displayFloat("k8s_pod_logs", M.selection.pod, "less")
+          :setContentRaw()
       end)
     end)
 end
 
 function M.Edit(name, ns)
-  buffers.floating_buffer({}, {}, "k8s_pod_edit", { title = name, syntax = "yaml" })
+  buffers.floating_buffer("k8s_pod_edit", name, "yaml")
   commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", ns })
 end
 
@@ -109,7 +107,7 @@ function M.Desc(name, ns)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_pod_desc", name, "yaml")
+        self:setContentRaw()
       end)
     end)
 end

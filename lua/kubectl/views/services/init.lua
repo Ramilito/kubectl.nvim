@@ -11,6 +11,7 @@ function M.View(cancellationToken)
   local pfs = {}
   root_definition.getPFData(pfs, true, "svc")
   ResourceBuilder:new("services")
+    :display("k8s_services", "Services", cancellationToken)
     :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
@@ -21,13 +22,13 @@ function M.View(cancellationToken)
             { key = "<gd>", desc = "describe" },
             { key = "<gp>", desc = "Port forward" },
           }, true, true, true)
-          :display("k8s_services", "Services", cancellationToken)
+          :setContent()
       end)
     end)
 end
 
 function M.Edit(name, ns)
-  buffers.floating_buffer({}, {}, "k8s_service_edit", { title = name, syntax = "yaml" })
+  buffers.floating_buffer("k8s_service_edit", name, "yaml")
   commands.execute_terminal("kubectl", { "edit", "services/" .. name, "-n", ns })
 end
 
@@ -38,7 +39,7 @@ function M.Desc(name, ns)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:displayFloat("k8s_svc_desc", name, "yaml")
+        self:setContentRaw()
       end)
     end)
 end
