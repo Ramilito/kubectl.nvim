@@ -13,7 +13,11 @@ local function set_keymaps(bufnr)
       local code = line:match(":%s*(.+)")
       if code then
         local decoded = base64.base64decode(code)
-        vim.notify(decoded)
+        line = line:gsub(code, decoded)
+
+        local decoded_lines = vim.split(line, "\n", true)
+        local current_line_number = vim.api.nvim_win_get_cursor(0)[1]
+        vim.api.nvim_buf_set_lines(0, current_line_number - 1, current_line_number, false, decoded_lines)
       else
         vim.notify("No base64encoded text found")
       end
