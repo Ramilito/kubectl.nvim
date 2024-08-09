@@ -39,6 +39,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   notifications.Add({
     "display data " .. "[" .. self.resource .. "]",
   })
+
   self.buf_nr = buffers.buffer(filetype, title)
   return self
 end

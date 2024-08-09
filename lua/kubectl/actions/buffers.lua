@@ -275,6 +275,7 @@ function M.floating_buffer(filetype, title, syntax)
 
   layout.set_buf_options(buf, win, filetype, syntax or filetype, bufname)
 
+  M.set_content(buf, { content = { "Loading..." } })
   return buf
 end
 
