@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
@@ -10,7 +11,19 @@ function M.View()
     :displayFloatFit("k8s_namespace", "Namespace")
     :setCmd({ "{{BASE}}/api/v1/namespaces?pretty=false" }, "curl")
     :fetchAsync(function(self)
-      self:decodeJson():process(definition.processRow, true):sort():prettyPrint(definition.getHeaders)
+      self:decodeJson()
+      if self.data.reason == "Forbidden" then
+        self.data = {}
+        local data = { items = {} }
+        for _, value in ipairs(config.options.namespace_fallback) do
+          table.insert(
+            data.items,
+            { metadata = { name = value, creationTImestamp = "nil" }, status = { phase = "nil" } }
+          )
+        end
+        self.data = data
+      end
+      self:process(definition.processRow, true):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         self:setContent()
 
