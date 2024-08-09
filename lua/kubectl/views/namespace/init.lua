@@ -42,9 +42,7 @@ function M.changeNamespace(name)
   end
   if name == "All" then
     state.ns = "All"
-
-    local win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_close(win, true)
+    vim.api.nvim_buf_delete(0, { force = false })
     vim.api.nvim_input("gr")
   else
     commands.shell_command_async(
