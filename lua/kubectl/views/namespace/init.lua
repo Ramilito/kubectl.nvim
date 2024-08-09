@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
@@ -10,12 +11,30 @@ function M.View()
     :displayFloatFit("k8s_namespace", "Namespace")
     :setCmd({ "{{BASE}}/api/v1/namespaces?pretty=false" }, "curl")
     :fetchAsync(function(self)
-      self:decodeJson():process(definition.processRow, true):sort():prettyPrint(definition.getHeaders)
+      self:decodeJson()
+      if self.data.reason == "Forbidden" then
+        self.data = { items = {} }
+
+        for _, value in ipairs(config.options.namespace_fallback) do
+          table.insert(self.data.items, {
+            metadata = { name = value, creationTimestamp = nil },
+            status = { phase = "nil" },
+          })
+        end
+        self:process(definition.processLimitedRow, true)
+      else
+        self:process(definition.processRow, true)
+      end
+      self:sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         self:setContent()
 
-        local win = vim.api.nvim_get_current_win()
-        vim.api.nvim_win_set_cursor(win, { 2, 0 })
+        local line_count = vim.api.nvim_buf_line_count(self.buf_nr)
+
+        if line_count >= 2 then
+          local win = vim.api.nvim_get_current_win()
+          vim.api.nvim_win_set_cursor(win, { 2, 0 })
+        end
       end)
     end)
 end
@@ -29,10 +48,7 @@ function M.changeNamespace(name)
   end
   if name == "All" then
     state.ns = "All"
-
-    local win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_close(win, true)
-    vim.api.nvim_input("gr")
+    handle_output()
   else
     commands.shell_command_async(
       "kubectl",
