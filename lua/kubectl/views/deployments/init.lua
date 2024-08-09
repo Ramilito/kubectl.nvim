@@ -31,14 +31,14 @@ function M.Desc(name, ns)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self.setContent()
+        self:setContentRaw()
       end)
     end)
 end
 
 function M.Edit(name, ns)
   buffers.floating_buffer("k8s_deployment_edit", name, "yaml")
-  buffers.commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", ns })
+  commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", ns })
 end
 
 --- Get current seletion for view

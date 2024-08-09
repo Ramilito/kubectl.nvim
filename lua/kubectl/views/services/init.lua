@@ -39,7 +39,7 @@ function M.Desc(name, ns)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:setContent()
+        self:setContentRaw()
       end)
     end)
 end

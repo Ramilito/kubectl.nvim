@@ -1,22 +1,28 @@
-local buffers = require("kubectl.actions.buffers")
-local tables = require("kubectl.utils.tables")
+local ResourceBuilder = require("kubectl.resourcebuilder")
+local definition = require("kubectl.views.root.definition")
 
 local M = {}
 
 function M.View()
-  local results = {
-    "Deployments",
-    "└── Pods",
-    "Events",
-    "Nodes",
-    "Secrets",
-    "Services",
-    "Configmaps",
-  }
-  local header, marks = tables.generateHeader({
-    { key = "<enter>", desc = "Select" },
-  }, true, true, { resource = " Root " })
-  buffers.buffer(results, {}, "k8s_root", { title = "Root", header = { data = header, marks = marks } })
+  local self = ResourceBuilder:new("root"):display("k8s_root", "Root")
+
+  if self then
+    self.data = {
+      "Deployments",
+      "└── Pods",
+      "Events",
+      "Nodes",
+      "Secrets",
+      "Services",
+      "Configmaps",
+    }
+    self
+      :process(definition.processRow, true)
+      :sort()
+      :prettyPrint(definition.getHeaders)
+      :addHints({ { key = "<enter>", desc = "Select" } }, true, true, true)
+      :setContent()
+  end
 end
 
 return M

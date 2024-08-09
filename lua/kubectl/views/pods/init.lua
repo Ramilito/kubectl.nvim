@@ -4,13 +4,11 @@ local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
 local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
-local timeme = require("kubectl.utils.timeme")
 
 local M = {}
 M.selection = {}
 
 function M.View(cancellationToken)
-  timeme.start()
   local pfs = {}
   root_definition.getPFData(pfs, true, "pods")
   ResourceBuilder:new("pods")
@@ -34,7 +32,6 @@ function M.View(cancellationToken)
             { key = "<gk>", desc = "kill pod" },
           }, true, true, true)
           :setContent(cancellationToken)
-        timeme.stop()
       end)
     end)
 end

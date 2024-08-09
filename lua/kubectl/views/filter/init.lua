@@ -1,5 +1,4 @@
 local buffers = require("kubectl.actions.buffers")
-local find = require("kubectl.utils.find")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 

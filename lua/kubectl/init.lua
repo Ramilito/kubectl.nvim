@@ -1,5 +1,4 @@
 local state = require("kubectl.state")
-local timeme = require("kubectl.utils.timeme")
 
 local M = {}
 

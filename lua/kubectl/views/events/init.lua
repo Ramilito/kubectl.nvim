@@ -24,7 +24,8 @@ function M.View(cancellationToken)
 end
 
 function M.ShowMessage(event)
-  -- buffers.floating_buffer(vim.split(event, "\n"), {}, "event_msg", { title = "Message", syntax = "less" })
+  local buf = buffers.floating_buffer("event_msg", "Message", "less")
+  buffers.set_content(buf, { content = vim.split(event, "\n"), {}, {} })
 end
 
 function M.Desc(name, ns)
@@ -34,7 +35,7 @@ function M.Desc(name, ns)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        self:setContent()
+        self:setContentRaw()
       end)
     end)
 end

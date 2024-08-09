@@ -39,8 +39,7 @@ function M.Desc(name, ns)
           :addHints({
             { key = "<cr>", desc = "base64decode" },
           }, false, false, false)
-          :setContent()
-        -- :displayFloat("k8s_secret_desc", name, "yaml", false)
+          :setContentRaw()
       end)
     end)
 end

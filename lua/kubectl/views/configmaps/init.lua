@@ -6,10 +6,9 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
---- View configmaps using ResourceBuilder
----@param cancellationToken? boolean
 function M.View(cancellationToken)
   ResourceBuilder:new("configmaps")
+    :display("k8s_configmaps", "Configmaps", cancellationToken)
     :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}configmaps?pretty=false" }, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
@@ -19,7 +18,7 @@ function M.View(cancellationToken)
           :addHints({
             { key = "<gd>", desc = "describe" },
           }, true, true, true)
-          :display("k8s_configmaps", "Configmaps", cancellationToken)
+          :setContent(cancellationToken)
       end)
     end)
 end
@@ -41,7 +40,7 @@ function M.Desc(name, ns)
     :setCmd({ "describe", "configmaps", name, "-n", ns })
     :fetch()
     :splitData()
-    :setContent()
+    :setContentRaw()
 end
 
 --- Get current seletion for view

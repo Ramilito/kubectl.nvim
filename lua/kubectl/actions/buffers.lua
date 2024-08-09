@@ -214,8 +214,8 @@ function M.floating_dynamic_buffer(filetype, title, opts)
     on_lines = function(
       _, -- use nil as first argument (since it is buffer handle)
       buf_nr, -- buffer number
-      changedtick, -- buffer changedtick
-      firstline, -- first line number of the change (0-indexed)
+      _, -- buffer changedtick
+      _, -- first line number of the change (0-indexed)
       lastline, -- last line number of the change
       new_lastline -- last line number after the change
     )
