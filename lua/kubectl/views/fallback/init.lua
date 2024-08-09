@@ -32,6 +32,7 @@ function M.View(cancellationToken, resource)
             { key = "<gd>", desc = "describe" },
           }, true, true, true)
           :setContent(cancellationToken)
+          :display("k8s_fallback", "fallback", cancellationToken)
       end)
     end)
 end
@@ -47,7 +48,7 @@ function M.Desc(name, ns)
     :setCmd({ "describe", M.resource, name, "-n", ns })
     :fetch()
     :splitData()
-    :setContent()
+    :setContentRaw()
 end
 
 --- Get current seletion for view
