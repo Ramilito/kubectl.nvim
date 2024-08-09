@@ -25,17 +25,20 @@ function M.View(cancellationToken, resource)
     M.resource = resource
   end
 
-  ResourceBuilder:new(M.resource):setCmd(get_args()):fetchAsync(function(self)
-    self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
-    vim.schedule(function()
-      self
-        :addHints({
-          { key = "<gd>", desc = "describe" },
-        }, true, true, true)
-        :display("k8s_fallback", "fallback", cancellationToken)
-        :setContent(cancellationToken)
+  ResourceBuilder:new(M.resource)
+    :display("k8s_fallback", "fallback", cancellationToken)
+    :setCmd(get_args())
+    :fetchAsync(function(self)
+      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      vim.schedule(function()
+        self
+          :addHints({
+            { key = "<gd>", desc = "describe" },
+          }, true, true, true)
+          :display("k8s_fallback", "fallback", cancellationToken)
+          :setContent(cancellationToken)
+      end)
     end)
-  end)
 end
 
 function M.Edit(name, ns)
