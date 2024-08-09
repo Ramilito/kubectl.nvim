@@ -17,7 +17,7 @@ function M.View()
 
         for _, value in ipairs(config.options.namespace_fallback) do
           table.insert(self.data.items, {
-            metadata = { name = value, creationTimestamp = "nil" },
+            metadata = { name = value, creationTimestamp = nil },
             status = { phase = "nil" },
           })
         end
