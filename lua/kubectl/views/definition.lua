@@ -1,6 +1,8 @@
 local commands = require("kubectl.actions.commands")
+local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local string_utils = require("kubectl.utils.string")
+local viewsTable = require("kubectl.utils.viewsTable")
 
 local M = {}
 
@@ -88,14 +90,23 @@ end
 
 function M.on_prompt_input(input)
   local parsed_input = string.lower(string_utils.trim(input:gsub("%.apps$", "")))
-  local ok, view = pcall(require, "kubectl.views." .. parsed_input)
-  if ok then
-    vim.schedule(function()
-      pcall(view.View)
-    end)
+  local supported_view = nil
+  for k, v in pairs(viewsTable) do
+    if find.is_in_table(v, parsed_input) then
+      supported_view = k
+    end
+  end
+
+  if supported_view then
+    local ok, view = pcall(require, "kubectl.views." .. supported_view)
+    if ok then
+      vim.schedule(function()
+        pcall(view.View)
+      end)
+    end
   else
     vim.schedule(function()
-      view = require("kubectl.views.fallback")
+      local view = require("kubectl.views.fallback")
       view.View(nil, parsed_input)
     end)
   end
