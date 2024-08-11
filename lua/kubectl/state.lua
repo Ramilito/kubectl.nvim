@@ -1,3 +1,4 @@
+local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
 ---@type table
@@ -34,11 +35,11 @@ end
 
 --- Setup the kubectl state
 --- @params views ViewTable
-function M.setup(views)
+function M.setup()
   local commands = require("kubectl.actions.commands")
   local config = require("kubectl.config")
 
-  for k, _ in pairs(views) do
+  for k, _ in pairs(viewsTable) do
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
   end
 
