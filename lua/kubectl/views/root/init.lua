@@ -8,6 +8,7 @@ function M.View()
 
   if self then
     self.data = {
+      "Daemonsets",
       "Deployments",
       "└── Pods",
       "Events",
