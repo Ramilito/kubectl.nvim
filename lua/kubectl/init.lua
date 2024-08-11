@@ -2,19 +2,6 @@ local state = require("kubectl.state")
 
 local M = {}
 
--- All main views
----@alias ViewTable table<string, string[]>
----@type ViewTable
-M.views = {
-  pods = { "pods", "pod", "po" },
-  deployments = { "deployments", "deployment", "deploy" },
-  events = { "events", "event", "ev" },
-  nodes = { "nodes", "node", "no" },
-  secrets = { "secrets", "secret", "sec" },
-  services = { "services", "service", "svc" },
-  configmaps = { "configmaps", "configmap", "configmaps" },
-}
-
 --- Open the kubectl view
 function M.open()
   local pod_view = require("kubectl.views.pods")
@@ -23,7 +10,7 @@ function M.open()
 
   hl.setup()
   kube.startProxy(function()
-    state.setup(M.views)
+    state.setup()
     vim.schedule(function()
       pod_view.View()
     end)

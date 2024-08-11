@@ -25,7 +25,7 @@ end
 ---@param tbl table
 ---@param str string
 ---@return boolean
-local function is_in_table(tbl, str)
+function M.is_in_table(tbl, str)
   if str == nil then
     return false
   end
@@ -37,7 +37,7 @@ local function is_in_table(tbl, str)
       return false
     end
     if type(value) == "table" then
-      if is_in_table(value, str) then
+      if M.is_in_table(value, str) then
         return true
       end
     elseif tostring(value):lower():match(lowered_str) then
@@ -62,7 +62,7 @@ function M.filter_line(array, pattern, startAt)
   -- Filter the array starting from startAt
   for index = startAt, #array do
     local line = array[index]
-    if is_in_table(line, pattern) then
+    if M.is_in_table(line, pattern) then
       table.insert(filtered_array, line)
     end
   end
