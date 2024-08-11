@@ -32,7 +32,6 @@ end
 
 --- Describe a configmap
 ---@param name string
----@param ns string
 function M.Desc(name)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_crds_desc", name, "yaml")
