@@ -1,4 +1,5 @@
 local api = vim.api
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
@@ -48,26 +49,27 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
 
-      local get_images = "get deploy "
-        .. name
-        .. " -n "
-        .. ns
-        .. ' -o jsonpath="{.spec.template.spec.containers[*].image}"'
+      local self = ResourceBuilder:new("daemonset_images")
+        :setCmd({
+          "{{BASE}}/apis/apps/v1/namespaces/" .. ns .. "/daemonsets/" .. name .. "?pretty=false",
+        }, "curl")
+        :fetch()
+        :decodeJson()
 
-      local container_images = {}
+      local containers = {}
 
-      for image in commands.execute_shell_command("kubectl", get_images):gmatch("[^\r\n]+") do
-        table.insert(container_images, image)
+      for _, container in ipairs(self.data.spec.template.spec.containers) do
+        table.insert(containers, { image = container.image, name = container.name })
       end
 
-      if #container_images > 1 then
+      if #containers > 1 then
         vim.notify("Setting new container image for multiple containers are NOT supported yet", vim.log.levels.WARN)
       else
-        vim.ui.input({ prompt = "Update image", default = container_images[1] }, function(input)
+        vim.ui.input({ prompt = "Update image ", default = containers[1].image }, function(input)
           if input ~= nil then
             buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
               if confirm then
-                local set_image = { "set", "image", "daemonset/" .. name, name .. "=" .. input, "-n", ns }
+                local set_image = { "set", "image", "daemonset/" .. name, containers[1].name .. "=" .. input, "-n", ns }
                 commands.shell_command_async("kubectl", set_image, function(response)
                   vim.schedule(function()
                     vim.notify(response)

@@ -100,7 +100,7 @@ end
 --- Fetch the data synchronously
 ---@return ResourceBuilder
 function ResourceBuilder:fetch()
-  self.data = commands.execute_shell_command(self.cmd, self.args)
+  self.data = commands.shell_command(self.cmd, self.args)
   return self
 end
 

@@ -63,7 +63,7 @@ local function set_keymaps(bufnr)
       if #container_images > 1 then
         vim.notify("Setting new container image for multiple containers are NOT supported yet", vim.log.levels.WARN)
       else
-        vim.ui.input({ prompt = "Update image", default = container_images[1] }, function(input)
+        vim.ui.input({ prompt = "Update image ", default = container_images[1] }, function(input)
           if input ~= nil then
             buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
               if confirm then
