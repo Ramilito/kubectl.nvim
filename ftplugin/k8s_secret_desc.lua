@@ -1,4 +1,3 @@
-local base64 = require("kubectl.utils.base64")
 local api = vim.api
 
 --- Set key mappings for the buffer
@@ -12,7 +11,7 @@ local function set_keymaps(bufnr)
 
       local code = line:match(":%s*(.+)")
       if code then
-        local decoded = base64.base64decode(code)
+        local decoded = vim.base64.decode(code)
         line = line:gsub(code, decoded)
 
         local decoded_lines = vim.split(line, "\n", true)
