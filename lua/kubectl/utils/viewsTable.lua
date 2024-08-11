@@ -4,6 +4,7 @@
 return {
   pods = { "pods", "pod", "po" },
   deployments = { "deployments", "deployment", "deploy" },
+  daemonsets = { "daemonsets", "daemonset", "ds" },
   events = { "events", "event", "ev" },
   nodes = { "nodes", "node", "no" },
   secrets = { "secrets", "secret", "sec" },
