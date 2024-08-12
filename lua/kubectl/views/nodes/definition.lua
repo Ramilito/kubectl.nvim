@@ -3,7 +3,18 @@ local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 local time = require("kubectl.utils.time")
-local M = {}
+local M = {
+  resource = "nodes",
+  display_name = "Nodes",
+  ft = "k8s_nodes",
+  url = { "{{BASE}}/api/v1/nodes?pretty=false" },
+  hints = {
+    { key = "<gd>", desc = "describe" },
+    { key = "<gC>", desc = "cordon" },
+    { key = "<gU>", desc = "uncordon" },
+    { key = "<gR>", desc = "drain" },
+  },
+}
 
 -- Define the custom match function for prefix and suffix
 local function match_prefix_suffix(key, _, prefix, suffix)

@@ -1,7 +1,12 @@
 local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
 
-local M = {}
+local M = {
+  resource = "namespace",
+  display_name = "Namespace",
+  ft = "k8s_namespace",
+  url = { "{{BASE}}/api/v1/namespaces?pretty=false" },
+}
 
 function M.processLimitedRow(rows)
   local data = M.processRow(rows)

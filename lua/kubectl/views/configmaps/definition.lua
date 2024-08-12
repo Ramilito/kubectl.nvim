@@ -1,4 +1,12 @@
-local M = {}
+local M = {
+  resource = "configmaps",
+  display_name = "Configmaps",
+  ft = "k8s_configmaps",
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}configmaps?pretty=false" },
+  hints = {
+    { key = "<gd>", desc = "describe" },
+  },
+}
 local time = require("kubectl.utils.time")
 
 --- Get the count of items in the provided data table
