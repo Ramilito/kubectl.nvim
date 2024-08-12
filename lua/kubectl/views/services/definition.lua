@@ -1,4 +1,13 @@
-local M = {}
+local M = {
+  resource = "services",
+  display_name = "Services",
+  ft = "k8s_services",
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" },
+  hints = {
+    { key = "<gd>", desc = "describe" },
+    { key = "<gp>", desc = "Port forward" },
+  },
+}
 local time = require("kubectl.utils.time")
 
 local function getPorts(ports)

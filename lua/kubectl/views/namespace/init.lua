@@ -8,9 +8,9 @@ local state = require("kubectl.state")
 local M = {}
 
 function M.View()
-  ResourceBuilder:new("namespace")
-    :displayFloatFit("k8s_namespace", "Namespace")
-    :setCmd({ "{{BASE}}/api/v1/namespaces?pretty=false" }, "curl")
+  ResourceBuilder:new(definition.resource)
+    :displayFloatFit(definition.ft, definition.display_name)
+    :setCmd(definition.url, "curl")
     :fetchAsync(function(self)
       self:decodeJson()
       if self.data.reason == "Forbidden" then

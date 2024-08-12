@@ -1,4 +1,14 @@
-local M = {}
+local M = {
+  resource = "deployments",
+  display_name = "Deployments",
+  ft = "k8s_deployments",
+  url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" },
+  hints = {
+    { key = "<grr>", desc = "restart" },
+    { key = "<gd>", desc = "desc" },
+    { key = "<enter>", desc = "pods" },
+  },
+}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 

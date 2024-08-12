@@ -1,4 +1,9 @@
-local M = {}
+local M = {
+  resource = "root",
+  display_name = "Root",
+  ft = "k8s_root",
+  hints = { { key = "<enter>", desc = "Select" } },
+}
 
 function M.processRow(rows)
   local data = {}

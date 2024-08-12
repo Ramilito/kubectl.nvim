@@ -10,19 +10,14 @@ local M = {}
 function M.View(cancellationToken)
   local pfs = {}
   root_definition.getPFData(pfs, true, "svc")
-  ResourceBuilder:new("services")
-    :display("k8s_services", "Services", cancellationToken)
-    :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" }, "curl")
+  ResourceBuilder:new(definition.resource)
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd(definition.url, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
-        self
-          :addHints({
-            { key = "<gd>", desc = "describe" },
-            { key = "<gp>", desc = "Port forward" },
-          }, true, true, true)
-          :setContent()
+        self:addHints(definition.hints, true, true, true):setContent()
       end)
     end)
 end
