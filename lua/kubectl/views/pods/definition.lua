@@ -6,11 +6,7 @@ local M = {
   resource = "pods",
   display_name = "Pods",
   ft = "k8s_pods",
-  url = {
-    "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
-    "-w",
-    "\n",
-  },
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" },
   hints = {
     { key = "<gl>", desc = "logs" },
     { key = "<gd>", desc = "describe" },

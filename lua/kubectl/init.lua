@@ -43,9 +43,9 @@ function M.setup(options)
       if #opts.fargs == 2 then
         local resource_type = opts.fargs[2]
         local viewsTable = require("kubectl.utils.viewsTable")
-        for viewKey, view in pairs(viewsTable) do
-          if vim.tbl_contains(view, resource_type) then
-            ok, x_view = pcall(require, "kubectl.views." .. viewKey)
+        for key, item in pairs(viewsTable) do
+          if vim.tbl_contains(item, resource_type) then
+            ok, x_view = pcall(require, "kubectl.views." .. key)
             if ok then
               break
             end
