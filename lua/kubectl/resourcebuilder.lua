@@ -236,6 +236,10 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   })
   local count = ""
   local filter = ""
+  local hints_copy = {}
+  for index, value in ipairs(hints) do
+    hints_copy[index] = value
+  end
   if self.prettyData then
     count = tostring(#self.prettyData - 1)
   elseif self.data then
@@ -245,7 +249,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
     filter = state.filter
   end
   self.header.data, self.header.marks = tables.generateHeader(
-    hints,
+    hints_copy,
     include_defaults,
     include_context,
     { resource = string_util.capitalize(self.resource), count = count, filter = filter }

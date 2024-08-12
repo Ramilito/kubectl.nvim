@@ -53,11 +53,12 @@ end
 ---@param args string[]
 ---@return string[]
 function M.build(args)
+  local parsed_args = {}
   for i, arg in ipairs(args) do
-    args[i] = replacePlaceholders(arg)
+    parsed_args[i] = replacePlaceholders(arg)
   end
 
-  return args
+  return parsed_args
 end
 
 return M
