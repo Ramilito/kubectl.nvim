@@ -49,7 +49,6 @@ function M.setup(options)
             if ok then
               break
             end
-            return
           end
         end
         if ok then
