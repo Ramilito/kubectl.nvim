@@ -38,21 +38,25 @@ function M.setup(options)
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local view = require("kubectl.views")
     local action = opts.fargs[1]
+    local ok, x_view
     if action == "get" then
       if #opts.fargs == 2 then
         local resource_type = opts.fargs[2]
         local viewsTable = require("kubectl.utils.viewsTable")
         for viewKey, view in pairs(viewsTable) do
           if vim.tbl_contains(view, resource_type) then
-            local ok, x_view = pcall(require, "kubectl.views." .. viewKey)
+            ok, x_view = pcall(require, "kubectl.views." .. viewKey)
             if ok then
-              pcall(x_view.View)
-            else
-              view = require("kubectl.views.fallback")
-              view.View(nil, opts.fargs[2])
+              break
             end
             return
           end
+        end
+        if ok then
+          pcall(x_view.View)
+        else
+          view = require("kubectl.views.fallback")
+          view.View(nil, opts.fargs[2])
         end
       else
         view.UserCmd(opts.fargs)
