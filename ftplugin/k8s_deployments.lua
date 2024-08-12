@@ -15,8 +15,8 @@ local function set_keymaps(bufnr)
     desc = "Help",
     callback = function()
       view.Hints({
-        { key = "<grr>", desc = "Restart selected Deployment" },
-        { key = "<gd>", desc = "Describe selected Deployment" },
+        { key = "<grr>", desc = "Restart selected deployment" },
+        { key = "<gd>", desc = "Describe selected deployment" },
         { key = "<enter>", desc = "Opens pods view" },
       })
     end,
