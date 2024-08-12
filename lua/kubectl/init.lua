@@ -48,7 +48,8 @@ function M.setup(options)
             if ok then
               pcall(x_view.View)
             else
-              view.UserCmd(opts.fargs)
+              view = require("kubectl.views.fallback")
+              view.View(nil, opts.fargs[2])
             end
             return
           end
