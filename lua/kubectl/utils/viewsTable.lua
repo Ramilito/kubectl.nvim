@@ -10,4 +10,6 @@ return {
   secrets = { "secrets", "secret", "sec" },
   services = { "services", "service", "svc" },
   configmaps = { "configmaps", "configmap", "configmaps" },
+  crds = { "customresourcedefinitions", "crds", "crd" },
+  pv = { "persistentvolumes", "persistentvolume", "pv" },
 }
