@@ -11,7 +11,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<gd>", desc = "Describe selected configmap" } })
+      view.Hints({ { key = "<gd>", desc = "Describe selected pod" } })
     end,
   })
 
