@@ -7,19 +7,13 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:new("daemonsets")
-    :display("k8s_daemonsets", "daemonsets", cancellationToken)
-    :setCmd({ "{{BASE}}/apis/apps/v1/{{NAMESPACE}}daemonsets?pretty=false" }, "curl")
+  ResourceBuilder:new(definition.resource)
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd( definition.url , "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
-        self
-          :addHints({
-            { key = "<grr>", desc = "restart" },
-            { key = "<gd>", desc = "desc" },
-            { key = "<enter>", desc = "pods" },
-          }, true, true, true)
-          :setContent(cancellationToken)
+        self:addHints(definition.hints, true, true, true):setContent(cancellationToken)
       end)
     end)
 end

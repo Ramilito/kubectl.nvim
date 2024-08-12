@@ -12,27 +12,14 @@ function M.View(cancellationToken)
   local pfs = {}
   root_definition.getPFData(pfs, true, "pods")
 
-  ResourceBuilder:new("pods")
-    :display("k8s_pods", "Pods", cancellationToken)
-    :setCmd({
-      "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
-      "-w",
-      "\n",
-    }, "curl")
+  ResourceBuilder:new(definition.resource)
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd(definition.url, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
-        self
-          :addHints({
-            { key = "<gl>", desc = "logs" },
-            { key = "<gd>", desc = "describe" },
-            { key = "<gu>", desc = "usage" },
-            { key = "<enter>", desc = "containers" },
-            { key = "<gp>", desc = "PF" },
-            { key = "<gk>", desc = "kill pod" },
-          }, true, true, true)
-          :setContent(cancellationToken)
+        self:addHints(definition.hints, true, true, true):setContent(cancellationToken)
       end)
     end)
 end

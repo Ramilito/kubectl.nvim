@@ -1,6 +1,14 @@
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
-local M = {}
+local M = {
+  resource = "crds",
+  display_name = "CRDS",
+  ft = "k8s_crds",
+  url = { "{{BASE}}/apis/apiextensions.k8s.io/v1/customresourcedefinitions?pretty=false" },
+  hints = {
+    { key = "<gd>", desc = "describe" },
+  },
+}
 
 --- Get the count of items in the provided data table
 ---@param data table

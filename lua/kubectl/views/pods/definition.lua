@@ -2,7 +2,24 @@ local events = require("kubectl.utils.events")
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
-local M = {}
+local M = {
+  resource = "pods",
+  display_name = "Pods",
+  ft = "k8s_pods",
+  url = {
+    "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false",
+    "-w",
+    "\n",
+  },
+  hints = {
+    { key = "<gl>", desc = "logs" },
+    { key = "<gd>", desc = "describe" },
+    { key = "<gu>", desc = "usage" },
+    { key = "<enter>", desc = "containers" },
+    { key = "<gp>", desc = "PF" },
+    { key = "<gk>", desc = "kill pod" },
+  },
+}
 
 local function getReady(row)
   local status = { symbol = "", value = "" }

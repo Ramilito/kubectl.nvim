@@ -4,7 +4,7 @@ local definition = require("kubectl.views.root.definition")
 local M = {}
 
 function M.View()
-  local self = ResourceBuilder:new("root"):display("k8s_root", "Root")
+  local self = ResourceBuilder:new(definition.resource):display(definition.ft, definition.display_name)
 
   if self then
     self.data = {
@@ -21,7 +21,7 @@ function M.View()
       :process(definition.processRow, true)
       :sort()
       :prettyPrint(definition.getHeaders)
-      :addHints({ { key = "<enter>", desc = "Select" } }, true, true, true)
+      :addHints(definition.hints, true, true, true)
       :setContent()
   end
 end

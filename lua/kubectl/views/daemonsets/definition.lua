@@ -1,4 +1,14 @@
-local M = {}
+local M = {
+  resource = "daemonsets",
+  display_name = "Daemonsets",
+  ft = "k8s_daemonsets",
+  url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}daemonsets?pretty=false" },
+  hints = {
+    { key = "<grr>", desc = "restart" },
+    { key = "<gd>", desc = "desc" },
+    { key = "<enter>", desc = "pods" },
+  },
+}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 

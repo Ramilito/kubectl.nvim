@@ -6,19 +6,14 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:new("events")
-    :display("k8s_events", "Events", cancellationToken)
-    :setCmd({ "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" }, "curl")
+  ResourceBuilder:new(definition.resource)
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd( definition.url , "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
 
       vim.schedule(function()
-        self
-          :addHints({
-            { key = "<gd>", desc = "describe" },
-            { key = "<enter>", desc = "message" },
-          }, true, true, true)
-          :setContent(cancellationToken)
+        self:addHints(definition.hints, true, true, true):setContent(cancellationToken)
       end)
     end)
 end

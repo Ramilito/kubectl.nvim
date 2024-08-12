@@ -1,4 +1,12 @@
-local M = {}
+local M = {
+  resource = "secrets",
+  display_name = "Secrets",
+  ft = "k8s_secrets",
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}secrets?pretty=false" },
+  hints = {
+    { key = "<gd>", desc = "describe" },
+  },
+}
 local time = require("kubectl.utils.time")
 
 local function getData(data)

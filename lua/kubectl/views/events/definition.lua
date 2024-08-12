@@ -1,6 +1,15 @@
 local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
-local M = {}
+local M = {
+  resource = "events",
+  display_name = "Events",
+  ft = "k8s_events",
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" },
+  hints = {
+    { key = "<gd>", desc = "describe" },
+    { key = "<enter>", desc = "message" },
+  },
+}
 
 local function getLastSeen(row)
   if row.lastTimestamp ~= vim.NIL then
