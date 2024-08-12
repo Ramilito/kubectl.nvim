@@ -9,7 +9,7 @@ return {
   nodes = { "nodes", "node", "no" },
   secrets = { "secrets", "secret", "sec" },
   services = { "services", "service", "svc" },
-  configmaps = { "configmaps", "configmap", "configmaps" },
+  configmaps = { "configmaps", "configmap", "cm" },
   crds = { "customresourcedefinitions", "crds", "crd" },
   pv = { "persistentvolumes", "persistentvolume", "pv" },
 }
