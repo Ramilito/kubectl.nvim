@@ -7,17 +7,13 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:new("pv")
-    :display("k8s_pv", "PV", cancellationToken)
-    :setCmd({ "{{BASE}}/api/v1/persistentvolumes?pretty=false" }, "curl")
+  ResourceBuilder:new(definition.resource)
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd(definition.url, "curl")
     :fetchAsync(function(self)
       self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
-        self
-          :addHints({
-            { key = "<gd>", desc = "describe" },
-          }, true, true, true)
-          :setContent()
+        self:addHints(definition.hints, true, true, true):setContent()
       end)
     end)
 end
