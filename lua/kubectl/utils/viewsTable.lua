@@ -12,4 +12,5 @@ return {
   configmaps = { "configmaps", "configmap", "cm" },
   crds = { "customresourcedefinitions", "crds", "crd" },
   pv = { "persistentvolumes", "persistentvolume", "pv" },
+  pvc = { "persistentvolumeclaims", "persistentvolumeclaim", "pvc" },
 }
