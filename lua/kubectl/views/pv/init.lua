@@ -7,15 +7,7 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:new(definition.resource)
-    :display(definition.ft, definition.display_name, cancellationToken)
-    :setCmd(definition.url, "curl")
-    :fetchAsync(function(self)
-      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
-      vim.schedule(function()
-        self:addHints(definition.hints, true, true, true):setContent()
-      end)
-    end)
+  ResourceBuilder:main_view(definition, cancellationToken)
 end
 
 function M.Edit(name)

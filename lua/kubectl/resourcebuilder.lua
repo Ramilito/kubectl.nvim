@@ -283,6 +283,19 @@ function ResourceBuilder:setContent(cancellationToken)
   return self
 end
 
+function ResourceBuilder:main_view(definition, cancellationToken)
+  ResourceBuilder:new(definition.resource)
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd(definition.url, "curl")
+    :fetchAsync(function(builder)
+      builder:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+
+      vim.schedule(function()
+        builder:addHints(definition.hints, true, true, true):setContent(cancellationToken)
+      end)
+    end)
+end
+
 --- Perform post-render actions
 ---@return ResourceBuilder
 function ResourceBuilder:postRender()
