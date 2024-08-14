@@ -10,21 +10,12 @@ local M = {}
 function M.View(cancellationToken)
   local pfs = {}
   root_definition.getPFData(pfs, true, "svc")
-  ResourceBuilder:new(definition.resource)
-    :display(definition.ft, definition.display_name, cancellationToken)
-    :setCmd(definition.url, "curl")
-    :fetchAsync(function(self)
-      self:decodeJson()
-      vim.schedule(function()
-        root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
-        self
-          :process(definition.processRow)
-          :sort()
-          :prettyPrint(definition.getHeaders)
-          :addHints(definition.hints, true, true, true)
-          :setContent()
-      end)
-    end)
+
+  ResourceBuilder:view(definition, cancellationToken, {
+    before_content_callback = function(self)
+      root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
+    end,
+  })
 end
 
 function M.Edit(name, ns)
