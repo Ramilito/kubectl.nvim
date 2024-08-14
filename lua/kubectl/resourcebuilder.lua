@@ -283,22 +283,26 @@ function ResourceBuilder:setContent(cancellationToken)
   return self
 end
 
-function ResourceBuilder:main_view(definition, cancellationToken)
-  ResourceBuilder:new(definition.resource)
-    :display(definition.ft, definition.display_name, cancellationToken)
-    :setCmd(definition.url, "curl")
-    :fetchAsync(function(builder)
-      builder:decodeJson()
+function ResourceBuilder:view(definition, cancellationToken, opts)
+  opts = opts or {}
+  local b = ResourceBuilder:new(definition.resource)
+  if opts.is_float then
+    b:displayFloat(definition.ft, definition.display_name, cancellationToken)
+  else
+    b:display(definition.ft, definition.display_name, cancellationToken)
+  end
+  b:setCmd(definition.url, "curl"):fetchAsync(function(builder)
+    builder:decodeJson()
 
-      vim.schedule(function()
-        builder
-          :process(definition.processRow)
-          :sort()
-          :prettyPrint(definition.getHeaders)
-          :addHints(definition.hints, true, true, true)
-          :setContent(cancellationToken)
-      end)
+    vim.schedule(function()
+      builder
+        :process(definition.processRow)
+        :sort()
+        :prettyPrint(definition.getHeaders)
+        :addHints(definition.hints, true, true, true)
+        :setContent(cancellationToken)
     end)
+  end)
 end
 
 --- Perform post-render actions
