@@ -11,11 +11,11 @@ local M = {
   },
 }
 
-local function getLastSeen(row)
+local function getLastSeen(row, currentTime)
   if row.lastTimestamp ~= vim.NIL then
-    return time.since(row.lastTimestamp, true)
+    return time.since(row.lastTimestamp, true, currentTime)
   elseif row.eventTime ~= vim.NIL then
-    return time.since(row.eventTime, true)
+    return time.since(row.eventTime, true, currentTime)
   else
     return nil
   end
@@ -39,10 +39,13 @@ function M.processRow(rows)
   if not rows.items then
     return data
   end
+
+  local currentTime = time.currentTime()
+
   for _, row in pairs(rows.items) do
     local pod = {
       namespace = row.metadata.namespace,
-      ["last seen"] = getLastSeen(row),
+      ["last seen"] = getLastSeen(row, currentTime),
       type = getType(row.type),
       reason = getReason(row.reason),
       object = row.involvedObject.name,
