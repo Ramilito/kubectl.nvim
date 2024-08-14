@@ -42,7 +42,6 @@ function M.filter()
   }, false, false)
 
   local history = commands.load_config("kubectl_filter_history.json")
-  print(vim.inspect(history))
   if history then
     table.insert(header, "History:")
     for _, value in ipairs(history) do

@@ -161,4 +161,20 @@ function M.save_config(file_name, data)
   return ok
 end
 
+function M.restore_session()
+  local session = M.load_config("kubectl.session.json")
+  if session then
+    local ok, view = pcall(require, "kubectl.views." .. string.lower(session.view))
+    if ok then
+      view.View()
+    else
+      local pod_view = require("kubectl.views.pods")
+      pod_view.View()
+    end
+  else
+    local pod_view = require("kubectl.views.pods")
+    pod_view.View()
+  end
+end
+
 return M

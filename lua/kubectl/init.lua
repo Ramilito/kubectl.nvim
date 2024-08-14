@@ -1,10 +1,10 @@
+local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 
 local M = {}
 
 --- Open the kubectl view
 function M.open()
-  local pod_view = require("kubectl.views.pods")
   local hl = require("kubectl.actions.highlight")
   local kube = require("kubectl.actions.kube")
 
@@ -12,7 +12,7 @@ function M.open()
   kube.startProxy(function()
     state.setup()
     vim.schedule(function()
-      pod_view.View()
+      commands.restore_session()
     end)
   end)
 end

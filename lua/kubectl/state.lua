@@ -43,7 +43,6 @@ function M.setup()
   end
 
   commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
-    local pod_view = require("kubectl.views.pods")
     local result = decode(data)
     if result then
       M.context = result
@@ -52,7 +51,7 @@ function M.setup()
     M.filter = ""
 
     vim.schedule(function()
-      pod_view.View()
+      commands.restore_session()
     end)
   end)
 end
