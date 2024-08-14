@@ -1,4 +1,5 @@
 local api = vim.api
+local definition = require("kubectl.views.nodes.definition")
 local loop = require("kubectl.utils.loop")
 local node_view = require("kubectl.views.nodes")
 local root_view = require("kubectl.views.root")
@@ -11,12 +12,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({
-        { key = "<gd>", desc = "Describe selected node" },
-        { key = "<gC>", desc = "Cordon selected node" },
-        { key = "<gU>", desc = "UnCordon selected node" },
-        { key = "<gR>", desc = "Drain selected node" },
-      })
+      view.Hints(definition.hints)
     end,
   })
 

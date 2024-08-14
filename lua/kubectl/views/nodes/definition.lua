@@ -9,10 +9,10 @@ local M = {
   ft = "k8s_nodes",
   url = { "{{BASE}}/api/v1/nodes?pretty=false" },
   hints = {
-    { key = "<gd>", desc = "describe" },
-    { key = "<gC>", desc = "cordon" },
-    { key = "<gU>", desc = "uncordon" },
-    { key = "<gR>", desc = "drain" },
+    { key = "<gd>", desc = "describe", long_desc = "Describe selected node" },
+    { key = "<gC>", desc = "cordon", long_desc = "Cordon selected node" },
+    { key = "<gU>", desc = "uncordon", long_desc = "UnCordon selected node" },
+    { key = "<gR>", desc = "drain", long_desc = "Drain selected node" },
   },
 }
 

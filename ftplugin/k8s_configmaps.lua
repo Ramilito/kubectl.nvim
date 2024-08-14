@@ -1,3 +1,4 @@
+local definition = require("kubectl.views.configmaps.definition")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local api = vim.api
@@ -11,7 +12,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({ { key = "<gd>", desc = "Describe selected configmap" } })
+      view.Hints(definition.hints)
     end,
   })
 

@@ -20,7 +20,7 @@ if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
 end
 
 --- Generate hints and display them in a floating buffer
----@alias Hint { key: string, desc: string }
+---@alias Hint { key: string, desc: string, long_desc: string }
 ---@param headers Hint[]
 function M.Hints(headers)
   local marks = {}
@@ -50,7 +50,7 @@ function M.Hints(headers)
 
   local start_row = #hints
   for index, header in ipairs(headers) do
-    local line = header.key .. " " .. header.desc
+    local line = header.key .. " " .. header.long_desc
     table.insert(hints, line .. "\n")
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end

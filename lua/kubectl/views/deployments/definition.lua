@@ -4,9 +4,9 @@ local M = {
   ft = "k8s_deployments",
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" },
   hints = {
-    { key = "<grr>", desc = "restart" },
-    { key = "<gd>", desc = "desc" },
-    { key = "<enter>", desc = "pods" },
+    { key = "<grr>", desc = "restart", long_desc = "Restart selected deployment" },
+    { key = "<gd>", desc = "desc", long_desc = "Describe selected deployment" },
+    { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
   },
 }
 local hl = require("kubectl.actions.highlight")

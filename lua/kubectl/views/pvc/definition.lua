@@ -4,7 +4,9 @@ local M = {
   display_name = "pvc",
   ft = "k8s_pvc",
   url = { "{{BASE}}/api/v1/persistentvolumeclaims?pretty=false" },
-  hints = {},
+  hints = {
+    { key = "<gd>", desc = "describe", long_desc = "Describe selected pvc" },
+  },
 }
 
 local function getAccessModes(data)

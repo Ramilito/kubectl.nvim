@@ -2,6 +2,7 @@ local api = vim.api
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local definition = require("kubectl.views.services.definition")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
@@ -16,10 +17,7 @@ local function set_keymap(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({
-        { key = "<gd>", desc = "Describe selected service" },
-        { key = "<gp>", desc = "Port forward" },
-      })
+      view.Hints(definition.hints)
     end,
   })
 

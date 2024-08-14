@@ -4,7 +4,9 @@ local M = {
   display_name = "PV",
   ft = "k8s_pv",
   url = { "{{BASE}}/api/v1/persistentvolumes?pretty=false" },
-  hints = {},
+  hints = {
+    { key = "<gd>", desc = "describe", long_desc = "Describe selected pv" },
+  },
 }
 
 local function getAccessModes(data)
