@@ -1,4 +1,5 @@
 local api = vim.api
+local definition = require("lua.kubectl.views.events.definition")
 local event_view = require("kubectl.views.events")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
@@ -12,10 +13,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({
-        { key = "<enter>", desc = "Read message" },
-        { key = "<gd>", desc = "Describe selected event" },
-      })
+      view.Hints(definition.hints)
     end,
   })
 

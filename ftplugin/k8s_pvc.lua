@@ -1,3 +1,4 @@
+local definition = require("kubectl.views.pvc.definition")
 local loop = require("kubectl.utils.loop")
 local pvc_view = require("kubectl.views.pvc")
 local view = require("kubectl.views")
@@ -9,9 +10,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({
-        { key = "<gd>", desc = "Describe selected pvc" },
-      })
+      view.Hints(definition.hints)
     end,
   })
 end

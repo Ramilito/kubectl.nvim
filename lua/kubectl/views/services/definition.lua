@@ -4,8 +4,8 @@ local M = {
   ft = "k8s_services",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" },
   hints = {
-    { key = "<gd>", desc = "describe" },
-    { key = "<gp>", desc = "Port forward" },
+    { key = "<gd>", desc = "describe", long_desc = "Describe selected service" },
+    { key = "<gp>", desc = "Port forward", long_desc = "Port forward" },
   },
 }
 local time = require("kubectl.utils.time")

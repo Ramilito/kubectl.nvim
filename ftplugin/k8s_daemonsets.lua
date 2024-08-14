@@ -3,6 +3,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
+local definition = require("lua.kubectl.views.daemonsets.definition")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root")
@@ -15,11 +16,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({
-        { key = "<grr>", desc = "Restart selected daemonset" },
-        { key = "<gd>", desc = "Describe selected daemonset" },
-        { key = "<enter>", desc = "Opens pods view" },
-      })
+      view.Hints(definition.hints)
     end,
   })
 

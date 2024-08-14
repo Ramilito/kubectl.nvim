@@ -1,6 +1,7 @@
 local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local definition = require("lua.kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
@@ -14,11 +15,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({
-        { key = "<grr>", desc = "Restart selected deployment" },
-        { key = "<gd>", desc = "Describe selected deployment" },
-        { key = "<enter>", desc = "Opens pods view" },
-      })
+      view.Hints(definition.hints)
     end,
   })
 

@@ -19,11 +19,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      local hints = {}
-      for i = 1, #definition.hints do
-        hints[i] = { key = definition.hints[i].key, desc = definition.hints[i].long_desc }
-      end
-      view.Hints(hints)
+      view.Hints(definition.hints)
     end,
   })
 
