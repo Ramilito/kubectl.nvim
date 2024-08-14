@@ -12,10 +12,15 @@ function M.register()
     silent = true,
     desc = "Toggle",
     callback = function()
-      kube.stop_kubectl_proxy()()
       local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       if ok then
         commands.save_config("kubectl.session.json", { view = buf_name })
+      end
+
+      -- Only stop proxy if not a floating buffer
+      local win_config = vim.api.nvim_win_get_config(0)
+      if win_config.relative == "" then
+        kube.stop_kubectl_proxy()()
       end
       vim.api.nvim_buf_delete(0, { force = true })
     end,
