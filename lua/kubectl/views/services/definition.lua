@@ -39,8 +39,8 @@ function M.processRow(rows)
       namespace = row.metadata.namespace,
       name = row.metadata.name,
       type = getType(row.spec.type),
-      clusterip = row.spec.clusterIP,
-      externalip = getExternalIP(row.spec),
+      ["cluster-ip"] = row.spec.clusterIP,
+      ["external-ip"] = getExternalIP(row.spec),
       ports = getPorts(row.spec.ports),
       age = time.since(row.metadata.creationTimestamp),
     }
@@ -55,8 +55,8 @@ function M.getHeaders()
     "NAMESPACE",
     "NAME",
     "TYPE",
-    "CLUSTERIP",
-    "EXTERNALIP",
+    "CLUSTER-IP",
+    "EXTERNAL-IP",
     "PORTS",
     "AGE",
   }

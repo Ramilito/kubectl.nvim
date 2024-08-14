@@ -42,8 +42,8 @@ function M.processRow(rows)
       status = getPhase(row),
       volume = row.spec.volumeName,
       capacity = row.spec.resources.requests.storage,
-      accessmodes = getAccessModes(row.spec.accessModes),
-      storageclass = row.spec.storageClassName,
+      ["access modes"] = getAccessModes(row.spec.accessModes),
+      ["storage class"] = row.spec.storageClassName,
       age = time.since(row.metadata.creationTimestamp),
     }
 
@@ -59,8 +59,8 @@ function M.getHeaders()
     "STATUS",
     "VOLUME",
     "CAPACITY",
-    "ACCESSMODES",
-    "STORAGECLASS",
+    "ACCESS MODES",
+    "STORAGE CLASS",
     "AGE",
   }
 

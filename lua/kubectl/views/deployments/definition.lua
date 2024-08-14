@@ -20,7 +20,7 @@ function M.processRow(rows)
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         ready = M.getReady(row),
-        uptodate = row.status.updatedReplicas,
+        ["up-to-date"] = row.status.updatedReplicas,
         available = row.status.availableReplicas,
         age = time.since(row.metadata.creationTimestamp, true),
       }
@@ -36,7 +36,7 @@ function M.getHeaders()
     "NAMESPACE",
     "NAME",
     "READY",
-    "UPTODATE",
+    "UP-TO-DATE",
     "AVAILABLE",
     "AGE",
   }
