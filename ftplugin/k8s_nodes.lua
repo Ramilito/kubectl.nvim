@@ -1,5 +1,5 @@
 local api = vim.api
-local definition = require("lua.kubectl.views.nodes.definition")
+local definition = require("kubectl.views.nodes.definition")
 local loop = require("kubectl.utils.loop")
 local node_view = require("kubectl.views.nodes")
 local root_view = require("kubectl.views.root")
