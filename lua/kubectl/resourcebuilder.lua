@@ -300,7 +300,11 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
         :sort()
         :prettyPrint(definition.getHeaders)
         :addHints(definition.hints, true, true, true)
-        :setContent(cancellationToken)
+
+      if opts.before_content_callback then
+        opts.before_content_callback(builder)
+      end
+      builder:setContent(cancellationToken)
     end)
   end)
 end
