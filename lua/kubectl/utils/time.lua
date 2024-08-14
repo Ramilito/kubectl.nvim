@@ -43,8 +43,9 @@ function M.since(timestamp, fresh, currentTime)
     currentTime = M.currentTime()
   end
 
-  local parsedTime = M.parse(timestamp)
-  local diff = currentTime - parsedTime
+  local parsed_time = vim.fn.strptime("%Y-%m-%dT%H:%M:%SZ", timestamp)
+
+  local diff = currentTime - parsed_time
   local days = math.floor(diff / 86400)
   local years = math.floor(days / 365)
   local hours = math.floor((diff % 86400) / 3600)

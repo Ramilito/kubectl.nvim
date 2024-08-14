@@ -15,10 +15,12 @@ function M.View(pod, ns)
     :displayFloat("k8s_containers", pod, "")
     :setCmd({ "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }, "curl")
     :fetchAsync(function(self)
-      self:decodeJson():process(definition.processContainerRow, true):prettyPrint(definition.getContainerHeaders)
+      self:decodeJson()
 
       vim.schedule(function()
         self
+          :process(definition.processContainerRow, true)
+          :prettyPrint(definition.getContainerHeaders)
           :addHints({
             { key = "<gl>", desc = "logs" },
             { key = "<enter>", desc = "exec" },

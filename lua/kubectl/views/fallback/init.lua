@@ -29,9 +29,12 @@ function M.View(cancellationToken, resource)
     :display("k8s_fallback", "fallback", cancellationToken)
     :setCmd(get_args())
     :fetchAsync(function(self)
-      self:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      self:decodeJson()
       vim.schedule(function()
         self
+          :process(definition.processRow)
+          :sort()
+          :prettyPrint(definition.getHeaders)
           :addHints({
             { key = "<gd>", desc = "describe" },
           }, true, true, true)

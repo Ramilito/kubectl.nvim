@@ -13,22 +13,22 @@ function M.View()
     :setCmd(definition.url, "curl")
     :fetchAsync(function(self)
       self:decodeJson()
-      if self.data.reason == "Forbidden" then
-        self.data = { items = {} }
-
-        for _, value in ipairs(config.options.namespace_fallback) do
-          table.insert(self.data.items, {
-            metadata = { name = value, creationTimestamp = nil },
-            status = { phase = "nil" },
-          })
-        end
-        self:process(definition.processLimitedRow, true)
-      else
-        self:process(definition.processRow, true)
-      end
-      self:sort():prettyPrint(definition.getHeaders)
       vim.schedule(function()
         if #self.prettyData == 1 then
+          if self.data.reason == "Forbidden" then
+            self.data = { items = {} }
+
+            for _, value in ipairs(config.options.namespace_fallback) do
+              table.insert(self.data.items, {
+                metadata = { name = value, creationTimestamp = nil },
+                status = { phase = "nil" },
+              })
+            end
+            self:process(definition.processLimitedRow, true)
+          else
+            self:process(definition.processRow, true)
+          end
+          self:sort():prettyPrint(definition.getHeaders)
           api.nvim_set_current_line("Access to namespaces denied, please input your desired namespace")
           api.nvim_set_option_value("buftype", "prompt", { buf = self.buf_nr })
           vim.fn.prompt_setcallback(self.buf_nr, function(input)
