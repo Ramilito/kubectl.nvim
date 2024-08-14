@@ -291,7 +291,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
   else
     b:display(definition.ft, definition.display_name, cancellationToken)
   end
-  b:setCmd(definition.url, "curl"):fetchAsync(function(builder)
+  b:setCmd(definition.url, opts.cmd or "curl"):fetchAsync(function(builder)
     builder:decodeJson()
 
     vim.schedule(function()
