@@ -6,7 +6,7 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:main_view(definition, cancellationToken)
+  ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.ShowMessage(event)
