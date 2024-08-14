@@ -13,6 +13,10 @@ function M.register()
     desc = "Toggle",
     callback = function()
       kube.stop_kubectl_proxy()()
+      local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      if ok then
+        commands.save_config("kubectl.session.json", { view = buf_name })
+      end
       vim.api.nvim_buf_delete(0, { force = true })
     end,
   })

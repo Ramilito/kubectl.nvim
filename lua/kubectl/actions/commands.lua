@@ -128,4 +128,53 @@ function M.execute_terminal(cmd, args, opts)
   vim.cmd("startinsert")
 end
 
+function M.load_config(file_name)
+  local file_path = vim.fn.stdpath("data") .. "/" .. file_name
+  local file = io.open(file_path, "r")
+  if not file then
+    return nil
+  end
+
+  local json_data = file:read("*a")
+  file:close()
+
+  local ok, decoded = pcall(vim.json.decode, json_data)
+  if ok then
+    return decoded
+  end
+  return nil
+end
+
+--- Save to config file
+--- @param file_name string The filename to save
+--- @param data table The content to save
+function M.save_config(file_name, data)
+  local ok, encoded = pcall(vim.json.encode, data)
+  if ok then
+    local file_path = vim.fn.stdpath("data") .. "/" .. file_name
+    local file = io.open(file_path, "w")
+    if file then
+      file:write(encoded)
+      file:close()
+    end
+  end
+  return ok
+end
+
+function M.restore_session()
+  local session = M.load_config("kubectl.session.json")
+  if session then
+    local ok, view = pcall(require, "kubectl.views." .. string.lower(session.view))
+    if ok then
+      view.View()
+    else
+      local pod_view = require("kubectl.views.pods")
+      pod_view.View()
+    end
+  else
+    local pod_view = require("kubectl.views.pods")
+    pod_view.View()
+  end
+end
+
 return M

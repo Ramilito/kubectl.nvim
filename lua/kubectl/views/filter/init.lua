@@ -1,28 +1,12 @@
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
 
-local function load_history()
-  local file_path = vim.fn.stdpath("data") .. "/kubectl_filter_history.json"
-  local file = io.open(file_path, "r")
-  if not file then
-    return nil
-  end
-
-  local json_data = file:read("*a")
-  file:close()
-
-  local ok, decoded = pcall(vim.json.decode, json_data)
-  if ok then
-    return decoded
-  end
-  return nil
-end
-
 local function save_history(input)
-  local history = load_history()
+  local history = commands.load_config("kubectl_filter_history.json")
   local history_size = 5
 
   if history == nil then
@@ -47,15 +31,7 @@ local function save_history(input)
     end
   end
 
-  local ok, encoded = pcall(vim.json.encode, result)
-  if ok then
-    local file_path = vim.fn.stdpath("data") .. "/kubectl_filter_history.json"
-    local file = io.open(file_path, "w")
-    if file then
-      file:write(encoded)
-      file:close()
-    end
-  end
+  commands.save_config("kubectl_filter_history.json", result)
 end
 
 function M.filter()
@@ -65,7 +41,7 @@ function M.filter()
     { key = "<q>", desc = "close" },
   }, false, false)
 
-  local history = load_history()
+  local history = commands.load_config("kubectl_filter_history.json")
   if history then
     table.insert(header, "History:")
     for _, value in ipairs(history) do
