@@ -3,6 +3,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
+local definition = require("kubectl.views.pods.definition")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
@@ -18,15 +19,11 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints({
-        { key = "<gd>", desc = "Describe selected pod" },
-        { key = "<gk>", desc = "Kill pod" },
-        { key = "<gl>", desc = "Shows logs for all containers in pod" },
-        { key = "<gp>", desc = "Port forward" },
-        { key = "<gP>", desc = "View active Port forwards" },
-        { key = "<gu>", desc = "Show resources used" },
-        { key = "<enter>", desc = "Opens container view" },
-      })
+      local hints = {}
+      for i = 1, #definition.hints do
+        hints[i] = { key = definition.hints[i].key, desc = definition.hints[i].long_desc }
+      end
+      view.Hints(hints)
     end,
   })
 
