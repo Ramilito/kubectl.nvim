@@ -25,22 +25,15 @@ function M.View(cancellationToken, resource)
     M.resource = resource
   end
 
-  ResourceBuilder:new(M.resource)
-    :display("k8s_fallback", "fallback", cancellationToken)
-    :setCmd(get_args())
-    :fetchAsync(function(self)
-      self:decodeJson()
-      vim.schedule(function()
-        self
-          :process(definition.processRow)
-          :sort()
-          :prettyPrint(definition.getHeaders)
-          :addHints({
-            { key = "<gd>", desc = "describe" },
-          }, true, true, true)
-          :setContent(cancellationToken)
-      end)
-    end)
+  definition.resource = M.resource
+  definition.display_name = M.resource
+  definition.url = get_args()
+  definition.ft = "k8s_fallback"
+  definition.hints = {
+    { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
+  }
+
+  ResourceBuilder:view(definition, cancellationToken, { cmd = "kubectl" })
 end
 
 function M.Edit(name, ns)
