@@ -1,6 +1,15 @@
 local time = require("kubectl.utils.time")
 
-local M = {}
+local M = {
+  resource = "containers",
+  display_name = "",
+  ft = "k8s_containers",
+  url = {},
+  hints = {
+    { key = "<gl>", desc = "logs" },
+    { key = "<enter>", desc = "exec" },
+  },
+}
 
 local function getPorts(ports)
   local string_ports = ""
@@ -21,7 +30,7 @@ local function getContainerState(state)
   return key
 end
 
-function M.processContainerRow(row)
+function M.processRow(row)
   local data = {}
 
   if row.spec and row.status and row.status.containerStatuses then
@@ -47,7 +56,7 @@ function M.processContainerRow(row)
   return data
 end
 
-function M.getContainerHeaders()
+function M.getHeaders()
   local headers = {
     "NAME",
     "IMAGE",
