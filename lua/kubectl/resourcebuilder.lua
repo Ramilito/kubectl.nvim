@@ -288,10 +288,15 @@ function ResourceBuilder:main_view(definition, cancellationToken)
     :display(definition.ft, definition.display_name, cancellationToken)
     :setCmd(definition.url, "curl")
     :fetchAsync(function(builder)
-      builder:decodeJson():process(definition.processRow):sort():prettyPrint(definition.getHeaders)
+      builder:decodeJson()
 
       vim.schedule(function()
-        builder:addHints(definition.hints, true, true, true):setContent(cancellationToken)
+        builder
+          :process(definition.processRow)
+          :sort()
+          :prettyPrint(definition.getHeaders)
+          :addHints(definition.hints, true, true, true)
+          :setContent(cancellationToken)
       end)
     end)
 end
