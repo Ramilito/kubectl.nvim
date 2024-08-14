@@ -39,11 +39,11 @@ function M.processRow(rows)
     local pod = {
       name = row.metadata.name,
       capacity = row.spec.capacity.storage,
-      accessmodes = getAccessModes(row.spec.accessModes),
-      reclaimpolicy = row.spec.persistentVolumeReclaimPolicy,
+      ["access modes"] = getAccessModes(row.spec.accessModes),
+      ["reclaim policy"] = row.spec.persistentVolumeReclaimPolicy,
       status = getPhase(row),
       claim = row.spec.claimRef.name,
-      storageclass = row.spec.storageClassName,
+      ["storage class"] = row.spec.storageClassName,
       reason = row.status.reason or "",
       age = time.since(row.metadata.creationTimestamp),
     }
@@ -57,11 +57,11 @@ function M.getHeaders()
   local headers = {
     "NAME",
     "CAPACITY",
-    "ACCESSMODES",
-    "RECLAIMPOLICY",
+    "ACCESS MODES",
+    "RECLAIM POLICY",
     "STATUS",
     "CLAIM",
-    "STORAGECLASS",
+    "STORAGE CLASS",
     "REASON",
     "AGE",
   }

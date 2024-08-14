@@ -39,9 +39,9 @@ function M.processRow(rows)
         desired = status.desiredNumberScheduled or 0,
         current = status.currentNumberScheduled or 0,
         ready = M.getReady(row),
-        uptodate = status.updatedNumberScheduled or 0,
+        ["up-to-date"] = status.updatedNumberScheduled or 0,
         available = status.numberAvailable or 0,
-        nodeselector = getNodeSelector(row),
+        ["node selector"] = getNodeSelector(row),
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
@@ -58,9 +58,9 @@ function M.getHeaders()
     "DESIRED",
     "CURRENT",
     "READY",
-    "UPTODATE",
+    "UP-TO-DATE",
     "AVAILABLE",
-    "NODESELECTOR",
+    "NODE SELECTOR",
     "AGE",
   }
 

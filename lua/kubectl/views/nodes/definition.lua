@@ -96,8 +96,8 @@ function M.processRow(rows)
       roles = getRole(row),
       age = time.since(row.metadata.creationTimestamp),
       version = row.status.nodeInfo.kubeletVersion,
-      internalip = iIP,
-      externalip = eIP,
+      ["internal-ip"] = iIP,
+      ["external-ip"] = eIP,
     }
 
     table.insert(data, pod)
@@ -112,8 +112,8 @@ function M.getHeaders()
     "ROLES",
     "AGE",
     "VERSION",
-    "INTERNALIP",
-    "EXTERNALIP",
+    "INTERNAL-IP",
+    "EXTERNAL-IP",
   }
 
   return headers

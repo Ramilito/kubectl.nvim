@@ -42,7 +42,7 @@ function M.processRow(rows)
   for _, row in pairs(rows.items) do
     local pod = {
       namespace = row.metadata.namespace,
-      lastseen = getLastSeen(row),
+      ["last seen"] = getLastSeen(row),
       type = getType(row.type),
       reason = getReason(row.reason),
       object = row.involvedObject.name,
@@ -58,7 +58,7 @@ end
 function M.getHeaders()
   local headers = {
     "NAMESPACE",
-    "LASTSEEN",
+    "LAST SEEN",
     "TYPE",
     "REASON",
     "OBJECT",
