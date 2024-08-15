@@ -87,4 +87,13 @@ function M.setup(options)
   })
 end
 
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  callback = function()
+    local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+    if ok then
+      commands.save_config("kubectl.session.json", { view = buf_name })
+    end
+  end,
+})
+
 return M
