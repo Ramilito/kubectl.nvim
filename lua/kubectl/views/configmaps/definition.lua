@@ -31,7 +31,6 @@ function M.processRow(rows)
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
-      type = row.type,
       data = getData(row.data),
       age = time.since(row.metadata.creationTimestamp),
     }
@@ -47,7 +46,6 @@ function M.getHeaders()
   local headers = {
     "NAMESPACE",
     "NAME",
-    "TYPE",
     "DATA",
     "AGE",
   }
