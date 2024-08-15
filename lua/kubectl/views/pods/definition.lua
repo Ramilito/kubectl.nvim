@@ -6,7 +6,7 @@ local M = {
   resource = "pods",
   display_name = "Pods",
   ft = "k8s_pods",
-  url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" },
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false&limit=100" },
   hints = {
     { key = "<gl>", desc = "logs", long_desc = "Shows logs for all containers in pod" },
     { key = "<gd>", desc = "describe", long_desc = "Describe selected pod" },

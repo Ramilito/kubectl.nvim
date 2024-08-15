@@ -23,6 +23,7 @@ ResourceBuilder.__index = ResourceBuilder
 function ResourceBuilder:new(resource)
   self = setmetatable({}, ResourceBuilder)
   self.resource = resource
+  self.data = ""
   self.header = { data = nil, marks = nil }
   return self
 end
@@ -128,7 +129,7 @@ function ResourceBuilder:decodeJson()
     notifications.Add({
       "json decode successful " .. "[" .. self.resource .. "]",
     })
-    self.data = decodedData
+    self.jsonData = decodedData
   end
   return self
 end
@@ -142,7 +143,7 @@ function ResourceBuilder:process(processFunc, no_filter)
   notifications.Add({
     "processing table " .. "[" .. self.resource .. "]",
   })
-  self.processedData = processFunc(self.data)
+  self.processedData = processFunc(self.jsonData)
 
   if no_filter then
     return self

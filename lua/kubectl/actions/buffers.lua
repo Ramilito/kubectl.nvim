@@ -25,7 +25,10 @@ end
 local function set_buffer_lines(buf, header, content)
   if header and #header >= 1 then
     vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
-    vim.api.nvim_buf_set_lines(buf, #header, -1, false, content)
+
+    local start_line = vim.api.nvim_buf_line_count(buf)
+
+    vim.api.nvim_buf_set_lines(buf, start_line, -1, false, content)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
   end

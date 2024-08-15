@@ -46,13 +46,20 @@ end
 --- @param args string[] The arguments for the command
 --- @param on_exit? function The callback function to execute when the command exits
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
---- @param opts { env: string, stdin: string }|nil The arguments for the command
+--- @param opts { continue_token: string, env: string, stdin: string }|nil The arguments for the command
 function M.shell_command_async(cmd, args, on_exit, on_stdout, opts)
   opts = opts or {}
+  local system_cmd = {}
   local result = ""
-  table.insert(args, 1, cmd)
+  table.insert(system_cmd, cmd)
+  for _, value in ipairs(args) do
+    table.insert(system_cmd, value)
+  end
+  if opts.continue_token then
+    system_cmd[#system_cmd] = system_cmd[#system_cmd] .. "&continue=" .. opts.continue_token
+  end
 
-  local handle = vim.system(args, {
+  local handle = vim.system(system_cmd, {
     text = true,
     stdin = opts.stdin,
     stdout = function(err, data)
@@ -77,6 +84,10 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, opts)
   }, function()
     if on_exit then
       on_exit(result)
+      local continue_token = string.match(result, '"continue":"(.-)"')
+      if continue_token then
+        M.shell_command_async(cmd, args, on_exit, on_stdout, { continue_token = continue_token, limit = 100 })
+      end
     end
   end)
 
