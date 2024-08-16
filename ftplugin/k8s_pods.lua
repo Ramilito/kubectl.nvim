@@ -188,7 +188,7 @@ end
 local function init()
   set_keymaps(0)
   if not loop.is_running() then
-    loop.start_loop(pod_view.View)
+    loop.start_loop(pod_view.Draw)
   end
 end
 

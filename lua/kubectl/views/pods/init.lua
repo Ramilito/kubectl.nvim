@@ -2,21 +2,58 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
-local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
 M.selection = {}
+M.builder = nil
 
 function M.View(cancellationToken)
-  local pfs = {}
-  root_definition.getPFData(pfs, true, "pods")
+  M.builder = ResourceBuilder:new(definition.resource)
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd(definition.url, "curl")
+    :fetchAsync(function(builder)
+      builder:decodeJson()
+      vim.schedule(function()
+        M.informer()
+        M.Draw(cancellationToken)
+      end)
+    end)
+end
 
-  ResourceBuilder:view(definition, cancellationToken, {
-    before_content_callback = function(self)
-      root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
-    end,
-  })
+function M.informer()
+  local args = {}
+  for _, value in ipairs(M.builder.args) do
+    if value ~= "curl" then
+      table.insert(args, value)
+    end
+  end
+  args[#M.builder.args - 1] = M.builder.args[#M.builder.args] .. "&watch=true&allowWatchBookmarks=false"
+
+  commands.shell_command_async(M.builder.cmd, args, function() end, function(result)
+    for line in result:gmatch("[^\r\n]+") do
+      local success, data = pcall(vim.json.decode, line)
+      if success then
+        -- Process the JSON data as a Lua table
+        print("Received event:", data.type)
+        print("Object:", data.object.metadata.name)
+        -- Add further processing here
+      else
+        print("Error decoding JSON:", data)
+      end
+    end
+    --
+    -- local jsonData = vim.json.decode(data)
+    -- print(jsonData)
+  end)
+end
+function M.Draw(cancellationToken)
+  M.builder
+    :process(definition.processRow)
+    :sort()
+    :prettyPrint(definition.getHeaders)
+    :addHints(definition.hints, true, true, true)
+    :setContent(cancellationToken)
 end
 
 function M.Top()

@@ -105,17 +105,22 @@ function ResourceBuilder:fetch()
 end
 
 --- Fetch the data asynchronously
----@param callback function The callback function to execute after fetching data
+---@param on_exit function The callback function to execute after fetching data
+---@param on_stdout function|nil The callback function to execute on stdout
 ---@return ResourceBuilder
-function ResourceBuilder:fetchAsync(callback)
+function ResourceBuilder:fetchAsync(on_exit, on_stdout, opts)
   notifications.Add({
     "fetching " .. "[" .. self.resource .. "]",
     "args: " .. " " .. vim.inspect(self.args),
   })
   commands.shell_command_async(self.cmd, self.args, function(data)
     self.data = data
-    callback(self)
-  end)
+    on_exit(self)
+  end, function(data)
+    if on_stdout then
+      on_stdout(data)
+    end
+  end, opts)
   return self
 end
 
@@ -135,7 +140,7 @@ end
 
 --- Process the data
 ---@param processFunc function The function to process the data
----@param no_filter boolean Whether to filter the data or not
+---@param no_filter boolean|nil Whether to filter the data or not
 ---@return ResourceBuilder
 function ResourceBuilder:process(processFunc, no_filter)
   local find = require("kubectl.utils.find")
@@ -307,6 +312,8 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
       builder:setContent(cancellationToken)
     end)
   end)
+
+  return self
 end
 
 --- Perform post-render actions
