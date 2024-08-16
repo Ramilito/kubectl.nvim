@@ -7,46 +7,72 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 M.selection = {}
 M.builder = nil
+M.handle = nil
 
 function M.View(cancellationToken)
   M.builder = ResourceBuilder:new(definition.resource)
     :display(definition.ft, definition.display_name, cancellationToken)
     :setCmd(definition.url, "curl")
     :fetchAsync(function(builder)
-      builder:decodeJson()
+      M.builder = builder
+      M.builder:decodeJson()
       vim.schedule(function()
-        M.informer()
+        M.informer(M.builder.data.metadata.resourceVersion)
         M.Draw(cancellationToken)
       end)
     end)
 end
 
-function M.informer()
-  local args = {}
+local args = {}
+function M.informer(version)
   for _, value in ipairs(M.builder.args) do
     if value ~= "curl" then
       table.insert(args, value)
     end
   end
-  args[#M.builder.args - 1] = M.builder.args[#M.builder.args] .. "&watch=true&allowWatchBookmarks=false"
+  table.insert(args, "-N")
 
-  commands.shell_command_async(M.builder.cmd, args, function() end, function(result)
-    for line in result:gmatch("[^\r\n]+") do
-      local success, data = pcall(vim.json.decode, line)
-      if success then
-        -- Process the JSON data as a Lua table
-        print("Received event:", data.type)
-        print("Object:", data.object.metadata.name)
-        -- Add further processing here
-      else
-        print("Error decoding JSON:", data)
+  args[#M.builder.args - 1] = M.builder.args[#M.builder.args]
+    .. "&watch=true&allowWatchBookmarks=false"
+    .. "&resourceVersion="
+    .. version
+
+  if M.handle then
+    return
+  end
+
+  M.handle = commands.shell_command_async(M.builder.cmd, args, function() end, function(result)
+    local success, data = pcall(vim.json.decode, result)
+    if not success then
+      return
+    end
+
+    if data.type == "DELETED" then
+      for index, value in ipairs(M.builder.data.items) do
+        if value.metadata.name == data.object.metadata.name then
+          table.remove(M.builder.data.items, index)
+        end
       end
     end
-    --
-    -- local jsonData = vim.json.decode(data)
-    -- print(jsonData)
+
+    if data.type == "MODIFIED" then
+      for index, value in ipairs(M.builder.data.items) do
+        if value.metadata.name == data.object.metadata.name then
+          M.builder.data.items[index] = data.object
+        end
+      end
+    end
+
+    if data.type == "ADDED" then
+      table.insert(M.builder.data.items, data.object)
+    end
+
+    vim.schedule(function()
+      M.Draw()
+    end)
   end)
 end
+
 function M.Draw(cancellationToken)
   M.builder
     :process(definition.processRow)
