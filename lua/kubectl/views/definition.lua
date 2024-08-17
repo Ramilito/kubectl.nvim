@@ -66,6 +66,9 @@ function M.getPFRows(pfs)
 end
 
 function M.setPortForwards(marks, data, port_forwards)
+  if not port_forwards then
+    return
+  end
   for _, pf in ipairs(port_forwards) do
     if not pf.resource then
       return
