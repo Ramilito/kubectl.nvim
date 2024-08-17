@@ -28,6 +28,30 @@ function M.View(cancellationToken)
     end)
 end
 
+local function split_json_objects(input)
+  local objects = {}
+  local pattern = '}{"type":"'
+  local start = 1
+
+  while true do
+    local split_point = input:find(pattern, start, true)
+
+    if not split_point then
+      -- If no more split points, add the rest of the string as the last JSON object
+      table.insert(objects, input:sub(start))
+      break
+    end
+
+    -- Add the JSON object up to the split point to the objects table
+    table.insert(objects, input:sub(start, split_point))
+
+    -- Move the start point to the next character after '}{'
+    start = split_point + 1
+  end
+
+  return objects
+end
+
 function M.informer(version)
   local args = {
     "-N",
@@ -49,18 +73,16 @@ function M.informer(version)
       result = leftovers .. result
       leftovers = ""
     end
+    local rows = split_json_objects(result:gsub("\n", ""))
 
-    if #result >= 8192 then
-      local rows = vim.split(result, "\n")
-
-      result = rows[1]
-      for i = 2, #rows do
-        leftovers = leftovers .. rows[i]
-      end
+    result = rows[1]
+    for i = 2, #rows do
+      leftovers = leftovers .. rows[i]
     end
 
     local success, data = pcall(vim.json.decode, result)
     if not success then
+      print(data, result)
       vim.schedule(function()
         vim.notify("Informer failed to parse event, please refresh the view", vim.log.levels.ERROR)
       end)
