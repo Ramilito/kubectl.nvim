@@ -89,7 +89,7 @@ local function set_keymaps(bufnr)
         end
         vim.notify("Deleting pod " .. name)
         commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
-        pod_view.View()
+        pod_view.Draw()
       else
         api.nvim_err_writeln("Failed to select pod.")
       end
@@ -170,7 +170,7 @@ local function set_keymaps(bufnr)
                 )
 
                 vim.schedule(function()
-                  pod_view.View()
+                  pod_view.Draw()
                 end)
               end
             end, {

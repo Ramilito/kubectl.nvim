@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -23,28 +24,38 @@ function M.View(cancellationToken)
     end)
 end
 
-local args = {}
 function M.informer(version)
-  for _, value in ipairs(M.builder.args) do
-    if value ~= "curl" then
-      table.insert(args, value)
-    end
-  end
-  table.insert(args, "-N")
+  local args = {
+    "-X",
+    "GET",
+    "-sS",
+    "-N",
+    state.getProxyUrl() .. "/api/v1/pods/?pretty=false&watch=true&resourceVersion=" .. version,
+  }
 
-  args[#M.builder.args - 1] = M.builder.args[#M.builder.args]
-    .. "&watch=true&allowWatchBookmarks=false"
-    .. "&resourceVersion="
-    .. version
-
-  if M.handle then
-    return
-  end
-
+  local leftovers = ""
   M.handle = commands.shell_command_async(M.builder.cmd, args, function() end, function(result)
+    if leftovers ~= "" then
+      result = leftovers .. result
+      leftovers = ""
+    end
+
+    if #result >= 8192 then
+      local rows = vim.split(result, "\n")
+
+      result = rows[1]
+      for i = 2, #rows do
+        leftovers = leftovers .. rows[i]
+      end
+    end
     local success, data = pcall(vim.json.decode, result)
     if not success then
+      print("json failed")
       return
+    end
+
+    if data.type == "ADDED" then
+      table.insert(M.builder.data.items, data.object)
     end
 
     if data.type == "DELETED" then
@@ -61,10 +72,6 @@ function M.informer(version)
           M.builder.data.items[index] = data.object
         end
       end
-    end
-
-    if data.type == "ADDED" then
-      table.insert(M.builder.data.items, data.object)
     end
 
     vim.schedule(function()
