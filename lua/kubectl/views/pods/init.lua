@@ -26,12 +26,18 @@ end
 
 function M.informer(version)
   local args = {
+    "-N",
     "-X",
     "GET",
     "-sS",
-    "-N",
+    "-H",
+    "Content-Type: application/json",
     state.getProxyUrl() .. "/api/v1/pods/?pretty=false&watch=true&resourceVersion=" .. version,
   }
+
+  if M.handle then
+    return
+  end
 
   local leftovers = ""
   M.handle = commands.shell_command_async(M.builder.cmd, args, function() end, function(result)
@@ -48,9 +54,12 @@ function M.informer(version)
         leftovers = leftovers .. rows[i]
       end
     end
+
     local success, data = pcall(vim.json.decode, result)
     if not success then
-      print("json failed")
+      vim.shedule(function()
+        vim.notify("Informer failed to parse event, please refresh the view", vim.log.levels.ERROR)
+      end)
       return
     end
 
