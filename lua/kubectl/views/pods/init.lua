@@ -11,6 +11,41 @@ M.selection = {}
 M.builder = nil
 M.handle = nil
 M.pfs = {}
+M.event_queue = {}
+
+-- Function to process the event queue
+local function process_event_queue()
+  table.sort(M.event_queue, function(a, b)
+    return tonumber(a.object.metadata.resourceVersion) < tonumber(b.object.metadata.resourceVersion)
+  end)
+
+  while #M.event_queue > 0 do
+    local event = table.remove(M.event_queue, 1)
+
+    if event.type == "ADDED" then
+      table.insert(M.builder.data.items, event.object)
+    elseif event.type == "DELETED" then
+      for index, value in ipairs(M.builder.data.items) do
+        if value.metadata.name == event.object.metadata.name then
+          table.remove(M.builder.data.items, index)
+          break
+        end
+      end
+    elseif event.type == "MODIFIED" then
+      for index, value in ipairs(M.builder.data.items) do
+        if value.metadata.name == event.object.metadata.name then
+          M.builder.data.items[index] = event.object
+          break
+        end
+      end
+    end
+
+    -- Redraw UI after processing an event
+    vim.schedule(function()
+      M.Draw()
+    end)
+  end
+end
 
 function M.View(cancellationToken)
   M.pfs = {}
@@ -23,9 +58,29 @@ function M.View(cancellationToken)
       M.builder:decodeJson()
       vim.schedule(function()
         M.informer(M.builder.data.metadata.resourceVersion)
+        -- Set up a loop to periodically process the event queue
+        vim.loop.new_timer():start(
+          1000,
+          2000,
+          vim.schedule_wrap(function()
+            process_event_queue()
+          end)
+        )
         M.Draw(cancellationToken)
       end)
     end)
+end
+
+function M.Draw(cancellationToken)
+  M.builder
+    :process(definition.processRow)
+    :sort()
+    :prettyPrint(definition.getHeaders)
+    :addHints(definition.hints, true, true, true)
+
+  root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
+
+  M.builder:setContent(cancellationToken)
 end
 
 local function split_json_objects(input)
@@ -73,58 +128,25 @@ function M.informer(version)
       result = leftovers .. result
       leftovers = ""
     end
+
     local rows = split_json_objects(result:gsub("\n", ""))
 
-    result = rows[1]
-    for i = 2, #rows do
-      leftovers = leftovers .. rows[i]
-    end
-
-    local success, data = pcall(vim.json.decode, result)
-    if not success then
-      print(data, result)
+    -- Process each JSON object found in the result
+    local success, data = pcall(vim.json.decode, rows[1])
+    if success then
+      table.insert(M.event_queue, data)
+    else
+      -- Handle decoding errors
+      print(data, rows[1])
       vim.schedule(function()
         vim.notify("Informer failed to parse event, please refresh the view", vim.log.levels.ERROR)
       end)
-      return
     end
 
-    if data.type == "ADDED" then
-      table.insert(M.builder.data.items, data.object)
+    for i = 2, #rows do
+      leftovers = leftovers .. rows[i]
     end
-
-    if data.type == "DELETED" then
-      for index, value in ipairs(M.builder.data.items) do
-        if value.metadata.name == data.object.metadata.name then
-          table.remove(M.builder.data.items, index)
-        end
-      end
-    end
-
-    if data.type == "MODIFIED" then
-      for index, value in ipairs(M.builder.data.items) do
-        if value.metadata.name == data.object.metadata.name then
-          M.builder.data.items[index] = data.object
-        end
-      end
-    end
-
-    vim.schedule(function()
-      M.Draw()
-    end)
   end)
-end
-
-function M.Draw(cancellationToken)
-  M.builder
-    :process(definition.processRow)
-    :sort()
-    :prettyPrint(definition.getHeaders)
-    :addHints(definition.hints, true, true, true)
-
-  root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
-
-  M.builder:setContent(cancellationToken)
 end
 
 function M.Top()
