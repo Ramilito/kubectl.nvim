@@ -61,7 +61,7 @@ function M.informer(version)
 
     local success, data = pcall(vim.json.decode, result)
     if not success then
-      vim.shedule(function()
+      vim.schedule(function()
         vim.notify("Informer failed to parse event, please refresh the view", vim.log.levels.ERROR)
       end)
       return
