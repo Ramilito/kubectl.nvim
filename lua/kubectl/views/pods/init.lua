@@ -10,8 +10,11 @@ local M = {}
 M.selection = {}
 M.builder = nil
 M.handle = nil
+M.pfs = {}
 
 function M.View(cancellationToken)
+  M.pfs = {}
+  root_definition.getPFData(M.pfs, true, "pods")
   M.builder = ResourceBuilder:new(definition.resource)
     :display(definition.ft, definition.display_name, cancellationToken)
     :setCmd(definition.url, "curl")
@@ -96,7 +99,10 @@ function M.Draw(cancellationToken)
     :sort()
     :prettyPrint(definition.getHeaders)
     :addHints(definition.hints, true, true, true)
-    :setContent(cancellationToken)
+
+  root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
+
+  M.builder:setContent(cancellationToken)
 end
 
 function M.Top()
