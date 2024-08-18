@@ -34,6 +34,7 @@ function M.View(cancellationToken, resource)
     { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
   }
   definition.cmd = "kubectl"
+  definition.row_def = {}
 
   -- check if config.options.custom_views contains resource
   if config and config.options and config.options.custom_views and config.options.custom_views[M.resource] then

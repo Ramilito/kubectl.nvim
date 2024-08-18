@@ -66,7 +66,6 @@ function M.processResource(row, additional_cols)
     if not value_cb and default_cols[name] ~= nil then
       value = default_cols[name]
     else
-      -- if def is a function, call it with the row as the argument
       if type(value_cb) == "function" and row then
         local ok, result = pcall(value_cb, row)
         if ok then
@@ -103,7 +102,7 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
-  if M.row_def then
+  if next(M.row_def) ~= nil then
     local headers = {}
     for _, header_table in ipairs(M.row_def) do
       table.insert(headers, header_table.name)
