@@ -66,6 +66,9 @@ function M.getPFRows(pfs)
 end
 
 function M.setPortForwards(marks, data, port_forwards)
+  if not port_forwards then
+    return
+  end
   for _, pf in ipairs(port_forwards) do
     if not pf.resource then
       return
@@ -89,6 +92,9 @@ function M.setPortForwards(marks, data, port_forwards)
 end
 
 function M.on_prompt_input(input)
+  if input == "" then
+    return
+  end
   local parsed_input = string.lower(string_utils.trim(input))
   local supported_view = nil
   for k, v in pairs(viewsTable) do
