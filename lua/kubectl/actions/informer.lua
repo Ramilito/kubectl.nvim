@@ -4,7 +4,6 @@ local state = require("kubectl.state")
 local M = {}
 
 M.event_queue = ""
-M.handle = nil
 
 function M.split_json_objects(input)
   local objects = {}
@@ -31,7 +30,7 @@ function M.split_json_objects(input)
 end
 
 function M.process_event_queue(builder)
-  if #M.event_queue == 0 then
+  if M.event_queue == "" then
     return
   end
   local rows = M.split_json_objects(M.event_queue:gsub("\n", ""))
@@ -52,6 +51,9 @@ function M.process_event_queue(builder)
     return tonumber(a.object.metadata.resourceVersion) < tonumber(b.object.metadata.resourceVersion)
   end)
 
+  if not builder.data then
+    return
+  end
   while #events > 0 do
     local event = table.remove(events, 1)
 
@@ -84,7 +86,6 @@ function M.start(builder)
   if not builder.data then
     return
   end
-
   local args = {
     "-N",
     "-X",
@@ -97,13 +98,18 @@ function M.start(builder)
       .. builder.data.metadata.resourceVersion,
   }
 
-  if M.handle then
-    return
-  end
-
-  M.handle = commands.shell_command_async(builder.cmd, args, function() end, function(result)
+  local handle = commands.shell_command_async(builder.cmd, args, function() end, function(result)
     M.event_queue = M.event_queue .. result
   end)
+
+  return handle
+end
+
+function M.stop(handle)
+  if handle and not handle:is_closing() then
+    handle:kill(2)
+  end
+  M.event_queue = ""
 end
 
 return M
