@@ -11,6 +11,9 @@ local M = {
 local time = require("kubectl.utils.time")
 
 local function getPorts(ports)
+  if not ports then
+    return ""
+  end
   local string_ports = ""
   for index, value in ipairs(ports) do
     string_ports = string_ports .. value.port .. "/" .. value.protocol
