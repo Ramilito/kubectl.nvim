@@ -228,7 +228,9 @@ function ResourceBuilder:prettyPrint(headersFunc)
   notifications.Add({
     "prettify table " .. "[" .. self.resource .. "]",
   })
-  self.prettyData, self.extmarks = tables.pretty_print(self.processedData, headersFunc(self.data))
+
+  self.prettyData, self.extmarks =
+    tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource])
   return self
 end
 
@@ -273,7 +275,6 @@ function ResourceBuilder:setContentRaw(cancellationToken)
 
   buffers.set_content(self.buf_nr, { content = self.data, marks = self.extmarks, header = self.header })
   notifications.Close()
-  self:postRender()
 
   return self
 end
@@ -286,7 +287,6 @@ function ResourceBuilder:setContent(cancellationToken)
 
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
   notifications.Close()
-  self:postRender()
 
   return self
 end
@@ -316,16 +316,6 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
     end)
   end)
 
-  return self
-end
-
---- Perform post-render actions
----@return ResourceBuilder
-function ResourceBuilder:postRender()
-  local marks = require("kubectl.utils.marks")
-  vim.schedule(function()
-    marks.set_sortby_header(self.resource)
-  end)
   return self
 end
 
