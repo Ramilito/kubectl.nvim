@@ -102,16 +102,6 @@ function M.processRow(rows)
   return data
 end
 
-function sortedKeys(query, sortFunction)
-  local keys, len = {}, 0
-  for k, _ in pairs(query) do
-    len = len + 1
-    keys[len] = k
-  end
-  table.sort(keys, sortFunction)
-  return keys
-end
-
 function M.getHeaders(rows)
   if M.row_def then
     local headers = {}
