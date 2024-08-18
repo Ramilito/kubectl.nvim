@@ -1,17 +1,7 @@
 local events = require("kubectl.utils.events")
 local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
-local M = {
-  headers = {
-    "NAMESPACE",
-    "NAME",
-    "STORE",
-    "REFRESH_INTERVAL",
-    "STATUS",
-    "READY",
-    "AGE",
-  },
-}
+local M = {}
 
 local function getStatus(row)
   if not row.status then
@@ -69,11 +59,13 @@ function M.processResource(row)
   end
   local resource = {}
   for col, value_cb in pairs(M.row_def) do
+    if type(col) == "number" then
+      col = value_cb
+      value_cb = ""
+    end
     local name = col:lower()
     local value = ""
-    vim.print("value_cb: " .. type(value_cb))
     if (not value_cb or value_cb == "" or value_cb == nil) and default_cols[name] ~= nil then
-      vim.print("no value_cb for " .. name)
       value = default_cols[name]
     else
       -- if def is a function, call it with the row as the argument
@@ -109,7 +101,13 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
-  local headers = vim.deepcopy(M.headers)
+  if M.row_def then
+    return vim.tbl_keys(M.row_def)
+  end
+  local headers = {
+    "NAMESPACE",
+    "NAME",
+  }
   if rows.items then
     local firstItem = rows.items[1]
     if firstItem then
