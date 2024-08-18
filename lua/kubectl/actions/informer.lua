@@ -29,7 +29,9 @@ function M.split_json_objects(input)
   return objects
 end
 
+local parse_retries = 0
 function M.process_event_queue(builder)
+  parse_retries = parse_retries + 1
   if M.event_queue == "" then
     return
   end
@@ -44,9 +46,13 @@ function M.process_event_queue(builder)
       table.insert(events, data)
     else
       print(data)
+      if parse_retries < 3 then
+        M.process_event_queue(builder)
+      end
     end
   end
 
+  parse_retries = 0
   table.sort(events, function(a, b)
     return tonumber(a.object.metadata.resourceVersion) < tonumber(b.object.metadata.resourceVersion)
   end)
