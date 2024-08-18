@@ -59,8 +59,19 @@ local function getRestarts(containerStatuses, currentTime)
   end
 end
 
-local function getPodStatus(phase)
-  local status = { symbol = events.ColorStatus(phase), value = phase }
+local function getPodStatus(row)
+  local status = row.status.phase
+
+  if row.status.reason ~= "" then
+    if row.deletionTimestamp ~= nil and row.status.reason == "NodeLost" then
+      return { value = "Unknown", symbol = events.ColorStatus("Unknown") }
+    end
+  end
+
+  print(vim.inspect(row))
+  -- local initContainerStatuses = row.spec
+
+  -- { symbol = events.ColorStatus(phase), value = phase }
   return status
 end
 
@@ -74,7 +85,7 @@ function M.processRow(rows)
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         ready = getReady(row),
-        status = getPodStatus(row.status.phase),
+        status = getPodStatus(row),
         restarts = getRestarts(row.status.containerStatuses, currentTime),
         node = row.spec.nodeName,
         age = time.since(row.metadata.creationTimestamp, true, currentTime),
