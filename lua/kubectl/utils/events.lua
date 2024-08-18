@@ -46,6 +46,7 @@ function M.ColorStatus(status)
     ErrImagePull = true,
     OOMKilled = true,
     Lost = true,
+    Unknown = true,
   }
 
   local warningStatuses = {
