@@ -6,6 +6,7 @@ local container_view = require("kubectl.views.containers")
 local definition = require("kubectl.views.pods.definition")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
+local informer = require("kubectl.actions.informer")
 local loop = require("kubectl.utils.loop")
 local pod_view = require("kubectl.views.pods")
 local root_definition = require("kubectl.views.definition")
@@ -192,4 +193,22 @@ local function init()
   end
 end
 
+local function init_informer()
+  vim.api.nvim_create_autocmd("BufEnter", {
+    buffer = 0,
+    callback = function()
+      pod_view.View()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("BufLeave", {
+    buffer = 0,
+    callback = function()
+      informer.stop(pod_view.handle)
+      pod_view.handle = nil
+    end,
+  })
+end
+
 init()
+init_informer()
