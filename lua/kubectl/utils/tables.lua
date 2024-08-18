@@ -184,7 +184,7 @@ end
 ---@param data table[]
 ---@param headers string[]
 ---@return table[], table[]
-function M.pretty_print(data, headers)
+function M.pretty_print(data, headers, sort_by)
   local columns = {}
   for k, v in ipairs(headers) do
     columns[k] = v:lower()
@@ -205,6 +205,16 @@ function M.pretty_print(data, headers)
     local value = header .. "  " .. string.rep(" ", column_width - #header + 1)
     table.insert(header_line, value)
 
+    if sort_by then
+      if header == sort_by.current_word then
+        table.insert(extmarks, {
+          row = 0,
+          start_col = #table.concat(header_line, "") - #value + #header,
+          virt_text = { { (sort_by.order == "asc" and " ▲" or " ▼"), hl.symbols.header } },
+          virt_text_pos = "overlay",
+        })
+      end
+    end
     M.add_mark(extmarks, 0, #table.concat(header_line, "") - #value, #table.concat(header_line, ""), hl.symbols.header)
   end
   table.insert(tbl, table.concat(header_line, ""))
