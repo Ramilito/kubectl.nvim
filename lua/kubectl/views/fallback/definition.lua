@@ -89,7 +89,7 @@ function M.processRow(rows)
       if row.spec and row.spec.version then
         version = row.spec.version
       end
-      local age = ""
+      local age
       if row.metadata.creationTimestamp then
         age = time.since(row.metadata.creationTimestamp, true)
       end
