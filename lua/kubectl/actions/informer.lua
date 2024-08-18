@@ -44,9 +44,7 @@ function M.process_event_queue(builder)
     if success then
       table.insert(events, data)
     else
-      print("failed to parse json")
       print(data)
-      print("trying to parse: ", value)
     end
   end
 
@@ -56,7 +54,6 @@ function M.process_event_queue(builder)
 
   while #events > 0 do
     local event = table.remove(events, 1)
-    print(event.type, event.object.metadata.resourceVersion, event.object.metadata.name)
 
     if event.type == "ADDED" then
       table.insert(builder.data.items, event.object)

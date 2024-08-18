@@ -22,7 +22,6 @@ function M.View(cancellationToken)
       M.builder:decodeJson()
       vim.schedule(function()
         informer.start(M.builder)
-        -- Set up a loop to periodically process the event queue
         vim.loop.new_timer():start(
           1000,
           200,
