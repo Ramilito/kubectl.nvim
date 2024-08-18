@@ -5,6 +5,11 @@ local M = {
   headers = {
     "NAMESPACE",
     "NAME",
+    "STORE",
+    "REFRESH_INTERVAL",
+    "STATUS",
+    "READY",
+    "AGE",
   },
 }
 
@@ -54,24 +59,31 @@ local function getStatus(row)
 end
 
 function M.processResource(row)
-  -- if not M.row_def then
-  return {
+  local default_cols = {
     namespace = row.metadata.namespace,
     name = row.metadata.name,
     status = getStatus(row),
   }
-  -- end
-  -- local resource = {}
-  -- for col, def in pairs(M.row_def) do
-  --   local name = col:lower()
-  --   -- if def starts with '.', strip it
-  --   if def:sub(1, 1) == "." then
-  --     def = def:sub(2)
-  --   end
-  --   local value = row[def]
-  --   table.insert(resource, value)
-  -- end
-  -- return resource
+  if not M.row_def then
+    return default_cols
+  end
+  local resource = {}
+  for col, value_cb in pairs(M.row_def) do
+    local name = col:lower()
+    local value = ""
+    vim.print("value_cb: " .. type(value_cb))
+    if (not value_cb or value_cb == "" or value_cb == nil) and default_cols[name] ~= nil then
+      vim.print("no value_cb for " .. name)
+      value = default_cols[name]
+    else
+      -- if def is a function, call it with the row as the argument
+      if type(value_cb) == "function" and row then
+        value = value_cb(row) or "blat"
+      end
+    end
+    resource[name] = value
+  end
+  return resource
 end
 
 function M.processRow(rows)
@@ -82,13 +94,13 @@ function M.processRow(rows)
       if row.spec and row.spec.version then
         version = row.spec.version
       end
-      -- local resource = M.processResource(row)
-      local resource = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        status = getStatus(row),
-        version = version,
-      }
+      local resource = M.processResource(row)
+      -- local resource = {
+      --   namespace = row.metadata.namespace,
+      --   name = row.metadata.name,
+      --   status = getStatus(row),
+      --   version = version,
+      -- }
       table.insert(data, resource)
     end
   end
@@ -97,19 +109,20 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
+  local headers = vim.deepcopy(M.headers)
   if rows.items then
     local firstItem = rows.items[1]
     if firstItem then
       if firstItem.status and (firstItem.status.conditions or firstItem.status.health) then
-        table.insert(M.headers, "STATUS")
+        table.insert(headers, "STATUS")
       end
 
       if firstItem.spec and firstItem.spec.version then
-        table.insert(M.headers, "VERSION")
+        table.insert(headers, "VERSION")
       end
     end
   end
-  return M.headers
+  return headers
 end
 
 return M

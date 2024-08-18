@@ -33,18 +33,24 @@ function M.View(cancellationToken, resource)
   definition.hints = {
     { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
   }
+  definition.cmd = "kubectl"
 
   -- check if config.options.custom_views contains resource
-  -- if config and config.options and config.options.custom_views and config.options.custom_views[M.resource] then
-  --   local resource_config = config.options.custom_views[M.resource]
-  --   definition.row_def = resource_config.headers or {}
-  --   definition.display_name = resource_config.display_name or definition.display_name
-  --   definition.url = resource_config.url or definition.url
-  --   definition.ft = resource_config.ft or definition.ft
-  --   definition.hints = resource_config.hints or definition.hints
-  -- end
+  if config and
+    config.options and
+    config.options.custom_views and
+    config.options.custom_views[M.resource] then
 
-  ResourceBuilder:view(definition, cancellationToken, { cmd = "kubectl" })
+    local resource_config = config.options.custom_views[M.resource]
+    definition.row_def = resource_config.headers or {}
+    definition.display_name = resource_config.display_name or definition.display_name
+    definition.url = resource_config.url or definition.url
+    definition.ft = resource_config.ft or definition.ft
+    definition.hints = resource_config.hints or definition.hints
+    definition.cmd = resource_config.cmd or definition.cmd
+  end
+
+  ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd })
 end
 
 function M.Edit(name, ns)
