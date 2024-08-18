@@ -59,20 +59,112 @@ local function getRestarts(containerStatuses, currentTime)
   end
 end
 
-local function getPodStatus(row)
-  local status = row.status.phase
+local function checkInitContainerStatus(cs, count, initCount, restartable)
+  if cs.state.terminated ~= nil then
+    if cs.state.terminated.exitCode == 0 then
+      return ""
+    end
+    if cs.state.terminated.reason ~= "" then
+      return "Init:" .. cs.state.terminated.reason
+    end
+    if cs.State.Terminated.Signal ~= 0 then
+      return "Init:Signal:" .. tostring(cs.state.terminated.signal)
+    end
+    return "Init:ExitCode:" .. tostring(cs.state.terminated.exitCode)
+  elseif restartable and cs.started ~= nil and cs.started then
+    if cs.ready then
+      return ""
+    end
+  elseif cs.state.waiting ~= nil and cs.state.waiting.reason ~= "" and cs.state.waiting.reason ~= "PodInitializing" then
+    return "Init:" .. cs.state.waiting.reason
+  end
 
-  if row.status.reason ~= "" then
-    if row.deletionTimestamp ~= nil and row.status.reason == "NodeLost" then
-      return { value = "Unknown", symbol = events.ColorStatus("Unknown") }
+  return "Init:" .. tostring(count) .. "/" .. tostring(initCount)
+end
+
+local function getInitContainerStatus(row, status)
+  if not row.spec or not row.spec.initContainers then
+    return status, false
+  end
+
+  local count = #row.spec.initContainers
+  if count == 0 then
+    return status, false
+  end
+
+  local rs = {}
+  if row.spec.initContainers then
+    for _, c in ipairs(row.spec.initContainers) do
+      rs[c.name] = c.restartPolicy ~= nil and c.restartPolicy == "Always"
     end
   end
 
-  print(vim.inspect(row))
-  -- local initContainerStatuses = row.spec
+  if row.status.initContainerStatuses then
+    for i, cs in ipairs(row.status.initContainerStatuses) do
+      local s = checkInitContainerStatus(cs, i, count, rs[cs.Name])
+      if s ~= "" then
+        return s, true
+      end
+    end
+  end
 
-  -- { symbol = events.ColorStatus(phase), value = phase }
-  return status
+  return status, false
+end
+
+local function getContainerStatus(pod_status, status)
+  local running = false
+
+  -- Iterate over ContainerStatuses in reverse
+  if pod_status.containerStatuses then
+    for i = #pod_status.containerStatuses, 1, -1 do
+      local cs = pod_status.containerStatuses[i]
+      local state = cs.state
+
+      if state.waiting and state.waiting.reason ~= "" then
+        status = state.waiting.reason
+      elseif state.terminated then
+        if state.terminated.reason ~= "" then
+          status = state.terminated.reason
+        elseif state.terminated.signal ~= 0 then
+          status = "Signal:" .. tostring(state.terminated.signal)
+        else
+          status = "ExitCode:" .. tostring(state.terminated.exitCode)
+        end
+      elseif cs.ready and state.running then
+        running = true
+      end
+    end
+  end
+
+  return status, running
+end
+
+local function getPodStatus(row)
+  local status = row.status.phase
+  local ok = false
+
+  if row.status.reason ~= nil then
+    if row.deletionTimestamp ~= nil and row.status.reason == "NodeLost" then
+      return { value = "Unknown", symbol = events.ColorStatus("Unknown") }
+    end
+    status = row.status.reason
+  end
+
+  status, ok = getInitContainerStatus(row, status)
+  if ok then
+    return status
+  end
+
+  status, ok = getContainerStatus(row.status, status)
+  if ok and status == "Completed" then
+    status = "Running"
+  end
+
+  if row.deletionTimestamp == nil then
+    return { value = status, symbol = events.ColorStatus(status) }
+  end
+
+  return { value = "Terminating", symbol = events.ColorStatus("Terminating") }
 end
 
 function M.processRow(rows)
