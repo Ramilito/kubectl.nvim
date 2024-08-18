@@ -1,6 +1,7 @@
 local events = require("kubectl.utils.events")
 local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
+local time = require("kubectl.utils.time")
 local M = {}
 
 local function getStatus(row)
@@ -48,33 +49,36 @@ local function getStatus(row)
   end
 end
 
-function M.processResource(row)
-  local default_cols = {
+function M.processResource(row, additional_cols)
+  local default_cols = vim.tbl_extend("force", {
     namespace = row.metadata.namespace,
     name = row.metadata.name,
     status = getStatus(row),
-  }
+  }, additional_cols)
   if not M.row_def then
     return default_cols
   end
   local resource = {}
-  for col, value_cb in pairs(M.row_def) do
-    if type(col) == "number" then
-      col = value_cb
-      value_cb = ""
-    end
-    local name = col:lower()
+  for _, header_table in ipairs(M.row_def) do
+    local name = header_table.name:lower()
     local value = ""
-    if (not value_cb or value_cb == "" or value_cb == nil) and default_cols[name] ~= nil then
+    local value_cb = header_table.func
+    if not value_cb and default_cols[name] ~= nil then
       value = default_cols[name]
     else
       -- if def is a function, call it with the row as the argument
       if type(value_cb) == "function" and row then
-        value = value_cb(row) or "blat"
+        local ok, result = pcall(value_cb, row)
+        if ok then
+          value = result
+        else
+          value = "Error"
+        end
       end
     end
     resource[name] = value
   end
+  resource = vim.tbl_extend("force", default_cols, resource)
   return resource
 end
 
@@ -86,13 +90,11 @@ function M.processRow(rows)
       if row.spec and row.spec.version then
         version = row.spec.version
       end
-      local resource = M.processResource(row)
-      -- local resource = {
-      --   namespace = row.metadata.namespace,
-      --   name = row.metadata.name,
-      --   status = getStatus(row),
-      --   version = version,
-      -- }
+      local age = ""
+      if row.metadata.creationTimestamp then
+        age = time.since(row.metadata.creationTimestamp, true)
+      end
+      local resource = M.processResource(row, { version = version, age = age })
       table.insert(data, resource)
     end
   end
@@ -100,9 +102,23 @@ function M.processRow(rows)
   return data
 end
 
+function sortedKeys(query, sortFunction)
+  local keys, len = {}, 0
+  for k, _ in pairs(query) do
+    len = len + 1
+    keys[len] = k
+  end
+  table.sort(keys, sortFunction)
+  return keys
+end
+
 function M.getHeaders(rows)
   if M.row_def then
-    return vim.tbl_keys(M.row_def)
+    local headers = {}
+    for _, header_table in ipairs(M.row_def) do
+      table.insert(headers, header_table.name)
+    end
+    return headers
   end
   local headers = {
     "NAMESPACE",
@@ -117,6 +133,10 @@ function M.getHeaders(rows)
 
       if firstItem.spec and firstItem.spec.version then
         table.insert(headers, "VERSION")
+      end
+
+      if firstItem.metadata and firstItem.metadata.creationTimestamp then
+        table.insert(headers, "AGE")
       end
     end
   end

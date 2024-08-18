@@ -38,7 +38,6 @@ function M.View(cancellationToken, resource)
   -- check if config.options.custom_views contains resource
   if config and config.options and config.options.custom_views and config.options.custom_views[M.resource] then
     local resource_config = config.options.custom_views[M.resource]
-    vim.print(resource_config.headers)
     definition.row_def = resource_config.headers or {}
     definition.display_name = resource_config.display_name or definition.display_name
     definition.url = resource_config.url or definition.url
