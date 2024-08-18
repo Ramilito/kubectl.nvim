@@ -56,7 +56,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 - kubectl
 - curl
 - neovim >= 0.10
- 
+
 ## ⚡️ Optional Dependencies
 - [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
 
@@ -121,6 +121,44 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { nor
   obj_fresh = 0, -- highlight if creation newer than number (in minutes)
   mappings = {
     exit = "<leader>k",
+  }
+  custom_views = {
+    -- ['externalsecrets.external-secrets.io'] = {
+    --   resource = 'externalsecrets.external-secrets.io',
+    --   display_name = 'ExternalSecrets',
+    --   ft = 'k8s_externalsecret',
+    --   url = { '{{BASE}}/apis/external-secrets.io/v1beta1/externalsecrets' },
+    --   cmd = 'curl',
+    --   headers = {
+    --     { name = 'NAMESPACE', func = false }, -- part of fallback view, no need to recalculate
+    --     { name = 'NAME', func = false }, -- part of fallback view, no need to recalculate
+    --     {
+    --       name = 'STORE',
+    --       func = function(row)
+    --       return row.spec.secretStoreRef.name
+    --       end,
+    --     },
+    --     {
+    --       name = 'REFRESH_INTERVAL',
+    --       func = function(row)
+    --       return row.spec.refreshInterval
+    --       end,
+    --     },
+    --     {
+    --       name = 'STATUS',
+    --       func = function(row)
+    --       return row.status.conditions[1].reason
+    --       end,
+    --     },
+    --     {
+    --       name = 'READY',
+    --       func = function(row)
+    --       return row.status.conditions[1].type
+    --       end,
+    --     },
+    --     { name = 'AGE', func = false }, -- part of fallback view, no need to recalculate
+    --   },
+    -- },
   }
 }
 ```
