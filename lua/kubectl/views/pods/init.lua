@@ -10,6 +10,7 @@ local M = {}
 M.selection = {}
 M.builder = nil
 M.pfs = {}
+M.handle = nil
 
 function M.View(cancellationToken)
   M.pfs = {}
@@ -21,7 +22,10 @@ function M.View(cancellationToken)
       M.builder = builder
       M.builder:decodeJson()
       vim.schedule(function()
-        informer.start(M.builder)
+        if not M.handle then
+          M.handle = informer.start(M.builder)
+        end
+
         vim.loop.new_timer():start(
           1000,
           200,
