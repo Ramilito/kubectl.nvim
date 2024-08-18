@@ -1,7 +1,12 @@
 local events = require("kubectl.utils.events")
 local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
-local M = {}
+local M = {
+  headers = {
+    "NAMESPACE",
+    "NAME",
+  },
+}
 
 local function getStatus(row)
   if not row.status then
@@ -48,6 +53,27 @@ local function getStatus(row)
   end
 end
 
+function M.processResource(row)
+  -- if not M.row_def then
+  return {
+    namespace = row.metadata.namespace,
+    name = row.metadata.name,
+    status = getStatus(row),
+  }
+  -- end
+  -- local resource = {}
+  -- for col, def in pairs(M.row_def) do
+  --   local name = col:lower()
+  --   -- if def starts with '.', strip it
+  --   if def:sub(1, 1) == "." then
+  --     def = def:sub(2)
+  --   end
+  --   local value = row[def]
+  --   table.insert(resource, value)
+  -- end
+  -- return resource
+end
+
 function M.processRow(rows)
   local data = {}
   if rows.items then
@@ -56,14 +82,14 @@ function M.processRow(rows)
       if row.spec and row.spec.version then
         version = row.spec.version
       end
-      local pod = {
+      -- local resource = M.processResource(row)
+      local resource = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         status = getStatus(row),
         version = version,
       }
-
-      table.insert(data, pod)
+      table.insert(data, resource)
     end
   end
 
@@ -71,24 +97,19 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-  }
-
   if rows.items then
     local firstItem = rows.items[1]
     if firstItem then
       if firstItem.status and (firstItem.status.conditions or firstItem.status.health) then
-        table.insert(headers, "STATUS")
+        table.insert(M.headers, "STATUS")
       end
 
       if firstItem.spec and firstItem.spec.version then
-        table.insert(headers, "VERSION")
+        table.insert(M.headers, "VERSION")
       end
     end
   end
-  return headers
+  return M.headers
 end
 
 return M

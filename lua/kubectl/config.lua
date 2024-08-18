@@ -41,6 +41,7 @@ local defaults = {
   mappings = {
     exit = "<leader>k",
   },
+  custom_views = {},
 }
 
 ---@type KubectlOptions

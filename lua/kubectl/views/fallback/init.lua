@@ -1,6 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.fallback.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -32,6 +33,16 @@ function M.View(cancellationToken, resource)
   definition.hints = {
     { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
   }
+
+  -- check if config.options.custom_views contains resource
+  -- if config and config.options and config.options.custom_views and config.options.custom_views[M.resource] then
+  --   local resource_config = config.options.custom_views[M.resource]
+  --   definition.row_def = resource_config.headers or {}
+  --   definition.display_name = resource_config.display_name or definition.display_name
+  --   definition.url = resource_config.url or definition.url
+  --   definition.ft = resource_config.ft or definition.ft
+  --   definition.hints = resource_config.hints or definition.hints
+  -- end
 
   ResourceBuilder:view(definition, cancellationToken, { cmd = "kubectl" })
 end
