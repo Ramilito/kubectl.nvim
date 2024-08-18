@@ -9,6 +9,7 @@ local M = {}
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
 ---@field mappings { exit: string }
+---@field custom_views table<string, table>
 local defaults = {
   auto_refresh = {
     enabled = true,
