@@ -23,6 +23,9 @@ ResourceBuilder.__index = ResourceBuilder
 function ResourceBuilder:new(resource)
   self = setmetatable({}, ResourceBuilder)
   self.resource = resource
+  self.processedData = nil
+  self.data = nil
+  self.prettyData = nil
   self.header = { data = nil, marks = nil }
   return self
 end
