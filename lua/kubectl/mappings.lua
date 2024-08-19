@@ -5,27 +5,6 @@ local M = {}
 
 --- Register kubectl key mappings
 function M.register()
-  local config = require("kubectl.config")
-  local kube = require("kubectl.actions.kube")
-  vim.api.nvim_buf_set_keymap(0, "n", config.options.mappings.exit, "", {
-    noremap = true,
-    silent = true,
-    desc = "Toggle",
-    callback = function()
-      local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      if ok then
-        commands.save_config("kubectl.session.json", { view = buf_name })
-      end
-
-      -- Only stop proxy if not a floating buffer
-      local win_config = vim.api.nvim_win_get_config(0)
-      if win_config.relative == "" then
-        kube.stop_kubectl_proxy()()
-      end
-      vim.api.nvim_buf_delete(0, { force = true })
-    end,
-  })
-
   vim.api.nvim_buf_set_keymap(0, "n", "gP", "", {
     noremap = true,
     silent = true,

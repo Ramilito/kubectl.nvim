@@ -1,7 +1,9 @@
 local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 
-local M = {}
+local M = {
+  is_open = false,
+}
 
 --- Open the kubectl view
 function M.open()
@@ -15,6 +17,31 @@ function M.open()
       commands.restore_session()
     end)
   end)
+end
+
+function M.close()
+  local kube = require("kubectl.actions.kube")
+  local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+  if ok then
+    commands.save_config("kubectl.session.json", { view = buf_name })
+  end
+
+  -- Only stop proxy if not a floating buffer
+  local win_config = vim.api.nvim_win_get_config(0)
+  if win_config.relative == "" then
+    kube.stop_kubectl_proxy()()
+  end
+  vim.api.nvim_buf_delete(0, { force = true })
+end
+
+function M.toggle()
+  if M.is_open then
+    M.close()
+    M.is_open = false
+  else
+    M.open()
+    M.is_open = true
+  end
 end
 
 --- Setup kubectl with options

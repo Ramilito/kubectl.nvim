@@ -79,9 +79,11 @@ return {
 
 ## ⌨️ Keymaps
 
+We expose open, close and toggle to bind against:
+
+#### Toggle
 ```lua
--- Recommended is to have the same open mapping as your close (```<leader>k```) the plugin for a toggle effect.
-vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { noremap = true, silent = true })
+vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
 ```
 
 ## ⚙️ Configuration
@@ -119,9 +121,6 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { nor
     row = 5,
   },
   obj_fresh = 0, -- highlight if creation newer than number (in minutes)
-  mappings = {
-    exit = "<leader>k",
-  }
 }
 ```
 
