@@ -84,26 +84,41 @@ function M.process_event_queue(builder)
 end
 
 function M.start(builder)
-  if not builder.data then
+  if not builder.data or builder.informer_handle then
     return
   end
-  local args = {
-    "-N",
-    "-X",
-    "GET",
-    "-sS",
-    "--keepalive-time",
-    "60",
-    "-H",
-    "Content-Type: application/json",
-    state.getProxyUrl()
-      .. "/api/v1/pods/?pretty=false&watch=true&resourceVersion="
-      .. builder.data.metadata.resourceVersion,
-  }
+
+  local args = { "-N", "--keepalive-time", "60" }
+
+  for index, value in ipairs(builder.args) do
+    if index == #builder.args then
+      value = value .. "&watch=true&resourceVersion=" .. builder.data.metadata.resourceVersion
+    end
+
+    if value ~= "curl" then
+      table.insert(args, value)
+    end
+  end
 
   local handle = commands.shell_command_async(builder.cmd, args, function() end, function(result)
     M.event_queue = M.event_queue .. result
   end)
+
+  builder.informer_handle = handle
+  vim.api.nvim_create_autocmd("BufEnter", {
+    buffer = builder.buf_nr,
+    callback = function()
+      builder:view(builder.definition)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("BufLeave", {
+    buffer = builder.buf_nr,
+    callback = function()
+      M.stop(builder.informer_handle)
+      builder.informer_handle = nil
+    end,
+  })
 
   return handle
 end

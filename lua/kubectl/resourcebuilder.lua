@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local informer = require("kubectl.actions.informer")
 local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
@@ -291,29 +292,64 @@ function ResourceBuilder:setContent(cancellationToken)
   return self
 end
 
+function ResourceBuilder:view_float(definition, opts)
+  opts = opts or {}
+  ResourceBuilder:new(definition.resource)
+    :displayFloat(definition.ft, definition.display_name)
+    :setCmd(definition.url, opts.cmd or "curl")
+    :fetchAsync(function(builder)
+      builder:decodeJson()
+
+      vim.schedule(function()
+        builder
+          :process(definition.processRow)
+          :sort()
+          :prettyPrint(definition.getHeaders)
+          :addHints(definition.hints, true, true, true)
+        builder:setContent()
+      end)
+    end)
+
+  return self
+end
+
 function ResourceBuilder:view(definition, cancellationToken, opts)
   opts = opts or {}
-  local b = ResourceBuilder:new(definition.resource)
-  if opts.is_float then
-    b:displayFloat(definition.ft, definition.display_name, cancellationToken)
-  else
-    b:display(definition.ft, definition.display_name, cancellationToken)
-  end
-  b:setCmd(definition.url, opts.cmd or "curl"):fetchAsync(function(builder)
-    builder:decodeJson()
+  self.definition = definition
+  self
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd(definition.url, opts.cmd or "curl")
+    :fetchAsync(function(builder)
+      builder:decodeJson()
 
-    vim.schedule(function()
-      builder
-        :process(definition.processRow)
-        :sort()
-        :prettyPrint(definition.getHeaders)
-        :addHints(definition.hints, true, true, true)
+      vim.schedule(function()
+        informer.start(builder)
 
-      if opts.before_content_callback then
-        opts.before_content_callback(builder)
-      end
-      builder:setContent(cancellationToken)
+        vim.loop.new_timer():start(
+          500,
+          200,
+          vim.schedule_wrap(function()
+            informer.process_event_queue(builder)
+          end)
+        )
+      end)
+
+      builder:draw(definition, cancellationToken)
     end)
+
+  return self
+end
+
+function ResourceBuilder:draw(definition, cancellationToken)
+  vim.schedule(function()
+    self
+      :process(definition.processRow)
+      :sort()
+      :prettyPrint(definition.getHeaders)
+      :addHints(definition.hints, true, true, true)
+      :setContent(cancellationToken)
+    -- TODO: Handle PF before setContent
+    -- root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
   end)
 
   return self

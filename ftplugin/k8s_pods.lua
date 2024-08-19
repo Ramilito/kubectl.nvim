@@ -193,22 +193,4 @@ local function init()
   end
 end
 
-local function init_informer()
-  vim.api.nvim_create_autocmd("BufEnter", {
-    buffer = 0,
-    callback = function()
-      pod_view.View()
-    end,
-  })
-
-  vim.api.nvim_create_autocmd("BufLeave", {
-    buffer = 0,
-    callback = function()
-      informer.stop(pod_view.handle)
-      pod_view.handle = nil
-    end,
-  })
-end
-
 init()
-init_informer()

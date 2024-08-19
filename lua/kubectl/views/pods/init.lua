@@ -2,52 +2,25 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
-local informer = require("kubectl.actions.informer")
-local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
-M.selection = {}
-M.builder = nil
-M.pfs = {}
-M.handle = nil
+local M = {
+  builder = nil,
+  informer_handle = nil,
+  selection = {},
+  pfs = {},
+}
 
 function M.View(cancellationToken)
-  M.pfs = {}
-  root_definition.getPFData(M.pfs, true, "pods")
-  M.builder = ResourceBuilder:new(definition.resource)
-    :display(definition.ft, definition.display_name, cancellationToken)
-    :setCmd(definition.url, "curl")
-    :fetchAsync(function(builder)
-      M.builder = builder
-      M.builder:decodeJson()
-      vim.schedule(function()
-        if not M.handle then
-          M.handle = informer.start(M.builder)
-        end
-
-        vim.loop.new_timer():start(
-          1000,
-          200,
-          vim.schedule_wrap(function()
-            informer.process_event_queue(M.builder)
-          end)
-        )
-        M.Draw(cancellationToken)
-      end)
-    end)
+  if M.builder then
+    M.builder = M.builder:view(definition, cancellationToken)
+  else
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  end
 end
 
 function M.Draw(cancellationToken)
-  M.builder
-    :process(definition.processRow)
-    :sort()
-    :prettyPrint(definition.getHeaders)
-    :addHints(definition.hints, true, true, true)
-
-  root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
-
-  M.builder:setContent(cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
 end
 
 function M.Top()
