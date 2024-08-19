@@ -325,24 +325,23 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
       if opts.cmd == "curl" then
         informer.start(builder)
       end
-      builder:draw(definition, cancellationToken)
+      vim.schedule(function()
+        builder:draw(definition, cancellationToken)
+      end)
     end)
 
   return self
 end
 
 function ResourceBuilder:draw(definition, cancellationToken)
-  vim.schedule(function()
-    self
-      :process(definition.processRow)
-      :sort()
-      :prettyPrint(definition.getHeaders)
-      :addHints(definition.hints, true, true, true)
-      :setContent(cancellationToken)
-    -- TODO: Handle PF before setContent
-    -- root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
-  end)
-
+  self
+    :process(definition.processRow)
+    :sort()
+    :prettyPrint(definition.getHeaders)
+    :addHints(definition.hints, true, true, true)
+    :setContent(cancellationToken)
+  -- TODO: Handle PF before setContent
+  -- root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
   return self
 end
 
