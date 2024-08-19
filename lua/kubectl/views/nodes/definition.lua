@@ -85,9 +85,10 @@ end
 
 function M.processRow(rows)
   local data = {}
-  if not rows.items then
+  if not rows or not rows.items then
     return data
   end
+
   for _, row in pairs(rows.items) do
     local iIP, eIP = getIPs(row.status.addresses)
     local pod = {

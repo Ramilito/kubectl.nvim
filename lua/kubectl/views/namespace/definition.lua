@@ -17,7 +17,7 @@ end
 function M.processRow(rows)
   local data = { { name = "All", status = "", age = "" } }
 
-  if not rows.items then
+  if not rows or not rows.items then
     return data
   end
 

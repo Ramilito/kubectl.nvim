@@ -315,13 +315,16 @@ end
 
 function ResourceBuilder:view(definition, cancellationToken, opts)
   opts = opts or {}
+  opts.cmd = opts.cmd or "curl"
   self.definition = definition
   self
     :display(definition.ft, definition.display_name, cancellationToken)
-    :setCmd(definition.url, opts.cmd or "curl")
+    :setCmd(definition.url, opts.cmd)
     :fetchAsync(function(builder)
       builder:decodeJson()
-      informer.start(builder)
+      if opts.cmd == "curl" then
+        informer.start(builder)
+      end
       builder:draw(definition, cancellationToken)
     end)
 

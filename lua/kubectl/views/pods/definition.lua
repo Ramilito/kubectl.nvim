@@ -169,6 +169,11 @@ end
 
 function M.processRow(rows)
   local data = {}
+
+  if not rows or not rows.items then
+    return data
+  end
+
   local currentTime = time.currentTime()
   if rows and rows.items then
     for i = 1, #rows.items do
