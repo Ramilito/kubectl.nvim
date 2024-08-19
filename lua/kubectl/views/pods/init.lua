@@ -6,7 +6,6 @@ local tables = require("kubectl.utils.tables")
 
 local M = {
   builder = nil,
-  informer_handle = nil,
   selection = {},
   pfs = {},
 }

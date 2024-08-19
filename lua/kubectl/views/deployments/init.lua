@@ -10,14 +10,14 @@ local M = {
 
 function M.View(cancellationToken)
   if M.builder then
-    M.builder:view(definition, cancellationToken)
+    M.builder = M.builder:view(definition, cancellationToken)
   else
     M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
   end
 end
 
 function M.Draw(cancellationToken)
-  M.builder:view(definition, cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
 end
 
 function M.Desc(name, ns)
