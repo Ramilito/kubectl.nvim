@@ -301,12 +301,16 @@ function ResourceBuilder:view_float(definition, opts)
       builder:decodeJson()
 
       vim.schedule(function()
-        builder
-          :process(definition.processRow)
-          :sort()
-          :prettyPrint(definition.getHeaders)
-          :addHints(definition.hints, true, true, true)
-        builder:setContent()
+        if definition.processRow then
+          builder
+            :process(definition.processRow)
+            :sort()
+            :prettyPrint(definition.getHeaders)
+            :addHints(definition.hints, true, true, true)
+            :setContent()
+        else
+          builder:splitData():setContentRaw()
+        end
       end)
     end)
 

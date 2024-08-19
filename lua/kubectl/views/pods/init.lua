@@ -24,11 +24,10 @@ function M.Draw(cancellationToken)
 end
 
 function M.Top()
-  ResourceBuilder:new("top"):displayFloat("k8s_top", "Top"):setCmd({ "top", "pods", "-A" }):fetchAsync(function(self)
-    vim.schedule(function()
-      self:splitData():setContentRaw()
-    end)
-  end)
+  ResourceBuilder:view_float(
+    { resource = "top", ft = "k8s_top", display_name = "Top", url = { "top", "pods", "-A" } },
+    { cmd = "kubectl" }
+  )
 end
 
 function M.TailLogs()
