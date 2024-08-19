@@ -2,20 +2,21 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
-local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local M = { builder = nil }
 
 function M.View(cancellationToken)
-  local pfs = {}
-  root_definition.getPFData(pfs, true, "svc")
+  -- TODO: Add PF handling
+  if M.builder then
+    M.builder = M.builder:view(definition, cancellationToken)
+  else
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  end
+end
 
-  ResourceBuilder:view(definition, cancellationToken, {
-    before_content_callback = function(self)
-      root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
-    end,
-  })
+function M.Draw(cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
 end
 
 function M.Edit(name, ns)
