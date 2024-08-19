@@ -127,9 +127,6 @@ vim.keymap.set("n", "q", '<cmd>lua require("kubectl").close()<cr>', { noremap = 
     row = 5,
   },
   obj_fresh = 0, -- highlight if creation newer than number (in minutes)
-  mappings = {
-    exit = "<leader>k",
-  }
 }
 ```
 
