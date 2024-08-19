@@ -13,6 +13,10 @@ local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
 if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+  ResourceBuilder:new("services_pf"):setCmd({ "{{BASE}}/apis" }, "curl"):fetchAsync(function(self)
+    self:decodeJson()
+    vim.print(self)
+  end)
   commands.shell_command_async("kubectl", { "api-resources", "-o", "name", "--cached" }, function(data)
     M.cached_api_resources.values = data
     M.timestamp = os.time()
