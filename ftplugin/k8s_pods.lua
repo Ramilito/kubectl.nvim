@@ -74,7 +74,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "gk", "", {
     noremap = true,
     silent = true,
-    desc = "Kill pod",
+    desc = "delete pod",
     callback = function()
       local name, ns = pod_view.getCurrentSelection()
 

@@ -13,7 +13,7 @@ local M = {
     { key = "<gu>", desc = "usage", long_desc = "Show resources used" },
     { key = "<enter>", desc = "containers", long_desc = "Opens container view" },
     { key = "<gp>", desc = "PF", long_desc = "View active Port forwards" },
-    { key = "<gk>", desc = "kill pod", long_desc = "Kill pod" },
+    { key = "<gk>", desc = "delete pod", long_desc = "Delete pod" },
   },
 }
 
