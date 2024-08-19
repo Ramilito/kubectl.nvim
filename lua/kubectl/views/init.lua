@@ -118,6 +118,11 @@ function M.Aliases()
 
       -- Filter suggestions based on input
       local filtered_suggestions = {}
+
+      -- We reassign the cache since it can be slow to load
+      self.data = M.cached_api_resources.values
+      self:splitData():decodeJson()
+
       for _, suggestion in ipairs(self.data) do
         if suggestion:sub(1, #original_input) == original_input then
           table.insert(filtered_suggestions, suggestion)
