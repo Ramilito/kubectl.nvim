@@ -105,21 +105,31 @@ function M.start(builder)
   end)
 
   builder.informer_handle = handle
-  vim.api.nvim_create_autocmd("BufEnter", {
-    buffer = builder.buf_nr,
-    callback = function()
-      builder:view(builder.definition)
-    end,
-  })
 
-  vim.api.nvim_create_autocmd("BufLeave", {
-    buffer = builder.buf_nr,
-    callback = function()
-      M.stop(builder.informer_handle)
-      builder.informer_handle = nil
-    end,
-  })
+  vim.loop.new_timer():start(
+    500,
+    200,
+    vim.schedule_wrap(function()
+      M.process_event_queue(builder)
+    end)
+  )
 
+  vim.schedule(function()
+    vim.api.nvim_create_autocmd("BufEnter", {
+      buffer = builder.buf_nr,
+      callback = function()
+        builder:view(builder.definition)
+      end,
+    })
+
+    vim.api.nvim_create_autocmd("BufLeave", {
+      buffer = builder.buf_nr,
+      callback = function()
+        M.stop(builder.informer_handle)
+        builder.informer_handle = nil
+      end,
+    })
+  end)
   return handle
 end
 

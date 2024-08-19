@@ -321,19 +321,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
     :setCmd(definition.url, opts.cmd or "curl")
     :fetchAsync(function(builder)
       builder:decodeJson()
-
-      vim.schedule(function()
-        informer.start(builder)
-
-        vim.loop.new_timer():start(
-          500,
-          200,
-          vim.schedule_wrap(function()
-            informer.process_event_queue(builder)
-          end)
-        )
-      end)
-
+      informer.start(builder)
       builder:draw(definition, cancellationToken)
     end)
 
