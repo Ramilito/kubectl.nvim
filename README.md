@@ -79,17 +79,11 @@ return {
 
 ## ⌨️ Keymaps
 
-We expose open, close and toggle to bind against, example alternatives below:
+We expose open, close and toggle to bind against:
 
 #### Toggle
 ```lua
 vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
-```
-
-#### Open with ```<leader>k``` and close with ```q```
-```lua
-vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { noremap = true, silent = true })
-vim.keymap.set("n", "q", '<cmd>lua require("kubectl").close()<cr>', { noremap = true, silent = true })
 ```
 
 ## ⚙️ Configuration
