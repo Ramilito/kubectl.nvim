@@ -38,9 +38,6 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
-  mappings = {
-    exit = "<leader>k",
-  },
 }
 
 ---@type KubectlOptions
@@ -49,6 +46,9 @@ M.options = vim.deepcopy(defaults)
 --- Setup kubectl options
 --- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
+  if options.mappings and options.mappings.exit then
+    vim.notify("Warning: mappings.exit is deprecated. Please use own mapping to call require('kubectl').close()")
+  end
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
 end
 
