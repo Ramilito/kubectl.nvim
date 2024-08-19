@@ -38,17 +38,6 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
-<<<<<<< HEAD
-  mappings = {
-    exit = "<leader>k",
-  },
-  custom_views = {},
-||||||| a47aea3
-  mappings = {
-    exit = "<leader>k",
-  },
-=======
->>>>>>> rami/main
 }
 
 ---@type KubectlOptions
