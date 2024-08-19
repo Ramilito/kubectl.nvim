@@ -97,7 +97,7 @@ local function set_keymap(bufnr)
                 )
 
                 vim.schedule(function()
-                  service_view.View()
+                  service_view.Draw()
                 end)
               end
             end, {
@@ -115,7 +115,7 @@ end
 local function init()
   set_keymap(0)
   if not loop.is_running() then
-    loop.start_loop(service_view.View)
+    loop.start_loop(service_view.Draw)
   end
 end
 
