@@ -8,8 +8,7 @@ local M = {}
 ---@field context boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
----@field mappings { exit: string }
----@field custom_views table<string, table>
+---@field mappings { }
 local defaults = {
   auto_refresh = {
     enabled = true,
@@ -39,10 +38,17 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
+<<<<<<< HEAD
   mappings = {
     exit = "<leader>k",
   },
   custom_views = {},
+||||||| a47aea3
+  mappings = {
+    exit = "<leader>k",
+  },
+=======
+>>>>>>> rami/main
 }
 
 ---@type KubectlOptions
@@ -51,6 +57,9 @@ M.options = vim.deepcopy(defaults)
 --- Setup kubectl options
 --- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
+  if options.mappings and options.mappings.exit then
+    vim.notify("Warning: mappings.exit is deprecated. Please use own mapping to call require('kubectl').close()")
+  end
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
 end
 

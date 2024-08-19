@@ -1,8 +1,10 @@
 # kubectl.nvim
+
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 <img src="https://github.com/user-attachments/assets/3c070dc5-1b93-47a0-9412-bf34ae611267" width="1700px">
 
 ## ✨ Features
+
 <details>
   <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 </summary>
@@ -53,11 +55,13 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 
 ## ⚡️ Required Dependencies
+
 - kubectl
 - curl
 - neovim >= 0.10
 
 ## ⚡️ Optional Dependencies
+
 - [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
 
 ## 📦 Installation
@@ -79,14 +83,18 @@ return {
 
 ## ⌨️ Keymaps
 
+We expose open, close and toggle to bind against:
+
+#### Toggle
+
 ```lua
--- Recommended is to have the same open mapping as your close (```<leader>k```) the plugin for a toggle effect.
-vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { noremap = true, silent = true })
+vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
 ```
 
 ## ⚙️ Configuration
 
 ### Setup
+
 ```lua
 {
   auto_refresh = {
@@ -119,47 +127,6 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").open()<cr>', { nor
     row = 5,
   },
   obj_fresh = 0, -- highlight if creation newer than number (in minutes)
-  mappings = {
-    exit = "<leader>k",
-  }
-  custom_views = {
-    -- ['externalsecrets.external-secrets.io'] = {
-    --   resource = 'externalsecrets.external-secrets.io',
-    --   display_name = 'ExternalSecrets',
-    --   ft = 'k8s_externalsecret',
-    --   url = { '{{BASE}}/apis/external-secrets.io/v1beta1/externalsecrets' },
-    --   cmd = 'curl',
-    --   headers = {
-    --     { name = 'NAMESPACE', func = false }, -- part of fallback view, no need to recalculate
-    --     { name = 'NAME', func = false }, -- part of fallback view, no need to recalculate
-    --     {
-    --       name = 'STORE',
-    --       func = function(row)
-    --       return row.spec.secretStoreRef.name
-    --       end,
-    --     },
-    --     {
-    --       name = 'REFRESH_INTERVAL',
-    --       func = function(row)
-    --       return row.spec.refreshInterval
-    --       end,
-    --     },
-    --     {
-    --       name = 'STATUS',
-    --       func = function(row)
-    --       return row.status.conditions[1].reason
-    --       end,
-    --     },
-    --     {
-    --       name = 'READY',
-    --       func = function(row)
-    --       return row.status.conditions[1].type
-    --       end,
-    --     },
-    --     { name = 'AGE', func = false }, -- part of fallback view, no need to recalculate
-    --   },
-    -- },
-  }
 }
 ```
 
@@ -171,9 +138,11 @@ The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
 ## Versioning
+
 > [!WARNING]
 > As we have not yet reached v1.0.0, we may have some breaking changes
 > in cases where it is deemed necessary.
 
 ## Motivation
+
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for file browsing.
