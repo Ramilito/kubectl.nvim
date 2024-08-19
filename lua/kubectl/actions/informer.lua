@@ -80,11 +80,6 @@ function M.process_event_queue(builder)
         end
       end
     end
-
-    -- Redraw UI after processing an event
-    -- vim.schedule(function()
-    --   M.Draw()
-    -- end)
   end
 end
 
@@ -97,6 +92,8 @@ function M.start(builder)
     "-X",
     "GET",
     "-sS",
+    "--keepalive-time",
+    "60",
     "-H",
     "Content-Type: application/json",
     state.getProxyUrl()
