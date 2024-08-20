@@ -196,7 +196,7 @@ end
 --- Creates a namespace buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param title string|nil: The filetype of the buffer.
---- @param opts { header: { data: table }, prompt: boolean}: Options for the buffer.
+--- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
   local bufname = title or filetype
@@ -214,7 +214,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     end, { buffer = buf, silent = true })
   end
 
-  local win = layout.float_dynamic_layout(buf, filetype, title or "")
+  local win = layout.float_dynamic_layout(buf, opts.syntax or filetype, title or "")
 
   if opts.prompt then
     vim.fn.prompt_setcallback(buf, function(input)

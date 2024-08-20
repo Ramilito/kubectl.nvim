@@ -19,17 +19,16 @@ function M.processRow(rows)
   local data = {}
 
   if rows.code == 401 or rows.code == 403 then
-    table.insert(
-      data,
-      {
-        name = { value = "Access to namespaces denied, please input your desired namespace", symbol = hl.symbols.error },
-        status = "",
-        age = "",
-      }
-    )
+    table.insert(data, {
+      name = { value = "Access to namespaces denied, please input your desired namespace", symbol = hl.symbols.error },
+      status = "",
+      age = "",
+    })
     return data
-  elseif not rows.items then
-    data = { { name = "All", status = "", age = "" } }
+  end
+
+  data = { { name = "All", status = "", age = "" } }
+  if not rows.items then
     return data
   end
 
