@@ -20,11 +20,13 @@ function M.View()
       vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
         noremap = true,
         callback = function()
-          local current_word = vim.fn.expand("<cword>")
+          local line = vim.api.nvim_get_current_line()
+          local current_word = vim.split(line, "%s%s+")[1]
 
           vim.cmd("startinsert")
           vim.schedule(function()
             vim.api.nvim_put({ current_word }, "c", true, true)
+            vim.api.nvim_input("<cr>")
           end)
         end,
       })
