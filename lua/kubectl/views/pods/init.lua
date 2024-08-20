@@ -24,8 +24,19 @@ function M.Draw(cancellationToken)
 end
 
 function M.Top()
-  ResourceBuilder:view_float(
-    { resource = "top", ft = "k8s_top", display_name = "Top", url = { "top", "pods", "-A" } },
+  local state = require("kubectl.state")
+  local ns_filter = state.getNamespace()
+  local args = { "top", "pods" }
+
+  if ns_filter == "All" then
+    table.insert(args, "-A")
+  else
+    table.insert(args, "--namespace")
+    table.insert(args, ns_filter)
+  end
+  
+    ResourceBuilder:view_float(
+    { resource = "top", ft = "k8s_top", display_name = "Top", url = args },
     { cmd = "kubectl" }
   )
 end
