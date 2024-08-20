@@ -46,9 +46,10 @@ function M.process_event_queue(builder)
     if success then
       table.insert(events, data)
     else
-      print(data)
       if parse_retries < 3 then
         M.process_event_queue(builder)
+      else
+        print(data)
       end
     end
   end
