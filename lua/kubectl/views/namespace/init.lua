@@ -56,9 +56,18 @@ end
 function M.changeNamespace(name)
   local function handle_output(_)
     vim.schedule(function()
-      state.ns = name
       api.nvim_buf_delete(0, { force = true })
-      api.nvim_input("gr")
+      state.ns = name
+      vim.schedule(function()
+        local string_utils = require("kubectl.utils.string")
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        if ok then
+          pcall(view.View)
+        else
+          api.nvim_input("gr")
+        end
+      end)
     end)
   end
   if name == "All" then
