@@ -62,8 +62,7 @@ function M.changeNamespace(name)
         local string_utils = require("kubectl.utils.string")
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-        print(ok, vim.inspect(view))
-        print("this should be ok otherwise it's not understanding what view we are on")
+        print("this should be true otherwise it's not understanding what view we are on", ok)
         if ok then
           pcall(view.View)
         else
