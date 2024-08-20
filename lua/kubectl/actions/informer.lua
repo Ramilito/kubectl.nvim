@@ -1,11 +1,12 @@
 local commands = require("kubectl.actions.commands")
 
-local M = {}
-
-M.event_queue = ""
-M.handle = nil
-M.writing_to_queue = false
-M.processing_queue = false
+local M = {
+  event_queue = "",
+  handle = nil,
+  writing_to_queue = false,
+  processing_queue = false,
+  max_retries = 5,
+}
 
 function M.split_json_objects(input)
   local objects = {}
@@ -58,7 +59,7 @@ function M.process_event_queue(builder)
     if success then
       table.insert(events, data)
     else
-      if parse_retries < 5 then
+      if parse_retries < M.max_retries then
         M.process_event_queue(builder)
       else
         print(data)
@@ -70,12 +71,10 @@ function M.process_event_queue(builder)
   table.sort(events, function(a, b)
     return tonumber(a.object.metadata.resourceVersion) < tonumber(b.object.metadata.resourceVersion)
   end)
-  local testing = {}
   while #events > 0 do
     local event = table.remove(events, 1)
     if event.type == "ADDED" then
       table.insert(builder.data.items, event.object)
-      table.insert(testing, event.object)
     elseif event.type == "DELETED" then
       for index, value in ipairs(builder.data.items) do
         if value.metadata.name == event.object.metadata.name then
