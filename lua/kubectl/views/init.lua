@@ -49,6 +49,9 @@ if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
             url = resource_url,
           }
           M.cached_api_resources.shortNames[resource.name] = resource_name
+          if resource.singularName then
+            M.cached_api_resources.shortNames[resource.singularName] = resource_name
+          end
           if resource.shortNames then
             for _, shortName in ipairs(resource.shortNames) do
               M.cached_api_resources.shortNames[shortName] = resource_name
