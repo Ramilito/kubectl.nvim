@@ -4,6 +4,8 @@ local M = {}
 
 M.event_queue = ""
 M.handle = nil
+M.writing_to_queue = false
+M.processing_queue = false
 
 function M.split_json_objects(input)
   local objects = {}
@@ -32,11 +34,22 @@ end
 local parse_retries = 0
 function M.process_event_queue(builder)
   parse_retries = parse_retries + 1
+
   if M.event_queue == "" then
     return
   end
-  local rows = M.split_json_objects(M.event_queue:gsub("\n", ""))
+  if M.writing_to_queue then
+    return
+  end
+
+  if not builder.data then
+    return
+  end
+  M.processing_queue = true
+
+  local queue = M.event_queue
   M.event_queue = ""
+  local rows = M.split_json_objects(queue:gsub("\n", ""))
   local events = {}
 
   -- Process each JSON object found in the result
@@ -45,7 +58,7 @@ function M.process_event_queue(builder)
     if success then
       table.insert(events, data)
     else
-      if parse_retries < 3 then
+      if parse_retries < 5 then
         M.process_event_queue(builder)
       else
         print(data)
@@ -57,31 +70,28 @@ function M.process_event_queue(builder)
   table.sort(events, function(a, b)
     return tonumber(a.object.metadata.resourceVersion) < tonumber(b.object.metadata.resourceVersion)
   end)
-
-  if not builder.data then
-    return
-  end
+  local testing = {}
   while #events > 0 do
     local event = table.remove(events, 1)
-
     if event.type == "ADDED" then
       table.insert(builder.data.items, event.object)
+      table.insert(testing, event.object)
     elseif event.type == "DELETED" then
       for index, value in ipairs(builder.data.items) do
         if value.metadata.name == event.object.metadata.name then
           table.remove(builder.data.items, index)
-          break
         end
       end
     elseif event.type == "MODIFIED" then
       for index, value in ipairs(builder.data.items) do
         if value.metadata.name == event.object.metadata.name then
           builder.data.items[index] = event.object
-          break
         end
       end
     end
   end
+
+  M.processing_queue = false
 end
 
 local function on_err(err, data)
@@ -94,7 +104,13 @@ local function on_err(err, data)
 end
 
 local function on_stdout(result)
+  M.writing_to_queue = true
   M.event_queue = M.event_queue .. result
+  M.writing_to_queue = false
+
+  if not M.processing_queue then
+    M.process_event_queue(M.builder)
+  end
 end
 
 local function on_exit() end
@@ -118,32 +134,9 @@ function M.start(builder)
       table.insert(args, value)
     end
   end
-
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
+  M.builder = builder
 
-  vim.uv.new_timer():start(
-    500,
-    200,
-    vim.schedule_wrap(function()
-      M.process_event_queue(builder)
-    end)
-  )
-
-  vim.schedule(function()
-    vim.api.nvim_create_autocmd("BufEnter", {
-      buffer = builder.buf_nr,
-      callback = function()
-        builder:view(builder.definition)
-      end,
-    })
-
-    vim.api.nvim_create_autocmd("BufLeave", {
-      buffer = builder.buf_nr,
-      callback = function()
-        M.stop()
-      end,
-    })
-  end)
   return M.handle
 end
 
