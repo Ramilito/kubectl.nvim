@@ -20,8 +20,8 @@ function M.processRow(rows)
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         ready = M.getReady(row),
-        ["up-to-date"] = row.status.updatedReplicas,
-        available = row.status.availableReplicas,
+        ["up-to-date"] = row.status.updatedReplicas or "",
+        available = row.status.availableReplicas or "",
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
