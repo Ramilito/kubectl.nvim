@@ -72,6 +72,7 @@ function M.processRow(rows)
       end
       table.insert(data, resource)
     end
+    return data
   end
   if rows.items then
     for _, row in pairs(rows.items) do
@@ -86,9 +87,8 @@ function M.processRow(rows)
       local resource = processResource(row, { version = version, age = age })
       table.insert(data, resource)
     end
+    return data
   end
-
-  return data
 end
 
 function M.getHeaders(rows)
