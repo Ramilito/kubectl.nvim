@@ -49,40 +49,30 @@ local function getStatus(row)
   end
 end
 
-function M.processResource(row, additional_cols)
+local function processResource(row, additional_cols)
   local default_cols = vim.tbl_extend("force", {
     namespace = row.metadata.namespace,
     name = row.metadata.name,
     status = getStatus(row),
   }, additional_cols)
-  if not M.row_def then
-    return default_cols
-  end
-  local resource = {}
-  for _, header_table in ipairs(M.row_def) do
-    local name = header_table.name:lower()
-    local value = ""
-    local value_cb = header_table.func
-    if not value_cb and default_cols[name] ~= nil then
-      value = default_cols[name]
-    else
-      if type(value_cb) == "function" and row then
-        local ok, result = pcall(value_cb, row)
-        if ok then
-          value = result
-        else
-          value = "Error"
-        end
-      end
-    end
-    resource[name] = value
-  end
-  resource = vim.tbl_extend("force", default_cols, resource)
-  return resource
+  return default_cols
 end
 
 function M.processRow(rows)
   local data = {}
+
+  if rows.rows then
+    for _, row in pairs(rows.rows) do
+      local resource_vals = row.cells
+      local resource = {
+        namespace = row.object.metadata.namespace,
+      }
+      for i, val in pairs(resource_vals) do
+        resource[string.lower(rows.columnDefinitions[i].name)] = val
+      end
+      table.insert(data, resource)
+    end
+  end
   if rows.items then
     for _, row in pairs(rows.items) do
       local version = ""
@@ -93,7 +83,7 @@ function M.processRow(rows)
       if row.metadata.creationTimestamp then
         age = time.since(row.metadata.creationTimestamp, true)
       end
-      local resource = M.processResource(row, { version = version, age = age })
+      local resource = processResource(row, { version = version, age = age })
       table.insert(data, resource)
     end
   end
@@ -102,10 +92,13 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
-  if next(M.row_def) ~= nil then
-    local headers = {}
-    for _, header_table in ipairs(M.row_def) do
-      table.insert(headers, header_table.name)
+  if rows.columnDefinitions then
+    local headers = { "NAMESPACE" }
+    for _, col in pairs(rows.columnDefinitions) do
+      local col_name = string.upper(col.name)
+      if not headers[col_name] then
+        table.insert(headers, string.upper(col_name))
+      end
     end
     return headers
   end

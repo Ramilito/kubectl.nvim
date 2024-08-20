@@ -34,18 +34,30 @@ function M.View(cancellationToken, resource)
     { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
   }
   definition.cmd = "kubectl"
-  definition.row_def = {}
 
-  -- check if config.options.custom_views contains resource
-  if config and config.options and config.options.custom_views and config.options.custom_views[M.resource] then
-    local resource_config = config.options.custom_views[M.resource]
-    definition.resource = resource_config.resource or definition.resource
-    definition.row_def = resource_config.headers or {}
-    definition.display_name = resource_config.display_name or definition.display_name
-    definition.url = resource_config.url or definition.url
-    definition.ft = resource_config.ft or definition.ft
-    definition.hints = resource_config.hints or definition.hints
-    definition.cmd = resource_config.cmd or definition.cmd
+  -- find resource in require("kubectl.views").cached_api_resources
+  local cached_resources = require("kubectl.views").cached_api_resources
+  local cached_resource = cached_resources.values[M.resource]
+  if cached_resource ~= nil then
+    definition.resource = cached_resources.values[M.resource].name
+    definition.display_name = cached_resources.values[M.resource].name
+    definition.url = {
+      "-H",
+      "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
+      cached_resources.values[M.resource].url,
+    }
+    definition.cmd = "curl"
+  end
+  local resource_name = cached_resources.shortNames[M.resource]
+  if resource_name then
+    definition.resource = cached_resources.values[resource_name].name
+    definition.display_name = cached_resources.values[resource_name].name
+    definition.url = {
+      "-H",
+      "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
+      cached_resources.values[resource_name].url,
+    }
+    definition.cmd = "curl"
   end
 
   ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd })
