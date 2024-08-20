@@ -98,8 +98,7 @@ local function on_stdout(result)
   M.event_queue = M.event_queue .. result
 end
 
-local function on_exit()
-end
+local function on_exit() end
 
 function M.start(builder)
   if not builder.data or not builder.data.metadata then
@@ -123,7 +122,7 @@ function M.start(builder)
 
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
 
-  vim.loop.new_timer():start(
+  vim.uv.new_timer():start(
     500,
     200,
     vim.schedule_wrap(function()
