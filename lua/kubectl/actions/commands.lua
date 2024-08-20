@@ -73,7 +73,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
       vim.schedule(function()
         if data and not on_stderr then
           vim.notify(err .. ": " .. data, vim.log.levels.ERROR)
-        elseif on_stderr then
+        elseif data and on_stderr then
           on_stderr(err, data)
         end
       end)

@@ -4,6 +4,7 @@ local state = require("kubectl.state")
 local M = {}
 
 M.event_queue = ""
+M.handle = nil
 
 function M.split_json_objects(input)
   local objects = {}
@@ -83,9 +84,28 @@ function M.process_event_queue(builder)
   end
 end
 
+local function on_err(err, data)
+  vim.schedule(function()
+    vim.notify(
+      string.format("Error occurred while watching %s %s, refresh view to fix", err or "", data or ""),
+      vim.log.levels.ERROR
+    )
+  end)
+end
+
+local function on_stdout(result)
+  M.event_queue = M.event_queue .. result
+end
+
+local function on_exit()
+end
+
 function M.start(builder)
-  if not builder.data or builder.informer_handle then
+  if not builder.data or not builder.data.metadata then
     return
+  end
+  if M.handle then
+    M.stop()
   end
 
   local args = { "-N", "--keepalive-time", "60" }
@@ -100,25 +120,7 @@ function M.start(builder)
     end
   end
 
-  local handle = commands.shell_command_async(builder.cmd, args, function()
-    M.stop(builder.informer_handle)
-  end, function(result)
-    M.event_queue = M.event_queue .. result
-  end, function(err, data)
-    vim.schedule(function()
-      vim.notify(
-        string.format(
-          "Error occurred while watching: %s %s %s, refresh view to fix",
-          builder.resource,
-          err or "",
-          data or ""
-        ),
-        vim.log.levels.ERROR
-      )
-    end)
-  end)
-
-  builder.informer_handle = handle
+  M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
 
   vim.loop.new_timer():start(
     500,
@@ -139,17 +141,16 @@ function M.start(builder)
     vim.api.nvim_create_autocmd("BufLeave", {
       buffer = builder.buf_nr,
       callback = function()
-        M.stop(builder.informer_handle)
-        builder.informer_handle = nil
+        M.stop()
       end,
     })
   end)
-  return handle
+  return M.handle
 end
 
-function M.stop(handle)
-  if handle and not handle:is_closing() then
-    handle:kill(2)
+function M.stop()
+  if M.handle and not M.handle:is_closing() then
+    M.handle:kill(2)
   end
   M.event_queue = ""
 end
