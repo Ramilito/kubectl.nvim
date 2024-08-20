@@ -100,8 +100,22 @@ function M.start(builder)
     end
   end
 
-  local handle = commands.shell_command_async(builder.cmd, args, function() end, function(result)
+  local handle = commands.shell_command_async(builder.cmd, args, function()
+    M.stop(builder.informer_handle)
+  end, function(result)
     M.event_queue = M.event_queue .. result
+  end, function(err, data)
+    vim.schedule(function()
+      vim.notify(
+        string.format(
+          "Error occurred while watching: %s %s %s, refresh view to fix",
+          builder.resource,
+          err or "",
+          data or ""
+        ),
+        vim.log.levels.ERROR
+      )
+    end)
   end)
 
   builder.informer_handle = handle
