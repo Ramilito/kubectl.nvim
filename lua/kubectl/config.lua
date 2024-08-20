@@ -46,7 +46,7 @@ M.options = vim.deepcopy(defaults)
 --- Setup kubectl options
 --- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
-  if options.mappings and options.mappings.exit then
+  if options and options.mappings and options.mappings.exit then
     vim.notify("Warning: mappings.exit is deprecated. Please use own mapping to call require('kubectl').close()")
   end
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
