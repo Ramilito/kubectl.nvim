@@ -7,9 +7,9 @@ local state = require("kubectl.state")
 local M = {}
 
 function M.View()
-  local buf = buffers.namespace_buffer(definition.ft, function(input)
+  local buf = buffers.floating_dynamic_buffer(definition.ft, definition.display_name, function(input)
     M.changeNamespace(input)
-  end, { title = definition.display_name, header = { data = {} } })
+  end, { header = { data = {} }, prompt = true })
 
   ResourceBuilder:new(definition.resource):setCmd(definition.url, "curl"):fetchAsync(function(self)
     self:decodeJson()
