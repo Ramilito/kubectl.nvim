@@ -193,55 +193,43 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   M.apply_marks(buf, opts.marks, nil)
 end
 
-function M.floating_dynamic_buffer(filetype, title, opts)
+--- Creates a namespace buffer.
+--- @param filetype string: The filetype of the buffer.
+--- @param title string|nil: The filetype of the buffer.
+--- @param opts { header: { data: table }, prompt: boolean}: Options for the buffer.
+function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
-  local bufname = title or "kubectl_dynamic_float"
-  opts.header = opts.header or {}
+  local bufname = title or filetype
   local buf = vim.fn.bufnr(bufname, false)
-  local win
 
   if buf == -1 then
-    buf = create_buffer(bufname)
-    win = layout.float_dynamic_layout(buf, filetype, title or "")
-    layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
+    if opts.prompt then
+      buf = create_buffer(bufname, "prompt")
+    else
+      buf = create_buffer(bufname)
+    end
+    vim.keymap.set("n", "q", function()
+      api.nvim_set_option_value("modified", false, { buf = buf })
+      vim.cmd.close()
+    end, { buffer = buf, silent = true })
   end
 
-  vim.keymap.set("n", "q", function()
-    vim.api.nvim_buf_delete(buf, { force = false })
-  end, { buffer = buf, silent = true })
+  local win = layout.float_dynamic_layout(buf, filetype, title or "")
 
-  vim.api.nvim_buf_attach(buf, false, {
-    on_lines = function(
-      _, -- use nil as first argument (since it is buffer handle)
-      buf_nr, -- buffer number
-      _, -- buffer changedtick
-      _, -- first line number of the change (0-indexed)
-      lastline, -- last line number of the change
-      new_lastline -- last line number after the change
-    )
-      if lastline ~= new_lastline then
-        local win_config = vim.api.nvim_win_get_config(win)
+  if opts.prompt then
+    vim.fn.prompt_setcallback(buf, function(input)
+      api.nvim_set_option_value("modified", false, { buf = buf })
+      vim.cmd.close()
+      vim.api.nvim_input("gr")
 
-        local rows = vim.api.nvim_buf_line_count(buf_nr)
-        -- Calculate the maximum width (number of columns of the widest line)
-        local max_columns = 100
-        local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)
+      callback(input)
+    end)
 
-        for _, line in ipairs(lines) do
-          local line_width = vim.api.nvim_strwidth(line)
-          if line_width > max_columns then
-            max_columns = line_width
-          end
-        end
+    vim.cmd("startinsert")
+  end
 
-        win_config.height = rows
-        win_config.width = max_columns
-
-        vim.api.nvim_win_set_config(win, win_config)
-      end
-    end,
-  })
-
+  layout.set_buf_options(buf, win, filetype, "", bufname)
+  layout.win_size_fit_content(buf, 2)
   return buf
 end
 
