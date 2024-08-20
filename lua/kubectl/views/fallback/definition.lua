@@ -49,18 +49,10 @@ local function getStatus(row)
   end
 end
 
-local function processResource(row, additional_cols)
-  local default_cols = vim.tbl_extend("force", {
-    namespace = row.metadata.namespace,
-    name = row.metadata.name,
-    status = getStatus(row),
-  }, additional_cols)
-  return default_cols
-end
-
 function M.processRow(rows)
   local data = {}
 
+  -- process curl table json
   if rows.rows then
     for _, row in pairs(rows.rows) do
       local resource_vals = row.cells
@@ -74,6 +66,7 @@ function M.processRow(rows)
     end
     return data
   end
+  -- process kubectl json
   if rows.items then
     for _, row in pairs(rows.items) do
       local version = ""
@@ -84,7 +77,11 @@ function M.processRow(rows)
       if row.metadata.creationTimestamp then
         age = time.since(row.metadata.creationTimestamp, true)
       end
-      local resource = processResource(row, { version = version, age = age })
+      local resource = vim.tbl_extend("force", {
+        namespace = row.metadata.namespace,
+        name = row.metadata.name,
+        status = getStatus(row),
+      }, { version = version, age = age })
       table.insert(data, resource)
     end
     return data
