@@ -62,6 +62,8 @@ function M.changeNamespace(name)
         local string_utils = require("kubectl.utils.string")
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        print(ok, vim.inspect(view))
+        print("this should be ok otherwise it's not understanding what view we are on")
         if ok then
           pcall(view.View)
         else
@@ -74,11 +76,8 @@ function M.changeNamespace(name)
     state.ns = "All"
     handle_output()
   else
-    commands.shell_command_async(
-      "kubectl",
-      { "config", "set-context", "--current", "--namespace=" .. name },
-      handle_output
-    )
+    commands.shell_command("kubectl", { "config", "set-context", "--current", "--namespace=" .. name })
+    handle_output()
   end
 end
 
