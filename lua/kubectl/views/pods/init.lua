@@ -20,7 +20,17 @@ function M.View(cancellationToken)
 end
 
 function M.Top()
-  ResourceBuilder:new("top"):displayFloat("k8s_top", "Top"):setCmd({ "top", "pods", "-A" }):fetchAsync(function(self)
+  local state = require("kubectl.state")
+  local ns_filter = state.getNamespace()
+  local args = { "top", "pods" }
+
+  if ns_filter == "All" then
+    table.insert(args, "-A")
+  else
+    table.insert(args, "--namespace")
+    table.insert(args, ns_filter)
+  end
+  ResourceBuilder:new("top"):displayFloat("k8s_top", "Top"):setCmd(args):fetchAsync(function(self)
     vim.schedule(function()
       self:splitData():setContentRaw()
     end)

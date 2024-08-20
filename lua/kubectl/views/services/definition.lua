@@ -37,6 +37,11 @@ end
 
 function M.processRow(rows)
   local data = {}
+
+  if not rows or not rows.items then
+    return data
+  end
+
   for _, row in pairs(rows.items) do
     local pod = {
       namespace = row.metadata.namespace,
