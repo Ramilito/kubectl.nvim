@@ -77,11 +77,13 @@ function M.processRow(rows)
       if row.metadata.creationTimestamp then
         age = time.since(row.metadata.creationTimestamp, true)
       end
-      local resource = vim.tbl_extend("force", {
+      local resource = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         status = getStatus(row),
-      }, { version = version, age = age })
+        version = version,
+        age = age,
+      }
       table.insert(data, resource)
     end
     return data
