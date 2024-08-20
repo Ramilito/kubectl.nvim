@@ -2,7 +2,12 @@ local events = require("kubectl.utils.events")
 local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 local time = require("kubectl.utils.time")
-local M = {}
+local M = {
+  headers = {
+    "NAMESPACE",
+    "NAME",
+  },
+}
 
 local function getStatus(row)
   if not row.status then
@@ -69,21 +74,19 @@ function M.processRow(rows)
   -- process kubectl json
   if rows.items then
     for _, row in pairs(rows.items) do
-      local version = ""
-      if row.spec and row.spec.version then
-        version = row.spec.version
-      end
-      local age
-      if row.metadata.creationTimestamp then
-        age = time.since(row.metadata.creationTimestamp, true)
-      end
       local resource = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
-        status = getStatus(row),
-        version = version,
-        age = age,
       }
+      if vim.tbl_contains(M.headers, "STATUS") then
+        resource.status = getStatus(row)
+      end
+      if row.spec and row.spec.version and vim.tbl_contains(M.headers, "VERSION") then
+        resource.version = row.spec.version
+      end
+      if row.metadata.creationTimestamp and vim.tbl_contains(M.headers, "AGE") then
+        resource.age = time.since(row.metadata.creationTimestamp, true)
+      end
       table.insert(data, resource)
     end
     return data
@@ -91,36 +94,39 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
+  local headers
   if rows.columnDefinitions then
-    local headers = { "NAMESPACE" }
+    headers = { "NAMESPACE" }
     for _, col in pairs(rows.columnDefinitions) do
       local col_name = string.upper(col.name)
       if not headers[col_name] then
         table.insert(headers, string.upper(col_name))
       end
     end
-    return headers
-  end
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-  }
-  if rows.items then
-    local firstItem = rows.items[1]
-    if firstItem then
-      if firstItem.status and (firstItem.status.conditions or firstItem.status.health) then
-        table.insert(headers, "STATUS")
-      end
+  else
+    if rows.items then
+      headers = vim.deepcopy(M.headers)
+      local firstItem = rows.items[1]
+      if firstItem then
+        if
+          firstItem.status
+          and (firstItem.status.conditions or firstItem.status.health)
+          and not vim.tbl_contains(headers, "STATUS")
+        then
+          table.insert(headers, "STATUS")
+        end
 
-      if firstItem.spec and firstItem.spec.version then
-        table.insert(headers, "VERSION")
-      end
+        if firstItem.spec and firstItem.spec.version and not vim.tbl_contains(headers, "VERSION") then
+          table.insert(headers, "VERSION")
+        end
 
-      if firstItem.metadata and firstItem.metadata.creationTimestamp then
-        table.insert(headers, "AGE")
+        if firstItem.metadata and firstItem.metadata.creationTimestamp and not vim.tbl_contains(headers, "AGE") then
+          table.insert(headers, "AGE")
+        end
       end
     end
   end
+  M.headers = headers
   return headers
 end
 
