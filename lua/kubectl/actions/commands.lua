@@ -46,8 +46,9 @@ end
 --- @param args string[] The arguments for the command
 --- @param on_exit? function The callback function to execute when the command exits
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
+--- @param on_stderr? function The callback function to execute when there is stderr output (optional)
 --- @param opts { env: string, stdin: string, detach: boolean }|nil The arguments for the command
-function M.shell_command_async(cmd, args, on_exit, on_stdout, opts)
+function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or {}
   local result = ""
   table.insert(args, 1, cmd)
