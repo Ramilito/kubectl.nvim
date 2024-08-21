@@ -99,42 +99,42 @@ function M.processRow(rows)
 end
 
 function M.getHeaders(rows)
+  if not rows then
+    return M.headers
+  end
+
   local headers
   if rows.columnDefinitions then
     headers = {}
     local firstRow = rows.rows[1]
-    if firstRow then
-      local namespace = firstRow.object.metadata.namespace
-      if namespace then
-        table.insert(headers, "NAMESPACE")
-      end
+    if firstRow and firstRow.object and firstRow.object.metadata and firstRow.object.metadata.namespace then
+      table.insert(headers, "NAMESPACE")
     end
+
     for _, col in pairs(rows.columnDefinitions) do
       local col_name = string.upper(col.name)
       if not headers[col_name] then
         table.insert(headers, string.upper(col_name))
       end
     end
-  else
-    if rows.items then
-      headers = vim.deepcopy(M.headers)
-      local firstItem = rows.items[1]
-      if firstItem then
-        if
-          firstItem.status
-          and (firstItem.status.conditions or firstItem.status.health)
-          and not vim.tbl_contains(headers, "STATUS")
-        then
-          table.insert(headers, "STATUS")
-        end
+  elseif rows.items then
+    headers = vim.deepcopy(M.headers)
+    local firstItem = rows.items[1]
+    if firstItem then
+      if
+        firstItem.status
+        and (firstItem.status.conditions or firstItem.status.health)
+        and not vim.tbl_contains(headers, "STATUS")
+      then
+        table.insert(headers, "STATUS")
+      end
 
-        if firstItem.spec and firstItem.spec.version and not vim.tbl_contains(headers, "VERSION") then
-          table.insert(headers, "VERSION")
-        end
+      if firstItem.spec and firstItem.spec.version and not vim.tbl_contains(headers, "VERSION") then
+        table.insert(headers, "VERSION")
+      end
 
-        if firstItem.metadata and firstItem.metadata.creationTimestamp and not vim.tbl_contains(headers, "AGE") then
-          table.insert(headers, "AGE")
-        end
+      if firstItem.metadata and firstItem.metadata.creationTimestamp and not vim.tbl_contains(headers, "AGE") then
+        table.insert(headers, "AGE")
       end
     end
   end

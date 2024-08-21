@@ -344,8 +344,6 @@ function ResourceBuilder:draw(definition, cancellationToken)
     :prettyPrint(definition.getHeaders)
     :addHints(definition.hints, true, true, true)
     :setContent(cancellationToken)
-  -- TODO: Handle PF before setContent
-  -- root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
   return self
 end
 
