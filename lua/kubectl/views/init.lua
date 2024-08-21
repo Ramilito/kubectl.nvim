@@ -31,7 +31,7 @@ local process_resource = function(group_name, group_version, group_data)
         end
       end
       local resource_name = resource.name .. "." .. group_name
-      local resource_url = "{{BASE}}/apis/" .. group_version .. "/" .. resource.name
+      local resource_url = string.format("{{BASE}}/apis/%s/{{NAMESPACE}}%s", group_version, resource.name)
       M.cached_api_resources.values[resource_name] = {
         name = resource.name,
         url = resource_url,
