@@ -152,7 +152,7 @@ local function getPodStatus(row)
 
   status, ok = getInitContainerStatus(row, status)
   if ok then
-    return status
+    return { value = status, symbol = events.ColorStatus(status) }
   end
 
   status, ok = getContainerStatus(row.status, status)
@@ -160,7 +160,7 @@ local function getPodStatus(row)
     status = "Running"
   end
 
-  if row.deletionTimestamp == nil then
+  if row.metadata.deletionTimestamp == nil then
     return { value = status, symbol = events.ColorStatus(status) }
   end
 
@@ -169,6 +169,11 @@ end
 
 function M.processRow(rows)
   local data = {}
+
+  if not rows or not rows.items then
+    return data
+  end
+
   local currentTime = time.currentTime()
   if rows and rows.items then
     for i = 1, #rows.items do

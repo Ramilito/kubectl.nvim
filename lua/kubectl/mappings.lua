@@ -182,7 +182,9 @@ function M.register()
       end
       state.sortby_old.current_word = sortby.current_word
 
-      vim.api.nvim_input("gr")
+      local string_utils = require("kubectl.utils.string")
+      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      pcall(view.Draw)
     end,
   })
 

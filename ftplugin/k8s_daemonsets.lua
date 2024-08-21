@@ -111,7 +111,7 @@ end
 local function init()
   set_keymaps(0)
   if not loop.is_running() then
-    loop.start_loop(daemonset_view.View)
+    loop.start_loop(daemonset_view.Draw)
   end
 end
 

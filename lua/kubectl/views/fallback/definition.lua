@@ -50,21 +50,24 @@ end
 
 function M.processRow(rows)
   local data = {}
-  if rows.items then
-    for _, row in pairs(rows.items) do
-      local version = ""
-      if row.spec and row.spec.version then
-        version = row.spec.version
-      end
-      local pod = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        status = getStatus(row),
-        version = version,
-      }
 
-      table.insert(data, pod)
+  if not rows or not rows.items then
+    return data
+  end
+
+  for _, row in pairs(rows.items) do
+    local version = ""
+    if row.spec and row.spec.version then
+      version = row.spec.version
     end
+    local pod = {
+      namespace = row.metadata.namespace,
+      name = row.metadata.name,
+      status = getStatus(row),
+      version = version,
+    }
+
+    table.insert(data, pod)
   end
 
   return data

@@ -28,6 +28,10 @@ end
 function M.processRow(rows)
   local data = {}
 
+  if not rows or not rows.items then
+    return data
+  end
+
   for _, row in ipairs(rows.items) do
     local kind, subjects = getSubjects(row.subjects)
     local role = {

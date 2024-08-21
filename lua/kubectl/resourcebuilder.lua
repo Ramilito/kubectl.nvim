@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local informer = require("kubectl.actions.informer")
 local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
@@ -23,6 +24,9 @@ ResourceBuilder.__index = ResourceBuilder
 function ResourceBuilder:new(resource)
   self = setmetatable({}, ResourceBuilder)
   self.resource = resource
+  self.processedData = nil
+  self.data = nil
+  self.prettyData = nil
   self.header = { data = nil, marks = nil }
   return self
 end
@@ -105,17 +109,22 @@ function ResourceBuilder:fetch()
 end
 
 --- Fetch the data asynchronously
----@param callback function The callback function to execute after fetching data
+---@param on_exit function The callback function to execute after fetching data
+---@param on_stdout function|nil The callback function to execute on stdout
 ---@return ResourceBuilder
-function ResourceBuilder:fetchAsync(callback)
+function ResourceBuilder:fetchAsync(on_exit, on_stdout, opts)
   notifications.Add({
     "fetching " .. "[" .. self.resource .. "]",
     "args: " .. " " .. vim.inspect(self.args),
   })
   commands.shell_command_async(self.cmd, self.args, function(data)
     self.data = data
-    callback(self)
-  end)
+    on_exit(self)
+  end, function(data)
+    if on_stdout then
+      on_stdout(data)
+    end
+  end, opts)
   return self
 end
 
@@ -135,7 +144,7 @@ end
 
 --- Process the data
 ---@param processFunc function The function to process the data
----@param no_filter boolean Whether to filter the data or not
+---@param no_filter boolean|nil Whether to filter the data or not
 ---@return ResourceBuilder
 function ResourceBuilder:process(processFunc, no_filter)
   local find = require("kubectl.utils.find")
@@ -283,30 +292,61 @@ function ResourceBuilder:setContent(cancellationToken)
   return self
 end
 
+function ResourceBuilder:view_float(definition, opts)
+  opts = opts or {}
+  ResourceBuilder:new(definition.resource)
+    :displayFloat(definition.ft, definition.display_name)
+    :setCmd(definition.url, opts.cmd or "curl")
+    :fetchAsync(function(builder)
+      builder:decodeJson()
+
+      vim.schedule(function()
+        if definition.processRow then
+          builder
+            :process(definition.processRow)
+            :sort()
+            :prettyPrint(definition.getHeaders)
+            :addHints(definition.hints, true, true, true)
+            :setContent()
+        else
+          builder:splitData():setContentRaw()
+        end
+      end)
+    end)
+
+  return self
+end
+
 function ResourceBuilder:view(definition, cancellationToken, opts)
   opts = opts or {}
-  local b = ResourceBuilder:new(definition.resource)
-  if opts.is_float then
-    b:displayFloat(definition.ft, definition.display_name, cancellationToken)
-  else
-    b:display(definition.ft, definition.display_name, cancellationToken)
-  end
-  b:setCmd(definition.url, opts.cmd or "curl"):fetchAsync(function(builder)
-    builder:decodeJson()
-
-    vim.schedule(function()
-      builder
-        :process(definition.processRow)
-        :sort()
-        :prettyPrint(definition.getHeaders)
-        :addHints(definition.hints, true, true, true)
-
-      if opts.before_content_callback then
-        opts.before_content_callback(builder)
+  opts.cmd = opts.cmd or "curl"
+  self.definition = definition
+  self
+    :display(definition.ft, definition.display_name, cancellationToken)
+    :setCmd(definition.url, opts.cmd)
+    :fetchAsync(function(builder)
+      builder:decodeJson()
+      if opts.cmd == "curl" then
+        informer.start(builder)
       end
-      builder:setContent(cancellationToken)
+      vim.schedule(function()
+        builder:draw(definition, cancellationToken)
+      end)
     end)
-  end)
+
+  return self
+end
+
+function ResourceBuilder:draw(definition, cancellationToken)
+  self
+    :process(definition.processRow)
+    :sort()
+    :prettyPrint(definition.getHeaders)
+    :addHints(definition.hints, true, true, true)
+    :setContent(cancellationToken)
+  -- TODO: Handle PF before setContent
+  -- root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
+  return self
 end
 
 return ResourceBuilder

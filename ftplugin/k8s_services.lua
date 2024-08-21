@@ -115,7 +115,7 @@ end
 local function init()
   set_keymap(0)
   if not loop.is_running() then
-    loop.start_loop(service_view.View)
+    loop.start_loop(service_view.Draw)
   end
 end
 

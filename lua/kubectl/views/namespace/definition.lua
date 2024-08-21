@@ -42,7 +42,7 @@ function M.processRow(rows)
     return data
   end
 
-  if not rows.items then
+  if not rows or not rows.items then
     return data
   end
 

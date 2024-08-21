@@ -14,7 +14,7 @@ function M.View(pod, ns)
   definition.display_name = pod
   definition.url = { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }
 
-  ResourceBuilder:view(definition, nil, { is_float = true })
+  ResourceBuilder:view_float(definition)
 end
 
 function M.tailLogs(pod, ns)

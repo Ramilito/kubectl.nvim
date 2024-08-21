@@ -23,6 +23,8 @@ end
 function M.View(cancellationToken, resource)
   if resource then
     M.resource = resource
+  else
+    return
   end
 
   definition.resource = M.resource
@@ -33,7 +35,7 @@ function M.View(cancellationToken, resource)
     { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
   }
 
-  ResourceBuilder:view(definition, cancellationToken, { cmd = "kubectl" })
+  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = "kubectl" })
 end
 
 function M.Edit(name, ns)

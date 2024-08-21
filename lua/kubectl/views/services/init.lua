@@ -5,17 +5,21 @@ local definition = require("kubectl.views.services.definition")
 local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local M = { builder = nil, pfs = {} }
 
 function M.View(cancellationToken)
-  local pfs = {}
-  root_definition.getPFData(pfs, true, "svc")
+  M.pfs = {}
+  root_definition.getPFData(M.pfs, true, "svc")
+  if M.builder then
+    M.builder = M.builder:view(definition, cancellationToken)
+  else
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  end
+end
 
-  ResourceBuilder:view(definition, cancellationToken, {
-    before_content_callback = function(self)
-      root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
-    end,
-  })
+function M.Draw(cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
+  root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
 end
 
 function M.Edit(name, ns)
