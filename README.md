@@ -56,7 +56,9 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 - kubectl
 - curl
 - neovim >= 0.10
- 
+- [plenary.nvim](https://github.comnvim-lua/plenary.nvim)
+
+
 ## ⚡️ Optional Dependencies
 - [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
 
@@ -70,6 +72,7 @@ Install the plugin with your preferred package manager:
 return {
   {
     "ramilito/kubectl.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
     config = function()
       require("kubectl").setup()
     end,
