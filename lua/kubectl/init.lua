@@ -22,12 +22,14 @@ end
 function M.close()
   local kube = require("kubectl.actions.kube")
   local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-  if ok then
+
+  -- Only stop proxy and save session if not a floating buffer
+  local win_config = vim.api.nvim_win_get_config(0)
+
+  if ok and win_config.relative == "" then
     commands.save_config("kubectl.session.json", { view = buf_name })
   end
 
-  -- Only stop proxy if not a floating buffer
-  local win_config = vim.api.nvim_win_get_config(0)
   if win_config.relative == "" then
     kube.stop_kubectl_proxy()()
   end
