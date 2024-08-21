@@ -21,17 +21,15 @@ local function get_args()
 end
 
 function M.View(cancellationToken, resource)
-  if resource then
-    M.resource = resource
-  end
-
-  if not M.resource then
+  -- Determine the resource to use
+  local current_resource = resource or M.resource
+  if not current_resource then
     return
   end
 
   -- default fallback values
-  definition.resource = M.resource
-  definition.display_name = M.resource
+  definition.resource = current_resource
+  definition.display_name = current_resource
   definition.url = get_args()
   definition.ft = "k8s_fallback"
   definition.hints = {
