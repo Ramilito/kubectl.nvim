@@ -21,8 +21,8 @@ local decode = function(string)
   end
 end
 
-local process_resource = function(group_data)
-  local group_resources = decode(group_data)
+local process_resource = function(group_name, group_version, group_data)
+  local group_resources = decode(group_data) or { resources = {} }
   for _, resource in ipairs(group_resources.resources) do
     repeat
       if string.find(resource.name, "/status") then
@@ -36,6 +36,7 @@ local process_resource = function(group_data)
         name = resource.name,
         url = resource_url,
       }
+      require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
       M.cached_api_resources.shortNames[resource.name] = resource_name
       if resource.singularName then
         M.cached_api_resources.shortNames[resource.singularName] = resource_name
@@ -61,7 +62,9 @@ local process_group = function(data)
           break
         end
       end
-      commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, process_resource)
+      commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
+        process_resource(group_name, group_version, group_data)
+      end)
     until true
   end
 end

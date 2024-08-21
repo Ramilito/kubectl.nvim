@@ -190,7 +190,10 @@ function M.register()
       state.sortby_old.current_word = sortby.current_word
 
       local string_utils = require("kubectl.utils.string")
-      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      if not view_ok then
+        view = require("kubectl.views.fallback")
+      end
       pcall(view.Draw)
     end,
   })

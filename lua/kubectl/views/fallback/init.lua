@@ -42,8 +42,8 @@ function M.View(cancellationToken, resource)
   local cached_resources = require("kubectl.views").cached_api_resources
   local cached_resource = cached_resources.values[M.resource]
   if cached_resource ~= nil then
-    definition.resource = cached_resources.values[M.resource].name
-    definition.display_name = cached_resources.values[M.resource].name
+    definition.resource = M.resource
+    definition.display_name = M.resource
     definition.url = {
       "-H",
       "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
@@ -53,8 +53,8 @@ function M.View(cancellationToken, resource)
   end
   local resource_name = cached_resources.shortNames[M.resource]
   if resource_name then
-    definition.resource = cached_resources.values[resource_name].name
-    definition.display_name = cached_resources.values[resource_name].name
+    definition.resource = resource_name
+    definition.display_name = resource_name
     definition.url = {
       "-H",
       "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
