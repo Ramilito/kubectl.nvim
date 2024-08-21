@@ -3,7 +3,6 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.definition")
 local hl = require("kubectl.actions.highlight")
-local notifications = require("kubectl.notification")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -184,11 +183,6 @@ function M.Aliases()
           table.insert(filtered_suggestions, suggestion.name)
         end
       end
-      vim.schedule(function()
-        notifications.Add({
-          "in here",
-        })
-      end)
 
       -- Cycle through the suggestions
       if #filtered_suggestions > 0 then
