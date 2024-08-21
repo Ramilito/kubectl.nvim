@@ -103,9 +103,11 @@ function M.getHeaders(rows)
   if rows.columnDefinitions then
     headers = {}
     local firstRow = rows.rows[1]
-    local namespace = firstRow.object.metadata.namespace
-    if namespace then
-      table.insert(headers, "NAMESPACE")
+    if firstRow then
+      local namespace = firstRow.object.metadata.namespace or false
+      if namespace then
+        table.insert(headers, "NAMESPACE")
+      end
     end
     for _, col in pairs(rows.columnDefinitions) do
       local col_name = string.upper(col.name)
