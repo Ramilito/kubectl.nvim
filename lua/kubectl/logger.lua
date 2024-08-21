@@ -13,11 +13,11 @@ local log = {}
 function log:add_entry(msg, level)
   if not self.__notify_fmt then
     self.__notify_fmt = function(m)
-      return string.format(cfg.logging.notify_format, m)
+      return string.format(cfg.options.logging.notify_format, m)
     end
   end
 
-  if cfg.logging.level == "off" then
+  if cfg.options.logging.level == "off" then
     return
   end
 
@@ -30,7 +30,7 @@ function log:add_entry(msg, level)
 
   local default_opts = {
     plugin = "kubectl",
-    level = cfg.logging.level or "warn",
+    level = cfg.options.logging.level or "warn",
     use_console = false,
     info_level = 4,
   }

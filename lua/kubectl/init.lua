@@ -53,7 +53,7 @@ function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
   local config = require("kubectl.config")
-  log:info("Setting up kubectl")
+  -- log:warn("Setting up kubectl")
   config.setup(options)
   state.setNS(config.options.namespace)
 
