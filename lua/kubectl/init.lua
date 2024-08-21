@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local log = require("kubectl.logger")
 local state = require("kubectl.state")
 
 local M = {
@@ -52,6 +53,7 @@ function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
   local config = require("kubectl.config")
+  log:info("Setting up kubectl")
   config.setup(options)
   state.setNS(config.options.namespace)
 

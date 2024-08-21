@@ -9,6 +9,7 @@ local M = {}
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
 ---@field mappings { }
+---@field logging { notify_format: string, level: string }
 local defaults = {
   auto_refresh = {
     enabled = true,
