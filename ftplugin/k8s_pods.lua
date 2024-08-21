@@ -170,7 +170,7 @@ local function set_keymaps(bufnr)
                 )
 
                 vim.schedule(function()
-                  pod_view.Draw()
+                  pod_view.View()
                 end)
               end
             end, {

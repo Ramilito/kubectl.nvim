@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
+local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 
 local M = {
@@ -11,7 +12,9 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  -- TODO: Add PF handling
+  M.pfs = {}
+  root_definition.getPFData(M.pfs, true, "pods")
+  print(vim.inspect(M.pfs))
   if M.builder then
     M.builder = M.builder:view(definition, cancellationToken)
   else
@@ -21,6 +24,8 @@ end
 
 function M.Draw(cancellationToken)
   M.builder = M.builder:draw(definition, cancellationToken)
+
+  root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
 end
 
 function M.Top()
@@ -34,8 +39,8 @@ function M.Top()
     table.insert(args, "--namespace")
     table.insert(args, ns_filter)
   end
-  
-    ResourceBuilder:view_float(
+
+  ResourceBuilder:view_float(
     { resource = "top", ft = "k8s_top", display_name = "Top", url = args },
     { cmd = "kubectl" }
   )
