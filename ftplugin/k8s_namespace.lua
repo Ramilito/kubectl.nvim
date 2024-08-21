@@ -3,21 +3,7 @@ local namespace_view = require("kubectl.views.namespace")
 local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
-local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
-    noremap = true,
-    silent = true,
-    desc = "Select",
-    callback = function()
-      local name = tables.getCurrentSelection(unpack({ 1 }))
-      if name then
-        namespace_view.changeNamespace(name)
-      else
-        print("Failed to get namespace.")
-      end
-    end,
-  })
-end
+local function set_keymaps(bufnr) end
 
 --- Initialize the module
 local function init()
