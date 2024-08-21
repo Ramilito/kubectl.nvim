@@ -97,7 +97,7 @@ local function set_keymap(bufnr)
                 )
 
                 vim.schedule(function()
-                  service_view.Draw()
+                  service_view.View()
                 end)
               end
             end, {

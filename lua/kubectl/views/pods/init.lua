@@ -14,7 +14,6 @@ local M = {
 function M.View(cancellationToken)
   M.pfs = {}
   root_definition.getPFData(M.pfs, true, "pods")
-  print(vim.inspect(M.pfs))
   if M.builder then
     M.builder = M.builder:view(definition, cancellationToken)
   else
@@ -24,7 +23,6 @@ end
 
 function M.Draw(cancellationToken)
   M.builder = M.builder:draw(definition, cancellationToken)
-
   root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
 end
 
