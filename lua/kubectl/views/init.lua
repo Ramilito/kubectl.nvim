@@ -22,47 +22,56 @@ local decode = function(string)
   end
 end
 
-local one_day_in_seconds = 24 * 60 * 60
-local current_time = os.time()
+local process_resource = function(group_data)
+  local group_resources = decode(group_data)
+  for _, resource in ipairs(group_resources.resources) do
+    repeat
+      if string.find(resource.name, "/status") then
+        do
+          break
+        end
+      end
+      local resource_name = resource.name .. "." .. group_name
+      local resource_url = "{{BASE}}/apis/" .. group_version .. "/" .. resource.name
+      M.cached_api_resources.values[resource_name] = {
+        name = resource.name,
+        url = resource_url,
+      }
+      M.cached_api_resources.shortNames[resource.name] = resource_name
+      if resource.singularName then
+        M.cached_api_resources.shortNames[resource.singularName] = resource_name
+      end
+      if resource.shortNames then
+        for _, shortName in ipairs(resource.shortNames) do
+          M.cached_api_resources.shortNames[shortName] = resource_name
+        end
+      end
+    until true
+  end
+end
 
-if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
-  commands.shell_command_async("kubectl", { "get", "--raw", "/apis" }, function(data)
-    local apis = decode(data)
-    -- apis.groups
-    for _, group in ipairs(apis.groups) do
+local process_group = function(data)
+  local apis = decode(data)
+  for _, group in ipairs(apis.groups) do
+    repeat
       local group_name = group.name
       local group_version = group.preferredVersion.groupVersion
       -- check if name contains 'metrics.k8s.io' and skip
       if string.find(group_name, "metrics.k8s.io") then
-        goto next_group
-      end
-      commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
-        local group_resources = decode(group_data)
-        for _, resource in ipairs(group_resources.resources) do
-          if string.find(resource.name, "/status") then
-            goto next_resource
-          end
-          local resource_name = resource.name .. "." .. group_name
-          local resource_url = "{{BASE}}/apis/" .. group_version .. "/" .. resource.name
-          M.cached_api_resources.values[resource_name] = {
-            name = resource.name,
-            url = resource_url,
-          }
-          M.cached_api_resources.shortNames[resource.name] = resource_name
-          if resource.singularName then
-            M.cached_api_resources.shortNames[resource.singularName] = resource_name
-          end
-          if resource.shortNames then
-            for _, shortName in ipairs(resource.shortNames) do
-              M.cached_api_resources.shortNames[shortName] = resource_name
-            end
-          end
-          ::next_resource::
+        do
+          break
         end
-      end)
-    end
-    ::next_group::
-  end)
+      end
+      commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, process_resource)
+    until true
+  end
+end
+
+local one_day_in_seconds = 24 * 60 * 60
+local current_time = os.time()
+
+if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+  commands.shell_command_async("kubectl", { "get", "--raw", "/apis" }, process_group)
   M.timestamp = os.time()
 end
 

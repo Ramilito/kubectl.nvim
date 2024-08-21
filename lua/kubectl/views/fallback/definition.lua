@@ -68,7 +68,7 @@ function M.processRow(rows)
         namespace = row.object.metadata.namespace,
       }
       for i, val in pairs(resource_vals) do
-        resource[string.lower(rows.columnDefinitions[i].name)] = val
+        resource[string.lower(rows.columnDefinitions[i].name)] = val or ""
       end
       table.insert(data, resource)
     end
