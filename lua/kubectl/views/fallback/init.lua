@@ -23,7 +23,9 @@ end
 function M.View(cancellationToken, resource)
   if resource then
     M.resource = resource
-  else
+  end
+
+  if not M.resource then
     return
   end
 
@@ -61,7 +63,9 @@ function M.View(cancellationToken, resource)
     definition.cmd = "curl"
   end
 
-  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
+  M.builder = ResourceBuilder:new(definition.resource)
+    :setCmd(definition.url, definition.cmd)
+    :view(definition, cancellationToken, { cmd = definition.cmd })
 end
 
 function M.Edit(name, ns)

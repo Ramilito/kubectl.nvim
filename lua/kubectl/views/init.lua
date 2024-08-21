@@ -171,7 +171,6 @@ function M.Aliases()
       self:splitData():decodeJson()
 
       for _, suggestion in pairs(self.data) do
-        vim.print(suggestion.name)
         if suggestion.name:sub(1, #original_input) == original_input then
           table.insert(filtered_suggestions, suggestion.name)
         end

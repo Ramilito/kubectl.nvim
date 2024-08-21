@@ -56,8 +56,7 @@ end
 
 function M.processRow(rows)
   local data = {}
-
-  if not rows or not rows.items then
+  if not rows or (not rows.items and not rows.rows) then
     return data
   end
 
