@@ -137,8 +137,16 @@ function M.start(builder)
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
   M.builder = builder
 
-  -- Start the periodic event processing
-  start_event_processing(builder)
+  M.timer = vim.loop.new_timer()
+  M.timer:start(
+    100,
+    100,
+    vim.schedule_wrap(function()
+      if M.handle then
+        M.process_event_queue(builder)
+      end
+    end)
+  )
   return M.handle
 end
 
