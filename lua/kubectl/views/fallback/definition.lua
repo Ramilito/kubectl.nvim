@@ -64,9 +64,11 @@ function M.processRow(rows)
   if rows.rows then
     for _, row in pairs(rows.rows) do
       local resource_vals = row.cells
-      local resource = {
-        namespace = row.object.metadata.namespace,
-      }
+      local resource = {}
+      local namespace = row.object.metadata.namespace
+      if namespace then
+        resource.namespace = namespace
+      end
       for i, val in pairs(resource_vals) do
         resource[string.lower(rows.columnDefinitions[i].name)] = val or ""
       end
@@ -99,7 +101,12 @@ end
 function M.getHeaders(rows)
   local headers
   if rows.columnDefinitions then
-    headers = { "NAMESPACE" }
+    headers = {}
+    local firstRow = rows.rows[1]
+    local namespace = firstRow.object.metadata.namespace
+    if namespace then
+      table.insert(headers, "NAMESPACE")
+    end
     for _, col in pairs(rows.columnDefinitions) do
       local col_name = string.upper(col.name)
       if not headers[col_name] then
