@@ -3,10 +3,20 @@ local commands = require("kubectl.actions.commands")
 local M = {
   event_queue = "",
   handle = nil,
-  writing_to_queue = false,
-  processing_queue = false,
   max_retries = 5,
+  lock = false,
 }
+
+local function acquire_lock()
+  while M.lock do
+    vim.wait(10)
+  end
+  M.lock = true
+end
+
+local function release_lock()
+  M.lock = false
+end
 
 function M.split_json_objects(input)
   local objects = {}
@@ -35,18 +45,13 @@ end
 local parse_retries = 0
 function M.process_event_queue(builder)
   parse_retries = parse_retries + 1
-
   if M.event_queue == "" then
-    return
-  end
-  if M.writing_to_queue then
     return
   end
 
   if not builder.data then
     return
   end
-  M.processing_queue = true
 
   local queue = M.event_queue
   M.event_queue = ""
@@ -103,13 +108,9 @@ local function on_err(err, data)
 end
 
 local function on_stdout(result)
-  M.writing_to_queue = true
+  acquire_lock()
   M.event_queue = M.event_queue .. result
-  M.writing_to_queue = false
-
-  if not M.processing_queue then
-    M.process_event_queue(M.builder)
-  end
+  release_lock()
 end
 
 local function on_exit() end
@@ -136,6 +137,8 @@ function M.start(builder)
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
   M.builder = builder
 
+  -- Start the periodic event processing
+  start_event_processing(builder)
   return M.handle
 end
 
