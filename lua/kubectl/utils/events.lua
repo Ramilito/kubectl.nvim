@@ -94,6 +94,7 @@ function M.ColorStatus(status)
 
     -- Custom statuses
     Active = true,
+    True = true,
   }
 
   if errorStatuses[status] then

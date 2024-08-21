@@ -70,7 +70,7 @@ function M.processRow(rows)
         resource.namespace = namespace
       end
       for i, val in pairs(resource_vals) do
-        resource[string.lower(rows.columnDefinitions[i].name)] = val or ""
+        resource[string.lower(rows.columnDefinitions[i].name)] = { value = val or "", symbol = events.ColorStatus(val) }
       end
       table.insert(data, resource)
     end
