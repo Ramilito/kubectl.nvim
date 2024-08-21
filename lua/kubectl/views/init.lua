@@ -115,7 +115,7 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints")
+  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints", false)
 
   local content = vim.split(table.concat(hints, ""), "\n")
   buffers.set_content(buf, { content = content, marks = marks })
@@ -218,6 +218,12 @@ function M.PortForwards()
 
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "PID", "TYPE", "RESOURCE", "PORT" })
   self:addHints({ { key = "<gk>", desc = "Kill PF" } }, false, false, false):setContent()
+
+  vim.keymap.set("n", "q", function()
+    vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
+    vim.cmd.close()
+    vim.api.nvim_input("gr")
+  end, { buffer = self.buf_nr, silent = true })
 end
 
 --- Execute a user command and handle the response

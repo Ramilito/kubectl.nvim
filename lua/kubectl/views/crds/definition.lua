@@ -37,6 +37,10 @@ end
 ---@return table[]
 function M.processRow(rows)
   local data = {}
+
+  if not rows or not rows.items then
+    return data
+  end
   for _, row in pairs(rows.items) do
     local pod = {
       name = row.metadata.name,

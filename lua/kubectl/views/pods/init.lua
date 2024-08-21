@@ -5,18 +5,25 @@ local definition = require("kubectl.views.pods.definition")
 local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
-M.selection = {}
+local M = {
+  builder = nil,
+  selection = {},
+  pfs = {},
+}
 
 function M.View(cancellationToken)
-  local pfs = {}
-  root_definition.getPFData(pfs, true, "pods")
+  M.pfs = {}
+  root_definition.getPFData(M.pfs, true, "pods")
+  if M.builder then
+    M.builder = M.builder:view(definition, cancellationToken)
+  else
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  end
+end
 
-  ResourceBuilder:view(definition, cancellationToken, {
-    before_content_callback = function(self)
-      root_definition.setPortForwards(self.extmarks, self.prettyData, pfs)
-    end,
-  })
+function M.Draw(cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
+  root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
 end
 
 function M.Top()
@@ -30,11 +37,11 @@ function M.Top()
     table.insert(args, "--namespace")
     table.insert(args, ns_filter)
   end
-  ResourceBuilder:new("top"):displayFloat("k8s_top", "Top"):setCmd(args):fetchAsync(function(self)
-    vim.schedule(function()
-      self:splitData():setContentRaw()
-    end)
-  end)
+
+  ResourceBuilder:view_float(
+    { resource = "top", ft = "k8s_top", display_name = "Top", url = args },
+    { cmd = "kubectl" }
+  )
 end
 
 function M.TailLogs()

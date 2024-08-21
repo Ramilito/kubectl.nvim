@@ -200,20 +200,21 @@ function M.pretty_print(data, headers, sort_by)
 
   -- Create table header
   local header_line = {}
+  if not sort_by or sort_by.current_word == "" then
+    sort_by = { current_word = headers[1], order = "asc" }
+  end
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
     local value = header .. "  " .. string.rep(" ", column_width - #header + 1)
     table.insert(header_line, value)
 
-    if sort_by then
-      if header == sort_by.current_word then
-        table.insert(extmarks, {
-          row = 0,
-          start_col = #table.concat(header_line, "") - #value + #header,
-          virt_text = { { (sort_by.order == "asc" and " ▲" or " ▼"), hl.symbols.header } },
-          virt_text_pos = "overlay",
-        })
-      end
+    if header == sort_by.current_word then
+      table.insert(extmarks, {
+        row = 0,
+        start_col = #table.concat(header_line, "") - #value + #header,
+        virt_text = { { (sort_by.order == "asc" and " ▲" or " ▼"), hl.symbols.header } },
+        virt_text_pos = "overlay",
+      })
     end
     M.add_mark(extmarks, 0, #table.concat(header_line, "") - #value, #table.concat(header_line, ""), hl.symbols.header)
   end

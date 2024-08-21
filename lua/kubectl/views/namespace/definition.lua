@@ -1,4 +1,6 @@
+local config = require("kubectl.config")
 local events = require("kubectl.utils.events")
+local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 local M = {
@@ -15,20 +17,43 @@ function M.processLimitedRow(rows)
   return data
 end
 function M.processRow(rows)
-  local data = { { name = "All", status = "", age = "" } }
+  local data = {}
+  table.insert(data, { name = "All", status = "", age = "" })
 
-  if not rows.items then
+  if config.options.namespace_fallback then
+    for _, value in ipairs(config.options.namespace_fallback) do
+      table.insert(data, {
+        name = { value = value, symbol = hl.symbols.success },
+        status = { value = "<- config", symbol = hl.symbols.pending },
+        age = "",
+      })
+    end
+  end
+
+  if rows.code == 401 or rows.code == 403 then
+    table.insert(data, {
+      name = {
+        value = "⚠️ Access to namespaces denied, please input your desired namespace",
+        symbol = hl.symbols.warning,
+      },
+      status = "",
+      age = "",
+    })
+    return data
+  end
+
+  if not rows or not rows.items then
     return data
   end
 
   for _, row in pairs(rows.items) do
-    local pod = {
-      name = row.metadata.name,
+    local ns = {
+      name = { value = row.metadata.name, symbol = hl.symbols.success },
       status = { symbol = events.ColorStatus(row.status.phase), value = row.status.phase },
       age = time.since(row.metadata.creationTimestamp),
     }
 
-    table.insert(data, pod)
+    table.insert(data, ns)
   end
 
   return data

@@ -4,10 +4,18 @@ local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.sa.definition")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local M = { builder = nil }
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+  if M.builder then
+    M.builder = M.builder:view(definition, cancellationToken)
+  else
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  end
+end
+
+function M.Draw(cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
 end
 
 function M.Edit(name, ns)

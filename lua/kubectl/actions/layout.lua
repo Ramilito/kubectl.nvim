@@ -104,6 +104,22 @@ function M.float_dynamic_layout(buf, filetype, title, opts)
     border = "rounded",
     title = title,
   })
+
+  vim.api.nvim_buf_attach(buf, false, {
+    on_lines = function(
+      _, -- use nil as first argument (since it is buffer handle)
+      buf_nr, -- buffer number
+      _, -- buffer changedtick
+      _, -- first line number of the change (0-indexed)
+      lastline, -- last line number of the change
+      new_lastline -- last line number after the change
+    )
+      if lastline ~= new_lastline then
+        M.win_size_fit_content(buf_nr, 2)
+      end
+    end,
+  })
+
   return win
 end
 
@@ -184,6 +200,29 @@ function M.get_editor_dimensions()
   local width = vim.opt.columns:get()
 
   return width, height
+end
+
+function M.win_size_fit_content(buf_nr, offset)
+  local win_id = vim.api.nvim_get_current_win()
+  local win_config = vim.api.nvim_win_get_config(win_id)
+
+  local rows = vim.api.nvim_buf_line_count(buf_nr)
+  -- Calculate the maximum width (number of columns of the widest line)
+  local max_columns = 100
+  local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)
+
+  for _, line in ipairs(lines) do
+    local line_width = vim.api.nvim_strwidth(line)
+    if line_width > max_columns then
+      max_columns = line_width
+    end
+  end
+
+  win_config.height = rows + offset
+  win_config.width = max_columns
+
+  api.nvim_set_option_value("scrolloff", rows + offset, { win = win_id })
+  vim.api.nvim_win_set_config(win_id, win_config)
 end
 
 return M

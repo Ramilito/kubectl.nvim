@@ -56,9 +56,10 @@ end
 ---@param startAt number
 ---@return table[]
 function M.filter_line(array, pattern, startAt)
-  if not pattern then
+  if not pattern or pattern == "" then
     return array
   end
+
   startAt = startAt or 1
   local filtered_array = {}
 

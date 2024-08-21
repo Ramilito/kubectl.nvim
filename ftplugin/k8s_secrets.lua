@@ -30,7 +30,7 @@ end
 local function init()
   set_keymaps(0)
   if not loop.is_running() then
-    loop.start_loop(secrets_view.View)
+    loop.start_loop(secrets_view.Draw)
   end
 end
 

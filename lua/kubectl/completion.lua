@@ -153,7 +153,7 @@ function M.apply()
   local content = table.concat(lines, "\n")
   buffers.confirmation_buffer("Apply " .. file_name .. "?", "", function(confirm)
     if confirm then
-      commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, { stdin = content })
+      commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, nil, { stdin = content })
     end
   end)
 end
