@@ -60,6 +60,9 @@ local function decode_json_objects(json_strings)
 end
 
 local function process_event(builder, event)
+  if not event.type then
+    return
+  end
   local event_name = event.object.metadata.name
 
   if event.type == "ADDED" then
@@ -104,6 +107,10 @@ function M.process(builder)
       return M.process(builder)
     else
       print(decode_error)
+      -- local uv = vim.loop
+      -- local fd = uv.fs_open("/tmp/hiri.log", "a", 420)
+      -- uv.fs_write(fd, vim.inspect(builder) .. "\n")
+      -- uv.fs_close(fd)
       return
     end
   end
@@ -147,7 +154,7 @@ function M.start(builder)
   local args = { "-N", "--keepalive-time", "60" }
 
   for index, value in ipairs(builder.args) do
-    if index == #builder.args then
+    if index == #builder.args and builder.data.kind ~= "Table" then
       value = value .. "&watch=true&resourceVersion=" .. builder.data.metadata.resourceVersion
     end
 
