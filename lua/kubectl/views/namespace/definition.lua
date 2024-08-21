@@ -10,12 +10,6 @@ local M = {
   url = { "{{BASE}}/api/v1/namespaces?pretty=false" },
 }
 
-function M.processLimitedRow(rows)
-  local data = M.processRow(rows)
-  table.remove(data, 1)
-
-  return data
-end
 function M.processRow(rows)
   local data = {}
   table.insert(data, { name = "All", status = "", age = "" })
