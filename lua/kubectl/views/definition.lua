@@ -118,62 +118,31 @@ function M.on_prompt_input(input)
   end
 end
 
---- Decode a JSON string
---- @param string string The JSON string to decode
---- @return table|nil result The decoded table or nil if decoding fails
-local decode = function(string)
-  local success, result = pcall(vim.json.decode, string)
-  if success then
-    return result
-  else
-    vim.notify("Error: api-resources unavailable", vim.log.levels.ERROR)
-  end
-end
-
-function M.process_apis(group_name, group_version, group_data, cached_api_resources)
-  local group_resources = decode(group_data) or { resources = {} }
+function M.process_apis(group_name, group_version, group_resources, cached_api_resources)
   for _, resource in ipairs(group_resources.resources) do
-    repeat
-      if string.find(resource.name, "/status") then
-        do
-          break
-        end
-      end
+    -- Skip if resource name contains '/status'
+    if not string.find(resource.name, "/status") then
       local resource_name = resource.name .. "." .. group_name
       local resource_url = string.format("{{BASE}}/apis/%s/{{NAMESPACE}}%s?pretty=false", group_version, resource.name)
+
       cached_api_resources.values[resource_name] = {
         name = resource.name,
         url = resource_url,
       }
+
       require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
       cached_api_resources.shortNames[resource.name] = resource_name
+
       if resource.singularName then
         cached_api_resources.shortNames[resource.singularName] = resource_name
       end
+
       if resource.shortNames then
         for _, shortName in ipairs(resource.shortNames) do
           cached_api_resources.shortNames[shortName] = resource_name
         end
       end
-    until true
-  end
-end
-
-function M.process_api_groups(apis, cached_api_resources)
-  for _, group in ipairs(apis.groups) do
-    repeat
-      local group_name = group.name
-      local group_version = group.preferredVersion.groupVersion
-      -- check if name contains 'metrics.k8s.io' and skip
-      if string.find(group_name, "metrics.k8s.io") then
-        do
-          break
-        end
-      end
-      commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
-        M.process_apis(group_name, group_version, group_data, cached_api_resources)
-      end)
-    until true
+    end
   end
 end
 

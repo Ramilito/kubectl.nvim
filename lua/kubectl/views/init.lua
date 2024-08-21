@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.definition")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
@@ -14,7 +15,20 @@ local current_time = os.time()
 if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
   ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
     self:decodeJson()
-    definition.process_api_groups(self.data, M.cached_api_resources)
+
+    for _, group in ipairs(self.data.groups) do
+      local group_name = group.name
+      local group_version = group.preferredVersion.groupVersion
+
+      -- Skip if name contains 'metrics.k8s.io'
+      if not string.find(group_name, "metrics.k8s.io") then
+        commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
+          self.data = group_data
+          self:decodeJson()
+          definition.process_apis(group_name, group_version, self.data, M.cached_api_resources)
+        end)
+      end
+    end
   end)
 
   M.timestamp = os.time()
