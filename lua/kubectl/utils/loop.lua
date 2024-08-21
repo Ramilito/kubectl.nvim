@@ -1,4 +1,5 @@
 local config = require("kubectl.config")
+local informer = require("kubectl.actions.informer")
 local M = {}
 
 local timers = {}
@@ -24,10 +25,16 @@ function M.start_loop_for_buffer(buf, callback)
   timer:start(0, config.options.auto_refresh.interval, function()
     if not running then
       running = true
+
+      if informer.handle and not informer.lock and informer.event_queue ~= "" then
+        informer.process(informer.builder)
+      end
+
       vim.schedule(function()
         if vim.api.nvim_get_current_buf() == buf then
           callback(is_cancelled)
         end
+
         running = false
       end)
     end

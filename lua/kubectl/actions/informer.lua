@@ -1,10 +1,12 @@
 local commands = require("kubectl.actions.commands")
+local timeme = require("kubectl.utils.timeme")
 
 local M = {
   event_queue = "",
   handle = nil,
   max_retries = 10,
   lock = false,
+  parse_retries = 0,
 }
 
 local function release_lock()
@@ -18,7 +20,7 @@ local function acquire_lock()
   M.lock = true
 end
 
-function M.split_json_objects(input)
+local function split_events(input)
   local objects = {}
   local pattern = '}{"type":"'
   local start = 1
@@ -42,56 +44,77 @@ function M.split_json_objects(input)
   return objects
 end
 
-local parse_retries = 0
-function M.process_event_queue(builder)
-  parse_retries = parse_retries + 1
-  if M.event_queue == "" then
-    return
-  end
+local function decode_json_objects(json_strings)
+  local decoded_events = {}
 
-  if not builder.data then
-    return
-  end
-
-  local queue = M.event_queue
-  M.event_queue = ""
-  local rows = M.split_json_objects(queue:gsub("\n", ""))
-  local events = {}
-
-  -- Process each JSON object found in the result
-  for _, value in ipairs(rows) do
-    local success, data = pcall(vim.json.decode, value)
+  for _, json_string in ipairs(json_strings) do
+    local success, decoded_event = pcall(vim.json.decode, json_string)
     if success then
-      table.insert(events, data)
+      table.insert(decoded_events, decoded_event)
     else
-      if parse_retries < M.max_retries then
-        M.process_event_queue(builder)
-      else
-        print(data)
-      end
+      return nil, decoded_event
     end
   end
 
-  parse_retries = 0
-  table.sort(events, function(a, b)
-    return tonumber(a.object.metadata.resourceVersion) < tonumber(b.object.metadata.resourceVersion)
+  return decoded_events
+end
+
+local function process_event(builder, event)
+  local event_name = event.object.metadata.name
+
+  if event.type == "ADDED" then
+    table.insert(builder.data.items, event.object)
+  elseif event.type == "DELETED" then
+    for index, item in ipairs(builder.data.items) do
+      if item.metadata.name == event_name then
+        table.remove(builder.data.items, index)
+        break
+      end
+    end
+  elseif event.type == "MODIFIED" then
+    for index, item in ipairs(builder.data.items) do
+      if item.metadata.name == event_name then
+        builder.data.items[index] = event.object
+        break
+      end
+    end
+  end
+end
+
+local function sort_events_by_resource_version(events)
+  table.sort(events, function(event_a, event_b)
+    return tonumber(event_a.object.metadata.resourceVersion) < tonumber(event_b.object.metadata.resourceVersion)
   end)
-  while #events > 0 do
-    local event = table.remove(events, 1)
-    if event.type == "ADDED" then
-      table.insert(builder.data.items, event.object)
-    elseif event.type == "DELETED" then
-      for index, value in ipairs(builder.data.items) do
-        if value.metadata.name == event.object.metadata.name then
-          table.remove(builder.data.items, index)
-        end
-      end
-    elseif event.type == "MODIFIED" then
-      for index, value in ipairs(builder.data.items) do
-        if value.metadata.name == event.object.metadata.name then
-          builder.data.items[index] = event.object
-        end
-      end
+end
+
+function M.process(builder)
+  M.parse_retries = M.parse_retries + 1
+  if M.event_queue == "" or not builder.data then
+    return
+  end
+
+  local event_queue_content = M.event_queue:gsub("\n", "")
+  M.event_queue = ""
+
+  local json_objects = split_events(event_queue_content)
+  local decoded_events, decode_error = decode_json_objects(json_objects)
+
+  if not decoded_events then
+    if M.parse_retries < M.max_retries then
+      return M.process(builder)
+    else
+      print(decode_error)
+      return
+    end
+  end
+
+  M.parse_retries = 0
+
+  sort_events_by_resource_version(decoded_events)
+
+  if decoded_events then
+    for _, event in ipairs(decoded_events) do
+      process_event(builder, event)
     end
   end
 end
@@ -135,16 +158,6 @@ function M.start(builder)
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
   M.builder = builder
 
-  M.timer = vim.loop.new_timer()
-  M.timer:start(
-    100,
-    20,
-    vim.schedule_wrap(function()
-      if M.handle and not M.lock and M.event_queue ~= "" then
-        M.process_event_queue(builder)
-      end
-    end)
-  )
   return M.handle
 end
 
