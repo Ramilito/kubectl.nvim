@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local timeme = require("kubectl.utils.timeme")
 
 local M = {
   event_queue = "",
@@ -60,9 +59,6 @@ local function decode_json_objects(json_strings)
 end
 
 local function process_event(builder, event)
-  if not event.type then
-    return
-  end
   local event_name = event.object.metadata.name
 
   if event.type == "ADDED" then
@@ -147,17 +143,15 @@ function M.start(builder)
     M.stop()
   end
 
-  local args = { "-N", "--keepalive-time", "60" }
+  local args = { "-N", "--keepalive-time", "60", "-X", "GET", "-sS", "-H", "Content-Type: application/json" }
 
   for index, value in ipairs(builder.args) do
-    if index == #builder.args and builder.data.kind ~= "Table" then
+    if index == #builder.args then
       value = value .. "&watch=true&resourceVersion=" .. builder.data.metadata.resourceVersion
-    end
-
-    if value ~= "curl" then
       table.insert(args, value)
     end
   end
+
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
   M.builder = builder
 
