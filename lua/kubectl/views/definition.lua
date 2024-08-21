@@ -159,8 +159,7 @@ function M.process_apis(group_name, group_version, group_data, cached_api_resour
   end
 end
 
-function M.process_api_groups(data, cached_api_resources)
-  local apis = decode(data)
+function M.process_api_groups(apis, cached_api_resources)
   for _, group in ipairs(apis.groups) do
     repeat
       local group_name = group.name

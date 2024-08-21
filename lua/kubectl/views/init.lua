@@ -13,8 +13,9 @@ local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
 if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
-  commands.shell_command_async("kubectl", { "get", "--raw", "/apis" }, function(data)
-    definition.process_api_groups(data, M.cached_api_resources)
+  ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
+    self:decodeJson()
+    definition.process_api_groups(self.data, M.cached_api_resources)
   end)
 
   M.timestamp = os.time()
