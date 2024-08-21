@@ -13,10 +13,21 @@ function M.get_current_mark()
   local marks = vim.api.nvim_buf_get_extmarks(0, state.marks.ns_id, { row, col }, { row, col }, { details = true })
 
   local current_word = vim.fn.expand("<cword>")
+
+  local line = vim.api.nvim_get_current_line()
+  local columns = vim.split(line, "%s%s+")
+  local sort_on
+
+  for _, column in ipairs(columns) do
+    if column:find(current_word) then
+      sort_on = column
+    end
+  end
+
   if #marks > 0 then
-    return marks[1], current_word
+    return marks[1], sort_on
   else
-    return nil, current_word
+    return nil, sort_on
   end
 end
 
