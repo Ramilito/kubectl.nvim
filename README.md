@@ -100,6 +100,12 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { n
   },
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
+  logging = {
+    notify_format = "[kubectl] %s",
+    ---@usage set logging level
+    --- possible values: { "off", "error", "warn", "info", "debug", "trace" }
+    level = "warn",
+  },
   notifications = {
     enabled = true,
     verbose = false,

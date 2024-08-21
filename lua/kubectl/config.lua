@@ -19,6 +19,12 @@ local defaults = {
   },
   namespace = "All",
   namespace_fallback = {},
+  logging = {
+    notify_format = "[kubectl] %s",
+    ---@usage set logging level
+    --- possible values: { "off", "error", "warn", "info", "debug", "trace" }
+    level = "warn",
+  },
   notifications = {
     enabled = true,
     verbose = false,

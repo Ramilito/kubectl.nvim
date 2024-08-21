@@ -11,4 +11,9 @@ function M.capitalize(str)
   return str:sub(1, 1):upper() .. str:sub(2)
 end
 
+function M.path_join(...)
+  local v, _ = table.concat(util.tbl_flatten({ ... }), path_separator):gsub(path_separator .. "+", path_separator)
+  return v
+end
+
 return M
