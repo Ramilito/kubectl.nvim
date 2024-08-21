@@ -5,8 +5,10 @@ local definition = require("kubectl.views.fallback.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
-M.resource = ""
+local M = {
+  resource = "",
+  builder = nil,
+}
 
 local function get_args()
   local ns_filter = state.getNamespace()
@@ -51,9 +53,15 @@ function M.View(cancellationToken, resource)
     definition.cmd = "curl"
   end
 
-  M.builder = ResourceBuilder:new(definition.resource)
-    :setCmd(definition.url, definition.cmd)
-    :view(definition, cancellationToken, { cmd = definition.cmd })
+  if M.builder then
+    M.builder = M.builder:view(definition, cancellationToken)
+  else
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  end
+end
+
+function M.Draw(cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
 end
 
 function M.Edit(name, ns)
