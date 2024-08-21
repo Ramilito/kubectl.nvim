@@ -9,71 +9,14 @@ local M = {}
 
 M.cached_api_resources = { values = {}, shortNames = {}, timestamp = nil }
 
---- Decode a JSON string
---- @param string string The JSON string to decode
---- @return table|nil result The decoded table or nil if decoding fails
-local decode = function(string)
-  local success, result = pcall(vim.json.decode, string)
-  if success then
-    return result
-  else
-    vim.notify("Error: api-resources unavailable", vim.log.levels.ERROR)
-  end
-end
-
-local process_resource = function(group_name, group_version, group_data)
-  local group_resources = decode(group_data) or { resources = {} }
-  for _, resource in ipairs(group_resources.resources) do
-    repeat
-      if string.find(resource.name, "/status") then
-        do
-          break
-        end
-      end
-      local resource_name = resource.name .. "." .. group_name
-      local resource_url = string.format("{{BASE}}/apis/%s/{{NAMESPACE}}%s?pretty=false", group_version, resource.name)
-      M.cached_api_resources.values[resource_name] = {
-        name = resource.name,
-        url = resource_url,
-      }
-      require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
-      M.cached_api_resources.shortNames[resource.name] = resource_name
-      if resource.singularName then
-        M.cached_api_resources.shortNames[resource.singularName] = resource_name
-      end
-      if resource.shortNames then
-        for _, shortName in ipairs(resource.shortNames) do
-          M.cached_api_resources.shortNames[shortName] = resource_name
-        end
-      end
-    until true
-  end
-end
-
-local process_group = function(data)
-  local apis = decode(data)
-  for _, group in ipairs(apis.groups) do
-    repeat
-      local group_name = group.name
-      local group_version = group.preferredVersion.groupVersion
-      -- check if name contains 'metrics.k8s.io' and skip
-      if string.find(group_name, "metrics.k8s.io") then
-        do
-          break
-        end
-      end
-      commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
-        process_resource(group_name, group_version, group_data)
-      end)
-    until true
-  end
-end
-
 local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
 if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
-  commands.shell_command_async("kubectl", { "get", "--raw", "/apis" }, process_group)
+  commands.shell_command_async("kubectl", { "get", "--raw", "/apis" }, function(data)
+    definition.process_api_groups(data, M.cached_api_resources)
+  end)
+
   M.timestamp = os.time()
 end
 
