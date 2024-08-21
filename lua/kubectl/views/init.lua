@@ -170,7 +170,7 @@ function M.Aliases()
       self.data = M.cached_api_resources.values
       self:splitData():decodeJson()
 
-      for _, suggestion in ipairs(self.data) do
+      for _, suggestion in pairs(self.data) do
         vim.print(suggestion.name)
         if suggestion.name:sub(1, #original_input) == original_input then
           table.insert(filtered_suggestions, suggestion.name)
