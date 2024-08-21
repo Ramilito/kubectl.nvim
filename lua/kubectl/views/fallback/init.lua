@@ -29,6 +29,7 @@ function M.View(cancellationToken, resource)
     return
   end
 
+  -- default fallback values
   definition.resource = M.resource
   definition.display_name = M.resource
   definition.url = get_args()
@@ -38,20 +39,9 @@ function M.View(cancellationToken, resource)
   }
   definition.cmd = "kubectl"
 
-  -- find resource in require("kubectl.views").cached_api_resources
+  -- cached resources fallback values
   local cached_resources = require("kubectl.views").cached_api_resources
-  local cached_resource = cached_resources.values[M.resource]
-  if cached_resource ~= nil then
-    definition.resource = M.resource
-    definition.display_name = M.resource
-    definition.url = {
-      "-H",
-      "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
-      cached_resources.values[M.resource].url,
-    }
-    definition.cmd = "curl"
-  end
-  local resource_name = cached_resources.shortNames[M.resource]
+  local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
   if resource_name then
     definition.resource = resource_name
     definition.display_name = resource_name
