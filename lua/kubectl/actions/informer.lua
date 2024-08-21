@@ -3,19 +3,19 @@ local commands = require("kubectl.actions.commands")
 local M = {
   event_queue = "",
   handle = nil,
-  max_retries = 5,
+  max_retries = 10,
   lock = false,
 }
+
+local function release_lock()
+  M.lock = false
+end
 
 local function acquire_lock()
   while M.lock do
     vim.wait(10)
   end
   M.lock = true
-end
-
-local function release_lock()
-  M.lock = false
 end
 
 function M.split_json_objects(input)
@@ -94,8 +94,6 @@ function M.process_event_queue(builder)
       end
     end
   end
-
-  M.processing_queue = false
 end
 
 local function on_err(err, data)
@@ -140,9 +138,9 @@ function M.start(builder)
   M.timer = vim.loop.new_timer()
   M.timer:start(
     100,
-    100,
+    20,
     vim.schedule_wrap(function()
-      if M.handle then
+      if M.handle and not M.lock and M.event_queue ~= "" then
         M.process_event_queue(builder)
       end
     end)
