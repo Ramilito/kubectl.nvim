@@ -154,17 +154,15 @@ end
 --- @param file_name string The filename to save
 --- @param data table The content to save
 function M.save_config(file_name, data)
-  local config = M.load_config("kubectl.json")
-  if config then
-    local merged = vim.tbl_deep_extend("force", config, data)
-    local ok, encoded = pcall(vim.json.encode, merged)
-    if ok then
-      local file_path = vim.fn.stdpath("data") .. "/" .. file_name
-      local file = io.open(file_path, "w")
-      if file then
-        file:write(encoded)
-        file:close()
-      end
+  local config = M.load_config("kubectl.json") or {}
+  local merged = vim.tbl_deep_extend("force", config, data)
+  local ok, encoded = pcall(vim.json.encode, merged)
+  if ok then
+    local file_path = vim.fn.stdpath("data") .. "/" .. file_name
+    local file = io.open(file_path, "w")
+    if file then
+      file:write(encoded)
+      file:close()
     end
   end
   return ok
@@ -172,18 +170,15 @@ end
 
 function M.restore_session()
   local config = M.load_config("kubectl.json")
-  if config and config.session then
-    local ok, view = pcall(require, "kubectl.views." .. string.lower(config.session.view))
-    if ok then
-      view.View()
-    else
-      local pod_view = require("kubectl.views.pods")
-      pod_view.View()
-    end
+  local session_view = config and config.session and config.session.view or "pods"
+  local ok, view = pcall(require, "kubectl.views." .. string.lower(session_view))
+  if ok then
+    view.View()
   else
     local pod_view = require("kubectl.views.pods")
     pod_view.View()
   end
+  -- change namespace
   if config and config.session and config.session.namespace ~= "All" then
     state.ns = config.session.namespace
     require("kubectl.views.namespace").changeNamespace(config.session.namespace)
