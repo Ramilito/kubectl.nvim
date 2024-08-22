@@ -16,6 +16,27 @@ if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
   ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
     self:decodeJson()
 
+<<<<<<< Updated upstream
+||||||| Stash base
+    -- process default api group
+    commands.shell_command_async("kubectl", { "get", "--raw", "/api/v1" }, function(group_data)
+      self.data = group_data
+      self:decodeJson()
+      definition.process_apis("api", "", "v1", self.data, M.cached_api_resources)
+    end)
+
+=======
+    -- process default api group
+    commands.shell_command_async("kubectl", { "get", "--raw", "/api/v1" }, function(group_data)
+      self.data = group_data
+      self:decodeJson()
+      definition.process_apis("api", "", "v1", self.data, M.cached_api_resources)
+    end)
+
+    if self.data.groups == nil then
+      return
+    end
+>>>>>>> Stashed changes
     for _, group in ipairs(self.data.groups) do
       local group_name = group.name
       local group_version = group.preferredVersion.groupVersion

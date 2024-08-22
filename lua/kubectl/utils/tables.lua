@@ -185,6 +185,9 @@ end
 ---@param headers string[]
 ---@return table[], table[]
 function M.pretty_print(data, headers, sort_by)
+  if headers == nil or data == nil then
+    return {}, {}
+  end
   local columns = {}
   for k, v in ipairs(headers) do
     columns[k] = v:lower()

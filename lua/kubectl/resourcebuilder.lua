@@ -157,7 +157,9 @@ function ResourceBuilder:process(processFunc, no_filter)
     return self
   end
 
-  self.processedData = find.filter_line(self.processedData, state.getFilter(), 1)
+  local filter = state.getFilter()
+  vim.print("filter: " .. filter)
+  self.processedData = find.filter_line(self.processedData, filter, 1)
 
   return self
 end

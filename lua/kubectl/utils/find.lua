@@ -26,24 +26,21 @@ end
 ---@param str string
 ---@param exact boolean?
 ---@return boolean
-function M.is_in_table(tbl, str, exact)
+function M.is_in_table(tbl, str)
   if str == nil then
     return false
   end
 
   local lowered_str = str:lower()
-
   for key, value in pairs(tbl) do
     if key == "symbol" then
       return false
     end
     if type(value) == "table" then
-      if M.is_in_table(value, str, exact) then
+      if M.is_in_table(value, str) then
         return true
       end
-    elseif exact and tostring(value):lower() == lowered_str then
-      return true
-    elseif not exact and tostring(value):lower():match(lowered_str) then
+    elseif tostring(value):lower():find(lowered_str, 1, true) then
       return true
     end
   end
@@ -64,9 +61,10 @@ function M.filter_line(array, pattern, startAt)
   local filtered_array = {}
 
   -- Filter the array starting from startAt
+  -- vim.print(vim.inspect(array))
   for index = startAt, #array do
     local line = array[index]
-    if M.is_in_table(line, pattern) then
+    if M.is_in_table2(line, pattern) then
       table.insert(filtered_array, line)
     end
   end
