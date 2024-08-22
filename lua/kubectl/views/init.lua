@@ -35,7 +35,7 @@ if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
         commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
           self.data = group_data
           self:decodeJson()
-          definition.process_apis(group_name, group_version, self.data, M.cached_api_resources)
+          definition.process_apis("apis", group_name, group_version, self.data, M.cached_api_resources)
         end)
       end
     end
