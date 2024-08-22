@@ -16,6 +16,7 @@ M.symbols = {
   note = "KubectlNote",
   clear = "KubectlClear",
   tab = "KubectlTab",
+  underline = "KubectlUnderline",
 }
 function M.setup()
   api.nvim_set_hl(0, "KubectlHeader", { fg = "#569CD6" }) -- Blue
@@ -29,6 +30,7 @@ function M.setup()
   api.nvim_set_hl(0, "KubectlExperimental", { fg = "#CE9178" }) -- Brown
   api.nvim_set_hl(0, "KubectlNote", { fg = "#9CDCFE" }) -- Light Blue
   api.nvim_set_hl(0, "KubectlGray", { fg = "#666666" }) -- Dark Gray
+  api.nvim_set_hl(0, "KubectlUnderline", { underline = true })
 end
 
 return M
