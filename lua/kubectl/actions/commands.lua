@@ -170,6 +170,11 @@ end
 
 function M.restore_session()
   local config = M.load_config("kubectl.json")
+
+  -- change namespace
+  state.ns = config and config.session and config.session.namespace or "All"
+
+  -- change view
   local session_view = config and config.session and config.session.view or "pods"
   local ok, view = pcall(require, "kubectl.views." .. string.lower(session_view))
   if ok then
@@ -177,15 +182,6 @@ function M.restore_session()
   else
     local pod_view = require("kubectl.views.pods")
     pod_view.View()
-  end
-  -- change namespace
-  local session_namespace = config and config.session and config.session.namespace or "All"
-  state.ns = session_namespace
-  if session_namespace ~= "All" then
-    require("kubectl.views.namespace").changeNamespace(session_namespace)
-    vim.schedule(function()
-      vim.api.nvim_input("gr")
-    end)
   end
 end
 
