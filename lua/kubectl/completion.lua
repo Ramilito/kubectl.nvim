@@ -65,8 +65,10 @@ function M.user_command_completion(_, cmd)
     return top_level_commands
   elseif #parts == 2 and parts[2] == "get" then
     local view = require("kubectl.views")
-    local data = vim.split(view.cached_api_resources.values, "\n")
-
+    local data = {}
+    for _, res in pairs(view.cached_api_resources.values) do
+      table.insert(data, res.name)
+    end
     return data
   end
 end

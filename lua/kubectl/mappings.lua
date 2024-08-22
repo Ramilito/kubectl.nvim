@@ -46,6 +46,7 @@ function M.register()
       end
     end,
   })
+
   vim.api.nvim_buf_set_keymap(0, "n", "gd", "", {
     noremap = true,
     silent = true,
@@ -56,7 +57,10 @@ function M.register()
         local string_utils = require("kubectl.utils.string")
 
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        if not view_ok then
+          view = require("kubectl.views.fallback")
+        end
         local name, ns = view.getCurrentSelection()
         if name then
           local ok = pcall(view.Desc, name, ns)
@@ -100,7 +104,10 @@ function M.register()
         local string_utils = require("kubectl.utils.string")
 
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        if not view_ok then
+          view = require("kubectl.views.fallback")
+        end
         local name, ns = view.getCurrentSelection()
         if name then
           pcall(view.Edit, name, ns)
@@ -183,7 +190,10 @@ function M.register()
       state.sortby_old.current_word = sortby.current_word
 
       local string_utils = require("kubectl.utils.string")
-      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      if not view_ok then
+        view = require("kubectl.views.fallback")
+      end
       pcall(view.Draw)
     end,
   })

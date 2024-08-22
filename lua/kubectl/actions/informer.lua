@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local timeme = require("kubectl.utils.timeme")
 
 local M = {
   event_queue = "",
@@ -62,20 +61,43 @@ end
 local function process_event(builder, event)
   local event_name = event.object.metadata.name
 
-  if event.type == "ADDED" then
-    table.insert(builder.data.items, event.object)
-  elseif event.type == "DELETED" then
-    for index, item in ipairs(builder.data.items) do
-      if item.metadata.name == event_name then
-        table.remove(builder.data.items, index)
-        break
+  -- TODO: prettify this code
+  if builder.data.kind == "Table" then
+    local target = builder.data
+    if event.type == "ADDED" then
+      table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
+    elseif event.type == "DELETED" then
+      for index, row in ipairs(target.rows) do
+        if row.object.metadata.name == event_name then
+          table.remove(target.rows, index)
+          break
+        end
+      end
+    elseif event.type == "MODIFIED" then
+      for index, row in ipairs(target.rows) do
+        if row.object.metadata.name == event_name then
+          target.rows[index].object = event.object
+          break
+        end
       end
     end
-  elseif event.type == "MODIFIED" then
-    for index, item in ipairs(builder.data.items) do
-      if item.metadata.name == event_name then
-        builder.data.items[index] = event.object
-        break
+  else
+    local target = builder.data.items
+    if event.type == "ADDED" then
+      table.insert(target, event.object)
+    elseif event.type == "DELETED" then
+      for index, item in ipairs(target) do
+        if item.metadata.name == event_name then
+          table.remove(target, index)
+          break
+        end
+      end
+    elseif event.type == "MODIFIED" then
+      for index, item in ipairs(target) do
+        if item.metadata.name == event_name then
+          target[index] = event.object
+          break
+        end
       end
     end
   end
@@ -144,17 +166,15 @@ function M.start(builder)
     M.stop()
   end
 
-  local args = { "-N", "--keepalive-time", "60" }
+  local args = { "-N", "--keepalive-time", "60", "-X", "GET", "-sS", "-H", "Content-Type: application/json" }
 
   for index, value in ipairs(builder.args) do
     if index == #builder.args then
       value = value .. "&watch=true&resourceVersion=" .. builder.data.metadata.resourceVersion
-    end
-
-    if value ~= "curl" then
       table.insert(args, value)
     end
   end
+
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
   M.builder = builder
 

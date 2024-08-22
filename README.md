@@ -1,8 +1,10 @@
 # kubectl.nvim
+
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 <img src="https://github.com/user-attachments/assets/3c070dc5-1b93-47a0-9412-bf34ae611267" width="1700px">
 
 ## ✨ Features
+
 <details>
   <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 </summary>
@@ -53,11 +55,13 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 
 ## ⚡️ Required Dependencies
+
 - kubectl
 - curl
 - neovim >= 0.10
- 
+
 ## ⚡️ Optional Dependencies
+
 - [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
 
 ## 📦 Installation
@@ -82,6 +86,7 @@ return {
 We expose open, close and toggle to bind against:
 
 #### Toggle
+
 ```lua
 vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
 ```
@@ -89,6 +94,7 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { n
 ## ⚙️ Configuration
 
 ### Setup
+
 ```lua
 {
   auto_refresh = {
@@ -132,9 +138,11 @@ The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
 ## Versioning
+
 > [!WARNING]
 > As we have not yet reached v1.0.0, we may have some breaking changes
 > in cases where it is deemed necessary.
 
 ## Motivation
+
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for file browsing.

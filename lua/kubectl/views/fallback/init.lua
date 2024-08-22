@@ -5,8 +5,10 @@ local definition = require("kubectl.views.fallback.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
-M.resource = ""
+local M = {
+  resource = "",
+  builder = nil,
+}
 
 local function get_args()
   local ns_filter = state.getNamespace()
@@ -23,10 +25,11 @@ end
 function M.View(cancellationToken, resource)
   if resource then
     M.resource = resource
-  else
+  elseif not M.resource then
     return
   end
 
+  -- default fallback values
   definition.resource = M.resource
   definition.display_name = M.resource
   definition.url = get_args()
@@ -34,8 +37,31 @@ function M.View(cancellationToken, resource)
   definition.hints = {
     { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
   }
+  definition.cmd = "kubectl"
 
-  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = "kubectl" })
+  -- cached resources fallback values
+  local cached_resources = require("kubectl.views").cached_api_resources
+  local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
+  if resource_name then
+    definition.resource = resource_name
+    definition.display_name = resource_name
+    definition.url = {
+      "-H",
+      "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
+      cached_resources.values[resource_name].url,
+    }
+    definition.cmd = "curl"
+  end
+
+  if M.builder then
+    M.builder = M.builder:view(definition, cancellationToken)
+  else
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  end
+end
+
+function M.Draw(cancellationToken)
+  M.builder = M.builder:draw(definition, cancellationToken)
 end
 
 function M.Edit(name, ns)

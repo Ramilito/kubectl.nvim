@@ -118,4 +118,32 @@ function M.on_prompt_input(input)
   end
 end
 
+function M.process_apis(group_name, group_version, group_resources, cached_api_resources)
+  for _, resource in ipairs(group_resources.resources) do
+    -- Skip if resource name contains '/status'
+    if not string.find(resource.name, "/status") then
+      local resource_name = resource.name .. "." .. group_name
+      local resource_url = string.format("{{BASE}}/apis/%s/{{NAMESPACE}}%s?pretty=false", group_version, resource.name)
+
+      cached_api_resources.values[resource_name] = {
+        name = resource.name,
+        url = resource_url,
+      }
+
+      require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
+      cached_api_resources.shortNames[resource.name] = resource_name
+
+      if resource.singularName then
+        cached_api_resources.shortNames[resource.singularName] = resource_name
+      end
+
+      if resource.shortNames then
+        for _, shortName in ipairs(resource.shortNames) do
+          cached_api_resources.shortNames[shortName] = resource_name
+        end
+      end
+    end
+  end
+end
+
 return M

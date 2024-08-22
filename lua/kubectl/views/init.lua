@@ -7,16 +7,31 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
-M.cached_api_resources = { values = {}, timestamp = nil }
+M.cached_api_resources = { values = {}, shortNames = {}, timestamp = nil }
 
 local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
 if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
-  commands.shell_command_async("kubectl", { "api-resources", "-o", "name", "--cached" }, function(data)
-    M.cached_api_resources.values = data
-    M.timestamp = os.time()
+  ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
+    self:decodeJson()
+
+    for _, group in ipairs(self.data.groups) do
+      local group_name = group.name
+      local group_version = group.preferredVersion.groupVersion
+
+      -- Skip if name contains 'metrics.k8s.io'
+      if not string.find(group_name, "metrics.k8s.io") then
+        commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
+          self.data = group_data
+          self:decodeJson()
+          definition.process_apis(group_name, group_version, self.data, M.cached_api_resources)
+        end)
+      end
+    end
   end)
+
+  M.timestamp = os.time()
 end
 
 --- Generate hints and display them in a floating buffer
@@ -123,9 +138,9 @@ function M.Aliases()
       self.data = M.cached_api_resources.values
       self:splitData():decodeJson()
 
-      for _, suggestion in ipairs(self.data) do
-        if suggestion:sub(1, #original_input) == original_input then
-          table.insert(filtered_suggestions, suggestion)
+      for _, suggestion in pairs(self.data) do
+        if suggestion.name:sub(1, #original_input) == original_input then
+          table.insert(filtered_suggestions, suggestion.name)
         end
       end
 
