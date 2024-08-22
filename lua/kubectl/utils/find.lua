@@ -61,7 +61,6 @@ function M.filter_line(array, pattern, startAt)
   local filtered_array = {}
 
   -- Filter the array starting from startAt
-  -- vim.print(vim.inspect(array))
   for index = startAt, #array do
     local line = array[index]
     if M.is_in_table(line, pattern) then
