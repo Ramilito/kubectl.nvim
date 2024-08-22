@@ -8,7 +8,8 @@ local M = {}
 ---@field context boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
----@field mappings { }
+---@field view_mappings boolean
+---@field mappings? { }
 local defaults = {
   auto_refresh = {
     enabled = true,
@@ -38,6 +39,7 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
+  view_mappings = true,
 }
 
 ---@type KubectlOptions

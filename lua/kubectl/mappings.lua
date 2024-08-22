@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local views = require("kubectl.views")
 local M = {}
 
@@ -197,6 +198,10 @@ function M.register()
       pcall(view.Draw)
     end,
   })
+
+  if not config.options.view_mappings then
+    return
+  end
 
   vim.api.nvim_buf_set_keymap(0, "n", "0", "", {
     noremap = true,
