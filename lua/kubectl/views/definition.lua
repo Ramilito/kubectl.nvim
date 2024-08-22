@@ -98,7 +98,7 @@ function M.on_prompt_input(input)
   local parsed_input = string.lower(string_utils.trim(input))
   local supported_view = nil
   for k, v in pairs(viewsTable) do
-    if find.is_in_table(v, parsed_input, true) then
+    if find.is_in_table(v, parsed_input) then
       supported_view = k
     end
   end
