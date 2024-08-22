@@ -118,12 +118,14 @@ function M.on_prompt_input(input)
   end
 end
 
-function M.process_apis(group_name, group_version, group_resources, cached_api_resources)
+function M.process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
   for _, resource in ipairs(group_resources.resources) do
     -- Skip if resource name contains '/status'
     if not string.find(resource.name, "/status") then
       local resource_name = resource.name .. "." .. group_name
-      local resource_url = string.format("{{BASE}}/apis/%s/{{NAMESPACE}}%s?pretty=false", group_version, resource.name)
+      local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
+      local resource_url =
+        string.format("{{BASE}}/%s/%s/%s?pretty=false", api_url, group_version, namespaced, resource.name)
 
       cached_api_resources.values[resource_name] = {
         name = resource.name,
