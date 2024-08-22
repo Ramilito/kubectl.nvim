@@ -285,7 +285,6 @@ function ResourceBuilder:setContent(cancellationToken)
   if cancellationToken and cancellationToken() then
     return nil
   end
-  vim.print("buf_nr: " .. tostring(self.buf_nr))
   if vim.fn.bufwinnr(self.buf_nr) == -1 then
     return nil
   end
