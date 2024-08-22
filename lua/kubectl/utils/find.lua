@@ -24,7 +24,6 @@ end
 --- Check if a string is in a table, recursively
 ---@param tbl table
 ---@param str string
----@param exact boolean?
 ---@return boolean
 function M.is_in_table(tbl, str)
   if str == nil then
