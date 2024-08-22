@@ -127,6 +127,7 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { n
     row = 5,
   },
   obj_fresh = 0, -- highlight if creation newer than number (in minutes)
+  view_mappings = true, -- Create mappings for the views (0-5
 }
 ```
 
