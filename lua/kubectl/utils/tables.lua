@@ -216,7 +216,13 @@ function M.pretty_print(data, headers, sort_by)
         virt_text_pos = "overlay",
       })
     end
-    M.add_mark(extmarks, 0, #table.concat(header_line, "") - #value, #table.concat(header_line, ""), hl.symbols.header)
+
+    table.insert(extmarks, {
+      row = 0,
+      start_col = #table.concat(header_line, "") - #value,
+      virt_text = { { header, hl.symbols.header } },
+      virt_text_pos = "overlay",
+    })
   end
   table.insert(tbl, table.concat(header_line, ""))
 
