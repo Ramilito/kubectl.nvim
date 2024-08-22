@@ -56,6 +56,7 @@ function M.apply_marks(bufnr, marks, header)
     if marks then
       state.marks.header = {}
       for _, mark in ipairs(marks) do
+        -- adjust for content not being at first row
         local start_row = mark.row
         if header and header.data then
           start_row = start_row + #header.data
@@ -67,6 +68,7 @@ function M.apply_marks(bufnr, marks, header)
           virt_text = mark.virt_text or nil,
           virt_text_pos = mark.virt_text_pos or nil,
         })
+        -- the first row is always column headers, we save that so other content can use it
         if mark.row == 0 and ok then
           state.content_row_start = start_row + 1
           table.insert(state.marks.header, result)
