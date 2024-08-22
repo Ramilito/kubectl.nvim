@@ -3,7 +3,7 @@ local M = {
   resource = "sa",
   display_name = "sa",
   ft = "k8s_sa",
-  url = { "{{BASE}}/api/v1/serviceaccounts?pretty=false" },
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}serviceaccounts?pretty=false" },
   hints = {
     { key = "<gd>", desc = "describe", long_desc = "Describe selected serviceaccount" },
   },
