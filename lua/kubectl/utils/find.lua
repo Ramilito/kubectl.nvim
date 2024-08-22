@@ -64,7 +64,7 @@ function M.filter_line(array, pattern, startAt)
   -- vim.print(vim.inspect(array))
   for index = startAt, #array do
     local line = array[index]
-    if M.is_in_table2(line, pattern) then
+    if M.is_in_table(line, pattern) then
       table.insert(filtered_array, line)
     end
   end
