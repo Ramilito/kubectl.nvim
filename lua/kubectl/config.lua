@@ -39,7 +39,7 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
-  view_mappings = true,
+  view_mappings = true, -- Create mappings for the views (0-5
 }
 
 ---@type KubectlOptions
