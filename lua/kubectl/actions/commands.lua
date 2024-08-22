@@ -146,29 +146,33 @@ function M.load_config(file_name)
   if ok then
     return decoded
   end
-  return nil
+  return { session = { view = "pods" }, filter_history = {} }
 end
 
 --- Save to config file
 --- @param file_name string The filename to save
 --- @param data table The content to save
 function M.save_config(file_name, data)
-  local ok, encoded = pcall(vim.json.encode, data)
-  if ok then
-    local file_path = vim.fn.stdpath("data") .. "/" .. file_name
-    local file = io.open(file_path, "w")
-    if file then
-      file:write(encoded)
-      file:close()
+  local config = M.load_config("kubectl.json")
+  if config then
+    local merged = vim.tbl_deep_extend("force", config, data)
+    local ok, encoded = pcall(vim.json.encode, merged)
+    if ok then
+      local file_path = vim.fn.stdpath("data") .. "/" .. file_name
+      local file = io.open(file_path, "w")
+      if file then
+        file:write(encoded)
+        file:close()
+      end
     end
   end
   return ok
 end
 
 function M.restore_session()
-  local session = M.load_config("kubectl.session.json")
-  if session then
-    local ok, view = pcall(require, "kubectl.views." .. string.lower(session.view))
+  local config = M.load_config("kubectl.json")
+  if config and config.session then
+    local ok, view = pcall(require, "kubectl.views." .. string.lower(config.session.view))
     if ok then
       view.View()
     else
