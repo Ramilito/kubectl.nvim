@@ -1,3 +1,4 @@
+local state = require("kubectl.state")
 local M = {}
 
 --- Execute a shell command synchronously
@@ -146,7 +147,7 @@ function M.load_config(file_name)
   if ok then
     return decoded
   end
-  return { session = { view = "pods" }, filter_history = {} }
+  return { session = { view = "pods", namespace = "All" }, filter_history = {} }
 end
 
 --- Save to config file
@@ -182,6 +183,11 @@ function M.restore_session()
   else
     local pod_view = require("kubectl.views.pods")
     pod_view.View()
+  end
+  if config and config.session and config.session.namespace ~= "All" then
+    state.ns = config.session.namespace
+    require("kubectl.views.namespace").changeNamespace(config.session.namespace)
+    vim.api.nvim_input("gr")
   end
 end
 
