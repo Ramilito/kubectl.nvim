@@ -40,13 +40,12 @@ function M.filter()
   }, false, false)
 
   local config = commands.load_config("kubectl.json")
-  if config and config.filter_history then
-    table.insert(header, "History:")
-    for _, value in ipairs(config.filter_history) do
-      table.insert(header, value)
-    end
-    table.insert(header, "")
+  local history = config and config.filter_history and config.filter_history or {}
+  table.insert(header, "History:")
+  for _, value in ipairs(history) do
+    table.insert(header, value)
   end
+  table.insert(header, "")
 
   vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
