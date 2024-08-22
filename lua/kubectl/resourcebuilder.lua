@@ -285,6 +285,10 @@ function ResourceBuilder:setContent(cancellationToken)
   if cancellationToken and cancellationToken() then
     return nil
   end
+  vim.print("buf_nr: " .. tostring(self.buf_nr))
+  if vim.fn.bufwinnr(self.buf_nr) == -1 then
+    return nil
+  end
 
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
   notifications.Close()

@@ -52,6 +52,9 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or {}
   local result = ""
   table.insert(args, 1, cmd)
+  if cmd and cmd == "curl" and not string.match(args[#args], "https?://") then
+    return
+  end
 
   local handle = vim.system(args, {
     text = true,
