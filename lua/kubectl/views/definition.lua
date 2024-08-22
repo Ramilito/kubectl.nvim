@@ -125,7 +125,7 @@ function M.process_apis(api_url, group_name, group_version, group_resources, cac
       local resource_name = resource.name .. "." .. group_name
       local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
       local resource_url =
-        string.format("{{BASE}}/%s/%s/%s?pretty=false", api_url, group_version, namespaced, resource.name)
+        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
 
       cached_api_resources.values[resource_name] = {
         name = resource.name,
