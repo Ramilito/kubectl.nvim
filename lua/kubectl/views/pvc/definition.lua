@@ -3,7 +3,7 @@ local M = {
   resource = "pvc",
   display_name = "pvc",
   ft = "k8s_pvc",
-  url = { "{{BASE}}/api/v1/persistentvolumeclaims?pretty=false" },
+  url = { "{{BASE}}/api/v1/{{NAMESPACE}}persistentvolumeclaims?pretty=false" },
   hints = {
     { key = "<gd>", desc = "describe", long_desc = "Describe selected pvc" },
   },
