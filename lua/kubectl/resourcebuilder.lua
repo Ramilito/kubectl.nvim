@@ -196,7 +196,14 @@ function ResourceBuilder:sort()
         end
         if type(valueA) == "table" and type(valueB) == "table" then
           if valueA.timestamp and valueB.timestamp then
-            return comp(tostring(valueA.timestamp), tostring(valueB.timestamp))
+            local p = "(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)Z"
+            local timestampA = valueA.timestamp
+            local timestampB = valueB.timestamp
+            local yearA, monthA, dayA, hourA, minA, secA = timestampA:match(p)
+            local yearB, monthB, dayB, hourB, minB, secB = timestampB:match(p)
+            local epochA = os.time({ day = dayA, month = monthA, year = yearA, hour = hourA, min = minA, sec = secA })
+            local epochB = os.time({ day = dayB, month = monthB, year = yearB, hour = hourB, min = minB, sec = secB })
+            return comp(tostring(epochA), tostring(epochB))
           else
             return comp(tostring(valueA.value), tostring(valueB.value))
           end
