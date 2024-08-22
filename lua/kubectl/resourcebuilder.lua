@@ -157,7 +157,7 @@ function ResourceBuilder:process(processFunc, no_filter)
     return self
   end
 
-  self.processedData = find.filter_line(self.processedData, = state.getFilter(), 1)
+  self.processedData = find.filter_line(self.processedData, state.getFilter(), 1)
 
   return self
 end
