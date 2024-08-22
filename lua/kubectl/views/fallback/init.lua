@@ -53,11 +53,7 @@ function M.View(cancellationToken, resource)
     definition.cmd = "curl"
   end
 
-  if M.builder then
-    M.builder = M.builder:view(definition, cancellationToken)
-  else
-    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
-  end
+  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
