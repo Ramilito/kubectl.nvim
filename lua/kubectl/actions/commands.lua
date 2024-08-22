@@ -179,10 +179,13 @@ function M.restore_session()
     pod_view.View()
   end
   -- change namespace
-  if config and config.session and config.session.namespace ~= "All" then
-    state.ns = config.session.namespace
-    require("kubectl.views.namespace").changeNamespace(config.session.namespace)
-    vim.api.nvim_input("gr")
+  local session_namespace = config and config.session and config.session.namespace or "All"
+  state.ns = session_namespace
+  if session_namespace ~= "All" then
+    require("kubectl.views.namespace").changeNamespace(session_namespace)
+    vim.schedule(function()
+      vim.api.nvim_input("gr")
+    end)
   end
 end
 
