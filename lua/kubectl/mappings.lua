@@ -155,7 +155,7 @@ function M.register()
       local state = require("kubectl.state")
       local find = require("kubectl.utils.find")
 
-      local mark, word = marks.get_current_mark()
+      local mark, word = marks.get_current_mark(state.content_row_start)
 
       if not mark then
         return
