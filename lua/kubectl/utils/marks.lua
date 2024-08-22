@@ -1,15 +1,16 @@
 local state = require("kubectl.state")
+local string_utils = require("kubectl.utils.string")
 
 local M = {}
 
 --- Get the current mark and the current word under the cursor
 ---@return table|nil, string
-function M.get_current_mark()
+function M.get_current_mark(row)
   local cursor = vim.api.nvim_win_get_cursor(0)
-  local row = cursor[1] - 1
+  row = row or cursor[1]
+  row = row - 1
   local col = cursor[2]
   local current_word = ""
-
   local mark = nil
 
   local line_marks = vim.api.nvim_buf_get_extmarks(
@@ -25,7 +26,7 @@ function M.get_current_mark()
     local content = value[4]
     if col >= mark_col and col <= mark_col + #content.virt_text[1][1] then
       mark = value
-      current_word = content.virt_text[1][1]
+      current_word = string_utils.trim(content.virt_text[1][1])
     end
   end
 

@@ -221,7 +221,7 @@ function M.pretty_print(data, headers, sort_by)
       row = 0,
       start_col = #table.concat(header_line, "") - #value,
       hl_mode = "combine",
-      virt_text = { { header, { hl.symbols.underline, hl.symbols.header } } },
+      virt_text = { { header .. string.rep(" ", column_width), { hl.symbols.header } } },
       virt_text_pos = "overlay",
     })
   end
