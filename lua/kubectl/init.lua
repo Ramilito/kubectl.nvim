@@ -12,7 +12,7 @@ function M.open()
   local kube = require("kubectl.actions.kube")
 
   hl.setup()
-  kube.startProxy(function()
+  kube.start_kubectl_proxy(function()
     state.setup()
     vim.schedule(function()
       commands.restore_session()

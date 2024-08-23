@@ -12,7 +12,7 @@ function M.stop_kubectl_proxy()
   end
 end
 
-function M.startProxy(callback)
+function M.start_kubectl_proxy(callback)
   local function on_stdout(err, data)
     if err then
       print("Error reading stdout:", err)
