@@ -33,7 +33,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Sort by headers</summary>
-    <sub>By moving the cursor to a header word and pressing <code>s</code></sub>
+    <sub>By moving the cursor to a column and pressing <code>s</code></sub>
   <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/9f96e943-eda4-458e-a4ba-cf23e0417963" width="700px">
 </details>
 <details>
