@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local informer = require("kubectl.actions.informer")
 local state = require("kubectl.state")
 
 local M = {
@@ -32,6 +33,7 @@ function M.close()
 
   if win_config.relative == "" then
     kube.stop_kubectl_proxy()()
+    informer.stop()
   end
   vim.api.nvim_buf_delete(0, { force = true })
 end

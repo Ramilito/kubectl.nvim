@@ -23,6 +23,9 @@ if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
       definition.process_apis("api", "", "v1", self.data, M.cached_api_resources)
     end)
 
+    if self.data.groups == nil then
+      return
+    end
     for _, group in ipairs(self.data.groups) do
       local group_name = group.name
       local group_version = group.preferredVersion.groupVersion
@@ -57,7 +60,6 @@ function M.Hints(headers)
     { key = "<gs> ", desc = "Sort column" },
     { key = "<ge> ", desc = "Edit resource" },
     { key = "<gr> ", desc = "Refresh view" },
-    { key = "<0>  ", desc = "Root" },
     { key = "<1>  ", desc = "Deployments" },
     { key = "<2>  ", desc = "Pods " },
     { key = "<3>  ", desc = "Configmaps " },
