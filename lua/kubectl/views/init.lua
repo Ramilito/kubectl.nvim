@@ -60,7 +60,6 @@ function M.Hints(headers)
     { key = "<gs> ", desc = "Sort column" },
     { key = "<ge> ", desc = "Edit resource" },
     { key = "<gr> ", desc = "Refresh view" },
-    { key = "<0>  ", desc = "Root" },
     { key = "<1>  ", desc = "Deployments" },
     { key = "<2>  ", desc = "Pods " },
     { key = "<3>  ", desc = "Configmaps " },
