@@ -42,8 +42,9 @@ function M.filter()
   local config = commands.load_config("kubectl.json")
   local history = config and config.filter_history and config.filter_history or {}
   table.insert(header, "History:")
+  local headers_len = #header
   for _, value in ipairs(history) do
-    table.insert(header, value)
+    table.insert(header, headers_len + 1, value)
   end
   table.insert(header, "")
 
