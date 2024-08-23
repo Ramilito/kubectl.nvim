@@ -28,7 +28,7 @@ function M.close()
   local win_config = vim.api.nvim_win_get_config(0)
 
   if ok and win_config.relative == "" then
-    commands.save_config("kubectl.json", { session = { view = buf_name, namespace = state.ns } })
+    commands.save_config("kubectl.session.json", { view = buf_name })
   end
 
   if win_config.relative == "" then
@@ -122,7 +122,7 @@ vim.api.nvim_create_autocmd("VimLeavePre", {
   callback = function()
     local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
     if ok then
-      commands.save_config("kubectl.json", { session = { view = buf_name, namespace = state.ns } })
+      commands.save_config("kubectl.session.json", { view = buf_name })
     end
   end,
 })

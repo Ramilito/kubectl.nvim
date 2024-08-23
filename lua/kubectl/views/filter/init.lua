@@ -6,10 +6,12 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 local function save_history(input)
-  local config = commands.load_config("kubectl.json")
+  local history = commands.load_config("kubectl_filter_history.json")
   local history_size = 5
 
-  local history = config and config.filter_history or {}
+  if history == nil then
+    history = {}
+  end
 
   local result = {}
   local exists = false
@@ -29,7 +31,7 @@ local function save_history(input)
     end
   end
 
-  commands.save_config("kubectl.json", { filter_history = result })
+  commands.save_config("kubectl_filter_history.json", result)
 end
 
 function M.filter()
@@ -39,14 +41,14 @@ function M.filter()
     { key = "<q>", desc = "close" },
   }, false, false)
 
-  local config = commands.load_config("kubectl.json")
-  local history = config and config.filter_history and config.filter_history or {}
-  table.insert(header, "History:")
-  local headers_len = #header
-  for _, value in ipairs(history) do
-    table.insert(header, headers_len + 1, value)
+  local history = commands.load_config("kubectl_filter_history.json")
+  if history then
+    table.insert(header, "History:")
+    for _, value in ipairs(history) do
+      table.insert(header, value)
+    end
+    table.insert(header, "")
   end
-  table.insert(header, "")
 
   vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
