@@ -49,10 +49,6 @@ function M.setup()
     end
     M.ns = config.options.namespace
     M.filter = ""
-
-    vim.schedule(function()
-      commands.restore_session()
-    end)
   end)
 end
 
