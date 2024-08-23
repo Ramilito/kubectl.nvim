@@ -1,3 +1,4 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local views = require("kubectl.views")
@@ -94,6 +95,28 @@ function M.register()
     end,
   })
 
+  -- vim.api.nvim_buf_set_keymap(0, "n", "ge", "", {
+  --   noremap = true,
+  --   silent = true,
+  --   desc = "Edit resource",
+  --   callback = function()
+  --     local win_config = vim.api.nvim_win_get_config(0)
+  --     if win_config.relative == "" then
+  --       local string_utils = require("kubectl.utils.string")
+  --
+  --       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+  --       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+  --       if not view_ok then
+  --         view = require("kubectl.views.fallback")
+  --       end
+  --       local name, ns = view.getCurrentSelection()
+  --       if name then
+  --         pcall(view.Edit, name, ns)
+  --       end
+  --     end
+  --   end,
+  -- })
+
   vim.api.nvim_buf_set_keymap(0, "n", "ge", "", {
     noremap = true,
     silent = true,
@@ -105,13 +128,47 @@ function M.register()
 
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        -- local def_ok, definition =
+        --   pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)) .. ".definition")
+        -- if not def_ok or not view_ok then
         if not view_ok then
           view = require("kubectl.views.fallback")
+          -- definition = require("kubectl.views.fallback.definition")
         end
+
+        local resource = view.builder.resource
         local name, ns = view.getCurrentSelection()
-        if name then
-          pcall(view.Edit, name, ns)
-        end
+        local self = ResourceBuilder:new("edit_resource")
+          :setCmd({ "get", resource .. "/" .. name, "-n", ns, "-o", "yaml" }, "kubectl")
+          :fetch()
+
+        -- Save the resource data to a temporary file
+        local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
+        vim.print(tmpfilename)
+        local tmpfile = io.open(tmpfilename, "w+")
+        -- self.data is a table, convert it to a string
+        -- local resource_data = vim.fn.json_encode(self.data)
+        tmpfile:write(self.data)
+        tmpfile:close()
+        -- tmpfile:flush()
+        -- tmpfile:seek("set", 0)
+
+        -- Create a new ResourceBuilder instance
+        -- local resource_builder = ResourceBuilder:new("resource_name")
+        -- resource_builder:setData(resource_data)
+        --
+        -- -- Display the data in a new buffer
+        -- resource_builder:display("yaml", "Edit Resource")
+        --
+        -- -- Set an autocommand to update the resource when the buffer is closed
+        -- vim.api.nvim_create_autocmd("BufWritePost", {
+        --   buffer = 0,
+        --   callback = function()
+        --     -- Assume updateResource is a function that updates the resource with new data
+        --     local new_data = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        --     updateResource(table.concat(new_data, "\n"))
+        --   end,
+        -- })
       end
     end,
   })

@@ -38,7 +38,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  -- Only works _if_ their is only _one_ container and that image is the _same_ as the daemonset
+  -- Only works _if_ there is only _one_ container and that image is the _same_ as the daemonset
   api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
     noremap = true,
     silent = true,
