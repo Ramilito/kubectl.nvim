@@ -36,7 +36,6 @@ end
 
 function M.changeNamespace(name)
   state.ns = name
-  commands.save_config("kubectl.json", { session = { namespace = name } })
   if name ~= "All" then
     commands.shell_command("kubectl", { "config", "set-context", "--current", "--namespace=" .. name })
   end

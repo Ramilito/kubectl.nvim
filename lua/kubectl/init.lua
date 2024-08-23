@@ -28,7 +28,7 @@ function M.close()
   local win_config = vim.api.nvim_win_get_config(0)
 
   if ok and win_config.relative == "" then
-    commands.save_config("kubectl.json", { session = { view = buf_name } })
+    commands.save_config("kubectl.json", { session = { view = buf_name, namespace = state.ns } })
   end
 
   if win_config.relative == "" then
