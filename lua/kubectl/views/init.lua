@@ -117,7 +117,11 @@ function M.Aliases()
     { title = "Aliases", header = { data = {} }, suggestions = self.data }
   )
 
-  completion.with_completion(buf, self.data)
+  completion.with_completion(buf, self.data, function()
+    -- We reassign the cache since it can be slow to load
+    self.data = M.cached_api_resources.values
+    self:splitData():decodeJson()
+  end)
 
   vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })

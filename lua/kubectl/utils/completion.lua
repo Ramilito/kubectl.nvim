@@ -23,10 +23,6 @@ function M.with_completion(buf, data, callback)
       -- Filter suggestions based on input
       local filtered_suggestions = {}
 
-      -- We reassign the cache since it can be slow to load
-      -- self.data = M.cached_api_resources.values
-      -- self:splitData():decodeJson()
-
       for _, suggestion in pairs(data) do
         if suggestion.name:sub(1, #original_input) == original_input then
           table.insert(filtered_suggestions, suggestion.name)
@@ -45,6 +41,10 @@ function M.with_completion(buf, data, callback)
       else
         set_prompt(buf, original_input)
         current_suggestion_index = 0 -- Reset the index if no suggestions are available
+      end
+
+      if callback then
+        callback()
       end
       return ""
     end,
