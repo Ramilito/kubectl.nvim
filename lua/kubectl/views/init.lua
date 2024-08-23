@@ -111,19 +111,13 @@ function M.Aliases()
     { key = "<q>", desc = "close" },
   }, false, false)
 
-  local function update_prompt_with_suggestion(bufnr, suggestion)
-    local prompt = "% "
-    vim.api.nvim_buf_set_lines(bufnr, #header + 1, -1, false, { prompt .. suggestion })
-    vim.api.nvim_win_set_cursor(0, { #header, #prompt + #suggestion })
-  end
-
   local buf = buffers.aliases_buffer(
     "k8s_aliases",
     definition.on_prompt_input,
     { title = "Aliases", header = { data = {} }, suggestions = self.data }
   )
 
-  completion.with_completion(buf, self.data, update_prompt_with_suggestion)
+  completion.with_completion(buf, self.data)
 
   vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })

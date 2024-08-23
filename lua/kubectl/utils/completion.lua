@@ -2,6 +2,12 @@ local M = {}
 
 local original_input = ""
 local current_suggestion_index = 0
+local function set_prompt(bufnr, suggestion)
+  local row = vim.api.nvim_win_get_cursor(0)[1]
+  local prompt = "% "
+  vim.api.nvim_buf_set_lines(bufnr, row - 1, -1, false, { prompt .. suggestion })
+  vim.api.nvim_win_set_cursor(0, { row - 2, #prompt + #suggestion })
+end
 
 function M.with_completion(buf, data, callback)
   vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
@@ -31,13 +37,13 @@ function M.with_completion(buf, data, callback)
       if #filtered_suggestions > 0 then
         current_suggestion_index = current_suggestion_index + 1
         if current_suggestion_index >= #filtered_suggestions + 1 then
-          callback(buf, original_input)
+          set_prompt(buf, original_input)
           current_suggestion_index = 0 -- Reset the index if no suggestions are available
         else
-          callback(buf, filtered_suggestions[current_suggestion_index])
+          set_prompt(buf, filtered_suggestions[current_suggestion_index])
         end
       else
-        callback(buf, original_input)
+        set_prompt(buf, original_input)
         current_suggestion_index = 0 -- Reset the index if no suggestions are available
       end
       return ""
