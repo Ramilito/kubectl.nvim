@@ -196,11 +196,10 @@ function ResourceBuilder:sort()
         end
         if type(valueA) == "table" and type(valueB) == "table" then
           if valueA.timestamp and valueB.timestamp then
-            local p = "(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)Z"
-            local yearA, monthA, dayA, hourA, minA, secA = valueA.timestamp:match(p)
-            local yearB, monthB, dayB, hourB, minB, secB = valueB.timestamp:match(p)
-            local epochA = os.time({ day = dayA, month = monthA, year = yearA, hour = hourA, min = minA, sec = secA })
-            local epochB = os.time({ day = dayB, month = monthB, year = yearB, hour = hourB, min = minB, sec = secB })
+            local time_f = "%Y-%m-%dT%H:%M:%SZ"
+            local epochA = vim.fn.strptime(time_f, valueA.timestamp)
+            local epochB = vim.fn.strptime(time_f, valueB.timestamp)
+
             return comp(epochA, epochB)
           else
             return comp(tostring(valueA.value), tostring(valueB.value))
