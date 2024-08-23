@@ -155,6 +155,9 @@ function M.Aliases()
 
       -- Cycle through the suggestions
       if #filtered_suggestions > 0 then
+        table.sort(filtered_suggestions, function(a, b)
+          return #a < #b
+        end)
         current_suggestion_index = current_suggestion_index + 1
         if current_suggestion_index >= #filtered_suggestions + 1 then
           update_prompt_with_suggestion(buf, original_input)
