@@ -262,7 +262,7 @@ function M.floating_buffer(filetype, title, syntax)
 
   local win = layout.float_layout(buf, filetype, title or "")
   vim.keymap.set("n", "q", function()
-    vim.cmd("bdelete")
+    vim.cmd.close()
   end, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, win, filetype, syntax or filetype, bufname)
