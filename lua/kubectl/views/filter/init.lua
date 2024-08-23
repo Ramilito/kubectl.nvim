@@ -9,7 +9,7 @@ local function save_history(input)
   local config = commands.load_config("kubectl.json")
   local history_size = 5
 
-  local history = config and config.filter_history and config.filter_history or {}
+  local history = config and config.filter_history or {}
 
   local result = {}
   local exists = false
