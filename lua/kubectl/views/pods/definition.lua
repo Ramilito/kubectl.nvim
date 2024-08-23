@@ -38,9 +38,14 @@ local function getReady(row)
   return status
 end
 
+--- Get restarts as a symbol
+---@param containerStatuses table<table>
+---@param currentTime number
+---@return table
 local function getRestarts(containerStatuses, currentTime)
+  local restarts = { symbol = "", value = "0" }
   if not containerStatuses then
-    return 0
+    return restarts
   end
 
   local restartCount = 0
@@ -53,10 +58,14 @@ local function getRestarts(containerStatuses, currentTime)
     restartCount = restartCount + value.restartCount
   end
   if lastState then
-    return string.format("%d (%s ago)", restartCount, lastState.value)
+    restarts.value = string.format("%d (%s ago)", restartCount, lastState.value)
+    restarts.sort_by = restartCount
+    local symbol_color = restartCount > 1 and "Red" or "Green"
+    restarts.symbol = events.ColorStatus(symbol_color)
   else
-    return restartCount
+    restarts.value = tostring(restartCount)
   end
+  return restarts
 end
 
 local function checkInitContainerStatus(cs, count, initCount, restartable)

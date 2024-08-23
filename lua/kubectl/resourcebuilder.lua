@@ -194,25 +194,13 @@ function ResourceBuilder:sort()
             return x > y
           end
         end
-        if type(valueA) == "table" and type(valueB) == "table" then
-          if valueA.timestamp and valueB.timestamp then
-            local time_f = "%Y-%m-%dT%H:%M:%SZ"
-            local epochA = vim.fn.strptime(time_f, valueA.timestamp)
-            local epochB = vim.fn.strptime(time_f, valueB.timestamp)
-
-            return comp(epochA, epochB)
-          else
-            return comp(tostring(valueA.value), tostring(valueB.value))
-          end
+        local isSortByA = type(valueA) == "table" and valueA.sort_by
+        local isSortByB = type(valueB) == "table" and valueB.sort_by
+        if isSortByA and isSortByB then
+          return comp(epochA, epochB)
         elseif tonumber(valueA) and tonumber(valueB) then
           return comp(valueA, valueB)
         else
-          -- sort by restarts
-          local numA = tonumber(tostring(valueA):match("(%d+)%s+%(.+ago%)"))
-          local numB = tonumber(tostring(valueB):match("(%d+)%s+%(.+ago%)"))
-          if numA and numB then
-            return comp(numA, numB)
-          end
           return comp(tostring(valueA), tostring(valueB))
         end
       end
