@@ -45,7 +45,7 @@ function M.filter()
   if history then
     table.insert(header, "History:")
     for _, value in ipairs(history) do
-      table.insert(header, value)
+      table.insert(header, 2, value)
     end
     table.insert(header, "")
   end
