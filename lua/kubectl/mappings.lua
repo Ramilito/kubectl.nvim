@@ -95,28 +95,6 @@ function M.register()
     end,
   })
 
-  -- vim.api.nvim_buf_set_keymap(0, "n", "ge", "", {
-  --   noremap = true,
-  --   silent = true,
-  --   desc = "Edit resource",
-  --   callback = function()
-  --     local win_config = vim.api.nvim_win_get_config(0)
-  --     if win_config.relative == "" then
-  --       local string_utils = require("kubectl.utils.string")
-  --
-  --       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-  --       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-  --       if not view_ok then
-  --         view = require("kubectl.views.fallback")
-  --       end
-  --       local name, ns = view.getCurrentSelection()
-  --       if name then
-  --         pcall(view.Edit, name, ns)
-  --       end
-  --     end
-  --   end,
-  -- })
-
   vim.api.nvim_buf_set_keymap(0, "n", "ge", "", {
     noremap = true,
     silent = true,
@@ -147,17 +125,9 @@ function M.register()
           tmpfile:write(self.data)
           tmpfile:close()
         end
-        vim.cmd("edit " .. tmpfilename)
-        -- tmpfile:flush()
-        -- tmpfile:seek("set", 0)
 
-        -- Create a new ResourceBuilder instance
-        -- local resource_builder = ResourceBuilder:new("resource_name")
-        -- resource_builder:setData(resource_data)
-        -- -- Display the data in a new buffer
-        -- resource_builder:display("yaml", "Edit Resource")
-        --
-        -- -- Set an autocommand to update the resource when the buffer is closed
+        -- open the file
+        vim.cmd("edit " .. tmpfilename)
 
         vim.api.nvim_create_autocmd("BufWritePost", {
           pattern = tmpfilename,
@@ -166,26 +136,10 @@ function M.register()
               callback = function()
                 -- switch to the original buffer
                 vim.cmd("buffer " .. current_buf)
-                -- sleep
-                vim.cmd("sleep 100")
               end,
             })
           end,
         })
-
-        -- vim.api.nvim_create_autocmd("BufWinLeave", {
-        --   pattern = tmpfilename,
-        --   callback = function()
-        --     vim.cmd("buffer " .. )
-        --   end,
-        -- })
-        -- vim.api.nvim_create_autocmd("BufWritePost", {
-        --   buffer = 0,
-        --   callback = function()
-        --     local new_data = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-        --     updateResource(table.concat(new_data, "\n"))
-        --   end,
-        -- })
       end
     end,
   })
