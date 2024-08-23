@@ -201,7 +201,7 @@ function ResourceBuilder:sort()
             local yearB, monthB, dayB, hourB, minB, secB = valueB.timestamp:match(p)
             local epochA = os.time({ day = dayA, month = monthA, year = yearA, hour = hourA, min = minA, sec = secA })
             local epochB = os.time({ day = dayB, month = monthB, year = yearB, hour = hourB, min = minB, sec = secB })
-            return comp(tostring(epochA), tostring(epochB))
+            return comp(epochA, epochB)
           else
             return comp(tostring(valueA.value), tostring(valueB.value))
           end
