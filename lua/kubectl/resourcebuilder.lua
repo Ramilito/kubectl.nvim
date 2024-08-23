@@ -194,10 +194,12 @@ function ResourceBuilder:sort()
             return x > y
           end
         end
-        local isSortByA = type(valueA) == "table" and valueA.sort_by
-        local isSortByB = type(valueB) == "table" and valueB.sort_by
-        if isSortByA and isSortByB then
-          return comp(valueA.sort_by, valueB.sort_by)
+        if type(valueA) == "table" and type(valueB) == "table" then
+          if valueA.sort_by and valueB.sort_by then
+            return comp(valueA.sort_by, valueB.sort_by)
+          else
+            return comp(tostring(valueA.value), tostring(valueB.value))
+          end
         elseif tonumber(valueA) and tonumber(valueB) then
           return comp(valueA, valueB)
         else
