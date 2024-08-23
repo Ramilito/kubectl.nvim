@@ -133,6 +133,9 @@ function M.execute_terminal(cmd, args, opts)
   vim.cmd("startinsert")
 end
 
+--- Load kubectl.json config file from data dir
+---@param file_name string The filename to load
+---@return table|nil The content of the file
 function M.load_config(file_name)
   local file_path = vim.fn.stdpath("data") .. "/" .. file_name
   local file = io.open(file_path, "r")
@@ -147,7 +150,7 @@ function M.load_config(file_name)
   if ok then
     return decoded
   end
-  return { session = { view = "pods", namespace = "All" }, filter_history = {} }
+  return nil
 end
 
 --- Save to config file
