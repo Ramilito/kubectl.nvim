@@ -198,16 +198,6 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "0", "", {
-    noremap = true,
-    silent = true,
-    desc = "Root",
-    callback = function()
-      local view = require("kubectl.views.root")
-      view.View()
-    end,
-  })
-
   vim.api.nvim_buf_set_keymap(0, "n", "1", "", {
     noremap = true,
     silent = true,
