@@ -1,7 +1,5 @@
 local M = {}
 
-local original_input = ""
-local current_suggestion_index = 0
 local function set_prompt(bufnr, suggestion)
   local row = vim.api.nvim_win_get_cursor(0)[1]
   local prompt = "% "
@@ -10,6 +8,8 @@ local function set_prompt(bufnr, suggestion)
 end
 
 function M.with_completion(buf, data, callback)
+  local original_input = ""
+  local current_suggestion_index = 0
   vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
     noremap = true,
     callback = function()
