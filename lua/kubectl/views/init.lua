@@ -23,6 +23,9 @@ if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
       definition.process_apis("api", "", "v1", self.data, M.cached_api_resources)
     end)
 
+    if self.data.groups == nil then
+      return
+    end
     for _, group in ipairs(self.data.groups) do
       local group_name = group.name
       local group_version = group.preferredVersion.groupVersion

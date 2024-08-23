@@ -98,7 +98,7 @@ function M.on_prompt_input(input)
   local parsed_input = string.lower(string_utils.trim(input))
   local supported_view = nil
   for k, v in pairs(viewsTable) do
-    if find.is_in_table(v, parsed_input, true) then
+    if find.is_in_table(v, parsed_input) then
       supported_view = k
     end
   end
@@ -119,6 +119,9 @@ function M.on_prompt_input(input)
 end
 
 function M.process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
+  if not group_resources.resources then
+    return
+  end
   for _, resource in ipairs(group_resources.resources) do
     -- Skip if resource name contains '/status'
     if not string.find(resource.name, "/status") then
