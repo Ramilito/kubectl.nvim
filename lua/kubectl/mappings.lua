@@ -119,7 +119,7 @@ function M.register()
 
         -- Save the resource data to a temporary file
         local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
-        vim.print(tmpfilename)
+        vim.print("editing " .. tmpfilename)
         local tmpfile = io.open(tmpfilename, "w+")
         if tmpfile then
           tmpfile:write(self.data)
@@ -128,6 +128,25 @@ function M.register()
 
         -- open the file
         vim.cmd("edit " .. tmpfilename)
+
+        vim.api.nvim_buf_set_keymap(0, "c", "q", "", {
+          noremap = true,
+          silent = true,
+          desc = "Quit",
+          callback = function()
+            vim.cmd("buffer " .. current_buf)
+          end,
+        })
+
+        vim.api.nvim_buf_set_keymap(0, "c", "wq", "", {
+          noremap = true,
+          silent = true,
+          desc = "Quit",
+          callback = function()
+            vim.cmd.write()
+            vim.cmd("buffer " .. current_buf)
+          end,
+        })
 
         vim.api.nvim_create_autocmd("BufWritePost", {
           pattern = tmpfilename,
