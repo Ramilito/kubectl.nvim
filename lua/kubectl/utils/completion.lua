@@ -10,6 +10,7 @@ end
 function M.with_completion(buf, data, callback)
   local original_input = ""
   local current_suggestion_index = 0
+
   vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
     noremap = true,
     callback = function()
