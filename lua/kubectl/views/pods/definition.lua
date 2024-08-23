@@ -60,8 +60,8 @@ local function getRestarts(containerStatuses, currentTime)
   if lastState then
     restarts.value = string.format("%d (%s ago)", restartCount, lastState.value)
     restarts.sort_by = restartCount
-    local symbol_color = restartCount > 1 and "Red" or "Green"
-    restarts.symbol = events.ColorStatus(symbol_color)
+    local symbol_color = restartCount > 0 and events.ColorStatus("Yellow") or ""
+    restarts.symbol = symbol_color
   else
     restarts.value = tostring(restartCount)
   end
