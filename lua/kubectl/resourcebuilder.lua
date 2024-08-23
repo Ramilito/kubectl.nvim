@@ -210,6 +210,12 @@ function ResourceBuilder:sort()
         elseif tonumber(valueA) and tonumber(valueB) then
           return comp(valueA, valueB)
         else
+          -- sort by restarts
+          local numA = tonumber(tostring(valueA):match("(%d+)%s+%(.+ago%)"))
+          local numB = tonumber(tostring(valueB):match("(%d+)%s+%(.+ago%)"))
+          if numA and numB then
+            return comp(numA, numB)
+          end
           return comp(tostring(valueA), tostring(valueB))
         end
       end
