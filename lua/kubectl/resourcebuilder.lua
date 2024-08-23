@@ -195,8 +195,8 @@ function ResourceBuilder:sort()
           end
         end
         if type(valueA) == "table" and type(valueB) == "table" then
-          if valueA.timestamp and valueB.timestamp then
-            return comp(tostring(valueA.timestamp), tostring(valueB.timestamp))
+          if valueA.sort_by and valueB.sort_by then
+            return comp(valueA.sort_by, valueB.sort_by)
           else
             return comp(tostring(valueA.value), tostring(valueB.value))
           end
