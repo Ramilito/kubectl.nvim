@@ -28,7 +28,7 @@ function M.since(timestamp, fresh, currentTime)
   local minutes = math.floor((diff % 3600) / 60)
   local seconds = diff % 60
 
-  local status = { symbol = "", value = "", sort_by = parsed_time }
+  local status = { symbol = "", value = "", sort_by = tonumber(parsed_time) }
   if days > 365 then
     status.value = string.format("%dy", years)
   elseif days > 7 then
@@ -45,6 +45,7 @@ function M.since(timestamp, fresh, currentTime)
     status.symbol = success_symbol
   end
 
+  -- vim.print("status: " .. vim.inspect(status))
   return status
 end
 

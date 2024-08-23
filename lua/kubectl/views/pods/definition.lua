@@ -43,7 +43,7 @@ end
 ---@param currentTime number
 ---@return table
 local function getRestarts(containerStatuses, currentTime)
-  local restarts = { symbol = "", value = "0" }
+  local restarts = { symbol = "", value = "0", sort_by = 0 }
   if not containerStatuses then
     return restarts
   end

@@ -197,7 +197,7 @@ function ResourceBuilder:sort()
         local isSortByA = type(valueA) == "table" and valueA.sort_by
         local isSortByB = type(valueB) == "table" and valueB.sort_by
         if isSortByA and isSortByB then
-          return comp(epochA, epochB)
+          return comp(valueA.sort_by, valueB.sort_by)
         elseif tonumber(valueA) and tonumber(valueB) then
           return comp(valueA, valueB)
         else
