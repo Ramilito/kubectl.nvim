@@ -150,7 +150,9 @@ function M.register()
             if kubectl_edited[edited_name] then
               vim.notify("Edited. Applying changes")
               commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
-                vim.notify(apply_data, vim.log.levels.INFO)
+                vim.schedule(function()
+                  vim.notify(apply_data, vim.log.levels.INFO)
+                end)
               end)
             else
               vim.notify("Not Edited", vim.log.levels.WARN)
