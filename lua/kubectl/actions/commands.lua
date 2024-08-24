@@ -1,4 +1,3 @@
-local state = require("kubectl.state")
 local M = {}
 
 --- Execute a shell command synchronously

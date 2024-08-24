@@ -106,7 +106,7 @@ function M.set_session(buf_name, ns)
 end
 
 function M.restore_session()
-  local config = M.load_config("kubectl.json")
+  local config = commands.load_config("kubectl.json")
 
   -- change namespace
   M.ns = config and config.session and config.session.namespace or "All"
