@@ -218,7 +218,6 @@ function M.pretty_print(data, headers, sort_by)
   local tbl = {}
   local extmarks = {}
 
-  
   -- Create table header
   local header_line = {}
   if not sort_by or sort_by.current_word == "" then
@@ -264,7 +263,10 @@ function M.pretty_print(data, headers, sort_by)
         hl_group = nil
       end
 
-      local display_value = value .. "  " .. string.rep(" ", widths[col] - #value + 1) .. string.rep(" ", extra_padding - 2)
+      local display_value = value
+        .. "  "
+        .. string.rep(" ", widths[col] - #value + 1)
+        .. string.rep(" ", extra_padding - 2)
       table.insert(row_line, display_value)
 
       if hl_group then
