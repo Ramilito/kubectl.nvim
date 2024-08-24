@@ -1,3 +1,4 @@
+local commands = require("kubectl.actions.commands")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
@@ -7,6 +8,8 @@ M.context = {}
 M.ns = ""
 ---@type string
 M.filter = ""
+---@type string[]
+M.filter_history = {}
 ---@type string
 M.proxyUrl = ""
 ---@type table
@@ -18,6 +21,8 @@ M.marks = { ns_id = 0, header = {} }
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
+---@type table
+M.session = { view = "pods", namespace = "All", filter_history = {} }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -35,7 +40,6 @@ end
 
 --- Setup the kubectl state
 function M.setup()
-  local commands = require("kubectl.actions.commands")
   local config = require("kubectl.config")
 
   for k, _ in pairs(viewsTable) do
@@ -47,8 +51,12 @@ function M.setup()
     if result then
       M.context = result
     end
-    M.ns = config.options.namespace
+    M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
+  end)
+
+  vim.schedule(function()
+    M.restore_session()
   end)
 end
 
@@ -92,6 +100,39 @@ end
 --- @param ns string The namespace to set
 function M.setNS(ns)
   M.ns = ns
+end
+
+function M.set_session()
+  local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+
+  if ok then
+    M.session.view = buf_name
+  end
+  M.session.namespace = M.ns
+  M.session.filter_history = M.filter_history
+  commands.save_config("kubectl.json", M.session)
+end
+
+function M.restore_session()
+  local config = commands.load_config("kubectl.json")
+
+  if config then
+    M.session = config
+  end
+
+  -- Restore state
+  M.ns = M.session.namespace
+  M.filter_history = M.session.filter_history
+
+  -- change view
+  local session_view = M.session.view
+  local ok, view = pcall(require, "kubectl.views." .. string.lower(session_view))
+  if ok then
+    view.View()
+  else
+    local pod_view = require("kubectl.views.pods")
+    pod_view.View()
+  end
 end
 
 return M

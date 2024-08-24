@@ -1,4 +1,3 @@
-local state = require("kubectl.state")
 local M = {}
 
 --- Execute a shell command synchronously
@@ -169,23 +168,6 @@ function M.save_config(file_name, data)
     end
   end
   return ok
-end
-
-function M.restore_session()
-  local config = M.load_config("kubectl.json")
-
-  -- change namespace
-  state.ns = config and config.session and config.session.namespace or "All"
-
-  -- change view
-  local session_view = config and config.session and config.session.view or "pods"
-  local ok, view = pcall(require, "kubectl.views." .. string.lower(session_view))
-  if ok then
-    view.View()
-  else
-    local pod_view = require("kubectl.views.pods")
-    pod_view.View()
-  end
 end
 
 return M
