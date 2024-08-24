@@ -50,6 +50,9 @@ function M.setup()
     M.ns = config.options.namespace
     M.filter = ""
   end)
+  vim.schedule(function()
+    M.restore_session()
+  end)
 end
 
 --- Get the current context
@@ -92,6 +95,23 @@ end
 --- @param ns string The namespace to set
 function M.setNS(ns)
   M.ns = ns
+end
+
+function M.restore_session()
+  local config = M.load_config("kubectl.json")
+
+  -- change namespace
+  M.ns = config and config.session and config.session.namespace or "All"
+
+  -- change view
+  local session_view = config and config.session and config.session.view or "pods"
+  local ok, view = pcall(require, "kubectl.views." .. string.lower(session_view))
+  if ok then
+    view.View()
+  else
+    local pod_view = require("kubectl.views.pods")
+    pod_view.View()
+  end
 end
 
 return M
