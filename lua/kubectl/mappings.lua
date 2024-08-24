@@ -127,38 +127,34 @@ function M.register()
         end
 
         -- open the file
-        vim.cmd("edit " .. tmpfilename)
+        vim.cmd.vsplit(tmpfilename)
 
-        vim.api.nvim_buf_set_keymap(0, "c", "q", "", {
-          noremap = true,
-          silent = true,
-          desc = "Quit",
+        local edited_name = string.format("%s-%s-%s", resource, name, ns)
+        local kubectl_edited = {}
+        vim.api.nvim_create_autocmd({ "BufWritePre" }, {
+          buffer = 0,
+          group = group,
           callback = function()
-            vim.notify('did not save the file')
-            vim.cmd.buffer(current_buf)
+            local modified = vim.api.nvim_get_option_value("modified", { buf = buf })
+            if not kubectl_edited then
+              kubectl_edited = { [edited_name] = modified }
+            else
+              kubectl_edited[edited_name] = modified
+            end
           end,
         })
-
-        vim.api.nvim_buf_set_keymap(0, "c", "wq", ":w|bwipeout|buffer " .. current_buf .. "<CR>", {
-          noremap = true,
-          silent = true,
-          desc = "Quit",
-          -- callback = function()
-          --   vim.notify('saved the file')
-          --   vim.cmd.write()
-          --   vim.cmd.buffer(current_buf)
-          -- end,
-        })
-
-        vim.api.nvim_create_autocmd("BufWritePost", {
-          pattern = tmpfilename,
+        vim.api.nvim_create_autocmd("QuitPre", {
+          buffer = 0,
+          group = group,
           callback = function()
-            vim.api.nvim_create_autocmd("QuitPre", {
-              callback = function()
-                -- switch to the original buffer
-                vim.cmd("buffer " .. current_buf)
-              end,
-            })
+            if kubectl_edited[edited_name] then
+              vim.notify("Edited. Applying changes")
+              commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
+                vim.notify(apply_data, vim.log.levels.INFO)
+              end)
+            else
+              vim.notify("Not Edited")
+            end
           end,
         })
       end
