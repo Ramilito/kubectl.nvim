@@ -8,6 +8,8 @@ M.context = {}
 M.ns = ""
 ---@type string
 M.filter = ""
+---@type string[]
+M.filter_history = {}
 ---@type string
 M.proxyUrl = ""
 ---@type table
@@ -20,7 +22,7 @@ M.marks = { ns_id = 0, header = {} }
 M.sortby = {}
 M.sortby_old = { current_word = "" }
 ---@type table
-M.session = { view = "Pods", namespace = "All" }
+M.session = { view = "pods", namespace = "All", filter_history = { "" } }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -38,7 +40,6 @@ end
 
 --- Setup the kubectl state
 function M.setup()
-  local commands = require("kubectl.actions.commands")
   local config = require("kubectl.config")
 
   for k, _ in pairs(viewsTable) do
@@ -101,18 +102,30 @@ function M.setNS(ns)
   M.ns = ns
 end
 
-function M.set_session(buf_name, ns)
-  commands.save_config("kubectl.json", { session = { view = buf_name, namespace = ns } })
+function M.set_session()
+  local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+
+  if ok then
+    M.session.view = buf_name
+  end
+  M.session.namespace = M.ns
+  M.session.filter_history = M.filter_history
+  commands.save_config("kubectl.json", M.session)
 end
 
 function M.restore_session()
   local config = commands.load_config("kubectl.json")
 
-  -- change namespace
-  M.ns = config and config.session and config.session.namespace or "All"
+  if config then
+    M.session = config
+  end
+
+  -- Restore state
+  M.ns = M.session.namespace
+  M.filter_history = M.session.filter_history
 
   -- change view
-  local session_view = config and config.session and config.session.view or "pods"
+  local session_view = M.session.view
   local ok, view = pcall(require, "kubectl.views." .. string.lower(session_view))
   if ok then
     view.View()

@@ -23,12 +23,7 @@ function M.close()
 
   if win_config.relative == "" then
     local kube = require("kubectl.actions.kube")
-    local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-
-    if ok then
-      commands.save_config("kubectl.json", { session = { view = buf_name, namespace = state.ns } })
-    end
-
+    state.set_session()
     kube.stop_kubectl_proxy()()
     informer.stop()
   end
@@ -117,10 +112,8 @@ end
 
 vim.api.nvim_create_autocmd("VimLeavePre", {
   callback = function()
-    local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-    if ok then
-      commands.save_config("kubectl.json", { session = { view = buf_name, namespace = state.ns } })
-    end
+    -- TODO: do we need to save session here or is it enough to do it when M.close is called?
+    state.set_session()
   end,
 })
 
