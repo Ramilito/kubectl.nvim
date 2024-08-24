@@ -21,7 +21,7 @@ function M.processRow(rows)
 
   if rows and rows.items then
     for _, row in pairs(rows.items) do
-      local job = {
+      local cronjob = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         schedule = row.spec.schedule,
@@ -34,7 +34,7 @@ function M.processRow(rows)
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
-      table.insert(data, job)
+      table.insert(data, cronjob)
     end
   end
   return data

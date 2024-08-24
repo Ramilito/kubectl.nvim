@@ -22,8 +22,10 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go to pods",
     callback = function()
-      local name, ns = cronjob_view.getCurrentSelection()
-      view.set_and_open_view_by_selector("jobs", "cronjobs", name, ns)
+      local name = cronjob_view.getCurrentSelection()
+      local job_view = require("kubectl.views.jobs")
+      -- job_view.View(nil, name)
+      job_view.View(nil, name)
     end,
   })
 
@@ -42,7 +44,7 @@ local function set_keymaps(bufnr)
     desc = "Create job from cronjob",
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
-      vim.ui.input({ prompt = "New cronjob name " }, function(input)
+      vim.ui.input({ prompt = "New job name " }, function(input)
         if not input or input == "" then
           return
         end
