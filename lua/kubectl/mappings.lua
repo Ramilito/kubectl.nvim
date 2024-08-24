@@ -130,7 +130,7 @@ function M.register()
 
         local edited_name = string.format("%s-%s-%s", resource, name, ns)
         local kubectl_edited = {}
-        local group = vim.api.nvim_create_namespace("kubectl_edited")
+        local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
         vim.api.nvim_create_autocmd({ "BufWritePre" }, {
           buffer = 0,
           group = group,
