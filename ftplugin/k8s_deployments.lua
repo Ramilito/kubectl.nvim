@@ -32,10 +32,8 @@ local function set_keymaps(bufnr)
       local current_url = pod_definition.url[1]
       local original_query_params = current_url:match("%?(.+)")
       local url_no_query_params = current_url:match("(.+)%?")
-      local selectors_raw = commands.execute_shell_command("kubectl", get_selectors)
-      local selectors = vim.fn.json_decode(selectors_raw)
       local selectors_list = {}
-      for key, value in pairs(selectors) do
+      for key, value in pairs(vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))) do
         table.insert(selectors_list, { key = encode(key), value = encode(value) })
       end
       local label_selector = "?labelSelector="
@@ -51,8 +49,8 @@ local function set_keymaps(bufnr)
         .. (original_query_params and ("&" .. original_query_params) or "")
 
       pod_definition.url = { new_url }
-
       pod_view.View()
+      pod_definition.url = { current_url }
     end,
   })
 
