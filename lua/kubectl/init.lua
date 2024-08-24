@@ -14,24 +14,16 @@ function M.open()
   hl.setup()
   kube.startProxy(function()
     state.setup()
-    vim.schedule(function()
-      commands.restore_session()
-    end)
   end)
 end
 
 function M.close()
-  local kube = require("kubectl.actions.kube")
-  local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-
   -- Only stop proxy and save session if not a floating buffer
   local win_config = vim.api.nvim_win_get_config(0)
 
-  if ok and win_config.relative == "" then
-    commands.save_config("kubectl.json", { session = { view = buf_name, namespace = state.ns } })
-  end
-
   if win_config.relative == "" then
+    local kube = require("kubectl.actions.kube")
+    state.set_session()
     kube.stop_kubectl_proxy()()
     informer.stop()
   end
@@ -120,10 +112,8 @@ end
 
 vim.api.nvim_create_autocmd("VimLeavePre", {
   callback = function()
-    local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-    if ok then
-      commands.save_config("kubectl.json", { session = { view = buf_name, namespace = state.ns } })
-    end
+    -- TODO: do we need to save session here or is it enough to do it when M.close is called?
+    state.set_session()
   end,
 })
 

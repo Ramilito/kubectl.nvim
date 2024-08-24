@@ -1,15 +1,12 @@
 local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
 
 local function save_history(input)
-  local config = commands.load_config("kubectl.json")
+  local history = state.filter_history
   local history_size = 5
-
-  local history = config and config.filter_history or {}
 
   local result = {}
   local exists = false
@@ -29,7 +26,7 @@ local function save_history(input)
     end
   end
 
-  commands.save_config("kubectl.json", { filter_history = result })
+  state.filter_history = result
 end
 
 function M.filter()
@@ -39,11 +36,9 @@ function M.filter()
     { key = "<q>", desc = "close" },
   }, false, false)
 
-  local config = commands.load_config("kubectl.json")
-  local history = config and config.filter_history and config.filter_history or {}
   table.insert(header, "History:")
   local headers_len = #header
-  for _, value in ipairs(history) do
+  for _, value in ipairs(state.filter_history) do
     table.insert(header, headers_len + 1, value)
   end
   table.insert(header, "")
