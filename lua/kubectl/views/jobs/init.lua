@@ -9,6 +9,7 @@ local M = {
 }
 
 function M.View(cancellationToken)
+  vim.print('viewing jobs')
   if M.builder then
     M.builder = M.builder:view(definition, cancellationToken)
   else
@@ -21,6 +22,7 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(name, ns)
+  vim.print('drawing jobs')
   ResourceBuilder:new("desc")
     :displayFloat("k8s_job_desc", name, "yaml")
     :setCmd({ "describe", "job", name, "-n", ns })

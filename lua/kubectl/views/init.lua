@@ -150,42 +150,6 @@ function M.PortForwards()
   end, { buffer = self.buf_nr, silent = true })
 end
 
-function M.set_and_open_view_by_selector(view_name, kind, name, ns)
-  local get_selectors = { "get", kind, name, "-n", ns, "-o", 'jsonpath="{.spec.selector.matchLabels}"' }
-
-  local view = require("kubectl.views." .. view_name)
-  local view_definition = require("kubectl.views." .. view_name .. ".definition")
-  local original_url = view_definition.url[1]
-  local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
-  local selectors_list = {}
-  for key, value in pairs(vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))) do
-    table.insert(selectors_list, { key = encode(key), value = encode(value) })
-  end
-  local label_selector = "?labelSelector="
-    .. vim.fn.join(
-      vim.tbl_map(function(item)
-        return item.key .. "%3D" .. item.value
-      end, selectors_list),
-      "%2C"
-    )
-
-  local new_url = url_no_query_params .. label_selector .. "&" .. original_query_params
-
-  view_definition.url = { new_url }
-  vim.notify(
-    string.format(
-      "Loading %s for %s: %s in namespace: %s\nRefresh the view to see all %s",
-      view_name,
-      kind,
-      name,
-      ns,
-      view_name
-    )
-  )
-  view.View()
-  view_definition.url = { original_url }
-end
-
 --- Execute a user command and handle the response
 ---@param args table
 function M.UserCmd(args)
