@@ -134,18 +134,20 @@ function M.register()
           silent = true,
           desc = "Quit",
           callback = function()
-            vim.cmd("buffer " .. current_buf)
+            vim.notify('did not save the file')
+            vim.cmd.buffer(current_buf)
           end,
         })
 
-        vim.api.nvim_buf_set_keymap(0, "c", "wq", "", {
+        vim.api.nvim_buf_set_keymap(0, "c", "wq", ":w|bwipeout|buffer " .. current_buf .. "<CR>", {
           noremap = true,
           silent = true,
           desc = "Quit",
-          callback = function()
-            vim.cmd.write()
-            vim.cmd("buffer " .. current_buf)
-          end,
+          -- callback = function()
+          --   vim.notify('saved the file')
+          --   vim.cmd.write()
+          --   vim.cmd.buffer(current_buf)
+          -- end,
         })
 
         vim.api.nvim_create_autocmd("BufWritePost", {
