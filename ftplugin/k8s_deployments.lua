@@ -29,9 +29,9 @@ local function set_keymaps(bufnr)
       local get_selectors = "get deploy " .. name .. " -n " .. ns .. ' -o jsonpath="{.spec.selector.matchLabels}"'
 
       local pod_definition = require("kubectl.views.pods.definition")
-      local current_url = pod_definition.url[1]
-      local original_query_params = current_url:match("%?(.+)")
-      local url_no_query_params = current_url:match("(.+)%?")
+      local original_url = pod_definition.url[1]
+      local original_query_params = original_url:match("%?(.+)")
+      local url_no_query_params = original_url:match("(.+)%?")
       local selectors_list = {}
       for key, value in pairs(vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))) do
         table.insert(selectors_list, { key = encode(key), value = encode(value) })
@@ -50,7 +50,7 @@ local function set_keymaps(bufnr)
 
       pod_definition.url = { new_url }
       pod_view.View()
-      pod_definition.url = { current_url }
+      pod_definition.url = { original_url }
     end,
   })
 
