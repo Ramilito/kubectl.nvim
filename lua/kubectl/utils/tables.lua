@@ -218,20 +218,24 @@ function M.pretty_print(data, headers, sort_by)
   local tbl = {}
   local extmarks = {}
 
+  
   -- Create table header
   local header_line = {}
   if not sort_by or sort_by.current_word == "" then
     sort_by = { current_word = headers[1], order = "asc" }
   end
+
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    local value = header .. string.rep(" ", column_width - #header + 1) .. string.rep(" ", extra_padding)
+    -- "  " is to add space for sort icon
+    -- -2 on extra_padding is to remove the space mentioned above
+    local value = header .. "  " .. string.rep(" ", column_width - #header + 1) .. string.rep(" ", extra_padding - 2)
     table.insert(header_line, value)
     if header == sort_by.current_word then
       table.insert(extmarks, {
         row = 0,
-        start_col = #table.concat(header_line, "") - #value + #header,
-        virt_text = { { (sort_by.order == "asc" and " ▲" or " ▼"), hl.symbols.header } },
+        start_col = #table.concat(header_line, "") - #value + #header + 1,
+        virt_text = { { (sort_by.order == "asc" and "▲" or "▼"), hl.symbols.header } },
         virt_text_pos = "overlay",
       })
     end
@@ -260,7 +264,7 @@ function M.pretty_print(data, headers, sort_by)
         hl_group = nil
       end
 
-      local display_value = value .. string.rep(" ", widths[col] - #value + 1) .. string.rep(" ", extra_padding)
+      local display_value = value .. "  " .. string.rep(" ", widths[col] - #value + 1) .. string.rep(" ", extra_padding - 2)
       table.insert(row_line, display_value)
 
       if hl_group then
