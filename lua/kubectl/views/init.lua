@@ -1,11 +1,9 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local encode = require("kubectl.utils.url").encode
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.definition")
 local hl = require("kubectl.actions.highlight")
-local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -171,6 +169,8 @@ end
 function M.set_and_open_pod_selector(kind, name, ns)
   local get_selectors = { "get", kind, name, "-n", ns, "-o", 'jsonpath="{.spec.selector.matchLabels}"' }
 
+  local encode = require("kubectl.utils.url").encode
+  local pod_view = require("kubectl.views.pods")
   local pod_definition = require("kubectl.views.pods.definition")
   local original_url = pod_definition.url[1]
   local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
