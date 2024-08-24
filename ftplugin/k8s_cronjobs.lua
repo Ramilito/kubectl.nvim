@@ -23,7 +23,7 @@ local function set_keymaps(bufnr)
     desc = "Go to pods",
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
-      view.set_and_open_pod_selector("cronjobs", name, ns)
+      view.set_and_open_view_by_selector("jobs", "cronjobs", name, ns)
     end,
   })
 
