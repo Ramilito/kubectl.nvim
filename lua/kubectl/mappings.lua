@@ -103,9 +103,8 @@ function M.register()
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative == "" then
         local string_utils = require("kubectl.utils.string")
-        local current_buf = vim.api.nvim_get_current_buf()
 
-        local _, buf_name = pcall(vim.api.nvim_buf_get_var, current_buf, "buf_name")
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
         if not view_ok then
           view = require("kubectl.views.fallback")
@@ -154,7 +153,7 @@ function M.register()
                 vim.notify(apply_data, vim.log.levels.INFO)
               end)
             else
-              vim.notify("Not Edited")
+              vim.notify("Not Edited", vim.log.levels.WARN)
             end
           end,
         })
