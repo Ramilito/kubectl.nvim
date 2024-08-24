@@ -1,11 +1,9 @@
 local api = vim.api
-local encode = require("kubectl.utils.url").encode
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
-local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
 
@@ -26,29 +24,7 @@ local function set_keymaps(bufnr)
     desc = "Go to pods",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      local get_selectors = "get deploy " .. name .. " -n " .. ns .. ' -o jsonpath="{.spec.selector.matchLabels}"'
-
-      local pod_definition = require("kubectl.views.pods.definition")
-      local original_url = pod_definition.url[1]
-      local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
-      local selectors_list = {}
-      for key, value in pairs(vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))) do
-        table.insert(selectors_list, { key = encode(key), value = encode(value) })
-      end
-      local label_selector = "?labelSelector="
-        .. vim.fn.join(
-          vim.tbl_map(function(item)
-            return item.key .. "%3D" .. item.value
-          end, selectors_list),
-          "%2C"
-        )
-
-      local new_url = url_no_query_params .. label_selector .. "&" .. original_query_params
-
-      pod_definition.url = { new_url }
-      vim.notify("Loading pods for deployment: " .. name .. " in namespace: " .. ns .. "\nRefresh the view to see all pods")
-      pod_view.View()
-      pod_definition.url = { original_url }
+      view.set_and_open_pod_selector("deployments", name, ns)
     end,
   })
 

@@ -25,7 +25,8 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go to pods",
     callback = function()
-      pod_view.View()
+      local name, ns = daemonset_view.getCurrentSelection()
+      view.set_and_open_pod_selector("daemonsets", name, ns)
     end,
   })
 
