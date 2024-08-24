@@ -1,6 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
@@ -17,6 +18,15 @@ function M.View()
     vim.schedule(function()
       self.buf_nr = buf
       self:process(definition.processRow):prettyPrint(definition.getHeaders):setContent()
+
+      local list = {}
+      for _, value in ipairs(self.processedData) do
+        if value.name.value then
+          table.insert(list, { name = value.name.value })
+        end
+      end
+      completion.with_completion(buf, list)
+
       vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
         noremap = true,
         callback = function()

@@ -23,6 +23,20 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
+local function calculate_extra_padding(widths, headers)
+  local win = vim.api.nvim_get_current_win()
+  local win_width = vim.api.nvim_win_get_width(win)
+  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
+  local total_width = 0
+
+  for key, value in pairs(widths) do
+    local max_width = math.max(#key, value)
+    total_width = total_width + max_width
+    widths[key] = max_width
+  end
+  return math.max((text_width - total_width) / #headers - 1, 0)
+end
+
 --- Add a mark to the extmarks table
 ---@param extmarks table[]
 ---@param row number
@@ -194,10 +208,13 @@ function M.pretty_print(data, headers, sort_by)
   end
 
   local widths = calculate_column_widths(data, columns)
+
+  -- adjust for headers being longer than max length content
   for key, value in pairs(widths) do
     widths[key] = math.max(#key, value)
   end
 
+  local extra_padding = calculate_extra_padding(widths, headers)
   local tbl = {}
   local extmarks = {}
 
@@ -208,9 +225,8 @@ function M.pretty_print(data, headers, sort_by)
   end
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    local value = header .. "  " .. string.rep(" ", column_width - #header + 1)
+    local value = header .. string.rep(" ", column_width - #header + 1) .. string.rep(" ", extra_padding)
     table.insert(header_line, value)
-
     if header == sort_by.current_word then
       table.insert(extmarks, {
         row = 0,
@@ -244,7 +260,7 @@ function M.pretty_print(data, headers, sort_by)
         hl_group = nil
       end
 
-      local display_value = value .. "  " .. string.rep(" ", widths[col] - #value + 1)
+      local display_value = value .. string.rep(" ", widths[col] - #value + 1) .. string.rep(" ", extra_padding)
       table.insert(row_line, display_value)
 
       if hl_group then
