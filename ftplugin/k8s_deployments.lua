@@ -1,4 +1,5 @@
 local api = vim.api
+local encode = require("kubectl.utils.url").encode
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.deployments.definition")
@@ -24,6 +25,33 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go to pods",
     callback = function()
+      local name, ns = deployment_view.getCurrentSelection()
+      local get_selectors = "get deploy " .. name .. " -n " .. ns .. ' -o jsonpath="{.spec.selector.matchLabels}"'
+
+      local pod_definition = require("kubectl.views.pods.definition")
+      local current_url = pod_definition.url[1]
+      local original_query_params = current_url:match("%?(.+)")
+      local url_no_query_params = current_url:match("(.+)%?")
+      local selectors_raw = commands.execute_shell_command("kubectl", get_selectors)
+      local selectors = vim.fn.json_decode(selectors_raw)
+      local selectors_list = {}
+      for key, value in pairs(selectors) do
+        table.insert(selectors_list, { key = encode(key), value = encode(value) })
+      end
+      local label_selector = "?labelSelector="
+        .. vim.fn.join(
+          vim.tbl_map(function(item)
+            return item.key .. "%3D" .. item.value
+          end, selectors_list),
+          "%2C"
+        )
+
+      local new_url = url_no_query_params
+        .. label_selector
+        .. (original_query_params and ("&" .. original_query_params) or "")
+
+      pod_definition.url = { new_url }
+
       pod_view.View()
     end,
   })
