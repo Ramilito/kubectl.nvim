@@ -30,8 +30,7 @@ local function set_keymaps(bufnr)
 
       local pod_definition = require("kubectl.views.pods.definition")
       local original_url = pod_definition.url[1]
-      local original_query_params = original_url:match("%?(.+)")
-      local url_no_query_params = original_url:match("(.+)%?")
+      local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
       local selectors_list = {}
       for key, value in pairs(vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))) do
         table.insert(selectors_list, { key = encode(key), value = encode(value) })
