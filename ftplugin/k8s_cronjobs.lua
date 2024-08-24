@@ -20,7 +20,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
-    desc = "Go to pods",
+    desc = "Go to jobs",
     callback = function()
       local name = cronjob_view.getCurrentSelection()
       local job_view = require("kubectl.views.jobs")
