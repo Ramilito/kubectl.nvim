@@ -22,7 +22,7 @@ M.marks = { ns_id = 0, header = {} }
 M.sortby = {}
 M.sortby_old = { current_word = "" }
 ---@type table
-M.session = { view = "pods", namespace = "All", filter_history = { "" } }
+M.session = { view = "pods", namespace = "All", filter_history = {} }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -51,7 +51,7 @@ function M.setup()
     if result then
       M.context = result
     end
-    M.ns = config.options.namespace
+    M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
   end)
 
