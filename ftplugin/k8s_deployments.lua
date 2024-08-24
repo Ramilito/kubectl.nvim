@@ -43,11 +43,10 @@ local function set_keymaps(bufnr)
           "%2C"
         )
 
-      local new_url = url_no_query_params
-        .. label_selector
-        .. (original_query_params and ("&" .. original_query_params) or "")
+      local new_url = url_no_query_params .. label_selector .. "&" .. original_query_params
 
       pod_definition.url = { new_url }
+      vim.notify("Loading pods for deployment: " .. name .. " in namespace: " .. ns .. "\nRefresh the view to see all pods")
       pod_view.View()
       pod_definition.url = { original_url }
     end,
