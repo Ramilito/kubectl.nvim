@@ -131,11 +131,12 @@ function M.register()
 
         local edited_name = string.format("%s-%s-%s", resource, name, ns)
         local kubectl_edited = {}
+        local group = vim.api.nvim_create_namespace("kubectl_edited")
         vim.api.nvim_create_autocmd({ "BufWritePre" }, {
           buffer = 0,
           group = group,
           callback = function()
-            local modified = vim.api.nvim_get_option_value("modified", { buf = buf })
+            local modified = vim.api.nvim_get_option_value("modified", { buf = 0 })
             if not kubectl_edited then
               kubectl_edited = { [edited_name] = modified }
             else
