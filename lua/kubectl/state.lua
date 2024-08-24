@@ -1,3 +1,4 @@
+local commands = require("kubectl.actions.commands")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
@@ -18,6 +19,8 @@ M.marks = { ns_id = 0, header = {} }
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
+---@type table
+M.session = { view = "Pods", namespace = "All" }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -50,6 +53,7 @@ function M.setup()
     M.ns = config.options.namespace
     M.filter = ""
   end)
+
   vim.schedule(function()
     M.restore_session()
   end)
@@ -95,6 +99,10 @@ end
 --- @param ns string The namespace to set
 function M.setNS(ns)
   M.ns = ns
+end
+
+function M.set_session(buf_name, ns)
+  commands.save_config("kubectl.json", { session = { view = buf_name, namespace = ns } })
 end
 
 function M.restore_session()
