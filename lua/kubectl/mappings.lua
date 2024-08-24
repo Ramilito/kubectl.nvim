@@ -82,9 +82,9 @@ function M.register()
         local string_utils = require("kubectl.utils.string")
 
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
         local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
         if ok then
-          vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
           pcall(view.View)
         else
           view = require("kubectl.views.fallback")
