@@ -1,3 +1,4 @@
+local state = require("kubectl.state")
 local M = {}
 
 --- Execute a shell command synchronously
@@ -132,6 +133,9 @@ function M.execute_terminal(cmd, args, opts)
   vim.cmd("startinsert")
 end
 
+--- Load kubectl.json config file from data dir
+---@param file_name string The filename to load
+---@return table|nil The content of the file
 function M.load_config(file_name)
   local file_path = vim.fn.stdpath("data") .. "/" .. file_name
   local file = io.open(file_path, "r")
@@ -153,7 +157,9 @@ end
 --- @param file_name string The filename to save
 --- @param data table The content to save
 function M.save_config(file_name, data)
-  local ok, encoded = pcall(vim.json.encode, data)
+  local config = M.load_config("kubectl.json") or {}
+  local merged = vim.tbl_deep_extend("force", config, data)
+  local ok, encoded = pcall(vim.json.encode, merged)
   if ok then
     local file_path = vim.fn.stdpath("data") .. "/" .. file_name
     local file = io.open(file_path, "w")
@@ -166,15 +172,16 @@ function M.save_config(file_name, data)
 end
 
 function M.restore_session()
-  local session = M.load_config("kubectl.session.json")
-  if session then
-    local ok, view = pcall(require, "kubectl.views." .. string.lower(session.view))
-    if ok then
-      view.View()
-    else
-      local pod_view = require("kubectl.views.pods")
-      pod_view.View()
-    end
+  local config = M.load_config("kubectl.json")
+
+  -- change namespace
+  state.ns = config and config.session and config.session.namespace or "All"
+
+  -- change view
+  local session_view = config and config.session and config.session.view or "pods"
+  local ok, view = pcall(require, "kubectl.views." .. string.lower(session_view))
+  if ok then
+    view.View()
   else
     local pod_view = require("kubectl.views.pods")
     pod_view.View()
