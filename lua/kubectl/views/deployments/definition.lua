@@ -21,7 +21,7 @@ function M.processRow(rows)
 
   if rows and rows.items then
     for _, row in pairs(rows.items) do
-      local pod = {
+      local deployment = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         ready = M.getReady(row),
@@ -30,7 +30,7 @@ function M.processRow(rows)
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
-      table.insert(data, pod)
+      table.insert(data, deployment)
     end
   end
   return data
