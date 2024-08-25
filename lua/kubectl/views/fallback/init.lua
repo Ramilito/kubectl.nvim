@@ -53,7 +53,7 @@ function M.View(cancellationToken, resource)
     definition.cmd = "curl"
   end
 
-  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
+  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
@@ -68,7 +68,7 @@ end
 function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_fallback_desc", name, "yaml")
-    :setCmd({ "describe", M.resource, name, "-n", ns })
+    :setCmd({ "describe", M.resource .. "/" .. name, "-n", ns })
     :fetch()
     :splitData()
     :setContentRaw()
