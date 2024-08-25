@@ -113,9 +113,15 @@ function M.register()
         local resource = view.builder.resource
         local name, ns = view.getCurrentSelection()
         if name then
+          local args = { "get", resource .. "/" .. name, "-o", "yaml" }
+          if ns and ns ~= "nil" then
+            table.insert(args, "-n")
+            table.insert(args, ns)
+          end
+
           local builder = ResourceBuilder:new("edit_resource")
             :displayFloat("k8s_edit", name, "yaml")
-            :setCmd({ "get", resource .. "/" .. name, "-n", ns, "-o", "yaml" }, "kubectl")
+            :setCmd(args, "kubectl")
             :fetch()
             :splitData()
             :setContentRaw()
