@@ -99,6 +99,9 @@ function M.ColorStatus(status)
     True = true,
   }
 
+  if type(status) ~= "string" then
+    return ""
+  end
   local capitalized = status:gsub("^%l", string.upper)
   if errorStatuses[capitalized] then
     return hl.symbols.error
