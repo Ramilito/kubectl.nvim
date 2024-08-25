@@ -167,6 +167,9 @@ function M.UserCmd(args)
 end
 
 function M.set_and_open_pod_selector(kind, name, ns)
+  if not kind or not name or not ns then
+    return
+  end
   local get_selectors = { "get", kind, name, "-n", ns, "-o", 'jsonpath="{.spec.selector.matchLabels}"' }
 
   local encode = require("kubectl.utils.url").encode
