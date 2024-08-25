@@ -50,9 +50,10 @@ function M.getHeaders()
 end
 
 function M.getReady(row)
-  local status = { symbol = "", value = "" }
+  local status = { symbol = "", value = "", sort_by = 0 }
   if row.status.availableReplicas then
     status.value = row.status.readyReplicas .. "/" .. row.status.availableReplicas
+    status.sort_by = (row.status.readyReplicas * 1000) + row.status.availableReplicas
     if row.status.readyReplicas == row.status.availableReplicas then
       status.symbol = hl.symbols.note
     else
