@@ -12,7 +12,6 @@ function M.shell_command(cmd, args, opts)
 
   table.insert(args, 1, cmd)
 
-  vim.print("Shell command: " .. table.concat(args, " "))
   local job = vim.system(args, {
     text = true,
     env = opts.env,
@@ -53,8 +52,6 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or {}
   local result = ""
   table.insert(args, 1, cmd)
-
-  vim.print("Shell command async: " .. table.concat(args, " "))
 
   local handle = vim.system(args, {
     text = true,
@@ -98,7 +95,6 @@ function M.execute_shell_command(cmd, args)
   if type(args) == "table" then
     args = table.concat(args, " ")
   end
-  vim.print("Execute shell command: " .. cmd .. " " .. args)
   local full_command = cmd .. " " .. args
   local handle = io.popen(full_command, "r")
   if handle == nil then
