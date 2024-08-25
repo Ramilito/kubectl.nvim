@@ -68,7 +68,7 @@ end
 function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_fallback_desc", name, "yaml")
-    :setCmd({ "describe", M.resource, name, "-n", ns })
+    :setCmd({ "describe", M.resource .. "/" .. name, "-n", ns })
     :fetch()
     :splitData()
     :setContentRaw()
