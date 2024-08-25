@@ -25,7 +25,7 @@ function M.with_completion(buf, data, callback)
       local filtered_suggestions = {}
 
       for _, suggestion in pairs(data) do
-        if suggestion.name:sub(1, #original_input) == original_input then
+        if suggestion.name:lower():sub(1, #original_input) == original_input then
           table.insert(filtered_suggestions, suggestion.name)
         end
       end
