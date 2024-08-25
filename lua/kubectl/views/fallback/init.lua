@@ -23,7 +23,7 @@ local function get_args()
 end
 
 local function add_namespace(args, ns)
-  if definition.namespaced then
+  if ns then
     table.insert(args, "-n")
     table.insert(args, ns)
   end
