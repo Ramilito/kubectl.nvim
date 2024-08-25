@@ -1,3 +1,4 @@
+local commands = require("kubectl.actions.commands")
 local informer = require("kubectl.actions.informer")
 local state = require("kubectl.state")
 
@@ -60,10 +61,25 @@ function M.setup(options)
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local view = require("kubectl.views")
     local action = opts.fargs[1]
+    local ok, x_view
     if action == "get" then
       if #opts.fargs == 2 then
         local resource_type = opts.fargs[2]
-        view.view_or_fallback(resource_type)
+        local viewsTable = require("kubectl.utils.viewsTable")
+        for key, item in pairs(viewsTable) do
+          if vim.tbl_contains(item, resource_type) then
+            ok, x_view = pcall(require, "kubectl.views." .. key)
+            if ok then
+              break
+            end
+          end
+        end
+        if ok then
+          pcall(x_view.View)
+        else
+          view = require("kubectl.views.fallback")
+          view.View(nil, opts.fargs[2])
+        end
       else
         view.UserCmd(opts.fargs)
       end
