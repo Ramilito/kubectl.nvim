@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local find = require("kubectl.utils.find")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.definition")
@@ -164,6 +165,29 @@ function M.UserCmd(args)
       self:display("k8s_usercmd", "UserCmd")
     end)
   end)
+end
+
+function M.view_or_fallback(view_name)
+  local supported_view = nil
+  local viewsTable = require("kubectl.utils.viewsTable")
+  for k, v in pairs(viewsTable) do
+    local found_in_table = find.is_in_table(v, view_name, true)
+    if found_in_table or k == view_name then
+      supported_view = k
+    end
+  end
+  local view_to_find = supported_view or view_name
+  local ok, view = pcall(require, "kubectl.views." .. view_to_find)
+  if ok then
+    vim.schedule(function()
+      pcall(view.View)
+    end)
+  else
+    vim.schedule(function()
+      local fallback = require("kubectl.views.fallback")
+      fallback.View(nil, view_name)
+    end)
+  end
 end
 
 return M
