@@ -1,6 +1,6 @@
 local M = {
   resource = "cronjobs",
-  display_name = "CronJobs",
+  display_name = "Cronjobs",
   ft = "k8s_cronjobs",
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}cronjobs?pretty=false" },
   hints = {
