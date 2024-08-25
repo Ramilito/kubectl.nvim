@@ -19,7 +19,7 @@ function M.View()
       self.buf_nr = buf
       self:process(definition.processRow):prettyPrint(definition.getHeaders):setContent()
 
-      local list = {}
+      local list = { { name = "All" } }
       for _, value in ipairs(self.processedData) do
         if value.name.value then
           table.insert(list, { name = value.name.value })
