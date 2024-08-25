@@ -167,13 +167,13 @@ function M.UserCmd(args)
 end
 
 function M.set_and_open_pod_selector(kind, name, ns)
+  local pod_view = require("kubectl.views.pods")
   if not kind or not name or not ns then
     return pod_view.View()
   end
   local get_selectors = { "get", kind, name, "-n", ns, "-o", 'jsonpath="{.spec.selector.matchLabels}"' }
 
   local encode = require("kubectl.utils.url").encode
-  local pod_view = require("kubectl.views.pods")
   local pod_definition = require("kubectl.views.pods.definition")
   local original_url = pod_definition.url[1]
   local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
