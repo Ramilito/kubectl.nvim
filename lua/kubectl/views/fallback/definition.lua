@@ -7,6 +7,7 @@ local M = {
     "NAMESPACE",
     "NAME",
   },
+  namespaced = true,
 }
 
 local function getStatus(row)
@@ -109,6 +110,8 @@ function M.getHeaders(rows)
     local firstRow = rows.rows[1]
     if firstRow and firstRow.object and firstRow.object.metadata and firstRow.object.metadata.namespace then
       table.insert(headers, "NAMESPACE")
+    else
+      M.namespaced = false
     end
 
     for _, col in pairs(rows.columnDefinitions) do

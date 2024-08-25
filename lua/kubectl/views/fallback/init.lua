@@ -22,6 +22,14 @@ local function get_args()
   return args
 end
 
+local function add_namespace(args, ns)
+  if definition.namespaced then
+    table.insert(args, "-n")
+    table.insert(args, ns)
+  end
+  return args
+end
+
 function M.View(cancellationToken, resource)
   if resource then
     M.resource = resource
@@ -62,13 +70,13 @@ end
 
 function M.Edit(name, ns)
   buffers.floating_buffer("k8s_fallback_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", M.resource .. "/" .. name, "-n", ns })
+  commands.execute_terminal("kubectl", add_namespace({ "edit", M.resource .. "/" .. name }, ns))
 end
 
 function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_fallback_desc", name, "yaml")
-    :setCmd({ "describe", M.resource .. "/" .. name, "-n", ns })
+    :setCmd(add_namespace({ "describe", M.resource .. "/" .. name }, ns))
     :fetch()
     :splitData()
     :setContentRaw()
@@ -77,7 +85,10 @@ end
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  return tables.getCurrentSelection(2, 1)
+  if definition.namespaced then
+    return tables.getCurrentSelection(2, 1)
+  end
+  return tables.getCurrentSelection(1)
 end
 
 return M
