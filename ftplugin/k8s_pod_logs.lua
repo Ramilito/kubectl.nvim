@@ -17,8 +17,6 @@ local function set_keymaps(bufnr)
     desc = "Wrap logs",
     callback = function()
       vim.api.nvim_set_option_value("wrap", not vim.api.nvim_get_option_value("wrap", {}), {})
-      -- toggle wrap
-      -- vim.api.nvim_command("set wrap!")
     end,
   })
 end
