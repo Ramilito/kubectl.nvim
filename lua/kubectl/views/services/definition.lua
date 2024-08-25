@@ -30,7 +30,7 @@ local function getType(type)
   local typeColor = {
     ClusterIP = "",
     NodePort = hl.symbols.debug,
-    LoadBalancer = hl.symbols.header,
+    LoadBalancer = hl.symbols.note,
     ExternalName = hl.symbols.success,
   }
   return { symbol = typeColor[type] or "", value = type }
