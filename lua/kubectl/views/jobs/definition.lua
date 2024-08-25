@@ -1,6 +1,6 @@
 local M = {
   resource = "jobs",
-  display_name = "jobs",
+  display_name = "Jobs",
   ft = "k8s_jobs",
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}jobs?pretty=false" },
   hints = {
@@ -66,6 +66,9 @@ end
 
 function M.getSelector(row)
   local selector = {}
+  if row.spec.selector == nil then
+    return "<none>"
+  end
   for key, value in pairs(row.spec.selector.matchLabels) do
     table.insert(selector, key .. "=" .. value)
   end

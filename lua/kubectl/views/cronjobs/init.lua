@@ -9,16 +9,14 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  vim.print("viewing cronjobs")
   if M.builder then
     M.builder = M.builder:view(definition, cancellationToken)
   else
-    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = "curl" })
   end
 end
 
 function M.Draw(cancellationToken)
-  vim.print("drawing cronjobs")
   M.builder = M.builder:draw(definition, cancellationToken)
 end
 
@@ -29,7 +27,6 @@ function M.Desc(name, ns)
     :fetchAsync(function(self)
       self:splitData()
       vim.schedule(function()
-        vim.print("setting content raw cronjobs")
         self:setContentRaw()
       end)
     end)
