@@ -30,6 +30,7 @@ function M.ColorStatus(status)
     FailedMountOnFilesystemMismatch = true,
     InvalidDiskCapacity = true,
     FreeDiskSpaceFailed = true,
+    SecretSyncedError = true,
     Unhealthy = true,
     FailedSync = true,
     FailedValidation = true,
@@ -86,6 +87,7 @@ function M.ColorStatus(status)
     Normal = true,
     VolumeResizeSuccessful = true,
     FileSystemResizeSuccessful = true,
+    SecretSynced = true,
     Ready = true,
     Scheduled = true,
     SuccessfulCreate = true,
@@ -97,11 +99,12 @@ function M.ColorStatus(status)
     True = true,
   }
 
-  if errorStatuses[status] then
+  local capitalized = status:gsub("^%l", string.upper)
+  if errorStatuses[capitalized] then
     return hl.symbols.error
-  elseif warningStatuses[status] then
+  elseif warningStatuses[capitalized] then
     return hl.symbols.warning
-  elseif successStatuses[status] then
+  elseif successStatuses[capitalized] then
     return hl.symbols.success
   else
     return ""
