@@ -73,6 +73,7 @@ function M.ColorStatus(status)
     Available = true,
     Released = true,
     ScalingReplicaSet = true,
+    EvictedByVPA = true,
   }
 
   local successStatuses = {
@@ -97,6 +98,8 @@ function M.ColorStatus(status)
     -- Custom statuses
     Active = true,
     True = true,
+    SuccessfullyReconciled = true,
+    UpdatedLoadBalancer = true,
   }
 
   if type(status) ~= "string" then
