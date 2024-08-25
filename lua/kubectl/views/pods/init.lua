@@ -89,6 +89,7 @@ function M.Logs()
         self
           :addHints({
             { key = "<f>", desc = "Follow" },
+            { key = "<w>", desc = "Wrap" },
           }, false, false, false)
           :setContentRaw()
       end)

@@ -11,6 +11,17 @@ local function set_keymaps(bufnr)
       container_view.tailLogs(pod_view.selection.pod, pod_view.selection.ns)
     end,
   })
+
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "w", "", {
+    noremap = true,
+    silent = true,
+    desc = "Wrap logs",
+    callback = function()
+      vim.api.nvim_set_option_value("wrap", not vim.api.nvim_get_option_value("wrap", {}), {})
+      -- toggle wrap
+      -- vim.api.nvim_command("set wrap!")
+    end,
+  })
 end
 
 --- Initialize the module
