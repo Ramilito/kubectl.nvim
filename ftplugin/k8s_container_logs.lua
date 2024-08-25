@@ -12,7 +12,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "w", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "gw", "", {
     noremap = true,
     silent = true,
     desc = "Wrap logs",
