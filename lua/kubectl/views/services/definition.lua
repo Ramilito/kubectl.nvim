@@ -8,6 +8,7 @@ local M = {
     { key = "<gp>", desc = "Port forward", long_desc = "Port forward" },
   },
 }
+local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 local function getPorts(ports)
@@ -26,7 +27,13 @@ local function getPorts(ports)
 end
 
 local function getType(type)
-  return type
+  local typeColor = {
+    ClusterIP = "",
+    NodePort = hl.symbols.debug,
+    LoadBalancer = hl.symbols.header,
+    ExternalName = hl.symbols.success,
+  }
+  return { symbol = typeColor[type] or "", value = type }
 end
 
 --TODO: Get externalip
