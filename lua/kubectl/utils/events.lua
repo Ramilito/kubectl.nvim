@@ -109,9 +109,8 @@ function M.ColorStatus(status)
     return hl.symbols.warning
   elseif successStatuses[capitalized] then
     return hl.symbols.success
-  else
-    return ""
   end
+  return ""
 end
 
 return M
