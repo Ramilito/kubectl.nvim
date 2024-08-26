@@ -129,31 +129,23 @@ function M.register()
         tmpfile:close()
       end
 
+      local original_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
+      vim.api.nvim_buf_set_var(0, "original_mtime", original_mtime)
+
       -- open the file
       vim.cmd([[tabnew]])
       vim.cmd("edit " .. tmpfilename)
 
-      local edited_name = string.format("%s-%s-%s", resource, name, ns)
-      local kubectl_edited = {}
       local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
 
-      vim.api.nvim_create_autocmd({ "BufWritePre" }, {
-        buffer = 0,
-        group = group,
-        callback = function()
-          local modified = vim.api.nvim_get_option_value("modified", { buf = 0 })
-          if not kubectl_edited then
-            kubectl_edited = { [edited_name] = modified }
-          else
-            kubectl_edited[edited_name] = modified
-          end
-        end,
-      })
       vim.api.nvim_create_autocmd("QuitPre", {
         buffer = 0,
         group = group,
         callback = function()
-          if kubectl_edited[edited_name] then
+          original_mtime = vim.api.nvim_buf_get_var(0, "original_mtime")
+          local current_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
+
+          if current_mtime ~= original_mtime then
             vim.notify("Edited. Applying changes")
             commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
               vim.schedule(function()
@@ -161,7 +153,7 @@ function M.register()
               end)
             end)
           else
-            vim.notify("Not Edited", vim.log.levels.WARN)
+            vim.notify("Not Edited", vim.log.levels.INFO)
           end
         end,
       })
