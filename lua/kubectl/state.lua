@@ -126,7 +126,7 @@ function M.restore_session()
     end
   end
 
-  if not M.session.context or not M.session.contexts[current_context] then
+  if not M.session.contexts or not M.session.contexts[current_context] then
     M.session.contexts[current_context] = { view = "pods", namespace = "All" }
   end
 
