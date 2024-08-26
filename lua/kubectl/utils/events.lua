@@ -88,7 +88,6 @@ function M.ColorStatus(status)
     Normal = true,
     VolumeResizeSuccessful = true,
     FileSystemResizeSuccessful = true,
-    SecretSynced = true,
     Ready = true,
     Scheduled = true,
     SuccessfulCreate = true,
