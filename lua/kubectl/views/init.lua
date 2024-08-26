@@ -200,21 +200,6 @@ function M.set_and_open_pod_selector(kind, name, ns)
   pod_definition.url = { original_url }
 end
 
-function M.set_and_open_pv_of_pvc(name, ns)
-  local pv_view = require("kubectl.views.pv")
-  if not name or not ns then
-    return pv_view.View()
-  end
-
-  -- get pv of pvc
-  local pv_name_args = { "get", "pvc", name, "-n", ns, "-o", 'jsonpath="{.spec.volumeName}"' }
-  local pv_name = commands.execute_shell_command("kubectl", pv_name_args)
-
-  -- add to filter and view
-  require("kubectl.state").filter = pv_name
-  pv_view.View()
-end
-
 function M.view_or_fallback(view_name)
   local supported_view = nil
   local viewsTable = require("kubectl.utils.viewsTable")
