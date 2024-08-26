@@ -76,7 +76,7 @@ function M.processRow(rows)
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
-      if M.owner.name and M.owner.ns then
+      if M.owner.name and M.owner.ns and row.metadata.ownerReferences then
         if row.metadata.namespace == M.owner.ns and row.metadata.ownerReferences[1].name == M.owner.name then
           table.insert(data, job)
         end
