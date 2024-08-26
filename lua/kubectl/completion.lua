@@ -91,16 +91,7 @@ function M.list_namespace()
       table.insert(ns, namespace)
     end
   end
-
   return ns
-end
-
---- Change namespace
---- @param cmd string
-function M.change_namespace(cmd)
-  local results = commands.shell_command("kubectl", { "config", "set-context", "--current", "--namespace=" .. cmd })
-
-  vim.notify(results, vim.log.levels.INFO)
 end
 
 --- Change context and restart proxy

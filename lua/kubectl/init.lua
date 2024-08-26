@@ -80,7 +80,12 @@ function M.setup(options)
   })
 
   vim.api.nvim_create_user_command("Kubens", function(opts)
-    completion.change_namespace(opts.fargs[1])
+    local namespace_view = require("kubectl.views.namespace")
+    if #opts.fargs == 0 then
+      namespace_view.View()
+    else
+      namespace_view.changeNamespace(opts.fargs[1])
+    end
   end, {
     nargs = "*",
     complete = completion.list_namespace,
