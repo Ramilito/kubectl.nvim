@@ -51,7 +51,7 @@ function M.apply_marks(bufnr, marks, header)
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   state.marks.ns_id = ns_id
 
-  vim.schedule(function()
+  -- vim.schedule(function()
     if header and header.marks then
       for _, mark in ipairs(header.marks) do
         local _, _ = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
@@ -88,7 +88,7 @@ function M.apply_marks(bufnr, marks, header)
         end
       end
     end
-  end)
+  -- end)
 end
 
 --- Creates an alias buffer.
