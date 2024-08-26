@@ -97,6 +97,7 @@ function M.ColorStatus(status)
     -- Custom statuses
     Active = true,
     True = true,
+    SecretSynced = true,
     SuccessfullyReconciled = true,
     UpdatedLoadBalancer = true,
   }
