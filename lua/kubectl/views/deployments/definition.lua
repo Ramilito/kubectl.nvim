@@ -25,8 +25,8 @@ function M.processRow(rows)
         namespace = row.metadata.namespace,
         name = row.metadata.name,
         ready = M.getReady(row),
-        ["up-to-date"] = row.status.updatedReplicas or "",
-        available = row.status.availableReplicas or "",
+        ["up-to-date"] = row.status.updatedReplicas or 0,
+        available = row.status.availableReplicas or 0,
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
@@ -50,9 +50,10 @@ function M.getHeaders()
 end
 
 function M.getReady(row)
-  local status = { symbol = "", value = "" }
+  local status = { symbol = "", value = "", sort_by = 0 }
   if row.status.availableReplicas then
     status.value = row.status.readyReplicas .. "/" .. row.status.availableReplicas
+    status.sort_by = (row.status.readyReplicas * 1000) + row.status.availableReplicas
     if row.status.readyReplicas == row.status.availableReplicas then
       status.symbol = hl.symbols.note
     else
