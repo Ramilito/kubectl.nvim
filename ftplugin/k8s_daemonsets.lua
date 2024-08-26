@@ -5,7 +5,6 @@ local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
 local definition = require("kubectl.views.daemonsets.definition")
 local loop = require("kubectl.utils.loop")
-local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
 
@@ -25,7 +24,8 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go to pods",
     callback = function()
-      pod_view.View()
+      local name, ns = daemonset_view.getCurrentSelection()
+      view.set_and_open_pod_selector("daemonsets", name, ns)
     end,
   })
 

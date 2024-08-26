@@ -106,7 +106,7 @@ function M.getHeaders(rows)
   local headers
   if rows.columnDefinitions then
     headers = {}
-    local firstRow = rows.rows[1]
+    local firstRow = rows.rows and rows.rows[1]
     if firstRow and firstRow.object and firstRow.object.metadata and firstRow.object.metadata.namespace then
       table.insert(headers, "NAMESPACE")
     end
