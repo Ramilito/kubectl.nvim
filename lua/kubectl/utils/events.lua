@@ -39,6 +39,7 @@ function M.ColorStatus(status)
     FailedValidation = true,
     FileSystemResizeFailed = true,
     FreeDiskSpaceFailed = true,
+    InvalidImageName = true,
     ImageGCFailed = true,
     ImagePullBackOff = true,
     InspectFailed = true,
