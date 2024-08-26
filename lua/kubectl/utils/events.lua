@@ -1,4 +1,5 @@
 local hl = require("kubectl.actions.highlight")
+local string_utils = require("kubectl.utils.string")
 local M = {}
 
 --- Color a status based on its severity
@@ -30,6 +31,7 @@ function M.ColorStatus(status)
     FailedMountOnFilesystemMismatch = true,
     InvalidDiskCapacity = true,
     FreeDiskSpaceFailed = true,
+    SecretSyncedError = true,
     Unhealthy = true,
     FailedSync = true,
     FailedValidation = true,
@@ -72,6 +74,7 @@ function M.ColorStatus(status)
     Available = true,
     Released = true,
     ScalingReplicaSet = true,
+    EvictedByVPA = true,
   }
 
   local successStatuses = {
@@ -95,17 +98,23 @@ function M.ColorStatus(status)
     -- Custom statuses
     Active = true,
     True = true,
+    SecretSynced = true,
+    SuccessfullyReconciled = true,
+    UpdatedLoadBalancer = true,
   }
 
-  if errorStatuses[status] then
-    return hl.symbols.error
-  elseif warningStatuses[status] then
-    return hl.symbols.warning
-  elseif successStatuses[status] then
-    return hl.symbols.success
-  else
+  if type(status) ~= "string" then
     return ""
   end
+  local capitalized = string_utils.capitalize(status)
+  if errorStatuses[capitalized] then
+    return hl.symbols.error
+  elseif warningStatuses[capitalized] then
+    return hl.symbols.warning
+  elseif successStatuses[capitalized] then
+    return hl.symbols.success
+  end
+  return ""
 end
 
 return M
