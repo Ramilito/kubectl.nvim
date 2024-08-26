@@ -296,7 +296,7 @@ end
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   ResourceBuilder:new(definition.resource)
-    :displayFloat(definition.ft, definition.display_name)
+    :displayFloat(definition.ft, definition.resource)
     :setCmd(definition.url, opts.cmd or "curl")
     :fetchAsync(function(builder)
       builder:decodeJson()
@@ -324,7 +324,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
   self.definition = definition
 
   self
-    :display(definition.ft, definition.display_name, cancellationToken)
+    :display(definition.ft, definition.resource, cancellationToken)
     :setCmd(definition.url, opts.cmd)
     :fetchAsync(function(builder)
       builder:decodeJson()
