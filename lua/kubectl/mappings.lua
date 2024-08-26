@@ -136,6 +136,7 @@ function M.register()
       vim.cmd([[tabnew]])
       vim.cmd("edit " .. tmpfilename)
 
+      vim.api.nvim_buf_set_option(0, "bufhidden", "wipe")
       local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
 
       vim.api.nvim_create_autocmd("QuitPre", {
