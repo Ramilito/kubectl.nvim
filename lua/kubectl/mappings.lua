@@ -101,67 +101,68 @@ function M.register()
     desc = "Edit resource",
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
-      if win_config.relative == "" then
-        local string_utils = require("kubectl.utils.string")
-
-        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-        if not view_ok then
-          view = require("kubectl.views.fallback")
-        end
-
-        local resource = view.builder.resource
-        local name, ns = view.getCurrentSelection()
-        local self = ResourceBuilder:new("edit_resource")
-          :setCmd({ "get", resource .. "/" .. name, "-n", ns, "-o", "yaml" }, "kubectl")
-          :fetch()
-
-        -- Save the resource data to a temporary file
-        local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
-        vim.print("editing " .. tmpfilename)
-        local tmpfile = io.open(tmpfilename, "w+")
-        if tmpfile then
-          tmpfile:write(self.data)
-          tmpfile:close()
-        end
-
-        -- open the file
-        vim.cmd([[tabnew]])
-        vim.cmd("edit " .. tmpfilename)
-
-        local edited_name = string.format("%s-%s-%s", resource, name, ns)
-        local kubectl_edited = {}
-        local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
-
-        vim.api.nvim_create_autocmd({ "BufWritePre" }, {
-          buffer = 0,
-          group = group,
-          callback = function()
-            local modified = vim.api.nvim_get_option_value("modified", { buf = 0 })
-            if not kubectl_edited then
-              kubectl_edited = { [edited_name] = modified }
-            else
-              kubectl_edited[edited_name] = modified
-            end
-          end,
-        })
-        vim.api.nvim_create_autocmd("QuitPre", {
-          buffer = 0,
-          group = group,
-          callback = function()
-            if kubectl_edited[edited_name] then
-              vim.notify("Edited. Applying changes")
-              commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
-                vim.schedule(function()
-                  vim.notify(apply_data, vim.log.levels.INFO)
-                end)
-              end)
-            else
-              vim.notify("Not Edited", vim.log.levels.WARN)
-            end
-          end,
-        })
+      if win_config.relative ~= "" then
+        return
       end
+      local string_utils = require("kubectl.utils.string")
+
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      if not view_ok then
+        view = require("kubectl.views.fallback")
+      end
+
+      local resource = view.builder.resource
+      local name, ns = view.getCurrentSelection()
+      local self = ResourceBuilder:new("edit_resource")
+        :setCmd({ "get", resource .. "/" .. name, "-n", ns, "-o", "yaml" }, "kubectl")
+        :fetch()
+
+      -- Save the resource data to a temporary file
+      local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
+      vim.print("editing " .. tmpfilename)
+      local tmpfile = io.open(tmpfilename, "w+")
+      if tmpfile then
+        tmpfile:write(self.data)
+        tmpfile:close()
+      end
+
+      -- open the file
+      vim.cmd([[tabnew]])
+      vim.cmd("edit " .. tmpfilename)
+
+      local edited_name = string.format("%s-%s-%s", resource, name, ns)
+      local kubectl_edited = {}
+      local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
+
+      vim.api.nvim_create_autocmd({ "BufWritePre" }, {
+        buffer = 0,
+        group = group,
+        callback = function()
+          local modified = vim.api.nvim_get_option_value("modified", { buf = 0 })
+          if not kubectl_edited then
+            kubectl_edited = { [edited_name] = modified }
+          else
+            kubectl_edited[edited_name] = modified
+          end
+        end,
+      })
+      vim.api.nvim_create_autocmd("QuitPre", {
+        buffer = 0,
+        group = group,
+        callback = function()
+          if kubectl_edited[edited_name] then
+            vim.notify("Edited. Applying changes")
+            commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
+              vim.schedule(function()
+                vim.notify(apply_data, vim.log.levels.INFO)
+              end)
+            end)
+          else
+            vim.notify("Not Edited", vim.log.levels.WARN)
+          end
+        end,
+      })
     end,
   })
 
