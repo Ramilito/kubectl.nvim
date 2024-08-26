@@ -11,10 +11,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "gc", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "gw", "", {
     noremap = true,
     silent = true,
-    desc = "Collapse log lines",
+    desc = "Toggle wrap",
     callback = function()
       vim.api.nvim_set_option_value("wrap", not vim.api.nvim_get_option_value("wrap", {}), {})
     end,
