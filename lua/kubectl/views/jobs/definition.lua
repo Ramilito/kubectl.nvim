@@ -4,7 +4,7 @@ local M = {
   ft = "k8s_jobs",
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}jobs?pretty=false" },
   hints = {
-    { key = "<grr>", desc = "restart", long_desc = "Create job from job" },
+    { key = "<gc>", desc = "restart", long_desc = "Create job from job" },
     { key = "<gd>", desc = "desc", long_desc = "Describe selected job" },
     { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
   },
