@@ -1,9 +1,9 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
-local find = require("kubectl.utils.find")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.definition")
+local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 
@@ -172,24 +172,21 @@ function M.set_and_open_pod_selector(kind, name, ns)
   if not kind or not name or not ns then
     return pod_view.View()
   end
-  local get_selectors = { "get", kind, name, "-n", ns, "-o", 'jsonpath="{.spec.selector.matchLabels}"' }
 
-  local encode = require("kubectl.utils.url").encode
+  -- save url details
   local pod_definition = require("kubectl.views.pods.definition")
   local original_url = pod_definition.url[1]
   local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
-  local selectors_list = {}
-  for key, value in pairs(vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))) do
-    table.insert(selectors_list, { key = encode(key), value = encode(value) })
-  end
-  local label_selector = "?labelSelector="
-    .. vim.fn.join(
-      vim.tbl_map(function(item)
-        return item.key .. "%3D" .. item.value
-      end, selectors_list),
-      "%2C"
-    )
 
+  -- get the selectors for the pods
+  local encode = require("kubectl.utils.url").encode
+  local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
+  local resource = vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))
+  local selector_t = resource.spec.selector.matchLabels or resource.metadata.labels
+  local key_value_pairs = vim.tbl_map(function(key)
+    return encode(key .. "=" .. selector_t[key])
+  end, vim.tbl_keys(selector_t))
+  local label_selector = "?labelSelector=" .. table.concat(key_value_pairs, encode(","))
   local new_url = url_no_query_params .. label_selector .. "&" .. original_query_params
 
   pod_definition.url = { new_url }
