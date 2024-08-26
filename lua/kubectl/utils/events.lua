@@ -106,7 +106,7 @@ function M.ColorStatus(status)
   if type(status) ~= "string" then
     return ""
   end
-  local capitalized = string_util.capitalize(status)
+  local capitalized = string_utils.capitalize(status)
   if errorStatuses[capitalized] then
     return hl.symbols.error
   elseif warningStatuses[capitalized] then
