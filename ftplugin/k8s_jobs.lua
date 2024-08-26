@@ -36,7 +36,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gc", "", {
     noremap = true,
     silent = true,
     desc = "Create job from job",
