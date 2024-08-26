@@ -24,7 +24,8 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
       local job_view = require("kubectl.views.jobs")
-      job_view.View(nil, { name = name, ns = ns })
+      job_view.owner = { name = name, ns = ns }
+      job_view.View()
     end,
   })
 
