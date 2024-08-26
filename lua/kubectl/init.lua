@@ -92,6 +92,9 @@ function M.setup(options)
   })
 
   vim.api.nvim_create_user_command("Kubectx", function(opts)
+    if #opts.fargs == 0 then
+      return
+    end
     completion.change_context(opts.fargs[1])
   end, {
     nargs = "*",

@@ -5,7 +5,9 @@ local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
-local M = {}
+local M = {
+  namespaces = {},
+}
 
 function M.View()
   local buf = buffers.floating_dynamic_buffer(definition.ft, definition.display_name, function(input)
@@ -25,6 +27,7 @@ function M.View()
           table.insert(list, { name = value.name.value })
         end
       end
+      M.namespaces = list
       completion.with_completion(buf, list)
 
       vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
@@ -45,6 +48,15 @@ function M.View()
 end
 
 function M.changeNamespace(name)
+  -- don't change NS if we know it's not valid
+  if not vim.tbl_isempty(M.namespaces) then
+    local contains = vim.tbl_contains(M.namespaces, function(v)
+      return v.name == name
+    end, { predicate = true })
+    if not contains then
+      return
+    end
+  end
   state.ns = name
   if name ~= "All" then
     commands.shell_command("kubectl", { "config", "set-context", "--current", "--namespace=" .. name })
