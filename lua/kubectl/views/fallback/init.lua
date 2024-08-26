@@ -10,15 +10,21 @@ local M = {
   builder = nil,
 }
 
+local function add_namespace(args, ns)
+  if ns then
+    if ns == "All" then
+      table.insert(args, "--all-namespaces")
+    else
+      table.insert(args, "-n")
+      table.insert(args, ns)
+    end
+  end
+  return args
+end
+
 local function get_args()
   local ns_filter = state.getNamespace()
-  local args = { "get", M.resource, "-o=json" }
-  if ns_filter == "All" then
-    table.insert(args, "-A")
-  else
-    table.insert(args, "--namespace")
-    table.insert(args, ns_filter)
-  end
+  local args = add_namespace({ "get", M.resource, "-o=json" }, ns_filter)
   return args
 end
 
@@ -51,6 +57,7 @@ function M.View(cancellationToken, resource)
       cached_resources.values[resource_name].url,
     }
     definition.cmd = "curl"
+    definition.namespaced = cached_resources.values[resource_name].namespaced
   end
 
   M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
@@ -62,13 +69,13 @@ end
 
 function M.Edit(name, ns)
   buffers.floating_buffer("k8s_fallback_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", M.resource .. "/" .. name, "-n", ns })
+  commands.execute_terminal("kubectl", add_namespace({ "edit", M.resource .. "/" .. name }, ns))
 end
 
 function M.Desc(name, ns)
   ResourceBuilder:new("desc")
     :displayFloat("k8s_fallback_desc", name, "yaml")
-    :setCmd({ "describe", M.resource .. "/" .. name, "-n", ns })
+    :setCmd(add_namespace({ "describe", M.resource .. "/" .. name }, ns))
     :fetch()
     :splitData()
     :setContentRaw()
@@ -77,7 +84,10 @@ end
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  return tables.getCurrentSelection(2, 1)
+  if definition.namespaced then
+    return tables.getCurrentSelection(2, 1)
+  end
+  return tables.getCurrentSelection(1)
 end
 
 return M

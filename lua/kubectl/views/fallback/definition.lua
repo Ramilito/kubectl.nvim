@@ -4,9 +4,9 @@ local tables = require("kubectl.utils.tables")
 local time = require("kubectl.utils.time")
 local M = {
   headers = {
-    "NAMESPACE",
     "NAME",
   },
+  namespaced = false,
 }
 
 local function getStatus(row)
@@ -106,8 +106,7 @@ function M.getHeaders(rows)
   local headers
   if rows.columnDefinitions then
     headers = {}
-    local firstRow = rows.rows and rows.rows[1]
-    if firstRow and firstRow.object and firstRow.object.metadata and firstRow.object.metadata.namespace then
+    if M.namespaced then
       table.insert(headers, "NAMESPACE")
     end
 
@@ -121,6 +120,9 @@ function M.getHeaders(rows)
     headers = vim.deepcopy(M.headers)
     local firstItem = rows.items[1]
     if firstItem then
+      if firstItem.metadata and firstItem.metadata.namespace and not vim.tbl_contains(headers, "NAMESPACE") then
+        table.insert(headers, "NAMESPACE")
+      end
       if
         firstItem.status
         and (firstItem.status.conditions or firstItem.status.health)
