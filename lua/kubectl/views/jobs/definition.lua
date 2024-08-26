@@ -64,7 +64,7 @@ function M.processRow(rows)
   end
 
   if rows and rows.items then
-    for _, row in pairs(rows.items) do
+    for _, row in ipairs(rows.items) do
       local job = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
@@ -76,7 +76,13 @@ function M.processRow(rows)
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
-      table.insert(data, job)
+      if M.owner.name and M.owner.ns then
+        if row.metadata.namespace == M.owner.ns and row.metadata.ownerReferences[1].name == M.owner.name then
+          table.insert(data, job)
+        end
+      else
+        table.insert(data, job)
+      end
     end
   end
   return data
