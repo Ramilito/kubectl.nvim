@@ -24,6 +24,7 @@ ResourceBuilder.__index = ResourceBuilder
 function ResourceBuilder:new(resource)
   self = setmetatable({}, ResourceBuilder)
   self.resource = resource
+  self.display_name = nil
   self.processedData = nil
   self.data = nil
   self.prettyData = nil
@@ -263,7 +264,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
     hints_copy,
     include_defaults,
     include_context,
-    { resource = string_util.capitalize(self.resource), count = count, filter = filter }
+    { resource = string_util.capitalize(self.display_name or self.resource), count = count, filter = filter }
   )
   return self
 end
@@ -295,7 +296,7 @@ end
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   ResourceBuilder:new(definition.resource)
-    :displayFloat(definition.ft, definition.display_name)
+    :displayFloat(definition.ft, definition.resource)
     :setCmd(definition.url, opts.cmd or "curl")
     :fetchAsync(function(builder)
       builder:decodeJson()
@@ -303,10 +304,10 @@ function ResourceBuilder:view_float(definition, opts)
       vim.schedule(function()
         if definition.processRow then
           builder
-            :process(definition.processRow)
+            :process(definition.processRow, true)
             :sort()
             :prettyPrint(definition.getHeaders)
-            :addHints(definition.hints, true, true, true)
+            :addHints(definition.hints, true, false, false)
             :setContent()
         else
           builder:splitData():setContentRaw()
@@ -321,8 +322,9 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
   self.definition = definition
+
   self
-    :display(definition.ft, definition.display_name, cancellationToken)
+    :display(definition.ft, definition.resource, cancellationToken)
     :setCmd(definition.url, opts.cmd)
     :fetchAsync(function(builder)
       builder:decodeJson()
@@ -338,6 +340,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
 end
 
 function ResourceBuilder:draw(definition, cancellationToken)
+  self.display_name = definition.display_name
   self
     :process(definition.processRow)
     :sort()

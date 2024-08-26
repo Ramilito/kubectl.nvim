@@ -1,9 +1,11 @@
 local api = vim.api
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local cronjob_view = require("kubectl.views.cronjobs")
 local definition = require("kubectl.views.cronjobs.definition")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
+local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
@@ -24,7 +26,11 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
       local job_view = require("kubectl.views.jobs")
-      job_view.View(nil, { name = name, ns = ns })
+      local job_def = require("kubectl.views.jobs.definition")
+
+      job_view.View()
+      -- Order is important since .View() will reset this selection
+      job_def.owner = { name = name, ns = ns }
     end,
   })
 
@@ -37,7 +43,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gc", "", {
     noremap = true,
     silent = true,
     desc = "Create job from cronjob",
@@ -57,6 +63,37 @@ local function set_keymaps(bufnr)
           end
         )
       end)
+    end,
+  })
+
+  api.nvim_buf_set_keymap(bufnr, "n", "gx", "", {
+    noremap = true,
+    silent = true,
+    desc = "Suspend selected cronjob",
+    callback = function()
+      local name, ns, current = tables.getCurrentSelection(2, 1, 4)
+      current = current == "true" and true or false
+      local action = current and "unsuspend" or "suspend"
+      buffers.confirmation_buffer(
+        string.format("Are you sure that you want to %s the cronjob: %s", action, name),
+        "prompt",
+        function(confirm)
+          if confirm then
+            commands.shell_command_async("kubectl", {
+              "patch",
+              "cronjob/" .. name,
+              "-n",
+              ns,
+              "-p",
+              '{"spec" : {"suspend" : ' .. tostring(not current) .. "}}",
+            }, function(response)
+              vim.schedule(function()
+                vim.notify(response)
+              end)
+            end)
+          end
+        end
+      )
     end,
   })
 end
