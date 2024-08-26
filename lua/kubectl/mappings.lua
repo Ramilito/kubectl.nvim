@@ -112,23 +112,22 @@ function M.register()
 
         local resource = view.builder.resource
         local name, ns = view.getCurrentSelection()
-        if name then
-          local args = { "get", resource .. "/" .. name, "-o", "yaml" }
-          if ns and ns ~= "nil" then
-            table.insert(args, "-n")
-            table.insert(args, ns)
-          end
+        local self = ResourceBuilder:new("edit_resource")
+          :setCmd({ "get", resource .. "/" .. name, "-n", ns, "-o", "yaml" }, "kubectl")
+          :fetch()
 
-          local builder = ResourceBuilder:new("edit_resource")
-            :displayFloat("k8s_edit", name, "yaml")
-            :setCmd(args, "kubectl")
-            :fetch()
-            :splitData()
-            :setContentRaw()
-          if builder then
-            vim.api.nvim_set_option_value("buftype", "", { buf = builder.buf_nr })
-          end
+        -- Save the resource data to a temporary file
+        local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
+        vim.print("editing " .. tmpfilename)
+        local tmpfile = io.open(tmpfilename, "w+")
+        if tmpfile then
+          tmpfile:write(self.data)
+          tmpfile:close()
         end
+
+        -- open the file
+        vim.cmd([[tabnew]])
+        vim.cmd("edit " .. tmpfilename)
 
         local edited_name = string.format("%s-%s-%s", resource, name, ns)
         local kubectl_edited = {}
@@ -152,14 +151,11 @@ function M.register()
           callback = function()
             if kubectl_edited[edited_name] then
               vim.notify("Edited. Applying changes")
-              local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-              local content = table.concat(lines, "\n")
-
-              commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, function(apply_data)
+              commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
                 vim.schedule(function()
                   vim.notify(apply_data, vim.log.levels.INFO)
                 end)
-              end, nil, { stdin = content })
+              end)
             else
               vim.notify("Not Edited", vim.log.levels.WARN)
             end
