@@ -1,5 +1,6 @@
 local api = vim.api
 local commands = require("kubectl.actions.commands")
+local cronjob_view = require("kubectl.views.cronjobs")
 local definition = require("kubectl.views.jobs.definition")
 local job_view = require("kubectl.views.jobs")
 local loop = require("kubectl.utils.loop")
@@ -32,7 +33,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      cronjob_view.View()
     end,
   })
 
