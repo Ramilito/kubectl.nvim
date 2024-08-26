@@ -169,6 +169,35 @@ function M.UserCmd(args)
   end)
 end
 
+--- Get the selectors for a resource
+--- @param kind string The kind of resource
+--- @param name string The name of the resource
+--- @param ns string The namespace of the resource
+--- @param as_query_params? boolean Return the selectors as query parameters (default: false)
+--- @return table|string
+function M.get_selectors(kind, name, ns, as_query_params)
+  if type(as_query_params) ~= "boolean" then
+    as_query_params = false
+  end
+  local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
+  local resource = vim.json.decode(
+    commands.execute_shell_command("kubectl", get_selectors),
+    { luanil = { object = true, array = true } }
+  )
+  local labels = resource.spec.selector.matchLabels or resource.metadata.labels
+  if as_query_params then
+    local key_value_pairs = vim.tbl_map(function(key)
+      return encode(key .. "=" .. labels[key])
+    end, vim.tbl_keys(labels))
+    return table.concat(key_value_pairs, encode(","))
+  end
+  return labels
+end
+
+--- Set and open pod selector
+--- @param kind string The kind of resource
+--- @param name string The name of the resource
+--- @param ns string The namespace of the resource
 function M.set_and_open_pod_selector(kind, name, ns)
   local pod_view = require("kubectl.views.pods")
   local pod_definition = require("kubectl.views.pods.definition")
