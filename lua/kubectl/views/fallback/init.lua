@@ -10,23 +10,21 @@ local M = {
   builder = nil,
 }
 
-local function get_args()
-  local ns_filter = state.getNamespace()
-  local args = { "get", M.resource, "-o=json" }
-  if ns_filter == "All" then
-    table.insert(args, "-A")
-  else
-    table.insert(args, "--namespace")
-    table.insert(args, ns_filter)
+local function add_namespace(args, ns)
+  if ns then
+    if ns == "All" then
+      table.insert(args, "--all-namespaces")
+    else
+      table.insert(args, "-n")
+      table.insert(args, ns)
+    end
   end
   return args
 end
 
-local function add_namespace(args, ns)
-  if ns then
-    table.insert(args, "-n")
-    table.insert(args, ns)
-  end
+local function get_args()
+  local ns_filter = state.getNamespace()
+  local args = add_namespace({ "get", M.resource, "-o=json" }, ns_filter)
   return args
 end
 
@@ -59,6 +57,7 @@ function M.View(cancellationToken, resource)
       cached_resources.values[resource_name].url,
     }
     definition.cmd = "curl"
+    definition.namespaced = cached_resources.values[resource_name].namespaced
   end
 
   M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
