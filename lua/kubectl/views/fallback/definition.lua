@@ -6,7 +6,7 @@ local M = {
   headers = {
     "NAME",
   },
-  namespaced = true,
+  namespaced = false,
 }
 
 local function getStatus(row)
