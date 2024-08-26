@@ -5,6 +5,8 @@ return {
   pods = { "pods", "pod", "po" },
   deployments = { "deployments", "deployment", "deploy", "deployments.apps" },
   daemonsets = { "daemonsets", "daemonset", "ds", "daemonsets.apps" },
+  jobs = { "jobs", "job", "jo", "jobs.batch" },
+  cronjobs = { "cronjobs", "cronjob", "cj", "cronjobs.batch" },
   events = { "events", "event", "ev", "events.events.k8s.io" },
   nodes = { "nodes", "node", "no" },
   sa = { "serviceaccounts", "serviceaccount", "sa" },
