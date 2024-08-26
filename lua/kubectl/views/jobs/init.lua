@@ -9,6 +9,8 @@ local M = {
 }
 
 function M.View(cancellationToken)
+  definition.owner = {}
+  definition.display_name = "Jobs"
   if M.builder then
     M.builder = M.builder:view(definition, cancellationToken)
   else
