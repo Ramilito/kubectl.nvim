@@ -110,7 +110,7 @@ function M.change_context(cmd)
 
   vim.notify(results, vim.log.levels.INFO)
   kube.stop_kubectl_proxy()
-  kube.startProxy(function()
+  kube.start_kubectl_proxy(function()
     local state = require("kubectl.state")
     state.setup()
   end)
