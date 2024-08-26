@@ -88,7 +88,7 @@ function M.setup(options)
     end
   end, {
     nargs = "*",
-    complete = completion.list_namespace,
+    complete = completion.list_namespaces,
   })
 
   vim.api.nvim_create_user_command("Kubectx", function(opts)
