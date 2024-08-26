@@ -30,7 +30,7 @@ function M.since(timestamp, fresh, currentTime)
 
   local status = { symbol = "", value = "", sort_by = tonumber(parsed_time) }
   if days > 365 then
-    status.value = string.format("%dy", years)
+    status.value = string.format("%dy%dd", years, days % 365)
   elseif days > 7 then
     status.value = string.format("%dd", days)
   elseif days > 0 or hours > 23 then
