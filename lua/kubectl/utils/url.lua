@@ -61,4 +61,29 @@ function M.build(args)
   return parsed_args
 end
 
+--- Break URL to Query parameters and base URL
+---@param url string Full URL
+---@param as_string boolean Return query parameters as string (default: false)
+---@return string, string|table
+function M.breakUrl(url, as_string)
+  local ret = { url = "", query = "" }
+  local params = {}
+  local url_no_query_params, query_params = url:match("(https?://?.+)%?(.+)")
+  if url_no_query_params then
+    ret["url"] = url_no_query_params
+  end
+  if query_params then
+    if as_string then
+      ret["query"] = query_params
+    else
+      for key, value in query_params:gmatch("([^&=]+)=([^&=]+)") do
+        params[key] = value
+      end
+      ret["query"] = params
+    end
+  end
+  vim.print(vim.inspect(ret))
+  return unpack(ret)
+end
+
 return M
