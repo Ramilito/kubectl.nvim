@@ -118,6 +118,7 @@ function M.register()
       local name, ns = view.getCurrentSelection()
 
       if not name then
+        vim.notify("Not a valid selection to edit", vim.log.levels.INFO)
         return
       end
 
