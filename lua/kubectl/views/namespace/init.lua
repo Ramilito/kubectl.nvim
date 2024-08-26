@@ -45,6 +45,9 @@ function M.View()
 end
 
 function M.changeNamespace(name)
+  if name == "" then
+    name = "All"
+  end
   state.ns = name
   if name ~= "All" then
     commands.shell_command("kubectl", { "config", "set-context", "--current", "--namespace=" .. name })
