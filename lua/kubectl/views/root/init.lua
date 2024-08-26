@@ -15,7 +15,14 @@ function M.View()
       "Nodes",
       "Secrets",
       "Services",
+      "Cronjobs",
+      "Jobs",
       "Configmaps",
+      "PV",
+      "PVC",
+      "SA",
+      "Clusterrolebinding",
+      "CRDs",
     }
     self
       :process(definition.processRow, true)
