@@ -116,11 +116,19 @@ function M.register()
       -- Get resource details and construct the kubectl command
       local resource = view.builder.resource
       local name, ns = view.getCurrentSelection()
-      local self = ResourceBuilder:new("edit_resource")
-        :setCmd({ "get", resource .. "/" .. name, "-n", ns, "-o", "yaml" }, "kubectl")
-        :fetch()
+
+      if not name then
+        return
+      end
+
+      local args = { "get", resource .. "/" .. name, "-o", "yaml" }
+      if ns and ns ~= "nil" then
+        table.insert(args, "-n")
+        table.insert(args, ns)
+      end
 
       -- Save the resource data to a temporary file
+      local self = ResourceBuilder:new("edit_resource"):setCmd(args, "kubectl"):fetch()
       local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
       vim.print("editing " .. tmpfilename)
       local tmpfile = io.open(tmpfilename, "w+")
