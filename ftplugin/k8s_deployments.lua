@@ -4,7 +4,6 @@ local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
-local pod_view = require("kubectl.views.pods")
 local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
 
@@ -24,7 +23,8 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go to pods",
     callback = function()
-      pod_view.View()
+      local name, ns = deployment_view.getCurrentSelection()
+      view.set_and_open_pod_selector("deployments", name, ns)
     end,
   })
 
