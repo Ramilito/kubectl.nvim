@@ -13,6 +13,16 @@ local function set_keymaps(bufnr)
       view.Hints(definition.hints)
     end,
   })
+
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+    noremap = true,
+    silent = true,
+    desc = "Go to PVs",
+    callback = function()
+      local name, ns = pvc_view.getCurrentSelection()
+      view.set_and_open_pv_of_pvc(name, ns)
+    end,
+  })
 end
 
 --- Initialize the module
