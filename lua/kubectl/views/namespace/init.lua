@@ -5,7 +5,9 @@ local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
-local M = {}
+local M = {
+  namespaces = {"All"},
+}
 
 function M.View()
   local buf = buffers.floating_dynamic_buffer(definition.ft, definition.display_name, function(input)
@@ -22,6 +24,7 @@ function M.View()
       local list = { { name = "All" } }
       for _, value in ipairs(self.processedData) do
         if value.name.value then
+          table.insert(M.namespaces, value.name.value)
           table.insert(list, { name = value.name.value })
         end
       end
@@ -44,7 +47,30 @@ function M.View()
   end)
 end
 
+--- Returns a list of namespaces
+--- @return string[]
+function M.listNamespaces()
+  if #M.namespaces > 1 then
+    return M.namespaces
+  end
+  local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
+  local ns = {}
+  for line in output:gmatch("[^\r\n]+") do
+    local namespace = line:match("^namespace/(.+)$")
+    if namespace then
+      table.insert(ns, namespace)
+    end
+  end
+
+  M.namespaces = ns
+  return M.namespaces
+end
+
 function M.changeNamespace(name)
+  -- don't change NS if we know it's not valid
+  if not (#M.namespaces > 1 and vim.tbl_contains(M.namespaces, name)) then
+    return
+  end
   if name == "" then
     name = "All"
   end
