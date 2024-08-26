@@ -68,13 +68,8 @@ end
 
 function M.changeNamespace(name)
   -- don't change NS if we know it's not valid
-  if not vim.tbl_isempty(M.namespaces) then
-    local contains = vim.tbl_contains(M.namespaces, function(v)
-      return v.name == name
-    end, { predicate = true })
-    if not contains then
-      return
-    end
+  if not (#M.namespaces > 0 and vim.tbl_contains(M.namespaces, name)) then
+    return
   end
   if name == "" then
     name = "All"
