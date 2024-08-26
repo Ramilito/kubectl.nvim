@@ -1,4 +1,5 @@
 local informer = require("kubectl.actions.informer")
+local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
 
 local M = {
@@ -80,15 +81,14 @@ function M.setup(options)
   })
 
   vim.api.nvim_create_user_command("Kubens", function(opts)
-    local namespace_view = require("kubectl.views.namespace")
     if #opts.fargs == 0 then
-      namespace_view.View()
+      ns_view.View()
     else
-      namespace_view.changeNamespace(opts.fargs[1])
+      ns_view.changeNamespace(opts.fargs[1])
     end
   end, {
     nargs = "*",
-    complete = completion.list_namespaces,
+    complete = ns_view.listNamespaces,
   })
 
   vim.api.nvim_create_user_command("Kubectx", function(opts)

@@ -47,6 +47,25 @@ function M.View()
   end)
 end
 
+--- Returns a list of namespaces
+--- @return string[]
+function M.listNamespaces()
+  if #M.namespaces > 0 then
+    return M.namespaces
+  end
+  local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
+  local ns = {}
+  for line in output:gmatch("[^\r\n]+") do
+    local namespace = line:match("^namespace/(.+)$")
+    if namespace then
+      table.insert(ns, namespace)
+    end
+  end
+
+  M.namespaces = ns
+  return M.namespaces
+end
+
 function M.changeNamespace(name)
   -- don't change NS if we know it's not valid
   if not vim.tbl_isempty(M.namespaces) then

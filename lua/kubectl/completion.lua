@@ -86,20 +86,6 @@ function M.list_contexts()
   return M.contexts
 end
 
---- Returns a list of namespaces
---- @return string[]
-function M.list_namespaces()
-  local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
-  local ns = {}
-  for line in output:gmatch("[^\r\n]+") do
-    local namespace = line:match("^namespace/(.+)$")
-    if namespace then
-      table.insert(ns, namespace)
-    end
-  end
-  return ns
-end
-
 --- Change context and restart proxy
 --- @param cmd string
 function M.change_context(cmd)
