@@ -1,5 +1,6 @@
 local api = vim.api
 local commands = require("kubectl.actions.commands")
+local cronjob_view = require("kubectl.views.cronjobs")
 local definition = require("kubectl.views.jobs.definition")
 local job_view = require("kubectl.views.jobs")
 local loop = require("kubectl.utils.loop")
@@ -32,11 +33,11 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      cronjob_view.View()
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gc", "", {
     noremap = true,
     silent = true,
     desc = "Create job from job",

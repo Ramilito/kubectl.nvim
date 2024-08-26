@@ -4,10 +4,11 @@ local M = {
   ft = "k8s_jobs",
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}jobs?pretty=false" },
   hints = {
-    { key = "<grr>", desc = "restart", long_desc = "Create job from job" },
+    { key = "<gc>", desc = "restart", long_desc = "Create job from job" },
     { key = "<gd>", desc = "desc", long_desc = "Describe selected job" },
     { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
   },
+  owner = { name = nil, ns = nil },
 }
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
@@ -63,7 +64,7 @@ function M.processRow(rows)
   end
 
   if rows and rows.items then
-    for _, row in pairs(rows.items) do
+    for _, row in ipairs(rows.items) do
       local job = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
@@ -75,7 +76,15 @@ function M.processRow(rows)
         age = time.since(row.metadata.creationTimestamp, true),
       }
 
-      table.insert(data, job)
+      local isOwnerMatching = M.owner.name
+        and M.owner.ns
+        and row.metadata.ownerReferences
+        and row.metadata.namespace == M.owner.ns
+        and row.metadata.ownerReferences[1].name == M.owner.name
+
+      if isOwnerMatching or not (M.owner.name and M.owner.ns) then
+        table.insert(data, job)
+      end
     end
   end
   return data
