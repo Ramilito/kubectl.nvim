@@ -19,7 +19,7 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
     noremap = true,
     silent = true,
-    desc = "Go to resource",
+    desc = "Open resource view",
     callback = function()
       local kind = crds_view.getCurrentSelection()
       local fallback_view = require("kubectl.views.fallback")
