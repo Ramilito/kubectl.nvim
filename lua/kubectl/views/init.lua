@@ -179,9 +179,12 @@ function M.set_and_open_pod_selector(kind, name, ns)
   local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
 
   -- get the selectors for the pods
-  local encode = require("kubectl.utils.url").encode
+  local encode = vim.uri_encode
   local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
-  local resource = vim.fn.json_decode(commands.execute_shell_command("kubectl", get_selectors))
+  local resource = vim.json.decode(
+    commands.execute_shell_command("kubectl", get_selectors),
+    { luanil = { object = true, array = true } }
+  )
   local selector_t = resource.spec.selector.matchLabels or resource.metadata.labels
   local key_value_pairs = vim.tbl_map(function(key)
     return encode(key .. "=" .. selector_t[key])
