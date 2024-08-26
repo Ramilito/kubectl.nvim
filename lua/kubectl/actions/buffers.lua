@@ -20,7 +20,9 @@ end
 
 local function get_buffer_by_name(bufname)
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_get_name(buf) == bufname then
+    local name = vim.api.nvim_buf_get_name(buf)
+    local filename = vim.fs.basename(name)
+    if filename == bufname then
       return buf
     end
   end
