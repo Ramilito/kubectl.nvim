@@ -62,8 +62,7 @@ function M.processRow(rows)
 
   -- process curl table json
   if rows.rows then
-    local rows_table = rows.rows ~= vim.NIL and rows.rows or {}
-    for _, row in pairs(rows_table) do
+    for _, row in pairs(rows.rows) do
       local resource_vals = row.cells
       local resource = {}
       local namespace = row.object.metadata.namespace
@@ -107,7 +106,7 @@ function M.getHeaders(rows)
   local headers
   if rows.columnDefinitions then
     headers = {}
-    local firstRow = rows.rows ~= vim.NIL and rows.rows[1]
+    local firstRow = rows.rows[1]
     if firstRow and firstRow.object and firstRow.object.metadata and firstRow.object.metadata.namespace then
       table.insert(headers, "NAMESPACE")
     end

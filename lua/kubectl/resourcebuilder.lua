@@ -131,7 +131,7 @@ end
 --- Decode JSON data
 ---@return ResourceBuilder
 function ResourceBuilder:decodeJson()
-  local success, decodedData = pcall(vim.json.decode, self.data)
+  local success, decodedData = pcall(vim.json.decode, self.data, { luanil = { object = true, array = true } })
 
   if success then
     notifications.Add({
