@@ -145,7 +145,7 @@ function M.load_config(file_name)
   local json_data = file:read("*a")
   file:close()
 
-  local ok, decoded = pcall(vim.json.decode, json_data)
+  local ok, decoded = pcall(vim.json.decode, json_data, { luanil = { object = true, array = true } })
   if ok then
     return decoded
   end
