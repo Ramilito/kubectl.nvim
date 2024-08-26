@@ -303,10 +303,10 @@ function ResourceBuilder:view_float(definition, opts)
       vim.schedule(function()
         if definition.processRow then
           builder
-            :process(definition.processRow)
+            :process(definition.processRow, true)
             :sort()
             :prettyPrint(definition.getHeaders)
-            :addHints(definition.hints, true, true, true)
+            :addHints(definition.hints, true, false, false)
             :setContent()
         else
           builder:splitData():setContentRaw()
