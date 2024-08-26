@@ -130,13 +130,13 @@ function M.register()
 
       -- Save the resource data to a temporary file
       local self = ResourceBuilder:new("edit_resource"):setCmd(args, "kubectl"):fetch()
+
       local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
       vim.print("editing " .. tmpfilename)
-      local tmpfile = io.open(tmpfilename, "w+")
-      if tmpfile then
-        tmpfile:write(self.data)
-        tmpfile:close()
-      end
+
+      local tmpfile = assert(io.open(tmpfilename, "w+"), "Failed to open temp file")
+      tmpfile:write(self.data)
+      tmpfile:close()
 
       local original_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
       vim.api.nvim_buf_set_var(0, "original_mtime", original_mtime)
@@ -157,7 +157,7 @@ function M.register()
             local ok, original_mtime = pcall(vim.api.nvim_buf_get_var, 0, "original_mtime")
             local current_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
 
-            if ok and current_mtime.sec ~= original_mtime.sec then
+            if ok and current_mtime ~= original_mtime then
               vim.notify("Edited. Applying changes")
               commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
                 vim.schedule(function()
