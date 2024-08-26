@@ -18,6 +18,15 @@ local function create_buffer(bufname, buftype)
   return buf
 end
 
+local function get_buffer_by_name(bufname)
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_get_name(buf) == bufname then
+      return buf
+    end
+  end
+  return nil
+end
+
 --- Sets the lines in a buffer.
 --- @param buf integer: The buffer number.
 --- @param header table|nil: The header lines (optional).
@@ -85,9 +94,9 @@ end
 --- @param opts { title: string|nil, header: { data: table }, suggestions: table}: Options for the buffer.
 function M.aliases_buffer(filetype, callback, opts)
   local bufname = "kubectl_aliases"
-  local buf = vim.fn.bufnr(bufname, false)
+  local buf = get_buffer_by_name(bufname)
 
-  if buf == -1 then
+  if not buf then
     buf = create_buffer(bufname, "prompt")
     vim.keymap.set("n", "q", function()
       api.nvim_set_option_value("modified", false, { buf = buf })
@@ -115,9 +124,9 @@ end
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.filter_buffer(filetype, callback, opts)
   local bufname = "kubectl_filter"
-  local buf = vim.fn.bufnr(bufname, false)
+  local buf = get_buffer_by_name(bufname)
 
-  if buf == -1 then
+  if not buf then
     buf = create_buffer(bufname, "prompt")
     vim.keymap.set("n", "q", function()
       api.nvim_set_option_value("modified", false, { buf = buf })
@@ -154,9 +163,9 @@ end
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   opts = opts or {}
   local bufname = "kubectl_confirmation"
-  local buf = vim.fn.bufnr(bufname, false)
+  local buf = get_buffer_by_name(bufname)
 
-  if buf == -1 then
+  if not buf then
     buf = create_buffer(bufname)
   end
   local content = opts.content or { "[y]es [n]o" }
@@ -204,9 +213,9 @@ end
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
   local bufname = title or filetype
-  local buf = vim.fn.bufnr(bufname, false)
+  local buf = get_buffer_by_name(bufname)
 
-  if buf == -1 then
+  if not buf then
     if opts.prompt then
       buf = create_buffer(bufname, "prompt")
     else
@@ -254,9 +263,9 @@ end
 --- @return integer: The buffer number.
 function M.floating_buffer(filetype, title, syntax)
   local bufname = title or "kubectl_float"
-  local buf = vim.fn.bufnr(bufname, false)
+  local buf = get_buffer_by_name(bufname)
 
-  if buf == -1 then
+  if not buf then
     buf = create_buffer(bufname)
   end
 
@@ -276,10 +285,10 @@ end
 --- @param title string: The buffer title
 function M.buffer(filetype, title)
   local bufname = title or "kubectl"
-  local buf = vim.fn.bufnr(bufname, false)
+  local buf = get_buffer_by_name(bufname)
   local win = layout.main_layout()
 
-  if buf == -1 then
+  if not buf then
     buf = create_buffer(bufname)
     layout.set_buf_options(buf, win, filetype, filetype, bufname)
   end
@@ -295,7 +304,7 @@ function M.notification_buffer(opts)
   opts.width = opts.width or 40
   local bufname = "notification"
   local marks = {}
-  local buf = vim.fn.bufnr(bufname, false)
+  local buf = get_buffer_by_name(bufname)
 
   if opts.close then
     local _, _ = pcall(function()
@@ -304,7 +313,7 @@ function M.notification_buffer(opts)
     return
   end
 
-  if buf == -1 then
+  if not buf then
     buf = create_buffer(bufname)
   end
 
