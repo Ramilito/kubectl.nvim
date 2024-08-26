@@ -1,6 +1,7 @@
 local definition = require("kubectl.views.pvc.definition")
 local loop = require("kubectl.utils.loop")
 local pvc_view = require("kubectl.views.pvc")
+local commands = require("kubectl.actions.commands")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
