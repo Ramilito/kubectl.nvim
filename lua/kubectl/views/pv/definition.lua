@@ -1,3 +1,4 @@
+local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
 local M = {
   resource = "pv",
@@ -31,7 +32,7 @@ local function getPhase(row)
   if row.metadata.deletionTimestamp then
     phase = "Terminating"
   end
-  return phase
+  return { symbol = events.ColorStatus(phase), value = phase }
 end
 
 function M.processRow(rows)
