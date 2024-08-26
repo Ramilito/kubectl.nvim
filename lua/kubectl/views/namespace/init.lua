@@ -24,10 +24,10 @@ function M.View()
       local list = { { name = "All" } }
       for _, value in ipairs(self.processedData) do
         if value.name.value then
+          table.insert(M.namespaces, value.name.value)
           table.insert(list, { name = value.name.value })
         end
       end
-      M.namespaces = list
       completion.with_completion(buf, list)
 
       vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
