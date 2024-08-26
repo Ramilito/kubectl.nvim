@@ -3,7 +3,9 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local kube = require("kubectl.actions.kube")
-local M = {}
+local M = {
+  contexts = {},
+}
 
 ---@type string[]
 local top_level_commands = {
@@ -76,13 +78,17 @@ end
 --- Returns a list of context-names
 --- @return string[]
 function M.list_contexts()
+  if #M.contexts > 0 then
+    return M.contexts
+  end
   local contexts = commands.shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
-  return vim.split(contexts, "\n")
+  M.contexts = vim.split(contexts, "\n")
+  return M.contexts
 end
 
 --- Returns a list of namespaces
 --- @return string[]
-function M.list_namespace()
+function M.list_namespaces()
   local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
   local ns = {}
   for line in output:gmatch("[^\r\n]+") do
