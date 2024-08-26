@@ -142,8 +142,7 @@ function M.register()
       vim.api.nvim_buf_set_var(0, "original_mtime", original_mtime)
 
       -- open the file
-      vim.cmd([[tabnew]])
-      vim.cmd("edit " .. tmpfilename)
+      vim.cmd("tabnew | edit " .. tmpfilename)
 
       vim.api.nvim_buf_set_option(0, "bufhidden", "wipe")
       local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
