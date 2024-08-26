@@ -1,9 +1,11 @@
 local api = vim.api
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local cronjob_view = require("kubectl.views.cronjobs")
 local definition = require("kubectl.views.cronjobs.definition")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
+local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
@@ -57,6 +59,37 @@ local function set_keymaps(bufnr)
           end
         )
       end)
+    end,
+  })
+
+  api.nvim_buf_set_keymap(bufnr, "n", "gx", "", {
+    noremap = true,
+    silent = true,
+    desc = "Suspend selected cronjob",
+    callback = function()
+      local name, ns, current = tables.getCurrentSelection(2, 1, 4)
+      current = current == "true" and true or false
+      local action = current and "unsuspend" or "suspend"
+      buffers.confirmation_buffer(
+        string.format("Are you sure that you want to %s the cronjob: %s", action, name),
+        "prompt",
+        function(confirm)
+          if confirm then
+            commands.shell_command_async("kubectl", {
+              "patch",
+              "cronjob/" .. name,
+              "-n",
+              ns,
+              "-p",
+              '{"spec" : {"suspend" : ' .. tostring(not current) .. "}}",
+            }, function(response)
+              vim.schedule(function()
+                vim.notify(response)
+              end)
+            end)
+          end
+        end
+      )
     end,
   })
 end
