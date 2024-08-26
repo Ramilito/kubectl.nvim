@@ -22,7 +22,7 @@ M.marks = { ns_id = 0, header = {} }
 M.sortby = {}
 M.sortby_old = { current_word = "" }
 ---@type table
-M.session = { contexts = { default = { view = "pods", namespace = "All" } }, filter_history = {} }
+M.session = { contexts = {}, filter_history = {} }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -103,30 +103,39 @@ function M.setNS(ns)
 end
 
 function M.set_session()
-  local session_name = M.getContext().contexts[1].name
+  local session_name = M.context["current-context"]
   local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
   if ok then
-    M.session.contexts[session_name] = { view = buf_name }
+    M.session.contexts[session_name] = { view = buf_name, namespace = M.ns }
+  else
+    M.session.contexts[session_name] = { view = "Pods", namespace = M.ns }
   end
-  M.session.contexts[session_name].namespace = M.ns
   M.session.filter_history = M.filter_history
   commands.save_config("kubectl.json", M.session)
 end
 
 function M.restore_session()
   local config = commands.load_config("kubectl.json")
-
+  local current_context = M.context["current-context"]
   if config then
-    M.session = config
+    if config.contexts then
+      M.session.contexts = config.contexts
+    end
+    if config.filter_history then
+      M.session.filter_history = config.filter_history
+    end
+  end
+
+  if not M.session.context or not M.session.contexts[current_context] then
+    M.session.contexts[current_context] = { view = "pods", namespace = "All" }
   end
 
   -- Restore state
-  local context_table = M.session.contexts[M.getContext().contexts[1].name] or M.session.contexts.default
-  M.ns = context_table.namespace
+  M.ns = M.session.contexts[current_context].namespace
   M.filter_history = M.session.filter_history
 
   -- change view
-  local session_view = context_table.view
+  local session_view = M.session.contexts[current_context].view
   require("kubectl.views").view_or_fallback(session_view)
 end
 
