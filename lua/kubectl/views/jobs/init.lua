@@ -17,6 +17,9 @@ function M.View(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
+  if definition.owner.name then
+    definition.display_name = "Jobs" .. "(" .. definition.owner.ns .. "/" .. definition.owner.name .. ")"
+  end
   M.builder = M.builder:draw(definition, cancellationToken)
 end
 
