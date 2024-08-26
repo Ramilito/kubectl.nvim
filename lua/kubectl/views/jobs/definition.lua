@@ -8,6 +8,7 @@ local M = {
     { key = "<gd>", desc = "desc", long_desc = "Describe selected job" },
     { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
   },
+  owner = { name = nil, ns = nil },
 }
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
