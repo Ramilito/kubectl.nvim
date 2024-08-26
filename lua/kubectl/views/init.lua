@@ -1,9 +1,9 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
-local find = require("kubectl.utils.find")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.definition")
+local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 
@@ -165,6 +165,39 @@ function M.UserCmd(args)
       self:display("k8s_usercmd", "UserCmd")
     end)
   end)
+end
+
+function M.set_and_open_pod_selector(kind, name, ns)
+  local pod_view = require("kubectl.views.pods")
+  if not kind or not name or not ns then
+    return pod_view.View()
+  end
+
+  -- save url details
+  local pod_definition = require("kubectl.views.pods.definition")
+  local original_url = pod_definition.url[1]
+  local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
+
+  -- get the selectors for the pods
+  local encode = vim.uri_encode
+  local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
+  local resource = vim.json.decode(
+    commands.execute_shell_command("kubectl", get_selectors),
+    { luanil = { object = true, array = true } }
+  )
+  local selector_t = resource.spec.selector.matchLabels or resource.metadata.labels
+  local key_value_pairs = vim.tbl_map(function(key)
+    return encode(key .. "=" .. selector_t[key])
+  end, vim.tbl_keys(selector_t))
+  local label_selector = "?labelSelector=" .. table.concat(key_value_pairs, encode(","))
+  local new_url = url_no_query_params .. label_selector .. "&" .. original_query_params
+
+  pod_definition.url = { new_url }
+  vim.notify(
+    "Loading pods for " .. kind .. ": " .. name .. " in namespace: " .. ns .. "\nRefresh the view to see all pods"
+  )
+  pod_view.View()
+  pod_definition.url = { original_url }
 end
 
 function M.view_or_fallback(view_name)

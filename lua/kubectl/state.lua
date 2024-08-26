@@ -28,7 +28,7 @@ M.session = { view = "pods", namespace = "All", filter_history = {} }
 --- @param string string The JSON string to decode
 --- @return table|nil result The decoded table or nil if decoding fails
 local decode = function(string)
-  local success, result = pcall(vim.json.decode, string)
+  local success, result = pcall(vim.json.decode, string, { luanil = { object = true, array = true } })
   if success then
     return result
   else
