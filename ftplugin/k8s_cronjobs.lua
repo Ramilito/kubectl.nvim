@@ -27,6 +27,7 @@ local function set_keymaps(bufnr)
       local job_def = require("kubectl.views.jobs.definition")
 
       job_view.View()
+      -- Order is important since .View() will reset this selection
       job_def.owner = { name = name, ns = ns }
     end,
   })
