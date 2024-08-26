@@ -18,7 +18,7 @@ local M = {
 }
 
 local function getReady(row)
-  local status = { symbol = "", value = "" }
+  local status = { symbol = "", value = "", sort_by = 0 }
   local readyCount = 0
   local containers = 0
   if row.status.containerStatuses then
@@ -35,6 +35,7 @@ local function getReady(row)
     status.symbol = hl.symbols.deprecated
   end
   status.value = readyCount .. "/" .. containers
+  status.sort_by = (readyCount * 1000) + containers
   return status
 end
 

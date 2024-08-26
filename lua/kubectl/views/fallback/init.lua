@@ -61,7 +61,7 @@ function M.View(cancellationToken, resource)
     definition.cmd = "curl"
   end
 
-  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
 end
 
 function M.Draw(cancellationToken)

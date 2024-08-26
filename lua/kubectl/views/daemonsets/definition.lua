@@ -72,10 +72,11 @@ function M.getHeaders()
 end
 
 function M.getReady(row)
-  local status = { symbol = "", value = "" }
+  local status = { symbol = "", value = "", sort_by = 0 }
   local numberReady = row.status.numberReady
   if numberReady then
     status.value = numberReady .. "/" .. (row.status.numberAvailable or 0)
+    status.sort_by = (numberReady * 1000) + (row.status.numberAvailable or 0)
     if numberReady == row.status.numberAvailable then
       status.symbol = hl.symbols.note
     else
