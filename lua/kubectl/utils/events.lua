@@ -1,4 +1,5 @@
 local hl = require("kubectl.actions.highlight")
+local string_utils = require("kubectl.utils.string")
 local M = {}
 
 --- Color a status based on its severity
@@ -105,7 +106,7 @@ function M.ColorStatus(status)
   if type(status) ~= "string" then
     return ""
   end
-  local capitalized = status:gsub("^%l", string.upper)
+  local capitalized = string_util.capitalize(status)
   if errorStatuses[capitalized] then
     return hl.symbols.error
   elseif warningStatuses[capitalized] then
