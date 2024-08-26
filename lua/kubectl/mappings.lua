@@ -143,19 +143,23 @@ function M.register()
         buffer = 0,
         group = group,
         callback = function()
-          original_mtime = vim.api.nvim_buf_get_var(0, "original_mtime")
-          local current_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
+          -- Defer action to let :wq have time to modify file
+          vim.defer_fn(function()
+            ---@diagnostic disable-next-line: redefined-local
+            local ok, original_mtime = pcall(vim.api.nvim_buf_get_var, 0, "original_mtime")
+            local current_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
 
-          if current_mtime ~= original_mtime then
-            vim.notify("Edited. Applying changes")
-            commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
-              vim.schedule(function()
-                vim.notify(apply_data, vim.log.levels.INFO)
+            if ok and current_mtime.sec ~= original_mtime.sec then
+              vim.notify("Edited. Applying changes")
+              commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
+                vim.schedule(function()
+                  vim.notify(apply_data, vim.log.levels.INFO)
+                end)
               end)
-            end)
-          else
-            vim.notify("Not Edited", vim.log.levels.INFO)
-          end
+            else
+              vim.notify("Not Edited", vim.log.levels.INFO)
+            end
+          end, 100)
         end,
       })
     end,
