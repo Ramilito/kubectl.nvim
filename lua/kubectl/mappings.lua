@@ -258,6 +258,7 @@ function M.register()
     end,
   })
 
+  vim.print("in here, deployments is " .. vw.deployments)
   vim.api.nvim_buf_set_keymap(0, "n", vw.deployments, "", {
     noremap = true,
     silent = true,

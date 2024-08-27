@@ -46,7 +46,9 @@ function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
   local config = require("kubectl.config")
+  vim.print("before setup deployments is " .. vim.inspect(config.options.keymaps.views.deployments))
   config.setup(options)
+  vim.print("after setup deployments is " .. vim.inspect(config.options.keymaps.views.deployments))
   state.setNS(config.options.namespace)
 
   local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
@@ -54,6 +56,7 @@ function M.setup(options)
     group = group,
     pattern = "k8s_*",
     callback = function()
+      vim.print("when setting mappings deployments is " .. vim.inspect(config.options.keymaps.views.deployments))
       mappings.register()
     end,
   })
