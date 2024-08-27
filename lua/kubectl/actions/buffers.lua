@@ -71,7 +71,7 @@ function M.apply_marks(bufnr, marks, header)
       if header and header.data then
         start_row = start_row + #header.data
       end
-      local ok, result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
+      local result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
         end_col = mark.end_col,
         hl_eol = mark.hl_eol or nil,
@@ -81,7 +81,7 @@ function M.apply_marks(bufnr, marks, header)
         virt_text_pos = mark.virt_text_pos or nil,
       })
       -- the first row is always column headers, we save that so other content can use it
-      if mark.row == 0 and ok then
+      if mark.row == 0 then
         state.content_row_start = start_row + 1
         table.insert(state.marks.header, result)
       end
