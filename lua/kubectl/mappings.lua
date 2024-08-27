@@ -1,12 +1,15 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local views = require("kubectl.views")
+local gl = config.options.keymaps.global
+local vw = config.options.keymaps.views
 local M = {}
 
 --- Register kubectl key mappings
 function M.register()
-  vim.api.nvim_buf_set_keymap(0, "n", "gP", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.view_pf, "", {
     noremap = true,
     silent = true,
     desc = "View Port Forwards",
@@ -15,7 +18,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gD", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.delete, "", {
     noremap = true,
     silent = true,
     desc = "Delete",
@@ -48,7 +51,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gd", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.describe, "", {
     noremap = true,
     silent = true,
     desc = "Describe resource",
@@ -73,7 +76,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gr", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.reload, "", {
     noremap = true,
     silent = true,
     desc = "Reload",
@@ -95,7 +98,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "ge", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.edit, "", {
     noremap = true,
     silent = true,
     desc = "Edit resource",
@@ -173,7 +176,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-a>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.aliases, "", {
     noremap = true,
     silent = true,
     desc = "Aliases",
@@ -183,7 +186,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-f>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.filter, "", {
     noremap = true,
     silent = true,
     desc = "Filter",
@@ -193,7 +196,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-n>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.namespaces, "", {
     noremap = true,
     silent = true,
     desc = "Change namespace",
@@ -203,7 +206,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gs", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.sort, "", {
     noremap = true,
     silent = true,
     desc = "Sort",
@@ -255,7 +258,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "1", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.deployments, "", {
     noremap = true,
     silent = true,
     desc = "Deployments",
@@ -265,7 +268,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "2", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.pods, "", {
     noremap = true,
     silent = true,
     desc = "Pods",
@@ -275,7 +278,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "3", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.configmaps, "", {
     noremap = true,
     silent = true,
     desc = "Configmaps",
@@ -285,7 +288,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "4", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.secrets, "", {
     noremap = true,
     silent = true,
     desc = "Secrets",
@@ -295,7 +298,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "5", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.services, "", {
     noremap = true,
     silent = true,
     desc = "Services",

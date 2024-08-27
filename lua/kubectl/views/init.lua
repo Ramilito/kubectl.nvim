@@ -2,10 +2,13 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
+local gl = config.options.keymaps.global
+local vw = config.options.keymaps.views
 
 local M = {}
 
@@ -52,21 +55,22 @@ end
 function M.Hints(headers)
   local marks = {}
   local hints = {}
+  local s = require("kubectl.utils.string").s
   local globals = {
-    { key = "<C-a>", desc = "Aliases" },
-    { key = "<C-f>", desc = "Filter on a phrase" },
-    { key = "<C-n>", desc = "Change namespace" },
-    { key = "<bs> ", desc = "Go up a level" },
-    { key = "<gD> ", desc = "Delete resource" },
-    { key = "<gP> ", desc = "Port forwards" },
-    { key = "<gs> ", desc = "Sort column" },
-    { key = "<ge> ", desc = "Edit resource" },
-    { key = "<gr> ", desc = "Refresh view" },
-    { key = "<1>  ", desc = "Deployments" },
-    { key = "<2>  ", desc = "Pods " },
-    { key = "<3>  ", desc = "Configmaps " },
-    { key = "<4>  ", desc = "Secrets " },
-    { key = "<5>  ", desc = "Services" },
+    { key = s(gl.aliases), desc = "Aliases" },
+    { key = s(gl.filter), desc = "Filter on a phrase" },
+    { key = s(gl.namespaces), desc = "Change namespace" },
+    { key = s(gl.go_up), desc = "Go up a level" },
+    { key = s(gl.delete), desc = "Delete resource" },
+    { key = s(gl.view_pf), desc = "Port forwards" },
+    { key = s(gl.sort), desc = "Sort column" },
+    { key = s(gl.edit), desc = "Edit resource" },
+    { key = s(gl.reload), desc = "Reload view" },
+    { key = s(vw.deployments), desc = "Deployments" },
+    { key = s(vw.pods), desc = "Pods " },
+    { key = s(vw.configmaps), desc = "Configmaps " },
+    { key = s(vw.secrets), desc = "Secrets " },
+    { key = s(vw.services), desc = "Services" },
   }
 
   local title = "Buffer mappings: "

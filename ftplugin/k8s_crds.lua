@@ -2,12 +2,15 @@ local definition = require("kubectl.views.crds.definition")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local api = vim.api
+local config = require("kubectl.config")
 local crds_view = require("kubectl.views.crds")
 local view = require("kubectl.views")
+local gl = config.options.keymaps.global
+local c = config.options.keymaps.crds
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -16,7 +19,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", c.view, "", {
     noremap = true,
     silent = true,
     desc = "Open resource view",

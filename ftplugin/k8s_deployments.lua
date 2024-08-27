@@ -1,15 +1,18 @@
 local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
+local gl = config.options.keymaps.global
+local dp = config.options.keymaps.deployments
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -18,7 +21,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.view_pods, "", {
     noremap = true,
     silent = true,
     desc = "Go to pods",
@@ -28,7 +31,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up, "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -38,7 +41,7 @@ local function set_keymaps(bufnr)
   })
 
   -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
-  api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.set_image, "", {
     noremap = true,
     silent = true,
     desc = "Set image",
@@ -80,7 +83,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<c-s>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.scale, "", {
     noremap = true,
     silent = true,
     desc = "Scale replicas",
@@ -118,7 +121,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.restart, "", {
     noremap = true,
     silent = true,
     desc = "Rollout restart",

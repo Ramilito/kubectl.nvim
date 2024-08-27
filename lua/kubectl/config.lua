@@ -8,7 +8,8 @@ local M = {}
 ---@field context boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
----@field mappings { }
+---@field keymaps { }
+---@field mappings { } deprecated
 local defaults = {
   auto_refresh = {
     enabled = true,
@@ -38,6 +39,52 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
+  ---@type table<'global'|'views', table>
+  keymaps = {
+    global = {
+      help = "g?",
+      go_up = "<bs>",
+      view_pf = "gP",
+      delete = "gD",
+      describe = "gd",
+      edit = "ge",
+      reload = "gr",
+      sort = "gs",
+      namespaces = "<C-n>",
+      filter = "<C-f>",
+      aliases = "<C-a>",
+    },
+    views = {
+      deployments = "1",
+      pods = "2",
+      configmaps = "3",
+      secrets = "4",
+      services = "5",
+    },
+    deployments = {
+      help = "g?",
+      view_pods = "<CR>",
+      set_image = "gi",
+      restart = "grr",
+      scale = "<C-s>",
+    },
+    containers = {
+      exec = "<CR>",
+      logs = {
+        view = "gl",
+        follow = "f",
+        wrap = "gw",
+      },
+    },
+    crds = {
+      view = "<CR>",
+    },
+    cronjobs = {
+      view_jobs = "<CR>",
+      create = "gc",
+      toggle_suspend = "gx",
+    },
+  },
 }
 
 ---@type KubectlOptions

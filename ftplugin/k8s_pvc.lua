@@ -1,12 +1,13 @@
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pvc.definition")
 local loop = require("kubectl.utils.loop")
 local pvc_view = require("kubectl.views.pvc")
-local commands = require("kubectl.actions.commands")
 local view = require("kubectl.views")
+local gl = require("kubectl.config").options.keymaps.global
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,
     desc = "Help",

@@ -2,6 +2,7 @@ local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
+local gl = require("kubectl.config").options.keymaps.global
 local M = {}
 
 --- Calculate column widths for table data
@@ -162,13 +163,14 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   local hints = {}
   local marks = {}
 
+  local s = require("kubectl.utils.string").s
   if include_defaults then
     local defaults = {
-      { key = "<gr>", desc = "reload" },
-      { key = "<C-a>", desc = "aliases" },
-      { key = "<C-f>", desc = "filter" },
-      { key = "<C-n>", desc = "namespace" },
-      { key = "<g?>", desc = "help" },
+      { key = s(gl.reload), desc = "reload" },
+      { key = s(gl.aliases), desc = "aliases" },
+      { key = s(gl.filter), desc = "filter" },
+      { key = s(gl.namespaces), desc = "namespaces" },
+      { key = s(gl.help), desc = "help" },
     }
     for _, default in ipairs(defaults) do
       table.insert(headers, default)

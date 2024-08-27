@@ -9,10 +9,11 @@ local root_view = require("kubectl.views.root")
 local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
+local gl = require("kubectl.config").options.keymaps.global
 
 --- Set key mappings for the buffer
 local function set_keymap(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,
     desc = "Help",

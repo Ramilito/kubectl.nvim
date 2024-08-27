@@ -3,20 +3,20 @@ local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local api = vim.api
 local configmaps_view = require("kubectl.views.configmaps")
-local view = require("kubectl.views")
+local gl = require("kubectl.config").options.keymaps.global
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,
     desc = "Help",
     callback = function()
-      view.Hints(definition.hints)
+      configmaps_view.Hints(definition.hints)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up, "", {
     noremap = true,
     silent = true,
     desc = "Go up",
