@@ -24,19 +24,15 @@ function M.Edit(name, ns)
 end
 
 function M.Desc(name, ns)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_secret_desc", name, "yaml")
-    :setCmd({ "get", "secret", name, "-n", ns, "-o", "yaml" })
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self
-          :addHints({
-            { key = "<cr>", desc = "base64decode" },
-          }, false, false, false)
-          :setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_secret_desc",
+    url = { "get", "secret", name, "-n", ns, "-o", "yaml" },
+    syntax = "yaml",
+    hints = {
+      { key = "<cr>", desc = "base64decode" },
+    },
+  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view

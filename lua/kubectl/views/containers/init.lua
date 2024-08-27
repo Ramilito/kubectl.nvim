@@ -51,23 +51,18 @@ function M.exec(pod, ns)
 end
 
 function M.logs(pod, ns)
-  ResourceBuilder:new("containerLogs")
-    :displayFloat("k8s_container_logs", pod .. " - " .. M.selection, "less")
-    :setCmd(
-      { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true" },
-      "curl"
-    )
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self
-          :addHints({
-            { key = "<f>", desc = "Follow" },
-            { key = "<gw>", desc = "Wrap" },
-          }, false, false, false)
-          :setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "containerLogs",
+    ft = "k8s_container_logs",
+    url = {
+      "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true",
+    },
+    syntax = "less",
+    hints = {
+      { key = "<f>", desc = "Follow" },
+      { key = "<gw>", desc = "Wrap" },
+    },
+  })
 end
 
 return M
