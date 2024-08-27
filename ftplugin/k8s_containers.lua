@@ -2,10 +2,10 @@ local api = vim.api
 local container_view = require("kubectl.views.containers")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
-local c = require("kubectl.config").options.keymaps.containers
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
+  local c = require("kubectl.config").options.keymaps.containers
   api.nvim_buf_set_keymap(bufnr, "n", c.logs.view, "", {
     noremap = true,
     silent = true,

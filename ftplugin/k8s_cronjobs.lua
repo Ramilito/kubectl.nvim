@@ -1,18 +1,18 @@
 local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local config = require("kubectl.config")
 local cronjob_view = require("kubectl.views.cronjobs")
 local definition = require("kubectl.views.cronjobs.definition")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
-local gl = config.options.keymaps.global
-local cj = config.options.keymaps.cronjobs
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
+  local km = require("kubectl.config").options.keymaps
+  local gl = km.global
+  local cj = km.cronjobs
   api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,

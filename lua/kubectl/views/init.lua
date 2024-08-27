@@ -2,13 +2,10 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
-local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
-local gl = config.options.keymaps.global
-local vw = config.options.keymaps.views
 
 local M = {}
 
@@ -53,6 +50,9 @@ end
 ---@alias Hint { key: string, desc: string, long_desc: string }
 ---@param headers Hint[]
 function M.Hints(headers)
+  local km = require("kubectl.config").options.keymaps
+  local gl = km.global
+  local vw = km.views
   local marks = {}
   local hints = {}
   local s = require("kubectl.utils.string").s

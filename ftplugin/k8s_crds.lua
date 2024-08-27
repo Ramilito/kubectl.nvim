@@ -2,14 +2,14 @@ local definition = require("kubectl.views.crds.definition")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local api = vim.api
-local config = require("kubectl.config")
 local crds_view = require("kubectl.views.crds")
 local view = require("kubectl.views")
-local gl = config.options.keymaps.global
-local c = config.options.keymaps.crds
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
+  local km = require("kubectl.config").options.keymaps
+  local gl = km.global
+  local c = km.crds
   api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,

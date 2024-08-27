@@ -2,7 +2,6 @@ local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
-local gl = require("kubectl.config").options.keymaps.global
 local M = {}
 
 --- Calculate column widths for table data
@@ -160,6 +159,7 @@ end
 ---@param divider { resource: string, count: string, filter: string }|nil
 ---@return table[], table[]
 function M.generateHeader(headers, include_defaults, include_context, divider)
+  local gl = config.options.keymaps.global
   local hints = {}
   local marks = {}
 

@@ -3,10 +3,10 @@ local definition = require("kubectl.views.pvc.definition")
 local loop = require("kubectl.utils.loop")
 local pvc_view = require("kubectl.views.pvc")
 local view = require("kubectl.views")
-local gl = require("kubectl.config").options.keymaps.global
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
+  local gl = require("kubectl.config").options.keymaps.global
   vim.api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
     noremap = true,
     silent = true,

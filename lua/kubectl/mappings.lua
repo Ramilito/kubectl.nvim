@@ -1,14 +1,14 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local config = require("kubectl.config")
 local views = require("kubectl.views")
-local gl = config.options.keymaps.global
-local vw = config.options.keymaps.views
 local M = {}
 
 --- Register kubectl key mappings
 function M.register()
+  local km = require("kubectl.config").options.keymaps
+  local gl = km.global
+  local vw = km.views
   vim.api.nvim_buf_set_keymap(0, "n", gl.view_pf, "", {
     noremap = true,
     silent = true,
