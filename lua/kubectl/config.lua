@@ -39,7 +39,7 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 0, -- highghlight if age is less than minutes
-  ---@type table<'global'|'views', table>
+  ---@type table<'global'|'views'|'deployments'|'containers'|'crds'|'cronjobs', table>
   keymaps = {
     global = {
       help = "g?",
