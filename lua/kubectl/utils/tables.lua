@@ -228,13 +228,11 @@ function M.pretty_print(data, headers, sort_by)
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
     -- "  " is to add space for sort icon
-    -- -2 on extra_padding is to remove the space mentioned above
-
+    -- -1 on extra_padding is to remove the space mentioned above
     local padding = string.rep(" ", column_width - #header + extra_padding - 1)
     local value = header .. "  " .. padding
     table.insert(header_line, value)
 
-    -- local value = header .. "  " .. string.rep(" ", column_width - #header + 1) .. string.rep(" ", extra_padding - 2)
     local start_col = header_col_position
     local end_col = start_col + #header + 1
 
