@@ -5,11 +5,12 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  local gl = require("kubectl.config").options.keymaps.global
+  local config = require("kubectl.config")
+  local gl = config.options.keymaps.global
   vim.api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
-    desc = "Help",
+    desc = config.get_desc(gl.help),
     callback = function()
       view.Hints(definition.hints)
     end,

@@ -8,39 +8,41 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
+  local config = require("kubectl.config")
   local gl = require("kubectl.config").options.keymaps.global
+  local j = require("kubectl.config").options.keymaps.jobs
   api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
-    desc = "Help",
+    desc = config.get_desc(gl.help),
     callback = function()
       view.Hints(definition.hints)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", j.view_pods.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go to pods",
+    desc = config.get_desc(j.view_pods),
     callback = function()
       local name, ns = job_view.getCurrentSelection()
       view.set_and_open_pod_selector("jobs", name, ns)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go up",
+    desc = config.get_desc(gl.go_up),
     callback = function()
       cronjob_view.View()
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gc", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", j.create.key, "", {
     noremap = true,
     silent = true,
-    desc = "Create job from job",
+    desc = config.get_desc(j.create),
     callback = function()
       local name, ns = job_view.getCurrentSelection()
       vim.ui.input({ prompt = "New job name " }, function(input)

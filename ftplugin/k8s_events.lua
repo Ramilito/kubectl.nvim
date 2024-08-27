@@ -8,20 +8,22 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  local gl = require("kubectl.config").options.keymaps.global
+  local config = require("kubectl.config")
+  local gl = config.options.keymaps.global
+  local ev = config.options.keymaps.events
   api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
-    desc = "Help",
+    desc = config.get_desc(gl.help),
     callback = function()
       view.Hints(definition.hints)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", ev.view_message.key, "", {
     noremap = true,
     silent = true,
-    desc = "View message",
+    desc = config.get_desc(ev.view_message),
     callback = function()
       local message = tables.getCurrentSelection(unpack({ 7 }))
       if message then
@@ -32,10 +34,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go up",
+    desc = config.get_desc(gl.go_up),
     callback = function()
       root_view.View()
     end,

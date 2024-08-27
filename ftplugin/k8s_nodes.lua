@@ -7,29 +7,31 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  local gl = require("kubectl.config").options.keymaps.global
+  local config = require("kubectl.config")
+  local gl = config.options.keymaps.global
+  local n = config.options.keymaps.nodes
   api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
-    desc = "Help",
+    desc = config.get_desc(gl.help),
     callback = function()
       view.Hints(definition.hints)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go up",
+    desc = config.get_desc(gl.go_up),
     callback = function()
       root_view.View()
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gR", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", n.drain.key, "", {
     noremap = true,
     silent = true,
-    desc = "Drain node",
+    desc = config.get_desc(n.drain),
     callback = function()
       local node = node_view.getCurrentSelection()
       if node then
@@ -40,10 +42,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gU", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", n.uncordon.key, "", {
     noremap = true,
     silent = true,
-    desc = "UnCordon node",
+    desc = config.get_desc(n.uncordon),
     callback = function()
       local node = node_view.getCurrentSelection()
       if node then
@@ -54,10 +56,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gC", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", n.cordon.key, "", {
     noremap = true,
     silent = true,
-    desc = "Cordon node",
+    desc = config.get_desc(n.cordon),
     callback = function()
       local node = node_view.getCurrentSelection()
       if node then

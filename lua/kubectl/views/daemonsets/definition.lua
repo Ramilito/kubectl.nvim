@@ -5,6 +5,7 @@ local M = {
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}daemonsets?pretty=false" },
   hints = {
     { key = "<grr>", desc = "restart", long_desc = "Restart selected daemonset" },
+    { key = "<gi>", desc = "set image", long_desc = "Set image for selected daemonset" },
     { key = "<gd>", desc = "desc", long_desc = "Describe selected daemonset" },
     { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
   },

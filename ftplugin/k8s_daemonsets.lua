@@ -10,40 +10,42 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  local gl = require("kubectl.config").options.keymaps.global
+  local config = require("kubectl.config")
+  local gl = config.options.keymaps.global
+  local ds = config.options.keymaps.daemonsets
   api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
-    desc = "Help",
+    desc = config.get_desc(gl.help),
     callback = function()
       view.Hints(definition.hints)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", ds.view_pods.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go to pods",
+    desc = config.get_desc(ds.view_pods),
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
       view.set_and_open_pod_selector("daemonsets", name, ns)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go up",
+    desc = config.get_desc(gl.go_up),
     callback = function()
       root_view.View()
     end,
   })
 
   -- Only works _if_ there is only _one_ container and that image is the _same_ as the daemonset
-  api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", ds.set_image.key, "", {
     noremap = true,
     silent = true,
-    desc = "Set image",
+    desc = config.get_desc(ds.set_image),
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
 
@@ -81,10 +83,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", ds.restart.key, "", {
     noremap = true,
     silent = true,
-    desc = "Rollout restart",
+    desc = config.get_desc(ds.restart),
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
       buffers.confirmation_buffer(

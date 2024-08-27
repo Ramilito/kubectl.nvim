@@ -10,22 +10,23 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  local km = require("kubectl.config").options.keymaps
+  local config = require("kubectl.config")
+  local km = config.options.keymaps
   local gl = km.global
   local cj = km.cronjobs
   api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
-    desc = "Help",
+    desc = config.get_desc(gl.help),
     callback = function()
       view.Hints(definition.hints)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", cj.view_jobs, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", cj.view_jobs.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go to jobs",
+    desc = config.get_desc(cj.view_jobs),
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
       local job_view = require("kubectl.views.jobs")
@@ -40,16 +41,16 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", gl.go_up.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go up",
+    desc = config.get_desc(gl.go_up),
     callback = function()
       root_view.View()
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", cj.create, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", cj.create.key, "", {
     noremap = true,
     silent = true,
-    desc = "Create job from cronjob",
+    desc = config.get_desc(cj.create),
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
       vim.ui.input({ prompt = "New job name " }, function(input)
@@ -69,10 +70,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", cj.toggle_suspend, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", cj.toggle_suspend.key, "", {
     noremap = true,
     silent = true,
-    desc = "Suspend selected cronjob",
+    desc = config.get_desc(cj.toggle_suspend),
     callback = function()
       local name, ns, current = tables.getCurrentSelection(2, 1, 4)
       current = current == "true" and true or false

@@ -1,4 +1,5 @@
 local M = {}
+local str = require("kubectl.utils.string")
 
 ---@class KubectlOptions
 ---@field auto_refresh { enabled: boolean, interval: number }
@@ -42,46 +43,71 @@ local defaults = {
   ---@type table<'global'|'views'|'deployments'|'containers'|'crds'|'cronjobs', table>
   keymaps = {
     global = {
-      help = { lhs = "g?", desc = "Help" },
-      go_up = { lhs = "<bs>", desc = "Go up" },
-      view_pf = { lhs = "gP", desc = "Port forwards" },
-      delete = { lhs = "gD", desc = "Delete resource" },
-      describe = { lhs = "gd", desc = "Describe resource" },
-      edit = { lhs = "ge", desc = "Edit resource" },
-      reload = { lhs = "gr", desc = "Reload view" },
-      sort = { lhs = "gs", desc = "Sort column" },
-      namespaces = { lhs = "<C-n>", desc = "Change namespace" },
-      filter = { lhs = "<C-f>", desc = "Filter on a phrase" },
-      aliases = { lhs = "<C-a>", desc = "Aliases" },
+      help = { key = "g?", desc = "help" },
+      go_up = { key = "<bs>", desc = "go-up" },
+      view_pfs = { key = "gP", desc = "port-forwards" },
+      delete = { key = "gD", desc = "delete", long_desc = "Delete resource" },
+      describe = { key = "gd", desc = "describe", long_desc = "Describe resource" },
+      edit = { key = "ge", desc = "edit", long_desc = "Edit resource" },
+      reload = { key = "gr", desc = "reload", long_desc = "Reload view" },
+      sort = { key = "gs", desc = "sort", long_desc = "Sort by column" },
+      namespaces = { key = "<C-n>", desc = "change-ns", long_desc = "Change namespace" },
+      filter = { key = "<C-f>", desc = "filter", long_desc = "Filter on a phrase" },
+      aliases = { key = "<C-a>", desc = "aliases", long_desc = "Aliases view" },
     },
     views = {
-      deployments = { lhs = "1", desc = "Deployments view" },
-      pods = { lhs = "2", desc = "Pods view" },
-      configmaps = { lhs = "3", desc = "Configmaps view" },
-      secrets = { lhs = "4", desc = "Secrets view" },
-      services = { lhs = "5", desc = "Services view" },
+      deployments = { key = "1", desc = "Deployments view" },
+      pods = { key = "2", desc = "Pods view" },
+      configmaps = { key = "3", desc = "Configmaps view" },
+      secrets = { key = "4", desc = "Secrets view" },
+      services = { key = "5", desc = "Services view" },
     },
     deployments = {
-      view_pods = { lhs = "<CR>", desc = "pods", long_desc = "Go to pods of deployment" },
-      set_image = { lhs = "gi", desc = "Set image" },
-      restart = { lhs = "grr" },
-      scale = { lhs = "<C-s>" },
+      view_pods = { key = "<CR>", desc = "pods", long_desc = "Go to pods of deployment" },
+      set_image = { key = "gi", desc = "set-image", long_desc = "Set image for deployment" },
+      restart = { key = "grr", desc = "restart", long_desc = "Restart deployment" },
+      scale = { key = "<C-s>", desc = "scale", long_desc = "Scale deployment" },
+    },
+    daemonsets = {
+      view_pods = { key = "<CR>", desc = "pods", long_desc = "Go to pods of daemonset" },
+      restart = { key = "<grr>", desc = "restart", long_desc = "Rollout restart selected daemonset" },
+      set_image = { key = "<gi>", desc = "set image", long_desc = "Set image for selected daemonset" },
+      { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
     },
     containers = {
-      exec = { lhs = "<CR>" },
+      exec = { key = "<CR>", desc = "exec", long_desc = "Exec into container" },
       logs = {
-        view = { lhs = "gl" },
-        follow = { lhs = "f" },
-        wrap = { lhs = "gw" },
+        view = { key = "gl", desc = "view" },
+        follow = { key = "f", desc = "follow" },
+        wrap = { key = "gw", desc = "wrap" },
       },
     },
     crds = {
-      view = { lhs = "<CR>" },
+      view = { key = "<CR>", desc = "view-resource", long_desc = "Go to resource view" },
     },
     cronjobs = {
-      view_jobs = { lhs = "<CR>" },
-      create = { lhs = "gc" },
-      toggle_suspend = { lhs = "gx" },
+      view_jobs = { key = "<CR>", desc = "view-jobs", long_desc = "View jobs of cronjob" },
+      create = { key = "gc", desc = "create-job", long_desc = "Create new job for cronjob" },
+      toggle_suspend = { key = "gx", desc = "toggle-suspend", long_desc = "Toggle suspend cronjob" },
+    },
+    events = {
+      view_message = { key = "<CR>", desc = "view-message", long_desc = "View message" },
+    },
+    jobs = {
+      view_pods = { key = "<CR>", desc = "pods", long_desc = "Go to pods of job" },
+      create = { key = "gc", desc = "create-job", long_desc = "Create new job from job" },
+    },
+    nodes = {
+      drain = { key = "gR", desc = "drain", long_desc = "Drain node" },
+      uncordon = { key = "gU", desc = "uncordon", long_desc = "Uncordon node" },
+      cordon = { key = "gC", desc = "cordon", long_desc = "Cordon node" },
+    },
+    pods = {
+      logs = {
+        view = { key = "gl", desc = "logs", long_desc = "Open logs" },
+        follow = { key = "f", desc = "follow" },
+        wrap = { key = "gw", desc = "wrap", long_desc = "Wrap log lines" },
+      },
     },
   },
 }
@@ -96,6 +122,16 @@ function M.setup(options)
     vim.notify("Warning: mappings.exit is deprecated. Please use own mapping to call require('kubectl').close()")
   end
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
+end
+
+function M.get_desc(k, short)
+  if k.long_desc and not short then
+    return k.long_desc
+  end
+  if k.desc then
+    return str.capitalize(k.desc)
+  end
+  return ""
 end
 
 return M

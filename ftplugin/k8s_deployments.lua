@@ -9,22 +9,23 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  local km = require("kubectl.config").options.keymaps
+  local config = require("kubectl.config")
+  local km = config.options.keymaps
   local gl = km.global
   local dp = km.deployments
   api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
-    desc = "Help",
+    desc = config.get_desc(gl.help.key),
     callback = function()
       view.Hints(definition.hints)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", dp.view_pods, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.view_pods.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go to pods",
+    desc = config.get_desc(dp.view_pods),
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
       view.set_and_open_pod_selector("deployments", name, ns)
@@ -34,17 +35,17 @@ local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", gl.go_up.key, "", {
     noremap = true,
     silent = true,
-    desc = "Go up",
+    desc = config.get_desc(gl.go_up.key),
     callback = function()
       root_view.View()
     end,
   })
 
   -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
-  api.nvim_buf_set_keymap(bufnr, "n", dp.set_image, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.set_image.key, "", {
     noremap = true,
     silent = true,
-    desc = "Set image",
+    desc = config.get_desc(dp.set_image),
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
 
@@ -83,10 +84,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", dp.scale, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.scale.key, "", {
     noremap = true,
     silent = true,
-    desc = "Scale replicas",
+    desc = config.get_desc(dp.scale),
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
 
@@ -121,10 +122,10 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", dp.restart, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", dp.restart.key, "", {
     noremap = true,
     silent = true,
-    desc = "Rollout restart",
+    desc = config.get_desc(dp.restart),
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
       buffers.confirmation_buffer(

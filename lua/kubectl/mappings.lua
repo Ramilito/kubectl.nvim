@@ -6,13 +6,14 @@ local M = {}
 
 --- Register kubectl key mappings
 function M.register()
-  local km = require("kubectl.config").options.keymaps
+  local config = require("kubectl.config")
+  local km = config.options.keymaps
   local gl = km.global
   local vw = km.views
-  vim.api.nvim_buf_set_keymap(0, "n", gl.view_pf.key, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.view_pfs.key, "", {
     noremap = true,
     silent = true,
-    desc = "View Port Forwards",
+    desc = config.get_desc(gl.view_pfs),
     callback = function()
       views.PortForwards()
     end,
@@ -21,7 +22,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.delete.key, "", {
     noremap = true,
     silent = true,
-    desc = "Delete",
+    desc = config.get_desc(gl.delete),
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative ~= "" then
@@ -54,7 +55,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.describe.key, "", {
     noremap = true,
     silent = true,
-    desc = "Describe resource",
+    desc = config.get_desc(gl.describe),
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative == "" then
@@ -79,7 +80,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.reload.key, "", {
     noremap = true,
     silent = true,
-    desc = "Reload",
+    desc = config.get_desc(gl.reload),
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative == "" then
@@ -101,7 +102,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.edit.key, "", {
     noremap = true,
     silent = true,
-    desc = "Edit resource",
+    desc = config.get_desc(gl.edit),
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative ~= "" then
@@ -179,7 +180,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.aliases.key, "", {
     noremap = true,
     silent = true,
-    desc = "Aliases",
+    desc = config.get_desc(gl.aliases),
     callback = function()
       local view = require("kubectl.views")
       view.Aliases()
@@ -189,7 +190,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.filter.key, "", {
     noremap = true,
     silent = true,
-    desc = "Filter",
+    desc = config.get_desc(gl.filter),
     callback = function()
       local filter_view = require("kubectl.views.filter")
       filter_view.filter()
@@ -199,7 +200,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.namespaces.key, "", {
     noremap = true,
     silent = true,
-    desc = "Change namespace",
+    desc = config.get_desc(gl.namespaces),
     callback = function()
       local namespace_view = require("kubectl.views.namespace")
       namespace_view.View()
@@ -209,7 +210,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", gl.sort.key, "", {
     noremap = true,
     silent = true,
-    desc = "Sort",
+    desc = config.get_desc(gl.sort),
     callback = function()
       local marks = require("kubectl.utils.marks")
       local state = require("kubectl.state")
@@ -258,51 +259,50 @@ function M.register()
     end,
   })
 
-  vim.print("in here, deployments is " .. vw.deployments)
-  vim.api.nvim_buf_set_keymap(0, "n", vw.deployments, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.deployments.key, "", {
     noremap = true,
     silent = true,
-    desc = "Deployments",
+    desc = config.get_desc(vw.deployments),
     callback = function()
       local view = require("kubectl.views.deployments")
       view.View()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", vw.pods, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.pods.key, "", {
     noremap = true,
     silent = true,
-    desc = "Pods",
+    desc = config.get_desc(vw.pods),
     callback = function()
       local view = require("kubectl.views.pods")
       view.View()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", vw.configmaps, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.configmaps.key, "", {
     noremap = true,
     silent = true,
-    desc = "Configmaps",
+    desc = config.get_desc(vw.configmaps),
     callback = function()
       local view = require("kubectl.views.configmaps")
       view.View()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", vw.secrets, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.secrets.key, "", {
     noremap = true,
     silent = true,
-    desc = "Secrets",
+    desc = config.get_desc(vw.secrets),
     callback = function()
       local view = require("kubectl.views.secrets")
       view.View()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", vw.services, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", vw.services.key, "", {
     noremap = true,
     silent = true,
-    desc = "Services",
+    desc = config.get_desc(vw.services),
     callback = function()
       local view = require("kubectl.views.services")
       view.View()
