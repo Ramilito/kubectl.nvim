@@ -346,7 +346,10 @@ function ResourceBuilder:draw(definition, cancellationToken)
     :sort()
     :prettyPrint(definition.getHeaders)
     :addHints(definition.hints, true, true, true)
-    :setContent(cancellationToken)
+  vim.schedule(function()
+    self:setContent(cancellationToken)
+  end)
+
   return self
 end
 
