@@ -73,12 +73,12 @@ function M.Edit(name, ns)
 end
 
 function M.Desc(name, ns)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_fallback_desc", name, "yaml")
-    :setCmd(add_namespace({ "describe", M.resource .. "/" .. name }, ns))
-    :fetch()
-    :splitData()
-    :setContentRaw()
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_fallback_desc",
+    url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view
