@@ -51,19 +51,18 @@ end
 
 function M.getReady(row)
   local status = { symbol = "", value = "", sort_by = 0 }
-  if row.status.availableReplicas then
-    status.value = row.status.readyReplicas .. "/" .. row.status.availableReplicas
-    status.sort_by = (row.status.readyReplicas * 1000) + row.status.availableReplicas
-    if row.status.readyReplicas == row.status.availableReplicas then
-      status.symbol = hl.symbols.note
-    else
-      status.symbol = hl.symbols.deprecated
-    end
+  local available = row.status.availableReplicas or row.status.readyReplicas or "0"
+  local unavailable = row.status.unavailableReplicas or "0"
+  local replicas = row.spec.replicas or row.status.replicas or "0"
+
+  if available == replicas and unavailable == "0" then
+    status.symbol = hl.symbols.note
   else
     status.symbol = hl.symbols.deprecated
-    -- TODO: There should be other numbers to fetch here
-    status.value = "0/0"
   end
+
+  status.value = available .. "/" .. replicas
+  status.sort_by = (available * 1000) + replicas
   return status
 end
 
