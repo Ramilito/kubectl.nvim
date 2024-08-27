@@ -78,22 +78,16 @@ function M.selectPod(pod_name, namespace)
 end
 
 function M.Logs()
-  ResourceBuilder:new("logs")
-    :displayFloat("k8s_pod_logs", M.selection.pod, "less")
-    :setCmd({
-      "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
-    }, "curl", "text/html")
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self
-          :addHints({
-            { key = "<f>", desc = "Follow" },
-            { key = "<gw>", desc = "Wrap" },
-          }, false, false, false)
-          :setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "logs",
+    ft = "k8s_pod_logs",
+    url = { "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true" },
+    syntax = "less",
+    hints = {
+      { key = "<f>", desc = "Follow" },
+      { key = "<gw>", desc = "Wrap" },
+    },
+  }, { contentType = "text/html" })
 end
 
 function M.Edit(name, ns)

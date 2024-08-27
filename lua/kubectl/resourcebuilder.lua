@@ -296,8 +296,8 @@ end
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   ResourceBuilder:new(definition.resource)
-    :displayFloat(definition.ft, definition.resource)
-    :setCmd(definition.url, opts.cmd or "curl")
+    :displayFloat(definition.ft, definition.resource, definition.syntax)
+    :setCmd(definition.url, opts.cmd or "curl", opts.contentType)
     :fetchAsync(function(builder)
       builder:decodeJson()
 
@@ -310,7 +310,7 @@ function ResourceBuilder:view_float(definition, opts)
             :addHints(definition.hints, true, false, false)
             :setContent()
         else
-          builder:splitData():setContentRaw()
+          builder:splitData():addHints(definition.hints, false, false, false):setContentRaw()
         end
       end)
     end)
