@@ -249,8 +249,10 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   local count = ""
   local filter = ""
   local hints_copy = {}
-  for index, value in ipairs(hints) do
-    hints_copy[index] = value
+  if hints then
+    for index, value in ipairs(hints) do
+      hints_copy[index] = value
+    end
   end
   if self.prettyData then
     count = tostring(#self.prettyData - 1)
@@ -310,7 +312,11 @@ function ResourceBuilder:view_float(definition, opts)
             :addHints(definition.hints, true, false, false)
             :setContent()
         else
-          builder:splitData():addHints(definition.hints, false, false, false):setContentRaw()
+          builder:splitData()
+          if definition.hints then
+            builder:addHints(definition.hints, false, false, false)
+          end
+          builder:setContentRaw()
         end
       end)
     end)
