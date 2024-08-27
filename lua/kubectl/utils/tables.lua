@@ -252,31 +252,37 @@ function M.pretty_print(data, headers, sort_by)
   -- Create table rows
   for row_index, row in ipairs(data) do
     local row_line = {}
+    local current_col_position = 0
+
     for _, col in ipairs(columns) do
-      local value
-      local hl_group
-      if type(row[col]) == "table" then
-        value = tostring(row[col].value)
-        hl_group = row[col].symbol
+      local cell = row[col]
+      local value, hl_group
+
+      if type(cell) == "table" then
+        value = tostring(cell.value)
+        hl_group = cell.symbol
       else
-        value = tostring(row[col])
-        hl_group = nil
+        value = tostring(cell)
       end
 
-      local display_value = value
-        .. "  "
-        .. string.rep(" ", widths[col] - #value + 1)
-        .. string.rep(" ", extra_padding - 2)
+      local padding = string.rep(" ", widths[col] - #value + extra_padding + 1)
+      local display_value = value .. padding
+
       table.insert(row_line, display_value)
 
       if hl_group then
+        local start_col = current_col_position
+        local end_col = start_col + #display_value
+
         table.insert(extmarks, {
           row = row_index,
-          start_col = #table.concat(row_line, "") - #display_value,
-          end_col = #table.concat(row_line, ""),
+          start_col = start_col,
+          end_col = end_col,
           hl_group = hl_group,
         })
       end
+
+      current_col_position = current_col_position + #display_value
     end
     table.insert(tbl, table.concat(row_line, ""))
   end
