@@ -34,7 +34,7 @@ local function calculate_extra_padding(widths, headers)
     total_width = total_width + max_width
     widths[key] = max_width
   end
-  return math.max((text_width - total_width) / #headers - 1, 0)
+  return math.floor(math.max((text_width - total_width) / #headers - 1, 0))
 end
 
 --- Add a mark to the extmarks table
@@ -214,7 +214,7 @@ function M.pretty_print(data, headers, sort_by)
     widths[key] = math.max(#key, value)
   end
 
-  local extra_padding = math.floor(calculate_extra_padding(widths, headers))
+  local extra_padding = calculate_extra_padding(widths, headers)
   local tbl = {}
   local extmarks = {}
 
@@ -227,9 +227,8 @@ function M.pretty_print(data, headers, sort_by)
   local header_col_position = 0
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    -- "  " is to add space for sort icon even when width is small
-    -- -1 on extra_padding is to remove the space mentioned above
     local padding = string.rep(" ", column_width - #header + extra_padding)
+    -- "  " is to add space for sort icon even when width is small
     local value = header .. "  " .. padding
     table.insert(header_line, value)
 
