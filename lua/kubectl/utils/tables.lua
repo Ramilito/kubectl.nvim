@@ -224,16 +224,24 @@ function M.pretty_print(data, headers, sort_by)
     sort_by = { current_word = headers[1], order = "asc" }
   end
 
+  local header_col_position = 0
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
     -- "  " is to add space for sort icon
     -- -2 on extra_padding is to remove the space mentioned above
-    local value = header .. "  " .. string.rep(" ", column_width - #header + 1) .. string.rep(" ", extra_padding - 2)
+
+    local padding = string.rep(" ", column_width - #header + extra_padding - 1)
+    local value = header .. "  " .. padding
     table.insert(header_line, value)
+
+    -- local value = header .. "  " .. string.rep(" ", column_width - #header + 1) .. string.rep(" ", extra_padding - 2)
+    local start_col = header_col_position
+    local end_col = start_col + #header + 1
+
     if header == sort_by.current_word then
       table.insert(extmarks, {
         row = 0,
-        start_col = #table.concat(header_line, "") - #value + #header + 1,
+        start_col = end_col,
         virt_text = { { (sort_by.order == "asc" and "▲" or "▼"), hl.symbols.header } },
         virt_text_pos = "overlay",
       })
@@ -241,11 +249,13 @@ function M.pretty_print(data, headers, sort_by)
 
     table.insert(extmarks, {
       row = 0,
-      start_col = #table.concat(header_line, "") - #value,
+      start_col = start_col,
       hl_mode = "combine",
       virt_text = { { header .. string.rep(" ", column_width), { hl.symbols.header } } },
       virt_text_pos = "overlay",
     })
+
+    header_col_position = header_col_position + #value
   end
   table.insert(tbl, table.concat(header_line, ""))
 
