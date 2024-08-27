@@ -96,15 +96,12 @@ function M.Edit(name, ns)
 end
 
 function M.Desc(name, ns)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_pod_desc", name, "yaml")
-    :setCmd({ "describe", "pod", name, "-n", ns })
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self:setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_pod_desc",
+    url = { "describe", "pod", name, "-n", ns },
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view
