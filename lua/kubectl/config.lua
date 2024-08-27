@@ -62,7 +62,6 @@ local defaults = {
       services = "5",
     },
     deployments = {
-      help = "g?",
       view_pods = "<CR>",
       set_image = "gi",
       restart = "grr",

@@ -1,13 +1,16 @@
+local dp = require("kubectl.config").options.keymaps.deployments
+local s = require("kubectl.utils.string").str_as_keymap
 local M = {
   resource = "deployments",
   display_name = "Deployments",
   ft = "k8s_deployments",
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" },
   hints = {
-    { key = "<grr>", desc = "restart", long_desc = "Restart selected deployment" },
-    { key = "<gd>", desc = "desc", long_desc = "Describe selected deployment" },
-    { key = "<C-s>", desc = "scale", long_desc = "Scale replicas" },
-    { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
+    { key = s(dp.restart), desc = "restart", long_desc = "Restart selected deployment" },
+    { key = s(dp.set_image), desc = "set image", long_desc = "Set image for selected deployment" },
+    { key = s(dp.logs), desc = "logs", long_desc = "Logs for selected deployment" },
+    { key = s(dp.scale), desc = "scale", long_desc = "Scale replicas" },
+    { key = s(dp.pods), desc = "pods", long_desc = "Opens pods view" },
   },
 }
 local hl = require("kubectl.actions.highlight")

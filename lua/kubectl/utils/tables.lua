@@ -163,9 +163,10 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   local hints = {}
   local marks = {}
 
-  local s = require("kubectl.utils.string").s
+  local s = require("kubectl.utils.string").str_as_keymap
   if include_defaults then
     local defaults = {
+      { key = s(gl.describe), desc = "describe" },
       { key = s(gl.reload), desc = "reload" },
       { key = s(gl.aliases), desc = "aliases" },
       { key = s(gl.filter), desc = "filter" },
