@@ -55,7 +55,7 @@ function M.Hints(headers)
   local vw = km.views
   local marks = {}
   local hints = {}
-  local s = require("kubectl.utils.string").s
+  local s = require("kubectl.utils.string").str_as_keymap
   local globals = {
     { key = s(gl.aliases), desc = "Aliases" },
     { key = s(gl.filter), desc = "Filter on a phrase" },
