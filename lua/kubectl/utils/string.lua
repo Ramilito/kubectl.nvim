@@ -14,8 +14,7 @@ end
 --- surround a string with angle brackets for hints
 ---@param k string
 ---@return string
-function M.s(k)
-  -- if the string already has angle brackets, return it as is
+function M.str_as_keymap(k)
   if k:sub(1, 1) == "<" and k:sub(-1) == ">" then
     return k
   end
