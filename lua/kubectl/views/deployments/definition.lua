@@ -6,6 +6,7 @@ local M = {
   hints = {
     { key = "<grr>", desc = "restart", long_desc = "Restart selected deployment" },
     { key = "<gd>", desc = "desc", long_desc = "Describe selected deployment" },
+    { key = "<ctrl-s>", desc = "scale", long_desc = "Scale replicas" },
     { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
   },
 }
