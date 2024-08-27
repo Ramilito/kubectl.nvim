@@ -224,16 +224,22 @@ function M.pretty_print(data, headers, sort_by)
     sort_by = { current_word = headers[1], order = "asc" }
   end
 
+  local header_col_position = 0
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
     -- "  " is to add space for sort icon
-    -- -2 on extra_padding is to remove the space mentioned above
-    local value = header .. "  " .. string.rep(" ", column_width - #header + 1) .. string.rep(" ", extra_padding - 2)
+    -- -1 on extra_padding is to remove the space mentioned above
+    local padding = string.rep(" ", column_width - #header + extra_padding - 1)
+    local value = header .. "  " .. padding
     table.insert(header_line, value)
+
+    local start_col = header_col_position
+    local end_col = start_col + #header + 1
+
     if header == sort_by.current_word then
       table.insert(extmarks, {
         row = 0,
-        start_col = #table.concat(header_line, "") - #value + #header + 1,
+        start_col = end_col,
         virt_text = { { (sort_by.order == "asc" and "▲" or "▼"), hl.symbols.header } },
         virt_text_pos = "overlay",
       })
@@ -241,42 +247,50 @@ function M.pretty_print(data, headers, sort_by)
 
     table.insert(extmarks, {
       row = 0,
-      start_col = #table.concat(header_line, "") - #value,
+      start_col = start_col,
       hl_mode = "combine",
       virt_text = { { header .. string.rep(" ", column_width), { hl.symbols.header } } },
       virt_text_pos = "overlay",
     })
+
+    header_col_position = header_col_position + #value
   end
   table.insert(tbl, table.concat(header_line, ""))
 
   -- Create table rows
   for row_index, row in ipairs(data) do
     local row_line = {}
+    local current_col_position = 0
+
     for _, col in ipairs(columns) do
-      local value
-      local hl_group
-      if type(row[col]) == "table" then
-        value = tostring(row[col].value)
-        hl_group = row[col].symbol
+      local cell = row[col]
+      local value, hl_group
+
+      if type(cell) == "table" then
+        value = tostring(cell.value)
+        hl_group = cell.symbol
       else
-        value = tostring(row[col])
-        hl_group = nil
+        value = tostring(cell)
       end
 
-      local display_value = value
-        .. "  "
-        .. string.rep(" ", widths[col] - #value + 1)
-        .. string.rep(" ", extra_padding - 2)
+      local padding = string.rep(" ", widths[col] - #value + extra_padding + 1)
+      local display_value = value .. padding
+
       table.insert(row_line, display_value)
 
       if hl_group then
+        local start_col = current_col_position
+        local end_col = start_col + #display_value
+
         table.insert(extmarks, {
           row = row_index,
-          start_col = #table.concat(row_line, "") - #display_value,
-          end_col = #table.concat(row_line, ""),
+          start_col = start_col,
+          end_col = end_col,
           hl_group = hl_group,
         })
       end
+
+      current_col_position = current_col_position + #display_value
     end
     table.insert(tbl, table.concat(row_line, ""))
   end
