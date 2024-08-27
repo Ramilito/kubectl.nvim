@@ -6,7 +6,7 @@ local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
 local M = {
-  namespaces = {"All"},
+  namespaces = { "All" },
 }
 
 function M.View()
@@ -67,10 +67,6 @@ function M.listNamespaces()
 end
 
 function M.changeNamespace(name)
-  -- don't change NS if we know it's not valid
-  if not (#M.namespaces > 1 and vim.tbl_contains(M.namespaces, name)) then
-    return
-  end
   if name == "" then
     name = "All"
   end
