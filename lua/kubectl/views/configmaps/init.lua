@@ -30,12 +30,12 @@ end
 ---@param name string
 ---@param ns string
 function M.Desc(name, ns)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_configmaps_desc", name, "yaml")
-    :setCmd({ "describe", "configmaps", name, "-n", ns })
-    :fetch()
-    :splitData()
-    :setContentRaw()
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_configmaps_desc",
+    url = { "describe", "configmaps", name, "-n", ns },
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view
