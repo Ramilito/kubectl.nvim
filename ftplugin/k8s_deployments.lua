@@ -61,20 +61,60 @@ local function set_keymaps(bufnr)
         vim.notify("Setting new container image for multiple containers are NOT supported yet", vim.log.levels.WARN)
       else
         vim.ui.input({ prompt = "Update image ", default = container_images[1] }, function(input)
-          if input ~= nil then
-            buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
-              if confirm then
-                local set_image = { "set", "image", "deployment/" .. name, name .. "=" .. input, "-n", ns }
-                commands.shell_command_async("kubectl", set_image, function(response)
-                  vim.schedule(function()
-                    vim.notify(response)
-                  end)
-                end)
-              end
-            end)
+          if not input then
+            return
           end
+          buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
+            if not confirm then
+              return
+            end
+            local set_image = { "set", "image", "deployment/" .. name, name .. "=" .. input, "-n", ns }
+            commands.shell_command_async("kubectl", set_image, function(response)
+              vim.schedule(function()
+                vim.notify(response)
+              end)
+            end)
+          end)
         end)
       end
+    end,
+  })
+
+  api.nvim_buf_set_keymap(bufnr, "n", "<c-s>", "", {
+    noremap = true,
+    silent = true,
+    desc = "Scale replicas",
+    callback = function()
+      local name, ns = deployment_view.getCurrentSelection()
+
+      local current_replicas = commands.execute_shell_command(
+        "kubectl",
+        { "get", "deploy", name, "-n", ns, "-o", 'jsonpath="{.spec.replicas}"' }
+      )
+
+      vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
+        if not input then
+          return
+        end
+        buffers.confirmation_buffer(
+          string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
+          "prompt",
+          function(confirm)
+            if not confirm then
+              return
+            end
+            commands.shell_command_async(
+              "kubectl",
+              { "scale", "deployment/" .. name, "--replicas=" .. input, "-n", ns },
+              function(response)
+                vim.schedule(function()
+                  vim.notify(response)
+                end)
+              end
+            )
+          end
+        )
+      end)
     end,
   })
 
