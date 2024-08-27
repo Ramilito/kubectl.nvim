@@ -1,7 +1,7 @@
 local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
 local M = {
-  resource = "persistentvolumeclaims",
+  resource = "pvc",
   display_name = "PersistentVolumeClaims",
   ft = "k8s_pvc",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}persistentvolumeclaims?pretty=false" },

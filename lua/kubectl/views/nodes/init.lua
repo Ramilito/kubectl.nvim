@@ -31,15 +31,12 @@ function M.Cordon(node)
 end
 
 function M.Desc(node)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_node_desc", node, "yaml")
-    :setCmd({ "describe", "node", node })
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self:setContent()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_node_desc",
+    url = { "describe", "node", node },
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 function M.Edit(_, name)

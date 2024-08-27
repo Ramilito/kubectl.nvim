@@ -26,15 +26,12 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(name, ns)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_job_desc", name, "yaml")
-    :setCmd({ "describe", "job", name, "-n", ns })
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self:setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_job_desc",
+    url = { "describe", "job", name, "-n", ns },
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 function M.Edit(name, ns)
