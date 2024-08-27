@@ -3,7 +3,9 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local kube = require("kubectl.actions.kube")
-local M = {}
+local M = {
+  contexts = {},
+}
 
 ---@type string[]
 local top_level_commands = {
@@ -76,31 +78,12 @@ end
 --- Returns a list of context-names
 --- @return string[]
 function M.list_contexts()
-  local contexts = commands.shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
-  return vim.split(contexts, "\n")
-end
-
---- Returns a list of namespaces
---- @return string[]
-function M.list_namespace()
-  local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
-  local ns = {}
-  for line in output:gmatch("[^\r\n]+") do
-    local namespace = line:match("^namespace/(.+)$")
-    if namespace then
-      table.insert(ns, namespace)
-    end
+  if #M.contexts > 0 then
+    return M.contexts
   end
-
-  return ns
-end
-
---- Change namespace
---- @param cmd string
-function M.change_namespace(cmd)
-  local results = commands.shell_command("kubectl", { "config", "set-context", "--current", "--namespace=" .. cmd })
-
-  vim.notify(results, vim.log.levels.INFO)
+  local contexts = commands.shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
+  M.contexts = vim.split(contexts, "\n")
+  return M.contexts
 end
 
 --- Change context and restart proxy
