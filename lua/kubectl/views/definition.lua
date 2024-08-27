@@ -113,6 +113,7 @@ function M.process_apis(api_url, group_name, group_version, group_resources, cac
       cached_api_resources.values[resource_name] = {
         name = resource.name,
         url = resource_url,
+        namespaced = resource.namespaced,
       }
 
       require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }

@@ -48,6 +48,17 @@ function M.is_in_table(tbl, str, exact)
   return false
 end
 
+-- @type function(tbl: table, predicate: function): table
+function M.filter(tbl, predicate)
+  local result = {}
+  for _, v in ipairs(tbl) do
+    if predicate(v) then
+      table.insert(result, v)
+    end
+  end
+  return result
+end
+
 --- Filter lines in an array based on a pattern starting from a given index
 ---@param array table[]
 ---@param pattern string
