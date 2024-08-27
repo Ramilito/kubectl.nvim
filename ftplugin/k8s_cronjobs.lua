@@ -13,7 +13,7 @@ local function set_keymaps(bufnr)
   local km = require("kubectl.config").options.keymaps
   local gl = km.global
   local cj = km.cronjobs
-  api.nvim_buf_set_keymap(bufnr, "n", gl.help, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.help.key, "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -37,7 +37,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up, "", {
+  api.nvim_buf_set_keymap(bufnr, "n", gl.go_up.key, "", {
     noremap = true,
     silent = true,
     desc = "Go up",

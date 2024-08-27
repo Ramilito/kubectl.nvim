@@ -9,7 +9,7 @@ function M.register()
   local km = require("kubectl.config").options.keymaps
   local gl = km.global
   local vw = km.views
-  vim.api.nvim_buf_set_keymap(0, "n", gl.view_pf, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.view_pf.key, "", {
     noremap = true,
     silent = true,
     desc = "View Port Forwards",
@@ -18,7 +18,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.delete, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.delete.key, "", {
     noremap = true,
     silent = true,
     desc = "Delete",
@@ -51,7 +51,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.describe, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.describe.key, "", {
     noremap = true,
     silent = true,
     desc = "Describe resource",
@@ -76,7 +76,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.reload, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.reload.key, "", {
     noremap = true,
     silent = true,
     desc = "Reload",
@@ -98,7 +98,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.edit, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.edit.key, "", {
     noremap = true,
     silent = true,
     desc = "Edit resource",
@@ -176,7 +176,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.aliases, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.aliases.key, "", {
     noremap = true,
     silent = true,
     desc = "Aliases",
@@ -186,7 +186,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.filter, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.filter.key, "", {
     noremap = true,
     silent = true,
     desc = "Filter",
@@ -196,7 +196,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.namespaces, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.namespaces.key, "", {
     noremap = true,
     silent = true,
     desc = "Change namespace",
@@ -206,7 +206,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", gl.sort, "", {
+  vim.api.nvim_buf_set_keymap(0, "n", gl.sort.key, "", {
     noremap = true,
     silent = true,
     desc = "Sort",
