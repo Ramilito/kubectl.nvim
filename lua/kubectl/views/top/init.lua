@@ -12,6 +12,9 @@ function M.View(cancellationToken)
   else
     M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { informer = false })
   end
+  if definition.res_type == "nodes" then
+    definition.get_nodes()
+  end
 end
 
 --- Get current seletion for view

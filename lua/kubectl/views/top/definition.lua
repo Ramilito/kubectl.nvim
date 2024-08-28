@@ -12,6 +12,7 @@ local M = {
     { key = "<gp>", desc = "top-pods", long_desc = "Top pods" },
     { key = "<gn>", desc = "top-nodes", long_desc = "Top nodes" },
   },
+  nodes = {},
 }
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
@@ -19,6 +20,7 @@ local time = require("kubectl.utils.time")
 local function getCpuUsage(row)
   local status = { symbol = "", value = "", sort_by = 0 }
   local temp_val = 0
+  local out_of = ""
   if row.containers then
     for _, container in pairs(row.containers) do
       local cpu = container.usage.cpu
@@ -28,10 +30,24 @@ local function getCpuUsage(row)
   elseif row.usage.cpu then
     local cpu = row.usage.cpu
     temp_val = tonumber(string.sub(cpu, 1, -2)) or 0
+    if #M.nodes > 0 then
+      for _, node in pairs(M.nodes) do
+        if node.metadata.name == row.metadata.name and out_of == "" then
+          out_of = node.status.capacity.cpu
+        end
+      end
+      if out_of then
+        local v = tonumber(out_of) * 1000
+        -- what percent is v out of temp_val
+        local percent = math.ceil((math.ceil(temp_val / 1000000) / v) * 100)
+        out_of = "/" .. v .. "m (" .. percent .. "%)"
+      end
+    end
   end
 
   status.sort_by = temp_val
-  status.value = math.ceil(temp_val / 1000000) .. "m"
+  status.value = math.ceil(temp_val / 1000000) .. "m" .. out_of
+
   return status
 end
 
@@ -96,4 +112,17 @@ function M.getHeaders()
   return headers
 end
 
+function M.get_nodes()
+  if #M.nodes > 0 then
+    return
+  end
+  local nodes_def = require("kubectl.views.nodes.definition")
+  local ResourceBuilder = require("kubectl.resourcebuilder")
+  ResourceBuilder:new("nodes"):setCmd(nodes_def.url, "curl"):fetchAsync(function(self)
+    self:decodeJson()
+    M.nodes = self.data.items
+    --
+    ----
+  end)
+end
 return M
