@@ -6,9 +6,7 @@ local M = { builder = nil }
 
 function M.View(cancellationToken)
   definition.url = definition.url_pods
-  vim.print("res_type: " .. definition.res_type)
   if definition.res_type == "nodes" then
-    vim.print('in here')
     definition.url = definition.url_nodes
   end
   if M.builder then
