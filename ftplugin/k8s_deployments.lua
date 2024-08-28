@@ -1,7 +1,6 @@
 local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
@@ -15,15 +14,6 @@ mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,

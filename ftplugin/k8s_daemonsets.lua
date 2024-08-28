@@ -3,7 +3,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
-local definition = require("kubectl.views.daemonsets.definition")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local root_view = require("kubectl.views.root")
@@ -14,15 +13,6 @@ mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,

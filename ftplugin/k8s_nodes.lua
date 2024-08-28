@@ -1,10 +1,8 @@
 local api = vim.api
-local definition = require("kubectl.views.nodes.definition")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local node_view = require("kubectl.views.nodes")
 local root_view = require("kubectl.views.root")
-local view = require("kubectl.views")
 
 mappings.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
 mappings.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
@@ -12,15 +10,6 @@ mappings.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.cordon)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,

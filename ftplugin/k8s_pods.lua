@@ -3,7 +3,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
-local definition = require("kubectl.views.pods.definition")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
@@ -11,7 +10,6 @@ local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
-local view = require("kubectl.views")
 
 mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
 mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
@@ -19,15 +17,6 @@ mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,

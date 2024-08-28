@@ -38,10 +38,14 @@ local function calculate_extra_padding(widths, headers)
 end
 
 function M.get_plug_mappings(headers, mode)
-  local keymaps = vim.api.nvim_get_keymap(mode)
   local keymaps_table = {}
   local header_lookup = {}
 
+  if not headers then
+    return keymaps_table
+  end
+
+  local keymaps = vim.api.nvim_get_keymap(mode)
   for _, header in ipairs(headers) do
     header_lookup[header.key] = { desc = header.desc, long_desc = header.long_desc }
   end

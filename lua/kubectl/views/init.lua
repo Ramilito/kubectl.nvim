@@ -80,7 +80,7 @@ function M.Hints(headers)
   local buffer_keymaps = tables.get_plug_mappings(headers, "n")
   local start_row = #hints
   for index, header in ipairs(buffer_keymaps) do
-    local line = header.key .. " " .. header.long_desc
+    local line = header.key .. " " .. (header.long_desc or header.desc)
     table.insert(hints, line .. "\n")
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end

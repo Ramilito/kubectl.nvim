@@ -50,6 +50,23 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.help)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Help",
+    callback = function()
+      local string_utils = require("kubectl.utils.string")
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view = require("kubectl.views")
+      local ok, definition =
+        pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)) .. ".definition")
+
+      if ok then
+        view.Hints(definition.hints)
+      end
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.delete)", "", {
     noremap = true,
     silent = true,

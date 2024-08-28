@@ -2,27 +2,16 @@ local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local cronjob_view = require("kubectl.views.cronjobs")
-local definition = require("kubectl.views.cronjobs.definition")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
-local view = require("kubectl.views")
 
 mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
 mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
