@@ -100,11 +100,24 @@ function M.Hints(headers)
   buffers.set_content(buf, { content = content, marks = marks })
 end
 
+local function merge_views(cached_resources, views_table)
+  -- merge the data from the viewsTable with the data from the cached_api_resources
+  for _, views in pairs(views_table) do
+    for _, view in ipairs(views) do
+      if not vim.tbl_contains(vim.tbl_keys(cached_resources), view) then
+        cached_resources[view] = { name = view }
+      end
+    end
+  end
+  return cached_resources
+end
+
 function M.Aliases()
   local self = ResourceBuilder:new("aliases")
-
+  local viewsTable = require("kubectl.utils.viewsTable")
   self.data = M.cached_api_resources.values
   self:splitData():decodeJson()
+  self.data = merge_views(self.data, viewsTable)
 
   local header, marks = tables.generateHeader({
     { key = "<enter>", desc = "go to" },
@@ -122,6 +135,7 @@ function M.Aliases()
     -- We reassign the cache since it can be slow to load
     self.data = M.cached_api_resources.values
     self:splitData():decodeJson()
+    self.data = merge_views(self.data, viewsTable)
   end)
 
   vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)

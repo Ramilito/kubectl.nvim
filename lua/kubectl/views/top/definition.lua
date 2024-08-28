@@ -13,7 +13,7 @@ local function getCpuUsage(row)
   local cpu = row.containers[1].usage.cpu
   status.value = cpu
   cpu = string.sub(cpu, 1, -2)
-  if not cpu or cpu == nil then
+  if not cpu or cpu == nil or tonumber(cpu) == nil then
     return status
   end
   cpu = tonumber(cpu) / 1000000
