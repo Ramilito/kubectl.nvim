@@ -19,26 +19,30 @@ local function getCpuUsage(row)
   local cpu = row.containers and row.containers[1].usage.cpu or row.usage.cpu
   status.value = cpu
   cpu = string.sub(cpu, 1, -2)
+  status.sort_by = tonumber(cpu)
   if not cpu or cpu == nil or tonumber(cpu) == nil then
     return status
   end
   cpu = tonumber(cpu) / 1000000
   cpu = math.ceil(cpu)
   status.value = cpu .. "m"
-  status.sort_by = cpu
   return status
 end
 
 local function getMemUsage(row)
+  local status = { symbol = "", value = "", sort_by = "" }
   -- last 2 characters are "Ki"
   local size_str = row.containers and row.containers[1].usage.memory or row.usage.memory
-  local unit = string.sub(size_str, -2)
+  local unit = string.sub(size_str, -2) or "Ki"
+  status.sort_by = tonumber(string.sub(size_str, 1, -3) or 0)
   if unit == "Ki" then
     unit = "Mi"
     size_str = string.sub(size_str, 1, -3)
     size_str = math.floor(tonumber(size_str) / 1024)
   end
-  return size_str .. unit
+  status.value = size_str .. unit
+  vim.print("value: " .. status.value .. " sort_by: " .. status.sort_by)
+  return status
 end
 
 function M.processRow(rows)
