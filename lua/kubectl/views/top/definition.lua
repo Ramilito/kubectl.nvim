@@ -3,8 +3,10 @@ local M = {
   display_name = "top",
   ft = "k8s_top",
   url = {},
-  url_pods = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
-  url_nodes = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/nodes?pretty=false" },
+  urls = {
+    pods = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
+    nodes = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/nodes?pretty=false" },
+  },
   res_type = "pods",
   hints = {
     { key = "<gp>", desc = "top-pods", long_desc = "Top pods" },
