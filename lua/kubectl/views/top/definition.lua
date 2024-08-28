@@ -9,46 +9,30 @@ local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 local function getCpuUsage(row)
-  -- remove the "n" suffix
-  local cpu = row.containers[1].usage.cpu or "0n"
+  local status = { symbol = "", value = "", sort_by = "" }
+  local cpu = row.containers[1].usage.cpu
+  status.value = cpu
   cpu = string.sub(cpu, 1, -2)
+  if not cpu or cpu == nil then
+    return status
+  end
   cpu = tonumber(cpu) / 1000000
   cpu = math.ceil(cpu)
-  return cpu .. "m"
+  status.value = cpu .. "m"
+  status.sort_by = cpu
+  return status
 end
 
 local function getMemUsage(row)
-  -- Function to convert between KiB, MiB, and GiB
-  local units = { Ki = 1, Mi = 1024, Gi = 1024 * 1024 }
+  -- last 2 characters are "Ki"
   local size_str = row.containers[1].usage.memory
-
-  -- Extract the numeric part and the unit from the size string
-  local size = tonumber(size_str:sub(1, -3))
-  local unit = size_str:sub(-2)
-  vim.print("size: " .. size .. " unit: " .. units[unit])
-
-  -- Convert the size to bytes
-  local size_in_bytes = size * units[unit]
-
-  -- Determine the target unit for conversion
-  local target_unit = "Ki"
-  if size_in_bytes >= 1024 * 1024 then
-    target_unit = "Gi"
-  elseif size_in_bytes >= 1024 then
-    target_unit = "Mi"
+  local unit = string.sub(size_str, -2)
+  if unit == "Ki" then
+    unit = "Mi"
+    size_str = string.sub(size_str, 1, -3)
+    size_str = math.floor(tonumber(size_str) / 1024)
   end
-
-  -- Convert bytes to the target unit
-  vim.print("size_in_bytes: " .. size_in_bytes)
-  vim.print("target_unit: " .. units[target_unit])
-  local converted_size = size_in_bytes / units[target_unit]
-  converted_size = math.floor(converted_size * 100 + 0.5) / 100
-
-  -- Calculate the modulo
-  local modulo = size_in_bytes % units[target_unit]
-
-  -- Print the results
-  return converted_size .. target_unit .. " " .. modulo .. unit
+  return size_str .. unit
 end
 
 function M.processRow(rows)

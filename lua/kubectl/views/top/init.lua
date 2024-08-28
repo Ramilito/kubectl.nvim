@@ -13,10 +13,6 @@ function M.View(cancellationToken)
   end
 end
 
-function M.Draw(cancellationToken)
-  M.builder = M.builder:draw(definition, cancellationToken)
-end
-
 function M.Desc(name, ns)
   ResourceBuilder:view_float({
     resource = "desc",
