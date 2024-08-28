@@ -2,7 +2,7 @@ local commands = require("kubectl.actions.commands")
 local tables = require("kubectl.utils.tables")
 
 local function set_keymaps(bufnr)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(delete)", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kill)", "", {
     noremap = true,
     silent = true,
     desc = "Kill port forward",

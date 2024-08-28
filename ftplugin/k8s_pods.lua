@@ -71,7 +71,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(delete)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kill)", "", {
     noremap = true,
     silent = true,
     desc = "delete pod",

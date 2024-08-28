@@ -10,16 +10,44 @@ function M.register()
   vim.keymap.set({ "n" }, "g?", "<Plug>(help)")
   vim.keymap.set({ "n" }, "<bs>", "<Plug>(go_up)")
   vim.keymap.set({ "n" }, "<cr>", "<Plug>(select)")
+  vim.keymap.set({ "n" }, "<gP>", "<Plug>(portforwards_view)")
+  vim.keymap.set({ "n" }, "gD", "<Plug>(delete)")
+  vim.keymap.set({ "n" }, "gd", "<Plug>(describe)")
+  vim.keymap.set({ "n" }, "gr", "<Plug>(refresh)")
+  vim.keymap.set({ "n" }, "ge", "<Plug>(edit)")
+  vim.keymap.set({ "n" }, "<C-a>", "<Plug>(alias_view)")
+  vim.keymap.set({ "n" }, "<C-f>", "<Plug>(filter_view)")
+  vim.keymap.set({ "n" }, "<C-n>", "<Plug>(namespace_view)")
+  vim.keymap.set({ "n" }, "<gs>", "<Plug>(sort)")
+  vim.keymap.set({ "n" }, "1", "<Plug>(view_1)")
+  vim.keymap.set({ "n" }, "2", "<Plug>(view_2)")
+  vim.keymap.set({ "n" }, "3", "<Plug>(view_3)")
+  vim.keymap.set({ "n" }, "4", "<Plug>(view_4)")
+  vim.keymap.set({ "n" }, "5", "<Plug>(view_5)")
+
+  -- reacurring mappings but not global
+  vim.keymap.set({ "n" }, "gl", "<Plug>(logs)")
+  vim.keymap.set({ "n" }, "gi", "<Plug>(set_image)")
+  vim.keymap.set({ "n" }, "grr", "<Plug>(rollout_restart)")
+  vim.keymap.set({ "n" }, "gc", "<Plug>(create_job)")
+  vim.keymap.set({ "n" }, "f", "<Plug>(follow)")
+  vim.keymap.set({ "n" }, "w", "<Plug>(wrap)")
+  vim.keymap.set({ "n" }, "gp", "<Plug>(portforward)")
 
   -- pods view
   vim.keymap.set({ "n" }, "gu", "<Plug>(top)")
-  vim.keymap.set({ "n" }, "gl", "<Plug>(logs)")
-  vim.keymap.set({ "n" }, "gk", "<Plug>(delete)")
-  vim.keymap.set({ "n" }, "gp", "<Plug>(portforward)")
+  vim.keymap.set({ "n" }, "gk", "<Plug>(kill)")
+  vim.keymap.set({ "n" }, "gx", "<Plug>(suspend_job)")
 
+  -- deployment view
+  vim.keymap.set({ "n" }, "gss", "<Plug>(scale)")
 
+  -- nodes view
+  vim.keymap.set({ "n" }, "gR", "<Plug>(drain)")
+  vim.keymap.set({ "n" }, "gU", "<Plug>(uncordon)")
+  vim.keymap.set({ "n" }, "gC", "<Plug>(cordon)")
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gP", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(portforwards_view)", "", {
     noremap = true,
     silent = true,
     desc = "View Port Forwards",
@@ -28,7 +56,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gD", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(delete)", "", {
     noremap = true,
     silent = true,
     desc = "Delete",
@@ -61,7 +89,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gd", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(describe)", "", {
     noremap = true,
     silent = true,
     desc = "Describe resource",
@@ -86,7 +114,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gr", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(refresh)", "", {
     noremap = true,
     silent = true,
     desc = "Reload",
@@ -108,7 +136,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "ge", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(edit)", "", {
     noremap = true,
     silent = true,
     desc = "Edit resource",
@@ -186,7 +214,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-a>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(alias_view)", "", {
     noremap = true,
     silent = true,
     desc = "Aliases",
@@ -196,7 +224,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-f>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(filter_view)", "", {
     noremap = true,
     silent = true,
     desc = "Filter",
@@ -206,7 +234,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<C-n>", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(namespace_view)", "", {
     noremap = true,
     silent = true,
     desc = "Change namespace",
@@ -216,7 +244,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "gs", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(sort)", "", {
     noremap = true,
     silent = true,
     desc = "Sort",
@@ -268,7 +296,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "1", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_1)", "", {
     noremap = true,
     silent = true,
     desc = "Deployments",
@@ -278,7 +306,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "2", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_2)", "", {
     noremap = true,
     silent = true,
     desc = "Pods",
@@ -288,7 +316,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "3", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_3)", "", {
     noremap = true,
     silent = true,
     desc = "Configmaps",
@@ -298,7 +326,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "4", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_4)", "", {
     noremap = true,
     silent = true,
     desc = "Secrets",
@@ -308,7 +336,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "5", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_5)", "", {
     noremap = true,
     silent = true,
     desc = "Services",
