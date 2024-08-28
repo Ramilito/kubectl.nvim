@@ -2,15 +2,21 @@ local M = {
   resource = "top",
   display_name = "top",
   ft = "k8s_top",
-  url = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
-  hints = {},
+  url = {},
+  url_pods = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
+  url_nodes = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/nodes?pretty=false" },
+  res_type = "pods",
+  hints = {
+    { key = "<gp>", desc = "top-pods", long_desc = "Top pods" },
+    { key = "<gn>", desc = "top-nodes", long_desc = "Top nodes" },
+  },
 }
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 local function getCpuUsage(row)
   local status = { symbol = "", value = "", sort_by = "" }
-  local cpu = row.containers[1].usage.cpu
+  local cpu = row.containers and row.containers[1].usage.cpu or row.usage.cpu
   status.value = cpu
   cpu = string.sub(cpu, 1, -2)
   if not cpu or cpu == nil or tonumber(cpu) == nil then
@@ -25,7 +31,7 @@ end
 
 local function getMemUsage(row)
   -- last 2 characters are "Ki"
-  local size_str = row.containers[1].usage.memory
+  local size_str = row.containers and row.containers[1].usage.memory or row.usage.memory
   local unit = string.sub(size_str, -2)
   if unit == "Ki" then
     unit = "Mi"
@@ -57,11 +63,13 @@ end
 
 function M.getHeaders()
   local headers = {
-    "NAMESPACE",
     "NAME",
     "CPU-CORES",
     "MEM-BYTES",
   }
+  if M.res_type == "pods" then
+    table.insert(headers, 1, "NAMESPACE")
+  end
 
   return headers
 end

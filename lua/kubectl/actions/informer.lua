@@ -159,7 +159,11 @@ end
 local function on_exit() end
 
 function M.start(builder)
-  if not builder.data or not builder.data.metadata or builder.data.kind == "PodMetricsList" then
+  local metrics = {
+    "NodeMetricsList",
+    "PodMetricsList",
+  }
+  if not builder.data or not builder.data.metadata or vim.tbl_contains(metrics, builder.data.kind) then
     return
   end
   if M.handle then

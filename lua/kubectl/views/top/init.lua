@@ -5,21 +5,17 @@ local tables = require("kubectl.utils.tables")
 local M = { builder = nil }
 
 function M.View(cancellationToken)
-  M.pfs = {}
+  definition.url = definition.url_pods
+  vim.print("res_type: " .. definition.res_type)
+  if definition.res_type == "nodes" then
+    vim.print('in here')
+    definition.url = definition.url_nodes
+  end
   if M.builder then
     M.builder = M.builder:view(definition, cancellationToken)
   else
     M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
   end
-end
-
-function M.Desc(name, ns)
-  ResourceBuilder:view_float({
-    resource = "desc",
-    ft = "k8s_svc_desc",
-    url = { "describe", "svc", name, "-n", ns },
-    syntax = "yaml",
-  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view
