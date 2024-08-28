@@ -335,7 +335,9 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
     :fetchAsync(function(builder)
       builder:decodeJson()
       if opts.cmd == "curl" then
-        informer.start(builder)
+        if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
+          informer.start(builder)
+        end
       end
       vim.schedule(function()
         builder:draw(definition, cancellationToken)
