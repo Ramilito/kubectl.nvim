@@ -37,20 +37,20 @@ local function calculate_extra_padding(widths, headers)
   return math.floor(math.max((text_width - total_width) / #headers - 1, 0))
 end
 
-local function get_plug_mappings(headers, mode)
+function M.get_plug_mappings(headers, mode)
   local keymaps = vim.api.nvim_get_keymap(mode)
   local keymaps_table = {}
   local header_lookup = {}
 
   for _, header in ipairs(headers) do
-    header_lookup[header.key] = header.desc
+    header_lookup[header.key] = { desc = header.desc, long_desc = header.long_desc }
   end
 
   -- Iterate over keymaps and check if they match any header key
   for _, keymap in ipairs(keymaps) do
-    local desc = header_lookup[keymap.rhs]
-    if desc then
-      table.insert(keymaps_table, { desc = desc, key = keymap.lhs })
+    local header = header_lookup[keymap.rhs]
+    if header then
+      table.insert(keymaps_table, { key = keymap.lhs, desc = header.desc, long_desc = header.long_desc })
     end
   end
   return keymaps_table
@@ -75,7 +75,7 @@ local function addHeaderRow(headers, hints, marks)
   local length = #hint_line
   M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 
-  local keymaps = get_plug_mappings(headers, "n")
+  local keymaps = M.get_plug_mappings(headers, "n")
   for index, map in ipairs(keymaps) do
     length = #hint_line
     hint_line = hint_line .. map.key .. " " .. map.desc
