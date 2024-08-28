@@ -6,7 +6,7 @@ local M = {
   ft = "k8s_pv",
   url = { "{{BASE}}/api/v1/persistentvolumes?pretty=false" },
   hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected pv" },
+    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected pv" },
   },
 }
 
