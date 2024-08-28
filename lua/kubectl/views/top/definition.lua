@@ -9,8 +9,8 @@ local M = {
   },
   res_type = "pods",
   hints = {
-    { key = "<gp>", desc = "top-pods", long_desc = "Top pods" },
-    { key = "<gn>", desc = "top-nodes", long_desc = "Top nodes" },
+    { key = "<Plug>(kubectl.top_pods)", desc = "top-pods", long_desc = "Top pods" },
+    { key = "<Plug>(kubectl.top_nodes)", desc = "top-nodes", long_desc = "Top nodes" },
   },
   nodes = {},
 }

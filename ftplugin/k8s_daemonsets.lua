@@ -3,23 +3,17 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
-local definition = require("kubectl.views.daemonsets.definition")
 local loop = require("kubectl.utils.loop")
+local mappings = require("kubectl.mappings")
 local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
 
+mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
+mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to pods",
@@ -29,7 +23,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -39,7 +33,7 @@ local function set_keymaps(bufnr)
   })
 
   -- Only works _if_ there is only _one_ container and that image is the _same_ as the daemonset
-  api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.set_image)", "", {
     noremap = true,
     silent = true,
     desc = "Set image",
@@ -80,7 +74,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.rollout_restart)", "", {
     noremap = true,
     silent = true,
     desc = "Rollout restart",

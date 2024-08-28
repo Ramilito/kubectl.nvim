@@ -4,10 +4,9 @@ local M = {
   ft = "k8s_cronjobs",
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}cronjobs?pretty=false" },
   hints = {
-    { key = "<gc>", desc = "restart", long_desc = "Create job from cronjob" },
-    { key = "<gd>", desc = "desc", long_desc = "Describe selected cronjob" },
-    { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
-    { key = "<gx>", desc = "suspend", long_desc = "Suspend/Unsuspend cronjob" },
+    { key = "<Plug>(kubectl.create_job)", desc = "restart", long_desc = "Create job from cronjob" },
+    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
+    { key = "<Plug>(kubectl.suspend_job)", desc = "suspend", long_desc = "Suspend/Unsuspend cronjob" },
   },
 }
 local hl = require("kubectl.actions.highlight")

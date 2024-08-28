@@ -1,24 +1,20 @@
 local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
 
+local mappings = require("kubectl.mappings")
+
+mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
+mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
+mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to pods",
@@ -28,7 +24,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -38,7 +34,7 @@ local function set_keymaps(bufnr)
   })
 
   -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
-  api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.set_image)", "", {
     noremap = true,
     silent = true,
     desc = "Set image",
@@ -80,7 +76,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<c-s>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.scale)", "", {
     noremap = true,
     silent = true,
     desc = "Scale replicas",
@@ -118,7 +114,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.rollout_restart)", "", {
     noremap = true,
     silent = true,
     desc = "Rollout restart",

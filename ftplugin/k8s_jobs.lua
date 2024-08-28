@@ -1,24 +1,16 @@
 local api = vim.api
 local commands = require("kubectl.actions.commands")
 local cronjob_view = require("kubectl.views.cronjobs")
-local definition = require("kubectl.views.jobs.definition")
 local job_view = require("kubectl.views.jobs")
 local loop = require("kubectl.utils.loop")
-local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
+
+local mappings = require("kubectl.mappings")
+mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to pods",
@@ -28,7 +20,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -37,7 +29,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gc", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.create_job)", "", {
     noremap = true,
     silent = true,
     desc = "Create job from job",
