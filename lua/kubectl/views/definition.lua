@@ -132,4 +132,16 @@ function M.process_apis(api_url, group_name, group_version, group_resources, cac
   end
 end
 
+function M.merge_views(cached_resources, views_table)
+  -- merge the data from the viewsTable with the data from the cached_api_resources
+  for _, views in pairs(views_table) do
+    for _, view in ipairs(views) do
+      if not vim.tbl_contains(vim.tbl_keys(cached_resources), view) then
+        cached_resources[view] = { name = view }
+      end
+    end
+  end
+  return cached_resources
+end
+
 return M

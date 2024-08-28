@@ -102,9 +102,10 @@ end
 
 function M.Aliases()
   local self = ResourceBuilder:new("aliases")
-
+  local viewsTable = require("kubectl.utils.viewsTable")
   self.data = M.cached_api_resources.values
   self:splitData():decodeJson()
+  self.data = definition.merge_views(self.data, viewsTable)
 
   local header, marks = tables.generateHeader({
     { key = "<enter>", desc = "go to" },
@@ -122,6 +123,7 @@ function M.Aliases()
     -- We reassign the cache since it can be slow to load
     self.data = M.cached_api_resources.values
     self:splitData():decodeJson()
+    self.data = definition.merge_views(self.data, viewsTable)
   end)
 
   vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)

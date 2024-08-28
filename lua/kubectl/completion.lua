@@ -72,6 +72,8 @@ function M.user_command_completion(_, cmd)
       table.insert(data, res.name)
     end
     return data
+  elseif #parts == 2 and parts[2] == "top" then
+    return { "pods", "nodes" }
   end
 end
 
