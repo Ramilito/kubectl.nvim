@@ -26,24 +26,6 @@ function M.Draw(cancellationToken)
   root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
 end
 
-function M.Top()
-  local state = require("kubectl.state")
-  local ns_filter = state.getNamespace()
-  local args = { "top", "pods" }
-
-  if ns_filter == "All" then
-    table.insert(args, "-A")
-  else
-    table.insert(args, "--namespace")
-    table.insert(args, ns_filter)
-  end
-
-  ResourceBuilder:view_float(
-    { resource = "top", ft = "k8s_top", display_name = "Top", url = args },
-    { cmd = "kubectl" }
-  )
-end
-
 function M.TailLogs()
   local buf = vim.api.nvim_get_current_buf()
   vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })

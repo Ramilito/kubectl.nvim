@@ -23,15 +23,6 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(top)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Resources used",
-    callback = function()
-      pod_view.Top()
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
     noremap = true,
     silent = true,

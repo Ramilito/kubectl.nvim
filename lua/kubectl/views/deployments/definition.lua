@@ -52,11 +52,11 @@ end
 
 function M.getReady(row)
   local status = { symbol = "", value = "", sort_by = 0 }
-  local available = row.status.availableReplicas or row.status.readyReplicas or "0"
-  local unavailable = row.status.unavailableReplicas or "0"
-  local replicas = row.spec.replicas or row.status.replicas or "0"
+  local available = tonumber(row.status.availableReplicas or row.status.readyReplicas or "0")
+  local unavailable = tonumber(row.status.unavailableReplicas) or 0
+  local replicas = tonumber(row.spec.replicas or row.status.replicas or "0")
 
-  if available == replicas and unavailable == "0" then
+  if available == replicas and unavailable == 0 then
     status.symbol = hl.symbols.note
   else
     status.symbol = hl.symbols.deprecated
