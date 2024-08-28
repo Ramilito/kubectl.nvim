@@ -10,9 +10,9 @@ function M.View(cancellationToken)
     definition.url = definition.url_nodes
   end
   if M.builder then
-    M.builder = M.builder:view(definition, cancellationToken)
+    M.builder = M.builder:view(definition, cancellationToken, { informer = false })
   else
-    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
+    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { informer = false })
   end
 end
 
