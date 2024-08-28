@@ -8,7 +8,6 @@ local function set_keymaps(bufnr)
     desc = "Tail logs",
     callback = function()
       local container_view = require("kubectl.views.containers")
-      vim.print(vim.inspect(container_view.selection))
       pod_view.TailLogs(pod_view.selection.pod, pod_view.selection.ns, container_view.selection)
     end,
   })

@@ -45,7 +45,6 @@ function M.since(timestamp, fresh, currentTime)
     status.symbol = success_symbol
   end
 
-  -- vim.print("status: " .. vim.inspect(status))
   return status
 end
 
