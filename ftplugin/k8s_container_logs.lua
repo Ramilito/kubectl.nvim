@@ -3,7 +3,7 @@ local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 
 mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
-mappings.map_if_plug_not_set("n", "w", "<Plug>(kubectl.wrap)")
+mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)

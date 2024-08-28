@@ -10,6 +10,7 @@ local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
 
 mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
+mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)

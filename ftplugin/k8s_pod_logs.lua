@@ -1,12 +1,12 @@
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 
-mappings.map_if_plug_not_set("n", "f", "<Plug>(follow)")
-mappings.map_if_plug_not_set("n", "w", "<Plug>(wrap)")
+mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
+mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(follow)", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.follow)", "", {
     noremap = true,
     silent = true,
     desc = "Tail logs",
@@ -15,7 +15,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(wrap)", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.wrap)", "", {
     noremap = true,
     silent = true,
     desc = "Toggle wrap",

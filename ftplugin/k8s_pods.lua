@@ -7,14 +7,19 @@ local definition = require("kubectl.views.pods.definition")
 local deployment_view = require("kubectl.views.deployments")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
+local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local root_definition = require("kubectl.views.definition")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
+mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
+mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
+mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -23,7 +28,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -32,7 +37,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(logs)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.logs)", "", {
     noremap = true,
     silent = true,
     desc = "View logs",
@@ -47,7 +52,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Select",
@@ -62,7 +67,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kill)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
     silent = true,
     desc = "delete pod",
@@ -87,7 +92,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(portforward)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.portforward)", "", {
     noremap = true,
     silent = true,
     desc = "Port forward",

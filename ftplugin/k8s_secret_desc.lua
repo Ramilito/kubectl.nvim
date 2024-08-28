@@ -2,7 +2,7 @@ local api = vim.api
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Base64Decode",

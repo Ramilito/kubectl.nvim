@@ -6,9 +6,12 @@ local job_view = require("kubectl.views.jobs")
 local loop = require("kubectl.utils.loop")
 local view = require("kubectl.views")
 
+local mappings = require("kubectl.mappings")
+mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -17,7 +20,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to pods",
@@ -27,7 +30,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -36,7 +39,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(create_job)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.create_job)", "", {
     noremap = true,
     silent = true,
     desc = "Create job from job",

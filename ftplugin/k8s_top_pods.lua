@@ -1,14 +1,18 @@
 local api = vim.api
 local definition = require("kubectl.views.top.definition")
 local loop = require("kubectl.utils.loop")
+local mappings = require("kubectl.mappings")
 local root_view = require("kubectl.views.root")
 local top_def = require("kubectl.views.top.definition")
 local top_view = require("kubectl.views.top")
 local view = require("kubectl.views")
 
+mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.top_pods)")
+mappings.map_if_plug_not_set("n", "gn", "<Plug>(kubectl.top_nodes)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -17,7 +21,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -26,7 +30,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(top_pods)", "", {
     noremap = true,
     silent = true,
     desc = "Top pods",
@@ -36,7 +40,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gn", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(top_nodes)", "", {
     noremap = true,
     silent = true,
     desc = "Top nodes",

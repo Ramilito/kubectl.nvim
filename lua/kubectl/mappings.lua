@@ -21,7 +21,7 @@ function M.map_if_plug_not_set(mode, lhs, plug_target, opts)
 end
 
 --- Register kubectl key mappings
-function M.register_globals()
+function M.register()
   -- Global mappings
   M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
   M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
@@ -40,28 +40,6 @@ function M.register_globals()
   M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
   M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
   M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
-
-  -- Reoccurring mappings but not global
-  M.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
-  M.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
-  M.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
-  -- M.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
-  -- M.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
-  -- M.map_if_plug_not_set("n", "f", "<Plug>(follow)")
-  -- M.map_if_plug_not_set("n", "w", "<Plug>(wrap)")
-  M.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
-  M.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
-
-  -- Pods view
-  M.map_if_plug_not_set("n", "gu", "<Plug>(kubectl.top)")
-
-  -- Deployment view
-  M.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
-
-  -- Nodes view
-  M.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
-  M.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
-  M.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.cordon)")
 
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.portforwards_view)", "", {
     noremap = true,
