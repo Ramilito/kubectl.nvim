@@ -4,48 +4,64 @@ local commands = require("kubectl.actions.commands")
 local views = require("kubectl.views")
 local M = {}
 
+local function is_plug_mapped(plug_target, mode)
+  local mappings = vim.api.nvim_get_keymap(mode)
+  for _, mapping in ipairs(mappings) do
+    if mapping.rhs == plug_target then
+      return true
+    end
+  end
+  return false
+end
+
+local function map_if_plug_not_set(mode, lhs, plug_target, opts)
+  if not is_plug_mapped(plug_target, mode) then
+    vim.keymap.set(mode, lhs, plug_target, opts or { noremap = true, silent = true })
+  end
+end
+
 --- Register kubectl key mappings
 function M.register()
-  -- global mappings
-  vim.keymap.set({ "n" }, "g?", "<Plug>(help)")
-  vim.keymap.set({ "n" }, "<bs>", "<Plug>(go_up)")
-  vim.keymap.set({ "n" }, "<cr>", "<Plug>(select)")
-  vim.keymap.set({ "n" }, "<gP>", "<Plug>(portforwards_view)")
-  vim.keymap.set({ "n" }, "gD", "<Plug>(delete)")
-  vim.keymap.set({ "n" }, "gd", "<Plug>(describe)")
-  vim.keymap.set({ "n" }, "gr", "<Plug>(refresh)")
-  vim.keymap.set({ "n" }, "ge", "<Plug>(edit)")
-  vim.keymap.set({ "n" }, "<C-a>", "<Plug>(alias_view)")
-  vim.keymap.set({ "n" }, "<C-f>", "<Plug>(filter_view)")
-  vim.keymap.set({ "n" }, "<C-n>", "<Plug>(namespace_view)")
-  vim.keymap.set({ "n" }, "<gs>", "<Plug>(sort)")
-  vim.keymap.set({ "n" }, "1", "<Plug>(view_1)")
-  vim.keymap.set({ "n" }, "2", "<Plug>(view_2)")
-  vim.keymap.set({ "n" }, "3", "<Plug>(view_3)")
-  vim.keymap.set({ "n" }, "4", "<Plug>(view_4)")
-  vim.keymap.set({ "n" }, "5", "<Plug>(view_5)")
+  -- Global mappings
+  map_if_plug_not_set("n", "g?", "<Plug>(help)")
+  map_if_plug_not_set("n", "<bs>", "<Plug>(go_up)")
+  map_if_plug_not_set("n", "<cr>", "<Plug>(select)")
+  map_if_plug_not_set("n", "<gP>", "<Plug>(portforwards_view)")
+  map_if_plug_not_set("n", "gD", "<Plug>(delete)")
+  map_if_plug_not_set("n", "gd", "<Plug>(describe)")
+  map_if_plug_not_set("n", "gr", "<Plug>(refresh)")
+  map_if_plug_not_set("n", "ge", "<Plug>(edit)")
+  map_if_plug_not_set("n", "<C-a>", "<Plug>(alias_view)")
+  map_if_plug_not_set("n", "<C-f>", "<Plug>(filter_view)")
+  map_if_plug_not_set("n", "<C-n>", "<Plug>(namespace_view)")
+  map_if_plug_not_set("n", "<gs>", "<Plug>(sort)")
+  map_if_plug_not_set("n", "1", "<Plug>(view_1)")
+  map_if_plug_not_set("n", "2", "<Plug>(view_2)")
+  map_if_plug_not_set("n", "3", "<Plug>(view_3)")
+  map_if_plug_not_set("n", "4", "<Plug>(view_4)")
+  map_if_plug_not_set("n", "5", "<Plug>(view_5)")
 
-  -- reacurring mappings but not global
-  vim.keymap.set({ "n" }, "gl", "<Plug>(logs)")
-  vim.keymap.set({ "n" }, "gi", "<Plug>(set_image)")
-  vim.keymap.set({ "n" }, "grr", "<Plug>(rollout_restart)")
-  vim.keymap.set({ "n" }, "gc", "<Plug>(create_job)")
-  vim.keymap.set({ "n" }, "gx", "<Plug>(suspend_job)")
-  vim.keymap.set({ "n" }, "f", "<Plug>(follow)")
-  vim.keymap.set({ "n" }, "w", "<Plug>(wrap)")
-  vim.keymap.set({ "n" }, "gp", "<Plug>(portforward)")
-  vim.keymap.set({ "n" }, "gk", "<Plug>(kill)")
+  -- Reoccurring mappings but not global
+  map_if_plug_not_set("n", "gl", "<Plug>(logs)")
+  map_if_plug_not_set("n", "gi", "<Plug>(set_image)")
+  map_if_plug_not_set("n", "grr", "<Plug>(rollout_restart)")
+  map_if_plug_not_set("n", "gc", "<Plug>(create_job)")
+  map_if_plug_not_set("n", "gx", "<Plug>(suspend_job)")
+  map_if_plug_not_set("n", "f", "<Plug>(follow)")
+  map_if_plug_not_set("n", "w", "<Plug>(wrap)")
+  map_if_plug_not_set("n", "gp", "<Plug>(portforward)")
+  map_if_plug_not_set("n", "gk", "<Plug>(kill)")
 
-  -- pods view
-  vim.keymap.set({ "n" }, "gu", "<Plug>(top)")
+  -- Pods view
+  map_if_plug_not_set("n", "gu", "<Plug>(top)")
 
-  -- deployment view
-  vim.keymap.set({ "n" }, "gss", "<Plug>(scale)")
+  -- Deployment view
+  map_if_plug_not_set("n", "gss", "<Plug>(scale)")
 
-  -- nodes view
-  vim.keymap.set({ "n" }, "gR", "<Plug>(drain)")
-  vim.keymap.set({ "n" }, "gU", "<Plug>(uncordon)")
-  vim.keymap.set({ "n" }, "gC", "<Plug>(cordon)")
+  -- Nodes view
+  map_if_plug_not_set("n", "gR", "<Plug>(drain)")
+  map_if_plug_not_set("n", "gU", "<Plug>(uncordon)")
+  map_if_plug_not_set("n", "gC", "<Plug>(cordon)")
 
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(portforwards_view)", "", {
     noremap = true,
