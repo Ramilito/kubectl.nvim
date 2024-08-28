@@ -17,7 +17,7 @@ local M = {
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
-local function getCpuUsage(row)
+local function getCpuUsage(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
   local temp_val = 0
   local out_of = ""
@@ -30,18 +30,11 @@ local function getCpuUsage(row)
   elseif row.usage.cpu then
     local cpu = row.usage.cpu
     temp_val = tonumber(string.sub(cpu, 1, -2)) or 0
-    if #M.nodes > 0 then
-      for _, node in pairs(M.nodes) do
-        if node.metadata.name == row.metadata.name and out_of == "" then
-          out_of = node.status.capacity.cpu
-        end
-      end
-      if out_of then
-        local v = tonumber(out_of) * 1000
-        -- what percent is v out of temp_val
-        local percent = math.ceil((math.ceil(temp_val / 1000000) / v) * 100)
-        out_of = "/" .. v .. "m (" .. percent .. "%)"
-      end
+    out_of = node and node.status and node.status.capacity.cpu or ""
+    if out_of ~= "" then
+      local v = tonumber(out_of) * 1000
+      local percent = math.ceil((math.ceil(temp_val / 1000000) / v) * 100) or 0
+      out_of = "/" .. v .. "m (" .. percent .. "%)"
     end
   end
 
@@ -51,9 +44,10 @@ local function getCpuUsage(row)
   return status
 end
 
-local function getMemUsage(row)
+local function getMemUsage(row, node)
   local status = { symbol = "", value = "", sort_by = "" }
   local temp_val = 0
+  local out_of = ""
   if row.containers then
     for _, container in pairs(row.containers) do
       local mem = container.usage.memory
@@ -67,14 +61,24 @@ local function getMemUsage(row)
   elseif row.usage.memory then
     local mem = row.usage.memory
     temp_val = tonumber(string.sub(mem, 1, -3)) or 0
+    out_of = node and node.status and node.status.capacity.memory or ""
+    if out_of ~= "" then
+      local v = math.floor(tonumber(string.sub(out_of, 1, -3)) / 1024) or 0
+      local percent = math.ceil((math.floor(temp_val / 1024) / v) * 100)
+      if v > 10240 then
+        out_of = "/" .. math.floor(v / 1024) .. "Gi (" .. percent .. "%)"
+      else
+        out_of = "/" .. v .. "Mi (" .. percent .. "%)"
+      end
+    end
   end
 
   status.sort_by = temp_val
   local final_val = math.floor(temp_val / 1024)
   if final_val > 10240 then
-    status.value = math.floor(final_val / 1024) .. "Gi"
+    status.value = math.floor(final_val / 1024) .. "Gi" .. out_of
   else
-    status.value = final_val .. "Mi"
+    status.value = final_val .. "Mi" .. out_of
   end
   return status
 end
@@ -87,11 +91,20 @@ function M.processRow(rows)
   end
 
   for _, row in pairs(rows.items) do
+    -- find node
+    local node_details = ""
+    if #M.nodes > 0 then
+      for _, node in pairs(M.nodes) do
+        if node.metadata.name == row.metadata.name and node_details == "" then
+          node_details = node
+        end
+      end
+    end
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
-      ["cpu-cores"] = getCpuUsage(row),
-      ["mem-bytes"] = getMemUsage(row),
+      ["cpu-cores"] = getCpuUsage(row, node_details),
+      ["mem-bytes"] = getMemUsage(row, node_details),
     }
 
     table.insert(data, pod)
