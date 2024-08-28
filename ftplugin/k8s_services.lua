@@ -2,26 +2,18 @@ local api = vim.api
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.services.definition")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
+local mappings = require("kubectl.mappings")
 local root_view = require("kubectl.views.root")
 local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
-local view = require("kubectl.views")
+
+mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
 
 --- Set key mappings for the buffer
 local function set_keymap(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -30,7 +22,7 @@ local function set_keymap(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.portforward)", "", {
     noremap = true,
     silent = true,
     desc = "Port forward",

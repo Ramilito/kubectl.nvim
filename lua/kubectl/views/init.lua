@@ -53,30 +53,34 @@ function M.Hints(headers)
   local marks = {}
   local hints = {}
   local globals = {
-    { key = "<C-a>", desc = "Aliases" },
-    { key = "<C-f>", desc = "Filter on a phrase" },
-    { key = "<C-n>", desc = "Change namespace" },
-    { key = "<bs> ", desc = "Go up a level" },
-    { key = "<gD> ", desc = "Delete resource" },
-    { key = "<gP> ", desc = "Port forwards" },
-    { key = "<gs> ", desc = "Sort column" },
-    { key = "<ge> ", desc = "Edit resource" },
-    { key = "<gr> ", desc = "Refresh view" },
-    { key = "<1>  ", desc = "Deployments" },
-    { key = "<2>  ", desc = "Pods " },
-    { key = "<3>  ", desc = "Configmaps " },
-    { key = "<4>  ", desc = "Secrets " },
-    { key = "<5>  ", desc = "Services" },
+    { key = "<Plug>(kubectl.alias_view)", desc = "Aliases" },
+    { key = "<Plug>(kubectl.filter_view)", desc = "Filter on a phrase" },
+    { key = "<Plug>(kubectl.namespace_view)", desc = "Change namespace" },
+    { key = "<Plug>(kubectl.go_up)", desc = "Go up a level" },
+    { key = "<Plug>(kubectl.delete)", desc = "Delete resource" },
+    { key = "<Plug>(kubectl.describe)", desc = "Describe resource" },
+    { key = "<Plug>(kubectl.portforwards_view)", desc = "Port forwards" },
+    { key = "<Plug>(kubectl.sort)", desc = "Sort column" },
+    { key = "<Plug>(kubectl.edit)", desc = "Edit resource" },
+    { key = "<Plug>(kubectl.refresh)", desc = "Refresh view" },
+    { key = "<Plug>(kubectl.view_1)", desc = "Deployments" },
+    { key = "<Plug>(kubectl.view_2)", desc = "Pods " },
+    { key = "<Plug>(kubectl.view_3)", desc = "Configmaps " },
+    { key = "<Plug>(kubectl.view_4)", desc = "Secrets " },
+    { key = "<Plug>(kubectl.view_4)", desc = "Services" },
   }
+
+  local global_keymaps = tables.get_plug_mappings(globals, "n")
 
   local title = "Buffer mappings: "
   tables.add_mark(marks, #hints, 0, #title, hl.symbols.success)
   table.insert(hints, title .. "\n")
   table.insert(hints, "\n")
 
+  local buffer_keymaps = tables.get_plug_mappings(headers, "n")
   local start_row = #hints
-  for index, header in ipairs(headers) do
-    local line = header.key .. " " .. header.long_desc
+  for index, header in ipairs(buffer_keymaps) do
+    local line = header.key .. " " .. (header.long_desc or header.desc)
     table.insert(hints, line .. "\n")
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
@@ -88,7 +92,7 @@ function M.Hints(headers)
   table.insert(hints, "\n")
 
   start_row = #hints
-  for index, header in ipairs(globals) do
+  for index, header in ipairs(global_keymaps) do
     local line = header.key .. " " .. header.desc
     table.insert(hints, line .. "\n")
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
