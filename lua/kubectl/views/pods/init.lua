@@ -9,6 +9,8 @@ local M = {
   builder = nil,
   selection = {},
   pfs = {},
+  is_tailing = false,
+  tail_handle = nil,
 }
 
 function M.View(cancellationToken)
@@ -26,7 +28,12 @@ function M.Draw(cancellationToken)
   root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
 end
 
-function M.TailLogs()
+function M.TailLogs(pod, ns, container)
+  pod = pod or M.selection.pod
+  ns = ns or M.selection.ns
+  container = container or M.selection.container
+  local ntfy = " tailing: " .. pod .. " container: " .. container
+  local args = { "logs", "--follow", "--since=1s", pod, "-n", ns, "-c", container }
   local buf = vim.api.nvim_get_current_buf()
   vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
 
@@ -34,7 +41,6 @@ function M.TailLogs()
     vim.schedule(function()
       if vim.api.nvim_buf_is_valid(buf) then
         local line_count = vim.api.nvim_buf_line_count(buf)
-
         vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n"))
         vim.api.nvim_set_option_value("modified", false, { buf = buf })
         vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
@@ -42,21 +48,42 @@ function M.TailLogs()
     end)
   end
 
-  local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
-  local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
+  local function stop_tailing(handle)
+    handle:kill(2)
+    vim.notify("Stopped" .. ntfy, vim.log.levels.INFO)
+  end
 
-  vim.notify("Start tailing: " .. M.selection.pod, vim.log.levels.INFO)
-  vim.api.nvim_create_autocmd("BufWinLeave", {
-    buffer = buf,
-    callback = function()
-      handle:kill(2)
-      vim.notify("Stopped tailing: " .. M.selection.pod, vim.log.levels.INFO)
-    end,
-  })
+  local should_tail = not M.is_tailing
+  local group = vim.api.nvim_create_augroup("__kubectl_tailing", { clear = false })
+  if should_tail then
+    M.is_tailing = true
+    M.tail_handle = commands.shell_command_async("kubectl", args, nil, handle_output)
+
+    vim.notify("Started " .. ntfy, vim.log.levels.INFO)
+    vim.api.nvim_create_autocmd("BufWinLeave", {
+      group = group,
+      buffer = buf,
+      callback = function()
+        stop_tailing(M.tail_handle)
+      end,
+    })
+  else
+    M.is_tailing = false
+    vim.api.nvim_clear_autocmds({ group = group })
+    stop_tailing(M.tail_handle)
+  end
 end
 
-function M.selectPod(pod_name, namespace)
-  M.selection = { pod = pod_name, ns = namespace }
+function M.selectPod(pod, ns)
+  local container
+  local data = M.builder.data.items
+  for _, p_data in ipairs(data) do
+    if p_data.metadata.name == pod and p_data.metadata.namespace == ns and not M.selection.container then
+      container = p_data.spec.containers[1].name
+      vim.print("in if for pod: " .. pod .. " ns: " .. ns .. " container: " .. container)
+    end
+  end
+  M.selection = { pod = pod, ns = ns, container = container }
 end
 
 function M.Logs()
