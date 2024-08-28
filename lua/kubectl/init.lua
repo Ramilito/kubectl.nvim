@@ -72,6 +72,15 @@ function M.setup(options)
       completion.diff(opts.fargs[2])
     elseif action == "apply" then
       completion.apply()
+    elseif action == "top" then
+      local top_view = require("kubectl.views.top")
+      local top_def = require("kubectl.views.top.definition")
+      if #opts.fargs == 2 then
+        top_view.View()
+        top_def.res_type = opts.fargs[2]
+      else
+        top_view.View()
+      end
     else
       view.UserCmd(opts.fargs)
     end
