@@ -14,8 +14,6 @@ local M = {
   },
   nodes = {},
 }
-local hl = require("kubectl.actions.highlight")
-local time = require("kubectl.utils.time")
 
 local function getCpuUsage(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
