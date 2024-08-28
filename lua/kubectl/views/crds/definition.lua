@@ -6,7 +6,6 @@ local M = {
   ft = "k8s_crds",
   url = { "{{BASE}}/apis/apiextensions.k8s.io/v1/customresourcedefinitions?pretty=false" },
   hints = {
-    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected CRD" },
     { key = "<Plug>(kubectl.select)", desc = "resource", long_desc = "Open resource view" },
   },
 }

@@ -4,9 +4,6 @@ local M = {
   display_name = "sa",
   ft = "k8s_sa",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}serviceaccounts?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected serviceaccount" },
-  },
 }
 
 function M.processRow(rows)

@@ -5,7 +5,6 @@ local M = {
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}jobs?pretty=false" },
   hints = {
     { key = "<Plug>(kubectl.create_job)", desc = "restart", long_desc = "Create job from job" },
-    { key = "<Plug>(kubectl.describe)", desc = "desc", long_desc = "Describe selected job" },
     { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
   },
   owner = { name = nil, ns = nil },

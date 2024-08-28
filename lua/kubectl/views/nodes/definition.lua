@@ -9,7 +9,6 @@ local M = {
   ft = "k8s_nodes",
   url = { "{{BASE}}/api/v1/nodes?pretty=false" },
   hints = {
-    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected node" },
     { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
     { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },
     { key = "<Plug>(kubectl.drain)", desc = "drain", long_desc = "Drain selected node" },

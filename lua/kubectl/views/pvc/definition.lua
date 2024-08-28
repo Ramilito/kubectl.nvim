@@ -6,7 +6,6 @@ local M = {
   ft = "k8s_pvc",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}persistentvolumeclaims?pretty=false" },
   hints = {
-    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected pvc" },
     { key = "<Plug>(kubectl.select)", desc = "Go to PVs", long_desc = "Go to the PV of the selected PVC" },
   },
 }

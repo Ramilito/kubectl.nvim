@@ -4,9 +4,6 @@ local M = {
   display_name = "clusterrolebinding",
   ft = "k8s_clusterrolebinding",
   url = { "{{BASE}}/apis/rbac.authorization.k8s.io/v1/clusterrolebindings?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected clusterrolebinding" },
-  },
 }
 local function getSubjects(data)
   local subjects = {}

@@ -9,7 +9,6 @@ local M = {
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" },
   hints = {
     { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
-    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected pod" },
     { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
     { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
     { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },

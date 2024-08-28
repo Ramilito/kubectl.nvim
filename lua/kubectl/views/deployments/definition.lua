@@ -5,7 +5,6 @@ local M = {
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" },
   hints = {
     { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },
-    { key = "<Plug>(kubectl.describe)", desc = "desc", long_desc = "Describe selected deployment" },
     { key = "<Plug>(kubectl.scale)", desc = "scale", long_desc = "Scale replicas" },
     { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
   },
