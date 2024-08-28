@@ -30,14 +30,14 @@ function M.register()
   vim.keymap.set({ "n" }, "gi", "<Plug>(set_image)")
   vim.keymap.set({ "n" }, "grr", "<Plug>(rollout_restart)")
   vim.keymap.set({ "n" }, "gc", "<Plug>(create_job)")
+  vim.keymap.set({ "n" }, "gx", "<Plug>(suspend_job)")
   vim.keymap.set({ "n" }, "f", "<Plug>(follow)")
   vim.keymap.set({ "n" }, "w", "<Plug>(wrap)")
   vim.keymap.set({ "n" }, "gp", "<Plug>(portforward)")
+  vim.keymap.set({ "n" }, "gk", "<Plug>(kill)")
 
   -- pods view
   vim.keymap.set({ "n" }, "gu", "<Plug>(top)")
-  vim.keymap.set({ "n" }, "gk", "<Plug>(kill)")
-  vim.keymap.set({ "n" }, "gx", "<Plug>(suspend_job)")
 
   -- deployment view
   vim.keymap.set({ "n" }, "gss", "<Plug>(scale)")
