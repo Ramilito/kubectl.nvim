@@ -15,10 +15,47 @@ local M = {
   nodes = {},
 }
 
-local function getCpuUsage(row, node)
+local hl = require("kubectl.actions.highlight")
+
+local function getHl(percent)
+  local symbol = ""
+  if percent < 80 then
+    symbol = hl.symbols.note
+  elseif percent < 90 then
+    symbol = hl.symbols.warning
+  else
+    symbol = hl.symbols.error
+  end
+  return symbol
+end
+
+local function split_num_unit(mem)
+  local num = tonumber(string.sub(mem, 1, -3)) or 0
+  local unit = string.sub(mem, -2) or "Ki"
+  return num, unit
+end
+
+local function get_ki_val(mem)
+  local mem_val, unit = split_num_unit(mem)
+  if unit == "Mi" then
+    mem_val = math.floor(mem_val * 1024)
+  end
+  return mem_val
+end
+
+local function kib_to_mib_or_gib(mem)
+  local final_val = math.floor(mem / 1024)
+  local unit = "Mi"
+  if final_val > 10240 then
+    final_val = math.floor(final_val / 1024)
+    unit = "Gi"
+  end
+  return final_val, unit
+end
+
+local function getCpuUsage(row)
   local status = { symbol = "", value = "", sort_by = 0 }
   local temp_val = 0
-  local out_of = ""
   if row.containers then
     for _, container in pairs(row.containers) do
       local cpu = container.usage.cpu
@@ -28,45 +65,36 @@ local function getCpuUsage(row, node)
   elseif row.usage.cpu then
     local cpu = row.usage.cpu
     temp_val = tonumber(string.sub(cpu, 1, -2)) or 0
-    out_of = node and node.status and node.status.capacity.cpu or ""
-    if out_of ~= "" then
-      local v = tonumber(out_of) * 1000
-      local percent = math.ceil((math.ceil(temp_val / 1000000) / v) * 100) or 0
-      out_of = "/" .. v .. "m (" .. percent .. "%)"
-    end
   end
 
   status.sort_by = temp_val
-  status.value = math.ceil(temp_val / 1000000) .. "m" .. out_of
+  status.value = math.ceil(temp_val / 1000000) .. "m"
 
   return status
 end
 
-local function getMemUsage(row, node)
-  local function split_num_unit(mem)
-    local num = tonumber(string.sub(mem, 1, -3)) or 0
-    local unit = string.sub(mem, -2) or "Ki"
-    return num, unit
+local function getCpuPercent(row, node)
+  local status = { symbol = "", value = "", sort_by = 0 }
+  if not row.usage or not row.usage.cpu then
+    return
   end
-  local function get_ki_val(mem)
-    local mem_val, unit = split_num_unit(mem)
-    if unit == "Mi" then
-      mem_val = math.floor(mem_val * 1024)
-    end
-    return mem_val
+  local cpu = tonumber(string.sub(row.usage.cpu, 1, -2)) or 0
+
+  local out_of = node and node.status and node.status.capacity.cpu or ""
+  if out_of ~= "" then
+    local total = tonumber(out_of) * 1000
+    local percent = math.ceil((math.ceil(cpu / 1000000) / total) * 100) or 0
+    status.sort_by = percent
+    status.value = percent .. "%"
+    status.symbol = getHl(percent)
   end
-  local function kib_to_mib_or_gib(mem)
-    local final_val = math.floor(mem / 1024)
-    local unit = "Mi"
-    if  final_val > 10240 then
-      final_val = math.floor(final_val / 1024)
-      unit = "Gi"
-    end
-    return final_val, unit
-  end
+
+  return status
+end
+
+local function getMemUsage(row)
   local status = { symbol = "", value = "", sort_by = "" }
   local temp_val = 0
-  local out_of = ""
   if row.containers then
     for _, container in pairs(row.containers) do
       local mem = container.usage.memory
@@ -75,18 +103,29 @@ local function getMemUsage(row, node)
   elseif row.usage.memory then
     local mem = row.usage.memory
     temp_val = tonumber(string.sub(mem, 1, -3)) or 0
-    out_of = node and node.status and node.status.capacity.memory or ""
-    if out_of ~= "" then
-      local kib = get_ki_val(out_of)
-      local new_mem_val, new_unit = kib_to_mib_or_gib(kib)
-      local percent = math.ceil((temp_val / kib) * 100)
-      out_of = "/" .. new_mem_val .. new_unit .. " (" .. percent .. "%)"
-    end
   end
 
   status.sort_by = temp_val
   local final_val, unit = kib_to_mib_or_gib(temp_val)
-  status.value = final_val .. unit .. out_of
+  status.value = final_val .. unit
+  return status
+end
+
+local function getMemPercent(row, node)
+  local status = { symbol = "", value = "", sort_by = 0 }
+  if not row.usage or not row.usage.memory then
+    return
+  end
+  local mem = tonumber(string.sub(row.usage.memory, 1, -3)) or 0
+  local out_of = node and node.status and node.status.capacity.memory or ""
+  if out_of ~= "" then
+    local total = get_ki_val(out_of)
+    local percent = math.ceil((mem / total) * 100)
+    status.value = percent .. "%"
+    status.symbol = getHl(percent)
+    status.sort_by = percent
+  end
+
   return status
 end
 
@@ -100,7 +139,7 @@ function M.processRow(rows)
   for _, row in pairs(rows.items) do
     -- find node
     local node_details = ""
-    if #M.nodes > 0 then
+    if #M.nodes > 0 and M.res_type == "nodes" then
       for _, node in pairs(M.nodes) do
         if node.metadata.name == row.metadata.name and node_details == "" then
           node_details = node
@@ -110,8 +149,10 @@ function M.processRow(rows)
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
-      ["cpu-cores"] = getCpuUsage(row, node_details),
-      ["mem-bytes"] = getMemUsage(row, node_details),
+      ["cpu-cores"] = getCpuUsage(row),
+      ["mem-bytes"] = getMemUsage(row),
+      ["cpu-%"] = getCpuPercent(row, node_details),
+      ["mem-%"] = getMemPercent(row, node_details),
     }
 
     table.insert(data, pod)
@@ -127,6 +168,9 @@ function M.getHeaders()
   }
   if M.res_type == "pods" then
     table.insert(headers, 1, "NAMESPACE")
+  else
+    table.insert(headers, 3, "CPU-%")
+    table.insert(headers, 5, "MEM-%")
   end
 
   return headers
