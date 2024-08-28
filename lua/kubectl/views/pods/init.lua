@@ -80,7 +80,6 @@ function M.selectPod(pod, ns)
   for _, p_data in ipairs(data) do
     if p_data.metadata.name == pod and p_data.metadata.namespace == ns and not M.selection.container then
       container = p_data.spec.containers[1].name
-      vim.print("in if for pod: " .. pod .. " ns: " .. ns .. " container: " .. container)
     end
   end
   M.selection = { pod = pod, ns = ns, container = container }
