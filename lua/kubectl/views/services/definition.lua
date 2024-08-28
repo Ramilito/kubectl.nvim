@@ -4,8 +4,8 @@ local M = {
   ft = "k8s_services",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" },
   hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected service" },
-    { key = "<gp>", desc = "Port forward", long_desc = "Port forward" },
+    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected service" },
+    { key = "<Plug>(kubectl.portforward)", desc = "Port forward", long_desc = "Port forward" },
   },
 }
 local hl = require("kubectl.actions.highlight")

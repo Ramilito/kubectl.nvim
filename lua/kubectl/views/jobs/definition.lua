@@ -4,9 +4,9 @@ local M = {
   ft = "k8s_jobs",
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}jobs?pretty=false" },
   hints = {
-    { key = "<gc>", desc = "restart", long_desc = "Create job from job" },
-    { key = "<gd>", desc = "desc", long_desc = "Describe selected job" },
-    { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
+    { key = "<Plug>(kubectl.create_job)", desc = "restart", long_desc = "Create job from job" },
+    { key = "<Plug>(kubectl.describe)", desc = "desc", long_desc = "Describe selected job" },
+    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
   },
   owner = { name = nil, ns = nil },
 }

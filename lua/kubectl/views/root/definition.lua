@@ -2,7 +2,7 @@ local M = {
   resource = "root",
   display_name = "Root",
   ft = "k8s_root",
-  hints = { { key = "<enter>", desc = "Select" } },
+  hints = { { key = "<Plug>(kubectl.select)", desc = "Select" } },
 }
 
 function M.processRow(rows)

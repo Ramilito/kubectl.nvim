@@ -4,7 +4,7 @@ local M = {
   ft = "k8s_configmaps",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}configmaps?pretty=false" },
   hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected configmap" },
+    { key = "<Plug>(kubectl.describe)", desc = "describe", long_desc = "Describe selected configmap" },
   },
 }
 local time = require("kubectl.utils.time")

@@ -6,8 +6,8 @@ local M = {
   ft = "k8s_containers",
   url = {},
   hints = {
-    { key = "<gl>", desc = "logs" },
-    { key = "<enter>", desc = "exec" },
+    { key = "<Plug>(kubectl.logs)", desc = "logs" },
+    { key = "<Plug>(kubectl.select)", desc = "exec" },
   },
 }
 
