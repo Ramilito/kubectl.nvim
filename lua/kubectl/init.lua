@@ -54,7 +54,7 @@ function M.setup(options)
     group = group,
     pattern = "k8s_*",
     callback = function()
-      mappings.register_globals()
+      mappings.register()
     end,
   })
 
