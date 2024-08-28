@@ -9,7 +9,7 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -18,7 +18,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to pods",
@@ -28,7 +28,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -38,7 +38,7 @@ local function set_keymaps(bufnr)
   })
 
   -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
-  api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(set_image)", "", {
     noremap = true,
     silent = true,
     desc = "Set image",
@@ -80,7 +80,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<c-s>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(scale)", "", {
     noremap = true,
     silent = true,
     desc = "Scale replicas",
@@ -118,7 +118,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(rollout_restart)", "", {
     noremap = true,
     silent = true,
     desc = "Rollout restart",

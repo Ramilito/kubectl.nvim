@@ -3,7 +3,7 @@ local pod_view = require("kubectl.views.pods")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "f", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(follow)", "", {
     noremap = true,
     silent = true,
     desc = "Tail logs",
@@ -12,7 +12,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "gw", "", {
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(wrap)", "", {
     noremap = true,
     silent = true,
     desc = "Toggle wrap",

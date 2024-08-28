@@ -5,7 +5,7 @@ local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "gl", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(logs)", "", {
     noremap = true,
     silent = true,
     desc = "View logs",
@@ -20,7 +20,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
     noremap = true,
     silent = true,
     desc = "Exec into",

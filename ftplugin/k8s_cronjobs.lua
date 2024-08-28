@@ -10,7 +10,7 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -19,7 +19,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to jobs",
@@ -34,7 +34,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -43,7 +43,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gc", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(create_job)", "", {
     noremap = true,
     silent = true,
     desc = "Create job from cronjob",
@@ -66,7 +66,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gx", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(suspend_job)", "", {
     noremap = true,
     silent = true,
     desc = "Suspend selected cronjob",

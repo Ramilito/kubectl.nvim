@@ -7,7 +7,7 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -16,7 +16,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -25,7 +25,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gR", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(drain)", "", {
     noremap = true,
     silent = true,
     desc = "Drain node",
@@ -39,7 +39,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gU", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(uncordon)", "", {
     noremap = true,
     silent = true,
     desc = "UnCordon node",
@@ -48,12 +48,12 @@ local function set_keymaps(bufnr)
       if node then
         node_view.UnCordon(node)
       else
-        api.nvim_err_writeln("Failed to cordone node.")
+        api.nvim_err_writeln("Failed to cordon node.")
       end
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gC", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(cordon)", "", {
     noremap = true,
     silent = true,
     desc = "Cordon node",
@@ -62,7 +62,7 @@ local function set_keymaps(bufnr)
       if node then
         node_view.Cordon(node)
       else
-        api.nvim_err_writeln("Failed to cordone node.")
+        api.nvim_err_writeln("Failed to cordon node.")
       end
     end,
   })

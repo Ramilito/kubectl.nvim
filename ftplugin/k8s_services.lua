@@ -12,7 +12,7 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymap(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -21,7 +21,7 @@ local function set_keymap(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -30,7 +30,7 @@ local function set_keymap(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(portforward)", "", {
     noremap = true,
     silent = true,
     desc = "Port forward",
