@@ -6,6 +6,19 @@ local M = {}
 
 --- Register kubectl key mappings
 function M.register()
+  -- global mappings
+  vim.keymap.set({ "n" }, "g?", "<Plug>(help)")
+  vim.keymap.set({ "n" }, "<bs>", "<Plug>(go_up)")
+  vim.keymap.set({ "n" }, "<cr>", "<Plug>(select)")
+
+  -- pods view
+  vim.keymap.set({ "n" }, "gu", "<Plug>(top)")
+  vim.keymap.set({ "n" }, "gl", "<Plug>(logs)")
+  vim.keymap.set({ "n" }, "gk", "<Plug>(delete)")
+  vim.keymap.set({ "n" }, "gp", "<Plug>(portforward)")
+
+
+
   vim.api.nvim_buf_set_keymap(0, "n", "gP", "", {
     noremap = true,
     silent = true,

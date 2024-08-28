@@ -14,7 +14,7 @@ local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -23,7 +23,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gu", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(top)", "", {
     noremap = true,
     silent = true,
     desc = "Resources used",
@@ -32,7 +32,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -41,7 +41,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gl", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(logs)", "", {
     noremap = true,
     silent = true,
     desc = "View logs",
@@ -56,7 +56,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
     noremap = true,
     silent = true,
     desc = "Select",
@@ -71,7 +71,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gk", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(delete)", "", {
     noremap = true,
     silent = true,
     desc = "delete pod",
@@ -96,7 +96,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "gp", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(portforward)", "", {
     noremap = true,
     silent = true,
     desc = "Port forward",
