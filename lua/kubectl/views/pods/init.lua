@@ -86,6 +86,9 @@ function M.selectPod(pod, ns)
 end
 
 function M.Logs()
+  if not M.builder or not M.builder.data.items then
+    return
+  end
   ResourceBuilder:view_float({
     resource = "logs",
     ft = "k8s_pod_logs",
