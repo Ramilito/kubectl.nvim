@@ -1,11 +1,14 @@
 local api = vim.api
 local container_view = require("kubectl.views.containers")
+local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 
+mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(logs)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.logs)", "", {
     noremap = true,
     silent = true,
     desc = "View logs",
@@ -20,7 +23,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Exec into",

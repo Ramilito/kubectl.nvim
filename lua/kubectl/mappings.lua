@@ -14,56 +14,56 @@ local function is_plug_mapped(plug_target, mode)
   return false
 end
 
-local function map_if_plug_not_set(mode, lhs, plug_target, opts)
+function M.map_if_plug_not_set(mode, lhs, plug_target, opts)
   if not is_plug_mapped(plug_target, mode) then
     vim.keymap.set(mode, lhs, plug_target, opts or { noremap = true, silent = true })
   end
 end
 
 --- Register kubectl key mappings
-function M.register()
+function M.register_globals()
   -- Global mappings
-  map_if_plug_not_set("n", "g?", "<Plug>(help)")
-  map_if_plug_not_set("n", "<bs>", "<Plug>(go_up)")
-  map_if_plug_not_set("n", "<cr>", "<Plug>(select)")
-  map_if_plug_not_set("n", "<gP>", "<Plug>(portforwards_view)")
-  map_if_plug_not_set("n", "gD", "<Plug>(delete)")
-  map_if_plug_not_set("n", "gd", "<Plug>(describe)")
-  map_if_plug_not_set("n", "gr", "<Plug>(refresh)")
-  map_if_plug_not_set("n", "ge", "<Plug>(edit)")
-  map_if_plug_not_set("n", "<C-a>", "<Plug>(alias_view)")
-  map_if_plug_not_set("n", "<C-f>", "<Plug>(filter_view)")
-  map_if_plug_not_set("n", "<C-n>", "<Plug>(namespace_view)")
-  map_if_plug_not_set("n", "<gs>", "<Plug>(sort)")
-  map_if_plug_not_set("n", "1", "<Plug>(view_1)")
-  map_if_plug_not_set("n", "2", "<Plug>(view_2)")
-  map_if_plug_not_set("n", "3", "<Plug>(view_3)")
-  map_if_plug_not_set("n", "4", "<Plug>(view_4)")
-  map_if_plug_not_set("n", "5", "<Plug>(view_5)")
+  M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
+  M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
+  M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
+  M.map_if_plug_not_set("n", "<gP>", "<Plug>(kubectl.portforwards_view)")
+  M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
+  M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
+  M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
+  M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
+  M.map_if_plug_not_set("n", "<C-a>", "<Plug>(kubectl.alias_view)")
+  M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
+  M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
+  M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+  M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_1)")
+  M.map_if_plug_not_set("n", "2", "<Plug>(kubectl.view_2)")
+  M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
+  M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
+  M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
 
   -- Reoccurring mappings but not global
-  map_if_plug_not_set("n", "gl", "<Plug>(logs)")
-  map_if_plug_not_set("n", "gi", "<Plug>(set_image)")
-  map_if_plug_not_set("n", "grr", "<Plug>(rollout_restart)")
-  map_if_plug_not_set("n", "gc", "<Plug>(create_job)")
-  map_if_plug_not_set("n", "gx", "<Plug>(suspend_job)")
-  map_if_plug_not_set("n", "f", "<Plug>(follow)")
-  map_if_plug_not_set("n", "w", "<Plug>(wrap)")
-  map_if_plug_not_set("n", "gp", "<Plug>(portforward)")
-  map_if_plug_not_set("n", "gk", "<Plug>(kill)")
+  M.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
+  M.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
+  M.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
+  -- M.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
+  -- M.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
+  -- M.map_if_plug_not_set("n", "f", "<Plug>(follow)")
+  -- M.map_if_plug_not_set("n", "w", "<Plug>(wrap)")
+  M.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
+  M.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
 
   -- Pods view
-  map_if_plug_not_set("n", "gu", "<Plug>(top)")
+  M.map_if_plug_not_set("n", "gu", "<Plug>(kubectl.top)")
 
   -- Deployment view
-  map_if_plug_not_set("n", "gss", "<Plug>(scale)")
+  M.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
 
   -- Nodes view
-  map_if_plug_not_set("n", "gR", "<Plug>(drain)")
-  map_if_plug_not_set("n", "gU", "<Plug>(uncordon)")
-  map_if_plug_not_set("n", "gC", "<Plug>(cordon)")
+  M.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
+  M.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
+  M.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.cordon)")
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(portforwards_view)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.portforwards_view)", "", {
     noremap = true,
     silent = true,
     desc = "View Port Forwards",
@@ -72,7 +72,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(delete)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.delete)", "", {
     noremap = true,
     silent = true,
     desc = "Delete",
@@ -105,7 +105,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(describe)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.describe)", "", {
     noremap = true,
     silent = true,
     desc = "Describe resource",
@@ -130,7 +130,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(refresh)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.refresh)", "", {
     noremap = true,
     silent = true,
     desc = "Reload",
@@ -152,7 +152,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(edit)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.edit)", "", {
     noremap = true,
     silent = true,
     desc = "Edit resource",
@@ -230,7 +230,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(alias_view)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.alias_view)", "", {
     noremap = true,
     silent = true,
     desc = "Aliases",
@@ -240,7 +240,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(filter_view)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.filter_view)", "", {
     noremap = true,
     silent = true,
     desc = "Filter",
@@ -250,7 +250,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(namespace_view)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.namespace_view)", "", {
     noremap = true,
     silent = true,
     desc = "Change namespace",
@@ -260,7 +260,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(sort)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.sort)", "", {
     noremap = true,
     silent = true,
     desc = "Sort",
@@ -312,7 +312,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_1)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_1)", "", {
     noremap = true,
     silent = true,
     desc = "Deployments",
@@ -322,7 +322,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_2)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_2)", "", {
     noremap = true,
     silent = true,
     desc = "Pods",
@@ -332,7 +332,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_3)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_3)", "", {
     noremap = true,
     silent = true,
     desc = "Configmaps",
@@ -342,7 +342,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_4)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_4)", "", {
     noremap = true,
     silent = true,
     desc = "Secrets",
@@ -352,7 +352,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(view_5)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_5)", "", {
     noremap = true,
     silent = true,
     desc = "Services",

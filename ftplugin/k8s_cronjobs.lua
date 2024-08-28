@@ -4,13 +4,17 @@ local commands = require("kubectl.actions.commands")
 local cronjob_view = require("kubectl.views.cronjobs")
 local definition = require("kubectl.views.cronjobs.definition")
 local loop = require("kubectl.utils.loop")
+local mappings = require("kubectl.mappings")
 local root_view = require("kubectl.views.root")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
+mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
+mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(help)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.help)", "", {
     noremap = true,
     silent = true,
     desc = "Help",
@@ -19,7 +23,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(select)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to jobs",
@@ -34,7 +38,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -43,7 +47,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(create_job)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.create_job)", "", {
     noremap = true,
     silent = true,
     desc = "Create job from cronjob",
@@ -66,7 +70,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(suspend_job)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.suspend_job)", "", {
     noremap = true,
     silent = true,
     desc = "Suspend selected cronjob",
