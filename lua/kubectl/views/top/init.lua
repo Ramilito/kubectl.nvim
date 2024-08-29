@@ -5,14 +5,15 @@ local tables = require("kubectl.utils.tables")
 local M = { builder = nil }
 
 function M.View(cancellationToken)
-  definition.url = definition.url_pods
-  if definition.res_type == "nodes" then
-    definition.url = definition.url_nodes
-  end
+  definition.url = definition.urls[definition.res_type]
+  definition.display_name = "top " .. definition.res_type
   if M.builder then
     M.builder = M.builder:view(definition, cancellationToken, { informer = false })
   else
     M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { informer = false })
+  end
+  if definition.res_type == "nodes" then
+    definition.get_nodes()
   end
 end
 

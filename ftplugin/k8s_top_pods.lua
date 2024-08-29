@@ -10,7 +10,7 @@ mappings.map_if_plug_not_set("n", "gn", "<Plug>(kubectl.top_nodes)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(go_up)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -19,7 +19,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(top_pods)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.top_pods)", "", {
     noremap = true,
     silent = true,
     desc = "Top pods",
@@ -29,7 +29,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(top_nodes)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.top_nodes)", "", {
     noremap = true,
     silent = true,
     desc = "Top nodes",
