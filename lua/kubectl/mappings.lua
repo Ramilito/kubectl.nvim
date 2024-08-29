@@ -1,6 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local string_utils = require("kubectl.utils.string")
 local views = require("kubectl.views")
 local M = {}
 
@@ -55,7 +56,6 @@ function M.register()
     silent = true,
     desc = "Help",
     callback = function()
-      local string_utils = require("kubectl.utils.string")
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view = require("kubectl.views")
       local ok, definition =
@@ -76,7 +76,6 @@ function M.register()
       if win_config.relative ~= "" then
         return
       end
-      local string_utils = require("kubectl.utils.string")
 
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
@@ -112,7 +111,6 @@ function M.register()
       if win_config.relative ~= "" then
         return
       end
-      local string_utils = require("kubectl.utils.string")
 
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
@@ -136,8 +134,6 @@ function M.register()
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative == "" then
-        local string_utils = require("kubectl.utils.string")
-
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
         local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
@@ -162,7 +158,6 @@ function M.register()
       end
 
       -- Retrieve buffer name and load the appropriate view
-      local string_utils = require("kubectl.utils.string")
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
       if not view_ok then
@@ -200,7 +195,7 @@ function M.register()
       -- open the file
       vim.cmd("tabnew | edit " .. tmpfilename)
 
-      vim.api.nvim_buf_set_option(0, "bufhidden", "wipe")
+      vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = 0 })
       local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
 
       vim.api.nvim_create_autocmd("QuitPre", {
@@ -302,7 +297,6 @@ function M.register()
       end
       state.sortby_old.current_word = sortby.current_word
 
-      local string_utils = require("kubectl.utils.string")
       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
       if not view_ok then
         view = require("kubectl.views.fallback")
