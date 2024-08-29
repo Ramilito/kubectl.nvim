@@ -10,6 +10,7 @@ local M = {
   selection = {},
   pfs = {},
   tail_handle = nil,
+  show_log_prefix = "true",
 }
 
 function M.View(cancellationToken)
@@ -35,7 +36,8 @@ function M.TailLogs(pod, ns, container)
   local args = { "logs", "--follow", "--since=1s", pod, "-n", ns }
   if container then
     ntfy = ntfy .. " container: " .. container
-    table.insert(args, "-c", container)
+    table.insert(args, "-c")
+    table.insert(args, container)
   else
     table.insert(args, "--all-containers=true")
   end
@@ -87,11 +89,20 @@ function M.Logs()
   ResourceBuilder:view_float({
     resource = "logs",
     ft = "k8s_pod_logs",
-    url = { "logs", "--all-containers=true", "--prefix", "--timestamps=true", M.selection.pod, "-n", M.selection.ns },
+    url = {
+      "logs",
+      "--all-containers=true",
+      "--prefix=" .. M.show_log_prefix,
+      "--timestamps=true",
+      M.selection.pod,
+      "-n",
+      M.selection.ns,
+    },
     syntax = "less",
     hints = {
-      { key = "<f>", desc = "Follow" },
-      { key = "<gw>", desc = "Wrap" },
+      { key = "<Plug>(kubectl.follow)", desc = "Follow" },
+      { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
+      { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
     },
   }, { cmd = "kubectl" })
 end

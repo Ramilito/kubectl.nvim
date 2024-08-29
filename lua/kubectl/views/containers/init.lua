@@ -31,8 +31,8 @@ function M.logs(pod, ns)
     },
     syntax = "less",
     hints = {
-      { key = "<f>", desc = "Follow" },
-      { key = "<gw>", desc = "Wrap" },
+      { key = "<Plug>(kubectl.follow)", desc = "Follow" },
+      { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
     },
   })
 end
