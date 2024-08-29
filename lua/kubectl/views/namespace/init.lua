@@ -19,7 +19,7 @@ function M.View()
 
     vim.schedule(function()
       self.buf_nr = buf
-      self:process(definition.processRow):prettyPrint(definition.getHeaders):setContent()
+      self:process(definition.processRow, true):prettyPrint(definition.getHeaders):setContent()
 
       local list = { { name = "All" } }
       for _, value in ipairs(self.processedData) do
