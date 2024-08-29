@@ -10,6 +10,7 @@ local M = {
   selection = {},
   pfs = {},
   tail_handle = nil,
+  logs_win = 0,
 }
 
 function M.View(cancellationToken)
@@ -34,7 +35,8 @@ function M.TailLogs(pod, ns, container)
   local ntfy = " tailing: " .. pod .. " container: " .. container
   local args = { "logs", "--follow", "--since=1s", pod, "-n", ns, "-c", container }
   local buf = vim.api.nvim_get_current_buf()
-  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
+  M.logs_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_cursor(M.logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
 
   local function handle_output(data)
     vim.schedule(function()
@@ -42,7 +44,9 @@ function M.TailLogs(pod, ns, container)
         local line_count = vim.api.nvim_buf_line_count(buf)
         vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
         vim.api.nvim_set_option_value("modified", false, { buf = buf })
-        vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+        if M.logs_win == vim.api.nvim_get_current_win() then
+          vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+        end
       end
     end)
   end
@@ -74,8 +78,9 @@ function M.selectPod(pod, ns)
   local container
   local data = M.builder.data.items
   for _, p_data in ipairs(data) do
-    if p_data.metadata.name == pod and p_data.metadata.namespace == ns and not M.selection.container then
+    if p_data.metadata.name == pod and p_data.metadata.namespace == ns and not container then
       container = p_data.spec.containers[1].name
+      M.selection.container = container
     end
   end
   M.selection = { pod = pod, ns = ns, container = container }
