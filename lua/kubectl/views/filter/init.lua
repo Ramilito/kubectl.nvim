@@ -1,4 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
+local completion = require("kubectl.utils.completion")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -32,8 +33,10 @@ end
 function M.filter()
   local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
   local header, marks = tables.generateHeader({
-    { key = "<enter>", desc = "apply" },
-    { key = "<q>", desc = "close" },
+    { key = "<Plug>(kubectl.select)", desc = "apply" },
+    { key = "<Plug>(kubectl.tab)", desc = "tab" },
+    -- TODO: Definition should be moved to mappings.lua
+    { key = "<Plug>(kubectl.quit)", desc = "close" },
   }, false, false)
 
   table.insert(header, "History:")
@@ -48,6 +51,11 @@ function M.filter()
 
   buffers.apply_marks(buf, marks, header)
 
+  local list = {}
+  for _, value in ipairs(state.filter_history) do
+    table.insert(list, { name = value })
+  end
+  completion.with_completion(buf, list)
   vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
     noremap = true,
     callback = function()
