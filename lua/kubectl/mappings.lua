@@ -77,9 +77,12 @@ function M.register()
         return
       end
       local string_utils = require("kubectl.utils.string")
-      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view = require("kubectl.views." .. string.lower(string_utils.trim(buf_name)))
 
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      if not view_ok then
+        view = require("kubectl.views.fallback")
+      end
       local name, ns = view.getCurrentSelection()
       if name then
         local resource = string.lower(buf_name)
@@ -106,20 +109,21 @@ function M.register()
     desc = "Describe resource",
     callback = function()
       local win_config = vim.api.nvim_win_get_config(0)
-      if win_config.relative == "" then
-        local string_utils = require("kubectl.utils.string")
+      if win_config.relative ~= "" then
+        return
+      end
+      local string_utils = require("kubectl.utils.string")
 
-        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
-        if not view_ok then
-          view = require("kubectl.views.fallback")
-        end
-        local name, ns = view.getCurrentSelection()
-        if name then
-          local ok = pcall(view.Desc, name, ns)
-          if not ok then
-            vim.api.nvim_err_writeln("Failed to describe " .. buf_name .. ".")
-          end
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      if not view_ok then
+        view = require("kubectl.views.fallback")
+      end
+      local name, ns = view.getCurrentSelection()
+      if name then
+        local ok = pcall(view.Desc, name, ns)
+        if not ok then
+          vim.api.nvim_err_writeln("Failed to describe " .. buf_name .. ".")
         end
       end
     end,
