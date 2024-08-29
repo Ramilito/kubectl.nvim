@@ -1,5 +1,6 @@
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
+local str = require("kubectl.utils.string")
 
 mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
 mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
@@ -29,10 +30,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Add divider",
     callback = function()
-      local width_of_window = vim.api.nvim_win_get_width(0)
-      local line_count = vim.api.nvim_buf_line_count(0)
-      vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { string.rep("-", width_of_window) })
-      vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+      str.divider(bufnr)
     end,
   })
 end
