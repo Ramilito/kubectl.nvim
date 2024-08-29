@@ -7,7 +7,7 @@ local function set_prompt(bufnr, suggestion)
   vim.api.nvim_win_set_cursor(0, { row - 2, #prompt + #suggestion })
 end
 
-function M.with_completion(buf, data, callback)
+function M.with_completion(buf, data, callback, shortest)
   local original_input = ""
   local current_suggestion_index = 0
 
@@ -32,9 +32,11 @@ function M.with_completion(buf, data, callback)
 
       -- Cycle through the suggestions
       if #filtered_suggestions > 0 then
-        table.sort(filtered_suggestions, function(a, b)
-          return #a < #b
-        end)
+        if shortest or shortest == nil then
+          table.sort(filtered_suggestions, function(a, b)
+            return #a < #b
+          end)
+        end
         current_suggestion_index = current_suggestion_index + 1
         if current_suggestion_index >= #filtered_suggestions + 1 then
           set_prompt(buf, original_input)
