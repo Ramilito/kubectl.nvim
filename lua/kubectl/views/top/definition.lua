@@ -76,7 +76,7 @@ end
 local function getCpuPercent(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
   if not row.usage or not row.usage.cpu then
-    return
+    return status
   end
   local cpu = tonumber(string.sub(row.usage.cpu, 1, -2)) or 0
 
@@ -114,7 +114,7 @@ end
 local function getMemPercent(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
   if not row.usage or not row.usage.memory then
-    return
+    return status
   end
   local mem = tonumber(string.sub(row.usage.memory, 1, -3)) or 0
   local out_of = node and node.status and node.status.capacity.memory or ""

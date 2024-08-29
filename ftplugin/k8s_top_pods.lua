@@ -34,7 +34,6 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Top nodes",
     callback = function()
-      vim.print("in here")
       top_view.View()
       top_def.res_type = "nodes"
     end,
