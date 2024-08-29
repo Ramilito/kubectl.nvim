@@ -137,6 +137,7 @@ function M.filter_buffer(filetype, callback, opts)
   local win = layout.filter_layout(buf, filetype, opts.title or "")
 
   vim.fn.prompt_setcallback(buf, function(input)
+    input = vim.trim(input)
     callback(input)
     if not input then
       state.setFilter("")
