@@ -3,9 +3,6 @@ local M = {
   display_name = "Secrets",
   ft = "k8s_secrets",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}secrets?pretty=false" },
-  hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected secret" },
-  },
 }
 local time = require("kubectl.utils.time")
 
