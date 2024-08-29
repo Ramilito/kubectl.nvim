@@ -117,6 +117,35 @@ local function set_keymaps(bufnr)
               api.nvim_err_writeln("No container ports exposed in pod")
               return
             end
+
+            local win_config
+            self.buf_nr, win_config = buffers.confirmation_buffer(
+              "Confirm port forward",
+              "PortForward",
+              function(confirm)
+                if confirm then
+                  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+                  local container_port, local_port
+
+                  for _, line in ipairs(lines) do
+                    if line:match("Container port:") then
+                      container_port = line:match("::(%d+)$")
+                    elseif line:match("Local port:") then
+                      local_port = line:match("Local port: (.*)")
+                    end
+                  end
+                  commands.shell_command_async(
+                    "kubectl",
+                    { "port-forward", "-n", ns, "pods/" .. name, local_port .. ":" .. container_port }
+                  )
+
+                  vim.schedule(function()
+                    pod_view.View()
+                  end)
+                end
+              end
+            )
+
             self.prettyData, self.extmarks = tables.pretty_print(data, { "NAME", "PORT", "PROTOCOL" })
 
             table.insert(self.prettyData, "")
@@ -127,42 +156,11 @@ local function set_keymaps(bufnr)
             table.insert(self.prettyData, "Local port: " .. data[1].port.value)
             table.insert(self.prettyData, "")
 
-            local max_width = 0
-            for _, value in ipairs(self.prettyData) do
-              if max_width < #value then
-                max_width = #value
-              end
-            end
             local confirmation = "[y]es [n]o:"
-            local padding = string.rep(" ", (max_width - #confirmation) / 2)
+            local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
             table.insert(self.prettyData, padding .. confirmation)
 
-            buffers.confirmation_buffer("Confirm port forward", "PortForward", function(confirm)
-              if confirm then
-                local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-                local container_port, local_port
-
-                for _, line in ipairs(lines) do
-                  if line:match("Container port:") then
-                    container_port = line:match("::(%d+)$")
-                  elseif line:match("Local port:") then
-                    local_port = line:match("Local port: (.*)")
-                  end
-                end
-                commands.shell_command_async(
-                  "kubectl",
-                  { "port-forward", "-n", ns, "pods/" .. name, local_port .. ":" .. container_port }
-                )
-
-                vim.schedule(function()
-                  pod_view.View()
-                end)
-              end
-            end, {
-              content = self.prettyData,
-              marks = self.extmarks,
-              width = max_width,
-            })
+            self:setContent()
           end)
         end)
     end,
