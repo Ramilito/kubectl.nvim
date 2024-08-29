@@ -169,21 +169,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   if not buf then
     buf = create_buffer(bufname)
   end
-  local content = opts.content or { "[y]es [n]o" }
-
-  local layout_opts = {
-    size = {
-      width = math.max(#prompt + #filetype + 4, opts.width or 0),
-      height = #content + 1,
-      col = (vim.api.nvim_win_get_width(0) - #prompt + 2) * 0.5,
-      row = (vim.api.nvim_win_get_height(0) - #content + 1) * 0.5,
-    },
-    relative = "win",
-    header = {},
-  }
-
-  set_buffer_lines(buf, layout_opts.header.data, content)
-  local win = layout.float_layout(buf, filetype, prompt, layout_opts)
+  local win = layout.float_dynamic_layout(buf, opts.syntax or filetype, prompt)
 
   vim.api.nvim_buf_set_keymap(buf, "n", "y", "", {
     noremap = true,
@@ -205,6 +191,13 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
 
   layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
   M.apply_marks(buf, opts.marks, nil)
+
+  local win_config = layout.win_size_fit_content(buf, 2)
+
+  local padding = string.rep(" ", win_config.width / 2)
+  M.set_content(buf, { content = { padding .. "[y]es [n]o" } })
+
+  return buf, win_config
 end
 
 --- Creates a namespace buffer.

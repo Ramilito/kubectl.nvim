@@ -223,6 +223,7 @@ function M.win_size_fit_content(buf_nr, offset)
 
   api.nvim_set_option_value("scrolloff", rows + offset, { win = win_id })
   vim.api.nvim_win_set_config(win_id, win_config)
+  return win_config
 end
 
 return M
