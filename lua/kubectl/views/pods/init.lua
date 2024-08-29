@@ -10,7 +10,6 @@ local M = {
   selection = {},
   pfs = {},
   tail_handle = nil,
-  logs_win = 0,
 }
 
 function M.View(cancellationToken)
@@ -35,8 +34,8 @@ function M.TailLogs(pod, ns, container)
   local ntfy = " tailing: " .. pod .. " container: " .. container
   local args = { "logs", "--follow", "--since=1s", pod, "-n", ns, "-c", container }
   local buf = vim.api.nvim_get_current_buf()
-  M.logs_win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_cursor(M.logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
+  local logs_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_cursor(logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
 
   local function handle_output(data)
     vim.schedule(function()
@@ -44,7 +43,7 @@ function M.TailLogs(pod, ns, container)
         local line_count = vim.api.nvim_buf_line_count(buf)
         vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
         vim.api.nvim_set_option_value("modified", false, { buf = buf })
-        if M.logs_win == vim.api.nvim_get_current_win() then
+        if logs_win == vim.api.nvim_get_current_win() then
           vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
         end
       end
