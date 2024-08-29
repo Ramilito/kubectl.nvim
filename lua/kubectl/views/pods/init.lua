@@ -10,7 +10,9 @@ local M = {
   selection = {},
   pfs = {},
   tail_handle = nil,
+  -- TODO: should propably be configurable
   show_log_prefix = "true",
+  show_timestamps = "true",
 }
 
 function M.View(cancellationToken)
@@ -41,7 +43,7 @@ function M.TailLogs(pod, ns, container)
   else
     table.insert(args, "--all-containers=true")
     table.insert(args, "--prefix=" .. M.show_log_prefix)
-    table.insert(args, "--timestamps=true")
+    table.insert(args, "--timestamps=" .. M.show_timestamps)
   end
   local buf = vim.api.nvim_get_current_buf()
   local logs_win = vim.api.nvim_get_current_win()
@@ -95,7 +97,7 @@ function M.Logs()
       "logs",
       "--all-containers=true",
       "--prefix=" .. M.show_log_prefix,
-      "--timestamps=true",
+      "--timestamps=" .. M.show_timestamps,
       M.selection.pod,
       "-n",
       M.selection.ns,
@@ -105,6 +107,7 @@ function M.Logs()
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
       { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
+      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps" },
     },
   }, { cmd = "kubectl" })
 end

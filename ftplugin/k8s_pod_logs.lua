@@ -5,6 +5,7 @@ local str = require("kubectl.utils.string")
 mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
 mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
 mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.prefix)")
+mappings.map_if_plug_not_set("n", "gt", "<Plug>(kubectl.timestamps)")
 mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
 
 --- Set key mappings for the buffer
@@ -24,6 +25,21 @@ local function set_keymaps(bufnr)
     desc = "Toggle wrap",
     callback = function()
       vim.api.nvim_set_option_value("wrap", not vim.api.nvim_get_option_value("wrap", {}), {})
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.timestamps)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Toggle timestamps",
+    callback = function()
+      if pod_view.show_timestamps == "true" then
+        pod_view.show_timestamps = "false"
+      else
+        pod_view.show_timestamps = "true"
+      end
+      vim.cmd.close()
+      pod_view.Logs()
     end,
   })
 
