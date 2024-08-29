@@ -55,7 +55,7 @@ function M.filter()
   for _, value in ipairs(state.filter_history) do
     table.insert(list, { name = value })
   end
-  completion.with_completion(buf, list)
+  completion.with_completion(buf, list, _, false)
   vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
     noremap = true,
     callback = function()
