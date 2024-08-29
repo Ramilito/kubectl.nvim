@@ -34,7 +34,30 @@ local function calculate_extra_padding(widths, headers)
     total_width = total_width + max_width
     widths[key] = max_width
   end
-  return math.max((text_width - total_width) / #headers - 1, 0)
+  return math.floor(math.max((text_width - total_width) / #headers - 1, 0))
+end
+
+function M.get_plug_mappings(headers, mode)
+  local keymaps_table = {}
+  local header_lookup = {}
+
+  if not headers then
+    return keymaps_table
+  end
+
+  local keymaps = vim.api.nvim_get_keymap(mode)
+  for _, header in ipairs(headers) do
+    header_lookup[header.key] = { desc = header.desc, long_desc = header.long_desc }
+  end
+
+  -- Iterate over keymaps and check if they match any header key
+  for _, keymap in ipairs(keymaps) do
+    local header = header_lookup[keymap.rhs]
+    if header then
+      table.insert(keymaps_table, { key = keymap.lhs, desc = header.desc, long_desc = header.long_desc })
+    end
+  end
+  return keymaps_table
 end
 
 --- Add a mark to the extmarks table
@@ -56,15 +79,16 @@ local function addHeaderRow(headers, hints, marks)
   local length = #hint_line
   M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 
-  for index, hintConfig in ipairs(headers) do
+  local keymaps = M.get_plug_mappings(headers, "n")
+  for index, map in ipairs(keymaps) do
     length = #hint_line
-    hint_line = hint_line .. hintConfig.key .. " " .. hintConfig.desc
-    if index < #headers then
+    hint_line = hint_line .. map.key .. " " .. map.desc
+    if index < #keymaps then
       local divider = " | "
       hint_line = hint_line .. divider
       M.add_mark(marks, #hints, #hint_line - #divider, #hint_line, hl.symbols.success)
     end
-    M.add_mark(marks, #hints, length, length + #hintConfig.key, hl.symbols.pending)
+    M.add_mark(marks, #hints, length, length + #map.key, hl.symbols.pending)
   end
 
   table.insert(hints, hint_line .. "\n")
@@ -164,11 +188,11 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
 
   if include_defaults then
     local defaults = {
-      { key = "<gr>", desc = "reload" },
-      { key = "<C-a>", desc = "aliases" },
-      { key = "<C-f>", desc = "filter" },
-      { key = "<C-n>", desc = "namespace" },
-      { key = "<g?>", desc = "help" },
+      { key = "<Plug>(kubectl.refresh)", desc = "reload" },
+      { key = "<Plug>(kubectl.alias_view)", desc = "aliases" },
+      { key = "<Plug>(kubectl.filter_view)", desc = "filter" },
+      { key = "<Plug>(kubectl.namespace_view)", desc = "namespace" },
+      { key = "<Plug>(kubectl.help)", desc = "help" },
     }
     for _, default in ipairs(defaults) do
       table.insert(headers, default)
@@ -227,9 +251,8 @@ function M.pretty_print(data, headers, sort_by)
   local header_col_position = 0
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 10
-    -- "  " is to add space for sort icon
-    -- -1 on extra_padding is to remove the space mentioned above
-    local padding = string.rep(" ", column_width - #header + extra_padding - 1)
+    local padding = string.rep(" ", column_width - #header + extra_padding)
+    -- "  " is to add space for sort icon even when width is small
     local value = header .. "  " .. padding
     table.insert(header_line, value)
 
@@ -273,8 +296,8 @@ function M.pretty_print(data, headers, sort_by)
         value = tostring(cell)
       end
 
-      local padding = string.rep(" ", widths[col] - #value + extra_padding + 1)
-      local display_value = value .. padding
+      local padding = string.rep(" ", widths[col] - #value + extra_padding)
+      local display_value = value .. "  " .. padding
 
       table.insert(row_line, display_value)
 

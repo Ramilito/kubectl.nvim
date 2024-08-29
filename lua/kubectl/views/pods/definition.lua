@@ -8,12 +8,10 @@ local M = {
   ft = "k8s_pods",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" },
   hints = {
-    { key = "<gl>", desc = "logs", long_desc = "Shows logs for all containers in pod" },
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected pod" },
-    { key = "<gu>", desc = "usage", long_desc = "Show resources used" },
-    { key = "<enter>", desc = "containers", long_desc = "Opens container view" },
-    { key = "<gp>", desc = "PF", long_desc = "View active Port forwards" },
-    { key = "<gk>", desc = "delete pod", long_desc = "Delete pod" },
+    { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
+    { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
+    { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
+    { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },
   },
 }
 

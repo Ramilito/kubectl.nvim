@@ -4,9 +4,9 @@ local M = {
   ft = "k8s_deployments",
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" },
   hints = {
-    { key = "<grr>", desc = "restart", long_desc = "Restart selected deployment" },
-    { key = "<gd>", desc = "desc", long_desc = "Describe selected deployment" },
-    { key = "<enter>", desc = "pods", long_desc = "Opens pods view" },
+    { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },
+    { key = "<Plug>(kubectl.scale)", desc = "scale", long_desc = "Scale replicas" },
+    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
   },
 }
 local hl = require("kubectl.actions.highlight")
@@ -51,19 +51,18 @@ end
 
 function M.getReady(row)
   local status = { symbol = "", value = "", sort_by = 0 }
-  if row.status.availableReplicas then
-    status.value = row.status.readyReplicas .. "/" .. row.status.availableReplicas
-    status.sort_by = (row.status.readyReplicas * 1000) + row.status.availableReplicas
-    if row.status.readyReplicas == row.status.availableReplicas then
-      status.symbol = hl.symbols.note
-    else
-      status.symbol = hl.symbols.deprecated
-    end
+  local available = tonumber(row.status.availableReplicas or row.status.readyReplicas or "0")
+  local unavailable = tonumber(row.status.unavailableReplicas) or 0
+  local replicas = tonumber(row.spec.replicas or row.status.replicas or "0")
+
+  if available == replicas and unavailable == 0 then
+    status.symbol = hl.symbols.note
   else
     status.symbol = hl.symbols.deprecated
-    -- TODO: There should be other numbers to fetch here
-    status.value = "0/0"
   end
+
+  status.value = available .. "/" .. replicas
+  status.sort_by = (available * 1000) + replicas
   return status
 end
 

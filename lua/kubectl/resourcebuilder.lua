@@ -249,8 +249,10 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   local count = ""
   local filter = ""
   local hints_copy = {}
-  for index, value in ipairs(hints) do
-    hints_copy[index] = value
+  if hints then
+    for index, value in ipairs(hints) do
+      hints_copy[index] = value
+    end
   end
   if self.prettyData then
     count = tostring(#self.prettyData - 1)
@@ -296,8 +298,8 @@ end
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   ResourceBuilder:new(definition.resource)
-    :displayFloat(definition.ft, definition.resource)
-    :setCmd(definition.url, opts.cmd or "curl")
+    :displayFloat(definition.ft, definition.resource, definition.syntax)
+    :setCmd(definition.url, opts.cmd or "curl", opts.contentType)
     :fetchAsync(function(builder)
       builder:decodeJson()
 
@@ -310,7 +312,11 @@ function ResourceBuilder:view_float(definition, opts)
             :addHints(definition.hints, true, false, false)
             :setContent()
         else
-          builder:splitData():setContentRaw()
+          builder:splitData()
+          if definition.hints then
+            builder:addHints(definition.hints, false, false, false)
+          end
+          builder:setContentRaw()
         end
       end)
     end)
@@ -329,7 +335,9 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
     :fetchAsync(function(builder)
       builder:decodeJson()
       if opts.cmd == "curl" then
-        informer.start(builder)
+        if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
+          informer.start(builder)
+        end
       end
       vim.schedule(function()
         builder:draw(definition, cancellationToken)

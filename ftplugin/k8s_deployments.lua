@@ -1,24 +1,20 @@
 local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
 local root_view = require("kubectl.views.root")
 local view = require("kubectl.views")
 
+local mappings = require("kubectl.mappings")
+
+mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
+mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
+mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
+
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "g?", "", {
-    noremap = true,
-    silent = true,
-    desc = "Help",
-    callback = function()
-      view.Hints(definition.hints)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<CR>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,
     desc = "Go to pods",
@@ -28,7 +24,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<bs>", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
     desc = "Go up",
@@ -38,7 +34,7 @@ local function set_keymaps(bufnr)
   })
 
   -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
-  api.nvim_buf_set_keymap(bufnr, "n", "gi", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.set_image)", "", {
     noremap = true,
     silent = true,
     desc = "Set image",
@@ -61,24 +57,64 @@ local function set_keymaps(bufnr)
         vim.notify("Setting new container image for multiple containers are NOT supported yet", vim.log.levels.WARN)
       else
         vim.ui.input({ prompt = "Update image ", default = container_images[1] }, function(input)
-          if input ~= nil then
-            buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
-              if confirm then
-                local set_image = { "set", "image", "deployment/" .. name, name .. "=" .. input, "-n", ns }
-                commands.shell_command_async("kubectl", set_image, function(response)
-                  vim.schedule(function()
-                    vim.notify(response)
-                  end)
-                end)
-              end
-            end)
+          if not input then
+            return
           end
+          buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
+            if not confirm then
+              return
+            end
+            local set_image = { "set", "image", "deployment/" .. name, name .. "=" .. input, "-n", ns }
+            commands.shell_command_async("kubectl", set_image, function(response)
+              vim.schedule(function()
+                vim.notify(response)
+              end)
+            end)
+          end)
         end)
       end
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "grr", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.scale)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Scale replicas",
+    callback = function()
+      local name, ns = deployment_view.getCurrentSelection()
+
+      local current_replicas = commands.execute_shell_command(
+        "kubectl",
+        { "get", "deploy", name, "-n", ns, "-o", 'jsonpath="{.spec.replicas}"' }
+      )
+
+      vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
+        if not input then
+          return
+        end
+        buffers.confirmation_buffer(
+          string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
+          "prompt",
+          function(confirm)
+            if not confirm then
+              return
+            end
+            commands.shell_command_async(
+              "kubectl",
+              { "scale", "deployment/" .. name, "--replicas=" .. input, "-n", ns },
+              function(response)
+                vim.schedule(function()
+                  vim.notify(response)
+                end)
+              end
+            )
+          end
+        )
+      end)
+    end,
+  })
+
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.rollout_restart)", "", {
     noremap = true,
     silent = true,
     desc = "Rollout restart",

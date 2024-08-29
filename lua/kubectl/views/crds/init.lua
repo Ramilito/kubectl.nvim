@@ -28,12 +28,12 @@ end
 --- Describe a configmap
 ---@param name string
 function M.Desc(name)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_crds_desc", name, "yaml")
-    :setCmd({ "describe", "crds", name })
-    :fetch()
-    :splitData()
-    :setContentRaw()
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_crds_desc",
+    url = { "describe", "crd", name },
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view

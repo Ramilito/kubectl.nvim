@@ -24,15 +24,12 @@ function M.Edit(name)
 end
 
 function M.Desc(name)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_clusterrolebinding_desc", name, "yaml")
-    :setCmd({ "describe", "clusterrolebinding", name })
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self:setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_clusterrolebinding_desc",
+    url = { "describe", "clusterrolebinding", name },
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view

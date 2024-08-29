@@ -6,8 +6,7 @@ local M = {
   ft = "k8s_events",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" },
   hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected event" },
-    { key = "<enter>", desc = "message", long_desc = "Read message" },
+    { key = "<Plug>(kubectl.select)", desc = "message", long_desc = "Read message" },
   },
 }
 

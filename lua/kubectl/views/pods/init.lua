@@ -9,6 +9,8 @@ local M = {
   builder = nil,
   selection = {},
   pfs = {},
+  tail_handle = nil,
+  show_log_prefix = "true",
 }
 
 function M.View(cancellationToken)
@@ -26,74 +28,85 @@ function M.Draw(cancellationToken)
   root_definition.setPortForwards(M.builder.extmarks, M.builder.prettyData, M.pfs)
 end
 
-function M.Top()
-  local state = require("kubectl.state")
-  local ns_filter = state.getNamespace()
-  local args = { "top", "pods" }
-
-  if ns_filter == "All" then
-    table.insert(args, "-A")
+function M.TailLogs(pod, ns, container)
+  pod = pod or M.selection.pod
+  ns = ns or M.selection.ns
+  container = container or M.selection.container
+  local ntfy = " tailing: " .. pod
+  local args = { "logs", "--follow", "--since=1s", pod, "-n", ns }
+  if container then
+    ntfy = ntfy .. " container: " .. container
+    table.insert(args, "-c")
+    table.insert(args, container)
   else
-    table.insert(args, "--namespace")
-    table.insert(args, ns_filter)
+    table.insert(args, "--all-containers=true")
+    table.insert(args, "--prefix=" .. M.show_log_prefix)
+    table.insert(args, "--timestamps=true")
   end
-
-  ResourceBuilder:view_float(
-    { resource = "top", ft = "k8s_top", display_name = "Top", url = args },
-    { cmd = "kubectl" }
-  )
-end
-
-function M.TailLogs()
   local buf = vim.api.nvim_get_current_buf()
-  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
+  local logs_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_cursor(logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
 
   local function handle_output(data)
     vim.schedule(function()
       if vim.api.nvim_buf_is_valid(buf) then
         local line_count = vim.api.nvim_buf_line_count(buf)
-
-        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n"))
+        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
         vim.api.nvim_set_option_value("modified", false, { buf = buf })
-        vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+        if logs_win == vim.api.nvim_get_current_win() then
+          vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+        end
       end
     end)
   end
 
-  local args = { "logs", "--follow", "--since=1s", M.selection.pod, "-n", M.selection.ns }
-  local handle = commands.shell_command_async("kubectl", args, nil, handle_output)
+  local function stop_tailing(handle)
+    handle:kill(2)
+    vim.notify("Stopped" .. ntfy, vim.log.levels.INFO)
+  end
 
-  vim.notify("Start tailing: " .. M.selection.pod, vim.log.levels.INFO)
-  vim.api.nvim_create_autocmd("BufWinLeave", {
-    buffer = buf,
-    callback = function()
-      handle:kill(2)
-      vim.notify("Stopped tailing: " .. M.selection.pod, vim.log.levels.INFO)
-    end,
-  })
+  local group = vim.api.nvim_create_augroup("__kubectl_tailing", { clear = false })
+  if M.tail_handle and not M.tail_handle:is_closing() then
+    vim.api.nvim_clear_autocmds({ group = group })
+    stop_tailing(M.tail_handle)
+  else
+    M.tail_handle = commands.shell_command_async("kubectl", args, nil, handle_output)
+
+    vim.notify("Started " .. ntfy, vim.log.levels.INFO)
+    vim.api.nvim_create_autocmd("BufWinLeave", {
+      group = group,
+      buffer = buf,
+      callback = function()
+        stop_tailing(M.tail_handle)
+      end,
+    })
+  end
 end
 
-function M.selectPod(pod_name, namespace)
-  M.selection = { pod = pod_name, ns = namespace }
+function M.selectPod(pod, ns)
+  M.selection = { pod = pod, ns = ns, container = nil }
 end
 
 function M.Logs()
-  ResourceBuilder:new("logs")
-    :displayFloat("k8s_pod_logs", M.selection.pod, "less")
-    :setCmd({
-      "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true",
-    }, "curl", "text/html")
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self
-          :addHints({
-            { key = "<f>", desc = "Follow" },
-            { key = "<gw>", desc = "Wrap" },
-          }, false, false, false)
-          :setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "logs",
+    ft = "k8s_pod_logs",
+    url = {
+      "logs",
+      "--all-containers=true",
+      "--prefix=" .. M.show_log_prefix,
+      "--timestamps=true",
+      M.selection.pod,
+      "-n",
+      M.selection.ns,
+    },
+    syntax = "less",
+    hints = {
+      { key = "<Plug>(kubectl.follow)", desc = "Follow" },
+      { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
+      { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
+    },
+  }, { cmd = "kubectl" })
 end
 
 function M.Edit(name, ns)
@@ -102,15 +115,12 @@ function M.Edit(name, ns)
 end
 
 function M.Desc(name, ns)
-  ResourceBuilder:new("desc")
-    :displayFloat("k8s_pod_desc", name, "yaml")
-    :setCmd({ "describe", "pod", name, "-n", ns })
-    :fetchAsync(function(self)
-      self:splitData()
-      vim.schedule(function()
-        self:setContentRaw()
-      end)
-    end)
+  ResourceBuilder:view_float({
+    resource = "desc",
+    ft = "k8s_pod_desc",
+    url = { "describe", "pod", name, "-n", ns },
+    syntax = "yaml",
+  }, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view

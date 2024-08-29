@@ -1,4 +1,5 @@
 local informer = require("kubectl.actions.informer")
+local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
 
 local M = {
@@ -71,6 +72,15 @@ function M.setup(options)
       completion.diff(opts.fargs[2])
     elseif action == "apply" then
       completion.apply()
+    elseif action == "top" then
+      local top_view = require("kubectl.views.top")
+      local top_def = require("kubectl.views.top.definition")
+      if #opts.fargs == 2 then
+        top_view.View()
+        top_def.res_type = opts.fargs[2]
+      else
+        top_view.View()
+      end
     else
       view.UserCmd(opts.fargs)
     end
@@ -80,13 +90,20 @@ function M.setup(options)
   })
 
   vim.api.nvim_create_user_command("Kubens", function(opts)
-    completion.change_namespace(opts.fargs[1])
+    if #opts.fargs == 0 then
+      ns_view.View()
+    else
+      ns_view.changeNamespace(opts.fargs[1])
+    end
   end, {
     nargs = "*",
-    complete = completion.list_namespace,
+    complete = ns_view.listNamespaces,
   })
 
   vim.api.nvim_create_user_command("Kubectx", function(opts)
+    if #opts.fargs == 0 then
+      return
+    end
     completion.change_context(opts.fargs[1])
   end, {
     nargs = "*",
