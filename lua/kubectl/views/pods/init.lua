@@ -31,8 +31,14 @@ function M.TailLogs(pod, ns, container)
   pod = pod or M.selection.pod
   ns = ns or M.selection.ns
   container = container or M.selection.container
-  local ntfy = " tailing: " .. pod .. " container: " .. container
-  local args = { "logs", "--follow", "--since=1s", pod, "-n", ns, "-c", container }
+  local ntfy = " tailing: " .. pod
+  local args = { "logs", "--follow", "--since=1s", pod, "-n", ns }
+  if container then
+    ntfy = ntfy .. " container: " .. container
+    table.insert(args, "-c", container)
+  else
+    table.insert(args, "--all-containers=true")
+  end
   local buf = vim.api.nvim_get_current_buf()
   local logs_win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_cursor(logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
@@ -74,31 +80,20 @@ function M.TailLogs(pod, ns, container)
 end
 
 function M.selectPod(pod, ns)
-  local container
-  local data = M.builder.data.items
-  for _, p_data in ipairs(data) do
-    if p_data.metadata.name == pod and p_data.metadata.namespace == ns and not container then
-      container = p_data.spec.containers[1].name
-      M.selection.container = container
-    end
-  end
-  M.selection = { pod = pod, ns = ns, container = container }
+  M.selection = { pod = pod, ns = ns, container = nil }
 end
 
 function M.Logs()
-  if not M.builder or not M.builder.data.items then
-    return
-  end
   ResourceBuilder:view_float({
     resource = "logs",
     ft = "k8s_pod_logs",
-    url = { "{{BASE}}/api/v1/namespaces/" .. M.selection.ns .. "/pods/" .. M.selection.pod .. "/log" .. "?pretty=true" },
+    url = { "logs", "--all-containers=true", "--prefix", "--timestamps=true", M.selection.pod, "-n", M.selection.ns },
     syntax = "less",
     hints = {
       { key = "<f>", desc = "Follow" },
       { key = "<gw>", desc = "Wrap" },
     },
-  }, { contentType = "text/html" })
+  }, { cmd = "kubectl" })
 end
 
 function M.Edit(name, ns)
