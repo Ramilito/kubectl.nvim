@@ -33,7 +33,7 @@ function M.TailLogs(pod, ns, container)
   ns = ns or M.selection.ns
   container = container or M.selection.container
   local ntfy = " tailing: " .. pod
-  local args = { "logs", "--follow", "--since=1s", pod, "-n", ns }
+  local args = { "logs", "--follow", "--prefix=" .. M.show_log_prefix, "--timestamps=true", "--since=1s", pod, "-n", ns }
   if container then
     ntfy = ntfy .. " container: " .. container
     table.insert(args, "-c")
