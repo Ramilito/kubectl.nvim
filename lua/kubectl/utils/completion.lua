@@ -11,6 +11,17 @@ function M.with_completion(buf, data, callback, shortest)
   local original_input = ""
   local current_suggestion_index = 0
 
+  vim.api.nvim_buf_attach(buf, false, {
+    on_lines = function()
+      local line = vim.api.nvim_get_current_line()
+      local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+      if #input == 0 then
+        original_input = ""
+        current_suggestion_index = 0
+      end
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
     noremap = true,
     callback = function()
