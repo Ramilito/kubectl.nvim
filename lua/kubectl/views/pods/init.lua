@@ -9,7 +9,6 @@ local M = {
   builder = nil,
   selection = {},
   pfs = {},
-  is_tailing = false,
   tail_handle = nil,
 }
 
@@ -41,7 +40,7 @@ function M.TailLogs(pod, ns, container)
     vim.schedule(function()
       if vim.api.nvim_buf_is_valid(buf) then
         local line_count = vim.api.nvim_buf_line_count(buf)
-        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n"))
+        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
         vim.api.nvim_set_option_value("modified", false, { buf = buf })
         vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
       end
@@ -53,10 +52,11 @@ function M.TailLogs(pod, ns, container)
     vim.notify("Stopped" .. ntfy, vim.log.levels.INFO)
   end
 
-  local should_tail = not M.is_tailing
   local group = vim.api.nvim_create_augroup("__kubectl_tailing", { clear = false })
-  if should_tail then
-    M.is_tailing = true
+  if M.tail_handle and not M.tail_handle:is_closing() then
+    vim.api.nvim_clear_autocmds({ group = group })
+    stop_tailing(M.tail_handle)
+  else
     M.tail_handle = commands.shell_command_async("kubectl", args, nil, handle_output)
 
     vim.notify("Started " .. ntfy, vim.log.levels.INFO)
@@ -67,10 +67,6 @@ function M.TailLogs(pod, ns, container)
         stop_tailing(M.tail_handle)
       end,
     })
-  else
-    M.is_tailing = false
-    vim.api.nvim_clear_autocmds({ group = group })
-    stop_tailing(M.tail_handle)
   end
 end
 

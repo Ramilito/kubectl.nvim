@@ -4,6 +4,7 @@ local str = require("kubectl.utils.string")
 
 mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
 mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
+vim.print("setting divider")
 mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.log_divider)")
 
 --- Set key mappings for the buffer
