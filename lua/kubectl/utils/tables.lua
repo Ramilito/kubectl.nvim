@@ -238,7 +238,7 @@ function M.pretty_print(data, headers, sort_by)
     widths[key] = math.max(#key, value)
   end
 
-  local extra_padding = calculate_extra_padding(widths, headers)
+  local extra_padding = calculate_extra_padding(widths, headers) - 1
   local tbl = {}
   local extmarks = {}
 
@@ -250,7 +250,7 @@ function M.pretty_print(data, headers, sort_by)
 
   local header_col_position = 0
   for i, header in ipairs(headers) do
-    local column_width = widths[columns[i]] or 10
+    local column_width = widths[columns[i]] or 0
     local padding = string.rep(" ", column_width - #header + extra_padding)
     -- "  " is to add space for sort icon even when width is small
     local value = header .. "  " .. padding
