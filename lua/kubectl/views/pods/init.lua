@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local event_handler = require("kubectl.actions.eventhandler").handler
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
@@ -7,6 +8,7 @@ local tables = require("kubectl.utils.tables")
 
 local M = {
   builder = nil,
+  desc_builder = nil,
   selection = {},
   pfs = {},
   tail_handle = nil,
@@ -90,7 +92,7 @@ function M.selectPod(pod, ns)
 end
 
 function M.Logs()
-  ResourceBuilder:view_float({
+  ResourceBuilder:new("logs"):view_float({
     resource = "logs",
     ft = "k8s_pod_logs",
     url = {
@@ -118,12 +120,34 @@ function M.Edit(name, ns)
 end
 
 function M.Desc(name, ns)
-  ResourceBuilder:view_float({
+  local def = {
     resource = "desc",
-    ft = "k8s_pod_desc",
+    ft = "k8s_desc",
     url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl" })
+  }
+
+  event_handler:on("DELETED", "pod_desc", function(event)
+    if event.object.metadata.name == name then
+      vim.schedule(function()
+        vim.cmd.close()
+      end)
+    end
+  end)
+
+  event_handler:on("MODIFIED", "pod_desc", function(event)
+    if event.object.metadata.name == name then
+      vim.schedule(function()
+        M.desc_builder = M.Desc(name, ns)
+      end)
+    end
+  end)
+
+  if M.desc_builder then
+    M.desc_builder = M.desc_builder:view_float(def, { cmd = "kubectl" })
+  else
+    M.desc_builder = ResourceBuilder:new(def.resource):view_float(def, { cmd = "kubectl" })
+  end
 end
 
 --- Get current seletion for view
