@@ -3,18 +3,22 @@ local M = {}
 local api = vim.api
 
 --- Set buffer options.
---- @param buf integer: The buffer number.
 --- @param win integer: The window number.
+function M.set_win_options(win)
+  api.nvim_set_option_value("cursorline", true, { win = win })
+  api.nvim_set_option_value("wrap", false, { win = win })
+end
+
+--- Set buffer options.
+--- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
 --- @param syntax string: The syntax for the buffer.
 --- @param bufname string: The name of the buffer.
-function M.set_buf_options(buf, win, filetype, syntax, bufname)
+function M.set_buf_options(buf, filetype, syntax, bufname)
   api.nvim_set_option_value("filetype", filetype, { buf = buf })
   api.nvim_set_option_value("syntax", syntax, { buf = buf })
   api.nvim_set_option_value("bufhidden", "hide", { scope = "local" })
-  api.nvim_set_option_value("cursorline", true, { win = win })
   api.nvim_set_option_value("modified", false, { buf = buf })
-  api.nvim_set_option_value("wrap", false, { win = win })
   api.nvim_buf_set_var(buf, "buf_name", bufname)
 
   -- TODO: How do we handle long text?
