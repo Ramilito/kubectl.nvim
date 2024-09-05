@@ -297,9 +297,16 @@ end
 
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
-  ResourceBuilder:new(definition.resource)
+  opts.cmd = opts.cmd or "curl"
+
+  if not self.resource then
+    self = ResourceBuilder:new(definition.resource)
+  end
+
+  self.definition = definition
+  self
     :displayFloat(definition.ft, definition.resource, definition.syntax)
-    :setCmd(definition.url, opts.cmd or "curl", opts.contentType)
+    :setCmd(definition.url, opts.cmd, opts.contentType)
     :fetchAsync(function(builder)
       builder:decodeJson()
 
