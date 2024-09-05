@@ -338,6 +338,11 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
   opts.cmd = opts.cmd or "curl"
   self.definition = definition
 
+  self = state.instance
+  if not self or not self.resource or self.resource ~= definition.resource then
+    self = ResourceBuilder:new(definition.resource)
+  end
+
   self
     :display(definition.ft, definition.resource, cancellationToken)
     :setCmd(definition.url, opts.cmd)
@@ -353,6 +358,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
       end)
     end)
 
+  state.instance = self
   return self
 end
 
@@ -367,6 +373,7 @@ function ResourceBuilder:draw(definition, cancellationToken)
     self:setContent(cancellationToken)
   end)
 
+  state.instance = self
   return self
 end
 
