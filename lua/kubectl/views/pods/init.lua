@@ -7,8 +7,6 @@ local tables = require("kubectl.utils.tables")
 
 local M = {
   builder = nil,
-  desc_builder = nil,
-  log_builder = nil,
   selection = {},
   pfs = {},
   tail_handle = nil,
@@ -113,11 +111,7 @@ function M.Logs()
     },
   }
 
-  if M.log_builder then
-    M.log_builder:view_float(def, { cmd = "kubectl" })
-  else
-    M.log_builder = ResourceBuilder:view_float(def, { cmd = "kubectl" })
-  end
+  ResourceBuilder:view_float(def, { cmd = "kubectl" })
 end
 
 function M.Edit(name, ns)
@@ -133,7 +127,7 @@ function M.Desc(name, ns)
     syntax = "yaml",
   }
 
-  M.desc_builder = ResourceBuilder:view_float(def, { cmd = "kubectl" })
+  ResourceBuilder:view_float(def, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view

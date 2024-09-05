@@ -269,7 +269,8 @@ function M.floating_buffer(filetype, title, syntax, win)
     buf = create_buffer(bufname)
   end
 
-  if not win then
+  local _, is_valid = pcall(vim.api.nvim_win_is_valid, win)
+  if not win or not is_valid then
     win = layout.float_layout(buf, filetype, title or "")
     layout.set_win_options(win)
   end

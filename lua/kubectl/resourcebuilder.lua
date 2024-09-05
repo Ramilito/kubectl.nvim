@@ -299,7 +299,8 @@ function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
 
-  if not self.resource then
+  self = state.instance_float
+  if not self or not self.resource or self.resource ~= definition.resource then
     self = ResourceBuilder:new(definition.resource)
   end
 
@@ -328,6 +329,7 @@ function ResourceBuilder:view_float(definition, opts)
       end)
     end)
 
+  state.instance_float = self
   return self
 end
 
