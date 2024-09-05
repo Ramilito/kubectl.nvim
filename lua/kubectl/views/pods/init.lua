@@ -7,6 +7,8 @@ local tables = require("kubectl.utils.tables")
 
 local M = {
   builder = nil,
+  desc_builder = nil,
+  log_builder = nil,
   selection = {},
   pfs = {},
   tail_handle = nil,
@@ -90,7 +92,7 @@ function M.selectPod(pod, ns)
 end
 
 function M.Logs()
-  ResourceBuilder:view_float({
+  local def = {
     resource = "logs",
     ft = "k8s_pod_logs",
     url = {
@@ -109,7 +111,13 @@ function M.Logs()
       { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
       { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps" },
     },
-  }, { cmd = "kubectl" })
+  }
+
+  if M.log_builder then
+    M.log_builder:view_float(def, { cmd = "kubectl" })
+  else
+    M.log_builder = ResourceBuilder:view_float(def, { cmd = "kubectl" })
+  end
 end
 
 function M.Edit(name, ns)
@@ -118,12 +126,14 @@ function M.Edit(name, ns)
 end
 
 function M.Desc(name, ns)
-  ResourceBuilder:view_float({
+  local def = {
     resource = "desc",
     ft = "k8s_pod_desc",
     url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl" })
+  }
+
+  M.desc_builder = ResourceBuilder:view_float(def, { cmd = "kubectl" })
 end
 
 --- Get current seletion for view
