@@ -2,27 +2,17 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.jobs.definition")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {
-  builder = nil,
-}
+local M = {}
 
 function M.View(cancellationToken)
-  definition.owner = {}
-  definition.display_name = "Jobs"
-  if M.builder then
-    M.builder = M.builder:view(definition, cancellationToken)
-  else
-    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = "curl" })
-  end
+  ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  if definition.owner.name then
-    definition.display_name = "Jobs" .. "(" .. definition.owner.ns .. "/" .. definition.owner.name .. ")"
-  end
-  M.builder = M.builder:draw(definition, cancellationToken)
+  state.instance:draw(definition, cancellationToken)
 end
 
 function M.Desc(name, ns)
