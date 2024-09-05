@@ -8,10 +8,15 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
+  definition.owner = {}
+  definition.display_name = "Jobs"
   ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
+  if definition.owner.name then
+    definition.display_name = "Jobs" .. "(" .. definition.owner.ns .. "/" .. definition.owner.name .. ")"
+  end
   state.instance:draw(definition, cancellationToken)
 end
 
