@@ -58,7 +58,7 @@ function ResourceBuilder:displayFloat(filetype, title, syntax)
   notifications.Add({
     "display data " .. "[" .. self.resource .. "]",
   })
-  self.buf_nr = buffers.floating_buffer(filetype, title, syntax)
+  self.buf_nr, self.win_nr = buffers.floating_buffer(filetype, title, syntax, self.win_nr)
 
   return self
 end
