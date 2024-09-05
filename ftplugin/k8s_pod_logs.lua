@@ -38,7 +38,6 @@ local function set_keymaps(bufnr)
       else
         pod_view.show_timestamps = "true"
       end
-      vim.cmd.close()
       pod_view.Logs()
     end,
   })
@@ -53,7 +52,6 @@ local function set_keymaps(bufnr)
       else
         pod_view.show_log_prefix = "true"
       end
-      vim.cmd.close()
       pod_view.Logs()
     end,
   })

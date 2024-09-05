@@ -115,7 +115,8 @@ function M.aliases_buffer(filetype, callback, opts)
 
   vim.cmd("startinsert")
 
-  layout.set_buf_options(buf, win, filetype, "", bufname)
+  layout.set_buf_options(buf, filetype, "", bufname)
+  layout.set_win_options(win)
   return buf
 end
 
@@ -152,7 +153,8 @@ function M.filter_buffer(filetype, callback, opts)
 
   vim.cmd("startinsert")
 
-  layout.set_buf_options(buf, win, filetype, "", bufname)
+  layout.set_buf_options(buf, filetype, "", bufname)
+  layout.set_win_options(win)
   return buf
 end
 
@@ -189,7 +191,9 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   })
   vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
-  layout.set_buf_options(buf, win, filetype, opts.syntax or filetype, bufname)
+  layout.set_buf_options(buf, filetype, opts.syntax or filetype, bufname)
+  layout.set_win_options(win)
+
   M.apply_marks(buf, opts.marks, nil)
 
   local win_config = layout.win_size_fit_content(buf, 2)
@@ -235,7 +239,8 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     vim.cmd("startinsert")
   end
 
-  layout.set_buf_options(buf, win, filetype, "", bufname)
+  layout.set_buf_options(buf, filetype, "", bufname)
+  layout.set_win_options(win)
   layout.win_size_fit_content(buf, 2)
   return buf
 end
@@ -254,8 +259,9 @@ end
 --- @param filetype string: The filetype of the buffer.
 --- @param title string: The buffer title
 --- @param syntax string?: The buffer title
---- @return integer: The buffer number.
-function M.floating_buffer(filetype, title, syntax)
+--- @param win integer?: The buffer title
+--- @return integer, integer: The buffer and win number.
+function M.floating_buffer(filetype, title, syntax, win)
   local bufname = title or "kubectl_float"
   local buf = get_buffer_by_name(bufname)
 
@@ -263,15 +269,19 @@ function M.floating_buffer(filetype, title, syntax)
     buf = create_buffer(bufname)
   end
 
-  local win = layout.float_layout(buf, filetype, title or "")
+  if not win then
+    win = layout.float_layout(buf, filetype, title or "")
+    layout.set_win_options(win)
+  end
+
+  layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
+
   vim.keymap.set("n", "q", function()
     vim.cmd.close()
   end, { buffer = buf, silent = true })
 
-  layout.set_buf_options(buf, win, filetype, syntax or filetype, bufname)
-
   M.set_content(buf, { content = { "Loading..." } })
-  return buf
+  return buf, win
 end
 
 --- Creates or updates a buffer.
@@ -284,7 +294,8 @@ function M.buffer(filetype, title)
 
   if not buf then
     buf = create_buffer(bufname)
-    layout.set_buf_options(buf, win, filetype, filetype, bufname)
+    layout.set_buf_options(buf, filetype, filetype, bufname)
+    layout.set_win_options(win)
   end
 
   api.nvim_set_current_buf(buf)
