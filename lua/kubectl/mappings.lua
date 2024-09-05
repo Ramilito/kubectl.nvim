@@ -152,6 +152,7 @@ function M.register()
     silent = true,
     desc = "Edit resource",
     callback = function()
+      local state = require("kubectl.state")
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative ~= "" then
         return
@@ -165,7 +166,7 @@ function M.register()
       end
 
       -- Get resource details and construct the kubectl command
-      local resource = view.builder.resource
+      local resource = state.instance.resource
       local name, ns = view.getCurrentSelection()
 
       if not name then
