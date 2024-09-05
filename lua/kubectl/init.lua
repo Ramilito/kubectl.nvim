@@ -1,6 +1,7 @@
 local informer = require("kubectl.actions.informer")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
+local view = require("kubectl.views")
 
 local M = {
   is_open = false,
@@ -13,6 +14,7 @@ function M.open()
 
   hl.setup()
   kube.start_kubectl_proxy(function()
+    view.LoadFallbackData()
     state.setup()
   end)
 end

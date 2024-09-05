@@ -2,7 +2,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local string_utils = require("kubectl.utils.string")
-local views = require("kubectl.views")
 local M = {}
 
 local function is_plug_mapped(plug_target, mode)
@@ -47,7 +46,8 @@ function M.register()
     silent = true,
     desc = "View Port Forwards",
     callback = function()
-      views.PortForwards()
+      local view = require("kubectl.views")
+      view.PortForwards()
     end,
   })
 
