@@ -23,6 +23,10 @@ M.sortby = {}
 M.sortby_old = { current_word = "" }
 ---@type table
 M.session = { contexts = {}, filter_history = {} }
+---@type table
+M.instance = nil
+---@type table
+M.instance_float = nil
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode

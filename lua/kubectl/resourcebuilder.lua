@@ -298,8 +298,13 @@ end
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
-  self.definition = definition
 
+  self = state.instance_float
+  if not self or not self.resource or self.resource ~= definition.resource then
+    self = ResourceBuilder:new(definition.resource)
+  end
+
+  self.definition = definition
   self
     :displayFloat(definition.ft, definition.resource, definition.syntax)
     :setCmd(definition.url, opts.cmd, opts.contentType)
@@ -324,6 +329,7 @@ function ResourceBuilder:view_float(definition, opts)
       end)
     end)
 
+  state.instance_float = self
   return self
 end
 
@@ -331,6 +337,11 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
   self.definition = definition
+
+  self = state.instance
+  if not self or not self.resource or self.resource ~= definition.resource then
+    self = ResourceBuilder:new(definition.resource)
+  end
 
   self
     :display(definition.ft, definition.resource, cancellationToken)
@@ -347,6 +358,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
       end)
     end)
 
+  state.instance = self
   return self
 end
 
@@ -361,6 +373,7 @@ function ResourceBuilder:draw(definition, cancellationToken)
     self:setContent(cancellationToken)
   end)
 
+  state.instance = self
   return self
 end
 

@@ -2,20 +2,17 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.sa.definition")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = { builder = nil }
+local M = {}
 
 function M.View(cancellationToken)
-  if M.builder then
-    M.builder = M.builder:view(definition, cancellationToken)
-  else
-    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken)
-  end
+  ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  M.builder = M.builder:draw(definition, cancellationToken)
+  state.instance:draw(definition, cancellationToken)
 end
 
 function M.Edit(name, ns)
