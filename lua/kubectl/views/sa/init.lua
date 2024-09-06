@@ -23,7 +23,7 @@ end
 function M.Desc(name, ns)
   ResourceBuilder:view_float({
     resource = "desc",
-    ft = "k8s_sa_desc",
+    ft = "k8s_desc",
     url = { "describe", "sa", name, "-n", ns },
     syntax = "yaml",
   }, { cmd = "kubectl" })

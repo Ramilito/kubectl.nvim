@@ -1,5 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local event_handler = require("kubectl.actions.eventhandler").handler
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pods.definition")
@@ -87,7 +86,6 @@ function M.selectPod(pod, ns)
 end
 
 function M.Logs()
-
   local def = {
     resource = "logs",
     ft = "k8s_pod_logs",
@@ -125,21 +123,6 @@ function M.Desc(name, ns)
     syntax = "yaml",
   }
 
-  event_handler:on("DELETED", "pod_desc", function(event)
-    if event.object.metadata.name == name then
-      vim.schedule(function()
-        vim.cmd.close()
-      end)
-    end
-  end)
-
-  event_handler:on("MODIFIED", "pod_desc", function(event)
-    if event.object.metadata.name == name then
-      vim.schedule(function()
-        M.desc_builder = M.Desc(name, ns)
-      end)
-    end
-  end)
   ResourceBuilder:view_float(def, { cmd = "kubectl" })
 end
 
