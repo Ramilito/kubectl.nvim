@@ -61,7 +61,6 @@ function M.setup(options)
   })
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
-    local view = require("kubectl.views")
     local action = opts.fargs[1]
     if action == "get" then
       if #opts.fargs == 2 then

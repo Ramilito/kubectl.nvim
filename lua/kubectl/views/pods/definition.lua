@@ -149,7 +149,7 @@ end
 
 local function getPodStatus(row)
   local status = row.status.phase
-  local ok = false
+  local ok
 
   if row.status.reason ~= nil then
     if row.deletionTimestamp ~= nil and row.status.reason == "NodeLost" then
