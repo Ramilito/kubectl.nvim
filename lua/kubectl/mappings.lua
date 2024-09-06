@@ -2,7 +2,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local string_utils = require("kubectl.utils.string")
-local views = require("kubectl.views")
 local M = {}
 
 local function is_plug_mapped(plug_target, mode)
@@ -47,7 +46,8 @@ function M.register()
     silent = true,
     desc = "View Port Forwards",
     callback = function()
-      views.PortForwards()
+      local view = require("kubectl.views")
+      view.PortForwards()
     end,
   })
 
@@ -152,6 +152,7 @@ function M.register()
     silent = true,
     desc = "Edit resource",
     callback = function()
+      local state = require("kubectl.state")
       local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative ~= "" then
         return
@@ -165,7 +166,7 @@ function M.register()
       end
 
       -- Get resource details and construct the kubectl command
-      local resource = view.builder.resource
+      local resource = state.instance.resource
       local name, ns = view.getCurrentSelection()
 
       if not name then

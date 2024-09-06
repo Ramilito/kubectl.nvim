@@ -2,16 +2,13 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.top.definition")
 local tables = require("kubectl.utils.tables")
 
-local M = { builder = nil }
+local M = {}
 
 function M.View(cancellationToken)
   definition.url = definition.urls[definition.res_type]
   definition.display_name = "top " .. definition.res_type
-  if M.builder then
-    M.builder = M.builder:view(definition, cancellationToken, { informer = false })
-  else
-    M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { informer = false })
-  end
+
+  ResourceBuilder:view(definition, cancellationToken, { informer = false })
   if definition.res_type == "nodes" then
     definition.get_nodes()
   end
