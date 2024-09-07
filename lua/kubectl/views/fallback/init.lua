@@ -75,7 +75,7 @@ end
 function M.Desc(name, ns)
   ResourceBuilder:view_float({
     resource = "desc",
-    ft = "k8s_fallback_desc",
+    ft = "k8s_desc",
     url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
     syntax = "yaml",
   }, { cmd = "kubectl" })

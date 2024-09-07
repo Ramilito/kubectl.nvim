@@ -18,7 +18,7 @@ end
 function M.Desc(name, ns)
   ResourceBuilder:view_float({
     resource = "desc",
-    ft = "k8s_cronjob_desc",
+    ft = "k8s_desc",
     url = { "describe", "cronjob", name, "-n", ns },
     syntax = "yaml",
   }, { cmd = "kubectl" })

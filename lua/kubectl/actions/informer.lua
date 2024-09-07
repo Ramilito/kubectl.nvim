@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local event_handler = require("kubectl.actions.eventhandler").handler
 
 local M = {
   event_queue = "",
@@ -101,6 +102,8 @@ local function process_event(builder, event)
       end
     end
   end
+
+  event_handler:emit(event.type, event)
 end
 
 local function sort_events_by_resource_version(events)

@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local event_handler = require("kubectl.actions.eventhandler").handler
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local string_utils = require("kubectl.utils.string")
@@ -120,7 +121,24 @@ function M.register()
       local name, ns = view.getCurrentSelection()
       if name then
         local ok = pcall(view.Desc, name, ns)
-        if not ok then
+        if ok then
+          local state = require("kubectl.state")
+          event_handler:on("DELETED", state.instance_float.buf_nr, function(event)
+            if event.object.metadata.name == name then
+              vim.schedule(function()
+                vim.cmd.close()
+              end)
+            end
+          end)
+
+          event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
+            if event.object.metadata.name == name then
+              vim.schedule(function()
+                view.Desc(name, ns)
+              end)
+            end
+          end)
+        else
           vim.api.nvim_err_writeln("Failed to describe " .. buf_name .. ".")
         end
       end

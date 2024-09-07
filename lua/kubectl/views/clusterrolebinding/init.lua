@@ -23,7 +23,7 @@ end
 function M.Desc(name)
   ResourceBuilder:view_float({
     resource = "desc",
-    ft = "k8s_clusterrolebinding_desc",
+    ft = "k8s_desc",
     url = { "describe", "clusterrolebinding", name },
     syntax = "yaml",
   }, { cmd = "kubectl" })
