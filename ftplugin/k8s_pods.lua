@@ -129,7 +129,7 @@ local function set_keymaps(bufnr)
                 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
                 local container_port, local_port
 
-                local port_pattern = ".+: (%d+)$"
+                local port_pattern = ".+:%s*(%d+)"
                 for _, line in ipairs(lines) do
                   if line:match("Container port:") then
                     container_port = line:match(port_pattern)
