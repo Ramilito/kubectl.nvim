@@ -1,39 +1,5 @@
 local M = {}
 
-local function add_rows_to_sections(grid, sections, data)
-  for _, section in pairs(sections) do
-    local row = ""
-    for _, value in pairs(data[section]) do
-      if value.name and value.value then
-        row = row .. value.name .. " " .. value.value .. " "
-      end
-    end
-    table.insert(grid, row)
-  end
-end
-
-local function add_sections(grid, sections, grid_size, data, widths)
-  local row = ""
-  local headers = {}
-  local padding = ""
-
-  for i, section in ipairs(sections) do
-    local width = widths[section] or 0
-    padding = padding .. string.rep(" ", width - #section)
-    row = row .. "---- " .. section .. " ---- " .. padding
-    table.insert(headers, section)
-
-    if i % grid_size == 0 or i == #sections then
-      table.insert(grid, row)
-      add_rows_to_sections(grid, headers, data)
-
-      headers = {}
-      row = ""
-      padding = ""
-    end
-  end
-end
-
 local function section_widths(rows, sections)
   local widths = {}
 
@@ -48,20 +14,59 @@ local function section_widths(rows, sections)
   return widths
 end
 
+local function pad_string(str, width)
+  return str .. string.rep(" ", width - #str + 4)
+end
+
 function M.pretty_print(data, sections)
-  local grid = {}
-  local extmarks = {}
-  local grid_size = 3
+  local layout = {}
+  local max_cols = 3
+  local pipe = " │ "
+  local dash = "—"
 
   local widths = section_widths(data, sections)
 
-  vim.print(widths)
-  add_sections(grid, sections, grid_size, data, widths)
-  -- for index, value in ipairs(sections) do
-  --   if index % grid_size == 0 or index == #sections then
-  --   end
-  -- end
-  return grid, extmarks
+  -- Create headers and rows using modulo for dynamic wrapping
+  local current_headers = {}
+  local current_rows = {}
+
+  for index, section in ipairs(sections) do
+    local formatted_section = pad_string(section, widths[section])
+    table.insert(current_headers, formatted_section)
+
+    local max_rows = #data[section] or 0
+
+    for row_index = 1, max_rows do
+      local item = data[section][row_index]
+      if item then
+        local formatted_item = pad_string(string.format("%s (%s)", item.name, item.value), widths[section] or 10)
+        current_rows[row_index] = (current_rows[row_index] or "") .. formatted_item .. pipe
+      else
+        current_rows[row_index] = (current_rows[row_index] or "") .. pad_string("", widths[section] or 10) .. pipe
+      end
+    end
+
+    -- When index is a multiple of 3, or it's the last section, add the headers and rows to the layout
+    if index % max_cols == 0 or index == #sections then
+      -- Combine and insert headers
+      local header_row = table.concat(current_headers, pipe)
+      local divider_row = string.rep(dash, #header_row)
+      table.insert(layout, header_row)
+      table.insert(layout, divider_row)
+
+      -- Insert the rows for the current group
+      for _, row in ipairs(current_rows) do
+        table.insert(layout, row)
+      end
+
+      -- Clear current headers and rows for the next group
+      current_headers = {}
+      current_rows = {}
+      table.insert(layout, "") -- Add an empty line between groups
+    end
+  end
+
+  return layout
 end
 
 return M

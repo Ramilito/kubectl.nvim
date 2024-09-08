@@ -16,7 +16,6 @@ function M.View()
       vim.schedule(function()
         builder.prettyData, builder.extmarks =
           grid.pretty_print(definition.processRow(builder.data), definition.getSections())
-        vim.print(builder.prettyData)
         builder:addHints(definition.hints, true, true, true):setContent(nil)
       end)
 

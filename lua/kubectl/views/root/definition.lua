@@ -11,9 +11,8 @@ function M.processRow(rows)
   local data = {
     info = { { name = "kubelets up:", value = "10" }, { name = "Running pods:", value = "8" } },
     nodes = {
-      { name = "node1", cpu = "20%", ram = "50%", pods = "2" },
-      { name = "node2", cpu = "40%", ram = "40%", pods = "20" },
-      { name = "node3", cpu = "70%", ram = "70%", pods = "200" },
+      { name = "Node1", value = "CPU: 45%, RAM: 3.2G, Pods: 4" },
+      { name = "Node2", value = "CPU: 33%, RAM: 2.5G, Pods: 3" },
     },
     ["high-cpu"] = { { name = "pod1", value = "70%" }, { name = "pod2", value = "90%" } },
     ["high-ram"] = { { name = "pod1", value = "40%" }, { name = "pod2", value = "89%" } },
