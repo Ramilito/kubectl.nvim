@@ -3,8 +3,9 @@ local M = {}
 local function set_prompt(bufnr, suggestion)
   local row = vim.api.nvim_win_get_cursor(0)[1]
   local prompt = "% "
-  vim.api.nvim_buf_set_lines(bufnr, row - 1, -1, false, { prompt .. (suggestion or "") })
-  vim.api.nvim_win_set_cursor(0, { row, #prompt + #(suggestion or "") })
+  suggestion = suggestion or ""
+  vim.api.nvim_buf_set_lines(bufnr, row - 1, -1, false, { prompt .. suggestion })
+  vim.api.nvim_win_set_cursor(0, { row, #prompt + #suggestion })
 end
 
 function M.with_completion(buf, data, callback, shortest)
