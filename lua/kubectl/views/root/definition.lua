@@ -1,3 +1,4 @@
+local hl = require("kubectl.actions.highlight")
 local M = {
   resource = "root",
   display_name = "Root",
@@ -9,13 +10,22 @@ local M = {
 
 function M.processRow(rows)
   local data = {
-    info = { { name = "kubelets up:", value = "10" }, { name = "Running pods:", value = "8" } },
-    nodes = {
-      { name = "Node1", value = "CPU: 45%, RAM: 3.2G, Pods: 4" },
-      { name = "Node2", value = "CPU: 33%, RAM: 2.5G, Pods: 3" },
+    info = {
+      { name = "kubelets up:", value = "10", symbol = hl.symbols.success },
+      { name = "Running pods:", value = "8", symbol = hl.symbols.success },
     },
-    ["high-cpu"] = { { name = "pod1", value = "70%" }, { name = "pod2", value = "90%" } },
-    ["high-ram"] = { { name = "pod1", value = "40%" }, { name = "pod2", value = "89%" } },
+    nodes = {
+      { name = "Node1", value = "CPU: 45%, RAM: 3.2G, Pods: 4", symbol = hl.symbols.error },
+      { name = "Node2", value = "CPU: 33%, RAM: 2.5G, Pods: 3", symbol = hl.symbols.error },
+    },
+    ["high-cpu"] = {
+      { name = "pod1", value = "70%", symbol = hl.symbols.error },
+      { name = "pod2", value = "90%", symbol = hl.symbols.error },
+    },
+    ["high-ram"] = {
+      { name = "pod1", value = "40%", symbol = hl.symbols.error },
+      { name = "pod2", value = "89%", symbol = hl.symbols.error },
+    },
   }
 
   -- local temp_data = {}
