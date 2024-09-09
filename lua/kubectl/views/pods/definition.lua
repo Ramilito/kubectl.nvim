@@ -19,7 +19,7 @@ local function getReady(row)
   local status = { symbol = "", value = "", sort_by = 0 }
   local readyCount = 0
   local containers = 0
-  if row.status and row.status.containerStatuses then
+  if row.status.containerStatuses then
     for _, value in ipairs(row.status.containerStatuses) do
       containers = containers + 1
       if value.ready then
