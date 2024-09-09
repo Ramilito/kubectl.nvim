@@ -123,44 +123,71 @@ local function set_keymaps(bufnr)
               "Confirm port forward",
               "PortForward",
               function(confirm)
-                if confirm then
-                  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-                  local container_port, local_port
-
-                  for _, line in ipairs(lines) do
-                    if line:match("Container port:") then
-                      container_port = line:match("::(%d+)$")
-                    elseif line:match("Local port:") then
-                      local_port = line:match("Local port: (.*)")
-                    end
-                  end
-                  commands.shell_command_async(
-                    "kubectl",
-                    { "port-forward", "-n", ns, "pods/" .. name, local_port .. ":" .. container_port }
-                  )
-
-                  vim.schedule(function()
-                    pod_view.View()
-                  end)
+                if not confirm then
+                  return
                 end
+                local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+                local container_port, local_port
+
+                local port_pattern = ".+:%s*(%d+)"
+                for _, line in ipairs(lines) do
+                  if line:match("Container port:") then
+                    container_port = line:match(port_pattern)
+                  elseif line:match("Local port:") then
+                    local_port = line:match(port_pattern)
+                  end
+                end
+                if not container_port or not local_port then
+                  api.nvim_err_writeln("Failed to extract container port or local port")
+                  return
+                end
+                commands.shell_command_async(
+                  "kubectl",
+                  { "port-forward", "-n", ns, "pods/" .. name, local_port .. ":" .. container_port }
+                )
+
+                vim.schedule(function()
+                  pod_view.View()
+                end)
               end
             )
 
             self.prettyData, self.extmarks = tables.pretty_print(data, { "NAME", "PORT", "PROTOCOL" })
 
             table.insert(self.prettyData, "")
-            table.insert(
-              self.prettyData,
-              "Container port: " .. (data[1].name.value or "<unset>") .. "::" .. data[1].port.value
-            )
-            table.insert(self.prettyData, "Local port: " .. data[1].port.value)
+            table.insert(self.prettyData, "Container port: " .. data[1].port.value)
+            table.insert(self.prettyData, "Local port:     " .. data[1].port.value)
             table.insert(self.prettyData, "")
 
-            local confirmation = "[y]es [n]o:"
+            local confirmation = "[y]es [n]o | `gr` to reset"
             local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
             table.insert(self.prettyData, padding .. confirmation)
 
+            local original_data = vim.deepcopy(self.prettyData)
+
             self:setContent()
+            api.nvim_buf_set_keymap(self.buf_nr, "n", "gr", "", {
+              noremap = true,
+              silent = true,
+              desc = "Reset",
+              callback = function()
+                self.prettyData = original_data
+                self:setContent()
+              end,
+            })
+            api.nvim_buf_set_keymap(self.buf_nr, "n", "<CR>", "", {
+              noremap = true,
+              silent = true,
+              desc = "Change container port",
+              callback = function()
+                local port_ok, port = pcall(tables.getCurrentSelection, 2)
+                if not port_ok or not port or not tonumber(port) then
+                  return
+                end
+                local line = "Container port: " .. port
+                api.nvim_buf_set_lines(self.buf_nr, #self.prettyData - 4, #self.prettyData - 3, false, { line })
+              end,
+            })
           end)
         end)
     end,
