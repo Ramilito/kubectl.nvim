@@ -38,7 +38,7 @@ function M.pretty_print(data, sections)
   local layout = {}
   local extmarks = {}
   local max_cols = 3
-  local pipe = " │ "
+  local pipe = " ⎪ "
   local dash = "—"
 
   local widths = section_widths(data, sections)
@@ -87,6 +87,7 @@ function M.pretty_print(data, sections)
       local header_row = table.concat(current_headers, pipe)
       table.insert(layout, header_row)
       table.insert(extmarks, { row = #layout - 1, start_col = 0, end_col = #header_row, hl_group = hl.symbols.header })
+      table.insert(layout, "")
       table.insert(extmarks, {
         row = #layout - 1,
         start_col = 0,
