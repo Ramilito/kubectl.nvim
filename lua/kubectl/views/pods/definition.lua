@@ -19,7 +19,7 @@ local function getReady(row)
   local status = { symbol = "", value = "", sort_by = 0 }
   local readyCount = 0
   local containers = 0
-  if row.status.containerStatuses then
+  if row.status and row.status.containerStatuses then
     for _, value in ipairs(row.status.containerStatuses) do
       containers = containers + 1
       if value.ready then
@@ -107,7 +107,7 @@ local function getInitContainerStatus(row, status)
     end
   end
 
-  if row.status.initContainerStatuses then
+  if row.status and row.status.initContainerStatuses then
     for i, cs in ipairs(row.status.initContainerStatuses) do
       local s = checkInitContainerStatus(cs, i, count, rs[cs.Name])
       if s ~= "" then
@@ -151,7 +151,7 @@ local function getPodStatus(row)
   local status = row.status.phase
   local ok
 
-  if row.status.reason ~= nil then
+  if row.status and row.status.reason ~= nil then
     if row.deletionTimestamp ~= nil and row.status.reason == "NodeLost" then
       return { value = "Unknown", symbol = events.ColorStatus("Unknown") }
     end
