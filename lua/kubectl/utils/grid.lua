@@ -79,6 +79,10 @@ function M.pretty_print(data, sections)
           start_col = start_col + #item.name,
           end_col = #current_rows[row_index].value - #pipe,
         })
+      else
+        current_rows[row_index] = (current_rows[row_index] or "")
+          .. pad_string("", (widths[section] + extra_padding) or 10)
+          .. pipe
       end
     end
 
