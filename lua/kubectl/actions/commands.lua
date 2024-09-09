@@ -41,6 +41,22 @@ function M.shell_command(cmd, args, opts)
   return result
 end
 
+function M.await_shell_command_async(cmds)
+  local handles = {}
+  local results = {}
+
+  for i, cmd in ipairs(cmds) do
+    handles[i] = M.shell_command_async(cmd.cmd, cmd.args, function(result)
+      results[i] = result
+    end)
+  end
+
+  for _, handle in ipairs(handles) do
+    handle:wait()
+  end
+  return results
+end
+
 --- Execute a shell command asynchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
