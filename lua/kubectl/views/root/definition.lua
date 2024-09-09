@@ -8,46 +8,53 @@ local M = {
   cmd = "curl",
 }
 
+local function getInfo(rows)
+  local data = {}
+  table.insert(data, { name = "kubelets up:", value = "10", symbol = hl.symbols.success })
+  table.insert(data, { name = "Running pods:", value = "8", symbol = hl.symbols.success })
+
+  return data
+end
+
+local function getNodes(rows)
+  local data = {}
+  table.insert(data, { name = "Node1", value = "CPU: 45%, RAM: 3.2G, Pods: 4", symbol = hl.symbols.error })
+  table.insert(data, { name = "Node2", value = "CPU: 33%, RAM: 2.5G, Pods: 3", symbol = hl.symbols.error })
+  return data
+end
+
+local function getCpu(rows)
+  local data = {}
+  table.insert(data, { name = "pod1", value = "70%", symbol = hl.symbols.error })
+  table.insert(data, { name = "pod2", value = "90%", symbol = hl.symbols.error })
+  return data
+end
+
+local function getRam(rows)
+  local data = {}
+
+  table.insert(data, { name = "pod1", value = "40%", symbol = hl.symbols.error })
+  table.insert(data, { name = "pod2", value = "89%", symbol = hl.symbols.error })
+
+  return data
+end
+
 function M.processRow(rows)
   local data = {
-    info = {
-      { name = "kubelets up:", value = "10", symbol = hl.symbols.success },
-      { name = "Running pods:", value = "8", symbol = hl.symbols.success },
-    },
-    nodes = {
-      { name = "Node1", value = "CPU: 45%, RAM: 3.2G, Pods: 4", symbol = hl.symbols.error },
-      { name = "Node2", value = "CPU: 33%, RAM: 2.5G, Pods: 3", symbol = hl.symbols.error },
-    },
-    ["high-cpu"] = {
-      { name = "pod1", value = "70%", symbol = hl.symbols.error },
-      { name = "pod2", value = "90%", symbol = hl.symbols.error },
-    },
-    ["high-ram"] = {
-      { name = "pod1", value = "40%", symbol = hl.symbols.error },
-      { name = "pod2", value = "89%", symbol = hl.symbols.error },
-    },
+    info = getInfo(rows),
+    nodes = getNodes(rows),
+    ["high-cpu"] = getCpu(rows),
+    ["high-ram"] = getRam(rows),
   }
 
   -- local temp_data = {}
-  -- for _, row in pairs(rows.items) do
   --   if not temp_data[row.metadata.namespace] then
   --     temp_data[row.metadata.namespace] = {}
   --   end
   --   table.insert(temp_data[row.metadata.namespace], row)
   -- end
   -- for key, namespace in pairs(temp_data) do
-  -- end
 
-  -- table.insert(data, {
-  --   info = { kubelets = getKubelets(), running_pods = getRunningPods() },
-  --   nodes = {
-  --     { name = "node1", cpu = "20%", ram = "50%", pods = "2" },
-  --     { name = "node2", cpu = "40%", ram = "40%", pods = "20" },
-  --     { name = "node3", cpu = "70%", ram = "70%", pods = "200" },
-  --   },
-  --   ["high-cpu"] = { { name = "pod1", cpu = "70%" }, { name = "pod2", cpu = "90%" } },
-  --   ["high-ram"] = { { name = "pod1", ram = "40%" }, { name = "pod2", ram = "89%" } },
-  -- })
   return data
 end
 
