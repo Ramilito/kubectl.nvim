@@ -19,6 +19,11 @@ function M.View()
     },
     {
       cmd = "curl",
+      args = { "{{{BASE}}/api/v1/nodes?pretty=false}" },
+      contentType = "json",
+    },
+    {
+      cmd = "curl",
       args = { "{{{BASE}}/apis/metrics.k8s.io/v1beta1/pods?pretty=false}" },
       contentType = "json",
     },
