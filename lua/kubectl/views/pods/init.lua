@@ -103,7 +103,7 @@ function M.Logs()
     syntax = "less",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
-      { key = "<Plug>(kubectl.since)", desc = "History: " .. M.log_since },
+      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
       { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
       { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },

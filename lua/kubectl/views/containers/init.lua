@@ -42,7 +42,7 @@ function M.logs(pod, ns)
     syntax = "less",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
-      { key = "<Plug>(kubectl.since)", desc = "History since: " .. M.log_since },
+      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
     },
   })
