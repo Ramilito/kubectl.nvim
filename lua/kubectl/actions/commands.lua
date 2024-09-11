@@ -13,8 +13,10 @@ function M.set_cmd(cmd, opts)
 
   table.insert(envs, "PATH=" .. current_env["PATH"])
   table.insert(envs, "HOME=" .. current_env["HOME"])
-  for _, env in ipairs(opts.env) do
-    table.insert(envs, env)
+  if opts and opts.env then
+    for _, env in ipairs(opts.env) do
+      table.insert(envs, env)
+    end
   end
   return cmd, envs
 end
@@ -139,10 +141,23 @@ function M.execute_terminal(cmd, args, opts)
   if type(args) == "table" then
     args = table.concat(args, " ")
   end
+  cmd, opts.env = M.set_cmd(cmd, opts)
+
+  local envs = {}
+  for _, env_var in ipairs(opts.env) do
+    local key, value = string.match(env_var, "^([^=]+)=(.+)$")
+    if key and value then
+      envs[key] = value
+    else
+      print("Invalid environment variable format: " .. env_var)
+    end
+  end
+
   local full_command = cmd .. " " .. args
 
   vim.fn.termopen(full_command, {
-    env = opts.env,
+    env = envs,
+    clear_env = true,
     stdin = opts.stdin,
     on_stdout = opts.on_stdout,
     on_exit = function(_, code, _)
