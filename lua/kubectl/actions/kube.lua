@@ -39,7 +39,7 @@ function M.start_kubectl_proxy(callback)
   cmd, opts.env = commands.set_cmd(cmd, opts)
 
   local handle = vim.system({ cmd, "proxy", "--port=0" }, {
-    clear_env = true,
+    clear_env = false,
     env = opts.env,
     stdin = false,
     stderr = function(_, data)
