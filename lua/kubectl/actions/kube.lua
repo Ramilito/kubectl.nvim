@@ -36,13 +36,13 @@ function M.start_kubectl_proxy(callback)
   end
   local cmd = "kubectl"
   local opts = { env = {} }
-  cmd = commands.set_cmd(cmd, opts)
+  cmd, opts.env = commands.set_cmd(cmd, opts)
 
   local handle = vim.system({ cmd, "proxy", "--port=0" }, {
     clear_env = true,
     env = opts.env,
     stdin = false,
-    stderr = function(err, data)
+    stderr = function(_, data)
       vim.schedule(function()
         if data then
           vim.notify(data, vim.log.levels.ERROR)
