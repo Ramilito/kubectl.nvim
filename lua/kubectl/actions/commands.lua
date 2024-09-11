@@ -16,6 +16,7 @@ function M.set_cmd(cmd, opts)
     table.insert(opts.env, "PATH=" .. current_env["PATH"])
     table.insert(opts.env, "HOME=" .. current_env["HOME"])
   end
+  return cmd
 end
 
 --- Execute a shell command synchronously
@@ -28,7 +29,7 @@ function M.shell_command(cmd, args, opts)
   local result = ""
   local error_result = ""
 
-  M.set_cmd(cmd, opts)
+  cmd = M.set_cmd(cmd, opts)
   table.insert(args, 1, cmd)
 
   local job = vim.system(args, {
@@ -71,7 +72,7 @@ end
 function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or { env = {} }
   local result = ""
-  M.set_cmd(cmd, opts)
+  cmd = M.set_cmd(cmd, opts)
   table.insert(args, 1, cmd)
 
   local handle = vim.system(args, {
