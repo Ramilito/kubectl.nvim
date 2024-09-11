@@ -42,7 +42,13 @@ function M.start_kubectl_proxy(callback)
     clear_env = true,
     env = opts.env,
     stdin = false,
-    stderr = false,
+    stderr = function(err, data)
+      vim.schedule(function()
+        if data then
+          vim.notify(data, vim.log.levels.ERROR)
+        end
+      end)
+    end,
     stdout = on_stdout,
     detach = false,
   }, M.stop_kubectl_proxy())
