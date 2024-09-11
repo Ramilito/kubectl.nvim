@@ -5,12 +5,17 @@ function M.set_cmd(cmd, opts)
   local current_env = vim.fn.environ()
   if cmd == "kubectl" then
     cmd = config.options.kubectl_cmd.cmd
-    for _, env in ipairs(config.options.kubectl_cmd.env) do
-      table.insert(opts.env, env)
+    if opts.env then
+      for _, env in ipairs(config.options.kubectl_cmd.env) do
+        table.insert(opts.env, env)
+      end
     end
   end
-  table.insert(opts.env, "PATH=" .. current_env["PATH"])
-  table.insert(opts.env, "HOME=" .. current_env["HOME"])
+
+  if opts.env then
+    table.insert(opts.env, "PATH=" .. current_env["PATH"])
+    table.insert(opts.env, "HOME=" .. current_env["HOME"])
+  end
 end
 
 --- Execute a shell command synchronously
