@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local config = require("kubectl.config")
 local state = require("kubectl.state")
 
 local M = {}
@@ -39,7 +38,7 @@ function M.start_kubectl_proxy(callback)
   local opts = { env = {} }
   commands.set_cmd(cmd, opts)
 
-  local handle = vim.system({ "kubectl", "proxy", "--port=0" }, {
+  local handle = vim.system({ cmd, "proxy", "--port=0" }, {
     clear_env = true,
     env = opts.env,
     stdin = false,
