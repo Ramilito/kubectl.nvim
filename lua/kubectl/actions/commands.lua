@@ -1,24 +1,40 @@
 local M = {}
 
-function M.set_cmd(cmd, opts)
+function M.configure_command(cmd, envs, args)
   local config = require("kubectl.config")
-  local envs = {}
+  local result = {
+    env = {},
+    args = {},
+    cmd = "",
+  }
+
   local current_env = vim.fn.environ()
   if cmd == "kubectl" then
-    cmd = config.options.kubectl_cmd.cmd
+    result.cmd = config.options.kubectl_cmd.cmd
+    for _, arg in ipairs(config.options.kubectl_cmd.args) do
+      table.insert(result.args, arg)
+    end
     for _, env in ipairs(config.options.kubectl_cmd.env) do
-      table.insert(envs, env)
+      table.insert(result.env, env)
     end
   end
 
-  table.insert(envs, "PATH=" .. current_env["PATH"])
-  table.insert(envs, "HOME=" .. current_env["HOME"])
-  if opts and opts.env then
-    for _, env in ipairs(opts.env) do
-      table.insert(envs, env)
+  table.insert(result.env, "PATH=" .. current_env["PATH"])
+  table.insert(result.env, "HOME=" .. current_env["HOME"])
+  if envs then
+    for _, env in ipairs(envs) do
+      table.insert(result.env, env)
     end
   end
-  return cmd, envs
+
+  if args then
+    for _, arg in ipairs(args) do
+      table.insert(result.args, arg)
+    end
+  end
+
+  table.insert(result.args, 1, cmd)
+  return result
 end
 
 --- Execute a shell command synchronously
@@ -30,13 +46,11 @@ function M.shell_command(cmd, args, opts)
   opts = opts or {}
   local result = ""
   local error_result = ""
+  local command = M.configure_command(cmd, opts.env, args)
 
-  cmd, opts.env = M.set_cmd(cmd, opts)
-  table.insert(args, 1, cmd)
-
-  local job = vim.system(args, {
+  local job = vim.system(command.args, {
     text = true,
-    env = opts.env,
+    env = command.env,
     clear_env = true,
     stdin = opts.stdin,
     stdout = function(_, data)
@@ -73,13 +87,11 @@ end
 --- @param opts { env: table, stdin: string, detach: boolean }|nil The arguments for the command
 function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or { env = {} }
-  cmd, opts.env = M.set_cmd(cmd, opts)
-  table.insert(args, 1, cmd)
-
   local result = ""
-  local handle = vim.system(args, {
+  local command = M.configure_command(cmd, opts.env, args)
+  local handle = vim.system(command.args, {
     text = true,
-    env = opts.env,
+    env = command.env,
     clear_env = true,
     detach = opts.detach or false,
     stdin = opts.stdin,
@@ -138,13 +150,10 @@ end
 --- @param args string|string[] The arguments for the command
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}
-  if type(args) == "table" then
-    args = table.concat(args, " ")
-  end
-  cmd, opts.env = M.set_cmd(cmd, opts)
+  local command = M.configure_command(cmd, opts.env, args)
 
   local envs = {}
-  for _, env_var in ipairs(opts.env) do
+  for _, env_var in ipairs(command.env) do
     local key, value = string.match(env_var, "^([^=]+)=(.+)$")
     if key and value then
       envs[key] = value
@@ -153,7 +162,7 @@ function M.execute_terminal(cmd, args, opts)
     end
   end
 
-  local full_command = cmd .. " " .. args
+  local full_command = table.concat(command.args, " ")
 
   vim.fn.termopen(full_command, {
     env = envs,
