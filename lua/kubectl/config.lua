@@ -17,6 +17,7 @@ local defaults = {
   diff = {
     bin = "kubediff",
   },
+  kubectl_cmd = { cmd = "kubectl", env = {} }, -- We will use this when invoking kubectl calls
   namespace = "All",
   namespace_fallback = {},
   notifications = {
