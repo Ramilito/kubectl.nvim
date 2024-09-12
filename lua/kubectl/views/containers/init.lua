@@ -3,8 +3,10 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.containers.definition")
 
-local M = {}
-M.selection = {}
+local M = {
+  selection = {},
+  log_since = "300",
+}
 
 function M.selectContainer(name)
   M.selection = name
@@ -27,11 +29,20 @@ function M.logs(pod, ns)
     resource = "containerLogs",
     ft = "k8s_container_logs",
     url = {
-      "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod .. "/log/?container=" .. M.selection .. "&pretty=true",
+      "{{BASE}}/api/v1/namespaces/"
+        .. ns
+        .. "/pods/"
+        .. pod
+        .. "/log/?container="
+        .. M.selection
+        .. "&pretty=true"
+        .. "&sinceSeconds="
+        .. M.log_since,
     },
     syntax = "less",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
+      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
     },
   })
