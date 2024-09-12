@@ -4,6 +4,7 @@ local str = require("kubectl.utils.string")
 
 mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
 mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
+mappings.map_if_plug_not_set("n", "gh", "<Plug>(kubectl.history)")
 mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
 
 --- Set key mappings for the buffer
@@ -33,6 +34,19 @@ local function set_keymaps(bufnr)
     desc = "Add divider",
     callback = function()
       str.divider(bufnr)
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.history)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Log history",
+    callback = function()
+      vim.ui.input({ prompt = "Since (seconds)=", default = pod_view.log_since }, function(input)
+        local container_view = require("kubectl.views.containers")
+        container_view.log_since = input
+        container_view.logs(pod_view.selection.pod, pod_view.selection.ns)
+      end)
     end,
   })
 end
