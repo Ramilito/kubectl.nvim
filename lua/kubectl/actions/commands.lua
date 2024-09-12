@@ -150,6 +150,7 @@ function M.execute_shell_command(cmd, args)
 end
 
 --- Execute a command in a terminal
+--- NOTE: Don't use this for kubectl calls since this doesn't support clear_env
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command
 function M.execute_terminal(cmd, args, opts)
