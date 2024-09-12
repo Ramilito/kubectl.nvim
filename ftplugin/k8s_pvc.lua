@@ -16,8 +16,8 @@ local function set_keymaps(bufnr)
       end
 
       -- get pv of pvc
-      local pv_name_args = { "get", "pvc", name, "-n", ns, "-o", 'jsonpath="{.spec.volumeName}"' }
-      local pv_name = commands.execute_shell_command("kubectl", pv_name_args)
+      local pv_name_args = { "get", "pvc", name, "-n", ns, "-o", "jsonpath={.spec.volumeName}" }
+      local pv_name = commands.shell_command("kubectl", pv_name_args)
 
       -- add to filter and view
       require("kubectl.state").filter = pv_name

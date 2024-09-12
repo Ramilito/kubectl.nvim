@@ -40,21 +40,25 @@ local function set_keymaps(bufnr)
     desc = "Set image",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-
-      local get_images = "get deploy "
-        .. name
-        .. " -n "
-        .. ns
-        .. ' -o jsonpath="{.spec.template.spec.containers[*].image}"'
-
       local container_images = {}
+      local get_images_args = {
+        "get",
+        "deploy",
+        name,
+        "-n",
+        ns,
+        '--output=jsonpath={range .spec.template.spec.containers[*]}{.image}{"\\n"}{end}',
+      }
 
-      for image in commands.execute_shell_command("kubectl", get_images):gmatch("[^\r\n]+") do
-        table.insert(container_images, image)
+      local images = vim.split(commands.shell_command("kubectl", get_images_args), "\n")
+      for _, image in ipairs(images) do
+        if image ~= "" then
+          table.insert(container_images, image)
+        end
       end
 
       if #container_images > 1 then
-        vim.notify("Setting new container image for multiple containers are NOT supported yet", vim.log.levels.WARN)
+        vim.notify("Setting new container image for multiple containers is NOT supported yet", vim.log.levels.WARN)
       else
         vim.ui.input({ prompt = "Update image ", default = container_images[1] }, function(input)
           if not input then
@@ -83,11 +87,8 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
 
-      local current_replicas = commands.execute_shell_command(
-        "kubectl",
-        { "get", "deploy", name, "-n", ns, "-o", 'jsonpath="{.spec.replicas}"' }
-      )
-
+      local current_replicas =
+        commands.shell_command("kubectl", { "get", "deploy", name, "-n", ns, "-o", "jsonpath={.spec.replicas}" })
       vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
         if not input then
           return
