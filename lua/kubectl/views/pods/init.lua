@@ -12,6 +12,7 @@ local M = {
   tail_handle = nil,
   -- TODO: should propably be configurable
   show_log_prefix = "true",
+  log_since = "5m",
   show_timestamps = "true",
 }
 
@@ -92,6 +93,7 @@ function M.Logs()
     url = {
       "logs",
       "--all-containers=true",
+      "--since=" .. M.log_since,
       "--prefix=" .. M.show_log_prefix,
       "--timestamps=" .. M.show_timestamps,
       M.selection.pod,
@@ -101,9 +103,10 @@ function M.Logs()
     syntax = "less",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
-      { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
+      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
       { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
       { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps" },
+      { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
     },
   }
 
