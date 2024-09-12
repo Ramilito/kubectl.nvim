@@ -27,6 +27,10 @@ function M.configure_command(cmd, envs, args)
     end
   end
 
+  for key, value in pairs(result.env) do
+    result.env[key] = value:gsub("%$(%w+)", os.getenv)
+  end
+
   if args then
     for _, arg in ipairs(args) do
       table.insert(result.args, arg)
