@@ -5,26 +5,21 @@ function M.configure_command(cmd, envs, args)
   local result = {
     env = {},
     args = {},
-    cmd = "",
   }
 
   local current_env = vim.fn.environ()
+
   if cmd == "kubectl" then
-    result.cmd = config.options.kubectl_cmd.cmd
-    for _, arg in ipairs(config.options.kubectl_cmd.args) do
-      table.insert(result.args, arg)
-    end
-    for _, env in ipairs(config.options.kubectl_cmd.env) do
-      table.insert(result.env, env)
-    end
+    cmd = config.options.kubectl_cmd.cmd
+    vim.list_extend(result.args, config.options.kubectl_cmd.args or {})
+    vim.list_extend(result.env, config.options.kubectl_cmd.env or {})
   end
 
   table.insert(result.env, "PATH=" .. current_env["PATH"])
   table.insert(result.env, "HOME=" .. current_env["HOME"])
+
   if envs then
-    for _, env in ipairs(envs) do
-      table.insert(result.env, env)
-    end
+    vim.list_extend(result.env, envs)
   end
 
   for key, value in pairs(result.env) do
@@ -32,12 +27,12 @@ function M.configure_command(cmd, envs, args)
   end
 
   if args then
-    for _, arg in ipairs(args) do
-      table.insert(result.args, arg)
-    end
+    vim.list_extend(result.args, args)
   end
 
+  -- Add the command itself as the first argument
   table.insert(result.args, 1, cmd)
+
   return result
 end
 
