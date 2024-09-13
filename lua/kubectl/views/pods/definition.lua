@@ -192,6 +192,7 @@ function M.processRow(rows)
         ready = getReady(row),
         status = getPodStatus(row),
         restarts = getRestarts(row.status.containerStatuses, currentTime),
+        ip = row.status.podIP or "",
         node = row.spec.nodeName,
         age = time.since(row.metadata.creationTimestamp, true, currentTime),
       }
@@ -207,6 +208,7 @@ function M.getHeaders()
     "READY",
     "STATUS",
     "RESTARTS",
+    "IP",
     "NODE",
     "AGE",
   }
