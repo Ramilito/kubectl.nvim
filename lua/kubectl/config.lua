@@ -17,6 +17,11 @@ local defaults = {
   diff = {
     bin = "kubediff",
   },
+  -- We will use this when invoking kubectl.
+  -- The subshells invoked will have PATH, HOME and the environments listed below
+  -- NOTE: Some executions using the io.open and vim.fn.terminal will still have default shell environments,
+  -- in that case, the environments below will not override the defaults and should not be in your .zshrc/.bashrc files
+  kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   namespace = "All",
   namespace_fallback = {},
   notifications = {

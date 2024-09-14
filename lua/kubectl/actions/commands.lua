@@ -1,20 +1,56 @@
 local M = {}
 
+function M.configure_command(cmd, envs, args)
+  local config = require("kubectl.config")
+  local result = {
+    env = {},
+    args = {},
+  }
+
+  local current_env = vim.fn.environ()
+
+  if cmd == "kubectl" then
+    cmd = config.options.kubectl_cmd.cmd
+    vim.list_extend(result.args, config.options.kubectl_cmd.args or {})
+    vim.list_extend(result.env, config.options.kubectl_cmd.env or {})
+  end
+
+  table.insert(result.env, "PATH=" .. current_env["PATH"])
+  table.insert(result.env, "HOME=" .. current_env["HOME"])
+
+  if envs then
+    vim.list_extend(result.env, envs)
+  end
+
+  for key, value in pairs(result.env) do
+    result.env[key] = value:gsub("%$(%w+)", os.getenv)
+  end
+
+  if args then
+    vim.list_extend(result.args, args)
+  end
+
+  -- Add the command itself as the first argument
+  table.insert(result.args, 1, cmd)
+
+  return result
+end
+
 --- Execute a shell command synchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
---- @param opts { env: string, on_stdout: function, stdin: string }|nil The arguments for the command
+--- @param opts { env: table, on_stdout: function, stdin: string }|nil The arguments for the command
 --- @return string The result of the command execution
 function M.shell_command(cmd, args, opts)
   opts = opts or {}
   local result = ""
   local error_result = ""
+  local command = M.configure_command(cmd, opts.env, args)
 
-  table.insert(args, 1, cmd)
-
-  local job = vim.system(args, {
+  local job = vim.system(command.args, {
     text = true,
-    env = opts.env,
+    env = command.env,
+    clear_env = true,
     stdin = opts.stdin,
     stdout = function(_, data)
       if data then
@@ -63,14 +99,15 @@ end
 --- @param on_exit? function The callback function to execute when the command exits
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
 --- @param on_stderr? function The callback function to execute when there is stderr output (optional)
---- @param opts { env: string, stdin: string, detach: boolean }|nil The arguments for the command
+--- @param opts { env: table, stdin: string, detach: boolean }|nil The arguments for the command
 function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
-  opts = opts or {}
+  opts = opts or { env = {} }
   local result = ""
-  table.insert(args, 1, cmd)
-
-  local handle = vim.system(args, {
+  local command = M.configure_command(cmd, opts.env, args)
+  local handle = vim.system(command.args, {
     text = true,
+    env = command.env,
+    clear_env = true,
     detach = opts.detach or false,
     stdin = opts.stdin,
     stdout = function(err, data)
@@ -111,6 +148,7 @@ function M.execute_shell_command(cmd, args)
   if type(args) == "table" then
     args = table.concat(args, " ")
   end
+
   local full_command = cmd .. " " .. args
   local handle = io.popen(full_command, "r")
   if handle == nil then
@@ -123,17 +161,28 @@ function M.execute_shell_command(cmd, args)
 end
 
 --- Execute a command in a terminal
+--- NOTE: Don't use this for kubectl calls since this doesn't support clear_env
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}
-  if type(args) == "table" then
-    args = table.concat(args, " ")
+  local command = M.configure_command(cmd, opts.env, args)
+
+  local envs = {}
+  for _, env_var in ipairs(command.env) do
+    local key, value = string.match(env_var, "^([^=]+)=(.+)$")
+    if key and value then
+      envs[key] = value
+    else
+      print("Invalid environment variable format: " .. env_var)
+    end
   end
-  local full_command = cmd .. " " .. args
+
+  local full_command = table.concat(command.args, " ")
 
   vim.fn.termopen(full_command, {
-    env = opts.env,
+    env = envs,
+    clear_env = true,
     stdin = opts.stdin,
     on_stdout = opts.on_stdout,
     on_exit = function(_, code, _)
@@ -172,8 +221,8 @@ end
 --- @param file_name string The filename to save
 --- @param data table The content to save
 function M.save_config(file_name, data)
-  local config = M.load_config("kubectl.json") or {}
-  local merged = vim.tbl_deep_extend("force", config, data)
+  local config_file = M.load_config("kubectl.json") or {}
+  local merged = vim.tbl_deep_extend("force", config_file, data)
   local ok, encoded = pcall(vim.json.encode, merged)
   if ok then
     local file_path = vim.fn.stdpath("data") .. "/" .. file_name
