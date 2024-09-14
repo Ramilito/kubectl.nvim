@@ -1,7 +1,8 @@
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local node_def = require("kubectl.views.nodes.definition")
 local top_def = require("kubectl.views.top.definition")
--- local logger = require("kubectl.utils.logging")
+
 local M = {
   resource = "root",
   display_name = "Root",
@@ -11,26 +12,29 @@ local M = {
   cmd = "curl",
 }
 
-local function getInfo(rows)
+local function getInfo(nodes, pods)
   local data = {}
-  table.insert(data, { name = "kubelets up:", value = "10", symbol = hl.symbols.success })
-  table.insert(data, { name = "Running pods:", value = "8", symbol = hl.symbols.success })
+  local kubelets_up = 0
+  for _, node in ipairs(nodes.items) do
+    local status = node_def.getStatus(node)
+    if status.value == "Ready" then
+      kubelets_up = kubelets_up + 1
+    end
+  end
+
+  table.insert(data, { name = "kubelets up:", value = tostring(kubelets_up), symbol = hl.symbols.success })
+  table.insert(data, { name = "Running pods:", value = tostring(#pods.items), symbol = hl.symbols.success })
 
   return data
 end
 
 local function getNodes(nodes, nodes_metrics)
   local data = {}
-  for index, node in ipairs(nodes.items) do
+  for _, node in ipairs(nodes.items) do
     local metrics = find.single(nodes_metrics.items, { "metadata", "name" }, node.metadata.name)
-    local metadata = node.metadata
-    local status = node.status
-    local conditions = node.conditions
 
     local cpu_percent = top_def.getCpuPercent(metrics, node)
-    local mem_percent = top_def.getCpuPercent(metrics, node)
-    -- local total_cpu = metrics.usage.cpu / status.allocatable.cpu
-    -- local total_mem = metrics.usage.memory / status.allocatable.memory
+    local mem_percent = top_def.getMemPercent(metrics, node)
 
     table.insert(data, {
       name = node.metadata.name,
@@ -62,21 +66,12 @@ function M.processRow(rows)
   local nodes = rows[2]
   local pods_metrics = rows[3]
 
-  -- vim.print(node_rows)
   local data = {
-    info = getInfo(rows),
+    info = getInfo(nodes, pods_metrics),
     nodes = getNodes(nodes, nodes_metrics),
     ["high-cpu"] = getCpu(rows[2]),
     ["high-ram"] = getRam(rows[2]),
   }
-
-  -- local temp_data = {}
-  --   if not temp_data[row.metadata.namespace] then
-  --     temp_data[row.metadata.namespace] = {}
-  --   end
-  --   table.insert(temp_data[row.metadata.namespace], row)
-  -- end
-  -- for key, namespace in pairs(temp_data) do
 
   return data
 end

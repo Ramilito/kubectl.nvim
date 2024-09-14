@@ -113,7 +113,6 @@ function M.pretty_print(data, sections)
 
       -- Insert rows
       for _, row in ipairs(rows) do
-        vim.print(row)
         table.insert(layout, row.value)
         for _, mark in ipairs(row.marks) do
           table.insert(

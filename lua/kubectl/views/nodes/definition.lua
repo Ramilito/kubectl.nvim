@@ -43,7 +43,7 @@ local nodeConditions = {
   NodeNetworkUnavailable = "NetworkUnavailable",
 }
 
-local function getStatus(row)
+function M.getStatus(row)
   local conditions = {}
   local exempt = row.spec.unschedulable
 
@@ -92,7 +92,7 @@ function M.processRow(rows)
     local iIP, eIP = getIPs(row.status.addresses)
     local pod = {
       name = row.metadata.name,
-      status = getStatus(row),
+      status = M.getStatus(row),
       roles = getRole(row),
       age = time.since(row.metadata.creationTimestamp),
       version = row.status.nodeInfo.kubeletVersion,
