@@ -38,8 +38,7 @@ function M.start_kubectl_proxy(callback)
   local command = commands.configure_command(cmd, {}, { "proxy", "--port=0" })
 
   local handle = vim.system(command.args, {
-    -- TODO: set this to true so that we can replace KUBECONFIG
-    clear_env = false,
+    clear_env = true,
     env = command.env,
     stdin = false,
     stderr = function(_, data)
