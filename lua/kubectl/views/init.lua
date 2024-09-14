@@ -190,7 +190,7 @@ function M.set_and_open_pod_selector(kind, name, ns)
   local encode = vim.uri_encode
   local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
   local resource = vim.json.decode(
-    commands.execute_shell_command("kubectl", get_selectors),
+    commands.shell_command("kubectl", get_selectors),
     { luanil = { object = true, array = true } }
   )
   local selector_t = resource.spec.selector.matchLabels or resource.metadata.labels
