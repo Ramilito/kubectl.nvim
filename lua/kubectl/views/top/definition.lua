@@ -17,7 +17,7 @@ local M = {
 
 local hl = require("kubectl.actions.highlight")
 
-local function getHl(percent)
+function M.getHl(percent)
   local symbol
   if percent < 80 then
     symbol = hl.symbols.note
@@ -53,7 +53,7 @@ local function kib_to_mib_or_gib(mem)
   return final_val, unit
 end
 
-local function getCpuUsage(row)
+function M.getCpuUsage(row)
   local status = { symbol = "", value = "", sort_by = 0 }
   local temp_val = 0
   if row.containers then
@@ -73,7 +73,7 @@ local function getCpuUsage(row)
   return status
 end
 
-local function getCpuPercent(row, node)
+function M.getCpuPercent(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
   if not row.usage or not row.usage.cpu then
     return status
@@ -86,7 +86,7 @@ local function getCpuPercent(row, node)
     local percent = math.ceil((math.ceil(cpu / 1000000) / total) * 100) or 0
     status.sort_by = percent
     status.value = percent .. "%"
-    status.symbol = getHl(percent)
+    status.symbol = M.getHl(percent)
   end
 
   return status
@@ -111,7 +111,7 @@ local function getMemUsage(row)
   return status
 end
 
-local function getMemPercent(row, node)
+function M.getMemPercent(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
   if not row.usage or not row.usage.memory then
     return status
@@ -122,7 +122,7 @@ local function getMemPercent(row, node)
     local total = get_ki_val(out_of)
     local percent = math.ceil((mem / total) * 100)
     status.value = percent .. "%"
-    status.symbol = getHl(percent)
+    status.symbol = M.getHl(percent)
     status.sort_by = percent
   end
 
@@ -149,10 +149,10 @@ function M.processRow(rows)
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
-      ["cpu-cores"] = getCpuUsage(row),
+      ["cpu-cores"] = M.getCpuUsage(row),
       ["mem-bytes"] = getMemUsage(row),
-      ["cpu-%"] = getCpuPercent(row, node_details),
-      ["mem-%"] = getMemPercent(row, node_details),
+      ["cpu-%"] = M.getCpuPercent(row, node_details),
+      ["mem-%"] = M.getMemPercent(row, node_details),
     }
 
     table.insert(data, pod)

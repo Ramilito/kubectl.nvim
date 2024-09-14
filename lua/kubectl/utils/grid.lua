@@ -38,6 +38,7 @@ function M.pretty_print(data, sections)
   local layout = {}
   local extmarks = {}
   local max_cols = 3
+  local max_rows = 0
   local pipe = " ⎪ "
   local dash = "—"
 
@@ -46,43 +47,54 @@ function M.pretty_print(data, sections)
 
   -- Create headers and rows using modulo for dynamic wrapping
   local current_headers = {}
-  local current_rows = {}
+  local rows = {}
+
+  for _, section in ipairs(sections) do
+    max_rows = math.max(max_rows, #data[section] or 0)
+  end
 
   for index, section in ipairs(sections) do
     local formatted_section = pad_string(section, (widths[section] + extra_padding))
     table.insert(current_headers, formatted_section)
-
-    local max_rows = #data[section] or 0
 
     for row_index = 1, max_rows do
       local item = data[section][row_index]
       if item then
         local formatted_item =
           pad_string(string.format("%s (%s)", item.name, item.value), (widths[section] + extra_padding) or 10)
-        local current_value = current_rows[row_index] and current_rows[row_index].value or ""
+        local row = rows[row_index] and rows[row_index].value or ""
 
-        current_rows[row_index] = {
-          value = (current_value or "") .. formatted_item .. pipe,
-          marks = current_rows[row_index] and current_rows[row_index].marks or {},
+        rows[row_index] = {
+          value = (row or "") .. formatted_item .. pipe,
+          marks = rows[row_index] and rows[row_index].marks or {},
         }
 
-        local start_col = #current_rows[row_index].value - #formatted_item - #pipe
-        table.insert(current_rows[row_index].marks, {
+        local start_col = #rows[row_index].value - #formatted_item - #pipe
+        table.insert(rows[row_index].marks, {
           value = item.name,
           hl_group = hl.symbols.note,
           start_col = start_col,
           end_col = start_col + #item.name,
         })
-        table.insert(current_rows[row_index].marks, {
+        table.insert(rows[row_index].marks, {
           value = item.value,
           hl_group = item.symbol,
           start_col = start_col + #item.name,
-          end_col = #current_rows[row_index].value - #pipe,
+          end_col = #rows[row_index].value - #pipe,
         })
       else
-        current_rows[row_index] = (current_rows[row_index] or "")
-          .. pad_string("", (widths[section] + extra_padding) or 10)
-          .. pipe
+        local row = rows[row_index]
+        if row then
+          rows[row_index] = {
+            marks = rows[row_index].marks,
+            value = (rows[row_index].value or "") .. pad_string("", (widths[section] + extra_padding) or 10) .. pipe,
+          }
+        else
+          rows[row_index] = {
+            marks = {},
+            value = pad_string("", (widths[section] + extra_padding) or 10) .. pipe,
+          }
+        end
       end
     end
 
@@ -100,7 +112,8 @@ function M.pretty_print(data, sections)
       })
 
       -- Insert rows
-      for _, row in ipairs(current_rows) do
+      for _, row in ipairs(rows) do
+        vim.print(row)
         table.insert(layout, row.value)
         for _, mark in ipairs(row.marks) do
           table.insert(
@@ -112,7 +125,7 @@ function M.pretty_print(data, sections)
 
       -- Reset for the next group
       current_headers = {}
-      current_rows = {}
+      rows = {}
       table.insert(layout, "") -- Add an empty line between groups
     end
   end

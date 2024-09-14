@@ -1,5 +1,6 @@
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local top_def = require("kubectl.views.top.definition")
 -- local logger = require("kubectl.utils.logging")
 local M = {
   resource = "root",
@@ -18,37 +19,6 @@ local function getInfo(rows)
   return data
 end
 
-local function getHl(percent)
-  local symbol
-  if percent < 80 then
-    symbol = hl.symbols.note
-  elseif percent < 90 then
-    symbol = hl.symbols.warning
-  else
-    symbol = hl.symbols.error
-  end
-  return symbol
-end
-
-local function getCpuPercent(row, node)
-  local status = { symbol = "", value = "", sort_by = 0 }
-  if not row.usage or not row.usage.cpu then
-    return status
-  end
-  local cpu = tonumber(string.sub(row.usage.cpu, 1, -2)) or 0
-  vim.print(cpu)
-  local out_of = node and node.status and node.status.capacity.cpu or ""
-  if out_of ~= "" then
-    local total = tonumber(out_of) * 1000
-    local percent = math.ceil((math.ceil(cpu / 1000000) / total) * 100) or 0
-    status.sort_by = percent
-    status.value = percent .. "%"
-    status.symbol = getHl(percent)
-  end
-
-  return status
-end
-
 local function getNodes(nodes, nodes_metrics)
   local data = {}
   for index, node in ipairs(nodes.items) do
@@ -57,13 +27,14 @@ local function getNodes(nodes, nodes_metrics)
     local status = node.status
     local conditions = node.conditions
 
-    local cpu_percentage = getCpuPercent(metrics, node)
+    local cpu_percent = top_def.getCpuPercent(metrics, node)
+    local mem_percent = top_def.getCpuPercent(metrics, node)
     -- local total_cpu = metrics.usage.cpu / status.allocatable.cpu
     -- local total_mem = metrics.usage.memory / status.allocatable.memory
 
     table.insert(data, {
       name = node.metadata.name,
-      value = "CPU: " .. cpu_percentage.value .. "," .. "RAM: 3.2G, Pods: 4",
+      value = "CPU: " .. cpu_percent.value .. "," .. "RAM: " .. mem_percent.value .. " Pods: 4",
       symbol = hl.symbols.error,
     })
   end
