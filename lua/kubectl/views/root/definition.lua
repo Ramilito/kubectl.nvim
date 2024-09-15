@@ -38,21 +38,30 @@ local function getNodes(nodes, nodes_metrics)
 
     table.insert(data, {
       name = node.metadata.name,
-      value = "CPU: " .. cpu_percent.value .. "," .. "RAM: " .. mem_percent.value .. " Pods: 4",
+      value = "CPU: " .. cpu_percent.value .. "," .. "RAM: " .. mem_percent.value .. " Pods: TBD",
       symbol = hl.symbols.error,
     })
   end
   return data
 end
 
-local function getCpu(rows)
+local function getCpu(nodes, pods, pods_metrics)
   local data = {}
-  table.insert(data, { name = "pod1", value = "70%", symbol = hl.symbols.error })
-  table.insert(data, { name = "pod2", value = "90%", symbol = hl.symbols.error })
+  for _, pod in ipairs(pods.items) do
+    local metrics = find.single(pods_metrics.items, { "metadata", "name" }, pod.metadata.name)
+    local node = find.single(nodes.items, { "metadata", "name" }, pod.spec.nodeName)
+    if metrics then
+      local cpu_usage = top_def.getCpuUsage(metrics)
+      local pod_usage = { usage = { cpu = cpu_usage.value } }
+      local result = top_def.getCpuPercent(pod_usage, node)
+      vim.print(result)
+      table.insert(data, { name = pod.metadata.name, value = result.value, symbol = hl.symbols.error })
+    end
+  end
   return data
 end
 
-local function getRam(rows)
+local function getRam(_)
   local data = {}
 
   table.insert(data, { name = "pod1", value = "40%", symbol = hl.symbols.error })
@@ -65,11 +74,12 @@ function M.processRow(rows)
   local nodes_metrics = rows[1]
   local nodes = rows[2]
   local pods_metrics = rows[3]
-
+  local pods = rows[4]
   local data = {
+
     info = getInfo(nodes, pods_metrics),
     nodes = getNodes(nodes, nodes_metrics),
-    ["high-cpu"] = getCpu(rows[2]),
+    ["high-cpu"] = getCpu(nodes, pods, pods_metrics),
     ["high-ram"] = getRam(rows[2]),
   }
 

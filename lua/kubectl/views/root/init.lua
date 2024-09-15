@@ -15,18 +15,16 @@ function M.View()
     {
       cmd = "curl",
       args = { "{{{BASE}}/apis/metrics.k8s.io/v1beta1/nodes?pretty=false}" },
-      contentType = "json",
     },
     {
       cmd = "curl",
       args = { "{{{BASE}}/api/v1/nodes?pretty=false}" },
-      contentType = "json",
     },
     {
       cmd = "curl",
-      args = { "{{{BASE}}/apis/metrics.k8s.io/v1beta1/pods?pretty=false}" },
-      contentType = "json",
+      args = { "{{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false}" },
     },
+    { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" } },
   }
 
   for _, cmd in ipairs(cmds) do

@@ -92,7 +92,7 @@ function M.getCpuPercent(row, node)
   return status
 end
 
-local function getMemUsage(row)
+function M.getMemUsage(row)
   local status = { symbol = "", value = "", sort_by = "" }
   local temp_val = 0
   if row.containers then
@@ -150,7 +150,7 @@ function M.processRow(rows)
       namespace = row.metadata.namespace,
       name = row.metadata.name,
       ["cpu-cores"] = M.getCpuUsage(row),
-      ["mem-bytes"] = getMemUsage(row),
+      ["mem-bytes"] = M.getMemUsage(row),
       ["cpu-%"] = M.getCpuPercent(row, node_details),
       ["mem-%"] = M.getMemPercent(row, node_details),
     }
