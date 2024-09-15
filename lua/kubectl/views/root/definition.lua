@@ -54,7 +54,6 @@ local function getCpu(nodes, pods, pods_metrics)
       local cpu_usage = top_def.getCpuUsage(metrics)
       local pod_usage = { usage = { cpu = cpu_usage.value } }
       local result = top_def.getCpuPercent(pod_usage, node)
-      vim.print(result)
       table.insert(data, { name = pod.metadata.name, value = result.value, symbol = hl.symbols.error })
     end
   end

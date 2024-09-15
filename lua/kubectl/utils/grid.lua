@@ -48,16 +48,24 @@ function M.pretty_print(data, sections)
   -- Create headers and rows using modulo for dynamic wrapping
   local current_headers = {}
   local rows = {}
+  local grid = {}
+  local row_count = 1
 
-  for _, section in ipairs(sections) do
+  for index, section in ipairs(sections) do
     max_rows = math.max(max_rows, #data[section] or 0)
+    if index % max_cols == 0 or index == #sections then
+      grid[row_count] = { row = #grid, max_rows = max_rows }
+      row_count = row_count + 1
+      max_rows = 0
+    end
   end
 
+  row_count = 1
   for index, section in ipairs(sections) do
     local formatted_section = pad_string(section, (widths[section] + extra_padding))
     table.insert(current_headers, formatted_section)
 
-    for row_index = 1, max_rows do
+    for row_index = 1, grid[row_count].max_rows do
       local item = data[section][row_index]
       if item then
         local formatted_item =
@@ -125,6 +133,7 @@ function M.pretty_print(data, sections)
       -- Reset for the next group
       current_headers = {}
       rows = {}
+      row_count = row_count + 1
       table.insert(layout, "") -- Add an empty line between groups
     end
   end
