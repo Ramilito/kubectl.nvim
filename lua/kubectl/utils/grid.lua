@@ -6,11 +6,10 @@ local function calculate_extra_padding(columns, widths)
   local win_width = vim.api.nvim_win_get_width(win)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local total_width = 0
-
   for _, column in ipairs(columns) do
     local max_width = math.max(#column, widths[column])
 
-    total_width = total_width + max_width + 3
+    total_width = total_width + max_width + 5
     widths[column] = max_width
   end
 
