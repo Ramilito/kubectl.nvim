@@ -47,6 +47,7 @@ end
 
 local function getCpu(nodes, pods, pods_metrics)
   local data = {}
+  local results = {}
   for _, pod in ipairs(pods.items) do
     local metrics = find.single(pods_metrics.items, { "metadata", "name" }, pod.metadata.name)
     local node = find.single(nodes.items, { "metadata", "name" }, pod.spec.nodeName)
@@ -54,17 +55,49 @@ local function getCpu(nodes, pods, pods_metrics)
       local cpu_usage = top_def.getCpuUsage(metrics)
       local pod_usage = { usage = { cpu = cpu_usage.value } }
       local result = top_def.getCpuPercent(pod_usage, node)
-      table.insert(data, { name = pod.metadata.name, value = result.value, symbol = hl.symbols.error })
+      table.insert(
+        results,
+        { name = pod.metadata.name, value = result.value, sort_by = result.sort_by, symbol = result.symbol }
+      )
     end
   end
+
+  table.sort(results, function(a, b)
+    return a.sort_by > b.sort_by
+  end)
+
+  for i = 1, math.min(5, #results) do
+    table.insert(data, { name = results[i].name, value = results[1].value, symbol = results[i].symbol })
+  end
+
   return data
 end
 
-local function getRam(_)
+local function getRam(nodes, pods, pods_metrics)
   local data = {}
+  local results = {}
 
-  table.insert(data, { name = "pod1", value = "40%", symbol = hl.symbols.error })
-  table.insert(data, { name = "pod2", value = "89%", symbol = hl.symbols.error })
+  for _, pod in ipairs(pods.items) do
+    local metrics = find.single(pods_metrics.items, { "metadata", "name" }, pod.metadata.name)
+    local node = find.single(nodes.items, { "metadata", "name" }, pod.spec.nodeName)
+    if metrics then
+      local mem_usage = top_def.getMemUsage(metrics)
+      local pod_usage = { usage = { memory = mem_usage.value } }
+      local result = top_def.getMemPercent(pod_usage, node)
+      table.insert(
+        results,
+        { name = pod.metadata.name, value = result.value, sort_by = result.sort_by, symbol = result.symbol }
+      )
+    end
+  end
+
+  table.sort(results, function(a, b)
+    return a.sort_by > b.sort_by
+  end)
+
+  for i = 1, math.min(5, #results) do
+    table.insert(data, { name = results[i].name, value = results[1].value, symbol = results[i].symbol })
+  end
 
   return data
 end
@@ -79,7 +112,7 @@ function M.processRow(rows)
     info = getInfo(nodes, pods_metrics),
     nodes = getNodes(nodes, nodes_metrics),
     ["high-cpu"] = getCpu(nodes, pods, pods_metrics),
-    ["high-ram"] = getRam(rows[2]),
+    ["high-ram"] = getRam(nodes, pods, pods_metrics),
   }
 
   return data
