@@ -75,7 +75,7 @@ end
 
 function M.getCpuPercent(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
-  if not row.usage or not row.usage.cpu then
+  if not row or not row.usage or not row.usage.cpu then
     return status
   end
   local tmp_cpu = row.usage.cpu
@@ -119,7 +119,7 @@ end
 
 function M.getMemPercent(row, node)
   local status = { symbol = "", value = "", sort_by = 0 }
-  if not row.usage or not row.usage.memory then
+  if not row or not row.usage or not row.usage.memory then
     return status
   end
   local mem = get_ki_val(row.usage.memory)

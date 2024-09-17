@@ -12,7 +12,7 @@ local M = {
   cmd = "curl",
 }
 
-local function getInfo(nodes, pods)
+local function getInfo(nodes, pods, deploy)
   local data = {}
   local kubelets_up = 0
   for _, node in ipairs(nodes.items) do
@@ -21,9 +21,20 @@ local function getInfo(nodes, pods)
       kubelets_up = kubelets_up + 1
     end
   end
+  local desired = 0
+  for _, value in ipairs(deploy.items) do
+    local nr = tonumber(value.spec.replicas)
+    desired = desired + nr
+  end
+  local running = #pods.items
+  local running_hl = hl.symbols.success
+  if running < desired then
+    running_hl = hl.symbols.error
+  end
 
   table.insert(data, { name = "kubelets up:", value = tostring(kubelets_up), symbol = hl.symbols.success })
-  table.insert(data, { name = "Running pods:", value = tostring(#pods.items), symbol = hl.symbols.success })
+  table.insert(data, { name = "Running pods:", value = tostring(#pods.items), symbol = running_hl })
+  table.insert(data, { name = "Desired pods:", value = tostring(desired), symbol = hl.symbols.success })
 
   return data
 end
@@ -107,9 +118,10 @@ function M.processRow(rows)
   local nodes = rows[2]
   local pods_metrics = rows[3]
   local pods = rows[4]
+  local deploy = rows[5]
   local data = {
 
-    info = getInfo(nodes, pods_metrics),
+    info = getInfo(nodes, pods_metrics, deploy),
     nodes = getNodes(nodes, nodes_metrics),
     ["high-cpu"] = getCpu(nodes, pods, pods_metrics),
     ["high-ram"] = getRam(nodes, pods, pods_metrics),
