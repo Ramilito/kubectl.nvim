@@ -24,7 +24,6 @@ local function getInfo(nodes, replicas)
   local desired = 0
   local ready = 0
   for _, value in ipairs(replicas.items) do
-    vim.print(value.status)
     desired = desired + tonumber(value.status.replicas)
     if value.status.readyReplicas then
       ready = ready + tonumber(value.status.readyReplicas)
@@ -42,6 +41,23 @@ local function getInfo(nodes, replicas)
   return data
 end
 
+local function getNamespaces(pods)
+  local data = {}
+  local namespaces = {}
+  for _, pod in ipairs(pods.items) do
+    local namespace = pod.metadata.namespace
+    local pods_count = 0
+    if namespaces[namespace] then
+      pods_count = namespaces[namespace].pods_count
+    end
+    namespaces[namespace] = { value = namespace, pods_count = pods_count + 1 }
+  end
+
+  for key, value in pairs(namespaces) do
+    table.insert(data, { name = key, value = tostring(value.pods_count) })
+  end
+  return data
+end
 local function getNodes(nodes, nodes_metrics)
   local data = {}
   for _, node in ipairs(nodes.items) do
@@ -126,6 +142,7 @@ function M.processRow(rows)
 
     info = getInfo(nodes, replicas),
     nodes = getNodes(nodes, nodes_metrics),
+    namespaces = getNamespaces(pods),
     ["high-cpu"] = getCpu(nodes, pods, pods_metrics),
     ["high-ram"] = getRam(nodes, pods, pods_metrics),
   }
@@ -137,6 +154,7 @@ function M.getSections()
   local sections = {
     "info",
     "nodes",
+    "namespaces",
     "high-cpu",
     "high-ram",
   }
