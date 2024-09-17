@@ -1,3 +1,5 @@
+local loop = require("kubectl.utils.loop")
+local root_view = require("kubectl.views.root")
 local string_utils = require("kubectl.utils.string")
 local api = vim.api
 
@@ -26,6 +28,10 @@ end
 --- Initialize the module
 local function init()
   set_keymaps(0)
+
+  if not loop.is_running() then
+    loop.start_loop(root_view.View)
+  end
 end
 
 init()
