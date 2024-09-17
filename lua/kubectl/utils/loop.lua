@@ -8,11 +8,13 @@ local active_sessions = {}
 --- Start a loop for a specific buffer
 ---@param buf number
 ---@param callback fun(is_cancelled: fun(): boolean)
-function M.start_loop_for_buffer(buf, callback)
+function M.start_loop_for_buffer(buf, callback, opts)
   if timers[buf] then
     return
   end
+  opts = opts or {}
 
+  local interval = opts.interval or config.options.auto_refresh.interval
   local timer = vim.uv.new_timer()
   local session_id = vim.loop.hrtime()
   active_sessions[buf] = session_id
@@ -22,7 +24,7 @@ function M.start_loop_for_buffer(buf, callback)
     return vim.api.nvim_get_current_buf() ~= buf or active_sessions[buf] ~= session_id
   end
 
-  timer:start(0, config.options.auto_refresh.interval, function()
+  timer:start(0, interval, function()
     if not running then
       running = true
 
@@ -45,7 +47,7 @@ function M.start_loop_for_buffer(buf, callback)
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     buffer = buf,
     callback = function()
-      M.start_loop_for_buffer(buf, callback)
+      M.start_loop_for_buffer(buf, callback, opts)
     end,
   })
 
@@ -70,10 +72,10 @@ end
 
 --- Start the loop
 ---@param callback fun(is_cancelled: fun(): boolean)
-function M.start_loop(callback)
+function M.start_loop(callback, opts)
   if config.options.auto_refresh.enabled then
     local current_buf = vim.api.nvim_get_current_buf()
-    M.start_loop_for_buffer(current_buf, callback)
+    M.start_loop_for_buffer(current_buf, callback, opts)
   end
 end
 

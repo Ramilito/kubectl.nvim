@@ -66,7 +66,7 @@ local function getCpu(nodes, pods, pods_metrics)
     return a.sort_by > b.sort_by
   end)
 
-  for i = 1, math.min(5, #results) do
+  for i = 1, math.min(10, #results) do
     table.insert(data, { name = results[i].name, value = results[i].value, symbol = results[i].symbol })
   end
 
@@ -95,7 +95,7 @@ local function getRam(nodes, pods, pods_metrics)
     return a.sort_by > b.sort_by
   end)
 
-  for i = 1, math.min(5, #results) do
+  for i = 1, math.min(10, #results) do
     table.insert(data, { name = results[i].name, value = results[i].value, symbol = results[i].symbol })
   end
 
