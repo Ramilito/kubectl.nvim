@@ -25,7 +25,7 @@ function M.View()
       args = { "{{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false}" },
     },
     { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" } },
-    { cmd = "curl", args = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" } },
+    { cmd = "curl", args = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}replicasets?pretty=false" } },
   }
 
   for _, cmd in ipairs(cmds) do
