@@ -67,7 +67,7 @@ local function getCpu(nodes, pods, pods_metrics)
   end)
 
   for i = 1, math.min(5, #results) do
-    table.insert(data, { name = results[i].name, value = results[1].value, symbol = results[i].symbol })
+    table.insert(data, { name = results[i].name, value = results[i].value, symbol = results[i].symbol })
   end
 
   return data
@@ -84,19 +84,19 @@ local function getRam(nodes, pods, pods_metrics)
       local mem_usage = top_def.getMemUsage(metrics)
       local pod_usage = { usage = { memory = mem_usage.value } }
       local result = top_def.getMemPercent(pod_usage, node)
+
       table.insert(
         results,
         { name = pod.metadata.name, value = result.value, sort_by = result.sort_by, symbol = result.symbol }
       )
     end
   end
-
   table.sort(results, function(a, b)
     return a.sort_by > b.sort_by
   end)
 
   for i = 1, math.min(5, #results) do
-    table.insert(data, { name = results[i].name, value = results[1].value, symbol = results[i].symbol })
+    table.insert(data, { name = results[i].name, value = results[i].value, symbol = results[i].symbol })
   end
 
   return data

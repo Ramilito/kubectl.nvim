@@ -78,12 +78,18 @@ function M.getCpuPercent(row, node)
   if not row.usage or not row.usage.cpu then
     return status
   end
-  local cpu = tonumber(string.sub(row.usage.cpu, 1, -2)) or 0
+  local tmp_cpu = row.usage.cpu
+  if string.sub(row.usage.cpu, -1) == "n" then
+    tmp_cpu = M.getCpuUsage(row)
+  else
+    tmp_cpu = { value = row.usage.cpu }
+  end
 
+  local cpu = tonumber(string.sub(tmp_cpu.value, 1, -2)) or 0
   local out_of = node and node.status and node.status.capacity.cpu or ""
   if out_of ~= "" then
     local total = tonumber(out_of) * 1000
-    local percent = math.ceil((math.ceil(cpu / 1000000) / total) * 100) or 0
+    local percent = math.ceil((cpu / total) * 100) or 0
     status.sort_by = percent
     status.value = percent .. "%"
     status.symbol = M.getHl(percent)
@@ -116,7 +122,7 @@ function M.getMemPercent(row, node)
   if not row.usage or not row.usage.memory then
     return status
   end
-  local mem = tonumber(string.sub(row.usage.memory, 1, -3)) or 0
+  local mem = get_ki_val(row.usage.memory)
   local out_of = node and node.status and node.status.capacity.memory or ""
   if out_of ~= "" then
     local total = get_ki_val(out_of)
