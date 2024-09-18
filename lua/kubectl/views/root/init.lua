@@ -36,14 +36,17 @@ function M.View()
     end
   end
 
-  builder.data = commands.await_shell_command_async(cmds)
-  builder:display(definition.ft, definition.resource)
-  builder:decodeJson():process(definition.processRow, true)
+  commands.await_shell_command_async(cmds, function(data)
+    builder.data = data
+    vim.schedule(function()
+      builder:display(definition.ft, definition.resource)
+      builder:decodeJson():process(definition.processRow, true)
 
-  builder.prettyData, builder.extmarks = grid.pretty_print(builder.processedData, definition.getSections())
-  builder:addHints(definition.hints, true, true, true):setContent(nil)
-
-  timeme.stop()
+      builder.prettyData, builder.extmarks = grid.pretty_print(builder.processedData, definition.getSections())
+      builder:addHints(definition.hints, true, true, true):setContent(nil)
+      timeme.stop()
+    end)
+  end)
 end
 
 return M

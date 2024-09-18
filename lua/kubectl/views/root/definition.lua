@@ -23,10 +23,12 @@ local function getInfo(nodes, replicas)
   end
   local desired = 0
   local ready = 0
-  for _, value in ipairs(replicas.items) do
-    desired = desired + tonumber(value.status.replicas)
-    if value.status.readyReplicas then
-      ready = ready + tonumber(value.status.readyReplicas)
+  if replicas then
+    for _, value in ipairs(replicas.items) do
+      desired = desired + tonumber(value.status.replicas)
+      if value.status.readyReplicas then
+        ready = ready + tonumber(value.status.readyReplicas)
+      end
     end
   end
   local ready_hl = hl.symbols.success
