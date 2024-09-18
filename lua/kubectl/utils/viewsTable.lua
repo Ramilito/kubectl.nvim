@@ -19,4 +19,5 @@ return {
   pvc = { "persistentvolumeclaims", "persistentvolumeclaim", "pvc" },
   clusterrolebinding = { "clusterrolebindings", "clusterrolebinding", "clusterrolebindings.rbac.authorization.k8s.io" },
   top = { "top", "top.pods", "top.nodes" },
+  ingresses = { "ingresses", "ingress" },
 }
