@@ -38,7 +38,7 @@ local function getReady(row)
 end
 
 --- Get restarts as a symbol
----@param row table<table>
+---@param row table
 ---@param currentTime number
 ---@return table
 local function getRestarts(row, currentTime)
