@@ -1,6 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.root.definition")
+local definition = require("kubectl.views.overview.definition")
 local grid = require("kubectl.utils.grid")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")

@@ -5,7 +5,7 @@ local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local root_view = require("kubectl.views.root")
+local overview_view = require("kubectl.views.overview")
 local view = require("kubectl.views")
 
 mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
@@ -28,7 +28,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      overview_view.View()
     end,
   })
 

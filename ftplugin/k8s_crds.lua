@@ -1,5 +1,5 @@
 local loop = require("kubectl.utils.loop")
-local root_view = require("kubectl.views.root")
+local overview_view = require("kubectl.views.overview")
 local api = vim.api
 local crds_view = require("kubectl.views.crds")
 
@@ -21,7 +21,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      overview_view.View()
     end,
   })
 end

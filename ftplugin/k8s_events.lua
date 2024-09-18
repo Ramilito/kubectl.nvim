@@ -1,7 +1,7 @@
 local api = vim.api
 local event_view = require("kubectl.views.events")
 local loop = require("kubectl.utils.loop")
-local root_view = require("kubectl.views.root")
+local overview_view = require("kubectl.views.overview")
 local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
@@ -25,7 +25,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      overview_view.View()
     end,
   })
 end

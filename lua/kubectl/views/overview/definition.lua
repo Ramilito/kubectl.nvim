@@ -4,9 +4,9 @@ local node_def = require("kubectl.views.nodes.definition")
 local top_def = require("kubectl.views.top.definition")
 
 local M = {
-  resource = "root",
-  display_name = "Root",
-  ft = "k8s_root",
+  resource = "overview",
+  display_name = "Overview",
+  ft = "k8s_overview",
   url = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/pods?pretty=false" },
   hints = { { key = "<Plug>(kubectl.select)", desc = "Select" } },
   cmd = "curl",

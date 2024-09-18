@@ -5,7 +5,7 @@ local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local root_view = require("kubectl.views.root")
+local overview_view = require("kubectl.views.overview")
 local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
 
@@ -18,7 +18,7 @@ local function set_keymap(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      overview_view.View()
     end,
   })
 
