@@ -38,10 +38,11 @@ local function getReady(row)
 end
 
 --- Get restarts as a symbol
----@param containerStatuses table<table>
+---@param row table
 ---@param currentTime number
 ---@return table
-local function getRestarts(containerStatuses, currentTime)
+local function getRestarts(row, currentTime)
+  local containerStatuses = row.status and row.status.containerStatuses
   local restarts = { symbol = "", value = "0", sort_by = 0 }
   if not containerStatuses then
     return restarts
@@ -148,6 +149,9 @@ local function getContainerStatus(pod_status, status)
 end
 
 local function getPodStatus(row)
+  if not row.status then
+    return { value = "Unknown", symbol = events.ColorStatus("Unknown") }
+  end
   local status = row.status.phase
   local ok
 
@@ -191,7 +195,7 @@ function M.processRow(rows)
         name = row.metadata.name,
         ready = getReady(row),
         status = getPodStatus(row),
-        restarts = getRestarts(row.status.containerStatuses, currentTime),
+        restarts = getRestarts(row, currentTime),
         ip = row.status.podIP or "",
         node = row.spec.nodeName,
         age = time.since(row.metadata.creationTimestamp, true, currentTime),
