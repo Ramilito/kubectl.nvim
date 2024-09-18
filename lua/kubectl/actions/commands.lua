@@ -77,6 +77,30 @@ function M.shell_command(cmd, args, opts)
   return result
 end
 
+function M.await_shell_command_async(cmds, callback)
+  local handles = {}
+  local results = {}
+  local done_count = 0
+
+  -- Callback to check when all commands are done
+  local function on_command_done(i, result)
+    results[i] = result
+    done_count = done_count + 1
+    if done_count == #cmds then
+      -- When all commands are complete, call the on_all_complete callback with the results
+      if callback then
+        callback(results)
+      end
+    end
+  end
+
+  for i, cmd in ipairs(cmds) do
+    handles[i] = M.shell_command_async(cmd.cmd, cmd.args, function(result)
+      on_command_done(i, result)
+    end)
+  end
+end
+
 --- Execute a shell command asynchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command

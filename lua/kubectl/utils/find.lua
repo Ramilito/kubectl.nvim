@@ -48,6 +48,22 @@ function M.is_in_table(tbl, str, exact)
   return false
 end
 
+function M.single(tbl, keys, value)
+  for _, v in ipairs(tbl) do
+    local current = v
+    for _, key in ipairs(keys) do
+      current = current[key]
+      if current == nil then
+        break
+      end
+    end
+    if current == value then
+      return v
+    end
+  end
+  return nil
+end
+
 -- @type function(tbl: table, predicate: function): table
 function M.filter(tbl, predicate)
   local result = {}

@@ -3,7 +3,7 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
-local root_view = require("kubectl.views.root")
+local overview_view = require("kubectl.views.overview")
 local view = require("kubectl.views")
 
 local mappings = require("kubectl.mappings")
@@ -29,7 +29,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      overview_view.View()
     end,
   })
 
