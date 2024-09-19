@@ -3,6 +3,9 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local ingresses_view = require("kubectl.views.ingresses")
 local loop = require("kubectl.utils.loop")
 local overview_view = require("kubectl.views.overview")
+local mappings = require("kubectl.mappings")
+
+mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.browse)")
 
 --- Set key mappings for the buffer
 local function set_keymap(bufnr)
@@ -14,7 +17,7 @@ local function set_keymap(bufnr)
       overview_view.View()
     end,
   })
-  api.nvim_buf_set_keymap(bufnr, "n", "gx", "<Plug>(kubectl.browse)", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.browse)", "", {
     noremap = true,
     silent = true,
     desc = "Open host in browser",
