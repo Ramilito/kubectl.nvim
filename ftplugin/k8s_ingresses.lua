@@ -26,7 +26,7 @@ local function set_keymap(bufnr)
           self:decodeJson()
           local data = self.data
 
-          -- determine eport
+          -- determine port
           local port = ""
           if
             data.spec.rules
