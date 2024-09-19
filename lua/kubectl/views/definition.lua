@@ -1,5 +1,6 @@
 local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
+local state = require("kubectl.state")
 local string_utils = require("kubectl.utils.string")
 
 local M = {}
@@ -93,6 +94,29 @@ function M.on_prompt_input(input)
   if input == "" then
     return
   end
+  local history = state.alias_history
+  local history_size = 5
+
+  local result = {}
+  local exists = false
+  for i = 1, math.min(history_size, #history) do
+    if history[i] ~= input then
+      table.insert(result, history[i])
+    else
+      table.insert(result, 1, input)
+      exists = true
+    end
+  end
+
+  if not exists and input ~= "" then
+    table.insert(result, 1, input)
+    if #result > history_size then
+      table.remove(result, #result)
+    end
+  end
+
+  state.alias_history = result
+
   local parsed_input = string.lower(string_utils.trim(input))
   local view = require("kubectl.views")
   view.view_or_fallback(parsed_input)
