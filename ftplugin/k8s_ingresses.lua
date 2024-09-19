@@ -60,7 +60,9 @@ local function set_keymap(bufnr)
           if port ~= "443" and port ~= "80" then
             port = ":" .. port
           end
-          vim.ui.open(string.format("%s://%s%s", proto, host, port))
+          local final_url = string.format("%s://%s%s", proto, host, port)
+          vim.notify("Opening " .. final_url)
+          vim.ui.open(final_url)
         end)
     end,
   })
