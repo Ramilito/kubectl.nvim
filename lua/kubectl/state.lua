@@ -10,6 +10,8 @@ M.ns = ""
 M.filter = ""
 ---@type string[]
 M.filter_history = {}
+---@type string[]
+M.alias_history = {}
 ---@type string
 M.proxyUrl = ""
 ---@type table
@@ -22,7 +24,7 @@ M.marks = { ns_id = 0, header = {} }
 M.sortby = {}
 M.sortby_old = { current_word = "" }
 ---@type table
-M.session = { contexts = {}, filter_history = {} }
+M.session = { contexts = {}, filter_history = {}, alias_history = {} }
 ---@type table
 M.instance = nil
 ---@type table
@@ -115,6 +117,7 @@ function M.set_session()
     M.session.contexts[session_name] = { view = "Pods", namespace = M.ns }
   end
   M.session.filter_history = M.filter_history
+  M.session.alias_history = M.alias_history
   commands.save_config("kubectl.json", M.session)
 end
 
@@ -128,6 +131,9 @@ function M.restore_session()
     if config.filter_history then
       M.session.filter_history = config.filter_history
     end
+    if config.alias_history then
+      M.session.alias_history = config.alias_history
+    end
   end
 
   if not M.session.contexts or not M.session.contexts[current_context] then
@@ -137,6 +143,7 @@ function M.restore_session()
   -- Restore state
   M.ns = M.session.contexts[current_context].namespace
   M.filter_history = M.session.filter_history
+  M.alias_history = M.session.alias_history
 
   -- change view
   local session_view = M.session.contexts[current_context].view
