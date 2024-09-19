@@ -120,12 +120,15 @@ end
 
 function M.Desc(name, ns)
   local def = {
-    resource = "desc",
+    resource = "pods_desc",
     ft = "k8s_desc",
     url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
   }
 
+  if not name or not ns then
+    def.url = nil
+  end
   ResourceBuilder:view_float(def, { cmd = "kubectl" })
 end
 
