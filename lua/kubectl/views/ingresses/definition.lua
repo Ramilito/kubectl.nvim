@@ -27,6 +27,9 @@ local function get_ports(row)
 end
 
 local function get_hosts(row)
+  if not row.spec or not row.spec.rules then
+    return ""
+  end
   local hosts = {}
 
   for _, rule in ipairs(row.spec.rules) do
