@@ -58,6 +58,12 @@ local function get_address(row)
   return table.concat(addresses, ", ")
 end
 
+local function get_class(row)
+  return row.spec.ingressClassName
+    or row.metadata.annotations and row.metadata.annotations["kubernetes.io/ingress.class"]
+    or ""
+end
+
 function M.processRow(rows)
   local data = {}
 
@@ -72,7 +78,7 @@ function M.processRow(rows)
       data[i] = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
-        class = row.spec.ingressClassName,
+        class = get_class(row),
         hosts = get_hosts(row),
         address = get_address(row),
         ports = get_ports(row),
