@@ -123,14 +123,13 @@ function M.pretty_print(data, sections)
     end
     local header_row = table.concat(current_headers, pipe)
 
-    if #layout > 2 then
-      table.insert(extmarks, {
-        row = #layout - 1,
-        start_col = 0,
-        virt_text = { { string.rep(dash, #header_row), hl.symbols.success } },
-        virt_text_pos = "overlay",
-      })
-    end
+    table.insert(layout, "")
+    table.insert(extmarks, {
+      row = #layout - 1,
+      start_col = 0,
+      virt_text = { { string.rep(dash, #header_row), hl.symbols.success } },
+      virt_text_pos = "overlay",
+    })
     table.insert(layout, header_row)
     table.insert(extmarks, { row = #layout - 1, start_col = 0, end_col = #header_row, hl_group = hl.symbols.header })
     table.insert(layout, "")
