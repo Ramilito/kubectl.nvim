@@ -62,8 +62,7 @@ local function set_keymap(bufnr)
           local proto = port == "443" and "https" or "http"
           local url = ""
           if port ~= "443" and port ~= "80" then
-            port = ":" .. port
-            url = string.format("%s://%s%s", proto, host, port)
+            url = string.format("%s://%s:%s", proto, host, port)
           else
             url = string.format("%s://%s", proto, host)
           end
