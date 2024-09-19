@@ -5,6 +5,9 @@ local M = {
   display_name = "Ingresses",
   ft = "k8s_ingresses",
   url = { "{{BASE}}/apis/networking.k8s.io/v1/{{NAMESPACE}}ingresses?pretty=false" },
+  hints = {
+    { key = "<Plug>(kubectl.browse)", desc = "browse", long_desc = "Open host in browser" },
+  },
 }
 
 local function get_ports(row)
