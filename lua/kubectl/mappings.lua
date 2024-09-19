@@ -134,7 +134,7 @@ function M.register()
           event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
             if event.object.metadata.name == name then
               vim.schedule(function()
-                view.Desc(name, ns)
+                pcall(view.Desc)
               end)
             end
           end)
