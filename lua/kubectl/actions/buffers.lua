@@ -268,6 +268,7 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   if not buf then
     buf = create_buffer(bufname)
+    M.set_content(buf, { content = { "Loading..." } })
   end
 
   local _, is_valid = pcall(vim.api.nvim_win_is_valid, win)
@@ -282,7 +283,6 @@ function M.floating_buffer(filetype, title, syntax, win)
     vim.cmd.close()
   end, { buffer = buf, silent = true })
 
-  M.set_content(buf, { content = { "Loading..." } })
   return buf, win
 end
 
