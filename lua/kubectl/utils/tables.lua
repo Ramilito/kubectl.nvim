@@ -129,14 +129,13 @@ local function addDividerRow(divider, hints, marks)
   local win_width = vim.api.nvim_win_get_width(win)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local half_width = math.floor(text_width / 2)
-
   local row = " "
   if divider then
     local resource = divider.resource or ""
     local count = divider.count or ""
     local filter = divider.filter or ""
     local info = resource .. count .. filter
-    local padding = string.rep("―", half_width - #info / 2)
+    local padding = string.rep("-", half_width - math.floor(#info / 2))
 
     local virt_text = {
       { padding, hl.symbols.success },
@@ -160,7 +159,7 @@ local function addDividerRow(divider, hints, marks)
       virt_text_pos = "overlay",
     })
   else
-    local padding = string.rep("―", half_width)
+    local padding = string.rep("-", half_width)
     row = padding .. padding
     table.insert(marks, {
       row = #hints,
