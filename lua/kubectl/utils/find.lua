@@ -31,15 +31,13 @@ function M.is_in_table(tbl, str, exact)
   end
 
   local lowered_str = str:lower()
-  for key, value in pairs(tbl) do
-    if key == "symbol" then
-      return false
-    end
+  for _, value in pairs(tbl) do
     if type(value) == "table" then
-      if M.is_in_table(value, str, exact) then
+      if M.is_in_table(value, str) then
         return true
       end
-    elseif exact and tostring(value):lower() == lowered_str then
+    end
+    if exact and tostring(value):lower() == lowered_str then
       return true
     elseif not exact and tostring(value):lower():find(lowered_str, 1, true) then
       return true
