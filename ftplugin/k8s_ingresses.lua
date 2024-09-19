@@ -14,7 +14,7 @@ local function set_keymap(bufnr)
       overview_view.View()
     end,
   })
-  api.nvim_buf_set_keymap(bufnr, "n", "gx", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "gx", "<Plug>(kubectl.browse)", {
     noremap = true,
     silent = true,
     desc = "Open host in browser",
