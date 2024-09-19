@@ -5,6 +5,7 @@ local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -114,9 +115,10 @@ function M.Aliases()
   self.data = definition.merge_views(self.data, viewsTable)
 
   local header, marks = tables.generateHeader({
-    { key = "<enter>", desc = "go to" },
-    { key = "<tab>", desc = "suggestion" },
-    { key = "<q>", desc = "close" },
+    { key = "<Plug>(kubectl.select)", desc = "go to" },
+    { key = "<Plug>(kubectl.tab)", desc = "tab" },
+    -- TODO: Definition should be moved to mappings.lua
+    { key = "<Plug>(kubectl.quit)", desc = "close" },
   }, false, false)
 
   local buf = buffers.aliases_buffer(
@@ -125,6 +127,18 @@ function M.Aliases()
     { title = "Aliases", header = { data = {} }, suggestions = self.data }
   )
 
+  table.insert(header, "History:")
+  local headers_len = #header
+  for _, value in ipairs(state.alias_history) do
+    table.insert(header, headers_len + 1, value)
+  end
+  table.insert(header, "")
+
+  vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+  vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
+
+  buffers.apply_marks(buf, marks, header)
+
   completion.with_completion(buf, self.data, function()
     -- We reassign the cache since it can be slow to load
     self.data = M.cached_api_resources.values
@@ -132,10 +146,24 @@ function M.Aliases()
     self.data = definition.merge_views(self.data, viewsTable)
   end)
 
-  vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
-  vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
+  vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
+    noremap = true,
+    callback = function()
+      local line = vim.api.nvim_get_current_line()
 
-  buffers.apply_marks(buf, marks, header)
+      -- Don't act on prompt line
+      local current_line = vim.api.nvim_win_get_cursor(0)[1]
+      if current_line >= #header then
+        return
+      end
+
+      local prompt = "% "
+
+      vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
+      vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
+      vim.cmd("startinsert")
+    end,
+  })
 end
 
 --- PortForwards function retrieves port forwards and displays them in a float window.
@@ -189,10 +217,8 @@ function M.set_and_open_pod_selector(kind, name, ns)
   -- get the selectors for the pods
   local encode = vim.uri_encode
   local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
-  local resource = vim.json.decode(
-    commands.shell_command("kubectl", get_selectors),
-    { luanil = { object = true, array = true } }
-  )
+  local resource =
+    vim.json.decode(commands.shell_command("kubectl", get_selectors), { luanil = { object = true, array = true } })
   local selector_t = resource.spec.selector.matchLabels or resource.metadata.labels
   local key_value_pairs = vim.tbl_map(function(key)
     return encode(key .. "=" .. selector_t[key])
