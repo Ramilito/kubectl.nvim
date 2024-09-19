@@ -60,6 +60,7 @@ function M.View(cancellationToken, resource)
     definition.namespaced = cached_resources.values[resource_name].namespaced
   end
 
+  M.builder = nil -- clear any previously set values
   M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
 end
 
