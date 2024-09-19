@@ -1,10 +1,10 @@
+local api = vim.api
+local ingresses_view = require("kubectl.views.ingresses")
 local loop = require("kubectl.utils.loop")
 local overview_view = require("kubectl.views.overview")
-local api = vim.api
-local fallback_view = require("kubectl.views.fallback")
 
 --- Set key mappings for the buffer
-local function set_keymaps(bufnr)
+local function set_keymap(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
     noremap = true,
     silent = true,
@@ -17,9 +17,9 @@ end
 
 --- Initialize the module
 local function init()
-  set_keymaps(0)
+  set_keymap(0)
   if not loop.is_running() then
-    loop.start_loop(fallback_view.Draw)
+    loop.start_loop(ingresses_view.Draw)
   end
 end
 

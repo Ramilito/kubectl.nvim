@@ -2,7 +2,7 @@ local api = vim.api
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local node_view = require("kubectl.views.nodes")
-local root_view = require("kubectl.views.root")
+local overview_view = require("kubectl.views.overview")
 
 mappings.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
 mappings.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
@@ -15,7 +15,7 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Go up",
     callback = function()
-      root_view.View()
+      overview_view.View()
     end,
   })
 

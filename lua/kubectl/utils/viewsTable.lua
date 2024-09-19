@@ -2,6 +2,7 @@
 ---@alias ViewTable table<string, string[]>
 ---@type ViewTable
 return {
+  overview = { "overview" },
   pods = { "pods", "pod", "po" },
   deployments = { "deployments", "deployment", "deploy", "deployments.apps" },
   daemonsets = { "daemonsets", "daemonset", "ds", "daemonsets.apps" },
@@ -18,4 +19,5 @@ return {
   pvc = { "persistentvolumeclaims", "persistentvolumeclaim", "pvc" },
   clusterrolebinding = { "clusterrolebindings", "clusterrolebinding", "clusterrolebindings.rbac.authorization.k8s.io" },
   top = { "top", "top.pods", "top.nodes" },
+  ingresses = { "ingresses", "ingress" },
 }

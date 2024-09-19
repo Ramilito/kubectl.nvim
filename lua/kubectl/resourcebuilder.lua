@@ -132,13 +132,26 @@ end
 --- Decode JSON data
 ---@return ResourceBuilder
 function ResourceBuilder:decodeJson()
-  local success, decodedData = pcall(vim.json.decode, self.data, { luanil = { object = true, array = true } })
+  if type(self.data) == "string" then
+    local success, decodedData = pcall(vim.json.decode, self.data, { luanil = { object = true, array = true } })
 
-  if success then
-    notifications.Add({
-      "json decode successful " .. "[" .. self.resource .. "]",
-    })
-    self.data = decodedData
+    if success then
+      notifications.Add({
+        "json decode successful " .. "[" .. self.resource .. "]",
+      })
+      self.data = decodedData
+    end
+  elseif type(self.data == "table") then
+    for index, data in ipairs(self.data) do
+      local success, decodedData = pcall(vim.json.decode, data, { luanil = { object = true, array = true } })
+
+      if success then
+        notifications.Add({
+          "json decode successful " .. "[" .. self.resource .. "]",
+        })
+        self.data[index] = decodedData
+      end
+    end
   end
   return self
 end
