@@ -2,8 +2,8 @@ local api = vim.api
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local ingresses_view = require("kubectl.views.ingresses")
 local loop = require("kubectl.utils.loop")
-local overview_view = require("kubectl.views.overview")
 local mappings = require("kubectl.mappings")
+local overview_view = require("kubectl.views.overview")
 
 mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.browse)")
 
@@ -63,9 +63,7 @@ local function set_keymap(bufnr)
           if port ~= "443" and port ~= "80" then
             port = ":" .. port
           end
-          local final_url = string.format("%s://%s%s", proto, host, port)
-          vim.notify("Opening " .. final_url)
-          vim.ui.open(final_url)
+          vim.ui.open(string.format("%s://%s%s", proto, host, port))
         end)
     end,
   })
