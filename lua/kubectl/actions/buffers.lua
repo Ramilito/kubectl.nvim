@@ -265,9 +265,11 @@ end
 function M.floating_buffer(filetype, title, syntax, win)
   local bufname = title or "kubectl_float"
   local buf = get_buffer_by_name(bufname)
+  local new_buf = false
 
   if not buf then
     buf = create_buffer(bufname)
+    new_buf = true
   end
 
   local _, is_valid = pcall(vim.api.nvim_win_is_valid, win)
@@ -282,7 +284,9 @@ function M.floating_buffer(filetype, title, syntax, win)
     vim.cmd.close()
   end, { buffer = buf, silent = true })
 
-  M.set_content(buf, { content = { "Loading..." } })
+  if new_buf then
+    M.set_content(buf, { content = { "Loading..." } })
+  end
   return buf, win
 end
 
