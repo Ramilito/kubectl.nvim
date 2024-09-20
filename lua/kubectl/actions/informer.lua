@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local state = require("kubectl.state")
 local event_handler = require("kubectl.actions.eventhandler").handler
 
 local M = {
@@ -62,11 +63,22 @@ end
 local function process_event(builder, event)
   local event_name = event.object.metadata.name
 
+  local function handle_events(action)
+    if event.object.kind == "Event" and builder.resource ~= "events" then
+      event.object.metadata.name = event.object.involvedObject.name
+    else
+      action()
+    end
+  end
+
   -- TODO: prettify this code
   if builder.data.kind == "Table" then
     local target = builder.data
     if event.type == "ADDED" then
-      table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
+      handle_events(function()
+        table.insert(target, event.object)
+        table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
+      end)
     elseif event.type == "DELETED" then
       for index, row in ipairs(target.rows) do
         if row.object.metadata.name == event_name then
@@ -75,17 +87,21 @@ local function process_event(builder, event)
         end
       end
     elseif event.type == "MODIFIED" then
-      for index, row in ipairs(target.rows) do
-        if row.object.metadata.name == event_name then
-          target.rows[index].object = event.object
-          break
+      handle_events(function()
+        for index, row in ipairs(target.rows) do
+          if row.object.metadata.name == event_name then
+            target.rows[index].object = event.object
+            break
+          end
         end
-      end
+      end)
     end
   else
     local target = builder.data.items
     if event.type == "ADDED" then
-      table.insert(target, event.object)
+      handle_events(function()
+        table.insert(target, event.object)
+      end)
     elseif event.type == "DELETED" then
       for index, item in ipairs(target) do
         if item.metadata.name == event_name then
@@ -94,12 +110,14 @@ local function process_event(builder, event)
         end
       end
     elseif event.type == "MODIFIED" then
-      for index, item in ipairs(target) do
-        if item.metadata.name == event_name then
-          target[index] = event.object
-          break
+      handle_events(function()
+        for index, item in ipairs(target) do
+          if item.metadata.name == event_name then
+            target[index] = event.object
+            break
+          end
         end
-      end
+      end)
     end
   end
 
@@ -171,6 +189,11 @@ function M.start(builder)
 
   local args = { "-N", "--keepalive-time", "60", "-X", "GET", "-sS", "-H", "Content-Type: application/json" }
 
+  local event_cmd = { state.getProxyUrl() .. "/api/v1/events?pretty=false&watch=true" }
+  for _, arg in ipairs(args) do
+    table.insert(event_cmd, arg)
+  end
+
   for index, value in ipairs(builder.args) do
     if index == #builder.args then
       value = value .. "&watch=true&resourceVersion=" .. builder.data.metadata.resourceVersion
@@ -179,6 +202,7 @@ function M.start(builder)
   end
 
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
+  M.handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
   M.builder = builder
 
   return M.handle
