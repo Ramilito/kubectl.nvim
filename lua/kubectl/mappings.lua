@@ -163,11 +163,11 @@ function M.register()
         end
       else
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local parsed_buf_name = string.lower(string_utils.trim(string.match(buf_name, "([^_]+)")))
-        local ok, view = pcall(require, "kubectl.views." .. parsed_buf_name)
+        local view_action = vim.split(buf_name, "_")
+        local ok, view = pcall(require, "kubectl.views." .. view_action[1])
 
         if ok then
-          pcall(view.Desc)
+          pcall(view[string_utils.capitalize(view_action[2])])
         end
       end
     end,
