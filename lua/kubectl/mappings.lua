@@ -173,8 +173,12 @@ function M.register()
         local ok, view = pcall(require, "kubectl.views." .. resource[1])
 
         if ok then
-          pcall(view[string_utils.capitalize(resource[2])], resource[3] or "", resource[4] or "")
+        else
+          view = require("kubectl.views.fallback")
         end
+        ---TODO: fix types
+        ---@diagnostic disable-next-line: param-type-mismatch
+        pcall(view[string_utils.capitalize(resource[2])], resource[3] or "", resource[4] or "")
       end
     end,
   })
