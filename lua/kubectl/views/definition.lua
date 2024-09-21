@@ -23,7 +23,8 @@ function M.getPFData(port_forwards, async, kind)
       local pid = string_utils.trim(line):match("^(%d+)")
       local resource_type = line:match("%s(pods)/") or line:match("%s(svc)/")
 
-      local resource, port
+      local resource, port, ns
+      ns = line:match("%-n%s+(%S+)")
       if kind == "pods" then
         resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
       elseif kind == "svc" then
@@ -33,7 +34,7 @@ function M.getPFData(port_forwards, async, kind)
       end
 
       if resource and port then
-        table.insert(port_forwards, { pid = pid, type = resource_type, resource = resource, port = port })
+        table.insert(port_forwards, { pid = pid, type = resource_type, resource = resource, ns = ns, port = port })
       end
     end
   end
@@ -58,6 +59,7 @@ function M.getPFRows(pfs)
       pid = { value = value.pid, symbol = hl.symbols.gray },
       type = { value = value.type, symbol = hl.symbols.info },
       resource = { value = value.resource, symbol = hl.symbols.success },
+      ns = { value.ns, symbol = hl.symbols.info },
       port = { value = value.port, symbol = hl.symbols.pending },
     })
   end
@@ -69,13 +71,13 @@ function M.setPortForwards(marks, data, port_forwards)
     return
   end
   for _, pf in ipairs(port_forwards) do
-    if not pf.resource then
+    if not pf.resource or not pf.ns then
       return
     end
     for row, line in ipairs(data) do
       local col = line:find(pf.resource, 1, true)
-
-      if col then
+      local ns = line:find(pf.ns, 1, true)
+      if col and ns then
         local mark = {
           row = row - 1,
           start_col = col + #pf.resource - 1,
