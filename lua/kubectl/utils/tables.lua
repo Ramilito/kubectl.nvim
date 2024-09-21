@@ -34,7 +34,7 @@ local function calculate_extra_padding(widths, headers)
     total_width = total_width + max_width
     widths[key] = max_width
   end
-  return math.floor(math.max((text_width - total_width) / #headers, 0))
+  return math.floor(math.max((text_width - total_width) / #headers - 1, 0))
 end
 
 function M.get_plug_mappings(headers, mode)

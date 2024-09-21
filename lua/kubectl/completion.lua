@@ -1,8 +1,11 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local ansi = require("kubectl.utils.ansi")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local kube = require("kubectl.actions.kube")
+local state = require("kubectl.state")
+
 local M = {
   contexts = {},
 }
@@ -138,11 +141,34 @@ function M.apply()
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local file_name = vim.api.nvim_buf_get_name(0)
   local content = table.concat(lines, "\n")
-  buffers.confirmation_buffer("Apply " .. file_name .. "?", "", function(confirm)
-    if confirm then
-      commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, nil, { stdin = content })
-    end
-  end)
+
+  local builder = ResourceBuilder:new("kubectl_apply")
+
+  commands.shell_command_async("kubectl", { "diff", "-f", "-" }, function(data)
+    builder.data = data
+    builder:splitData()
+    vim.schedule(function()
+      local win_config
+      builder.buf_nr, win_config = buffers.confirmation_buffer(
+        "Apply " .. file_name .. " to context: " .. state.context["current-context"] .. "?",
+        "diff",
+        function(confirm)
+          if confirm then
+            commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, nil, { stdin = content })
+          end
+        end
+      )
+
+      if #builder.data == 1 then
+        table.insert(builder.data, "[Info]: No changes found when running diff.")
+      end
+      local confirmation = "[y]es [n]o:"
+      local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
+
+      table.insert(builder.data, padding .. confirmation)
+      builder:setContentRaw()
+    end)
+  end, nil, nil, { stdin = content })
 end
 
 return M
