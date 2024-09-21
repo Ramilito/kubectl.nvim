@@ -5,6 +5,7 @@ local event_handler = require("kubectl.actions.eventhandler").handler
 local M = {
   event_queue = "",
   handle = nil,
+  events_handle = nil,
   max_retries = 10,
   lock = false,
   parse_retries = 0,
@@ -64,6 +65,8 @@ local function process_event(builder, event)
   local event_name = event.object.metadata.name
 
   local function handle_events(action)
+    -- If the event is an event and we are not in events resource,
+    -- we assign the involvedObject as event name so the eventhandler can react to those changes
     if event.object.kind == "Event" and builder.resource ~= "events" then
       event.object.metadata.name = event.object.involvedObject.name
     else
@@ -183,7 +186,7 @@ function M.start(builder)
   if not builder.data or not builder.data.metadata then
     return
   end
-  if M.handle then
+  if M.handle or M.events_handle then
     M.stop()
   end
 
@@ -202,7 +205,7 @@ function M.start(builder)
   end
 
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
+  M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
   M.builder = builder
 
   return M.handle
@@ -211,6 +214,10 @@ end
 function M.stop()
   if M.handle and not M.handle:is_closing() then
     M.handle:kill(2)
+  end
+
+  if M.events_handle and not M.events_handle:is_closing() then
+    M.events_handle:kill(2)
   end
   M.event_queue = ""
 end
