@@ -19,12 +19,14 @@ function M.ShowMessage(event)
   buffers.set_content(buf, { content = vim.split(event, "\n"), {}, {} })
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
+  vim.print(name)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "events_desc_" .. name .. "_" .. ns,
     ft = "k8s_desc",
     url = { "describe", "events", name, "-n", ns },
     syntax = "yaml",
+    reload = reload,
   }, { cmd = "kubectl" })
 end
 

@@ -24,9 +24,10 @@ end
 
 --- Describe a configmap
 ---@param name string
-function M.Desc(name)
+function M.Desc(name, _, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "crds_desc_" .. name,
+    reload = reload,
     ft = "k8s_desc",
     url = { "describe", "crd", name },
     syntax = "yaml",

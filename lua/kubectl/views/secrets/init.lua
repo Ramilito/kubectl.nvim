@@ -20,9 +20,10 @@ function M.Edit(name, ns)
   commands.execute_terminal("kubectl", { "edit", "secrets/" .. name, "-n", ns })
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "secrets_desc_" .. name .. "_" .. ns,
+    reload = reload,
     ft = "k8s_secret_desc",
     url = { "get", "secret", name, "-n", ns, "-o", "yaml" },
     syntax = "yaml",

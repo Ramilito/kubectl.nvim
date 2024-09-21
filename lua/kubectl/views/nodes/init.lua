@@ -27,9 +27,10 @@ function M.Cordon(node)
   commands.shell_command_async("kubectl", { "cordon", "nodes/" .. node })
 end
 
-function M.Desc(node)
+function M.Desc(node, _, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "nodes_desc_" .. node,
+    reload = reload,
     ft = "k8s_node_desc",
     url = { "describe", "node", node },
     syntax = "yaml",

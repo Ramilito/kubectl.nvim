@@ -24,9 +24,10 @@ function M.Edit(name, ns)
   commands.execute_terminal("kubectl", { "edit", "services/" .. name, "-n", ns })
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "services_desc_" .. name .. "_" .. ns,
+    reload = reload,
     ft = "k8s_desc",
     url = { "describe", "svc", name, "-n", ns },
     syntax = "yaml",

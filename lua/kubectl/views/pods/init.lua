@@ -118,17 +118,14 @@ function M.Edit(name, ns)
   commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", ns })
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   local def = {
-    resource = "pods_desc",
+    resource = "pods_desc_" .. name .. "_" .. ns,
     ft = "k8s_desc",
     url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
+    reload = reload,
   }
-
-  if not name or not ns then
-    def.url = nil
-  end
   ResourceBuilder:view_float(def, { cmd = "kubectl" })
 end
 

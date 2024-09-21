@@ -20,12 +20,13 @@ function M.Edit(name)
   commands.execute_terminal("kubectl", { "edit", "pv/" .. name })
 end
 
-function M.Desc(name)
+function M.Desc(name, _, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "pv_desc_" .. name,
     ft = "k8s_desc",
     url = { "describe", "pv", name },
     syntax = "yaml",
+    reload = reload,
   }, { cmd = "kubectl" })
 end
 
