@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
@@ -50,7 +51,7 @@ end
 --- Returns a list of namespaces
 --- @return string[]
 function M.listNamespaces()
-  if #M.namespaces > 1 then
+  if #M.namespaces - #config.options.namespace_fallback > 1 then
     return M.namespaces
   end
   local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
