@@ -21,4 +21,12 @@ function M.divider(buf, char)
   vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
 end
 
+function M.get_visual_selection()
+  local esc = vim.api.nvim_replace_termcodes("<esc>", true, false, true)
+  vim.api.nvim_feedkeys(esc, "x", false)
+  local vstart = vim.fn.getpos("'<")
+  local vend = vim.fn.getpos("'>")
+  return table.concat(vim.fn.getregion(vstart, vend), "\n")
+end
+
 return M

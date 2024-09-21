@@ -17,7 +17,7 @@ end
 
 function M.map_if_plug_not_set(mode, lhs, plug_target, opts)
   if not is_plug_mapped(plug_target, mode) then
-    vim.api.nvim_set_keymap("n", lhs, plug_target, opts or { noremap = true, silent = true, callback = nil })
+    vim.api.nvim_set_keymap(mode, lhs, plug_target, opts or { noremap = true, silent = true, callback = nil })
   end
 end
 
@@ -31,6 +31,7 @@ function M.register()
   M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
   M.map_if_plug_not_set("n", "<C-a>", "<Plug>(kubectl.alias_view)")
   M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
+  M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
   M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
   M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
@@ -278,6 +279,24 @@ function M.register()
     callback = function()
       local filter_view = require("kubectl.views.filter")
       filter_view.filter()
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "v", "<Plug>(kubectl.filter_term)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Filter",
+    callback = function()
+      local state = require("kubectl.state")
+      local filter_term = string_utils.get_visual_selection()
+      if not filter_term then
+        return
+      end
+      state.setFilter(filter_term)
+
+      vim.api.nvim_set_option_value("modified", false, { buf = 0 })
+      vim.notify("filtering for.. " .. filter_term)
+      vim.api.nvim_input("gr")
     end,
   })
 
