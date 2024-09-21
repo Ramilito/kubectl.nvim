@@ -26,12 +26,13 @@ end
 --- Describe a configmap
 ---@param name string
 ---@param ns string
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "configmaps_desc_" .. name .. "_" .. ns,
     ft = "k8s_desc",
     url = { "describe", "configmaps", name, "-n", ns },
     syntax = "yaml",
+    reload = reload,
   }, { cmd = "kubectl" })
 end
 

@@ -20,9 +20,10 @@ function M.Edit(name)
   commands.execute_terminal("kubectl", { "edit", "clusterrolebinding/" .. name })
 end
 
-function M.Desc(name)
+function M.Desc(name, _, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "clusterrolebinding_desc_" .. name,
+    reload = reload,
     ft = "k8s_desc",
     url = { "describe", "clusterrolebinding", name },
     syntax = "yaml",

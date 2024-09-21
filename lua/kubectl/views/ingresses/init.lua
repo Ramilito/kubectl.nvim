@@ -20,9 +20,10 @@ function M.Edit(name, ns)
   commands.execute_terminal("kubectl", { "edit", "ingress/" .. name, "-n", ns })
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   local def = {
-    resource = "desc",
+    resource = "ingresses_desc_" .. name .. "_" .. ns,
+    reload = reload,
     ft = "k8s_desc",
     url = { "describe", "ingress", name, "-n", ns },
     syntax = "yaml",
