@@ -22,24 +22,11 @@ function M.divider(buf, char)
 end
 
 function M.get_visual_selection()
-  -- does not handle rectangular selection
-  local s_start = vim.fn.getpos("'<")
-  local s_end = vim.fn.getpos("'>")
-  local n_lines = math.abs(s_end[2] - s_start[2]) + 1
-  if s_start[2] == 0 then
-    s_start[2] = 1
-    s_end[2] = 2
-    s_end[3] = 1
-  end
-  local lines = vim.api.nvim_buf_get_lines(0, s_start[2] - 1, s_end[2], false)
-  -- return
-  lines[1] = string.sub(lines[1], s_start[3], -1)
-  if n_lines == 1 then
-    lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3] - s_start[3] + 1)
-  else
-    lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3])
-  end
-  return table.concat(lines, "\n")
+  local esc = vim.api.nvim_replace_termcodes("<esc>", true, false, true)
+  vim.api.nvim_feedkeys(esc, "x", false)
+  local vstart = vim.fn.getpos("'<")
+  local vend = vim.fn.getpos("'>")
+  return table.concat(vim.fn.getregion(vstart, vend), "\n")
 end
 
 return M
