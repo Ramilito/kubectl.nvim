@@ -153,6 +153,9 @@ function M.apply()
         end
       end)
 
+      if #builder.data == 1 then
+        table.insert(builder.data, "[Info]: No changes found when running diff.")
+      end
       local confirmation = "[y]es [n]o:"
       local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
 
