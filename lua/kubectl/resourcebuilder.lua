@@ -311,21 +311,9 @@ end
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
-
   self = state.instance_float
 
-  local function new_object(builder, def)
-    if not builder or not builder.resource or self.resource ~= definition.resource then
-      return true
-    end
-    if not def.url then
-      return false
-    end
-
-    return true
-  end
-
-  if new_object(self, definition) then
+  if definition.reload or self == nil then
     self = ResourceBuilder:new(definition.resource)
     self.definition = definition
     self:displayFloat(self.definition.ft, self.definition.resource, self.definition.syntax)
