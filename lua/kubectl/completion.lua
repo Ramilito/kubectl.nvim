@@ -4,6 +4,8 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local kube = require("kubectl.actions.kube")
+local state = require("kubectl.state")
+
 local M = {
   contexts = {},
 }
@@ -147,11 +149,15 @@ function M.apply()
     builder:splitData()
     vim.schedule(function()
       local win_config
-      builder.buf_nr, win_config = buffers.confirmation_buffer("Apply " .. file_name .. "?", "diff", function(confirm)
-        if confirm then
-          commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, nil, { stdin = content })
+      builder.buf_nr, win_config = buffers.confirmation_buffer(
+        "Apply " .. file_name .. " to context: " .. state.context["current-context"] .. "?",
+        "diff",
+        function(confirm)
+          if confirm then
+            commands.shell_command_async("kubectl", { "apply", "-f", "-" }, nil, nil, nil, { stdin = content })
+          end
         end
-      end)
+      )
 
       if #builder.data == 1 then
         table.insert(builder.data, "[Info]: No changes found when running diff.")
