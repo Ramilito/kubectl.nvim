@@ -15,9 +15,10 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "daemonsets_desc_" .. name .. "_" .. ns,
+    reload = reload,
     ft = "k8s_desc",
     url = { "describe", "daemonset", name, "-n", ns },
     syntax = "yaml",

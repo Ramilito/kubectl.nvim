@@ -73,9 +73,10 @@ function M.Edit(name, ns)
   commands.execute_terminal("kubectl", add_namespace({ "edit", M.resource .. "/" .. name }, ns))
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = M.resource .. "_desc_" .. name .. "_" .. ns,
+    reload = reload,
     ft = "k8s_desc",
     url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
     syntax = "yaml",

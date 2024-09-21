@@ -311,36 +311,34 @@ end
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
-
   self = state.instance_float
-  if not self or not self.resource or self.resource ~= definition.resource then
+
+  if definition.reload or self == nil then
     self = ResourceBuilder:new(definition.resource)
+    self.definition = definition
+    self:displayFloat(self.definition.ft, self.definition.resource, self.definition.syntax)
   end
 
-  self.definition = definition
-  self
-    :displayFloat(definition.ft, definition.resource, definition.syntax)
-    :setCmd(definition.url, opts.cmd, opts.contentType)
-    :fetchAsync(function(builder)
-      builder:decodeJson()
+  self:setCmd(self.definition.url, opts.cmd, opts.contentType):fetchAsync(function(builder)
+    builder:decodeJson()
 
-      vim.schedule(function()
-        if definition.processRow then
-          builder
-            :process(definition.processRow, true)
-            :sort()
-            :prettyPrint(definition.getHeaders)
-            :addHints(definition.hints, true, false, false)
-            :setContent()
-        else
-          builder:splitData()
-          if definition.hints then
-            builder:addHints(definition.hints, false, false, false)
-          end
-          builder:setContentRaw()
+    vim.schedule(function()
+      if self.definition.processRow then
+        builder
+          :process(self.definition.processRow, true)
+          :sort()
+          :prettyPrint(self.definition.getHeaders)
+          :addHints(self.definition.hints, true, false, false)
+          :setContent()
+      else
+        builder:splitData()
+        if self.definition.hints then
+          builder:addHints(self.definition.hints, false, false, false)
         end
-      end)
+        builder:setContentRaw()
+      end
     end)
+  end)
 
   state.instance_float = self
   return self

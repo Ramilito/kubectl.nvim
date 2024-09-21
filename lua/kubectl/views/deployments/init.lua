@@ -15,12 +15,13 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
-function M.Desc(name, ns)
+function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "desc",
+    resource = "deployments_desc_" .. name .. "_" .. ns,
     ft = "k8s_desc",
     url = { "describe", "deployment", name, "-n", ns },
     syntax = "yaml",
+    reload = reload,
   }, { cmd = "kubectl" })
 end
 

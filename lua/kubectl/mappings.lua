@@ -120,11 +120,11 @@ function M.register()
       end
       local name, ns = view.getCurrentSelection()
       if name then
-        local ok = pcall(view.Desc, name, ns)
+        local ok = pcall(view.Desc, name, ns, true)
         if ok then
           local state = require("kubectl.state")
           event_handler:on("DELETED", state.instance_float.buf_nr, function(event)
-            if event.object.metadata.name == name then
+            if event.object.metadata.name == name and event.object.metadata.namespace == ns then
               vim.schedule(function()
                 vim.cmd.close()
               end)
@@ -132,9 +132,9 @@ function M.register()
           end)
 
           event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
-            if event.object.metadata.name == name then
+            if event.object.metadata.name == name and event.object.metadata.namespace == ns then
               vim.schedule(function()
-                view.Desc(name, ns)
+                pcall(view.Desc, name, ns)
               end)
             end
           end)
@@ -161,6 +161,24 @@ function M.register()
           view = require("kubectl.views.fallback")
           view.View()
         end
+      else
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+
+        ---@type string @Expected format: "resource_operation_name_namespace"
+        -- `resource`: string, the resource type
+        -- `operation`: string, the operation type
+        -- `name`: string|nil, the resource name
+        -- `ns`: string|nil, the namespace
+        local resource = vim.split(buf_name, "_")
+        local ok, view = pcall(require, "kubectl.views." .. resource[1])
+
+        if ok then
+        else
+          view = require("kubectl.views.fallback")
+        end
+        ---TODO: fix types
+        ---@diagnostic disable-next-line: param-type-mismatch
+        pcall(view[string_utils.capitalize(resource[2])], resource[3] or "", resource[4] or "")
       end
     end,
   })
