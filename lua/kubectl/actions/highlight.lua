@@ -18,19 +18,29 @@ M.symbols = {
   tab = "KubectlTab",
   underline = "KubectlUnderline",
 }
+
+local highlights = {
+  KubectlHeader = { fg = "#569CD6" }, -- Blue
+  KubectlWarning = { fg = "#D19A66" }, -- Orange
+  KubectlError = { fg = "#D16969" }, -- Red
+  KubectlInfo = { fg = "#608B4E" }, -- Green
+  KubectlDebug = { fg = "#DCDCAA" }, -- Yellow
+  KubectlSuccess = { fg = "#4EC9B0" }, -- Cyan
+  KubectlPending = { fg = "#C586C0" }, -- Purple
+  KubectlDeprecated = { fg = "#D4A5A5" }, -- Pink
+  KubectlExperimental = { fg = "#CE9178" }, -- Brown
+  KubectlNote = { fg = "#9CDCFE" }, -- Light Blue
+  KubectlGray = { fg = "#666666" }, -- Dark Gray
+  KubectlUnderline = { underline = true },
+}
+
 function M.setup()
-  api.nvim_set_hl(0, "KubectlHeader", { fg = "#569CD6" }) -- Blue
-  api.nvim_set_hl(0, "KubectlWarning", { fg = "#D19A66" }) -- Orange
-  api.nvim_set_hl(0, "KubectlError", { fg = "#D16969" }) -- Red
-  api.nvim_set_hl(0, "KubectlInfo", { fg = "#608B4E" }) -- Green
-  api.nvim_set_hl(0, "KubectlDebug", { fg = "#DCDCAA" }) -- Yellow
-  api.nvim_set_hl(0, "KubectlSuccess", { fg = "#4EC9B0" }) -- Cyan
-  api.nvim_set_hl(0, "KubectlPending", { fg = "#C586C0" }) -- Purple
-  api.nvim_set_hl(0, "KubectlDeprecated", { fg = "#D4A5A5" }) -- Pink
-  api.nvim_set_hl(0, "KubectlExperimental", { fg = "#CE9178" }) -- Brown
-  api.nvim_set_hl(0, "KubectlNote", { fg = "#9CDCFE" }) -- Light Blue
-  api.nvim_set_hl(0, "KubectlGray", { fg = "#666666" }) -- Dark Gray
-  api.nvim_set_hl(0, "KubectlUnderline", { underline = true })
+  for group, attrs in pairs(highlights) do
+    local success, hl = pcall(api.nvim_get_hl_by_name, group, true)
+    if not success or not hl then
+      api.nvim_set_hl(0, group, attrs)
+    end
+  end
 end
 
 return M

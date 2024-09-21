@@ -113,8 +113,6 @@ function M.set_session()
   local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
   if ok then
     M.session.contexts[session_name] = { view = buf_name, namespace = M.ns }
-  else
-    M.session.contexts[session_name] = { view = "Pods", namespace = M.ns }
   end
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
