@@ -96,9 +96,14 @@ function M.register()
           table.insert(args, ns)
         end
         buffers.confirmation_buffer("execute: kubectl " .. table.concat(args, " "), "", function(confirm)
-          if confirm then
-            commands.shell_command_async("kubectl", args)
+          if not confirm then
+            return
           end
+          commands.shell_command_async("kubectl", args, function(delete_data)
+            vim.schedule(function()
+              vim.notify(delete_data, vim.log.levels.INFO)
+            end)
+          end)
         end)
       end
     end,
