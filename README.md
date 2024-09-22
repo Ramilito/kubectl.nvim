@@ -91,6 +91,51 @@ We expose open, close and toggle to bind against:
 vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
 ```
 
+You can also override the plugin's keymaps using the `<Plug>` mappings:
+
+```lua
+-- default mappings
+vim.keymap.set("n", "<Plug>(kubectl.alias_view)", "<C-a>")
+vim.keymap.set("n", "<Plug>(kubectl.browse)", "gx")
+vim.keymap.set("n", "<Plug>(kubectl.cordon)", "gC")
+vim.keymap.set("n", "<Plug>(kubectl.create_job)", "gc")
+vim.keymap.set("n", "<Plug>(kubectl.delete)", "gD")
+vim.keymap.set("n", "<Plug>(kubectl.describe)", "gd")
+vim.keymap.set("n", "<Plug>(kubectl.drain)", "gR")
+vim.keymap.set("n", "<Plug>(kubectl.edit)", "ge")
+vim.keymap.set("v", "<Plug>(kubectl.filter_term)", "<C-f>")
+vim.keymap.set("n", "<Plug>(kubectl.filter_view)", "<C-f>")
+vim.keymap.set("n", "<Plug>(kubectl.follow)", "f")
+vim.keymap.set("n", "<Plug>(kubectl.go_up)", "<BS>")
+vim.keymap.set("n", "<Plug>(kubectl.help)", "g?")
+vim.keymap.set("n", "<Plug>(kubectl.history)", "gh")
+vim.keymap.set("n", "<Plug>(kubectl.kill)", "gk")
+vim.keymap.set("n", "<Plug>(kubectl.logs)", "gl")
+vim.keymap.set("n", "<Plug>(kubectl.namespace_view)", "<C-n>")
+vim.keymap.set("n", "<Plug>(kubectl.portforward)", "gp")
+vim.keymap.set("n", "<Plug>(kubectl.portforwards_view)", "gP")
+vim.keymap.set("n", "<Plug>(kubectl.prefix)", "gp")
+vim.keymap.set("n", "<Plug>(kubectl.quit)", "")
+vim.keymap.set("n", "<Plug>(kubectl.refresh)", "gr")
+vim.keymap.set("n", "<Plug>(kubectl.rollout_restart)", "grr")
+vim.keymap.set("n", "<Plug>(kubectl.scale)", "gss")
+vim.keymap.set("n", "<Plug>(kubectl.select)", "<CR>")
+vim.keymap.set("n", "<Plug>(kubectl.set_image)", "gi")
+vim.keymap.set("n", "<Plug>(kubectl.sort)", "gs")
+vim.keymap.set("n", "<Plug>(kubectl.suspend_job)", "gx")
+vim.keymap.set("n", "<Plug>(kubectl.tab)", "<Tab>")
+vim.keymap.set("n", "<Plug>(kubectl.timestamps)", "gt")
+vim.keymap.set("n", "<Plug>(kubectl.top_nodes)", "gn")
+vim.keymap.set("n", "<Plug>(kubectl.top_pods)", "gp")
+vim.keymap.set("n", "<Plug>(kubectl.uncordon)", "gU")
+vim.keymap.set("n", "<Plug>(kubectl.view_1)", "1")
+vim.keymap.set("n", "<Plug>(kubectl.view_2)", "2")
+vim.keymap.set("n", "<Plug>(kubectl.view_3)", "3")
+vim.keymap.set("n", "<Plug>(kubectl.view_4)", "4")
+vim.keymap.set("n", "<Plug>(kubectl.view_5)", "5")
+vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
+```
+
 ## ⚙️ Configuration
 
 ### Setup
