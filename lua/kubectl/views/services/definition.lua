@@ -36,10 +36,13 @@ local function getType(type)
   return { symbol = typeColor[type] or "", value = type }
 end
 
---TODO: Get externalip
----@diagnostic disable-next-line: unused-local
-local function getExternalIP(spec) -- luacheck: ignore
-  return ""
+local function getExternalIP(row)
+  return row.status
+      and row.status.loadBalancer
+      and row.status.loadBalancer.ingress
+      and row.status.loadBalancer.ingress[1]
+      and (row.status.loadBalancer.ingress[1].hostname or row.status.loadBalancer.ingress[1].ip)
+    or "<none>"
 end
 
 function M.processRow(rows)
@@ -55,7 +58,7 @@ function M.processRow(rows)
       name = row.metadata.name,
       type = getType(row.spec.type),
       ["cluster-ip"] = row.spec.clusterIP,
-      ["external-ip"] = getExternalIP(row.spec),
+      ["external-ip"] = getExternalIP(row),
       ports = getPorts(row.spec.ports),
       age = time.since(row.metadata.creationTimestamp),
     }
