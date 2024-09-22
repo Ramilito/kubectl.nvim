@@ -45,7 +45,7 @@ function M.get_plug_mappings(headers, mode)
     return keymaps_table
   end
 
-  local keymaps = vim.api.nvim_get_keymap(mode)
+  local keymaps = vim.api.nvim_buf_get_keymap(0, mode)
   for _, header in ipairs(headers) do
     header_lookup[header.key] = { desc = header.desc, long_desc = header.long_desc }
   end
