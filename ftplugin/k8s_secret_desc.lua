@@ -12,7 +12,11 @@ local function set_keymaps(bufnr)
 
       local code = line:match(":%s*(.+)")
       if code then
-        local decoded = vim.base64.decode(code)
+        local dec_ok, decoded = pcall(vim.base64.decode, code)
+        if not dec_ok then
+          vim.notify("Failed to decode base64: " .. decoded)
+          return
+        end
         line = line:gsub(code, decoded)
 
         local decoded_lines = vim.split(line, "\n", true)

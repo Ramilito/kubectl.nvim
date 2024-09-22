@@ -28,7 +28,7 @@ function M.Desc(name, ns, reload)
     url = { "get", "secret", name, "-n", ns, "-o", "yaml" },
     syntax = "yaml",
     hints = {
-      { key = "<cr>", desc = "base64decode" },
+      { key = "<Plug>(kubectl.select)", desc = "base64decode" },
     },
   }, { cmd = "kubectl" })
 end
