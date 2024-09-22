@@ -36,6 +36,14 @@ local function getType(type)
   return { symbol = typeColor[type] or "", value = type }
 end
 
+local function getClusterIP(row)
+  local clusterIP = row.spec.clusterIP or "<none>"
+  if clusterIP == "None" then
+    clusterIP = "<none>"
+  end
+  return clusterIP
+end
+
 local function getExternalIP(row)
   return row.spec.externalName
     or row.status
@@ -58,7 +66,7 @@ function M.processRow(rows)
       namespace = row.metadata.namespace,
       name = row.metadata.name,
       type = getType(row.spec.type),
-      ["cluster-ip"] = row.spec.clusterIP or "<none>",
+      ["cluster-ip"] = getClusterIP(row),
       ["external-ip"] = getExternalIP(row),
       ports = getPorts(row.spec.ports),
       age = time.since(row.metadata.creationTimestamp),
