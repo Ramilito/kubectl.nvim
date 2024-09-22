@@ -37,7 +37,8 @@ local function getType(type)
 end
 
 local function getExternalIP(row)
-  return row.status
+  return row.spec.externalName
+    or row.status
       and row.status.loadBalancer
       and row.status.loadBalancer.ingress
       and row.status.loadBalancer.ingress[1]
@@ -57,7 +58,7 @@ function M.processRow(rows)
       namespace = row.metadata.namespace,
       name = row.metadata.name,
       type = getType(row.spec.type),
-      ["cluster-ip"] = row.spec.clusterIP,
+      ["cluster-ip"] = row.spec.clusterIP or "<none>",
       ["external-ip"] = getExternalIP(row),
       ports = getPorts(row.spec.ports),
       age = time.since(row.metadata.creationTimestamp),
