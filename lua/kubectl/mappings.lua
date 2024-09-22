@@ -6,7 +6,7 @@ local string_utils = require("kubectl.utils.string")
 local M = {}
 
 local function is_plug_mapped(plug_target, mode)
-  local mappings = vim.api.nvim_buf_get_keymap(0, mode)
+  local mappings = vim.api.nvim_get_keymap(mode)
   for _, mapping in ipairs(mappings) do
     if mapping.rhs == plug_target then
       return true
