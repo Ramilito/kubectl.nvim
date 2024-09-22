@@ -219,7 +219,8 @@ function M.set_and_open_pod_selector(kind, name, ns)
   local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
   local resource =
     vim.json.decode(commands.shell_command("kubectl", get_selectors), { luanil = { object = true, array = true } })
-  local selector_t = resource.spec.selector.matchLabels or resource.metadata.labels
+  local selector_t = (resource.spec.selector and resource.spec.selector.matchLabels or resource.spec.selector)
+    or resource.metadata.labels
   local key_value_pairs = vim.tbl_map(function(key)
     return encode(key .. "=" .. selector_t[key])
   end, vim.tbl_keys(selector_t))
