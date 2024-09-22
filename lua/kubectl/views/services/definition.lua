@@ -4,6 +4,7 @@ local M = {
   ft = "k8s_services",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" },
   hints = {
+    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
     { key = "<Plug>(kubectl.portforward)", desc = "Port forward", long_desc = "Port forward" },
   },
 }
