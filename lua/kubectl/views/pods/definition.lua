@@ -196,7 +196,7 @@ function M.processRow(rows)
         ready = getReady(row),
         status = getPodStatus(row),
         restarts = getRestarts(row, currentTime),
-        ip = row.status.podIP or "",
+        ip = row.status and row.status.podIP or "",
         node = row.spec.nodeName,
         age = time.since(row.metadata.creationTimestamp, true, currentTime),
       }
