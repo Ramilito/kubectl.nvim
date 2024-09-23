@@ -82,6 +82,8 @@ function M.setup(options)
       else
         top_view.View()
       end
+    elseif action == "api-resources" then
+      require("kubectl.views.api-resources").View()
     else
       view.UserCmd(opts.fargs)
     end
