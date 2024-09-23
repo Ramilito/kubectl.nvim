@@ -73,7 +73,14 @@ function M.processRow(rows)
         resource.namespace = namespace
       end
       for i, val in pairs(resource_vals) do
-        resource[string.lower(rows.columnDefinitions[i].name)] = { value = val or "", symbol = events.ColorStatus(val) }
+        local res_key = string.lower(rows.columnDefinitions[i].name)
+        local is_time = time.since(val)
+        -- if the value parsed as time, then it's age/created at column
+        if is_time then
+          resource[res_key] = is_time
+        else
+          resource[res_key] = { value = val or "", symbol = events.ColorStatus(val) }
+        end
       end
       table.insert(data, resource)
     end
