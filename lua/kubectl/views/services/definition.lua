@@ -44,14 +44,43 @@ local function getClusterIP(row)
   return clusterIP
 end
 
+local function lbIngressIPs(row)
+  local ingress = row.status and row.status.loadBalancer and row.status.loadBalancer.ingress
+  if not ingress then
+    return {}
+  end
+  local result = {}
+  for _, v in ipairs(ingress) do
+    table.insert(result, v.ip or v.hostname)
+  end
+  return result
+end
+
 local function getExternalIP(row)
-  return row.spec.externalName
-    or row.status
-      and row.status.loadBalancer
-      and row.status.loadBalancer.ingress
-      and row.status.loadBalancer.ingress[1]
-      and (row.status.loadBalancer.ingress[1].hostname or row.status.loadBalancer.ingress[1].ip)
-    or "<none>"
+  local svcType = row.spec.type
+  local final_res = {}
+
+  if svcType == "ClusterIP" then
+    return "<none>"
+  elseif svcType == "NodePort" then
+    return row.spec.externalIPs and table.concat(row.spec.externalIPs, ",") or "<none>"
+  elseif svcType == "LoadBalancer" then
+    local lbIPs = lbIngressIPs(row)
+    if row.spec.externalIPs then
+      if #lbIPs > 0 then
+        vim.list_extend(final_res, lbIPs)
+      end
+      vim.list_extend(final_res, row.spec.externalIPs)
+      return table.concat(final_res, ",")
+    end
+    if #lbIPs > 0 then
+      vim.list_extend(final_res, lbIPs)
+    end
+  elseif svcType == "ExternalName" then
+    table.insert(final_res, row.spec.externalName)
+  end
+
+  return table.concat(final_res, ",")
 end
 
 function M.processRow(rows)
