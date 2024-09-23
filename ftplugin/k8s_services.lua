@@ -5,7 +5,6 @@ local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local overview_view = require("kubectl.views.overview")
 local service_view = require("kubectl.views.services")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
@@ -14,15 +13,6 @@ mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
 
 --- Set key mappings for the buffer
 local function set_keymap(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     silent = true,

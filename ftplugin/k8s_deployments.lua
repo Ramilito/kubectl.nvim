@@ -3,7 +3,6 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
-local overview_view = require("kubectl.views.overview")
 local view = require("kubectl.views")
 
 local mappings = require("kubectl.mappings")
@@ -21,15 +20,6 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
       view.set_and_open_pod_selector("deployments", name, ns)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
     end,
   })
 

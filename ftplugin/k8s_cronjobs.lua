@@ -4,7 +4,6 @@ local commands = require("kubectl.actions.commands")
 local cronjob_view = require("kubectl.views.cronjobs")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local overview_view = require("kubectl.views.overview")
 local tables = require("kubectl.utils.tables")
 
 mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
@@ -24,15 +23,6 @@ local function set_keymaps(bufnr)
       job_view.View()
       -- Order is important since .View() will reset this selection
       job_def.owner = { name = name, ns = ns }
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
     end,
   })
 

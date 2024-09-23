@@ -1,5 +1,4 @@
 local events = require("kubectl.utils.events")
-local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 local time = require("kubectl.utils.time")
 local M = {
