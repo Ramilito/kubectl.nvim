@@ -14,6 +14,7 @@ function M.View(cancellationToken)
   self:display(definition.ft, definition.resource, cancellationToken)
 
   state.instance = self
+  local cached_resources = require("kubectl.views").cached_api_resources
   self.data = cached_resources and cached_resources.values or {}
 
   vim.schedule(function()
