@@ -1,6 +1,5 @@
 local api = vim.api
 local commands = require("kubectl.actions.commands")
-local cronjob_view = require("kubectl.views.cronjobs")
 local job_view = require("kubectl.views.jobs")
 local loop = require("kubectl.utils.loop")
 local view = require("kubectl.views")
@@ -17,15 +16,6 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = job_view.getCurrentSelection()
       view.set_and_open_pod_selector("jobs", name, ns)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      cronjob_view.View()
     end,
   })
 

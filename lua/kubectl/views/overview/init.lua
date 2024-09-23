@@ -2,14 +2,11 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.overview.definition")
 local grid = require("kubectl.utils.grid")
-local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
 local M = {}
 
 function M.View()
-  timeme.start()
-
   local builder = ResourceBuilder:new(definition.resource)
   local cmds = {
     {
@@ -44,7 +41,6 @@ function M.View()
 
       builder.prettyData, builder.extmarks = grid.pretty_print(builder.processedData, definition.getSections())
       builder:addHints(definition.hints, true, true, true):setContent(nil)
-      timeme.stop()
     end)
   end)
 end

@@ -5,7 +5,6 @@ local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local overview_view = require("kubectl.views.overview")
 local view = require("kubectl.views")
 
 mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
@@ -20,15 +19,6 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
       view.set_and_open_pod_selector("daemonsets", name, ns)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
     end,
   })
 
