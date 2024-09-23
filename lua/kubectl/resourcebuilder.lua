@@ -46,6 +46,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   })
 
   self.buf_nr = buffers.buffer(filetype, title)
+  state.addToHistory(title)
   return self
 end
 

@@ -53,6 +53,22 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.go_up)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Go up",
+    callback = function()
+      local view = require("kubectl.views")
+      local state = require("kubectl.state")
+      local older_view = state.history[#state.history - 1]
+      if not older_view then
+        return
+      end
+      table.remove(state.history, #state.history)
+      view.view_or_fallback(older_view)
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.help)", "", {
     noremap = true,
     silent = true,
