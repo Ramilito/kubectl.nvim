@@ -18,11 +18,10 @@ end
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = "daemonsets_desc_" .. name .. "_" .. ns,
-    reload = reload,
     ft = "k8s_desc",
     url = { "describe", "daemonset", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl" })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 function M.Edit(name, ns)

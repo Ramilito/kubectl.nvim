@@ -21,8 +21,7 @@ function M.Desc(name, ns, reload)
     ft = "k8s_desc",
     url = { "describe", "deployment", name, "-n", ns },
     syntax = "yaml",
-    reload = reload,
-  }, { cmd = "kubectl" })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 function M.Edit(name, ns)

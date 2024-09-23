@@ -23,14 +23,13 @@ end
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = "secrets_desc_" .. name .. "_" .. ns,
-    reload = reload,
     ft = "k8s_secret_desc",
     url = { "get", "secret", name, "-n", ns, "-o", "yaml" },
     syntax = "yaml",
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "base64decode" },
     },
-  }, { cmd = "kubectl" })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view

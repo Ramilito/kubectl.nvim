@@ -20,14 +20,12 @@ function M.ShowMessage(event)
 end
 
 function M.Desc(name, ns, reload)
-  vim.print(name)
   ResourceBuilder:view_float({
     resource = "events_desc_" .. name .. "_" .. ns,
     ft = "k8s_desc",
     url = { "describe", "events", name, "-n", ns },
     syntax = "yaml",
-    reload = reload,
-  }, { cmd = "kubectl" })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view
