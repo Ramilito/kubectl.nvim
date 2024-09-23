@@ -33,6 +33,7 @@ function M.register()
   M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
   M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
   M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
+  M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
   M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
   M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
@@ -320,6 +321,16 @@ function M.register()
     callback = function()
       local namespace_view = require("kubectl.views.namespace")
       namespace_view.View()
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.contexts_view)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Change context",
+    callback = function()
+      local contexts_view = require("kubectl.views.contexts")
+      contexts_view.View()
     end,
   })
 
