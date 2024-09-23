@@ -190,7 +190,7 @@ end
 --- Execute a user command and handle the response
 ---@param args table
 function M.UserCmd(args)
-  ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetchAsync(function(self)
+  ResourceBuilder:new("k8s_usercmd"):setCmd(args, "kubectl"):fetchAsync(function(self)
     if self.data == "" then
       return
     end
@@ -198,7 +198,7 @@ function M.UserCmd(args)
     self.prettyData = self.data
 
     vim.schedule(function()
-      self:display("k8s_usercmd", "UserCmd")
+      self:display("k8s_usercmd", "UserCmd"):setContent()
     end)
   end)
 end
