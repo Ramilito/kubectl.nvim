@@ -76,11 +76,10 @@ end
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = M.resource .. "_desc_" .. name .. "_" .. ns,
-    reload = reload,
     ft = "k8s_desc",
     url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
     syntax = "yaml",
-  }, { cmd = "kubectl" })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view

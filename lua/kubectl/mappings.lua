@@ -129,18 +129,10 @@ function M.register()
         local ok = pcall(view.Desc, name, ns, true)
         if ok then
           local state = require("kubectl.state")
-          event_handler:on("DELETED", state.instance_float.buf_nr, function(event)
-            if event.object.metadata.name == name and event.object.metadata.namespace == ns then
-              vim.schedule(function()
-                vim.cmd.close()
-              end)
-            end
-          end)
-
           event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
             if event.object.metadata.name == name and event.object.metadata.namespace == ns then
               vim.schedule(function()
-                pcall(view.Desc, name, ns)
+                pcall(view.Desc, name, ns, false)
               end)
             end
           end)

@@ -26,8 +26,7 @@ function M.Desc(name, ns, reload)
     ft = "k8s_desc",
     url = { "describe", "sa", name, "-n", ns },
     syntax = "yaml",
-    reload = reload,
-  }, { cmd = "kubectl" })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view

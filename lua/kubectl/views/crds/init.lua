@@ -27,11 +27,10 @@ end
 function M.Desc(name, _, reload)
   ResourceBuilder:view_float({
     resource = "crds_desc_" .. name,
-    reload = reload,
     ft = "k8s_desc",
     url = { "describe", "crd", name },
     syntax = "yaml",
-  }, { cmd = "kubectl" })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view
