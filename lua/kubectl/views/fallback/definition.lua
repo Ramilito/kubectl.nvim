@@ -50,7 +50,11 @@ local function getStatus(row)
   end
 
   if row.status.health then
-    return { symbol = events.ColorStatus(string_utils.capitalize(row.status.health)), value = row.status.health }
+    local health = row.status.health.status or row.status.health
+    return {
+      symbol = events.ColorStatus(health),
+      value = health,
+    }
   end
 end
 
