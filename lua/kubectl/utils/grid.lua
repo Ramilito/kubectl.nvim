@@ -13,7 +13,8 @@ local function calculate_extra_padding(columns, widths)
     widths[column] = max_width
   end
 
-  local extra_space = text_width - total_width
+  -- We substract the last padding (-5)
+  local extra_space = text_width - total_width - 5
   local extra_padding = math.floor(extra_space / #columns) - 1
 
   return math.max(extra_padding, 0)

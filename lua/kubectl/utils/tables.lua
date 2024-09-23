@@ -28,13 +28,15 @@ local function calculate_extra_padding(widths, headers)
   local win_width = vim.api.nvim_win_get_width(win)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local total_width = 0
-
   for key, value in pairs(widths) do
     local max_width = math.max(#key, value)
-    total_width = total_width + max_width
+    -- We add the default padding (+3)
+    total_width = total_width + max_width + 3
     widths[key] = max_width
   end
-  return math.floor(math.max((text_width - total_width) / #headers - 1, 0))
+  -- We subtract the last padding (-3)
+  local padding = math.floor(math.max((text_width - total_width - 3) / #headers, 0))
+  return padding
 end
 
 function M.get_plug_mappings(headers, mode)
