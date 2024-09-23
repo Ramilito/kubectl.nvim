@@ -37,20 +37,6 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
--- function M.Desc(node, _, reload)
---   ResourceBuilder:view_float({
---     resource = "nodes_desc_" .. node,
---     ft = "k8s_node_desc",
---     url = { "describe", "node", node },
---     syntax = "yaml",
---   }, { cmd = "kubectl", reload = reload })
--- end
-
--- function M.Edit(_, name)
---   buffers.floating_buffer("k8s_node_edit", name, "yaml")
---   commands.execute_terminal("kubectl", { "edit", "nodes/" .. name })
--- end
-
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
