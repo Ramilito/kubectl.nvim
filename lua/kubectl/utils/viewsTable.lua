@@ -16,6 +16,8 @@ return {
   services = { "services", "service", "svc" },
   configmaps = { "configmaps", "configmap", "cm" },
   crds = { "customresourcedefinitions", "crds", "crd", "customresourcedefinitions.apiextensions.k8s.io" },
+  namespace = { "namespace", "namespaces", "ns" },
+  contexts = { "contexts", "context" },
   pv = { "persistentvolumes", "persistentvolume", "pv" },
   pvc = { "persistentvolumeclaims", "persistentvolumeclaim", "pvc" },
   clusterrolebinding = { "clusterrolebindings", "clusterrolebinding", "clusterrolebindings.rbac.authorization.k8s.io" },

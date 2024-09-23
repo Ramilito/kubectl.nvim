@@ -5,9 +5,7 @@ local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local kube = require("kubectl.actions.kube")
 
-local M = {
-  contexts = {},
-}
+local M = {}
 
 ---@type string[]
 local top_level_commands = {
@@ -77,32 +75,6 @@ function M.user_command_completion(_, cmd)
   elseif #parts == 2 and parts[2] == "top" then
     return { "pods", "nodes" }
   end
-end
-
---- Returns a list of context-names
---- @return string[]
-function M.list_contexts()
-  if #M.contexts > 0 then
-    return M.contexts
-  end
-  local contexts = commands.shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
-  M.contexts = vim.split(contexts, "\n")
-  return M.contexts
-end
-
---- Change context and restart proxy
---- @param cmd string
-function M.change_context(cmd)
-  local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
-
-  vim.notify(results, vim.log.levels.INFO)
-  kube.stop_kubectl_proxy()
-  kube.start_kubectl_proxy(function()
-    local view = require("kubectl.views")
-    local state = require("kubectl.state")
-    view.LoadFallbackData(true)
-    state.setup()
-  end)
 end
 
 function M.diff(path)
