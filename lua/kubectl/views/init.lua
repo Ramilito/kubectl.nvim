@@ -15,8 +15,10 @@ M.cached_api_resources = { values = {}, shortNames = {}, timestamp = nil }
 local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
-M.LoadFallbackData = function()
-  if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+M.LoadFallbackData = function(force)
+  if force or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+    M.cached_api_resources.values = {}
+    M.cached_api_resources.shortNames = {}
     ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
       self:decodeJson()
 

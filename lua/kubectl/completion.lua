@@ -100,8 +100,8 @@ function M.change_context(cmd)
   kube.start_kubectl_proxy(function()
     local view = require("kubectl.views")
     local state = require("kubectl.state")
+    view.LoadFallbackData(true)
     state.setup()
-    view.LoadFallbackData()
   end)
 end
 
