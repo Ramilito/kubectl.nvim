@@ -313,6 +313,7 @@ function ResourceBuilder:view_float(definition, opts)
   opts.cmd = opts.cmd or "curl"
   self = state.instance_float
 
+  -- Explicitly check for false
   if opts.reload == nil or opts.reload or self == nil then
     self = ResourceBuilder:new(definition.resource)
     self.definition = definition
