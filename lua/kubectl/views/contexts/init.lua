@@ -23,9 +23,9 @@ function M.View()
 
       local list = {}
       for _, value in ipairs(self.processedData) do
-        if value.name then
-          table.insert(M.contexts, value.name)
-          table.insert(list, { name = value.name })
+        if value.name.value then
+          table.insert(M.contexts, value.name.value)
+          table.insert(list, { name = value.name.value })
         end
       end
       completion.with_completion(buf, list)
