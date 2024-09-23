@@ -36,10 +36,51 @@ local function getType(type)
   return { symbol = typeColor[type] or "", value = type }
 end
 
---TODO: Get externalip
----@diagnostic disable-next-line: unused-local
-local function getExternalIP(spec) -- luacheck: ignore
-  return ""
+local function getClusterIP(row)
+  local clusterIP = row.spec.clusterIP or "<none>"
+  if clusterIP == "None" then
+    clusterIP = "<none>"
+  end
+  return clusterIP
+end
+
+local function lbIngressIPs(row)
+  local ingress = row.status and row.status.loadBalancer and row.status.loadBalancer.ingress
+  if not ingress then
+    return {}
+  end
+  local result = {}
+  for _, v in ipairs(ingress) do
+    table.insert(result, v.ip or v.hostname)
+  end
+  return result
+end
+
+local function getExternalIP(row)
+  local svcType = row.spec.type
+  local final_res = {}
+
+  if svcType == "ClusterIP" then
+    return "<none>"
+  elseif svcType == "NodePort" then
+    return row.spec.externalIPs and table.concat(row.spec.externalIPs, ",") or "<none>"
+  elseif svcType == "LoadBalancer" then
+    local lbIPs = lbIngressIPs(row)
+    if row.spec.externalIPs then
+      if #lbIPs > 0 then
+        vim.list_extend(final_res, lbIPs)
+      end
+      vim.list_extend(final_res, row.spec.externalIPs)
+      return table.concat(final_res, ",")
+    end
+    if #lbIPs > 0 then
+      vim.list_extend(final_res, lbIPs)
+    end
+  elseif svcType == "ExternalName" then
+    table.insert(final_res, row.spec.externalName)
+  end
+
+  return table.concat(final_res, ",")
 end
 
 function M.processRow(rows)
@@ -54,8 +95,8 @@ function M.processRow(rows)
       namespace = row.metadata.namespace,
       name = row.metadata.name,
       type = getType(row.spec.type),
-      ["cluster-ip"] = row.spec.clusterIP,
-      ["external-ip"] = getExternalIP(row.spec),
+      ["cluster-ip"] = getClusterIP(row),
+      ["external-ip"] = getExternalIP(row),
       ports = getPorts(row.spec.ports),
       age = time.since(row.metadata.creationTimestamp),
     }
