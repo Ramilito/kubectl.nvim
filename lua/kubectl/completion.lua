@@ -4,7 +4,6 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local kube = require("kubectl.actions.kube")
-local state = require("kubectl.state")
 
 local M = {
   contexts = {},
@@ -99,8 +98,10 @@ function M.change_context(cmd)
   vim.notify(results, vim.log.levels.INFO)
   kube.stop_kubectl_proxy()
   kube.start_kubectl_proxy(function()
+    local view = require("kubectl.views")
     local state = require("kubectl.state")
     state.setup()
+    view.LoadFallbackData()
   end)
 end
 
