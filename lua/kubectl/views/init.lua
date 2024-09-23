@@ -198,7 +198,7 @@ function M.UserCmd(args)
     self.prettyData = self.data
 
     vim.schedule(function()
-      self:display("", "UserCmd"):setContent()
+      self:display("k8s_usercmd", "UserCmd"):setContent()
     end)
   end)
 end
