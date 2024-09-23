@@ -22,6 +22,7 @@ function M.View()
       self:process(definition.processRow, true):prettyPrint(definition.getHeaders):setContent()
 
       local list = {}
+      M.contexts = {}
       for _, value in ipairs(self.processedData) do
         if value.name.value then
           table.insert(M.contexts, value.name.value)
