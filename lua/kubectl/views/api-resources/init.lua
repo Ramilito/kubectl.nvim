@@ -1,6 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
--- local buffers = require("kubectl.actions.buffers")
--- local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.api-resources.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -8,10 +6,6 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  -- if #vim.tbl_keys(cached_resources.values) == 0 then
-  --   return
-  -- end
-
   local self = state.instance
   if not self or not self.resource or self.resource ~= definition.resource then
     self = ResourceBuilder:new(definition.resource)
