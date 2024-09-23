@@ -60,7 +60,10 @@ function M.register()
     callback = function()
       local view = require("kubectl.views")
       local state = require("kubectl.state")
-      local older_view = state.history[#state.history - 1] or "overview"
+      local older_view = state.history[#state.history - 1]
+      if not older_view then
+        return
+      end
       table.remove(state.history, #state.history)
       view.view_or_fallback(older_view)
     end,
