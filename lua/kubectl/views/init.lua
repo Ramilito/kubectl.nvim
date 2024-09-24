@@ -61,6 +61,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.alias_view)", desc = "Aliases" },
     { key = "<Plug>(kubectl.filter_view)", desc = "Filter on a phrase" },
     { key = "<Plug>(kubectl.namespace_view)", desc = "Change namespace" },
+    { key = "<Plug>(kubectl.contexts_view)", desc = "Change context" },
     { key = "<Plug>(kubectl.go_up)", desc = "Go up a level" },
     { key = "<Plug>(kubectl.delete)", desc = "Delete resource" },
     { key = "<Plug>(kubectl.describe)", desc = "Describe resource" },
