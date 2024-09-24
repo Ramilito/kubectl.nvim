@@ -1,3 +1,4 @@
+local fzy = require("kubectl.utils.fzy")
 local M = {}
 
 local function set_prompt(bufnr, suggestion)
@@ -31,13 +32,16 @@ function M.with_completion(buf, data, callback, shortest)
       original_input = input
     end
 
+    local tbl_for_fzy = {}
+    for _, suggestion in pairs(data) do
+      table.insert(tbl_for_fzy, suggestion.name)
+    end
+
     -- Filter suggestions based on input
     local filtered_suggestions = {}
-
-    for _, suggestion in pairs(data) do
-      if suggestion.name:lower():sub(1, #original_input) == original_input then
-        table.insert(filtered_suggestions, suggestion.name)
-      end
+    local matches = fzy.filter(original_input, tbl_for_fzy)
+    for _, match in pairs(matches) do
+      table.insert(filtered_suggestions, tbl_for_fzy[match[1]])
     end
 
     -- Cycle through the suggestions
