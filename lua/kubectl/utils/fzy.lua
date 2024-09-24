@@ -15,17 +15,12 @@ local MATCH_MAX_LENGTH = 1024
 
 local fzy = {}
 
--- Check if `needle` is a subsequence of the `haystack`.
---
--- Usually called before `score` or `positions`.
---
--- Args:
---   needle (string)
---   haystack (string)
---   case_sensitive (bool, optional): defaults to false
---
--- Returns:
---   bool
+--- Check if `needle` is a subsequence of the `haystack`.
+--- Usually called before `score` or `positions`.
+---@param needle (string)
+---@param haystack (string)
+---@param case_sensitive (boolean?)
+---@return boolean
 function fzy.has_match(needle, haystack, case_sensitive)
   if not case_sensitive then
     needle = string.lower(needle)
@@ -34,11 +29,11 @@ function fzy.has_match(needle, haystack, case_sensitive)
 
   local j = 1
   for i = 1, string.len(needle) do
-    j = string.find(haystack, needle:sub(i, i), j, true)
-    if not j then
+    local found_at = string.find(haystack, needle:sub(i, i), j, true)
+    if not found_at then
       return false
     else
-      j = j + 1
+      j = found_at + 1
     end
   end
 
@@ -134,17 +129,12 @@ local function compute(needle, haystack, D, M, case_sensitive)
   end
 end
 
--- Compute a matching score.
---
--- Args:
---   needle (string): must be a subequence of `haystack`, or the result is
---     undefined.
---   haystack (string)
---   case_sensitive (bool, optional): defaults to false
---
--- Returns:
---   number: higher scores indicate better matches. See also `get_score_min`
---     and `get_score_max`.
+--- Compute a matching score.
+---
+---@param needle (string): must be a subequence of `haystack`, or the result is undefined.
+---@param haystack (string)
+---@param case_sensitive (boolean?): defaults to false
+---@return number: higher scores indicate better matches. See also `get_score_min` and `get_score_max`.
 function fzy.score(needle, haystack, case_sensitive)
   local n = string.len(needle)
   local m = string.len(haystack)
@@ -161,21 +151,17 @@ function fzy.score(needle, haystack, case_sensitive)
   end
 end
 
--- Compute the locations where fzy matches a string.
---
--- Determine where each character of the `needle` is matched to the `haystack`
--- in the optimal match.
---
--- Args:
---   needle (string): must be a subequence of `haystack`, or the result is
---     undefined.
---   haystack (string)
---   case_sensitive (bool, optional): defaults to false
---
--- Returns:
---   {int,...}: indices, where `indices[n]` is the location of the `n`th
---     character of `needle` in `haystack`.
---   number: the same matching score returned by `score`
+--- Compute the locations where fzy matches a string.
+---
+--- Determine where each character of the `needle` is matched to the `haystack`
+--- in the optimal match.
+---
+---@param needle (string): must be a subequence of `haystack`, or the result is undefined.
+---@param haystack (string)
+---@param case_sensitive (boolean?): defaults to false
+---
+---@return table<number> @indices, where `indices[n]` is the location of the `n`th character of `needle` in `haystack`.
+---@return number @the same matching score returned by `score`
 function fzy.positions(needle, haystack, case_sensitive)
   local n = string.len(needle)
   local m = string.len(haystack)
@@ -214,17 +200,10 @@ function fzy.positions(needle, haystack, case_sensitive)
 end
 
 -- Apply `has_match` and `positions` to an array of haystacks.
---
--- Args:
---   needle (string)
---   haystack ({string, ...})
---   case_sensitive (bool, optional): defaults to false
---
--- Returns:
---   {{idx, positions, score}, ...}: an array with one entry per matching line
---     in `haystacks`, each entry giving the index of the line in `haystacks`
---     as well as the equivalent to the return value of `positions` for that
---     line.
+---@param needle string
+---@param haystacks table<string>
+---@param case_sensitive boolean? @defaults to false
+---@return table<{idx: number, positions: table<number>, score: number}> @an array with one entry per matching line in `haystacks`, each entry giving the index of the line in `haystacks` as well as the equivalent to the return value of `positions` for that line.
 function fzy.filter(needle, haystacks, case_sensitive)
   local result = {}
 
