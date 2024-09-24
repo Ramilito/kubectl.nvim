@@ -1,4 +1,5 @@
 local fzy = require("kubectl.utils.fzy")
+local mappings = require("kubectl.mappings")
 local M = {}
 
 local function set_prompt(bufnr, suggestion)
@@ -77,14 +78,16 @@ function M.with_completion(buf, data, callback, shortest)
     return ""
   end
 
-  vim.api.nvim_buf_set_keymap(buf, "i", "<Tab>", "", {
+  mappings.map_if_plug_not_set("i", "<Tab>", "<Plug>(kubectl.tab)")
+  mappings.map_if_plug_not_set("i", "<S-Tab>", "<Plug>(kubectl.shift_tab)")
+  vim.api.nvim_buf_set_keymap(buf, "i", "<Plug>(kubectl.tab)", "", {
     noremap = true,
     callback = function()
       tab_toggle(true)
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(buf, "i", "<S-Tab>", "", {
+  vim.api.nvim_buf_set_keymap(buf, "i", "<Plug>(kubectl.shift_tab)", "", {
     noremap = true,
     callback = function()
       tab_toggle(false)
