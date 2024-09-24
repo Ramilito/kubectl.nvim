@@ -64,7 +64,9 @@ end
 function M.change_context(cmd)
   local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
 
-  vim.notify(results, vim.log.levels.INFO)
+  if not results then
+    vim.notify(results, vim.log.levels.INFO)
+  end
   kube.stop_kubectl_proxy()
   kube.start_kubectl_proxy(function()
     local view = require("kubectl.views")
