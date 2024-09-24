@@ -13,9 +13,9 @@ local function calculate_column_widths(rows, columns)
   for _, row in ipairs(rows) do
     for _, column in pairs(columns) do
       if type(row[column]) == "table" then
-        widths[column] = math.max(widths[column] or 0, #tostring(row[column].value))
+        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column].value)))
       else
-        widths[column] = math.max(widths[column] or 0, #tostring(row[column]))
+        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column])))
       end
     end
   end
@@ -28,15 +28,27 @@ local function calculate_extra_padding(widths, headers)
   local win_width = vim.api.nvim_win_get_width(win)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local total_width = 0
+  local last_column_width = headers[#headers]
+
   for key, value in pairs(widths) do
-    local max_width = math.max(#key, value)
-    -- We add the default padding (+3)
-    total_width = total_width + max_width + 3
-    widths[key] = max_width
+    local max_width = math.max(#key, value) + 3
+    total_width = total_width + max_width
+    -- widths[key] = max_width
   end
-  -- We subtract the last padding (-3)
-  local padding = math.floor(math.max((text_width - total_width - 3) / #headers, 0))
-  return padding
+
+  local total_padding = (text_width - total_width)
+  local padding = math.floor(math.max((total_padding / #headers), 0))
+
+  for key, value in pairs(widths) do
+    local max_width = math.max(#key, value) + 3
+    if key ~= string.lower(last_column_width) then
+      widths[key] = max_width + padding
+    else
+      total_width = total_width - widths[key]
+      widths[key] = widths[key] - 3
+    end
+  end
+  vim.print(widths)
 end
 
 function M.get_plug_mappings(headers, mode)
@@ -239,7 +251,7 @@ function M.pretty_print(data, headers, sort_by)
     widths[key] = math.max(#key, value)
   end
 
-  local extra_padding = calculate_extra_padding(widths, headers)
+  calculate_extra_padding(widths, headers)
   local tbl = {}
   local extmarks = {}
 
@@ -252,9 +264,8 @@ function M.pretty_print(data, headers, sort_by)
   local header_col_position = 0
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 0
-    local padding = string.rep(" ", column_width - #header + extra_padding)
-    -- "   " is to add space for sort icon even when width is small
-    local value = header .. "   " .. padding
+    local padding = string.rep(" ", column_width - #header)
+    local value = header .. padding
     table.insert(header_line, value)
 
     local start_col = header_col_position
@@ -297,9 +308,8 @@ function M.pretty_print(data, headers, sort_by)
         value = tostring(cell)
       end
 
-      local padding = string.rep(" ", widths[col] - #value + extra_padding)
-      -- "   " is to add space for sort icon even when width is small
-      local display_value = value .. "   " .. padding
+      local padding = string.rep(" ", widths[col] - #value)
+      local display_value = value .. padding
 
       table.insert(row_line, display_value)
 
