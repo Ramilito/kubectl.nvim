@@ -16,7 +16,7 @@ local function close_completion_pum()
 end
 
 local function open_completion_pum(items, selected_index, search_term)
-  if not items or #items >= 1 then
+  if not items or #items <= 1 then
     close_completion_pum()
     return
   end
