@@ -5,16 +5,8 @@ local M = {}
 local pum_buf = nil
 local pum_win = nil
 
-local function verify_completion_pum(type)
-  if type == "buf" then
-    return pum_buf and vim.api.nvim_buf_is_valid(pum_buf)
-  elseif type == "win" then
-    return pum_win and vim.api.nvim_win_is_valid(pum_win)
-  end
-end
-
 local function close_completion_pum()
-  if verify_completion_pum("win") then
+  if pum_win and vim.api.nvim_win_is_valid(pum_win) then
     vim.schedule(function()
       vim.api.nvim_win_close(pum_win, true)
     end)
@@ -64,12 +56,12 @@ local function open_completion_pum(items, selected_index, search_term)
   --   return
   -- end
   -- Create a new buffer if it doesn't exist
-  if not verify_completion_pum("buf") then
+  if not pum_buf or not vim.api.nvim_buf_is_valid(pum_buf) then
     pum_buf = vim.api.nvim_create_buf(false, true)
   end
 
   -- Create a new window if it doesn't exist
-  if not verify_completion_pum("win") then
+  if not pum_win or not vim.api.nvim_win_is_valid(pum_win) then
     pum_win = vim.api.nvim_open_win(pum_buf, false, {
       relative = "cursor",
       width = 30,
@@ -116,12 +108,9 @@ local function open_completion_pum(items, selected_index, search_term)
 end
 
 local function toggle_completion_pum(items, selected_index, search_term)
-  local win_exists = verify_completion_pum("win")
   if not items or #items == 0 then
-    if win_exists then
       close_completion_pum()
       return
-    end
   else
     open_completion_pum(items, selected_index, search_term)
   end
@@ -215,6 +204,7 @@ function M.with_completion(buf, data, callback, shortest)
       desired_prompt = original_input
     end
 
+    vim.notify('Desired Prompt: ' .. desired_prompt .. ' Current Suggestion Index: ' .. current_suggestion_index)
     set_prompt(buf, desired_prompt)
     toggle_completion_pum(filtered_suggestions, current_suggestion_index, original_input)
 
