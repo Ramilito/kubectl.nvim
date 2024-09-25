@@ -33,16 +33,12 @@ local function open_completion_pum(items, selected_index, search_term)
 
   -- Create a new window if it doesn't exist
   if not M.pum_win or not vim.api.nvim_win_is_valid(M.pum_win) then
-    local current_win = vim.api.nvim_get_current_win()
-    local float_win_config = vim.api.nvim_win_get_config(current_win)
     local win_config = {
-      relative = "win",
-      win = current_win,
-      anchor = "SE",
+      relative = "cursor",
+      anchor = "NW",
       width = 30,
-      height = #items,
-      row = float_win_config.height,
       height = math.min(#items, 20),
+      row = 0,
       col = 0,
       focusable = false,
       noautocmd = true,
