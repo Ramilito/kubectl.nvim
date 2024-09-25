@@ -25,9 +25,6 @@ local function open_completion_pum(items, selected_index, search_term)
     cursorline_enabled = false
     selected_index = 1
   end
-  if #items > 50 then
-    return
-  end
 
   -- Create a new buffer if it doesn't exist
   if not M.pum_buf or not vim.api.nvim_buf_is_valid(M.pum_buf) then
@@ -45,6 +42,7 @@ local function open_completion_pum(items, selected_index, search_term)
       width = 30,
       height = #items,
       row = float_win_config.height,
+      height = math.min(#items, 20),
       col = 0,
       focusable = false,
       noautocmd = true,
@@ -57,7 +55,7 @@ local function open_completion_pum(items, selected_index, search_term)
     -- Resize the window if it already exists
     vim.api.nvim_win_set_config(M.pum_win, {
       width = 30,
-      height = #items,
+      height = math.min(#items, 20),
     })
   end
 
