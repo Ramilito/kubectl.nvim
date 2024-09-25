@@ -8,11 +8,11 @@ local M = {
 }
 
 local function close_completion_pum()
-  if M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
-    vim.schedule(function()
+  vim.schedule(function()
+    if M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
       vim.api.nvim_win_close(M.pum_win, true)
-    end)
-  end
+    end
+  end)
 end
 
 local function open_completion_pum(items, selected_index, search_term)
