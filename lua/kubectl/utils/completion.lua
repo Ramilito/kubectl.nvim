@@ -15,7 +15,9 @@ end
 
 local function close_completion_pum()
   if verify_completion_pum("win") then
-    vim.api.nvim_win_close(pum_win, true)
+    vim.schedule(function()
+      vim.api.nvim_win_close(pum_win, true)
+    end)
   end
 end
 
@@ -37,15 +39,21 @@ local function open_completion_pum(items, selected_index, search_term)
       border = "rounded",
       zindex = 251,
     })
-    -- Enable cursorline
-    vim.api.nvim_set_option_value("cursorline", true, { win = pum_win })
-
-    -- Define custom highlight for cursorline
-    vim.cmd("highlight PUMCursorLine guibg=#3e4451 guifg=#ffffff")
-
-    -- Apply custom highlight to cursorline
-    vim.api.nvim_set_option_value("winhl", "CursorLine:PUMCursorLine", { win = pum_win })
   end
+
+  -- Enable cursorline
+  local cursorline_enabled = true
+  if selected_index == 0 then
+    cursorline_enabled = false
+    selected_index = 1
+  end
+  vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = pum_win })
+
+  -- Define custom highlight for cursorline
+  vim.cmd("highlight PUMCursorLine guibg=#3e4451 guifg=#ffffff")
+
+  -- Apply custom highlight to cursorline
+  vim.api.nvim_set_option_value("winhl", "CursorLine:PUMCursorLine", { win = pum_win })
 
   -- Clear the buffer
   vim.api.nvim_buf_set_lines(pum_buf, 0, -1, false, {})
@@ -69,24 +77,28 @@ local function open_completion_pum(items, selected_index, search_term)
   end
 
   -- Place cursor on the selected_index
-  vim.api.nvim_win_set_cursor(pum_win, { selected_index, 0 })
+  local lnum = selected_index > #items and 1 or selected_index
+  vim.api.nvim_win_set_cursor(pum_win, { lnum, 0 })
 end
 
 local function toggle_completion_pum(items, selected_index, search_term)
-  if verify_completion_pum("win") and #items == 0 then
-    close_completion_pum()
+  local win_exists = verify_completion_pum("win")
+  if not items or #items == 0 then
+    if win_exists then
+      close_completion_pum()
+      return
+    end
   else
     open_completion_pum(items, selected_index, search_term)
   end
 end
 
-local function set_prompt(bufnr, items, suggestion, idx)
+local function set_prompt(bufnr, suggestion)
   local row = vim.api.nvim_win_get_cursor(0)[1]
   local prompt = "% "
   suggestion = suggestion or ""
   vim.api.nvim_buf_set_lines(bufnr, row - 1, -1, false, { prompt .. suggestion })
   vim.api.nvim_win_set_cursor(0, { row, #prompt + #suggestion })
-  toggle_completion_pum(items, idx, suggestion)
 end
 
 function M.with_completion(buf, data, callback, shortest)
@@ -97,9 +109,15 @@ function M.with_completion(buf, data, callback, shortest)
     on_lines = function()
       local line = vim.api.nvim_get_current_line()
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+      if input ~= original_input then
+        original_input = input
+        current_suggestion_index = 0
+        close_completion_pum()
+      end
       if #input == 0 then
         original_input = ""
         current_suggestion_index = 0
+        close_completion_pum()
       end
     end,
   })
@@ -127,42 +145,36 @@ function M.with_completion(buf, data, callback, shortest)
       end
     end
 
+    -- shortest
+    if shortest or shortest == nil then
+      table.sort(filtered_suggestions, function(a, b)
+        return #a < #b
+      end)
+    end
+
     -- Cycle through the suggestions
     if #filtered_suggestions > 0 then
-      if shortest or shortest == nil then
-        table.sort(filtered_suggestions, function(a, b)
-          return #a < #b
-        end)
-      end
       if asc then
         current_suggestion_index = current_suggestion_index + 1
         if current_suggestion_index >= #filtered_suggestions + 1 then
           current_suggestion_index = 0 -- Reset the index if no suggestions are available
-          set_prompt(buf, filtered_suggestions, original_input, current_suggestion_index + 1)
+          set_prompt(buf, original_input)
         else
-          set_prompt(
-            buf,
-            filtered_suggestions,
-            filtered_suggestions[current_suggestion_index],
-            current_suggestion_index
-          )
+          set_prompt(buf, filtered_suggestions[current_suggestion_index])
         end
       else
         current_suggestion_index = current_suggestion_index - 1
         if current_suggestion_index < 0 then
           current_suggestion_index = #filtered_suggestions
         end
-        set_prompt(
-          buf,
-          filtered_suggestions,
-          filtered_suggestions[current_suggestion_index] or original_input,
-          current_suggestion_index + 1
-        )
+        set_prompt(buf, filtered_suggestions[current_suggestion_index] or original_input)
       end
     else
       current_suggestion_index = 0 -- Reset the index if no suggestions are available
-      set_prompt(buf, filtered_suggestions, original_input, current_suggestion_index + 1)
+      set_prompt(buf, original_input)
     end
+
+    toggle_completion_pum(filtered_suggestions, current_suggestion_index, original_input)
 
     if callback then
       callback()
