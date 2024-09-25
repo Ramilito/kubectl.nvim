@@ -4,7 +4,6 @@ local M = {}
 
 local pum_buf = nil
 local pum_win = nil
-local pum_max_lines = 10
 
 local function verify_completion_pum(type)
   if type == "buf" then
@@ -31,25 +30,36 @@ local function open_completion_pum(items, selected_index, search_term)
   -- check if items are more than 30% of the screen
   local shown_items = {}
   local total_items = #items
-  local limit = pum_max_lines
-  if total_items > pum_max_lines then
-    -- Calculate the start and end indices for the subset
-    local start_index = selected_index
-    local end_index = math.min(selected_index + limit, total_items)
-
-    -- If the range exceeds the total number of items, adjust the start index
-    if end_index - start_index < limit then
-      start_index = math.max(total_items - limit, 1)
-    end
-
-    -- Extract the subset of items
-    for i = start_index, end_index do
-      table.insert(shown_items, items[i])
-    end
-  else
-    shown_items = items
+  if total_items > 50 then
+    return
   end
-  vim.notify("total_items: " .. #shown_items)
+  --   -- Calculate the start and end indices for the subset
+  --   local start_index = selected_index
+  --   local end_index = math.min(selected_index + limit - 1, total_items)
+  --
+  --   -- If the range exceeds the total number of items, adjust the start index
+  --   if end_index - start_index + 1 < limit then
+  --     start_index = math.max(total_items - limit, 1)
+  --   end
+  --
+  --   vim.notify(
+  --     "total_items: "
+  --       .. total_items
+  --       .. " limit: "
+  --       .. limit
+  --       .. "\n"
+  --       .. "start_index: "
+  --       .. start_index
+  --       .. " end_index: "
+  --       .. end_index
+  --   )
+  --   -- Extract the subset of items
+  --   for i = start_index, end_index do
+  --     table.insert(shown_items, items[i])
+  --   end
+  -- else
+  shown_items = items
+  -- end
   -- if true then
   --   return
   -- end
@@ -188,27 +198,26 @@ function M.with_completion(buf, data, callback, shortest)
     end
 
     -- Cycle through the suggestions
+    local desired_prompt = filtered_suggestions[current_suggestion_index] or original_input
     if #filtered_suggestions > 0 then
       if asc then
         current_suggestion_index = current_suggestion_index + 1
         if current_suggestion_index >= #filtered_suggestions + 1 then
           current_suggestion_index = 0 -- Reset the index if no suggestions are available
-          set_prompt(buf, original_input)
-        else
-          set_prompt(buf, filtered_suggestions[current_suggestion_index])
+          desired_prompt = original_input
         end
       else
         current_suggestion_index = current_suggestion_index - 1
         if current_suggestion_index < 0 then
           current_suggestion_index = #filtered_suggestions
         end
-        set_prompt(buf, filtered_suggestions[current_suggestion_index] or original_input)
       end
     else
       current_suggestion_index = 0 -- Reset the index if no suggestions are available
-      set_prompt(buf, original_input)
+      desired_prompt = original_input
     end
 
+    set_prompt(buf, desired_prompt)
     toggle_completion_pum(filtered_suggestions, current_suggestion_index, original_input)
 
     if callback then
