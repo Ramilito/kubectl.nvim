@@ -1,14 +1,14 @@
--- local fzy = require("kubectl.utils.fzy")
+local fzy = require("kubectl.utils.fzy")
 local mappings = require("kubectl.mappings")
-local M = {}
-
-local pum_buf = nil
-local pum_win = nil
+local M = {
+  pum_buf = nil,
+  pum_win = nil,
+}
 
 local function close_completion_pum()
-  if pum_win and vim.api.nvim_win_is_valid(pum_win) then
+  if M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
     vim.schedule(function()
-      vim.api.nvim_win_close(pum_win, true)
+      vim.api.nvim_win_close(M.pum_win, true)
     end)
   end
 end
@@ -19,19 +19,18 @@ local function open_completion_pum(items, selected_index, search_term)
     cursorline_enabled = false
     selected_index = 1
   end
-  local total_items = #items
-  if total_items > 50 then
+  if #items > 50 then
     return
   end
 
   -- Create a new buffer if it doesn't exist
-  if not pum_buf or not vim.api.nvim_buf_is_valid(pum_buf) then
-    pum_buf = vim.api.nvim_create_buf(false, true)
+  if not M.pum_buf or not vim.api.nvim_buf_is_valid(M.pum_buf) then
+    M.pum_buf = vim.api.nvim_create_buf(false, true)
   end
 
   -- Create a new window if it doesn't exist
-  if not pum_win or not vim.api.nvim_win_is_valid(pum_win) then
-    pum_win = vim.api.nvim_open_win(pum_buf, false, {
+  if not M.pum_win or not vim.api.nvim_win_is_valid(M.pum_win) then
+    M.pum_win = vim.api.nvim_open_win(M.pum_buf, false, {
       relative = "cursor",
       width = 30,
       height = #items,
@@ -41,19 +40,25 @@ local function open_completion_pum(items, selected_index, search_term)
       border = "rounded",
       zindex = 251,
     })
+  else
+    -- Resize the window if it already exists
+    vim.api.nvim_win_set_config(M.pum_win, {
+      width = 30,
+      height = #items,
+    })
   end
 
   -- Enable cursorline and define custom highlight for cursorline
-  vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = pum_win })
+  vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = M.pum_win })
   vim.cmd("highlight PUMCursorLine guibg=#3e4451 guifg=#ffffff")
-  vim.api.nvim_set_option_value("winhl", "CursorLine:PUMCursorLine", { win = pum_win })
+  vim.api.nvim_set_option_value("winhl", "CursorLine:PUMCursorLine", { win = M.pum_win })
 
   -- Clear the buffer
-  vim.api.nvim_buf_set_lines(pum_buf, 0, -1, false, {})
+  vim.api.nvim_buf_set_lines(M.pum_buf, 0, -1, false, {})
 
   -- Add items to the buffer
   for i, item in ipairs(items) do
-    vim.api.nvim_buf_set_lines(pum_buf, i - 1, i, false, { item })
+    vim.api.nvim_buf_set_lines(M.pum_buf, i - 1, i, false, { item })
   end
 
   -- Highlight search_term in each item
@@ -63,13 +68,13 @@ local function open_completion_pum(items, selected_index, search_term)
       break
     end
     for _, e in pairs(s) do
-      vim.api.nvim_buf_add_highlight(pum_buf, -1, "Orange", i - 1, e - 1, e)
+      vim.api.nvim_buf_add_highlight(M.pum_buf, -1, "Orange", i - 1, e - 1, e)
     end
   end
 
   -- Place cursor on the selected_index
   local lnum = selected_index > #items and 1 or selected_index
-  vim.api.nvim_win_set_cursor(pum_win, { lnum, 0 })
+  vim.api.nvim_win_set_cursor(M.pum_win, { lnum, 0 })
 end
 
 local function toggle_completion_pum(items, selected_index, search_term)
@@ -115,7 +120,6 @@ function M.with_completion(buf, data, callback, shortest)
     local esc = vim.keycode("<Esc>")
     local cr = vim.keycode("<cr>")
     if key == bs or key == esc or key == cr then
-      vim.notify("key: " .. key .. " esc: " .. esc .. " cr: " .. cr .. " bs: " .. bs)
       local line = vim.api.nvim_get_current_line()
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
       original_input = input
