@@ -38,7 +38,7 @@ local function open_completion_pum(items, selected_index, search_term)
       anchor = "NW",
       width = 30,
       height = math.min(#items, 20),
-      row = 0,
+      row = 1,
       col = 0,
       focusable = false,
       noautocmd = true,
@@ -57,7 +57,7 @@ local function open_completion_pum(items, selected_index, search_term)
 
   -- Enable cursorline and define custom highlight for cursorline
   vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = M.pum_win })
-  vim.cmd("highlight PUMCursorLine guibg=#3e4451 guifg=#ffffff")
+  vim.cmd("highlight PUMCursorLine guibg=#3e4451")
   vim.api.nvim_set_option_value("winhl", "CursorLine:PUMCursorLine", { win = M.pum_win })
   vim.api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
   -- Clear the buffer
