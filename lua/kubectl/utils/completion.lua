@@ -1,4 +1,5 @@
 local fzy = require("kubectl.utils.fzy")
+local hl = require("kubectl.actions.highlight")
 local mappings = require("kubectl.mappings")
 local M = {
   pum_buf = nil,
@@ -76,11 +77,10 @@ local function open_completion_pum(items, selected_index, search_term)
   -- Highlight search_term in each item
   for i, item in ipairs(items) do
     local s = fzy.positions(search_term:lower(), item:lower())
-    if not s then
-      break
-    end
-    for _, e in pairs(s) do
-      vim.api.nvim_buf_add_highlight(M.pum_buf, -1, "Orange", i - 1, e - 1, e)
+    if s then
+      for _, e in pairs(s) do
+        vim.api.nvim_buf_add_highlight(M.pum_buf, -1, hl.symbols.warning, i - 1, e - 1, e)
+      end
     end
   end
 
