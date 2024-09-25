@@ -3,6 +3,7 @@ local mappings = require("kubectl.mappings")
 local M = {
   pum_buf = nil,
   pum_win = nil,
+  ns = nil,
 }
 
 local function close_completion_pum()
@@ -14,6 +15,10 @@ local function close_completion_pum()
 end
 
 local function open_completion_pum(items, selected_index, search_term)
+  if not items or #items == 0 then
+    close_completion_pum()
+    return
+  end
   local cursorline_enabled = true
   if selected_index == 0 then
     cursorline_enabled = false
@@ -30,16 +35,23 @@ local function open_completion_pum(items, selected_index, search_term)
 
   -- Create a new window if it doesn't exist
   if not M.pum_win or not vim.api.nvim_win_is_valid(M.pum_win) then
-    M.pum_win = vim.api.nvim_open_win(M.pum_buf, false, {
-      relative = "cursor",
+    local current_win = vim.api.nvim_get_current_win()
+    local float_win_config = vim.api.nvim_win_get_config(current_win)
+    local win_config = {
+      relative = "win",
+      win = current_win,
+      anchor = "SE",
       width = 30,
       height = #items,
+      row = float_win_config.height,
       col = 0,
-      row = 1,
+      focusable = false,
+      noautocmd = true,
       style = "minimal",
       border = "rounded",
       zindex = 251,
-    })
+    }
+    M.pum_win = vim.api.nvim_open_win(M.pum_buf, false, win_config)
   else
     -- Resize the window if it already exists
     vim.api.nvim_win_set_config(M.pum_win, {
@@ -77,15 +89,6 @@ local function open_completion_pum(items, selected_index, search_term)
   vim.api.nvim_win_set_cursor(M.pum_win, { lnum, 0 })
 end
 
-local function toggle_completion_pum(items, selected_index, search_term)
-  if not items or #items == 0 then
-    close_completion_pum()
-    return
-  else
-    open_completion_pum(items, selected_index, search_term)
-  end
-end
-
 local function set_prompt(bufnr, suggestion)
   local row = vim.api.nvim_win_get_cursor(0)[1]
   local prompt = "% "
@@ -110,11 +113,15 @@ function M.with_completion(buf, data, callback, shortest)
     end,
     on_detach = function()
       close_completion_pum()
-      -- vim.api.nvim_buf_clear_namespace(buf, vim.api.nvim_create_namespace("pum_key_handler"), 0, -1)
+      -- this function is never triggered.
+      vim.on_key(nil, M.ns)
+      vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+      M.ns = nil
     end,
   })
 
   -- Set up the key handler
+  M.ns = vim.api.nvim_create_namespace("pum_key_handler")
   vim.on_key(function(key)
     local bs = vim.keycode("<BS>")
     local esc = vim.keycode("<Esc>")
@@ -127,7 +134,7 @@ function M.with_completion(buf, data, callback, shortest)
       close_completion_pum()
       return
     end
-  end, vim.api.nvim_create_namespace("pum_key_handler"))
+  end, M.ns)
 
   local function tab_toggle(asc)
     local line = vim.api.nvim_get_current_line()
@@ -183,7 +190,7 @@ function M.with_completion(buf, data, callback, shortest)
     end
 
     set_prompt(buf, desired_prompt)
-    toggle_completion_pum(filtered_suggestions, current_suggestion_index, original_input)
+    open_completion_pum(filtered_suggestions, current_suggestion_index, original_input)
 
     if callback then
       callback()
