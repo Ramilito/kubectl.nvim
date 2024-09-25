@@ -2,14 +2,51 @@ local fzy = require("kubectl.utils.fzy")
 local mappings = require("kubectl.mappings")
 local M = {}
 
-local function set_prompt(bufnr, suggestion)
+local function open_completion_pum(items, selected_index, search_term)
+  -- Create a new buffer
+  local buf = vim.api.nvim_create_buf(false, true)
+
+  -- Create a new window
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "cursor",
+    width = 30,
+    height = #items,
+    col = 0,
+    row = 1,
+    style = "minimal",
+    border = "rounded",
+  })
+
+  -- Add items to the buffer
+  for i, item in ipairs(items) do
+    vim.api.nvim_buf_set_lines(buf, i - 1, i, false, { item })
+  end
+
+  -- Highlight search_term in each item
+  for i, item in ipairs(items) do
+    local start = 1
+    while true do
+      local s, e = string.find(item:lower(), search_term:lower(), start, true)
+      if not s then
+        break
+      end
+      vim.api.nvim_buf_add_highlight(buf, -1, "Orange", i - 1, s - 1, e)
+      start = e + 1
+    end
+  end
+
+  -- Place cursor on the selected_index
+  vim.api.nvim_win_set_cursor(win, { selected_index, 0 })
+end
+
+local function set_prompt(bufnr, items, suggestion)
   local row = vim.api.nvim_win_get_cursor(0)[1]
   local prompt = "% "
   suggestion = suggestion or ""
   vim.api.nvim_buf_set_lines(bufnr, row - 1, -1, false, { prompt .. suggestion })
   vim.api.nvim_win_set_cursor(0, { row, #prompt + #suggestion })
+  open_completion_pum(items, 1, suggestion)
 end
-
 function M.with_completion(buf, data, callback, shortest)
   local original_input = ""
   local current_suggestion_index = 0
@@ -55,20 +92,20 @@ function M.with_completion(buf, data, callback, shortest)
       if asc then
         current_suggestion_index = current_suggestion_index + 1
         if current_suggestion_index >= #filtered_suggestions + 1 then
-          set_prompt(buf, original_input)
+          set_prompt(buf, filtered_suggestions, original_input)
           current_suggestion_index = 0 -- Reset the index if no suggestions are available
         else
-          set_prompt(buf, filtered_suggestions[current_suggestion_index])
+          set_prompt(buf, filtered_suggestions, filtered_suggestions[current_suggestion_index])
         end
       else
         current_suggestion_index = current_suggestion_index - 1
         if current_suggestion_index < 0 then
           current_suggestion_index = #filtered_suggestions
         end
-        set_prompt(buf, filtered_suggestions[current_suggestion_index] or original_input)
+        set_prompt(buf, filtered_suggestions, filtered_suggestions[current_suggestion_index] or original_input)
       end
     else
-      set_prompt(buf, original_input)
+      set_prompt(buf, filtered_suggestions, original_input)
       current_suggestion_index = 0 -- Reset the index if no suggestions are available
     end
 
