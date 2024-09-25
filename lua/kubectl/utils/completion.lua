@@ -101,14 +101,12 @@ local function open_completion_pum(items, selected_index, search_term)
 
   -- Highlight search_term in each item
   for i, item in ipairs(shown_items) do
-    local start = 1
-    while true do
-      local s, e = string.find(item:lower(), search_term:lower(), start, true)
-      if not s then
-        break
-      end
-      vim.api.nvim_buf_add_highlight(pum_buf, -1, "Orange", i - 1, s - 1, e)
-      start = e + 1
+    local s = fzy.positions(search_term:lower(), item:lower())
+    if not s then
+      break
+    end
+    for _, e in pairs(s) do
+      vim.api.nvim_buf_add_highlight(pum_buf, -1, "Orange", i - 1, e - 1, e)
     end
   end
 
