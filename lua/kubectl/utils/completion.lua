@@ -1,4 +1,4 @@
-local fzy = require("kubectl.utils.fzy")
+-- local fzy = require("kubectl.utils.fzy")
 local mappings = require("kubectl.mappings")
 local M = {}
 
@@ -19,42 +19,11 @@ local function open_completion_pum(items, selected_index, search_term)
     cursorline_enabled = false
     selected_index = 1
   end
-  -- check if items are more than 30% of the screen
-  local shown_items = {}
   local total_items = #items
   if total_items > 50 then
     return
   end
-  --   -- Calculate the start and end indices for the subset
-  --   local start_index = selected_index
-  --   local end_index = math.min(selected_index + limit - 1, total_items)
-  --
-  --   -- If the range exceeds the total number of items, adjust the start index
-  --   if end_index - start_index + 1 < limit then
-  --     start_index = math.max(total_items - limit, 1)
-  --   end
-  --
-  --   vim.notify(
-  --     "total_items: "
-  --       .. total_items
-  --       .. " limit: "
-  --       .. limit
-  --       .. "\n"
-  --       .. "start_index: "
-  --       .. start_index
-  --       .. " end_index: "
-  --       .. end_index
-  --   )
-  --   -- Extract the subset of items
-  --   for i = start_index, end_index do
-  --     table.insert(shown_items, items[i])
-  --   end
-  -- else
-  shown_items = items
-  -- end
-  -- if true then
-  --   return
-  -- end
+
   -- Create a new buffer if it doesn't exist
   if not pum_buf or not vim.api.nvim_buf_is_valid(pum_buf) then
     pum_buf = vim.api.nvim_create_buf(false, true)
@@ -65,7 +34,7 @@ local function open_completion_pum(items, selected_index, search_term)
     pum_win = vim.api.nvim_open_win(pum_buf, false, {
       relative = "cursor",
       width = 30,
-      height = #shown_items,
+      height = #items,
       col = 0,
       row = 1,
       style = "minimal",
@@ -74,25 +43,21 @@ local function open_completion_pum(items, selected_index, search_term)
     })
   end
 
-  -- Enable cursorline
+  -- Enable cursorline and define custom highlight for cursorline
   vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = pum_win })
-
-  -- Define custom highlight for cursorline
   vim.cmd("highlight PUMCursorLine guibg=#3e4451 guifg=#ffffff")
-
-  -- Apply custom highlight to cursorline
   vim.api.nvim_set_option_value("winhl", "CursorLine:PUMCursorLine", { win = pum_win })
 
   -- Clear the buffer
   vim.api.nvim_buf_set_lines(pum_buf, 0, -1, false, {})
 
   -- Add items to the buffer
-  for i, item in ipairs(shown_items) do
+  for i, item in ipairs(items) do
     vim.api.nvim_buf_set_lines(pum_buf, i - 1, i, false, { item })
   end
 
   -- Highlight search_term in each item
-  for i, item in ipairs(shown_items) do
+  for i, item in ipairs(items) do
     local s = fzy.positions(search_term:lower(), item:lower())
     if not s then
       break
@@ -103,7 +68,7 @@ local function open_completion_pum(items, selected_index, search_term)
   end
 
   -- Place cursor on the selected_index
-  local lnum = selected_index > #shown_items and 1 or selected_index
+  local lnum = selected_index > #items and 1 or selected_index
   vim.api.nvim_win_set_cursor(pum_win, { lnum, 0 })
 end
 
