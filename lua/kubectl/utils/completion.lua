@@ -2,24 +2,35 @@ local fzy = require("kubectl.utils.fzy")
 local mappings = require("kubectl.mappings")
 local M = {}
 
-local function open_completion_pum(items, selected_index, search_term)
-  -- Create a new buffer
-  local buf = vim.api.nvim_create_buf(false, true)
+local pum_buf = nil
+local pum_win = nil
 
-  -- Create a new window
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "cursor",
-    width = 30,
-    height = #items,
-    col = 0,
-    row = 1,
-    style = "minimal",
-    border = "rounded",
-  })
+local function open_completion_pum(items, selected_index, search_term)
+  -- Create a new buffer if it doesn't exist
+  if not pum_buf or not vim.api.nvim_buf_is_valid(pum_buf) then
+    pum_buf = vim.api.nvim_create_buf(false, true)
+  end
+
+  -- Create a new window if it doesn't exist
+  if not pum_win or not vim.api.nvim_win_is_valid(pum_win) then
+    pum_win = vim.api.nvim_open_win(pum_buf, false, {
+      relative = "cursor",
+      width = 30,
+      height = #items,
+      col = 0,
+      row = 1,
+      style = "minimal",
+      border = "rounded",
+      zindex = 50,
+    })
+  end
+
+  -- Clear the buffer
+  vim.api.nvim_buf_set_lines(pum_buf, 0, -1, false, {})
 
   -- Add items to the buffer
   for i, item in ipairs(items) do
-    vim.api.nvim_buf_set_lines(buf, i - 1, i, false, { item })
+    vim.api.nvim_buf_set_lines(pum_buf, i - 1, i, false, { item })
   end
 
   -- Highlight search_term in each item
@@ -30,13 +41,13 @@ local function open_completion_pum(items, selected_index, search_term)
       if not s then
         break
       end
-      vim.api.nvim_buf_add_highlight(buf, -1, "Orange", i - 1, s - 1, e)
+      vim.api.nvim_buf_add_highlight(pum_buf, -1, "Search", i - 1, s - 1, e)
       start = e + 1
     end
   end
 
   -- Place cursor on the selected_index
-  vim.api.nvim_win_set_cursor(win, { selected_index, 0 })
+  vim.api.nvim_win_set_cursor(pum_win, { selected_index, 0 })
 end
 
 local function set_prompt(bufnr, items, suggestion)
