@@ -109,8 +109,8 @@ end
 
 local function toggle_completion_pum(items, selected_index, search_term)
   if not items or #items == 0 then
-      close_completion_pum()
-      return
+    close_completion_pum()
+    return
   else
     open_completion_pum(items, selected_index, search_term)
   end
@@ -138,13 +138,19 @@ function M.with_completion(buf, data, callback, shortest)
         close_completion_pum()
       end
     end,
+    on_detach = function()
+      close_completion_pum()
+      -- vim.api.nvim_buf_clear_namespace(buf, vim.api.nvim_create_namespace("pum_key_handler"), 0, -1)
+    end,
   })
 
   -- Set up the key handler
   vim.on_key(function(key)
     local bs = vim.keycode("<BS>")
     local esc = vim.keycode("<Esc>")
-    if key == bs or key == esc then
+    local cr = vim.keycode("<cr>")
+    if key == bs or key == esc or key == cr then
+      vim.notify("key: " .. key .. " esc: " .. esc .. " cr: " .. cr .. " bs: " .. bs)
       local line = vim.api.nvim_get_current_line()
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
       original_input = input
@@ -185,26 +191,28 @@ function M.with_completion(buf, data, callback, shortest)
     end
 
     -- Cycle through the suggestions
-    local desired_prompt = filtered_suggestions[current_suggestion_index] or original_input
+    local desired_prompt = ""
     if #filtered_suggestions > 0 then
       if asc then
         current_suggestion_index = current_suggestion_index + 1
         if current_suggestion_index >= #filtered_suggestions + 1 then
           current_suggestion_index = 0 -- Reset the index if no suggestions are available
           desired_prompt = original_input
+        else
+          desired_prompt = filtered_suggestions[current_suggestion_index]
         end
       else
         current_suggestion_index = current_suggestion_index - 1
         if current_suggestion_index < 0 then
           current_suggestion_index = #filtered_suggestions
         end
+        desired_prompt = filtered_suggestions[current_suggestion_index] or original_input
       end
     else
       current_suggestion_index = 0 -- Reset the index if no suggestions are available
       desired_prompt = original_input
     end
 
-    vim.notify('Desired Prompt: ' .. desired_prompt .. ' Current Suggestion Index: ' .. current_suggestion_index)
     set_prompt(buf, desired_prompt)
     toggle_completion_pum(filtered_suggestions, current_suggestion_index, original_input)
 
@@ -230,4 +238,5 @@ function M.with_completion(buf, data, callback, shortest)
     end,
   })
 end
+
 return M
