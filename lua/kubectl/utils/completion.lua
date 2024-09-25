@@ -4,6 +4,7 @@ local M = {}
 
 local pum_buf = nil
 local pum_win = nil
+local pum_max_lines = 10
 
 local function verify_completion_pum(type)
   if type == "buf" then
@@ -22,6 +23,36 @@ local function close_completion_pum()
 end
 
 local function open_completion_pum(items, selected_index, search_term)
+  local cursorline_enabled = true
+  if selected_index == 0 then
+    cursorline_enabled = false
+    selected_index = 1
+  end
+  -- check if items are more than 30% of the screen
+  local shown_items = {}
+  local total_items = #items
+  local limit = pum_max_lines
+  if total_items > pum_max_lines then
+    -- Calculate the start and end indices for the subset
+    local start_index = selected_index
+    local end_index = math.min(selected_index + limit, total_items)
+
+    -- If the range exceeds the total number of items, adjust the start index
+    if end_index - start_index < limit then
+      start_index = math.max(total_items - limit, 1)
+    end
+
+    -- Extract the subset of items
+    for i = start_index, end_index do
+      table.insert(shown_items, items[i])
+    end
+  else
+    shown_items = items
+  end
+  vim.notify("total_items: " .. #shown_items)
+  -- if true then
+  --   return
+  -- end
   -- Create a new buffer if it doesn't exist
   if not verify_completion_pum("buf") then
     pum_buf = vim.api.nvim_create_buf(false, true)
@@ -32,7 +63,7 @@ local function open_completion_pum(items, selected_index, search_term)
     pum_win = vim.api.nvim_open_win(pum_buf, false, {
       relative = "cursor",
       width = 30,
-      height = #items,
+      height = #shown_items,
       col = 0,
       row = 1,
       style = "minimal",
@@ -42,11 +73,6 @@ local function open_completion_pum(items, selected_index, search_term)
   end
 
   -- Enable cursorline
-  local cursorline_enabled = true
-  if selected_index == 0 then
-    cursorline_enabled = false
-    selected_index = 1
-  end
   vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = pum_win })
 
   -- Define custom highlight for cursorline
@@ -59,12 +85,12 @@ local function open_completion_pum(items, selected_index, search_term)
   vim.api.nvim_buf_set_lines(pum_buf, 0, -1, false, {})
 
   -- Add items to the buffer
-  for i, item in ipairs(items) do
+  for i, item in ipairs(shown_items) do
     vim.api.nvim_buf_set_lines(pum_buf, i - 1, i, false, { item })
   end
 
   -- Highlight search_term in each item
-  for i, item in ipairs(items) do
+  for i, item in ipairs(shown_items) do
     local start = 1
     while true do
       local s, e = string.find(item:lower(), search_term:lower(), start, true)
@@ -77,7 +103,7 @@ local function open_completion_pum(items, selected_index, search_term)
   end
 
   -- Place cursor on the selected_index
-  local lnum = selected_index > #items and 1 or selected_index
+  local lnum = selected_index > #shown_items and 1 or selected_index
   vim.api.nvim_win_set_cursor(pum_win, { lnum, 0 })
 end
 
@@ -109,11 +135,6 @@ function M.with_completion(buf, data, callback, shortest)
     on_lines = function()
       local line = vim.api.nvim_get_current_line()
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
-      if input ~= original_input then
-        original_input = input
-        current_suggestion_index = 0
-        close_completion_pum()
-      end
       if #input == 0 then
         original_input = ""
         current_suggestion_index = 0
@@ -121,6 +142,20 @@ function M.with_completion(buf, data, callback, shortest)
       end
     end,
   })
+
+  -- Set up the key handler
+  vim.on_key(function(key)
+    local bs = vim.keycode("<BS>")
+    local esc = vim.keycode("<Esc>")
+    if key == bs or key == esc then
+      local line = vim.api.nvim_get_current_line()
+      local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+      original_input = input
+      current_suggestion_index = 0
+      close_completion_pum()
+      return
+    end
+  end, vim.api.nvim_create_namespace("pum_key_handler"))
 
   local function tab_toggle(asc)
     local line = vim.api.nvim_get_current_line()
