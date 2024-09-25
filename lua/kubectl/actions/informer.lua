@@ -132,7 +132,10 @@ end
 
 local function sort_events_by_resource_version(events)
   table.sort(events, function(event_a, event_b)
-    return tonumber(event_a.object.metadata.resourceVersion) < tonumber(event_b.object.metadata.resourceVersion)
+    if event_a.object and event_b.object then
+      return tonumber(event_a.object.metadata.resourceVersion) < tonumber(event_b.object.metadata.resourceVersion)
+    end
+    return false
   end)
 end
 
@@ -202,7 +205,7 @@ function M.start(builder)
 
   for index, value in ipairs(builder.args) do
     if index == #builder.args then
-      value = value .. "&watch=true&resourceVersion=" .. builder.data.metadata.resourceVersion
+      value = value .. "&watch=true&resourceVersion=" .. (builder.data.metadata.resourceVersion or "0")
       table.insert(args, value)
     end
   end
