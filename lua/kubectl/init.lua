@@ -1,3 +1,4 @@
+local ctx_view = require("kubectl.views.contexts")
 local informer = require("kubectl.actions.informer")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
@@ -56,7 +57,9 @@ function M.setup(options)
     group = group,
     pattern = "k8s_*",
     callback = function()
-      mappings.register()
+      vim.schedule(function()
+        mappings.register()
+      end)
     end,
   })
 
@@ -82,6 +85,8 @@ function M.setup(options)
       else
         top_view.View()
       end
+    elseif action == "api-resources" then
+      require("kubectl.views.api-resources").View()
     else
       view.UserCmd(opts.fargs)
     end
@@ -103,12 +108,13 @@ function M.setup(options)
 
   vim.api.nvim_create_user_command("Kubectx", function(opts)
     if #opts.fargs == 0 then
-      return
+      ctx_view.View()
+    else
+      ctx_view.change_context(opts.fargs[1])
     end
-    completion.change_context(opts.fargs[1])
   end, {
     nargs = "*",
-    complete = completion.list_contexts,
+    complete = ctx_view.list_contexts,
   })
 end
 

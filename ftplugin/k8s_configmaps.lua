@@ -1,19 +1,8 @@
-local loop = require("kubectl.utils.loop")
-local overview_view = require("kubectl.views.overview")
-local api = vim.api
 local configmaps_view = require("kubectl.views.configmaps")
+local loop = require("kubectl.utils.loop")
 
 --- Set key mappings for the buffer
-local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
-    end,
-  })
-end
+local function set_keymaps(_) end
 
 --- Initialize the module
 local function init()

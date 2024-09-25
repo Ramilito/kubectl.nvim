@@ -34,7 +34,8 @@ function M.filter()
   local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
   local header, marks = tables.generateHeader({
     { key = "<Plug>(kubectl.select)", desc = "apply" },
-    { key = "<Plug>(kubectl.tab)", desc = "tab" },
+    { key = "<Plug>(kubectl.tab)", desc = "next" },
+    { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
     -- TODO: Definition should be moved to mappings.lua
     { key = "<Plug>(kubectl.quit)", desc = "close" },
   }, false, false)
@@ -56,7 +57,8 @@ function M.filter()
     table.insert(list, { name = value })
   end
   completion.with_completion(buf, list, nil, false)
-  vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
+  -- TODO: Registering keymap after generateheader makes it not appear in hints
+  vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     callback = function()
       local line = vim.api.nvim_get_current_line()
@@ -72,6 +74,10 @@ function M.filter()
       vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
       vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
       vim.cmd("startinsert")
+
+      vim.schedule(function()
+        vim.api.nvim_input("<cr>")
+      end)
     end,
   })
 end

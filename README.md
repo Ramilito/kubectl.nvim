@@ -97,6 +97,7 @@ You can also override the plugin's keymaps using the `<Plug>` mappings:
 -- default mappings
 vim.keymap.set("n", "<Plug>(kubectl.alias_view)", "<C-a>")
 vim.keymap.set("n", "<Plug>(kubectl.browse)", "gx")
+vim.keymap.set("n", "<Plug>(kubectl.contexts_view)", "<C-x>")
 vim.keymap.set("n", "<Plug>(kubectl.cordon)", "gC")
 vim.keymap.set("n", "<Plug>(kubectl.create_job)", "gc")
 vim.keymap.set("n", "<Plug>(kubectl.delete)", "gD")

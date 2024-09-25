@@ -1,7 +1,6 @@
 local api = vim.api
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local overview_view = require("kubectl.views.overview")
 local top_def = require("kubectl.views.top.definition")
 local top_view = require("kubectl.views.top")
 
@@ -10,15 +9,6 @@ mappings.map_if_plug_not_set("n", "gn", "<Plug>(kubectl.top_nodes)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
-    end,
-  })
-
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.top_pods)", "", {
     noremap = true,
     silent = true,

@@ -20,6 +20,9 @@ function M.since(timestamp, fresh, currentTime)
   end
 
   local parsed_time = vim.fn.strptime("%Y-%m-%dT%H:%M:%SZ", timestamp)
+  if not parsed_time or parsed_time == 0 then
+    return nil
+  end
 
   local diff = currentTime - parsed_time
   local days = math.floor(diff / 86400)

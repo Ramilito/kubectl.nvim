@@ -3,6 +3,7 @@
 ---@type ViewTable
 return {
   overview = { "overview" },
+  ["api-resources"] = { "api-resources", "apiresources" },
   pods = { "pods", "pod", "po" },
   deployments = { "deployments", "deployment", "deploy", "deployments.apps" },
   daemonsets = { "daemonsets", "daemonset", "ds", "daemonsets.apps" },
@@ -15,6 +16,7 @@ return {
   services = { "services", "service", "svc" },
   configmaps = { "configmaps", "configmap", "cm" },
   crds = { "customresourcedefinitions", "crds", "crd", "customresourcedefinitions.apiextensions.k8s.io" },
+  contexts = { "contexts", "context" },
   pv = { "persistentvolumes", "persistentvolume", "pv" },
   pvc = { "persistentvolumeclaims", "persistentvolumeclaim", "pvc" },
   clusterrolebinding = { "clusterrolebindings", "clusterrolebinding", "clusterrolebindings.rbac.authorization.k8s.io" },

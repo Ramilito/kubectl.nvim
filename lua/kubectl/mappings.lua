@@ -23,25 +23,32 @@ end
 
 --- Register kubectl key mappings
 function M.register()
+  local win_id = vim.api.nvim_get_current_win()
+  local win_config = vim.api.nvim_win_get_config(win_id)
+
   -- Global mappings
-  M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_1)")
-  M.map_if_plug_not_set("n", "2", "<Plug>(kubectl.view_2)")
-  M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
-  M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
-  M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
+  if win_config.relative == "" then
+    M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_1)")
+    M.map_if_plug_not_set("n", "2", "<Plug>(kubectl.view_2)")
+    M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
+    M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
+    M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
+    M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
+    M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
+    M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
+    M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
+    M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+  end
+
+  M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
   M.map_if_plug_not_set("n", "<C-a>", "<Plug>(kubectl.alias_view)")
   M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
   M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
   M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
-  M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
-  M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
-  M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
+  M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
   M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
-  M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
-  M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
-  M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
   M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
-  M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+  M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
 
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.portforwards_view)", "", {
     noremap = true,
@@ -50,6 +57,22 @@ function M.register()
     callback = function()
       local view = require("kubectl.views")
       view.PortForwards()
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.go_up)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Go up",
+    callback = function()
+      local view = require("kubectl.views")
+      local state = require("kubectl.state")
+      local older_view = state.history[#state.history - 1]
+      if not older_view then
+        return
+      end
+      table.remove(state.history, #state.history)
+      view.view_or_fallback(older_view)
     end,
   })
 
@@ -74,11 +97,6 @@ function M.register()
     silent = true,
     desc = "Delete",
     callback = function()
-      local win_config = vim.api.nvim_win_get_config(0)
-      if win_config.relative ~= "" then
-        return
-      end
-
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
       if not view_ok then
@@ -114,11 +132,6 @@ function M.register()
     silent = true,
     desc = "Describe resource",
     callback = function()
-      local win_config = vim.api.nvim_win_get_config(0)
-      if win_config.relative ~= "" then
-        return
-      end
-
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
       if not view_ok then
@@ -148,7 +161,6 @@ function M.register()
     silent = true,
     desc = "Reload",
     callback = function()
-      local win_config = vim.api.nvim_win_get_config(0)
       if win_config.relative == "" then
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
@@ -187,10 +199,6 @@ function M.register()
     desc = "Edit resource",
     callback = function()
       local state = require("kubectl.state")
-      local win_config = vim.api.nvim_win_get_config(0)
-      if win_config.relative ~= "" then
-        return
-      end
 
       -- Retrieve buffer name and load the appropriate view
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
@@ -304,6 +312,16 @@ function M.register()
     callback = function()
       local namespace_view = require("kubectl.views.namespace")
       namespace_view.View()
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.contexts_view)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Change context",
+    callback = function()
+      local contexts_view = require("kubectl.views.contexts")
+      contexts_view.View()
     end,
   })
 

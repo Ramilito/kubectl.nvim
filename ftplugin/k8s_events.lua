@@ -1,7 +1,6 @@
 local api = vim.api
 local event_view = require("kubectl.views.events")
 local loop = require("kubectl.utils.loop")
-local overview_view = require("kubectl.views.overview")
 local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
@@ -17,15 +16,6 @@ local function set_keymaps(bufnr)
       else
         print("Failed to extract event message.")
       end
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
     end,
   })
 end

@@ -1,5 +1,4 @@
 local loop = require("kubectl.utils.loop")
-local overview_view = require("kubectl.views.overview")
 local api = vim.api
 local crds_view = require("kubectl.views.crds")
 
@@ -13,15 +12,6 @@ local function set_keymaps(bufnr)
       local kind = crds_view.getCurrentSelection()
       local fallback_view = require("kubectl.views.fallback")
       fallback_view.View(nil, kind)
-    end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.go_up)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Go up",
-    callback = function()
-      overview_view.View()
     end,
   })
 end

@@ -15,8 +15,10 @@ M.cached_api_resources = { values = {}, shortNames = {}, timestamp = nil }
 local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
-M.LoadFallbackData = function()
-  if M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+M.LoadFallbackData = function(force)
+  if force or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+    M.cached_api_resources.values = {}
+    M.cached_api_resources.shortNames = {}
     ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
       self:decodeJson()
 
@@ -59,6 +61,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.alias_view)", desc = "Aliases" },
     { key = "<Plug>(kubectl.filter_view)", desc = "Filter on a phrase" },
     { key = "<Plug>(kubectl.namespace_view)", desc = "Change namespace" },
+    { key = "<Plug>(kubectl.contexts_view)", desc = "Change context" },
     { key = "<Plug>(kubectl.go_up)", desc = "Go up a level" },
     { key = "<Plug>(kubectl.delete)", desc = "Delete resource" },
     { key = "<Plug>(kubectl.describe)", desc = "Describe resource" },
@@ -190,7 +193,7 @@ end
 --- Execute a user command and handle the response
 ---@param args table
 function M.UserCmd(args)
-  ResourceBuilder:new("k8s_usercmd"):setCmd(args):fetchAsync(function(self)
+  ResourceBuilder:new("k8s_usercmd"):setCmd(args, "kubectl"):fetchAsync(function(self)
     if self.data == "" then
       return
     end
@@ -198,7 +201,7 @@ function M.UserCmd(args)
     self.prettyData = self.data
 
     vim.schedule(function()
-      self:display("k8s_usercmd", "UserCmd")
+      self:display("k8s_usercmd", "UserCmd"):setContent()
     end)
   end)
 end

@@ -29,6 +29,8 @@ M.session = { contexts = {}, filter_history = {}, alias_history = {} }
 M.instance = nil
 ---@type table
 M.instance_float = nil
+---@type table
+M.history = {}
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -106,6 +108,13 @@ end
 --- @param ns string The namespace to set
 function M.setNS(ns)
   M.ns = ns
+end
+
+function M.addToHistory(new_view)
+  if #M.history > 0 and M.history[#M.history] == new_view then
+    return
+  end
+  table.insert(M.history, new_view)
 end
 
 function M.set_session()

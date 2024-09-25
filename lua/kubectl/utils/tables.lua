@@ -93,7 +93,9 @@ local function addHeaderRow(headers, hints, marks)
   local length = #hint_line
   M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 
-  local keymaps = M.get_plug_mappings(headers, "n")
+  local keymaps_normal = M.get_plug_mappings(headers, "n")
+  local keymaps_insert = M.get_plug_mappings(headers, "i")
+  local keymaps = vim.tbl_extend("force", keymaps_normal, keymaps_insert)
   for index, map in ipairs(keymaps) do
     length = #hint_line
     hint_line = hint_line .. map.key .. " " .. map.desc
