@@ -59,7 +59,7 @@ local function open_completion_pum(items, selected_index, search_term)
   vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = M.pum_win })
   vim.cmd("highlight PUMCursorLine guibg=#3e4451 guifg=#ffffff")
   vim.api.nvim_set_option_value("winhl", "CursorLine:PUMCursorLine", { win = M.pum_win })
-
+  vim.api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
   -- Clear the buffer
   vim.api.nvim_buf_set_lines(M.pum_buf, 0, -1, false, {})
 
@@ -107,7 +107,6 @@ function M.with_completion(buf, data, callback, shortest)
     end,
     on_detach = function()
       close_completion_pum()
-      -- this function is never triggered.
       vim.on_key(nil, M.ns)
       vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
       M.ns = nil
@@ -194,6 +193,7 @@ function M.with_completion(buf, data, callback, shortest)
 
   mappings.map_if_plug_not_set("i", "<Tab>", "<Plug>(kubectl.tab)")
   mappings.map_if_plug_not_set("i", "<S-Tab>", "<Plug>(kubectl.shift_tab)")
+
   vim.api.nvim_buf_set_keymap(buf, "i", "<Plug>(kubectl.tab)", "", {
     noremap = true,
     callback = function()
