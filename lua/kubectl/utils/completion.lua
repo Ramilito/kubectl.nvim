@@ -5,14 +5,28 @@ local M = {}
 local pum_buf = nil
 local pum_win = nil
 
+local function verify_completion_pum(type)
+  if type == "buf" then
+    return pum_buf and vim.api.nvim_buf_is_valid(pum_buf)
+  elseif type == "win" then
+    return pum_win and vim.api.nvim_win_is_valid(pum_win)
+  end
+end
+
+local function close_completion_pum()
+  if verify_completion_pum("win") then
+    vim.api.nvim_win_close(pum_win, true)
+  end
+end
+
 local function open_completion_pum(items, selected_index, search_term)
   -- Create a new buffer if it doesn't exist
-  if not pum_buf or not vim.api.nvim_buf_is_valid(pum_buf) then
+  if not verify_completion_pum("buf") then
     pum_buf = vim.api.nvim_create_buf(false, true)
   end
 
   -- Create a new window if it doesn't exist
-  if not pum_win or not vim.api.nvim_win_is_valid(pum_win) then
+  if not verify_completion_pum("win") then
     pum_win = vim.api.nvim_open_win(pum_buf, false, {
       relative = "cursor",
       width = 30,
@@ -21,7 +35,7 @@ local function open_completion_pum(items, selected_index, search_term)
       row = 1,
       style = "minimal",
       border = "rounded",
-      zindex = 50,
+      zindex = 251,
     })
   end
 
@@ -50,13 +64,21 @@ local function open_completion_pum(items, selected_index, search_term)
   vim.api.nvim_win_set_cursor(pum_win, { selected_index, 0 })
 end
 
+local function toggle_completion_pum(items, selected_index, search_term)
+  if verify_completion_pum("win") and #items == 0 then
+    close_completion_pum()
+  else
+    open_completion_pum(items, selected_index, search_term)
+  end
+end
+
 local function set_prompt(bufnr, items, suggestion)
   local row = vim.api.nvim_win_get_cursor(0)[1]
   local prompt = "% "
   suggestion = suggestion or ""
   vim.api.nvim_buf_set_lines(bufnr, row - 1, -1, false, { prompt .. suggestion })
   vim.api.nvim_win_set_cursor(0, { row, #prompt + #suggestion })
-  open_completion_pum(items, 1, suggestion)
+  toggle_completion_pum(items, 1, suggestion)
 end
 function M.with_completion(buf, data, callback, shortest)
   local original_input = ""
@@ -90,7 +112,10 @@ function M.with_completion(buf, data, callback, shortest)
     local filtered_suggestions = {}
     local matches = fzy.filter(original_input, tbl_for_fzy)
     for _, match in pairs(matches) do
-      table.insert(filtered_suggestions, tbl_for_fzy[match[1]])
+      -- check if already in the list
+      if not vim.tbl_contains(filtered_suggestions, tbl_for_fzy[match[1]]) then
+        table.insert(filtered_suggestions, tbl_for_fzy[match[1]])
+      end
     end
 
     -- Cycle through the suggestions
