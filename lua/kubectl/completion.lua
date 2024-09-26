@@ -63,10 +63,7 @@ local last_processed = ""
 --- @param cmd string The command to complete
 --- @return string[]|nil commands The list of top-level commands if applicable
 function M.user_command_completion(last, cmd)
-  vim.notify("in here. is_processing: " .. tostring(is_processing) .. " comps: " .. vim.inspect(comps))
-  if is_processing then
-    return {}
-  end
+  vim.notify("is_processing: " .. tostring(is_processing) .. " comps: " .. #comps)
   local parts = {}
   for part in string.gmatch(cmd, "%S+") do
     table.insert(parts, part)
@@ -74,20 +71,22 @@ function M.user_command_completion(last, cmd)
   table.remove(parts, 1)
   if last == "" then
     table.insert(parts, "")
-    last_processed = ""
-    comps = {}
   end
   -- prepend kubectl __complete to parts
   table.insert(parts, 1, "kubectl")
   table.insert(parts, 2, "__complete")
   local final_cmd = vim.iter(parts):flatten():totable()
-  if last_processed == table.concat(final_cmd, " ") then
+  if last_processed == table.concat(final_cmd, " ") and not vim.tbl_isempty(comps) then
     return comps
+  end
+  if is_processing then
+    return {}
   end
 
   is_processing = true
   vim.notify('Starting completion for "' .. table.concat(final_cmd, " ") .. '"')
   vim.system(final_cmd, { text = true }, function(comp)
+    -- vim.print(vim.inspect(vim.tbl_keys(comp)))
     -- split the output by newline
     local lines = vim.split(comp.stdout, "\n")
     table.remove(lines, #lines)
@@ -101,8 +100,7 @@ function M.user_command_completion(last, cmd)
     last_processed = table.concat(final_cmd, " ")
   end)
 
-  vim.notify("returning comps: " .. vim.inspect(comps))
-  return comps
+  return is_processing and {} or comps
 
   -- local parts = {}
   -- for part in string.gmatch(cmd, "%S+") do
