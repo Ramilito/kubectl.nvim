@@ -1,3 +1,4 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
@@ -29,6 +30,44 @@ local function save_history(input)
   end
 
   state.filter_history = result
+end
+
+function M.filter_label()
+  -- local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  -- local file_name = vim.api.nvim_buf_get_name(0)
+  -- local content = table.concat(lines, "\n")
+
+  local builder = ResourceBuilder:new("kubectl_filter_label")
+
+  builder.data = "blabla\nblabla"
+
+  local instance = vim.deepcopy(state.instance)
+  instance["header"] = nil
+  instance["data"] = nil
+  instance["prettyData"] = nil
+  instance["processedData"] = nil
+  instance["extmarks"] = nil
+
+  vim.print("res: " .. vim.inspect(instance))
+  -- local res_view_ok, res_view = pcall(require, "kubectl.views." .. res)
+  -- vim.print("res_view" .. vim.inspect(res_view) .. " " .. vim.inspect(res_view_ok))
+  -- local sel_ok, selection = pcall("getCurrentSelection")
+  -- vim.print("selection" .. selection .. " " .. vim.inspect(sel_ok))
+  builder:splitData()
+  vim.schedule(function()
+    local win_config
+    builder.buf_nr, win_config = buffers.confirmation_buffer("Filter for labels", "label_filter", function(confirm)
+      if confirm then
+        vim.print("confirmed")
+      end
+    end)
+
+    local confirmation = "[y]es [n]o:"
+    local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
+
+    table.insert(builder.data, padding .. confirmation)
+    builder:setContentRaw()
+  end)
 end
 
 function M.filter()

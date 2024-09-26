@@ -44,6 +44,7 @@ function M.register()
   M.map_if_plug_not_set("n", "<C-a>", "<Plug>(kubectl.alias_view)")
   M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
   M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
+  M.map_if_plug_not_set("n", "<C-l>", "<Plug>(kubectl.filter_label)")
   M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
   M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
   M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
@@ -301,6 +302,16 @@ function M.register()
       vim.api.nvim_set_option_value("modified", false, { buf = 0 })
       vim.notify("filtering for.. " .. filter_term)
       vim.api.nvim_input("gr")
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.filter_label)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Filter",
+    callback = function()
+      local filter_view = require("kubectl.views.filter")
+      filter_view.filter_label()
     end,
   })
 
