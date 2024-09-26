@@ -1,7 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
-local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
