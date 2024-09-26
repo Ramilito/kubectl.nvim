@@ -1,5 +1,4 @@
 local api = vim.api
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local ingresses_view = require("kubectl.views.ingresses")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
