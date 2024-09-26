@@ -3,7 +3,6 @@ local M = {}
 ---@class KubectlOptions
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field namespace string
----@field notifications { enabled: boolean, verbose: boolean, blend: number }
 ---@field hints boolean
 ---@field context boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
