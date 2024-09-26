@@ -24,8 +24,12 @@ local defaults = {
   namespace_fallback = {},
   hints = true,
   context = true,
+  alias = {
+    max_history = 5,
+  },
   filter = {
     apply_on_select_from_history = true,
+    max_history = 10,
   },
   float_size = {
     -- Almost fullscreen:

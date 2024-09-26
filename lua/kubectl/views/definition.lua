@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local string_utils = require("kubectl.utils.string")
@@ -97,7 +98,7 @@ function M.on_prompt_input(input)
     return
   end
   local history = state.alias_history
-  local history_size = 5
+  local history_size = config.options.alias.max_history
 
   local result = {}
   local exists = false

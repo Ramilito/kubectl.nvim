@@ -7,17 +7,13 @@ local M = {
   ns = nil,
 }
 
-local function close_completion_pum()
-  vim.schedule(function()
-    if M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
-      vim.api.nvim_win_close(M.pum_win, true)
-    end
-  end)
+local function close_completion_pum(pum_win)
+  pcall(vim.api.nvim_win_close, pum_win, true)
 end
 
 local function open_completion_pum(items, selected_index, search_term)
   if not items or #items <= 1 then
-    close_completion_pum()
+    close_completion_pum(M.pum_win)
     return
   end
   local cursorline_enabled = true
@@ -101,11 +97,11 @@ function M.with_completion(buf, data, callback, shortest)
       if #input == 0 then
         original_input = ""
         current_suggestion_index = 0
-        close_completion_pum()
+        close_completion_pum(M.pum_win)
       end
     end,
     on_detach = function()
-      close_completion_pum()
+      close_completion_pum(M.pum_win)
       if M.ns then
         vim.on_key(nil, M.ns)
         vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
@@ -125,7 +121,7 @@ function M.with_completion(buf, data, callback, shortest)
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
       original_input = input
       current_suggestion_index = 0
-      close_completion_pum()
+      close_completion_pum(M.pum_win)
       return
     end
   end, M.ns)

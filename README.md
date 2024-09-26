@@ -155,8 +155,12 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
   hints = true,
   context = true,
+  alias = {
+    max_history = 5,
+  },
   filter = {
     apply_on_select_from_history = true,
+    max_history = 10,
   },
   float_size = {
     -- Almost fullscreen:

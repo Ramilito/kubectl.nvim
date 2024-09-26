@@ -117,18 +117,26 @@ function M.Aliases()
   self:splitData():decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
 
-  local header, marks = tables.generateHeader({
-    { key = "<Plug>(kubectl.select)", desc = "go to" },
-    { key = "<Plug>(kubectl.tab)", desc = "tab" },
-    -- TODO: Definition should be moved to mappings.lua
-    { key = "<Plug>(kubectl.quit)", desc = "close" },
-  }, false, false)
-
   local buf = buffers.aliases_buffer(
     "k8s_aliases",
     definition.on_prompt_input,
     { title = "Aliases", header = { data = {} }, suggestions = self.data }
   )
+
+  completion.with_completion(buf, self.data, function()
+    -- We reassign the cache since it can be slow to load
+    self.data = M.cached_api_resources.values
+    self:splitData():decodeJson()
+    self.data = definition.merge_views(self.data, viewsTable)
+  end)
+
+  local header, marks = tables.generateHeader({
+    { key = "<Plug>(kubectl.select)", desc = "apply" },
+    { key = "<Plug>(kubectl.tab)", desc = "next" },
+    { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+    -- TODO: Definition should be moved to mappings.lua
+    { key = "<Plug>(kubectl.quit)", desc = "close" },
+  }, false, false)
 
   table.insert(header, "History:")
   local headers_len = #header
@@ -137,17 +145,11 @@ function M.Aliases()
   end
   table.insert(header, "")
 
-  vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+  buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
 
   buffers.apply_marks(buf, marks, header)
-
-  completion.with_completion(buf, self.data, function()
-    -- We reassign the cache since it can be slow to load
-    self.data = M.cached_api_resources.values
-    self:splitData():decodeJson()
-    self.data = definition.merge_views(self.data, viewsTable)
-  end)
+  buffers.fit_to_content(buf, 1)
 
   vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,

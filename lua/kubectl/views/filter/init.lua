@@ -8,7 +8,7 @@ local M = {}
 
 local function save_history(input)
   local history = state.filter_history
-  local history_size = 5
+  local history_size = config.options.filter.max_history
 
   local result = {}
   local exists = false
@@ -33,6 +33,13 @@ end
 
 function M.filter()
   local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
+
+  local list = {}
+  for _, value in ipairs(state.filter_history) do
+    table.insert(list, { name = value })
+  end
+  completion.with_completion(buf, list, nil, false)
+
   local header, marks = tables.generateHeader({
     { key = "<Plug>(kubectl.select)", desc = "apply" },
     { key = "<Plug>(kubectl.tab)", desc = "next" },
@@ -48,16 +55,13 @@ function M.filter()
   end
   table.insert(header, "")
 
-  vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+  buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
 
+  -- TODO: Marks should be set in buffers.set_content above
   buffers.apply_marks(buf, marks, header)
+  buffers.fit_to_content(buf, 0)
 
-  local list = {}
-  for _, value in ipairs(state.filter_history) do
-    table.insert(list, { name = value })
-  end
-  completion.with_completion(buf, list, nil, false)
   -- TODO: Registering keymap after generateheader makes it not appear in hints
   vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
