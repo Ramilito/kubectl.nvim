@@ -47,6 +47,9 @@ function M.is_in_table(tbl, str, exact)
 end
 
 function M.single(tbl, keys, value)
+  if not tbl then
+    return nil
+  end
   for _, v in ipairs(tbl) do
     local current = v
     for _, key in ipairs(keys) do

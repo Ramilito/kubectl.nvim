@@ -9,7 +9,7 @@ local function init()
   set_keymaps(0)
 
   if not loop.is_running() then
-    loop.start_loop(overview_view.View, { interval = 15000 })
+    loop.start_loop(overview_view.View, { interval = 30000 })
   end
 end
 

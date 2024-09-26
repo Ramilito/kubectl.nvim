@@ -121,7 +121,6 @@ end
 function ResourceBuilder:decodeJson()
   if type(self.data) == "string" then
     local success, decodedData = pcall(vim.json.decode, self.data, { luanil = { object = true, array = true } })
-
     if success then
       self.data = decodedData
     end

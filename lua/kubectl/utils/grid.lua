@@ -2,15 +2,20 @@ local hl = require("kubectl.actions.highlight")
 local M = {}
 
 local function calculate_extra_padding(columns, widths)
+  if not columns or not widths then
+    return 0
+  end
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local total_width = 0
   for _, column in ipairs(columns) do
-    local max_width = math.max(#column, widths[column])
+    if widths[column] then
+      local max_width = math.max(#column, widths[column])
 
-    total_width = total_width + max_width + 5
-    widths[column] = max_width
+      total_width = total_width + max_width + 5
+      widths[column] = max_width
+    end
   end
 
   -- We substract the last padding (-5)
@@ -40,6 +45,9 @@ local function pad_string(str, width)
 end
 
 function M.pretty_print(data, sections)
+  if not data then
+    return {}, {}
+  end
   local layout = {}
   local extmarks = {}
   local max_cols = 3
@@ -76,6 +84,9 @@ function M.pretty_print(data, sections)
 
   for grid_index, grid_row in ipairs(grid) do
     for _, column in ipairs(grid_row.columns) do
+      if not widths[column] then
+        break
+      end
       local formatted_section = pad_string(column, (widths[column] + grid_row.padding))
       table.insert(current_headers, formatted_section)
 
