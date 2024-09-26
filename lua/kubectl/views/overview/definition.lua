@@ -62,17 +62,27 @@ local function getNamespaces(pods)
 end
 local function getNodes(nodes, nodes_metrics)
   local data = {}
+  local results = {}
   for _, node in ipairs(nodes.items) do
     local metrics = find.single(nodes_metrics.items, { "metadata", "name" }, node.metadata.name)
 
     local cpu_percent = top_def.getCpuPercent(metrics, node)
     local mem_percent = top_def.getMemPercent(metrics, node)
 
-    table.insert(data, {
+    table.insert(results, {
       name = node.metadata.name,
       value = "CPU: " .. cpu_percent.value .. "," .. "RAM: " .. mem_percent.value .. " Pods: TBD",
-      symbol = hl.symbols.error,
+      sort_by = cpu_percent.sort_by + mem_percent.sort_by,
+      symbol = cpu_percent.symbol,
     })
+  end
+
+  table.sort(results, function(a, b)
+    return a.sort_by > b.sort_by
+  end)
+
+  for i = 1, math.min(10, #results) do
+    table.insert(data, { name = results[i].name, value = results[i].value, symbol = hl.symbols.error })
   end
   return data
 end
