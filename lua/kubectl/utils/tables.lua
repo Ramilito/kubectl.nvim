@@ -347,6 +347,20 @@ function M.getCurrentSelection(...)
   return unpack(results)
 end
 
+function M.find_resource(data, name, namespace)
+  if data.items then
+    return vim.iter(data.items):find(function(row)
+      return row.metadata.name == name and row.metadata.namespace == namespace
+    end)
+  end
+  if data.rows then
+    return vim.iter(data.rows):find(function(row)
+      return row.object.metadata.name == name and row.object.metadata.namespace == namespace
+    end)
+  end
+  return nil
+end
+
 --- Check if a table is empty
 ---@param table table
 ---@return boolean

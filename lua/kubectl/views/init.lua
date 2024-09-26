@@ -221,9 +221,10 @@ function M.set_and_open_pod_selector(kind, name, ns)
 
   -- get the selectors for the pods
   local encode = vim.uri_encode
-  local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
-  local resource =
-    vim.json.decode(commands.shell_command("kubectl", get_selectors), { luanil = { object = true, array = true } })
+  local resource = tables.find_resource(state.instance.data, name, ns)
+  if not resource then
+    return
+  end
   local selector_t = (resource.spec.selector and resource.spec.selector.matchLabels or resource.spec.selector)
     or resource.metadata.labels
   local key_value_pairs = vim.tbl_map(function(key)
