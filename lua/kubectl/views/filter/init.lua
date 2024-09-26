@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
+local config = require("kubectl.config")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -72,12 +73,14 @@ function M.filter()
       local prompt = "% "
 
       vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
-      vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
-      vim.cmd("startinsert")
+      vim.api.nvim_win_set_cursor(0, { #header + 2, #(prompt .. line) })
+      vim.cmd("startinsert!")
 
-      vim.schedule(function()
-        vim.api.nvim_input("<cr>")
-      end)
+      if config.options.filter.apply_on_select_from_history then
+        vim.schedule(function()
+          vim.api.nvim_input("<cr>")
+        end)
+      end
     end,
   })
 end

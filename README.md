@@ -145,15 +145,19 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
 {
   auto_refresh = {
     enabled = true,
-    interval = 3000, -- milliseconds
+    interval = 300, -- milliseconds
   },
   diff = {
     bin = "kubediff" -- or any other binary
   },
+  kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
   hints = true,
   context = true,
+  filter = {
+    apply_on_select_from_history = true,
+  },
   float_size = {
     -- Almost fullscreen:
     -- width = 1.0,
@@ -167,7 +171,7 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
     col = 10,
     row = 5,
   },
-  obj_fresh = 0, -- highlight if creation newer than number (in minutes)
+  obj_fresh = 5, -- highlight if creation newer than number (in minutes)
 }
 ```
 

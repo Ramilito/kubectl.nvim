@@ -24,6 +24,9 @@ local defaults = {
   namespace_fallback = {},
   hints = true,
   context = true,
+  filter = {
+    apply_on_select_from_history = true,
+  },
   float_size = {
     -- Almost fullscreen:
     -- width = 1.0,
@@ -35,7 +38,7 @@ local defaults = {
     col = 10,
     row = 5,
   },
-  obj_fresh = 0, -- highghlight if age is less than minutes
+  obj_fresh = 5, -- highghlight if age is less than minutes
 }
 
 ---@type KubectlOptions
