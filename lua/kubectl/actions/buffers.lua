@@ -1,5 +1,3 @@
-local config = require("kubectl.config")
-local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local api = vim.api

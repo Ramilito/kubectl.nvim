@@ -182,8 +182,7 @@ function M.register()
         local resource = vim.split(buf_name, "_")
         local ok, view = pcall(require, "kubectl.views." .. resource[1])
 
-        if ok then
-        else
+        if not ok then
           view = require("kubectl.views.fallback")
         end
         ---TODO: fix types

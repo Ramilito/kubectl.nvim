@@ -7,7 +7,6 @@ local M = {}
 ---@field context boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
----@field mappings { }
 local defaults = {
   auto_refresh = {
     enabled = true,
@@ -45,13 +44,15 @@ M.options = vim.deepcopy(defaults)
 --- Setup kubectl options
 --- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
+  ---@diagnostic disable-next-line: undefined-field
   if options and options.mappings and options.mappings.exit then
     vim.notify("Warning: mappings.exit is deprecated. Please use own mapping to call require('kubectl').close()")
   end
 
+  ---@diagnostic disable-next-line: undefined-field
   if options and options.notifications then
     vim.notify("Warning: notifications is deprecated. This feature is removed")
- end
+  end
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
 end
 
