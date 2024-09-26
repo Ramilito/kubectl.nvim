@@ -347,6 +347,15 @@ function M.getCurrentSelection(...)
   return unpack(results)
 end
 
+function M.find_index(haystack, needle)
+  for index, value in ipairs(haystack) do
+    if value == needle then
+      return index
+    end
+  end
+  return nil -- Return nil if the needle is not found
+end
+
 function M.find_resource(data, name, namespace)
   if data.items then
     return vim.iter(data.items):find(function(row)
