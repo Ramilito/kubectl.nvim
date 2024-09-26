@@ -15,10 +15,6 @@ local M = {
 local function getInfo(nodes, replicas)
   local data = {}
   local kubelets_up = 0
-  if not nodes or not nodes.items or not replicas or not replicas.items then
-    return data
-  end
-
   for _, node in ipairs(nodes.items) do
     local status = node_def.getStatus(node)
     if status.value == "Ready" then
@@ -49,9 +45,6 @@ end
 
 local function getNamespaces(pods)
   local data = {}
-  if not pods or not pods.items then
-    return data
-  end
   local namespaces = {}
   for _, pod in ipairs(pods.items) do
     local namespace = pod.metadata.namespace
@@ -70,19 +63,22 @@ end
 local function getNodes(nodes, nodes_metrics)
   local data = {}
   local results = {}
-
-  if not nodes or not nodes.items then
-    return data
-  end
   for _, node in ipairs(nodes.items) do
     local metrics = find.single(nodes_metrics.items, { "metadata", "name" }, node.metadata.name)
 
     local cpu_percent = top_def.getCpuPercent(metrics, node)
     local mem_percent = top_def.getMemPercent(metrics, node)
 
+    if #cpu_percent.value == 0 then
+      cpu_percent.value = "<unknown>"
+    end
+
+    if #mem_percent.value == 0 then
+      mem_percent.value = "<unknown>"
+    end
     table.insert(results, {
       name = node.metadata.name,
-      value = "CPU: " .. cpu_percent.value .. "," .. "RAM: " .. mem_percent.value .. " Pods: TBD",
+      value = "CPU: " .. cpu_percent.value .. ", " .. "RAM: " .. mem_percent.value .. ", Pods: TBD",
       sort_by = cpu_percent.sort_by + mem_percent.sort_by,
       symbol = cpu_percent.symbol,
     })
@@ -101,9 +97,6 @@ end
 local function getCpu(nodes, pods, pods_metrics)
   local data = {}
   local results = {}
-  if not pods or not pods.items then
-    return data
-  end
   for _, pod in ipairs(pods.items) do
     local metrics = find.single(pods_metrics.items, { "metadata", "name" }, pod.metadata.name)
     local node = find.single(nodes.items, { "metadata", "name" }, pod.spec.nodeName)
@@ -132,10 +125,6 @@ end
 local function getRam(nodes, pods, pods_metrics)
   local data = {}
   local results = {}
-
-  if not nodes or not nodes.items or not pods or not pods.items then
-    return data
-  end
 
   for _, pod in ipairs(pods.items) do
     local metrics = find.single(pods_metrics.items, { "metadata", "name" }, pod.metadata.name)

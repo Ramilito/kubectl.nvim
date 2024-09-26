@@ -4,9 +4,14 @@ local definition = require("kubectl.views.overview.definition")
 local grid = require("kubectl.utils.grid")
 local url = require("kubectl.utils.url")
 
-local M = {}
+local M = {
+  handles = nil,
+}
 
 function M.View(cancellationToken)
+  if M.handles then
+    return
+  end
   local cmds = {
     {
       cmd = "curl",
@@ -32,7 +37,7 @@ function M.View(cancellationToken)
     end
   end
 
-  commands.await_shell_command_async(cmds, function(data)
+  M.handles = commands.await_shell_command_async(cmds, function(data)
     local builder = ResourceBuilder:new(definition.resource)
     builder.data = data
     builder:decodeJson():process(definition.processRow, true)
@@ -47,6 +52,7 @@ function M.View(cancellationToken)
 
         builder:display(definition.ft, definition.resource)
         builder:setContent(nil)
+        M.handles = nil
       end)
     end
   end)
