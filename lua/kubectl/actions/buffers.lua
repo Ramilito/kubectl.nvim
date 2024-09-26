@@ -87,6 +87,11 @@ function M.apply_marks(bufnr, marks, header)
   end
 end
 
+function M.fit_to_content(buf, offset)
+  local win_config = layout.win_size_fit_content(buf, offset or 2)
+  return win_config
+end
+
 --- Creates an alias buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param opts { title: string|nil, header: { data: table }, suggestions: table}: Options for the buffer.
@@ -195,7 +200,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
 
   M.apply_marks(buf, opts.marks, nil)
 
-  local win_config = layout.win_size_fit_content(buf, 2)
+  local win_config = M.fit_to_content(buf, 2)
 
   local padding = string.rep(" ", win_config.width / 2)
   M.set_content(buf, { content = { padding .. "[y]es [n]o" } })
@@ -240,7 +245,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
 
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
-  layout.win_size_fit_content(buf, 2)
+  M.fit_to_content(buf, 2)
   return buf
 end
 

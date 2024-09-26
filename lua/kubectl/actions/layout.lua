@@ -45,7 +45,7 @@ end
 --- @return integer: The window number.
 function M.aliases_layout(buf, filetype, title)
   local width = 0.8 * vim.o.columns
-  local height = 13
+  local height = 8 + config.options.alias.max_history
   local row = 10
   local col = 10
 
@@ -69,7 +69,7 @@ end
 --- @return integer: The window number.
 function M.filter_layout(buf, filetype, title)
   local width = 0.8 * vim.o.columns
-  local height = 13
+  local height = 10
   local row = 10
   local col = 10
 

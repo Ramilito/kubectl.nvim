@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
+local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -32,7 +33,6 @@ local function save_history(input)
 end
 
 function M.filter()
-  local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
   local header, marks = tables.generateHeader({
     { key = "<Plug>(kubectl.select)", desc = "apply" },
     { key = "<Plug>(kubectl.tab)", desc = "next" },
@@ -48,10 +48,14 @@ function M.filter()
   end
   table.insert(header, "")
 
-  vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
+  local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
+
+  buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
   vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
 
+  -- TODO: Marks should be set in buffers.set_content above
   buffers.apply_marks(buf, marks, header)
+  buffers.fit_to_content(buf, 0)
 
   local list = {}
   for _, value in ipairs(state.filter_history) do
