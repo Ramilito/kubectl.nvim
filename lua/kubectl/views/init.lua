@@ -209,13 +209,12 @@ function M.UserCmd(args)
 end
 
 function M.set_and_open_pod_selector(kind, name, ns)
-  local pod_view = require("kubectl.views.pods")
+  local pod_view, pod_definition = M.view_and_definition("pods")
   if not kind or not name or not ns then
     return pod_view.View()
   end
 
   -- save url details
-  local pod_definition = require("kubectl.views.pods.definition")
   local original_url = pod_definition.url[1]
   local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
 
@@ -238,6 +237,16 @@ function M.set_and_open_pod_selector(kind, name, ns)
   )
   pod_view.View()
   pod_definition.url = { original_url }
+end
+
+function M.view_and_definition(view_name)
+  local view_ok, view = pcall(require, "kubectl.views." .. view_name)
+  if not view_ok then
+    view_name = "fallback"
+    view = require("kubectl.views.fallback")
+  end
+  local definition = require("kubectl.views." .. view_name .. ".definition")
+  return view, definition
 end
 
 function M.view_or_fallback(view_name)

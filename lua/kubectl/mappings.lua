@@ -84,10 +84,9 @@ function M.register()
     callback = function()
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
       local view = require("kubectl.views")
-      local ok, definition =
-        pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)) .. ".definition")
+      local _, definition = view.view_and_definition(string.lower(string_utils.trim(buf_name)))
 
-      if ok then
+      if definition then
         view.Hints(definition.hints)
       end
     end,
