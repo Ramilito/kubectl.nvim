@@ -149,7 +149,7 @@ function M.Aliases()
     self.data = definition.merge_views(self.data, viewsTable)
   end)
 
-  vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
+  vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     callback = function()
       local line = vim.api.nvim_get_current_line()
