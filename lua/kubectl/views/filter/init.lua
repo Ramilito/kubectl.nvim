@@ -76,9 +76,11 @@ function M.filter()
       vim.api.nvim_win_set_cursor(0, { #header + 2, #(prompt .. line) })
       vim.cmd("startinsert!")
 
-      vim.schedule(function()
-        vim.api.nvim_input("<cr>")
-      end)
+      if config.options.filter.apply_on_select_from_history then
+        vim.schedule(function()
+          vim.api.nvim_input("<cr>")
+        end)
+      end
     end,
   })
 end
