@@ -4,6 +4,8 @@ local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local url = require("kubectl.utils.url")
+local views = require("kubectl.views")
 
 local M = {}
 
@@ -33,41 +35,65 @@ local function save_history(input)
 end
 
 function M.filter_label()
-  -- local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-  -- local file_name = vim.api.nvim_buf_get_name(0)
-  -- local content = table.concat(lines, "\n")
-
-  local builder = ResourceBuilder:new("kubectl_filter_label")
-
-  builder.data = "blabla\nblabla"
-
   local instance = vim.deepcopy(state.instance)
-  instance["header"] = nil
-  instance["data"] = nil
-  instance["prettyData"] = nil
-  instance["processedData"] = nil
-  instance["extmarks"] = nil
+  local view, definition = views.view_and_definition(instance.resource)
+  local name, ns = view.getCurrentSelection()
+  if not name and not ns then
+    return
+  end
 
-  vim.print("res: " .. vim.inspect(instance))
-  -- local res_view_ok, res_view = pcall(require, "kubectl.views." .. res)
-  -- vim.print("res_view" .. vim.inspect(res_view) .. " " .. vim.inspect(res_view_ok))
-  -- local sel_ok, selection = pcall("getCurrentSelection")
-  -- vim.print("selection" .. selection .. " " .. vim.inspect(sel_ok))
-  builder:splitData()
-  vim.schedule(function()
-    local win_config
-    builder.buf_nr, win_config = buffers.confirmation_buffer("Filter for labels", "label_filter", function(confirm)
-      if confirm then
-        vim.print("confirmed")
-      end
-    end)
+  local resource = tables.find_resource(instance.data, name, ns)
+  if not resource then
+    return
+  end
+  local labels = resource.metadata and resource.metadata.labels or {}
+  local original_url = definition.url
 
-    local confirmation = "[y]es [n]o:"
-    local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
+  -- Create ResourceBuilder and buffer
+  local builder = ResourceBuilder:new("kubectl_filter_label")
+  local win_config
+  builder.buf_nr, win_config = buffers.confirmation_buffer("Filter for labels", "label_filter", function(confirm)
+    if not confirm then
+      return
+    end
+    local lines = vim.api.nvim_buf_get_lines(builder.buf_nr, 0, -1, false)
+    local new_labels = {}
+    for _, line in ipairs(lines) do
+      local match = line:match("([^=]+=.+)")
+      table.insert(new_labels, match)
+    end
+    if #new_labels == 0 then
+      return
+    end
+    local new_args
+    if definition.cmd == "kubectl" then
+      new_args = { "get", definition.resource, "-n", ns, "-l", table.concat(new_labels, ",") }
+    else
+      local url_no_query_params, original_query_params = original_url[1]:match("(.+)%?(.+)")
+      local label_selector = "?labelSelector=" .. vim.uri_encode(table.concat(new_labels, ","), "rfc2396")
+      vim.notify(label_selector)
+      return
+    end
 
-    table.insert(builder.data, padding .. confirmation)
-    builder:setContentRaw()
+    -- display view
+    definition.url = new_args
+    definition.cmd = definition.cmd
+    vim.notify("Running: " .. definition.cmd .. " " .. table.concat(new_args, " "))
+    view.View()
+    definition.url = original_url
   end)
+
+  local confirmation = "[y]es [n]o:"
+  local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
+
+  -- Add current label to buffer
+  builder.data = { "Current labels:" }
+  for k, v in pairs(labels) do
+    table.insert(builder.data, k .. "=" .. v)
+  end
+  table.insert(builder.data, padding .. confirmation)
+  builder:splitData()
+  builder:setContentRaw()
 end
 
 function M.filter()
@@ -80,11 +106,11 @@ function M.filter()
   completion.with_completion(buf, list, nil, false)
 
   local header, marks = tables.generateHeader({
-    { key = "<Plug>(kubectl.select)", desc = "apply" },
-    { key = "<Plug>(kubectl.tab)", desc = "next" },
+    { key = "<Plug>(kubectl.select)",    desc = "apply" },
+    { key = "<Plug>(kubectl.tab)",       desc = "next" },
     { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
     -- TODO: Definition should be moved to mappings.lua
-    { key = "<Plug>(kubectl.quit)", desc = "close" },
+    { key = "<Plug>(kubectl.quit)",      desc = "close" },
   }, false, false)
 
   table.insert(header, "History:")
