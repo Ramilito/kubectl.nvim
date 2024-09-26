@@ -99,6 +99,7 @@ function M.await_shell_command_async(cmds, callback)
       on_command_done(i, result)
     end)
   end
+  return handles
 end
 
 --- Execute a shell command asynchronously
