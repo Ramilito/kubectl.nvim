@@ -162,14 +162,38 @@ local function getRam(nodes, pods, pods_metrics)
   return data
 end
 
+local function is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas)
+  if not nodes or not nodes.items then
+    return false
+  end
+  if
+    not pods
+    or not pods.items
+    or not replicas
+    or not replicas.items
+    or not nodes_metrics
+    or not nodes_metrics.items
+    or not pods_metrics
+    or not pods_metrics.items
+  then
+    return false
+  end
+
+  return true
+end
+
 function M.processRow(rows)
   local nodes_metrics = rows[1]
   local nodes = rows[2]
   local pods_metrics = rows[3]
   local pods = rows[4]
   local replicas = rows[5]
-  local data = {
 
+  if not is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas) then
+    return nil
+  end
+
+  local data = {
     info = getInfo(nodes, replicas),
     nodes = getNodes(nodes, nodes_metrics),
     namespaces = getNamespaces(pods),
