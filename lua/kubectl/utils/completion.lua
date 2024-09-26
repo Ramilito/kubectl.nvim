@@ -106,9 +106,11 @@ function M.with_completion(buf, data, callback, shortest)
     end,
     on_detach = function()
       close_completion_pum()
-      vim.on_key(nil, M.ns)
-      vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
-      M.ns = nil
+      if M.ns then
+        vim.on_key(nil, M.ns)
+        vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+        M.ns = nil
+      end
     end,
   })
 
