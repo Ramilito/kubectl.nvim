@@ -25,7 +25,7 @@ local defaults = {
   hints = true,
   context = true,
   alias = {
-    max_history = 10,
+    max_history = 5,
   },
   filter = {
     apply_on_select_from_history = true,
