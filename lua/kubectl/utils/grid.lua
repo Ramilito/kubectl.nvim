@@ -45,6 +45,9 @@ local function pad_string(str, width)
 end
 
 function M.pretty_print(data, sections)
+  if not data then
+    return {}, {}
+  end
   local layout = {}
   local extmarks = {}
   local max_cols = 3

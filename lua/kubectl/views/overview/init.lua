@@ -7,7 +7,6 @@ local url = require("kubectl.utils.url")
 local M = {}
 
 function M.View(cancellationToken)
-  local builder = ResourceBuilder:new(definition.resource)
   local cmds = {
     {
       cmd = "curl",
@@ -33,20 +32,23 @@ function M.View(cancellationToken)
     end
   end
 
-  commands.await_shell_command_async(cmds, function(data, err)
+  commands.await_shell_command_async(cmds, function(data)
+    local builder = ResourceBuilder:new(definition.resource)
     builder.data = data
-    vim.schedule(function()
-      builder:display(definition.ft, definition.resource)
-      builder:decodeJson():process(definition.processRow, true)
+    builder:decodeJson():process(definition.processRow, true)
 
-      builder.prettyData, builder.extmarks = grid.pretty_print(builder.processedData, definition.getSections())
-      builder:addHints(definition.hints, true, true, true)
-      if cancellationToken and cancellationToken() then
-        return nil
-      end
+    if builder.processedData then
+      vim.schedule(function()
+        builder.prettyData, builder.extmarks = grid.pretty_print(builder.processedData, definition.getSections())
+        builder:addHints(definition.hints, true, true, true)
+        if cancellationToken and cancellationToken() then
+          return nil
+        end
 
-      builder:setContent(nil)
-    end)
+        builder:display(definition.ft, definition.resource)
+        builder:setContent(nil)
+      end)
+    end
   end)
 end
 
