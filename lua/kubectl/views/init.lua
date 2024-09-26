@@ -70,10 +70,10 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.edit)", desc = "Edit resource" },
     { key = "<Plug>(kubectl.refresh)", desc = "Refresh view" },
     { key = "<Plug>(kubectl.view_1)", desc = "Deployments" },
-    { key = "<Plug>(kubectl.view_2)", desc = "Pods " },
-    { key = "<Plug>(kubectl.view_3)", desc = "Configmaps " },
-    { key = "<Plug>(kubectl.view_4)", desc = "Secrets " },
-    { key = "<Plug>(kubectl.view_4)", desc = "Services" },
+    { key = "<Plug>(kubectl.view_2)", desc = "Pods" },
+    { key = "<Plug>(kubectl.view_3)", desc = "Configmaps" },
+    { key = "<Plug>(kubectl.view_4)", desc = "Secrets" },
+    { key = "<Plug>(kubectl.view_5)", desc = "Services" },
   }
 
   local global_keymaps = tables.get_plug_mappings(globals, "n")
