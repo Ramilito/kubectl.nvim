@@ -31,6 +31,9 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
       local resource = tables.find_resource(state.instance.data, name, ns)
+      if not resource then
+        return
+      end
 
       local containers = {}
 
