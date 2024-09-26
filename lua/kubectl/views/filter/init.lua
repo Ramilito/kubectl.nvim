@@ -8,7 +8,7 @@ local M = {}
 
 local function save_history(input)
   local history = state.filter_history
-  local history_size = 5
+  local history_size = config.options.filter.max_history
 
   local result = {}
   local exists = false
