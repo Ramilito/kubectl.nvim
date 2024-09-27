@@ -199,19 +199,19 @@ The plugin uses the following highlight groups:
 
 | Name                | Default            | Color |
 |---------------------|--------------------|-------|
-| KubectlHeader       | `{ fg = "#569CD6" }` | <div style="width: 20px; height: 20px; background-color: #569CD6;"></div> |
-| KubectlWarning      | `{ fg = "#D19A66" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#D19A66" /></svg> @sample.svg |
-| KubectlError        | `{ fg = "#D16969" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#D16969" /></svg> @sample.svg |
-| KubectlInfo         | `{ fg = "#608B4E" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#608B4E" /></svg> @sample.svg |
-| KubectlDebug        | `{ fg = "#DCDCAA" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#DCDCAA" /></svg> @sample.svg |
-| KubectlSuccess      | `{ fg = "#4EC9B0" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#4EC9B0" /></svg> @sample.svg |
-| KubectlPending      | `{ fg = "#C586C0" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#C586C0" /></svg> @sample.svg |
-| KubectlDeprecated   | `{ fg = "#D4A5A5" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#D4A5A5" /></svg> @sample.svg |
-| KubectlExperimental | `{ fg = "#CE9178" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#CE9178" /></svg> @sample.svg |
-| KubectlNote         | `{ fg = "#9CDCFE" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#9CDCFE" /></svg> @sample.svg |
-| KubectlGray         | `{ fg = "#666666" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#666666" /></svg> @sample.svg |
-| KubectlPselect      | `{ bg = "#3e4451" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#3e4451" /></svg> @sample.svg |
-| KubectlPmatch       | `{ link = "KubectlWarning" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#D19A66" /></svg> |
+| KubectlHeader       | `{ fg = "#569CD6" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
+| KubectlWarning      | `{ fg = "#D19A66" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
+| KubectlError        | `{ fg = "#D16969" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D16969" width="20" /> |
+| KubectlInfo         | `{ fg = "#608B4E" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=608B4E" width="20" /> |
+| KubectlDebug        | `{ fg = "#DCDCAA" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=DCDCAA" width="20" /> |
+| KubectlSuccess      | `{ fg = "#4EC9B0" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=4EC9B0" width="20" /> |
+| KubectlPending      | `{ fg = "#C586C0" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
+| KubectlDeprecated   | `{ fg = "#D4A5A5" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D4A5A5" width="20" /> |
+| KubectlExperimental | `{ fg = "#CE9178" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=CE9178" width="20" /> |
+| KubectlNote         | `{ fg = "#9CDCFE" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=9CDCFE" width="20" /> |
+| KubectlGray         | `{ fg = "#666666" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=666666" width="20" /> |
+| KubectlPselect      | `{ bg = "#3e4451" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=3e4451" width="20" /> |
+| KubectlPmatch       | `{ link = "KubectlWarning" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
 | KubectlUnderline    | `{ underline = true }` | - |
 
 </details>
