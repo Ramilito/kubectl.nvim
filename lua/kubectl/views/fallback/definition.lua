@@ -64,7 +64,7 @@ function M.processRow(rows)
   end
 
   -- process curl table json
-  if rows.rows then
+  if rows.rows and #rows.rows > 0 then
     for _, row in pairs(rows.rows) do
       local resource_vals = row.cells
       local resource = {}
@@ -87,7 +87,7 @@ function M.processRow(rows)
     return data
   end
   -- process kubectl json
-  if rows.items then
+  if rows.items and #rows.items > 0 then
     for _, row in pairs(rows.items) do
       local resource = { name = row.metadata.name }
       if M.namespaced then
@@ -117,7 +117,7 @@ function M.getHeaders(rows)
   if rows.columnDefinitions then
     headers = {}
     if M.namespaced then
-      table.insert(headers, "NAMESPACE")
+      table.insert(headers, 1, "NAMESPACE")
     end
 
     for _, col in pairs(rows.columnDefinitions) do
@@ -131,7 +131,7 @@ function M.getHeaders(rows)
     local firstItem = rows.items[1]
     if firstItem then
       if firstItem.metadata and firstItem.metadata.namespace and not vim.tbl_contains(headers, "NAMESPACE") then
-        table.insert(headers, "NAMESPACE")
+        table.insert(headers, 1, "NAMESPACE")
         M.namespaced = true
       end
       if
