@@ -98,7 +98,7 @@ function M.register()
     desc = "Delete",
     callback = function()
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
       if not view_ok then
         view = require("kubectl.views.fallback")
       end
@@ -133,7 +133,7 @@ function M.register()
     desc = "Describe resource",
     callback = function()
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
       if not view_ok then
         view = require("kubectl.views.fallback")
       end
@@ -164,7 +164,7 @@ function M.register()
       if win_config.relative == "" then
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
-        local ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+        local ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
         if ok then
           pcall(view.View)
         else
@@ -201,7 +201,7 @@ function M.register()
 
       -- Retrieve buffer name and load the appropriate view
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
       if not view_ok then
         view = require("kubectl.views.fallback")
       end
@@ -377,7 +377,7 @@ function M.register()
       end
       state.sortby_old.current_word = sortby.current_word
 
-      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(string_utils.trim(buf_name)))
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
       if not view_ok then
         view = require("kubectl.views.fallback")
       end

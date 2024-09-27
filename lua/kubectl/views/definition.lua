@@ -2,7 +2,6 @@ local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
-local string_utils = require("kubectl.utils.string")
 
 local M = {}
 
@@ -21,7 +20,7 @@ function M.getPFData(port_forwards, async, kind)
     end
 
     for _, line in ipairs(vim.split(data, "\n")) do
-      local pid = string_utils.trim(line):match("^(%d+)")
+      local pid = vim.trim(line):match("^(%d+)")
       local resource_type = line:match("%s(pods)/") or line:match("%s(svc)/")
 
       local resource, port, ns
@@ -120,7 +119,7 @@ function M.on_prompt_input(input)
 
   state.alias_history = result
 
-  local parsed_input = string.lower(string_utils.trim(input))
+  local parsed_input = string.lower(vim.trim(input))
   local view = require("kubectl.views")
   view.view_or_fallback(parsed_input)
 end

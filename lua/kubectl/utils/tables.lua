@@ -1,7 +1,6 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
-local string_util = require("kubectl.utils.string")
 local M = {}
 
 --- Calculate column widths for table data
@@ -340,7 +339,7 @@ function M.getCurrentSelection(...)
   local indices = { ... }
   for i = 1, #indices do
     local index = indices[i]
-    local trimmed = string_util.trim(columns[index])
+    local trimmed = vim.trim(columns[index])
     table.insert(results, trimmed)
   end
 
