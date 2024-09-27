@@ -387,15 +387,12 @@ function M.find_resource(data, name, namespace)
   if data.items then
     vim.print("data.items")
     return vim.iter(data.items):find(function(row)
-      vim.print("row.metadata.name: " .. row.metadata.name .. " name: " .. name)
-      vim.print("row.metadata.namespace: " .. row.metadata.namespace .. " namespace: " .. namespace)
-      vim.print("=======")
-      return row.metadata.name == name and row.metadata.namespace == namespace
+      return row.metadata.name == name and (namespace and row.metadata.namespace == namespace or true)
     end)
   end
   if data.rows then
     return vim.iter(data.rows):find(function(row)
-      return row.object.metadata.name == name and row.object.metadata.namespace == namespace
+      return row.object.metadata.name == name and (namespace and row.object.metadata.namespace == namespace or true)
     end).object
   end
   return nil

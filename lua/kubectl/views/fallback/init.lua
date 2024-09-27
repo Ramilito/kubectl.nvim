@@ -7,7 +7,7 @@ local tables = require("kubectl.utils.tables")
 
 local M = {
   resource = "",
-  current_resource = nil,
+  configure_definition = true,
 }
 
 local function add_namespace(args, ns)
@@ -36,36 +36,33 @@ function M.View(cancellationToken, resource)
   end
 
   -- default fallback values
-  if not definition.cmd or M.current_resource ~= M.resource then
-    definition.headers = { "NAME" }
+  if M.configure_definition then
     definition.resource = M.resource
     definition.display_name = M.resource
     definition.url = get_args()
     definition.ft = "k8s_fallback"
+    definition.headers = { "NAME" }
     definition.hints = {
       { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
     }
     definition.cmd = "kubectl"
-    M.current_resource = M.resource
+
+    -- cached resources fallback values
+    local cached_resources = require("kubectl.views").cached_api_resources
+    local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
+    if resource_name and not M.configured_curl then
+      definition.resource = resource_name
+      definition.display_name = resource_name
+      definition.url = {
+        "-H",
+        "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
+        cached_resources.values[resource_name].url,
+      }
+      definition.cmd = "curl"
+      definition.namespaced = cached_resources.values[resource_name].namespaced
+    end
   end
 
-  -- cached resources fallback values
-  local cached_resources = require("kubectl.views").cached_api_resources
-  -- local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
-  local resource_name = nil
-  if resource_name then
-    definition.resource = resource_name
-    definition.display_name = resource_name
-    definition.url = {
-      "-H",
-      "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
-      cached_resources.values[resource_name].url,
-    }
-    definition.cmd = "curl"
-    definition.namespaced = cached_resources.values[resource_name].namespaced
-  end
-
-  vim.print("Running " .. definition.cmd .. " " .. table.concat(definition.url, " "))
   ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd })
 end
 
