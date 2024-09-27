@@ -66,18 +66,17 @@ function M.filter_label()
       return
     end
     local new_args
-    if definition.cmd == "kubectl" then
-      new_args = { "get", definition.resource, "-n", ns, "-l", table.concat(new_labels, ",") }
+    if instance.cmd == "kubectl" then
+      new_args = { "get", instance.resource, "-n", ns, "-l", table.concat(new_labels, ",") }
     else
-      local url_no_query_params, original_query_params = original_url[1]:match("(.+)%?(.+)")
+      local url_no_query_params, original_query_params = url.breakUrl(original_url[1], true, false)
       local label_selector = "?labelSelector=" .. vim.uri_encode(table.concat(new_labels, ","), "rfc2396")
-      vim.notify(label_selector)
-      return
+      new_args = { url_no_query_params .. label_selector .. "&" .. original_query_params }
     end
 
     -- display view
     definition.url = new_args
-    definition.cmd = definition.cmd
+    definition.cmd = instance.cmd
     vim.notify("Running: " .. definition.cmd .. " " .. table.concat(new_args, " "))
     view.View()
     definition.url = original_url

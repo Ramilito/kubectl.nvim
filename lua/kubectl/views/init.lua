@@ -217,7 +217,7 @@ function M.set_and_open_pod_selector(name, ns)
 
   -- save url details
   local original_url = pod_definition.url[1]
-  local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
+  local url_no_query_params, original_query_params = url.breakUrl(original_url, true, false)
 
   -- get the selectors for the pods
   local encode = vim.uri_encode
