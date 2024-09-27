@@ -201,7 +201,7 @@ The plugin uses the following highlight groups:
 
 <details><summary>Highlight Groups</summary>
 
-| Name                | Default                       | Color                                                                                     |
+| Name                | Default                       | Color |
 | ------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
 | KubectlHeader       | `{ fg = "#569CD6" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
 | KubectlWarning      | `{ fg = "#D19A66" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
