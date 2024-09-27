@@ -1,5 +1,4 @@
 local state = require("kubectl.state")
-local string_utils = require("kubectl.utils.string")
 
 local M = {}
 
@@ -26,7 +25,7 @@ function M.get_current_mark(row)
     local content = value[4]
     if col >= mark_col and col <= mark_col + #content.virt_text[1][1] then
       mark = value
-      current_word = string_utils.trim(content.virt_text[1][1])
+      current_word = vim.trim(content.virt_text[1][1])
     end
   end
 
