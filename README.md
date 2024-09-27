@@ -62,7 +62,9 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 
 ## ⚡️ Optional Dependencies
 
-- [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
+- [kubediff](https://github.com/Ramilito/kubediff) or
+  [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff
+  feature)
 
 ## 📦 Installation
 
@@ -97,6 +99,7 @@ You can also override the plugin's keymaps using the `<Plug>` mappings:
 
 ```lua
 -- default mappings
+local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = false })
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = "k8s_*",
@@ -195,24 +198,25 @@ vim.api.nvim_create_autocmd("FileType", {
 ## 🎨 Colors
 
 The plugin uses the following highlight groups:
+
 <details><summary>Highlight Groups</summary>
 
-| Name                | Default            | Color |
-|---------------------|--------------------|-------|
-| KubectlHeader       | `{ fg = "#569CD6" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
-| KubectlWarning      | `{ fg = "#D19A66" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
-| KubectlError        | `{ fg = "#D16969" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D16969" width="20" /> |
-| KubectlInfo         | `{ fg = "#608B4E" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=608B4E" width="20" /> |
-| KubectlDebug        | `{ fg = "#DCDCAA" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=DCDCAA" width="20" /> |
-| KubectlSuccess      | `{ fg = "#4EC9B0" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=4EC9B0" width="20" /> |
-| KubectlPending      | `{ fg = "#C586C0" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
-| KubectlDeprecated   | `{ fg = "#D4A5A5" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D4A5A5" width="20" /> |
-| KubectlExperimental | `{ fg = "#CE9178" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=CE9178" width="20" /> |
-| KubectlNote         | `{ fg = "#9CDCFE" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=9CDCFE" width="20" /> |
-| KubectlGray         | `{ fg = "#666666" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=666666" width="20" /> |
-| KubectlPselect      | `{ bg = "#3e4451" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=3e4451" width="20" /> |
+| Name                | Default                       | Color                                                                                     |
+| ------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
+| KubectlHeader       | `{ fg = "#569CD6" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
+| KubectlWarning      | `{ fg = "#D19A66" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
+| KubectlError        | `{ fg = "#D16969" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D16969" width="20" /> |
+| KubectlInfo         | `{ fg = "#608B4E" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=608B4E" width="20" /> |
+| KubectlDebug        | `{ fg = "#DCDCAA" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=DCDCAA" width="20" /> |
+| KubectlSuccess      | `{ fg = "#4EC9B0" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=4EC9B0" width="20" /> |
+| KubectlPending      | `{ fg = "#C586C0" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
+| KubectlDeprecated   | `{ fg = "#D4A5A5" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D4A5A5" width="20" /> |
+| KubectlExperimental | `{ fg = "#CE9178" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=CE9178" width="20" /> |
+| KubectlNote         | `{ fg = "#9CDCFE" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=9CDCFE" width="20" /> |
+| KubectlGray         | `{ fg = "#666666" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=666666" width="20" /> |
+| KubectlPselect      | `{ bg = "#3e4451" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=3e4451" width="20" /> |
 | KubectlPmatch       | `{ link = "KubectlWarning" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
-| KubectlUnderline    | `{ underline = true }` | - |
+| KubectlUnderline    | `{ underline = true }`        | -                                                                                         |
 
 </details>
 
@@ -231,4 +235,5 @@ We use kubectl proxy and curl to reduce latency.
 
 ## 💪🏼 Motivation
 
-This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for file browsing.
+This plugins main purpose is to browse the kubernetes state using vim like
+navigation and keys, similar to oil.nvim for file browsing.
