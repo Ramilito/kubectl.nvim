@@ -14,8 +14,6 @@ M.filter_history = {}
 M.alias_history = {}
 ---@type string
 M.proxyUrl = ""
----@type table
-M.notifications = {}
 ---@type number
 M.content_row_start = 0
 ---@type table

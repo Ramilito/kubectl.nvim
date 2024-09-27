@@ -1,5 +1,3 @@
-local config = require("kubectl.config")
-local hl = require("kubectl.actions.highlight")
 local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local api = vim.api
@@ -87,6 +85,11 @@ function M.apply_marks(bufnr, marks, header)
       end
     end
   end
+end
+
+function M.fit_to_content(buf, offset)
+  local win_config = layout.win_size_fit_content(buf, offset or 2)
+  return win_config
 end
 
 --- Creates an alias buffer.
@@ -197,7 +200,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
 
   M.apply_marks(buf, opts.marks, nil)
 
-  local win_config = layout.win_size_fit_content(buf, 2)
+  local win_config = M.fit_to_content(buf, 2)
 
   local padding = string.rep(" ", win_config.width / 2)
   M.set_content(buf, { content = { padding .. "[y]es [n]o" } })
@@ -242,7 +245,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
 
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
-  layout.win_size_fit_content(buf, 2)
+  M.fit_to_content(buf, 2)
   return buf
 end
 
@@ -303,50 +306,6 @@ function M.buffer(filetype, title)
   api.nvim_set_current_buf(buf)
 
   return buf
-end
-
---- Creates or updates a notification buffer.
---- @param opts { width: integer|nil, close: boolean|nil, append: boolean|nil }: Options for the buffer.
-function M.notification_buffer(opts)
-  opts.width = opts.width or 40
-  local bufname = "notification"
-  local marks = {}
-  local buf = get_buffer_by_name(bufname)
-
-  if opts.close then
-    local _, _ = pcall(function()
-      vim.api.nvim_buf_delete(buf, { force = true })
-    end)
-    return
-  end
-
-  if not buf then
-    buf = create_buffer(bufname)
-  end
-
-  if opts.append then
-    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for _, line in ipairs(lines) do
-      table.insert(state.notifications, #state.notifications, line)
-    end
-  end
-
-  for index, line in ipairs(state.notifications) do
-    table.insert(marks, { row = index - 1, start_col = 0, end_col = #line, hl_group = hl.symbols.gray })
-  end
-
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, state.notifications)
-  local win = layout.notification_layout(buf, bufname, { width = opts.width, height = #state.notifications })
-  vim.api.nvim_set_option_value("winblend", config.options.notifications.blend, { win = win })
-
-  local ns_id = api.nvim_create_namespace("__kubectl_notifications")
-  for _, mark in ipairs(marks) do
-    pcall(api.nvim_buf_set_extmark, buf, ns_id, mark.row, mark.start_col, {
-      end_line = mark.row,
-      end_col = mark.end_col,
-      hl_group = mark.hl_group,
-    })
-  end
 end
 
 return M

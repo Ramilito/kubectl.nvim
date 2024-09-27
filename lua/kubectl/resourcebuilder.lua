@@ -1,7 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local informer = require("kubectl.actions.informer")
-local notifications = require("kubectl.notification")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
@@ -41,9 +40,6 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   if cancellationToken and cancellationToken() then
     return nil
   end
-  notifications.Add({
-    "display data " .. "[" .. self.resource .. "]",
-  })
 
   self.buf_nr = buffers.buffer(filetype, title)
   state.addToHistory(title)
@@ -56,9 +52,6 @@ end
 ---@param syntax string? The syntax to use for the floating window
 ---@return ResourceBuilder
 function ResourceBuilder:displayFloat(filetype, title, syntax)
-  notifications.Add({
-    "display data " .. "[" .. self.resource .. "]",
-  })
   self.buf_nr, self.win_nr = buffers.floating_buffer(filetype, title, syntax, self.win_nr)
 
   return self
@@ -70,9 +63,6 @@ end
 ---@param syntax? string The syntax to use for the floating window
 ---@return ResourceBuilder
 function ResourceBuilder:displayFloatFit(filetype, title, syntax)
-  notifications.Add({
-    "display buffer " .. "[" .. self.resource .. "]",
-  })
   self.buf_nr = buffers.floating_dynamic_buffer(filetype, title, false, { syntax })
 
   return self
@@ -115,10 +105,6 @@ end
 ---@param on_stdout function|nil The callback function to execute on stdout
 ---@return ResourceBuilder
 function ResourceBuilder:fetchAsync(on_exit, on_stdout, opts)
-  notifications.Add({
-    "fetching " .. "[" .. self.resource .. "]",
-    "args: " .. " " .. vim.inspect(self.args),
-  })
   commands.shell_command_async(self.cmd, self.args, function(data)
     self.data = data
     on_exit(self)
@@ -135,11 +121,7 @@ end
 function ResourceBuilder:decodeJson()
   if type(self.data) == "string" then
     local success, decodedData = pcall(vim.json.decode, self.data, { luanil = { object = true, array = true } })
-
     if success then
-      notifications.Add({
-        "json decode successful " .. "[" .. self.resource .. "]",
-      })
       self.data = decodedData
     end
   elseif type(self.data == "table") then
@@ -147,9 +129,6 @@ function ResourceBuilder:decodeJson()
       local success, decodedData = pcall(vim.json.decode, data, { luanil = { object = true, array = true } })
 
       if success then
-        notifications.Add({
-          "json decode successful " .. "[" .. self.resource .. "]",
-        })
         self.data[index] = decodedData
       end
     end
@@ -163,9 +142,6 @@ end
 ---@return ResourceBuilder
 function ResourceBuilder:process(processFunc, no_filter)
   local find = require("kubectl.utils.find")
-  notifications.Add({
-    "processing table " .. "[" .. self.resource .. "]",
-  })
   self.processedData = processFunc(self.data)
 
   if no_filter then
@@ -180,10 +156,6 @@ end
 --- Sort the data
 ---@return ResourceBuilder
 function ResourceBuilder:sort()
-  notifications.Add({
-    "sorting " .. "[" .. self.resource .. "]",
-  })
-
   local sortby = state.sortby[self.resource]
   if sortby == nil then
     return self
@@ -241,10 +213,6 @@ end
 ---@param headersFunc function The function to generate headers
 ---@return ResourceBuilder
 function ResourceBuilder:prettyPrint(headersFunc)
-  notifications.Add({
-    "prettify table " .. "[" .. self.resource .. "]",
-  })
-
   self.prettyData, self.extmarks =
     tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource])
   return self
@@ -257,9 +225,6 @@ end
 ---@param include_filter boolean Whether to include filter or not
 ---@return ResourceBuilder
 function ResourceBuilder:addHints(hints, include_defaults, include_context, include_filter)
-  notifications.Add({
-    "adding hints " .. "[" .. self.resource .. "]",
-  })
   local count = ""
   local filter = ""
   local hints_copy = {}
@@ -292,7 +257,6 @@ function ResourceBuilder:setContentRaw(cancellationToken)
   end
 
   buffers.set_content(self.buf_nr, { content = self.data, marks = self.extmarks, header = self.header })
-  notifications.Close()
 
   return self
 end
@@ -304,7 +268,6 @@ function ResourceBuilder:setContent(cancellationToken)
   end
 
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
-  notifications.Close()
 
   return self
 end

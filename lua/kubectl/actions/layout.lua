@@ -45,7 +45,7 @@ end
 --- @return integer: The window number.
 function M.aliases_layout(buf, filetype, title)
   local width = 0.8 * vim.o.columns
-  local height = 13
+  local height = 10
   local row = 10
   local col = 10
 
@@ -69,7 +69,7 @@ end
 --- @return integer: The window number.
 function M.filter_layout(buf, filetype, title)
   local width = 0.8 * vim.o.columns
-  local height = 13
+  local height = 10
   local row = 10
   local col = 10
 
@@ -149,35 +149,6 @@ function M.float_layout(buf, filetype, title, opts)
     col = size.col or config.options.float_size.col,
     border = "rounded",
     title = title,
-  })
-  return win
-end
-
---- Create a notification layout.
---- @param buf integer: The buffer number.
---- @param title string: The title for the buffer.
---- @param opts { width: number, height: number }: The options for the notification layout.
---- @return integer: The window number.
-function M.notification_layout(buf, title, opts)
-  local editor_width, editor_height = M.get_editor_dimensions()
-  local height = math.min(opts.height, editor_height)
-  local width = math.min(opts.width, editor_width - 4) -- guess width of signcolumn etc.
-  local row_max = vim.api.nvim_win_get_height(0)
-
-  local col = vim.api.nvim_win_get_width(0)
-  local win = api.nvim_open_win(buf, false, {
-    relative = "win",
-    style = "minimal",
-    width = width,
-    height = height,
-    row = row_max - 2,
-    col = col,
-    focusable = false,
-    border = "none",
-    anchor = "SE",
-    title = title,
-    noautocmd = true,
-    zindex = 45, -- Intentionally below standard float index
   })
   return win
 end

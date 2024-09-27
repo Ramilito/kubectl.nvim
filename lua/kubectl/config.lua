@@ -3,12 +3,10 @@ local M = {}
 ---@class KubectlOptions
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field namespace string
----@field notifications { enabled: boolean, verbose: boolean, blend: number }
 ---@field hints boolean
 ---@field context boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
----@field mappings { }
 local defaults = {
   auto_refresh = {
     enabled = true,
@@ -24,13 +22,15 @@ local defaults = {
   kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   namespace = "All",
   namespace_fallback = {},
-  notifications = {
-    enabled = true,
-    verbose = false,
-    blend = 100,
-  },
   hints = true,
   context = true,
+  alias = {
+    max_history = 5,
+  },
+  filter = {
+    apply_on_select_from_history = true,
+    max_history = 10,
+  },
   float_size = {
     -- Almost fullscreen:
     -- width = 1.0,
@@ -42,7 +42,7 @@ local defaults = {
     col = 10,
     row = 5,
   },
-  obj_fresh = 0, -- highghlight if age is less than minutes
+  obj_fresh = 5, -- highghlight if age is less than minutes
 }
 
 ---@type KubectlOptions
@@ -51,8 +51,14 @@ M.options = vim.deepcopy(defaults)
 --- Setup kubectl options
 --- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
+  ---@diagnostic disable-next-line: undefined-field
   if options and options.mappings and options.mappings.exit then
     vim.notify("Warning: mappings.exit is deprecated. Please use own mapping to call require('kubectl').close()")
+  end
+
+  ---@diagnostic disable-next-line: undefined-field
+  if options and options.notifications then
+    vim.notify("Warning: notifications is deprecated. This feature is removed")
   end
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
 end
