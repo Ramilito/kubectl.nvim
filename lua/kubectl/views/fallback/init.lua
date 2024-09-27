@@ -36,7 +36,7 @@ function M.View(cancellationToken, resource)
   end
 
   -- default fallback values
-  if not definition.cmd or M.current_resource ~= M.resource then
+  if not definition.cmd or M.current_resource ~= resource then
     definition.resource = M.resource
     definition.display_name = M.resource
     definition.url = get_args()
