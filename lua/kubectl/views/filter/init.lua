@@ -36,7 +36,7 @@ end
 
 function M.filter_label()
   local state = require("kubectl.state")
-  local instance = vim.deepcopy(state.instance)
+  local instance = state.instance
   local view, definition = views.view_and_definition(instance.resource)
   local name, ns = view.getCurrentSelection()
   if not name then
@@ -101,6 +101,8 @@ function M.filter_label()
   table.insert(builder.data, padding .. confirmation)
   builder:splitData()
   builder:setContentRaw()
+  vim.cmd([[syntax match KubectlSuccess /.*=\@=/]])
+  vim.cmd([[syntax match KubectlDebug /=\@<=.*/]])
 end
 
 function M.filter()
