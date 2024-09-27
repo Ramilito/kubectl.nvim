@@ -61,6 +61,7 @@ function M.View(cancellationToken, resource)
   end
 
   M.builder = nil -- clear any previously set values
+  vim.print("Running: " .. definition.cmd .. " " .. table.concat(definition.url, " "))
   M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
 end
 

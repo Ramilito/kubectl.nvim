@@ -2,7 +2,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
-local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 local views = require("kubectl.views")
@@ -10,6 +9,7 @@ local views = require("kubectl.views")
 local M = {}
 
 local function save_history(input)
+  local state = require("kubectl.state")
   local history = state.filter_history
   local history_size = config.options.filter.max_history
 
@@ -35,6 +35,7 @@ local function save_history(input)
 end
 
 function M.filter_label()
+  local state = require("kubectl.state")
   local instance = state.instance
   local view, definition = views.view_and_definition(instance.resource)
   vim.print("definition.url: " .. vim.inspect(definition.url) .. " definition.cmd: " .. definition.cmd)
@@ -82,7 +83,7 @@ function M.filter_label()
     definition.url = new_args
     definition.cmd = instance.cmd
     vim.print("Filtering: " .. definition.cmd .. " " .. table.concat(new_args, " "))
-    view.View()
+    view.Draw()
     definition.url = original_url
   end)
 
@@ -100,6 +101,7 @@ function M.filter_label()
 end
 
 function M.filter()
+  local state = require("kubectl.state")
   local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
 
   local list = {}
