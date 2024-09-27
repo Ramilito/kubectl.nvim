@@ -35,8 +35,9 @@ local function save_history(input)
 end
 
 function M.filter_label()
-  local instance = vim.deepcopy(state.instance)
+  local instance = state.instance
   local view, definition = views.view_and_definition(instance.resource)
+  vim.print("definition.url: " .. vim.inspect(definition.url) .. " definition.cmd: " .. definition.cmd)
   local name, ns = view.getCurrentSelection()
   if not name and not ns then
     return
@@ -47,7 +48,8 @@ function M.filter_label()
     return
   end
   local labels = resource.metadata and resource.metadata.labels or {}
-  local original_url = definition.url
+  table.sort(labels)
+  local original_url = vim.deepcopy(definition.url)
 
   -- Create ResourceBuilder and buffer
   local builder = ResourceBuilder:new("kubectl_filter_label")
@@ -67,17 +69,19 @@ function M.filter_label()
     end
     local new_args
     if instance.cmd == "kubectl" then
-      new_args = { "get", instance.resource, "-n", ns, "-l", table.concat(new_labels, ",") }
+      new_args = { "get", instance.resource, "-o=json", "-n", ns, "-l", table.concat(new_labels, ",") }
     else
-      local url_no_query_params, original_query_params = url.breakUrl(original_url[1], true, false)
+      local url_str = original_url[#original_url]
+      local url_no_query_params, original_query_params = url.breakUrl(url_str, true, false)
       local label_selector = "?labelSelector=" .. vim.uri_encode(table.concat(new_labels, ","), "rfc2396")
-      new_args = { url_no_query_params .. label_selector .. "&" .. original_query_params }
+      new_args = vim.deepcopy(original_url)
+      new_args[#new_args] = url_no_query_params .. label_selector .. "&" .. original_query_params
     end
 
     -- display view
     definition.url = new_args
     definition.cmd = instance.cmd
-    vim.notify("Running: " .. definition.cmd .. " " .. table.concat(new_args, " "))
+    vim.print("Filtering: " .. definition.cmd .. " " .. table.concat(new_args, " "))
     view.View()
     definition.url = original_url
   end)
