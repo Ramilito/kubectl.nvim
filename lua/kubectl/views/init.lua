@@ -7,6 +7,7 @@ local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local url = require("kubectl.utils.url")
 
 local M = {}
 
@@ -247,8 +248,8 @@ function M.view_and_definition(view_name)
     view_name = "fallback"
     view = require("kubectl.views.fallback")
   end
-  local definition = require("kubectl.views." .. view_name .. ".definition")
-  return view, definition
+  local view_definition = require("kubectl.views." .. view_name .. ".definition")
+  return view, view_definition
 end
 
 function M.view_or_fallback(view_name)
