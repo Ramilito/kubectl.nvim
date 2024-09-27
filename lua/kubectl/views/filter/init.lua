@@ -36,16 +36,18 @@ end
 
 function M.filter_label()
   local state = require("kubectl.state")
-  local instance = state.instance
+  local instance = vim.deepcopy(state.instance)
   local view, definition = views.view_and_definition(instance.resource)
-  vim.print("definition.url: " .. vim.inspect(definition.url) .. " definition.cmd: " .. definition.cmd)
+  vim.print("definition.cmd: " .. definition.cmd .. " definition.url: " .. vim.inspect(definition.url))
   local name, ns = view.getCurrentSelection()
   if not name and not ns then
+    vim.print("in if1")
     return
   end
 
-  local resource = tables.find_resource(instance.data, name, ns)
+  local resource = tables.find_resource(require("kubectl.state").instance.data, name, ns)
   if not resource then
+    vim.print("in if2")
     return
   end
   local labels = resource.metadata and resource.metadata.labels or {}
@@ -69,8 +71,8 @@ function M.filter_label()
       return
     end
     local new_args
-    if instance.cmd == "kubectl" then
-      new_args = { "get", instance.resource, "-o=json", "-n", ns, "-l", table.concat(new_labels, ",") }
+    if definition.cmd == "kubectl" then
+      new_args = { "get", definition.resource, "-o=json", "-n", ns, "-l", table.concat(new_labels, ",") }
     else
       local url_str = original_url[#original_url]
       local url_no_query_params, original_query_params = url.breakUrl(url_str, true, false)
@@ -81,9 +83,8 @@ function M.filter_label()
 
     -- display view
     definition.url = new_args
-    definition.cmd = instance.cmd
     vim.print("Filtering: " .. definition.cmd .. " " .. table.concat(new_args, " "))
-    view.Draw()
+    view.View()
     definition.url = original_url
   end)
 
