@@ -199,7 +199,7 @@ The plugin uses the following highlight groups:
 
 | Name                | Default            | Color |
 |---------------------|--------------------|-------|
-| KubectlHeader       | `{ fg = "#569CD6" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#569CD6" /></svg> @sample.svg |
+| KubectlHeader       | `{ fg = "#569CD6" }` | <div style="width: 20px; height: 20px; background-color: #569CD6;"></div> |
 | KubectlWarning      | `{ fg = "#D19A66" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#D19A66" /></svg> @sample.svg |
 | KubectlError        | `{ fg = "#D16969" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#D16969" /></svg> @sample.svg |
 | KubectlInfo         | `{ fg = "#608B4E" }` | @sample.svg <svg width="20" height="20"><rect width="20" height="20" fill="#608B4E" /></svg> @sample.svg |
