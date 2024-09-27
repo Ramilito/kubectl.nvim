@@ -7,6 +7,7 @@ local api = vim.api
 function M.set_win_options(win)
   api.nvim_set_option_value("cursorline", true, { win = win })
   api.nvim_set_option_value("wrap", false, { win = win })
+  api.nvim_set_option_value("sidescrolloff", 0, { scope = "local", win = win })
 end
 
 --- Set buffer options.

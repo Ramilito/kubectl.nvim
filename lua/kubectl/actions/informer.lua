@@ -53,8 +53,6 @@ local function decode_json_objects(json_strings)
     local success, decoded_event = pcall(vim.json.decode, json_string, { luanil = { object = true, array = true } })
     if success then
       table.insert(decoded_events, decoded_event)
-    else
-      return nil, decoded_event
     end
   end
 
