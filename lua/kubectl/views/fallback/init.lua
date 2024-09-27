@@ -85,10 +85,12 @@ end
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  if definition.namespaced then
-    return tables.getCurrentSelection(2, 1)
+  local name_idx = tables.find_index(definition.headers, "NAME")
+  local ns_idx = tables.find_index(definition.headers, "NAMESPACE")
+  if ns_idx then
+    return tables.getCurrentSelection(name_idx, ns_idx)
   end
-  return tables.getCurrentSelection(1)
+  return tables.getCurrentSelection(name_idx)
 end
 
 return M

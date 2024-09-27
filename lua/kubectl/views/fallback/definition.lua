@@ -89,10 +89,10 @@ function M.processRow(rows)
   -- process kubectl json
   if rows.items then
     for _, row in pairs(rows.items) do
-      local resource = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-      }
+      local resource = { name = row.metadata.name }
+      if M.namespaced then
+        resource.namespace = row.metadata.namespace
+      end
       if vim.tbl_contains(M.headers, "STATUS") then
         resource.status = getStatus(row)
       end
@@ -132,6 +132,7 @@ function M.getHeaders(rows)
     if firstItem then
       if firstItem.metadata and firstItem.metadata.namespace and not vim.tbl_contains(headers, "NAMESPACE") then
         table.insert(headers, "NAMESPACE")
+        M.namespaced = true
       end
       if
         firstItem.status
