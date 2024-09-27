@@ -199,20 +199,23 @@ The plugin uses the following highlight groups:
 
 | Name                | Default            | Color |
 |---------------------|--------------------|-------|
-| KubectlHeader       | `{ fg = "#569CD6" }` | <span style="color:#569CD6">█</span> |
-| KubectlWarning      | `{ fg = "#D19A66" }` | <span style="color:#D19A66">█</span> |
-| KubectlError        | `{ fg = "#D16969" }` | <span style="color:#D16969">█</span> |
-| KubectlInfo         | `{ fg = "#608B4E" }` | <span style="color:#608B4E">█</span> |
-| KubectlDebug        | `{ fg = "#DCDCAA" }` | <span style="color:#DCDCAA">█</span> |
-| KubectlSuccess      | `{ fg = "#4EC9B0" }` | <span style="color:#4EC9B0">█</span> |
-| KubectlPending      | `{ fg = "#C586C0" }` | <span style="color:#C586C0">█</span> |
-| KubectlDeprecated   | `{ fg = "#D4A5A5" }` | <span style="color:#D4A5A5">█</span> |
-| KubectlExperimental | `{ fg = "#CE9178" }` | <span style="color:#CE9178">█</span> |
-| KubectlNote         | `{ fg = "#9CDCFE" }` | <span style="color:#9CDCFE">█</span> |
-| KubectlGray         | `{ fg = "#666666" }` | <span style="color:#666666">█</span> |
-| KubectlPselect      | `{ bg = "#3e4451" }` | <span style="background-color:#3e4451">█</span> |
-| KubectlPmatch       | `{ link = "KubectlWarning" }` | <span style="color:#D19A66">█</span> |
+| KubectlHeader       | `{ fg = "#569CD6" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#569CD6" /></svg> |
+| KubectlWarning      | `{ fg = "#D19A66" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#D19A66" /></svg> |
+| KubectlError        | `{ fg = "#D16969" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#D16969" /></svg> |
+| KubectlInfo         | `{ fg = "#608B4E" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#608B4E" /></svg> |
+| KubectlDebug        | `{ fg = "#DCDCAA" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#DCDCAA" /></svg> |
+| KubectlSuccess      | `{ fg = "#4EC9B0" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#4EC9B0" /></svg> |
+| KubectlPending      | `{ fg = "#C586C0" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#C586C0" /></svg> |
+| KubectlDeprecated   | `{ fg = "#D4A5A5" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#D4A5A5" /></svg> |
+| KubectlExperimental | `{ fg = "#CE9178" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#CE9178" /></svg> |
+| KubectlNote         | `{ fg = "#9CDCFE" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#9CDCFE" /></svg> |
+| KubectlGray         | `{ fg = "#666666" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#666666" /></svg> |
+| KubectlPselect      | `{ bg = "#3e4451" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#3e4451" /></svg> |
+| KubectlPmatch       | `{ link = "KubectlWarning" }` | <svg width="20" height="20"><rect width="20" height="20" fill="#D19A66" /></svg> |
 | KubectlUnderline    | `{ underline = true }` | - |
+
+
+There is not much need for $textsf{color[rgb]{1.0, 0.0, 0.0}SVG}$ images when you can just use $textsf{color[rgb]{0.0, 1.0, 0.0}inline code}$ to create coloured text.
 
 </details>
 
@@ -232,3 +235,23 @@ We use kubectl proxy and curl to reduce latency.
 ## 💪🏼 Motivation
 
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for file browsing.
+
+<!-- ![alt text](https://fwtbbmf399.execute-api.us-east-1.amazonaws.com/Prod/svg?source=https://raw.githubusercontent.com/vitalibo/markdown-inline-svg/master/readme.md&name=sample.svg) -->
+<!---->
+<!-- <details> -->
+<!-- <summary>SVG code</summary> -->
+<!---->
+<!-- ``` -->
+@sample.svg
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="121px" height="81px" viewBox="-0.5 -0.5 121 81" style="background-color: rgb(255, 255, 255);">
+    <defs/>
+    <g>
+        <ellipse cx="60" cy="40" rx="60" ry="40" fill="#ffffff" stroke="#000000" pointer-events="all"/>
+    </g>
+</svg>
+@sample.svg
+<!-- ``` -->
+
+</details>
