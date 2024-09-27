@@ -3,6 +3,8 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
 local loop = require("kubectl.utils.loop")
+local state = require("kubectl.state")
+local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 local mappings = require("kubectl.mappings")
@@ -31,19 +33,15 @@ local function set_keymaps(bufnr)
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
       local container_images = {}
-      local get_images_args = {
-        "get",
-        "deploy",
-        name,
-        "-n",
-        ns,
-        '--output=jsonpath={range .spec.template.spec.containers[*]}{.image}{"\\n"}{end}',
-      }
 
-      local images = vim.split(commands.shell_command("kubectl", get_images_args), "\n")
-      for _, image in ipairs(images) do
-        if image ~= "" then
-          table.insert(container_images, image)
+      local resource = tables.find_resource(state.instance.data, name, ns)
+      if not resource then
+        return
+      end
+
+      for _, container in ipairs(resource.spec.template.spec.containers) do
+        if container.image ~= container_images[1] then
+          table.insert(container_images, container.image)
         end
       end
 
@@ -76,9 +74,12 @@ local function set_keymaps(bufnr)
     desc = "Scale replicas",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
+      local resource = tables.find_resource(state.instance.data, name, ns)
+      if not resource then
+        return
+      end
 
-      local current_replicas =
-        commands.shell_command("kubectl", { "get", "deploy", name, "-n", ns, "-o", "jsonpath={.spec.replicas}" })
+      local current_replicas = tostring(resource.spec.replicas)
       vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
         if not input then
           return

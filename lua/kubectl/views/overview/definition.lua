@@ -17,7 +17,7 @@ local function getInfo(nodes, replicas)
   local kubelets_up = 0
   for _, node in ipairs(nodes.items) do
     local status = node_def.getStatus(node)
-    if status.value == "Ready" then
+    if status and status.value == "Ready" then
       kubelets_up = kubelets_up + 1
     end
   end
