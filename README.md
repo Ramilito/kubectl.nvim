@@ -136,6 +136,7 @@ vim.keymap.set("n", "<Plug>(kubectl.view_3)", "3")
 vim.keymap.set("n", "<Plug>(kubectl.view_4)", "4")
 vim.keymap.set("n", "<Plug>(kubectl.view_5)", "5")
 vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
+vim.keymap.set("n", "<Plug>(kubectl.yaml)", "gy")
 ```
 
 ## ⚙️ Configuration
