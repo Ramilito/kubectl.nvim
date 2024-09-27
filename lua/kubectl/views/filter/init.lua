@@ -43,7 +43,7 @@ function M.filter_label()
     return
   end
 
-  local resource = tables.find_resource(require("kubectl.state").instance.data, name, ns)
+  local resource = tables.find_resource(instance.data, name, ns)
   if not resource then
     return
   end
