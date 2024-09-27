@@ -299,8 +299,10 @@ function M.buffer(filetype, title)
 
   if not buf then
     buf = create_buffer(bufname)
-    layout.set_buf_options(buf, filetype, filetype, bufname)
-    layout.set_win_options(win)
+    vim.schedule(function()
+      layout.set_win_options(win)
+      layout.set_buf_options(buf, filetype, filetype, bufname)
+    end)
   end
 
   api.nvim_set_current_buf(buf)
