@@ -157,6 +157,7 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
   hints = true,
   context = true,
   alias = {
+    apply_on_select_from_history = true,
     max_history = 5,
   },
   filter = {

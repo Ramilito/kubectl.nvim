@@ -3,7 +3,6 @@ local ansi = require("kubectl.utils.ansi")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local kube = require("kubectl.actions.kube")
 
 local M = {}
 
