@@ -8,6 +8,7 @@ local M = {
   url = { "ls", "-a", "-A", "--output", "json" },
   hints = {
     { key = "<Plug>(kubectl.kill)", desc = "uninstall" },
+    { key = "<Plug>(kubectl.yaml)", desc = "yaml" },
   },
 }
 
