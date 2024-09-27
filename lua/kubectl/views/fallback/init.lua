@@ -7,7 +7,7 @@ local tables = require("kubectl.utils.tables")
 
 local M = {
   resource = "",
-  builder = nil,
+  configure_definition = true,
 }
 
 local function add_namespace(args, ns)
@@ -36,36 +36,38 @@ function M.View(cancellationToken, resource)
   end
 
   -- default fallback values
-  definition.resource = M.resource
-  definition.display_name = M.resource
-  definition.url = get_args()
-  definition.ft = "k8s_fallback"
-  definition.hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
-  }
-  definition.cmd = "kubectl"
-
-  -- cached resources fallback values
-  local cached_resources = require("kubectl.views").cached_api_resources
-  local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
-  if resource_name then
-    definition.resource = resource_name
-    definition.display_name = resource_name
-    definition.url = {
-      "-H",
-      "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
-      cached_resources.values[resource_name].url,
+  if M.configure_definition then
+    definition.resource = M.resource
+    definition.display_name = M.resource
+    definition.url = get_args()
+    definition.ft = "k8s_fallback"
+    definition.headers = { "NAME" }
+    definition.hints = {
+      { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
     }
-    definition.cmd = "curl"
-    definition.namespaced = cached_resources.values[resource_name].namespaced
+    definition.cmd = "kubectl"
+
+    -- cached resources fallback values
+    local cached_resources = require("kubectl.views").cached_api_resources
+    local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
+    if resource_name and not M.configured_curl then
+      definition.resource = resource_name
+      definition.display_name = resource_name
+      definition.url = {
+        "-H",
+        "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
+        cached_resources.values[resource_name].url,
+      }
+      definition.cmd = "curl"
+      definition.namespaced = cached_resources.values[resource_name].namespaced
+    end
   end
 
-  M.builder = nil -- clear any previously set values
-  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
+  ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd })
 end
 
 function M.Draw(cancellationToken)
-  M.builder = M.builder:draw(definition, cancellationToken)
+  state.instance:draw(definition, cancellationToken)
 end
 
 function M.Edit(name, ns)

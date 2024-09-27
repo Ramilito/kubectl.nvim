@@ -7,6 +7,7 @@ local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local url = require("kubectl.utils.url")
 
 local M = {}
 
@@ -209,16 +210,15 @@ function M.UserCmd(args)
 end
 
 function M.set_and_open_pod_selector(name, ns)
-  local pod_view = require("kubectl.views.pods")
   local kind = state.instance.resource
-  if  not name or not ns then
+  local pod_view, pod_definition = M.view_and_definition("pods")
+  if not name or not ns then
     return pod_view.View()
   end
 
   -- save url details
-  local pod_definition = require("kubectl.views.pods.definition")
   local original_url = pod_definition.url[1]
-  local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
+  local url_no_query_params, original_query_params = url.breakUrl(original_url, true, false)
 
   -- get the selectors for the pods
   local encode = vim.uri_encode
@@ -240,6 +240,16 @@ function M.set_and_open_pod_selector(name, ns)
   )
   pod_view.View()
   pod_definition.url = { original_url }
+end
+
+function M.view_and_definition(view_name)
+  local view_ok, view = pcall(require, "kubectl.views." .. view_name)
+  if not view_ok then
+    view_name = "fallback"
+    view = require("kubectl.views.fallback")
+  end
+  local view_definition = require("kubectl.views." .. view_name .. ".definition")
+  return view, view_definition
 end
 
 function M.view_or_fallback(view_name)

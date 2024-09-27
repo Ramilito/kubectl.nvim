@@ -1,12 +1,15 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
-local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local url = require("kubectl.utils.url")
+local views = require("kubectl.views")
 
 local M = {}
 
 local function save_history(input)
+  local state = require("kubectl.state")
   local history = state.filter_history
   local history_size = config.options.filter.max_history
 
@@ -31,7 +34,79 @@ local function save_history(input)
   state.filter_history = result
 end
 
+function M.filter_label()
+  local state = require("kubectl.state")
+  local instance = state.instance
+  local view, definition = views.view_and_definition(instance.resource)
+  local name, ns = view.getCurrentSelection()
+  if not name then
+    return
+  end
+
+  local resource = tables.find_resource(instance.data, name, ns)
+  if not resource then
+    return
+  end
+  local labels = resource.metadata and resource.metadata.labels or {}
+  table.sort(labels)
+  local original_url = vim.deepcopy(definition.url)
+
+  -- Create ResourceBuilder and buffer
+  local builder = ResourceBuilder:new("kubectl_filter_label")
+  local win_config
+  builder.buf_nr, win_config = buffers.confirmation_buffer("Filter for labels", "label_filter", function(confirm)
+    if not confirm then
+      return
+    end
+    local lines = vim.api.nvim_buf_get_lines(builder.buf_nr, 0, -1, false)
+    local new_labels = {}
+    for _, line in ipairs(lines) do
+      local match = line:match("([^=]+=.+)")
+      table.insert(new_labels, match)
+    end
+    if #new_labels == 0 then
+      return
+    end
+    local new_args
+    if definition.cmd == "kubectl" then
+      new_args = { "get", definition.resource, "-o=json", "-l", table.concat(new_labels, ",") }
+      if ns then
+        table.insert(new_args, "-n")
+        table.insert(new_args, ns)
+      end
+    else
+      local url_str = original_url[#original_url]
+      local url_no_query_params, original_query_params = url.breakUrl(url_str, true, false)
+      local label_selector = "?labelSelector=" .. vim.uri_encode(table.concat(new_labels, ","), "rfc2396")
+      new_args = vim.deepcopy(original_url)
+      new_args[#new_args] = url_no_query_params .. label_selector .. "&" .. original_query_params
+    end
+
+    -- display view
+    definition.url = new_args
+    view.configure_definition = false
+    view.View()
+    definition.url = original_url
+    view.configure_definition = true
+  end)
+
+  local confirmation = "[y]es [n]o:"
+  local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
+
+  -- Add current label to buffer
+  builder.data = { "Current labels:" }
+  for k, v in pairs(labels) do
+    table.insert(builder.data, k .. "=" .. v)
+  end
+  table.insert(builder.data, padding .. confirmation)
+  builder:splitData()
+  builder:setContentRaw()
+  vim.cmd([[syntax match KubectlSuccess /.*=\@=/]])
+  vim.cmd([[syntax match KubectlDebug /=\@<=.*/]])
+end
+
 function M.filter()
+  local state = require("kubectl.state")
   local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
 
   local list = {}
