@@ -17,7 +17,6 @@ M.symbols = {
   clear = "KubectlClear",
   tab = "KubectlTab",
   underline = "KubectlUnderline",
-  match = "KubectlPmatch",
 }
 
 local highlights = {
@@ -32,8 +31,7 @@ local highlights = {
   KubectlExperimental = { fg = "#CE9178" }, -- Brown
   KubectlNote = { fg = "#9CDCFE" }, -- Light Blue
   KubectlGray = { fg = "#666666" }, -- Dark Gray
-  KubectlPselect = { bg = "#3e4451" },
-  KubectlPmatch = { link = "KubectlWarning" },
+  KubectlPum = { bg = "#3e4451" },
   KubectlUnderline = { underline = true },
 }
 

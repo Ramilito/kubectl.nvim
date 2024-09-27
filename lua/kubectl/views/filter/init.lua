@@ -8,7 +8,7 @@ local views = require("kubectl.views")
 
 local M = {}
 
-function M.save_history(input)
+local function save_history(input)
   local state = require("kubectl.state")
   local history = state.filter_history
   local history_size = config.options.filter.max_history
@@ -107,7 +107,7 @@ end
 
 function M.filter()
   local state = require("kubectl.state")
-  local buf = buffers.filter_buffer("k8s_filter", M.save_history, { title = "Filter", header = { data = {} } })
+  local buf = buffers.filter_buffer("k8s_filter", save_history, { title = "Filter", header = { data = {} } })
 
   local list = {}
   for _, value in ipairs(state.filter_history) do
