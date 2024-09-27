@@ -93,50 +93,62 @@ vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { n
 
 You can also override the plugin's keymaps using the `<Plug>` mappings:
 
+<details><summary>Default Mappings</summary>
+
 ```lua
 -- default mappings
-vim.keymap.set("n", "<Plug>(kubectl.alias_view)", "<C-a>")
-vim.keymap.set("n", "<Plug>(kubectl.browse)", "gx")
-vim.keymap.set("n", "<Plug>(kubectl.contexts_view)", "<C-x>")
-vim.keymap.set("n", "<Plug>(kubectl.cordon)", "gC")
-vim.keymap.set("n", "<Plug>(kubectl.create_job)", "gc")
-vim.keymap.set("n", "<Plug>(kubectl.delete)", "gD")
-vim.keymap.set("n", "<Plug>(kubectl.describe)", "gd")
-vim.keymap.set("n", "<Plug>(kubectl.drain)", "gR")
-vim.keymap.set("n", "<Plug>(kubectl.edit)", "ge")
-vim.keymap.set("n", "<Plug>(kubectl.filter_label)", "<C-l>")
-vim.keymap.set("n", "<Plug>(kubectl.filter_view)", "<C-f>")
-vim.keymap.set("n", "<Plug>(kubectl.follow)", "f")
-vim.keymap.set("n", "<Plug>(kubectl.go_up)", "<BS>")
-vim.keymap.set("v", "<Plug>(kubectl.filter_term)", "<C-f>")
-vim.keymap.set("n", "<Plug>(kubectl.help)", "g?")
-vim.keymap.set("n", "<Plug>(kubectl.history)", "gh")
-vim.keymap.set("n", "<Plug>(kubectl.kill)", "gk")
-vim.keymap.set("n", "<Plug>(kubectl.logs)", "gl")
-vim.keymap.set("n", "<Plug>(kubectl.namespace_view)", "<C-n>")
-vim.keymap.set("n", "<Plug>(kubectl.portforward)", "gp")
-vim.keymap.set("n", "<Plug>(kubectl.portforwards_view)", "gP")
-vim.keymap.set("n", "<Plug>(kubectl.prefix)", "gp")
-vim.keymap.set("n", "<Plug>(kubectl.quit)", "")
-vim.keymap.set("n", "<Plug>(kubectl.refresh)", "gr")
-vim.keymap.set("n", "<Plug>(kubectl.rollout_restart)", "grr")
-vim.keymap.set("n", "<Plug>(kubectl.scale)", "gss")
-vim.keymap.set("n", "<Plug>(kubectl.select)", "<CR>")
-vim.keymap.set("n", "<Plug>(kubectl.set_image)", "gi")
-vim.keymap.set("n", "<Plug>(kubectl.sort)", "gs")
-vim.keymap.set("n", "<Plug>(kubectl.suspend_job)", "gx")
-vim.keymap.set("n", "<Plug>(kubectl.tab)", "<Tab>")
-vim.keymap.set("n", "<Plug>(kubectl.timestamps)", "gt")
-vim.keymap.set("n", "<Plug>(kubectl.top_nodes)", "gn")
-vim.keymap.set("n", "<Plug>(kubectl.top_pods)", "gp")
-vim.keymap.set("n", "<Plug>(kubectl.uncordon)", "gU")
-vim.keymap.set("n", "<Plug>(kubectl.view_1)", "1")
-vim.keymap.set("n", "<Plug>(kubectl.view_2)", "2")
-vim.keymap.set("n", "<Plug>(kubectl.view_3)", "3")
-vim.keymap.set("n", "<Plug>(kubectl.view_4)", "4")
-vim.keymap.set("n", "<Plug>(kubectl.view_5)", "5")
-vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
+vim.api.nvim_create_autocmd("FileType", {
+  group = group,
+  pattern = "k8s_*",
+  callback = function(ev)
+    local k = vim.keymap.set
+    local opts = { buffer = ev.buf }
+    k("n", "<Plug>(kubectl.alias_view)", "<C-a>", opts)
+    k("n", "<Plug>(kubectl.browse)", "gx", opts)
+    k("n", "<Plug>(kubectl.contexts_view)", "<C-x>", opts)
+    k("n", "<Plug>(kubectl.cordon)", "gC", opts)
+    k("n", "<Plug>(kubectl.create_job)", "gc", opts)
+    k("n", "<Plug>(kubectl.delete)", "gD", opts)
+    k("n", "<Plug>(kubectl.describe)", "gd", opts)
+    k("n", "<Plug>(kubectl.drain)", "gR", opts)
+    k("n", "<Plug>(kubectl.edit)", "ge", opts)
+    k("n", "<Plug>(kubectl.filter_label)", "<C-l>", opts)
+    k("n", "<Plug>(kubectl.filter_view)", "<C-f>", opts)
+    k("n", "<Plug>(kubectl.follow)", "f", opts)
+    k("n", "<Plug>(kubectl.go_up)", "<BS>", opts)
+    k("v", "<Plug>(kubectl.filter_term)", "<C-f>", opts)
+    k("n", "<Plug>(kubectl.help)", "g?", opts)
+    k("n", "<Plug>(kubectl.history)", "gh", opts)
+    k("n", "<Plug>(kubectl.kill)", "gk", opts)
+    k("n", "<Plug>(kubectl.logs)", "gl", opts)
+    k("n", "<Plug>(kubectl.namespace_view)", "<C-n>", opts)
+    k("n", "<Plug>(kubectl.portforward)", "gp", opts)
+    k("n", "<Plug>(kubectl.portforwards_view)", "gP", opts)
+    k("n", "<Plug>(kubectl.prefix)", "gp", opts)
+    k("n", "<Plug>(kubectl.quit)", "", opts)
+    k("n", "<Plug>(kubectl.refresh)", "gr", opts)
+    k("n", "<Plug>(kubectl.rollout_restart)", "grr", opts)
+    k("n", "<Plug>(kubectl.scale)", "gss", opts)
+    k("n", "<Plug>(kubectl.select)", "<CR>", opts)
+    k("n", "<Plug>(kubectl.set_image)", "gi", opts)
+    k("n", "<Plug>(kubectl.sort)", "gs", opts)
+    k("n", "<Plug>(kubectl.suspend_job)", "gx", opts)
+    k("n", "<Plug>(kubectl.tab)", "<Tab>", opts)
+    k("n", "<Plug>(kubectl.timestamps)", "gt", opts)
+    k("n", "<Plug>(kubectl.top_nodes)", "gn", opts)
+    k("n", "<Plug>(kubectl.top_pods)", "gp", opts)
+    k("n", "<Plug>(kubectl.uncordon)", "gU", opts)
+    k("n", "<Plug>(kubectl.view_1)", "1", opts)
+    k("n", "<Plug>(kubectl.view_2)", "2", opts)
+    k("n", "<Plug>(kubectl.view_3)", "3", opts)
+    k("n", "<Plug>(kubectl.view_4)", "4", opts)
+    k("n", "<Plug>(kubectl.view_5)", "5", opts)
+    k("n", "<Plug>(kubectl.wrap)", "gw", opts)
+  end,
+})
 ```
+
+</details>
 
 ## ⚙️ Configuration
 
@@ -180,19 +192,43 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
 }
 ```
 
-## Performance
+## 🎨 Colors
+
+The plugin uses the following highlight groups:
+<details><summary>Highlight Groups</summary>
+
+| Name                | Default            | Color |
+|---------------------|--------------------|-------|
+| KubectlHeader       | `{ fg = "#569CD6" }` | <span style="color:#569CD6">█</span> |
+| KubectlWarning      | `{ fg = "#D19A66" }` | <span style="color:#D19A66">█</span> |
+| KubectlError        | `{ fg = "#D16969" }` | <span style="color:#D16969">█</span> |
+| KubectlInfo         | `{ fg = "#608B4E" }` | <span style="color:#608B4E">█</span> |
+| KubectlDebug        | `{ fg = "#DCDCAA" }` | <span style="color:#DCDCAA">█</span> |
+| KubectlSuccess      | `{ fg = "#4EC9B0" }` | <span style="color:#4EC9B0">█</span> |
+| KubectlPending      | `{ fg = "#C586C0" }` | <span style="color:#C586C0">█</span> |
+| KubectlDeprecated   | `{ fg = "#D4A5A5" }` | <span style="color:#D4A5A5">█</span> |
+| KubectlExperimental | `{ fg = "#CE9178" }` | <span style="color:#CE9178">█</span> |
+| KubectlNote         | `{ fg = "#9CDCFE" }` | <span style="color:#9CDCFE">█</span> |
+| KubectlGray         | `{ fg = "#666666" }` | <span style="color:#666666">█</span> |
+| KubectlPselect      | `{ bg = "#3e4451" }` | <span style="background-color:#3e4451">█</span> |
+| KubectlPmatch       | `{ link = "KubectlWarning" }` | <span style="color:#D19A66">█</span> |
+| KubectlUnderline    | `{ underline = true }` | - |
+
+</details>
+
+## 🚀 Performance
 
 ### Startup
 
 The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
-## Versioning
+## ⚠️ Versioning
 
 > [!WARNING]
 > As we have not yet reached v1.0.0, we may have some breaking changes
 > in cases where it is deemed necessary.
 
-## Motivation
+## 💪🏼 Motivation
 
 This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for file browsing.

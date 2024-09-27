@@ -53,7 +53,7 @@ local function open_completion_pum(items, selected_index, search_term)
 
   -- Enable cursorline and define custom highlight for cursorline
   vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = M.pum_win })
-  vim.api.nvim_set_option_value("winhl", "CursorLine:KubectlPum", { win = M.pum_win })
+  vim.api.nvim_set_option_value("winhl", "CursorLine:KubectlPselect,Search:None", { win = M.pum_win })
   vim.api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
   -- Clear the buffer
   vim.api.nvim_buf_set_lines(M.pum_buf, 0, -1, false, {})
@@ -68,7 +68,7 @@ local function open_completion_pum(items, selected_index, search_term)
     local s = fzy.positions(search_term:lower(), item:lower())
     if s then
       for _, e in pairs(s) do
-        vim.api.nvim_buf_add_highlight(M.pum_buf, -1, hl.symbols.warning, i - 1, e - 1, e)
+        vim.api.nvim_buf_add_highlight(M.pum_buf, -1, hl.symbols.match, i - 1, e - 1, e)
       end
     end
   end
