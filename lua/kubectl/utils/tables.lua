@@ -12,9 +12,9 @@ local function calculate_column_widths(rows, columns)
   for _, row in ipairs(rows) do
     for _, column in pairs(columns) do
       if type(row[column]) == "table" then
-        widths[column] = math.max(widths[column] or 0, #tostring(row[column].value))
+        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column].value)))
       else
-        widths[column] = math.max(widths[column] or 0, #tostring(row[column]))
+        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column])))
       end
     end
   end
@@ -25,17 +25,47 @@ end
 local function calculate_extra_padding(widths, headers)
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
-  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
+  local textoff = vim.fn.getwininfo(win)[1].textoff
+  local text_width = win_width - textoff
   local total_width = 0
-  for key, value in pairs(widths) do
-    local max_width = math.max(#key, value)
-    -- We add the default padding (+3)
-    total_width = total_width + max_width + 3
-    widths[key] = max_width
+  local separator_width = 3 -- Padding for sort icon or column separator
+  local column_count = #headers
+
+  -- Calculate the maximum width for each column, including separator width
+  for _, key in ipairs(headers) do
+    local value_width = widths[string.lower(key)] or 0
+    local header_width = #key
+    local max_width = math.max(header_width, value_width) + separator_width
+    widths[string.lower(key)] = max_width
+    total_width = total_width + max_width
   end
-  -- We subtract the last padding (-3)
-  local padding = math.floor(math.max((text_width - total_width - 3) / #headers, 0))
-  return padding
+
+  -- Calculate total padding needed (subtracting 2 for any additional offsets, not sure why this is needed tbh)
+  local total_padding = text_width - total_width - 2
+
+  if total_padding < 0 then
+    -- Not enough space to add extra padding
+    return
+  end
+
+  -- Exclude the last column from receiving extra padding
+  local padding_columns = column_count - 1
+
+  if padding_columns > 0 then
+    -- Calculate base padding and distribute any remainder
+    local base_padding = math.floor(total_padding / padding_columns)
+    local extra_padding = total_padding % padding_columns
+
+    -- Add padding to each column except the last one
+    for i, key in ipairs(headers) do
+      if i == column_count then
+        -- Do not add extra padding to the last column
+        break
+      end
+      local extra = (i <= extra_padding) and 1 or 0
+      widths[string.lower(key)] = widths[string.lower(key)] + base_padding + extra
+    end
+  end
 end
 
 function M.get_plug_mappings(headers, mode)
@@ -240,7 +270,7 @@ function M.pretty_print(data, headers, sort_by)
     widths[key] = math.max(#key, value)
   end
 
-  local extra_padding = calculate_extra_padding(widths, headers)
+  calculate_extra_padding(widths, headers)
   local tbl = {}
   local extmarks = {}
 
@@ -253,9 +283,8 @@ function M.pretty_print(data, headers, sort_by)
   local header_col_position = 0
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 0
-    local padding = string.rep(" ", column_width - #header + extra_padding)
-    -- "   " is to add space for sort icon even when width is small
-    local value = header .. "   " .. padding
+    local padding = string.rep(" ", column_width - #header)
+    local value = header .. padding
     table.insert(header_line, value)
 
     local start_col = header_col_position
@@ -298,9 +327,8 @@ function M.pretty_print(data, headers, sort_by)
         value = tostring(cell)
       end
 
-      local padding = string.rep(" ", widths[col] - #value + extra_padding)
-      -- "   " is to add space for sort icon even when width is small
-      local display_value = value .. "   " .. padding
+      local padding = string.rep(" ", widths[col] - #value)
+      local display_value = value .. padding
 
       table.insert(row_line, display_value)
 
