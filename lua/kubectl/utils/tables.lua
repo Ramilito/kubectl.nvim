@@ -25,29 +25,36 @@ end
 local function calculate_extra_padding(widths, headers)
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
-  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
+  local textoff = vim.fn.getwininfo(win)[1].textoff
+  local text_width = win_width - textoff
   local total_width = 0
-  local last_column_width = headers[#headers]
+  local separator_width = 3 -- Padding for sort icon
+  local column_count = #headers
 
-  for key, value in pairs(widths) do
-    local max_width = math.max(#key, value) + 3
+  for _, key in ipairs(headers) do
+    local value_width = widths[string.lower(key)] or 0
+    local header_width = #key
+    local max_width = math.max(header_width, value_width) + separator_width
+    widths[string.lower(key)] = max_width
     total_width = total_width + max_width
-    -- widths[key] = max_width
   end
 
-  local total_padding = (text_width - total_width)
-  local padding = math.floor(math.max((total_padding / #headers), 0))
+  -- Calculate total padding needed
+  local total_padding = text_width - total_width - 2
 
-  for key, value in pairs(widths) do
-    local max_width = math.max(#key, value) + 3
-    if key ~= string.lower(last_column_width) then
-      widths[key] = max_width + padding
-    else
-      total_width = total_width - widths[key]
-      widths[key] = widths[key] - 3
-    end
+  if total_padding < 0 then
+    -- Not enough space to display all columns
+    return
   end
-  vim.print(widths)
+
+  -- Calculate base padding and distribute remainder
+  local base_padding = math.floor(total_padding / column_count)
+  local extra_padding = total_padding % column_count
+
+  for i, key in ipairs(headers) do
+    local extra = (i <= extra_padding) and 1 or 0
+    widths[string.lower(key)] = widths[string.lower(key)] + base_padding + extra
+  end
 end
 
 function M.get_plug_mappings(headers, mode)
