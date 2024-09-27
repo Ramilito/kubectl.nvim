@@ -209,8 +209,8 @@ function M.UserCmd(args)
 end
 
 function M.set_and_open_pod_selector(name, ns)
-  local pod_view = require("kubectl.views.pods")
   local kind = state.instance.resource
+  local pod_view, pod_definition = M.view_and_definition("pods")
   if not name or not ns then
     return pod_view.View()
   end
