@@ -117,7 +117,7 @@ function M.getHeaders(rows)
   if rows.columnDefinitions then
     headers = {}
     if M.namespaced then
-      table.insert(headers, "NAMESPACE")
+      table.insert(headers, 1, "NAMESPACE")
     end
 
     for _, col in pairs(rows.columnDefinitions) do
@@ -131,7 +131,7 @@ function M.getHeaders(rows)
     local firstItem = rows.items[1]
     if firstItem then
       if firstItem.metadata and firstItem.metadata.namespace and not vim.tbl_contains(headers, "NAMESPACE") then
-        table.insert(headers, "NAMESPACE")
+        table.insert(headers, 1, "NAMESPACE")
         M.namespaced = true
       end
       if
