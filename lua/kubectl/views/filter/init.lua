@@ -106,11 +106,11 @@ function M.filter()
   completion.with_completion(buf, list, nil, false)
 
   local header, marks = tables.generateHeader({
-    { key = "<Plug>(kubectl.select)",    desc = "apply" },
-    { key = "<Plug>(kubectl.tab)",       desc = "next" },
+    { key = "<Plug>(kubectl.select)", desc = "apply" },
+    { key = "<Plug>(kubectl.tab)", desc = "next" },
     { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
     -- TODO: Definition should be moved to mappings.lua
-    { key = "<Plug>(kubectl.quit)",      desc = "close" },
+    { key = "<Plug>(kubectl.quit)", desc = "close" },
   }, false, false)
 
   table.insert(header, "History:")
