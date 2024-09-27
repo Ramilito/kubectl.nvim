@@ -385,7 +385,6 @@ end
 
 function M.find_resource(data, name, namespace)
   if data.items then
-    vim.print("data.items")
     return vim.iter(data.items):find(function(row)
       return row.metadata.name == name and (namespace and row.metadata.namespace == namespace or true)
     end)
