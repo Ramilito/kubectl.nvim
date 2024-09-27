@@ -32,10 +32,13 @@ local function calculate_extra_padding(widths, headers)
   local column_count = #headers
 
   -- Calculate the maximum width for each column, including separator width
-  for _, key in ipairs(headers) do
+  for index, key in ipairs(headers) do
     local value_width = widths[string.lower(key)] or 0
     local header_width = #key
     local max_width = math.max(header_width, value_width) + separator_width
+    if index == #headers then
+      max_width = max_width - separator_width + 1
+    end
     widths[string.lower(key)] = max_width
     total_width = total_width + max_width
   end
