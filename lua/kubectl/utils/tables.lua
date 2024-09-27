@@ -28,9 +28,10 @@ local function calculate_extra_padding(widths, headers)
   local textoff = vim.fn.getwininfo(win)[1].textoff
   local text_width = win_width - textoff
   local total_width = 0
-  local separator_width = 3 -- Padding for sort icon
+  local separator_width = 3 -- Padding for sort icon or column separator
   local column_count = #headers
 
+  -- Calculate the maximum width for each column, including separator width
   for _, key in ipairs(headers) do
     local value_width = widths[string.lower(key)] or 0
     local header_width = #key
@@ -39,21 +40,31 @@ local function calculate_extra_padding(widths, headers)
     total_width = total_width + max_width
   end
 
-  -- Calculate total padding needed
+  -- Calculate total padding needed (subtracting 2 for any additional offsets, not sure why this is needed tbh)
   local total_padding = text_width - total_width - 2
 
   if total_padding < 0 then
-    -- Not enough space to display all columns
+    -- Not enough space to add extra padding
     return
   end
 
-  -- Calculate base padding and distribute remainder
-  local base_padding = math.floor(total_padding / column_count)
-  local extra_padding = total_padding % column_count
+  -- Exclude the last column from receiving extra padding
+  local padding_columns = column_count - 1
 
-  for i, key in ipairs(headers) do
-    local extra = (i <= extra_padding) and 1 or 0
-    widths[string.lower(key)] = widths[string.lower(key)] + base_padding + extra
+  if padding_columns > 0 then
+    -- Calculate base padding and distribute any remainder
+    local base_padding = math.floor(total_padding / padding_columns)
+    local extra_padding = total_padding % padding_columns
+
+    -- Add padding to each column except the last one
+    for i, key in ipairs(headers) do
+      if i == column_count then
+        -- Do not add extra padding to the last column
+        break
+      end
+      local extra = (i <= extra_padding) and 1 or 0
+      widths[string.lower(key)] = widths[string.lower(key)] + base_padding + extra
+    end
   end
 end
 
