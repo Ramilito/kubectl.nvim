@@ -20,6 +20,7 @@ local function set_keymap(bufnr)
     desc = "Go to pods",
     callback = function()
       local name, ns = service_view.getCurrentSelection()
+      state.setFilter("")
       view.set_and_open_pod_selector(name, ns)
     end,
   })

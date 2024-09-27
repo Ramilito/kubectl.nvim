@@ -2,6 +2,7 @@ local api = vim.api
 local commands = require("kubectl.actions.commands")
 local job_view = require("kubectl.views.jobs")
 local loop = require("kubectl.utils.loop")
+local state = require("kubectl.state")
 local view = require("kubectl.views")
 
 local mappings = require("kubectl.mappings")
@@ -15,6 +16,7 @@ local function set_keymaps(bufnr)
     desc = "Go to pods",
     callback = function()
       local name, ns = job_view.getCurrentSelection()
+      state.setFilter("")
       view.set_and_open_pod_selector(name, ns)
     end,
   })
