@@ -7,7 +7,7 @@ local M = {
   cmd = "helm",
   url = { "ls", "-a", "-A", "--output", "json" },
   hints = {
-    { key = "<Plug>(kubectl.select)", desc = "show resource" },
+    { key = "<Plug>(kubectl.kill)", desc = "uninstall" },
   },
 }
 
