@@ -12,10 +12,10 @@ local M = {
 }
 
 function M.processRow(rows)
+  local data = {}
   if not rows then
     return data
   end
-  local data = {}
   for _, row in ipairs(rows) do
     local helm = {
       namespace = row.namespace,
