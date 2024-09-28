@@ -28,7 +28,7 @@ local function calculate_extra_padding(columns, widths)
   end
 
   -- Calculate base padding and distribute any remainder, also remove the pipe character
-  local base_padding = math.floor(total_padding / #columns) - 3
+  local base_padding = math.floor(total_padding / #columns) - 4
   local extra_padding = total_padding % #columns
 
   for i, key in ipairs(columns) do
@@ -40,18 +40,19 @@ local function calculate_extra_padding(columns, widths)
   end
 end
 
-local function section_widths(rows, sections)
+local function section_widths(rows, grid)
   local widths = {}
 
-  for _, section in ipairs(sections) do
-    for _, row in ipairs(rows[section] or {}) do
-      if row.name and row.value then
-        local length = #row.name + #row.value + 1 -- 1 for the space between
-        widths[section] = math.max(widths[section] or 0, length)
+  for _, sections in ipairs(grid) do
+    for _, section in ipairs(sections) do
+      for _, row in ipairs(rows[section] or {}) do
+        if row.name and row.value then
+          local length = #row.name + #row.value + 1 -- 1 for the space between
+          widths[section] = math.max(widths[section] or 0, length)
+        end
       end
     end
   end
-
   return widths
 end
 
@@ -65,7 +66,6 @@ function M.pretty_print(data, sections)
   end
   local layout = {}
   local extmarks = {}
-  local max_cols = config.options.overview.max_column_size
   local max_items = 0
   local pipe = " ⎪ "
   local dash = "―"
@@ -77,22 +77,20 @@ function M.pretty_print(data, sections)
   local grid = {}
   local row_count = 1
 
-  local columns = {}
-  for index, section in ipairs(sections) do
-    table.insert(columns, section)
-    max_items = math.max(max_items, #data[section] or 0)
-    if index % max_cols == 0 or index == #sections then
-      calculate_extra_padding(columns, widths)
-      grid[row_count] = {
-        row = #grid,
-        max_items = max_items,
-        columns = columns,
-      }
-
-      row_count = row_count + 1
-      max_items = 0
-      columns = {}
+  for index, columns in ipairs(sections) do
+    for _, column in ipairs(columns) do
+      max_items = math.max(max_items, #data[column] or 0)
     end
+
+    calculate_extra_padding(sections[index], widths)
+    grid[index] = {
+      row = index,
+      max_items = max_items,
+      columns = sections[index],
+    }
+
+    row_count = row_count + 1
+    max_items = 0
   end
 
   for grid_index, grid_row in ipairs(grid) do
@@ -101,7 +99,7 @@ function M.pretty_print(data, sections)
         break
       end
       local formatted_section = pad_string(column, widths[column])
-      table.insert(current_headers, formatted_section)
+      table.insert(current_headers, formatted_section .. pipe)
 
       for row_index = 1, grid[grid_index].max_items do
         local item = data[column][row_index]
@@ -143,8 +141,7 @@ function M.pretty_print(data, sections)
         end
       end
     end
-    local header_row = table.concat(current_headers, pipe)
-
+    local header_row = table.concat(current_headers)
     table.insert(layout, "")
     table.insert(extmarks, {
       row = #layout - 1,

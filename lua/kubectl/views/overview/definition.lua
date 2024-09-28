@@ -182,19 +182,19 @@ local function getEvents(rows)
   for _, row in ipairs(rows.items) do
     if row.type ~= "Normal" then
       local message = row.message:gsub("\n", "")
-      if #message > 80 then
-        message = string.sub(message, 1, 80) .. "..."
+      local name = row.involvedObject.name
+
+      if #message > 200 then
+        message = string.sub(message, 1, 200) .. "..."
       end
+
       local creation_date = time.since(row.metadata.creationTimestamp, false, currentTime)
-      table.insert(
-        tmp,
-        {
-          name = row.involvedObject.name,
-          value = message,
-          symbol = events_util.ColorStatus(row.reason),
-          creation_date = creation_date,
-        }
-      )
+      table.insert(tmp, {
+        name = name,
+        value = message,
+        symbol = events_util.ColorStatus(row.reason),
+        creation_date = creation_date,
+      })
     end
   end
 
@@ -233,14 +233,11 @@ function M.processRow(rows)
 end
 
 function M.getSections()
-  local sections = {
+  local sections = { {
     "info",
     "nodes",
     "namespaces",
-    "high-cpu",
-    "high-ram",
-    "events",
-  }
+  }, { "high-cpu", "high-ram" }, { "events" } }
 
   return sections
 end
