@@ -366,10 +366,11 @@ function M.register()
   for _, view_name in ipairs(vim.tbl_keys(viewsTable)) do
     local view = require("kubectl.views." .. view_name)
     local keymap_name = string.gsub(view_name, "-", "_")
+    local desc = string_utils.capitalize(view_name) .. " view"
     vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_" .. keymap_name .. ")", "", {
       noremap = true,
       silent = true,
-      desc = view.display_name,
+      desc = desc,
       callback = function()
         view.View()
       end,
