@@ -138,7 +138,7 @@ function M.filter_buffer(filetype, callback, opts)
     end, { buffer = buf, silent = true })
   end
 
-  local win = layout.filter_layout(buf, filetype, opts.title or "")
+  local win = layout.float_dynamic_layout(buf, filetype, opts.title or "")
 
   vim.fn.prompt_setcallback(buf, function(input)
     input = vim.trim(input)
