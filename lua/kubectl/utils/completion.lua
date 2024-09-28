@@ -188,9 +188,6 @@ function M.with_completion(buf, data, callback, shortest)
     return ""
   end
 
-  mappings.map_if_plug_not_set("i", "<Tab>", "<Plug>(kubectl.tab)")
-  mappings.map_if_plug_not_set("i", "<S-Tab>", "<Plug>(kubectl.shift_tab)")
-
   vim.api.nvim_buf_set_keymap(buf, "i", "<Plug>(kubectl.tab)", "", {
     noremap = true,
     callback = function()
@@ -204,6 +201,11 @@ function M.with_completion(buf, data, callback, shortest)
       tab_toggle(false)
     end,
   })
+
+  vim.schedule(function()
+    mappings.map_if_plug_not_set("i", "<Tab>", "<Plug>(kubectl.tab)")
+    mappings.map_if_plug_not_set("i", "<S-Tab>", "<Plug>(kubectl.shift_tab)")
+  end)
 end
 
 return M

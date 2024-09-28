@@ -10,8 +10,6 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
-mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
-
 --- Set key mappings for the buffer
 local function set_keymap(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
@@ -105,3 +103,7 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
+end)

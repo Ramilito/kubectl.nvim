@@ -2,13 +2,14 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local event_handler = require("kubectl.actions.eventhandler").handler
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local logger = require("kubectl.utils.logging")
 local string_utils = require("kubectl.utils.string")
 local M = {}
 
 local function is_plug_mapped(plug_target, mode)
-  local mappings = vim.api.nvim_get_keymap(mode)
+  local mappings = vim.tbl_extend("force", vim.api.nvim_get_keymap(mode), vim.api.nvim_buf_get_keymap(0, mode))
   for _, mapping in ipairs(mappings) do
-    if mapping.rhs == plug_target then
+    if mapping.rhs and mapping.rhs == plug_target then
       return true
     end
   end
@@ -25,32 +26,6 @@ end
 function M.register()
   local win_id = vim.api.nvim_get_current_win()
   local win_config = vim.api.nvim_win_get_config(win_id)
-
-  -- Global mappings
-  if win_config.relative == "" then
-    M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_1)")
-    M.map_if_plug_not_set("n", "2", "<Plug>(kubectl.view_2)")
-    M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
-    M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
-    M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
-    M.map_if_plug_not_set("n", "6", "<Plug>(kubectl.view_6)")
-    M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
-    M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
-    M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
-    M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
-    M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
-  end
-
-  M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
-  M.map_if_plug_not_set("n", "<C-a>", "<Plug>(kubectl.alias_view)")
-  M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
-  M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
-  M.map_if_plug_not_set("n", "<C-l>", "<Plug>(kubectl.filter_label)")
-  M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
-  M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
-  M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
-  M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
-  M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
 
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.portforwards_view)", "", {
     noremap = true,
@@ -447,5 +422,33 @@ function M.register()
       view.View()
     end,
   })
+
+  vim.schedule(function()
+    -- Global mappings
+    if win_config.relative == "" then
+      M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_1)")
+      M.map_if_plug_not_set("n", "2", "<Plug>(kubectl.view_2)")
+      M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
+      M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
+      M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
+      M.map_if_plug_not_set("n", "6", "<Plug>(kubectl.view_6)")
+      M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
+      M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
+      M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
+      M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
+      M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+    end
+
+    M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
+    M.map_if_plug_not_set("n", "<C-a>", "<Plug>(kubectl.alias_view)")
+    M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
+    M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
+    M.map_if_plug_not_set("n", "<C-l>", "<Plug>(kubectl.filter_label)")
+    M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
+    M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
+    M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
+    M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
+    M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
+  end)
 end
 return M

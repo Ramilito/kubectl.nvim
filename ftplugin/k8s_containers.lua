@@ -4,8 +4,6 @@ local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 
-mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.logs)", "", {
@@ -45,3 +43,7 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
+end)

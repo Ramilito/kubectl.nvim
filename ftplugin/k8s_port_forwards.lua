@@ -2,8 +2,6 @@ local commands = require("kubectl.actions.commands")
 local mappings = require("kubectl.mappings")
 local tables = require("kubectl.utils.tables")
 
-mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
-
 local function set_keymaps(bufnr)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
@@ -28,3 +26,7 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+end)

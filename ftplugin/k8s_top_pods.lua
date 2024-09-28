@@ -4,9 +4,6 @@ local mappings = require("kubectl.mappings")
 local top_def = require("kubectl.views.top.definition")
 local top_view = require("kubectl.views.top")
 
-mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.top_pods)")
-mappings.map_if_plug_not_set("n", "gn", "<Plug>(kubectl.top_nodes)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.top_pods)", "", {
@@ -39,3 +36,8 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.top_pods)")
+  mappings.map_if_plug_not_set("n", "gn", "<Plug>(kubectl.top_nodes)")
+end)
