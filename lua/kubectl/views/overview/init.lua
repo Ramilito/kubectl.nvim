@@ -27,6 +27,7 @@ function M.View(cancellationToken)
     },
     { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" } },
     { cmd = "curl", args = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}replicasets?pretty=false" } },
+    { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" } },
   }
 
   for _, cmd in ipairs(cmds) do
@@ -40,10 +41,10 @@ function M.View(cancellationToken)
   M.handles = commands.await_shell_command_async(cmds, function(data)
     local builder = ResourceBuilder:new(definition.resource)
     builder.data = data
-    builder:decodeJson():process(definition.processRow, true)
 
-    if builder.processedData then
-      vim.schedule(function()
+    vim.schedule(function()
+      builder:decodeJson():process(definition.processRow, true)
+      if builder.processedData then
         builder.prettyData, builder.extmarks = grid.pretty_print(builder.processedData, definition.getSections())
         builder:addHints(definition.hints, true, true, true)
         if cancellationToken and cancellationToken() then
@@ -53,8 +54,8 @@ function M.View(cancellationToken)
         builder:display(definition.ft, definition.resource)
         builder:setContent(nil)
         M.handles = nil
-      end)
-    end
+      end
+    end)
   end)
 end
 

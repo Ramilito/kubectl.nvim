@@ -177,7 +177,6 @@ function M.pretty_print(data, sections)
     current_headers = {}
     rows = {}
     row_count = row_count + 1
-    table.insert(layout, "") -- Add an empty line between groups
   end
 
   return layout, extmarks
