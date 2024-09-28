@@ -10,7 +10,6 @@ local function is_plug_mapped(plug_target, mode)
   local mappings = vim.tbl_extend("force", vim.api.nvim_get_keymap(mode), vim.api.nvim_buf_get_keymap(0, mode))
   for _, mapping in ipairs(mappings) do
     if mapping.rhs and mapping.rhs == plug_target then
-      vim.print("matches", mapping.lhs)
       return true
     end
   end
@@ -450,6 +449,6 @@ function M.register()
     M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
     M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
     M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
-  end )
+  end)
 end
 return M
