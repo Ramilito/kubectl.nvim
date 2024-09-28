@@ -130,11 +130,12 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.filter_view)", "<C-f>", opts) -- Filter view
     k("n", "<Plug>(kubectl.namespace_view)", "<C-n>", opts) -- Namespaces view
     k("n", "<Plug>(kubectl.portforwards_view)", "gP", opts) -- Portforwards view
-    k("n", "<Plug>(kubectl.view_1)", "1", opts)
-    k("n", "<Plug>(kubectl.view_2)", "2", opts)
-    k("n", "<Plug>(kubectl.view_3)", "3", opts)
-    k("n", "<Plug>(kubectl.view_4)", "4", opts)
-    k("n", "<Plug>(kubectl.view_5)", "5", opts)
+    k("n", "<Plug>(kubectl.view_1)", "1", opts) -- Deployments view
+    k("n", "<Plug>(kubectl.view_2)", "2", opts) -- Pods view
+    k("n", "<Plug>(kubectl.view_3)", "3", opts) -- ConfigMaps view
+    k("n", "<Plug>(kubectl.view_4)", "4", opts) -- Secrets view
+    k("n", "<Plug>(kubectl.view_5)", "5", opts) -- Services view
+    k("n", "<Plug>(kubectl.view_6)", "6", opts) -- Ingresses view
 
     -- Deployment/DaemonSet actions
     k("n", "<Plug>(kubectl.rollout_restart)", "grr", opts) -- Rollout restart
