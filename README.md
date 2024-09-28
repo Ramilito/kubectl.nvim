@@ -107,51 +107,67 @@ vim.api.nvim_create_autocmd("FileType", {
   callback = function(ev)
     local k = vim.keymap.set
     local opts = { buffer = ev.buf }
-    k("n", "<Plug>(kubectl.alias_view)", "<C-a>", opts)
-    k("n", "<Plug>(kubectl.browse)", "gx", opts)
-    k("n", "<Plug>(kubectl.contexts_view)", "<C-x>", opts)
-    k("n", "<Plug>(kubectl.cordon)", "gC", opts)
-    k("n", "<Plug>(kubectl.create_job)", "gc", opts)
-    k("n", "<Plug>(kubectl.delete)", "gD", opts)
-    k("n", "<Plug>(kubectl.describe)", "gd", opts)
-    k("n", "<Plug>(kubectl.drain)", "gR", opts)
-    k("n", "<Plug>(kubectl.edit)", "ge", opts)
-    k("n", "<Plug>(kubectl.filter_label)", "<C-l>", opts)
-    k("n", "<Plug>(kubectl.filter_view)", "<C-f>", opts)
-    k("n", "<Plug>(kubectl.follow)", "f", opts)
-    k("n", "<Plug>(kubectl.go_up)", "<BS>", opts)
-    k("v", "<Plug>(kubectl.filter_term)", "<C-f>", opts)
-    k("n", "<Plug>(kubectl.help)", "g?", opts)
-    k("n", "<Plug>(kubectl.history)", "gh", opts)
-    k("n", "<Plug>(kubectl.kill)", "gk", opts)
-    k("n", "<Plug>(kubectl.logs)", "gl", opts)
-    k("n", "<Plug>(kubectl.namespace_view)", "<C-n>", opts)
-    k("n", "<Plug>(kubectl.portforward)", "gp", opts)
-    k("n", "<Plug>(kubectl.portforwards_view)", "gP", opts)
-    k("n", "<Plug>(kubectl.prefix)", "gp", opts)
-    k("n", "<Plug>(kubectl.quit)", "", opts)
-    k("n", "<Plug>(kubectl.refresh)", "gr", opts)
-    k("n", "<Plug>(kubectl.rollout_restart)", "grr", opts)
-    k("n", "<Plug>(kubectl.scale)", "gss", opts)
-    k("n", "<Plug>(kubectl.select)", "<CR>", opts)
-    k("n", "<Plug>(kubectl.set_image)", "gi", opts)
-    k("n", "<Plug>(kubectl.sort)", "gs", opts)
-    k("n", "<Plug>(kubectl.suspend_job)", "gx", opts)
-    k("n", "<Plug>(kubectl.tab)", "<Tab>", opts)
-    k("n", "<Plug>(kubectl.timestamps)", "gt", opts)
-    k("n", "<Plug>(kubectl.top_nodes)", "gn", opts)
-    k("n", "<Plug>(kubectl.top_pods)", "gp", opts)
-    k("n", "<Plug>(kubectl.uncordon)", "gU", opts)
+
+    -- Global
+    k("n", "<Plug>(kubectl.help)", "g?", opts) -- Help float
+    k("n", "<Plug>(kubectl.refresh)", "gr", opts) -- Refresh view
+    k("n", "<Plug>(kubectl.sort)", "gs", opts) -- Sort by column
+    k("n", "<Plug>(kubectl.delete)", "gD", opts) -- Delete resource
+    k("n", "<Plug>(kubectl.describe)", "gd", opts) -- Describe resource
+    k("n", "<Plug>(kubectl.edit)", "ge", opts) -- Edit resource
+    k("n", "<Plug>(kubectl.filter_label)", "<C-l>", opts) -- Filter labels
+    k("n", "<Plug>(kubectl.go_up)", "<BS>", opts) -- Go back to previous view
+    k("v", "<Plug>(kubectl.filter_term)", "<C-f>", opts) -- Filter selected text
+    k("n", "<Plug>(kubectl.select)", "<CR>", opts) -- Resource select action (different on each view)
+    k("n", "<Plug>(kubectl.tab)", "<Tab>", opts) -- Tab completion (ascending, when applicable)
+    k("n", "<Plug>(kubectl.shift_tab)", "<Tab>", opts) -- Tab completion (descending, when applicable)
+    k("n", "<Plug>(kubectl.quit)", "", opts) -- Close view (when applicable)
+    k("n", "<Plug>(kubectl.kill)", "gk", opts) -- Pod/portforward kill
+
+    -- Views
+    k("n", "<Plug>(kubectl.alias_view)", "<C-a>", opts) -- Aliases view
+    k("n", "<Plug>(kubectl.contexts_view)", "<C-x>", opts) -- Contexts view
+    k("n", "<Plug>(kubectl.filter_view)", "<C-f>", opts) -- Filter view
+    k("n", "<Plug>(kubectl.namespace_view)", "<C-n>", opts) -- Namespaces view
+    k("n", "<Plug>(kubectl.portforwards_view)", "gP", opts) -- Portforwards view
     k("n", "<Plug>(kubectl.view_1)", "1", opts)
     k("n", "<Plug>(kubectl.view_2)", "2", opts)
     k("n", "<Plug>(kubectl.view_3)", "3", opts)
     k("n", "<Plug>(kubectl.view_4)", "4", opts)
     k("n", "<Plug>(kubectl.view_5)", "5", opts)
-    k("n", "<Plug>(kubectl.wrap)", "gw", opts)
+
+    -- Deployment/DaemonSet actions
+    k("n", "<Plug>(kubectl.rollout_restart)", "grr", opts) -- Rollout restart
+    k("n", "<Plug>(kubectl.scale)", "gss", opts) -- Scale workload
+    k("n", "<Plug>(kubectl.set_image)", "gi", opts) -- Set image (only if 1 container)
+
+    -- Pod/Container logs
+    k("n", "<Plug>(kubectl.logs)", "gl", opts) -- Logs view
+    k("n", "<Plug>(kubectl.history)", "gh", opts) -- Change logs --since= flag
+    k("n", "<Plug>(kubectl.follow)", "f", opts) -- Follow logs
+    k("n", "<Plug>(kubectl.wrap)", "gw", opts) -- Toggle wrap log lines
+    k("n", "<Plug>(kubectl.prefix)", "gp", opts) -- Toggle container name prefix
+    k("n", "<Plug>(kubectl.timestamps)", "gt", opts) -- Toggle timestamps prefix
+
+    -- Node actions
+    k("n", "<Plug>(kubectl.cordon)", "gC", opts) -- Cordon node
+    k("n", "<Plug>(kubectl.uncordon)", "gU", opts) -- Uncordon node
+    k("n", "<Plug>(kubectl.drain)", "gR", opts) -- Drain node
+
+    -- Top actions
+    k("n", "<Plug>(kubectl.top_nodes)", "gn", opts) -- Top nodes
+    k("n", "<Plug>(kubectl.top_pods)", "gp", opts) -- Top pods
+
+    -- CronJob/Job actions
+    k("n", "<Plug>(kubectl.suspend_job)", "gx", opts) -- only for CronJob
+    k("n", "<Plug>(kubectl.create_job)", "gc", opts) -- Create Job from CronJob or Job
+
+    k("n", "<Plug>(kubectl.portforward)", "gp", opts) -- Pods/Services portforward
+    k("n", "<Plug>(kubectl.browse)", "gx", opts) -- Ingress view
+    k("n", "<Plug>(kubectl.yaml)", "gy", opts) -- Helm view
   end,
 })
 ```
-</details>
 
 </details>
 
@@ -207,7 +223,7 @@ The plugin uses the following highlight groups:
 
 <details><summary>Highlight Groups</summary>
 
-| Name                | Default                       | Color |
+| Name                | Default                       | Color                                                                                     |
 | ------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
 | KubectlHeader       | `{ fg = "#569CD6" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
 | KubectlWarning      | `{ fg = "#D19A66" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
