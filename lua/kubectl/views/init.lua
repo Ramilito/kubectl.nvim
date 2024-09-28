@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
@@ -169,6 +170,12 @@ function M.Aliases()
       vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
       vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
       vim.cmd("startinsert")
+
+      if config.options.alias.apply_on_select_from_history then
+        vim.schedule(function()
+          vim.api.nvim_input("<cr>")
+        end)
+      end
     end,
   })
 end

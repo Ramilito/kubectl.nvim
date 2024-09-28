@@ -78,7 +78,7 @@ function ResourceBuilder:setCmd(args, cmd, contentType)
   self.cmd = cmd or "kubectl"
   self.args = url.build(args)
 
-  if self.cmd ~= "kubectl" then
+  if self.cmd == "curl" then
     self.args = url.addHeaders(self.args, contentType)
   end
 

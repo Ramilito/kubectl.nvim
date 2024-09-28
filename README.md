@@ -150,8 +150,6 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.wrap)", "gw", opts)
   end,
 })
-```
-
 </details>
 
 ## ⚙️ Configuration
@@ -173,6 +171,7 @@ vim.api.nvim_create_autocmd("FileType", {
   hints = true,
   context = true,
   alias = {
+    apply_on_select_from_history = true,
     max_history = 5,
   },
   filter = {

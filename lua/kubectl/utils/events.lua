@@ -100,6 +100,7 @@ function M.ColorStatus(status)
     Bound = true,
     Completed = true,
     Created = true,
+    Deployed = true,
     FileSystemResizeSuccessful = true,
     Healthy = true,
     NodeHasNoDiskPressure = true,
