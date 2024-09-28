@@ -20,7 +20,7 @@ local function calculate_extra_padding(columns, widths)
     total_width = total_width + max_width
   end
 
-  local total_padding = text_width - total_width
+  local total_padding = text_width - total_width - 1
 
   if total_padding < 0 then
     -- Not enough space to add extra padding
@@ -28,7 +28,7 @@ local function calculate_extra_padding(columns, widths)
   end
 
   -- Calculate base padding and distribute any remainder, also remove the pipe character
-  local base_padding = math.floor(total_padding / #columns) - 4
+  local base_padding = math.floor(total_padding / #columns) - 3
   local extra_padding = total_padding % #columns
 
   for i, key in ipairs(columns) do
@@ -78,11 +78,11 @@ function M.pretty_print(data, sections)
   local row_count = 1
 
   for index, columns in ipairs(sections) do
+    calculate_extra_padding(sections[index], widths)
     for _, column in ipairs(columns) do
       max_items = math.max(max_items, #data[column] or 0)
     end
 
-    calculate_extra_padding(sections[index], widths)
     grid[index] = {
       row = index,
       max_items = max_items,
