@@ -2,13 +2,6 @@ local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local str = require("kubectl.utils.string")
 
-mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
-mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
-mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.prefix)")
-mappings.map_if_plug_not_set("n", "gt", "<Plug>(kubectl.timestamps)")
-mappings.map_if_plug_not_set("n", "gh", "<Plug>(kubectl.history)")
-mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.follow)", "", {
@@ -85,3 +78,12 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
+  mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
+  mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.prefix)")
+  mappings.map_if_plug_not_set("n", "gt", "<Plug>(kubectl.timestamps)")
+  mappings.map_if_plug_not_set("n", "gh", "<Plug>(kubectl.history)")
+  mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
+end)

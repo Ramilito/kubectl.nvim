@@ -6,9 +6,6 @@ local helm_view = require("kubectl.views.helm")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 
-mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
-mappings.map_if_plug_not_set("n", "gy", "<Plug>(kubectl.yaml)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.kill)", "", {
@@ -73,3 +70,8 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+  mappings.map_if_plug_not_set("n", "gy", "<Plug>(kubectl.yaml)")
+end)

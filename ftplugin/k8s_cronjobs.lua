@@ -6,9 +6,6 @@ local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local tables = require("kubectl.utils.tables")
 
-mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
-mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
@@ -90,3 +87,8 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
+  mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
+end)

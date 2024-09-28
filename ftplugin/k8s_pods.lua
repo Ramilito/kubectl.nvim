@@ -11,10 +11,6 @@ local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
-mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
-mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.logs)", "", {
@@ -189,3 +185,9 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
+  mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
+  mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+end)
