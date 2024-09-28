@@ -185,7 +185,6 @@ local function getEvents(rows)
       if #message > 80 then
         message = string.sub(message, 1, 80) .. "..."
       end
-      vim.print(vim.inspect(row))
       local creation_date = time.since(row.metadata.creationTimestamp, false, currentTime)
       table.insert(
         tmp,
