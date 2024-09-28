@@ -72,12 +72,13 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.sort)", desc = "Sort column" },
     { key = "<Plug>(kubectl.edit)", desc = "Edit resource" },
     { key = "<Plug>(kubectl.refresh)", desc = "Refresh view" },
-    { key = "<Plug>(kubectl.view_1)", desc = "Deployments" },
-    { key = "<Plug>(kubectl.view_2)", desc = "Pods" },
-    { key = "<Plug>(kubectl.view_3)", desc = "Configmaps" },
-    { key = "<Plug>(kubectl.view_4)", desc = "Secrets" },
-    { key = "<Plug>(kubectl.view_5)", desc = "Services" },
-    { key = "<Plug>(kubectl.view_6)", desc = "Ingresses" },
+    { key = "<Plug>(kubectl.view_deployments)", desc = "Deployments" },
+    { key = "<Plug>(kubectl.view_pods)", desc = "Pods" },
+    { key = "<Plug>(kubectl.view_configmaps)", desc = "Configmaps" },
+    { key = "<Plug>(kubectl.view_secrets)", desc = "Secrets" },
+    { key = "<Plug>(kubectl.view_services)", desc = "Services" },
+    { key = "<Plug>(kubectl.view_ingresses)", desc = "Ingresses" },
+    { key = "<Plug>(kubectl.view_nodes)", desc = "Nodes" },
   }
 
   local global_keymaps = tables.get_plug_mappings(globals, "n")

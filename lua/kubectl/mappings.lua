@@ -363,7 +363,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_1)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_deployments)", "", {
     noremap = true,
     silent = true,
     desc = "Deployments",
@@ -373,7 +373,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_2)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_pods)", "", {
     noremap = true,
     silent = true,
     desc = "Pods",
@@ -383,7 +383,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_3)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_configmaps)", "", {
     noremap = true,
     silent = true,
     desc = "Configmaps",
@@ -393,7 +393,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_4)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_secrets)", "", {
     noremap = true,
     silent = true,
     desc = "Secrets",
@@ -403,7 +403,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_5)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_services)", "", {
     noremap = true,
     silent = true,
     desc = "Services",
@@ -413,7 +413,7 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_6)", "", {
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_ingresses)", "", {
     noremap = true,
     silent = true,
     desc = "Ingresses",
@@ -423,15 +423,25 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_nodes)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Nodes",
+    callback = function()
+      local view = require("kubectl.views.nodes")
+      view.View()
+    end,
+  })
+
   vim.schedule(function()
     -- Global mappings
     if win_config.relative == "" then
-      M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_1)")
-      M.map_if_plug_not_set("n", "2", "<Plug>(kubectl.view_2)")
-      M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
-      M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
-      M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
-      M.map_if_plug_not_set("n", "6", "<Plug>(kubectl.view_6)")
+      M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_deployments)")
+      M.map_if_plug_not_set("n", "2", "<Plug>(kubectl.view_pods)")
+      M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_configmaps)")
+      M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_secrets)")
+      M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_services)")
+      M.map_if_plug_not_set("n", "6", "<Plug>(kubectl.view_ingresses)")
       M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
       M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
       M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
