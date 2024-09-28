@@ -24,9 +24,6 @@ local defaults = {
   namespace_fallback = {},
   hints = true,
   context = true,
-  overview = {
-    max_column_size = 3,
-  },
   alias = {
     apply_on_select_from_history = true,
     max_history = 5,
