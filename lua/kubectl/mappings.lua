@@ -33,6 +33,7 @@ function M.register()
     M.map_if_plug_not_set("n", "3", "<Plug>(kubectl.view_3)")
     M.map_if_plug_not_set("n", "4", "<Plug>(kubectl.view_4)")
     M.map_if_plug_not_set("n", "5", "<Plug>(kubectl.view_5)")
+    M.map_if_plug_not_set("n", "6", "<Plug>(kubectl.view_6)")
     M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
     M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
     M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
@@ -433,6 +434,16 @@ function M.register()
     desc = "Services",
     callback = function()
       local view = require("kubectl.views.services")
+      view.View()
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_6)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Ingresses",
+    callback = function()
+      local view = require("kubectl.views.ingresses")
       view.View()
     end,
   })
