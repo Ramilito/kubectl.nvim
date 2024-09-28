@@ -7,22 +7,36 @@ local function calculate_extra_padding(columns, widths)
   end
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
-  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
+  local textoff = vim.fn.getwininfo(win)[1].textoff
+  local text_width = win_width - textoff
   local total_width = 0
-  for _, column in ipairs(columns) do
-    if widths[column] then
-      local max_width = math.max(#column, widths[column])
+  local separator_width = 0 -- Padding for sort icon or column separator
 
-      total_width = total_width + max_width + 5
-      widths[column] = max_width
-    end
+  for _, key in ipairs(columns) do
+    local value_width = widths[string.lower(key)] or 0
+    local max_width = math.max(#key, value_width) + separator_width
+    widths[string.lower(key)] = max_width
+    total_width = total_width + max_width
   end
 
-  -- We substract the last padding (-5)
-  local extra_space = text_width - total_width - 5
-  local extra_padding = math.floor(extra_space / #columns) - 1
+  local total_padding = text_width - total_width
 
-  return math.max(extra_padding, 0)
+  if total_padding < 0 then
+    -- Not enough space to add extra padding
+    return
+  end
+
+  -- Calculate base padding and distribute any remainder, also remove the pipe character
+  local base_padding = math.floor(total_padding / #columns) - 3
+  local extra_padding = total_padding % #columns
+
+  for i, key in ipairs(columns) do
+    local additional_padding = base_padding
+    if i <= extra_padding then
+      additional_padding = additional_padding + 1
+    end
+    widths[string.lower(key)] = widths[string.lower(key)] + additional_padding
+  end
 end
 
 local function section_widths(rows, sections)
@@ -41,7 +55,7 @@ local function section_widths(rows, sections)
 end
 
 local function pad_string(str, width)
-  return str .. string.rep(" ", width - #str + 4)
+  return str .. string.rep(" ", width - #str)
 end
 
 function M.pretty_print(data, sections)
@@ -56,7 +70,6 @@ function M.pretty_print(data, sections)
   local dash = "―"
 
   local widths = section_widths(data, sections)
-
   -- Create headers and rows using modulo for dynamic wrapping
   local current_headers = {}
   local rows = {}
@@ -68,12 +81,11 @@ function M.pretty_print(data, sections)
     table.insert(columns, section)
     max_items = math.max(max_items, #data[section] or 0)
     if index % max_cols == 0 or index == #sections then
+      calculate_extra_padding(columns, widths)
       grid[row_count] = {
         row = #grid,
         max_items = max_items,
         columns = columns,
-        -- padding = 0,
-        padding = calculate_extra_padding(columns, widths),
       }
 
       row_count = row_count + 1
@@ -87,14 +99,13 @@ function M.pretty_print(data, sections)
       if not widths[column] then
         break
       end
-      local formatted_section = pad_string(column, (widths[column] + grid_row.padding))
+      local formatted_section = pad_string(column, widths[column])
       table.insert(current_headers, formatted_section)
 
       for row_index = 1, grid[grid_index].max_items do
         local item = data[column][row_index]
         if item then
-          local formatted_item =
-            pad_string(string.format("%s (%s)", item.name, item.value), (widths[column] + grid_row.padding) or 10)
+          local formatted_item = pad_string(string.format("%s (%s)", item.name, item.value), widths[column] or 0)
           local row = rows[row_index] and rows[row_index].value or ""
 
           rows[row_index] = {
@@ -120,14 +131,12 @@ function M.pretty_print(data, sections)
           if row then
             rows[row_index] = {
               marks = rows[row_index].marks,
-              value = (rows[row_index].value or "")
-                .. pad_string("", (widths[column] + grid_row.padding) or 10)
-                .. pipe,
+              value = (rows[row_index].value or "") .. pad_string("", widths[column] or 0) .. pipe,
             }
           else
             rows[row_index] = {
               marks = {},
-              value = pad_string("", (widths[column] + grid_row.padding) or 10) .. pipe,
+              value = pad_string("", widths[column] or 0) .. pipe,
             }
           end
         end
