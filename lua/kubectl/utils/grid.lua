@@ -64,7 +64,7 @@ function M.pretty_print(data, sections)
   end
   local layout = {}
   local extmarks = {}
-  local max_cols = 2
+  local max_cols = 3
   local max_items = 0
   local pipe = " ⎪ "
   local dash = "―"
