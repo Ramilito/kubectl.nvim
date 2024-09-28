@@ -291,11 +291,13 @@ function M.register()
     silent = true,
     desc = "Filter",
     callback = function()
+      local filter_view = require("kubectl.views.filter")
       local state = require("kubectl.state")
       local filter_term = string_utils.get_visual_selection()
       if not filter_term then
         return
       end
+      filter_view.save_history(filter_term)
       state.setFilter(filter_term)
 
       vim.api.nvim_set_option_value("modified", false, { buf = 0 })
