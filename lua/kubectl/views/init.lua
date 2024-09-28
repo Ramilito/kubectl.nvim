@@ -169,7 +169,7 @@ function M.Aliases()
 
       vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
       vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
-      vim.cmd("startinsert")
+      vim.cmd("startinsert!")
 
       if config.options.alias.apply_on_select_from_history then
         vim.schedule(function()
