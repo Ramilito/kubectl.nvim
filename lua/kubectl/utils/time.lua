@@ -9,8 +9,9 @@ local success_symbol = hl.symbols.success
 ---@param timestamp string
 ---@param fresh? boolean
 ---@param currentTime? number
+---@param format? string
 ---@return table|nil
-function M.since(timestamp, fresh, currentTime)
+function M.since(timestamp, fresh, currentTime, format)
   if not timestamp or type(timestamp) ~= "string" then
     return nil
   end
@@ -19,7 +20,11 @@ function M.since(timestamp, fresh, currentTime)
     currentTime = M.currentTime()
   end
 
-  local parsed_time = vim.fn.strptime("%Y-%m-%dT%H:%M:%SZ", timestamp)
+  if not format then
+    format = "%Y-%m-%dT%H:%M:%SZ"
+  end
+
+  local parsed_time = vim.fn.strptime(format, timestamp)
   if not parsed_time or parsed_time == 0 then
     return nil
   end
