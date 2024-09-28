@@ -94,7 +94,7 @@ end
 
 --- Creates an alias buffer.
 --- @param filetype string: The filetype of the buffer.
---- @param opts { title: string|nil, header: { data: table }, suggestions: table}: Options for the buffer.
+--- @param opts { title: string|nil }: Options for the buffer.
 function M.aliases_buffer(filetype, callback, opts)
   local bufname = "kubectl_aliases"
   local buf = get_buffer_by_name(bufname)
@@ -107,7 +107,7 @@ function M.aliases_buffer(filetype, callback, opts)
     end, { buffer = buf, silent = true })
   end
 
-  local win = layout.aliases_layout(buf, filetype, opts.title or "")
+  local win = layout.float_dynamic_layout(buf, filetype, opts.title)
 
   vim.fn.prompt_setcallback(buf, function(input)
     callback(input)
