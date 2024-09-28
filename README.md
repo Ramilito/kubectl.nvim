@@ -137,7 +137,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.view_services)", "5", opts) -- Services view
     k("n", "<Plug>(kubectl.view_ingresses)", "6", opts) -- Ingresses view
     k("n", "<Plug>(kubectl.view_api_resources)", "", opts) -- API-Resources view
-    k("n", "<Plug>(kubectl.view_clusterrolebindings)", "", opts) -- ClusterRoleBindings view
+    k("n", "<Plug>(kubectl.view_clusterrolebinding)", "", opts) -- ClusterRoleBindings view
     k("n", "<Plug>(kubectl.view_crds)", "", opts) -- CRDs view
     k("n", "<Plug>(kubectl.view_cronjobs)", "", opts) -- CronJobs view
     k("n", "<Plug>(kubectl.view_daemonsets)", "", opts) -- DaemonSets view

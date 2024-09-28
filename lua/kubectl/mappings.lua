@@ -1,8 +1,8 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local viewsTable = require("kubectl.utils.viewsTable")
 local event_handler = require("kubectl.actions.eventhandler").handler
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local logger = require("kubectl.utils.logging")
 local string_utils = require("kubectl.utils.string")
 local M = {}
 
@@ -363,75 +363,18 @@ function M.register()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_deployments)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Deployments",
-    callback = function()
-      local view = require("kubectl.views.deployments")
-      view.View()
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_pods)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Pods",
-    callback = function()
-      local view = require("kubectl.views.pods")
-      view.View()
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_configmaps)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Configmaps",
-    callback = function()
-      local view = require("kubectl.views.configmaps")
-      view.View()
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_secrets)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Secrets",
-    callback = function()
-      local view = require("kubectl.views.secrets")
-      view.View()
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_services)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Services",
-    callback = function()
-      local view = require("kubectl.views.services")
-      view.View()
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_ingresses)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Ingresses",
-    callback = function()
-      local view = require("kubectl.views.ingresses")
-      view.View()
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_nodes)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Nodes",
-    callback = function()
-      local view = require("kubectl.views.nodes")
-      view.View()
-    end,
-  })
+  for _, view_name in ipairs(vim.tbl_keys(viewsTable)) do
+    local view = require("kubectl.views." .. view_name)
+    local keymap_name = string.gsub(view_name, "-", "_")
+    vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.view_" .. keymap_name .. ")", "", {
+      noremap = true,
+      silent = true,
+      desc = view.display_name,
+      callback = function()
+        view.View()
+      end,
+    })
+  end
 
   vim.schedule(function()
     -- Global mappings
