@@ -186,8 +186,6 @@ vim.api.nvim_create_autocmd("FileType", {
 
 </details>
 
-</details>
-
 ## ⚙️ Configuration
 
 ### Setup
