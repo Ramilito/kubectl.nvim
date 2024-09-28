@@ -11,7 +11,7 @@ local function calculate_extra_padding(columns, widths)
   local textoff = vim.fn.getwininfo(win)[1].textoff
   local text_width = win_width - textoff
   local total_width = 0
-  local separator_width = 0 -- Padding for sort icon or column separator
+  local separator_width = 3 -- Padding for sort icon or column separator
 
   for _, key in ipairs(columns) do
     local value_width = widths[string.lower(key)] or 0
