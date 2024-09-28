@@ -1,6 +1,8 @@
+local events_util = require("kubectl.utils.events")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local node_def = require("kubectl.views.nodes.definition")
+local time = require("kubectl.utils.time")
 local top_def = require("kubectl.views.top.definition")
 
 local M = {
@@ -151,7 +153,7 @@ local function getRam(nodes, pods, pods_metrics)
   return data
 end
 
-local function is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas)
+local function is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas, events)
   if not nodes or not nodes.items then
     return false
   end
@@ -164,11 +166,47 @@ local function is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas)
     or not nodes_metrics.items
     or not pods_metrics
     or not pods_metrics.items
+    or not events
+    or not events.items
   then
     return false
   end
 
   return true
+end
+
+local function getEvents(rows)
+  local data = {}
+  local tmp = {}
+  local currentTime = time.currentTime()
+  for _, row in ipairs(rows.items) do
+    if row.type ~= "Normal" then
+      local message = row.message:gsub("\n", "")
+      if #message > 80 then
+        message = string.sub(message, 1, 80) .. "..."
+      end
+      vim.print(vim.inspect(row))
+      local creation_date = time.since(row.metadata.creationTimestamp, false, currentTime)
+      table.insert(
+        tmp,
+        {
+          name = row.involvedObject.name,
+          value = message,
+          symbol = events_util.ColorStatus(row.reason),
+          creation_date = creation_date,
+        }
+      )
+    end
+  end
+
+  table.sort(tmp, function(a, b)
+    return a.creation_date.sort_by > b.creation_date.sort_by
+  end)
+
+  for i = 1, math.min(10, #tmp) do
+    table.insert(data, { name = tmp[i].name, value = tmp[i].value, symbol = tmp[i].symbol })
+  end
+  return data
 end
 
 function M.processRow(rows)
@@ -177,8 +215,9 @@ function M.processRow(rows)
   local pods_metrics = rows[3]
   local pods = rows[4]
   local replicas = rows[5]
+  local events = rows[6]
 
-  if not is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas) then
+  if not is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas, events) then
     return nil
   end
 
@@ -188,6 +227,7 @@ function M.processRow(rows)
     namespaces = getNamespaces(pods),
     ["high-cpu"] = getCpu(nodes, pods, pods_metrics),
     ["high-ram"] = getRam(nodes, pods, pods_metrics),
+    events = getEvents(events),
   }
 
   return data
@@ -200,6 +240,7 @@ function M.getSections()
     "namespaces",
     "high-cpu",
     "high-ram",
+    "events",
   }
 
   return sections
