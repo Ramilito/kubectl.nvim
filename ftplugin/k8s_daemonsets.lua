@@ -8,9 +8,6 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
-mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
-mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
@@ -99,3 +96,8 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
+  mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
+end)

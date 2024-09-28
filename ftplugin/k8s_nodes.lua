@@ -3,10 +3,6 @@ local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local node_view = require("kubectl.views.nodes")
 
-mappings.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
-mappings.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
-mappings.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.cordon)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.drain)", "", {
@@ -61,3 +57,9 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
+  mappings.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
+  mappings.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.cordon)")
+end)

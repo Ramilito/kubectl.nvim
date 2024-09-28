@@ -57,9 +57,7 @@ function M.setup(options)
     group = group,
     pattern = "k8s_*",
     callback = function()
-      vim.schedule(function()
-        mappings.register()
-      end)
+      mappings.register()
     end,
   })
 
