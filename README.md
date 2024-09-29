@@ -24,7 +24,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/user-attachments/assets/f6d5d38a-2b1d-4262-9c15-0587277e2b7a" width="700px">
 </details>
 <details>
-  <summary>Run custom commands e.g <code>:Kubectl get configmaps -A</code></summary>
+  <summary>Run custom commands e.g <code>:Kubectl get endpoints</code></summary>
   <img src="https://github.com/user-attachments/assets/3162ef16-4730-472b-95f8-4bdc2948647f" width="700px">
 </details>
 <details>
@@ -74,6 +74,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 - [kubediff](https://github.com/Ramilito/kubediff) or
   [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff
   feature)
+- [Helm](https://helm.sh/docs/intro/install/) (for helm view)
 
 ## 📦 Installation
 
@@ -270,11 +271,19 @@ The plugin uses the following highlight groups:
 The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
+### Efficient Resource Monitoring
+
+We leverage the Kubernetes Informer to efficiently monitor resource updates.
+
+By using the `resourceVersion`, we avoid fetching all resources in each loop.
+
+Instead, the Informer provides only the changes, significantly reducing overhead and improving performance.
+
 ## ⚠️ Versioning
 
-> [!WARNING]
-> As we have not yet reached v1.0.0, we may have some breaking changes
-> in cases where it is deemed necessary.
+As we advance to `v1.0.0`, our primary goal is to maintain the stability of the
+plugin and minimize any breaking changes. We are committed to providing a
+reliable and consistent user experience.
 
 ## 💪🏼 Motivation
 
