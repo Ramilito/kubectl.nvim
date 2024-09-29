@@ -20,6 +20,10 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/user-attachments/assets/899cb923-e038-4822-890b-d88466797d52" width="700px">
 </details>
 <details>
+  <summary>Completion</summary>
+  <img src="https://github.com/user-attachments/assets/f6d5d38a-2b1d-4262-9c15-0587277e2b7a" width="700px">
+</details>
+<details>
   <summary>Run custom commands e.g <code>:Kubectl get configmaps -A</code></summary>
   <img src="https://github.com/user-attachments/assets/3162ef16-4730-472b-95f8-4bdc2948647f" width="700px">
 </details>
