@@ -201,6 +201,7 @@ vim.api.nvim_create_autocmd("FileType", {
 
 ```lua
 {
+  log_level = vim.log.levels.INFO,
   auto_refresh = {
     enabled = true,
     interval = 300, -- milliseconds

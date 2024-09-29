@@ -1,6 +1,7 @@
 local M = {}
 
 ---@class KubectlOptions
+---@field log_level string
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field namespace string
 ---@field hints boolean
@@ -8,6 +9,7 @@ local M = {}
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
 local defaults = {
+  log_level = vim.log.levels.INFO,
   auto_refresh = {
     enabled = true,
     interval = 300, -- milliseconds
