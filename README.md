@@ -30,12 +30,12 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 <details>
   <summary>Exec into containers</summary>
   <sub>In the pod view, select a pod by pressing <code>&lt;cr&gt;</code> and then again <code>&lt;cr&gt;</code> on the container you want to exec into</sub>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/24e15963-bfd2-43a5-9e35-9d33cf5d976e" width="700px">
+  <img src="https://github.com/user-attachments/assets/ffb9cfb1-8e75-4917-88f5-477a443669a9" width="700px">
 </details>
 <details>
   <summary>Sort by headers</summary>
     <sub>By moving the cursor to a column and pressing <code>s</code></sub>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/9f96e943-eda4-458e-a4ba-cf23e0417963" width="700px">
+  <img src="https://github.com/user-attachments/assets/918038d4-60ed-4d7a-a20d-8d9e57fd1be9" width="700px">
 </details>
 <details>
   <summary>Tail logs</summary>
