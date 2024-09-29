@@ -11,12 +11,19 @@ function M.configure_command(cmd, envs, args)
 
   if cmd == "kubectl" then
     cmd = config.options.kubectl_cmd.cmd
-    vim.list_extend(result.args, config.options.kubectl_cmd.args or {})
-    vim.list_extend(result.env, config.options.kubectl_cmd.env or {})
+    local options_args = config.options.kubectl_cmd.args or {}
+    local options_env = config.options.kubectl_cmd.env or {}
+    local mixer = function(key, value)
+      return type(key) == "number" and value or key .. "=" .. value
+    end
+    vim.list_extend(result.args, vim.iter(options_args):map(mixer):totable())
+    vim.list_extend(result.env, vim.iter(options_env):map(mixer):totable())
   end
 
   table.insert(result.env, "PATH=" .. current_env["PATH"])
   table.insert(result.env, "HOME=" .. current_env["HOME"])
+  table.insert(result.env, "KUBECONFIG=" .. current_env["KUBECONFIG"])
+  table.insert(result.env, "KUBECACHEDIR=" .. current_env["KUBECACHEDIR"])
 
   if envs then
     vim.list_extend(result.env, envs)
@@ -28,6 +35,10 @@ function M.configure_command(cmd, envs, args)
 
   if args then
     vim.list_extend(result.args, args)
+  end
+
+  for key, value in pairs(result.args) do
+    result.args[key] = value:gsub("%$(%w+)", os.getenv)
   end
 
   -- Add the command itself as the first argument
