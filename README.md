@@ -17,15 +17,15 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Floating windows for contextual stuff such as logs, description, containers..</summary>
-  <img src="https://github.com/user-attachments/assets/d5c927b4-cfa7-4906-8a73-a0b7c822a00b" width="700px">
+  <img src="https://github.com/user-attachments/assets/899cb923-e038-4822-890b-d88466797d52" width="700px">
 </details>
 <details>
   <summary>Run custom commands e.g <code>:Kubectl get configmaps -A</code></summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
+  <img src="https://github.com/user-attachments/assets/3162ef16-4730-472b-95f8-4bdc2948647f" width="700px">
 </details>
 <details>
-  <summary>Change context using cmd <code>:Kubectx context-name</code></summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/9ca4f5b6-fb8c-47bf-a588-560e219c439c" width="700px">
+  <summary>Change context using cmd <code>:Kubectx context-name</code> or the context view</summary>
+  <img src="https://github.com/user-attachments/assets/bca7c827-4207-47d2-b828-5dc6caab005a" width="700px">
 </details>
 <details>
   <summary>Exec into containers</summary>
