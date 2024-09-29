@@ -39,7 +39,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Tail logs</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
+  <img src="https://github.com/user-attachments/assets/8a1f59fb-59f2-4093-a479-8900940edfc9" width="700px">
 </details>
 <details>
   <summary>Diff view: <code>:Kubectl diff (path)</code></summary>
@@ -47,7 +47,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Port forward</summary>
-  <img src="https://github.com/user-attachments/assets/ff52acdb-6341-456a-a6df-1bb88bec4ef8" width="700px">
+  <img src="https://github.com/user-attachments/assets/9dec1bb8-b65c-4b5a-a8fe-4ca26c93ab43" width="700px">
 </details>
 <details>
   <summary>Aliases (fallback view)</summary>
