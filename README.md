@@ -2,7 +2,7 @@
 
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 
-<img src="https://github.com/user-attachments/assets/3c070dc5-1b93-47a0-9412-bf34ae611267" width="1700px">
+<img src="https://github.com/user-attachments/assets/2243c9d8-0808-4734-92aa-7612496c920b" width="1700px">
 
 ## ✨ Features
 
