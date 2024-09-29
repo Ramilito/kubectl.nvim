@@ -9,37 +9,41 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 <details>
   <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 </summary>
-  <img src="https://github.com/user-attachments/assets/422fa6e3-1e3d-4efc-85a2-e6087bdd8815" width="700px">
+  <img src="https://github.com/user-attachments/assets/2243c9d8-0808-4734-92aa-7612496c920b" width="700px">
 </details>
 <details>
   <summary>Colored output and smart highlighting</summary>
-  <img src="https://github.com/user-attachments/assets/d9b34465-7644-486a-8ad2-8d4ae960a8f3" width="700px">
+  <img src="https://github.com/user-attachments/assets/f42fa62c-0ddc-4733-9a83-b9d55b4745a1" width="700px">
 </details>
 <details>
   <summary>Floating windows for contextual stuff such as logs, description, containers..</summary>
-  <img src="https://github.com/user-attachments/assets/d5c927b4-cfa7-4906-8a73-a0b7c822a00b" width="700px">
+  <img src="https://github.com/user-attachments/assets/899cb923-e038-4822-890b-d88466797d52" width="700px">
+</details>
+<details>
+  <summary>Completion</summary>
+  <img src="https://github.com/user-attachments/assets/f6d5d38a-2b1d-4262-9c15-0587277e2b7a" width="700px">
 </details>
 <details>
   <summary>Run custom commands e.g <code>:Kubectl get configmaps -A</code></summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
+  <img src="https://github.com/user-attachments/assets/3162ef16-4730-472b-95f8-4bdc2948647f" width="700px">
 </details>
 <details>
-  <summary>Change context using cmd <code>:Kubectx context-name</code></summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/9ca4f5b6-fb8c-47bf-a588-560e219c439c" width="700px">
+  <summary>Change context using cmd <code>:Kubectx context-name</code> or the context view</summary>
+  <img src="https://github.com/user-attachments/assets/bca7c827-4207-47d2-b828-5dc6caab005a" width="700px">
 </details>
 <details>
   <summary>Exec into containers</summary>
   <sub>In the pod view, select a pod by pressing <code>&lt;cr&gt;</code> and then again <code>&lt;cr&gt;</code> on the container you want to exec into</sub>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/24e15963-bfd2-43a5-9e35-9d33cf5d976e" width="700px">
+  <img src="https://github.com/user-attachments/assets/ffb9cfb1-8e75-4917-88f5-477a443669a9" width="700px">
 </details>
 <details>
   <summary>Sort by headers</summary>
     <sub>By moving the cursor to a column and pressing <code>s</code></sub>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/9f96e943-eda4-458e-a4ba-cf23e0417963" width="700px">
+  <img src="https://github.com/user-attachments/assets/918038d4-60ed-4d7a-a20d-8d9e57fd1be9" width="700px">
 </details>
 <details>
   <summary>Tail logs</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
+  <img src="https://github.com/user-attachments/assets/8a1f59fb-59f2-4093-a479-8900940edfc9" width="700px">
 </details>
 <details>
   <summary>Diff view: <code>:Kubectl diff (path)</code></summary>
@@ -47,12 +51,17 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Port forward</summary>
-  <img src="https://github.com/user-attachments/assets/ff52acdb-6341-456a-a6df-1bb88bec4ef8" width="700px">
+  <img src="https://github.com/user-attachments/assets/9dec1bb8-b65c-4b5a-a8fe-4ca26c93ab43" width="700px">
 </details>
 <details>
   <summary>Aliases (fallback view)</summary>
   <sub>A fallback view that directs custom resources</sub>
-  <img src="https://github.com/user-attachments/assets/226394a0-7579-4574-9337-2dd036a0dc63" width="700px">
+  <img src="https://github.com/user-attachments/assets/6d5bbb82-bc42-4ab4-9f9d-a40b1e7f0286" width="700px">
+</details>
+<details>
+  <summary>Overview</summary>
+  <sub>A monitoring view</sub>
+  <img src="https://github.com/user-attachments/assets/cb1f46be-fcc0-4a6d-9d1e-ffcd5bdb32b3" width="700px">
 </details>
 
 ## ⚡️ Required Dependencies
