@@ -52,7 +52,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 <details>
   <summary>Aliases (fallback view)</summary>
   <sub>A fallback view that directs custom resources</sub>
-  <img src="https://github.com/user-attachments/assets/226394a0-7579-4574-9337-2dd036a0dc63" width="700px">
+  <img src="https://github.com/user-attachments/assets/6d5bbb82-bc42-4ab4-9f9d-a40b1e7f0286" width="700px">
 </details>
 <details>
   <summary>Overview</summary>
