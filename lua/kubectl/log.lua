@@ -137,23 +137,6 @@ do
         return string.format(fmt, unpack(inspected))
       end, ...)
     end
-
-    -- log.lazy_info(expensive_to_calculate)
-    log[("lazy_%s"):format(x.name)] = function(f)
-      return log_at_level(x, function()
-        local passed = _.table_pack(f())
-        local fmt = table.remove(passed, 1)
-        local inspected = {}
-        for _, v in ipairs(passed) do
-          if type(v) == "table" and tbl_has_tostring(v) then
-            table.insert(inspected, v)
-          else
-            table.insert(inspected, vim.inspect(v))
-          end
-        end
-        return string.format(fmt, unpack(inspected))
-      end)
-    end
   end
 end
 
