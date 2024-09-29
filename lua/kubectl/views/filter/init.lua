@@ -83,6 +83,7 @@ function M.filter_label()
     end
 
     -- display view
+    state.setFilter("")
     definition.url = new_args
     view.configure_definition = false
     view.View()
