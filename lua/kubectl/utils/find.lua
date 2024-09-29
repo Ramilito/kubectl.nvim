@@ -107,7 +107,6 @@ function M.filter_line(array, patterns, startAt)
 
       if (is_negative and match) or (not is_negative and not match) then
         all_match = false
-        break
       end
     end
 
