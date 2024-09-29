@@ -270,6 +270,14 @@ The plugin uses the following highlight groups:
 The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
+### Efficient Resource Monitoring
+
+We leverage the Kubernetes Informer to efficiently monitor resource updates.
+
+By using the `resourceVersion`, we avoid fetching all resources in each loop.
+
+Instead, the Informer provides only the changes, significantly reducing overhead and improving performance.
+
 ## ⚠️ Versioning
 
 As we advance to `v1.0.0`, our primary goal is to maintain the stability of the
