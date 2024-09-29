@@ -133,7 +133,12 @@ end
 local function sort_events_by_resource_version(events)
   table.sort(events, function(event_a, event_b)
     if event_a.object and event_b.object then
-      return tonumber(event_a.object.metadata.resourceVersion) < tonumber(event_b.object.metadata.resourceVersion)
+      local event_a_version = tonumber(event_a.object.metadata.resourceVersion)
+      local event_b_version = tonumber(event_b.object.metadata.resourceVersion)
+
+      if event_a_version and event_b_version then
+        return event_a_version < event_b_version
+      end
     end
     return false
   end)
