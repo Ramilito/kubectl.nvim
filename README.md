@@ -9,11 +9,11 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 <details>
   <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 </summary>
-  <img src="https://github.com/user-attachments/assets/422fa6e3-1e3d-4efc-85a2-e6087bdd8815" width="700px">
+  <img src="https://github.com/user-attachments/assets/2243c9d8-0808-4734-92aa-7612496c920b" width="700px">
 </details>
 <details>
   <summary>Colored output and smart highlighting</summary>
-  <img src="https://github.com/user-attachments/assets/d9b34465-7644-486a-8ad2-8d4ae960a8f3" width="700px">
+  <img src="https://github.com/user-attachments/assets/f42fa62c-0ddc-4733-9a83-b9d55b4745a1" width="700px">
 </details>
 <details>
   <summary>Floating windows for contextual stuff such as logs, description, containers..</summary>
