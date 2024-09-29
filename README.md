@@ -60,7 +60,6 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Overview</summary>
-  <sub>A monitoring view</sub>
   <img src="https://github.com/user-attachments/assets/cb1f46be-fcc0-4a6d-9d1e-ffcd5bdb32b3" width="700px">
 </details>
 
