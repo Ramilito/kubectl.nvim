@@ -91,7 +91,8 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_pv)", desc = "PersistentVolumes" },
     { key = "<Plug>(kubectl.view_pvc)", desc = "PersistentVolumeClaims" },
     { key = "<Plug>(kubectl.view_sa)", desc = "ServiceAccounts" },
-    { key = "<Plug>(kubectl.view_top)", desc = "Top" },
+    { key = "<Plug>(kubectl.view_top_nodes)", desc = "Top Nodes" },
+    { key = "<Plug>(kubectl.view_top_pods)", desc = "Top Pods" },
   }
 
   local global_keymaps = tables.get_plug_mappings(globals, "n")

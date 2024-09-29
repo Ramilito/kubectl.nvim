@@ -75,14 +75,14 @@ function M.setup(options)
     elseif action == "apply" then
       completion.apply()
     elseif action == "top" then
-      local top_view = require("kubectl.views.top")
-      local top_def = require("kubectl.views.top.definition")
+      local top_view
       if #opts.fargs == 2 then
-        top_view.View()
-        top_def.res_type = opts.fargs[2]
+        local top_type = opts.fargs[2]
+        top_view = require("kubectl.views.top-" .. top_type)
       else
-        top_view.View()
+        top_view = require("kubectl.views.top-pods")
       end
+      top_view.View()
     elseif action == "api-resources" then
       require("kubectl.views.api-resources").View()
     else
