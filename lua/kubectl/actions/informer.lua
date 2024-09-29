@@ -69,7 +69,9 @@ local function process_event(builder, event)
     -- If the event is an event and we are not in events resource,
     -- we assign the involvedObject as event name so the eventhandler can react to those changes
     if event.object.kind == "Event" and builder.resource ~= "events" then
-      event.object.metadata.name = event.object.involvedObject.name
+      if event.object.involvedObject and event.object.involvedObject.name then
+        event.object.metadata.name = event.object.involvedObject.name
+      end
     else
       action()
     end
