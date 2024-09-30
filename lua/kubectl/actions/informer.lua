@@ -64,6 +64,7 @@ end
 
 local function process_event(builder, event)
   if not event or not event.object or not event.object.metadata then
+    log.fmt_debug("Event object or metadata is nil: %s", event)
     return
   end
   local event_name = event.object.metadata.name
@@ -87,11 +88,13 @@ local function process_event(builder, event)
       handle_events(function()
         table.insert(target, event.object)
         table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
+        log.fmt_info("Added (data.kind is Table) to table %s", event_name)
       end)
     elseif event.type == "DELETED" then
       for index, row in ipairs(target.rows) do
         if row.object.metadata.name == event_name then
           table.remove(target.rows, index)
+          log.fmt_info("Deleted (data.kind is Table) from table %s", event_name)
           break
         end
       end
@@ -100,6 +103,7 @@ local function process_event(builder, event)
         for index, row in ipairs(target.rows) do
           if row.object.metadata.name == event_name then
             target.rows[index].object = event.object
+            log.fmt_info("Modified (data.kind is Table) in table %s", event_name)
             break
           end
         end
@@ -110,11 +114,13 @@ local function process_event(builder, event)
     if event.type == "ADDED" then
       handle_events(function()
         table.insert(target, event.object)
+        log.fmt_info("Added (data.kind is not Table) to table %s", event_name)
       end)
     elseif event.type == "DELETED" then
       for index, item in ipairs(target) do
         if item.metadata.name == event_name then
           table.remove(target, index)
+          log.fmt_info("Deleted (data.kind is not Table) from table %s", event_name)
           break
         end
       end
@@ -123,6 +129,7 @@ local function process_event(builder, event)
         for index, item in ipairs(target) do
           if item.metadata.name == event_name then
             target[index] = event.object
+            log.fmt_info("Modified (data.kind is not Table) in table %s", event_name)
             break
           end
         end
