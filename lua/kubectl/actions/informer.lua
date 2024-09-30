@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local log = require("kubectl.log")
 local state = require("kubectl.state")
 local event_handler = require("kubectl.actions.eventhandler").handler
 
@@ -53,6 +54,8 @@ local function decode_json_objects(json_strings)
     local success, decoded_event = pcall(vim.json.decode, json_string, { luanil = { object = true, array = true } })
     if success then
       table.insert(decoded_events, decoded_event)
+    else
+      return nil, decoded_event
     end
   end
 
@@ -138,6 +141,12 @@ local function sort_events_by_resource_version(events)
 
       if event_a_version and event_b_version then
         return event_a_version < event_b_version
+      else
+        log.fmt_debug(
+          "Failed to sort events by resource version: %s, %s",
+          event_a.object.metadata.resourceVersion,
+          event_b.object.metadata.resourceVersion
+        )
       end
     end
     return false
@@ -160,7 +169,7 @@ function M.process(builder)
     if M.parse_retries < M.max_retries then
       return M.process(builder)
     else
-      print(decode_error)
+      log.fmt_error("Failed to decode json: %s. json_objects: %s", decode_error, json_objects)
       return
     end
   end
@@ -191,10 +200,13 @@ local function on_stdout(result)
   release_lock()
 end
 
-local function on_exit() end
+local function on_exit()
+  log.fmt_debug("Exited informer")
+end
 
 function M.start(builder)
   if not builder.data or not builder.data.metadata then
+    log.fmt_error("No metadata found in builder data")
     return
   end
   if M.handle or M.events_handle then
