@@ -10,6 +10,10 @@ local M = {
 local function process_event(builder, event_string)
   local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
+  if not ok then
+    vim.print("parsing error: ", event)
+  end
+
   if not ok or not event or not event.object or not event.object.metadata then
     return
   end
