@@ -187,13 +187,21 @@ function M.shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   end)
 
   stdout:read_start(function(err, data)
-    if err then
-      return
-    end
+    assert(not err, err)
     if data then
       result = result .. data
-      if on_stdout then
-        on_stdout(data)
+      while true do
+        local newline_pos = result:find("\n")
+        if not newline_pos then
+          break
+        end
+
+        local json_str = result:sub(1, newline_pos - 1)
+        if on_stdout and on_stdout(json_str) then
+          result = result:sub(newline_pos + 1)
+        else
+          break
+        end
       end
     end
   end)

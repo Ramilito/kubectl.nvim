@@ -10,12 +10,8 @@ local M = {
 local function process_event(builder, event_string)
   local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
-  if not ok then
-    vim.print("parsing error: ", event)
-  end
-
   if not ok or not event or not event.object or not event.object.metadata then
-    return
+    return false
   end
   local event_name = event.object.metadata.name
 
@@ -82,6 +78,7 @@ local function process_event(builder, event_string)
   end
 
   event_handler:emit(event.type, event)
+  return true
 end
 
 local function on_err(err, data)
@@ -94,7 +91,7 @@ local function on_err(err, data)
 end
 
 local function on_stdout(result)
-  process_event(M.builder, result)
+  return process_event(M.builder, result)
 end
 
 local function on_exit() end
