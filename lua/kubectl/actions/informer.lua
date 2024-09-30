@@ -13,11 +13,10 @@ local function process_event(builder, event_string)
   if not ok or not event or not event.object or not event.object.metadata then
     return false
   end
+
   local event_name = event.object.metadata.name
 
   local function handle_events(action)
-    -- If the event is an event and we are not in events resource,
-    -- we assign the involvedObject as event name so the eventhandler can react to those changes
     if event.object.kind == "Event" and builder.resource ~= "events" then
       if event.object.involvedObject and event.object.involvedObject.name then
         event.object.metadata.name = event.object.involvedObject.name
@@ -27,54 +26,41 @@ local function process_event(builder, event_string)
     end
   end
 
-  -- TODO: prettify this code
+  local function process_event_target(target, is_table)
+    if event.type == "ADDED" then
+      handle_events(function()
+        table.insert(target, event.object)
+        if is_table then
+          table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
+        end
+      end)
+    elseif event.type == "DELETED" then
+      for index, item in ipairs(is_table and target.rows or target) do
+        if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+          table.remove(is_table and target.rows or target, index)
+          break
+        end
+      end
+    elseif event.type == "MODIFIED" then
+      handle_events(function()
+        for index, item in ipairs(is_table and target.rows or target) do
+          if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+            if is_table then
+              target.rows[index].object = event.object
+            else
+              target[index] = event.object
+            end
+            break
+          end
+        end
+      end)
+    end
+  end
+
   if builder.data.kind == "Table" then
-    local target = builder.data
-    if event.type == "ADDED" then
-      handle_events(function()
-        table.insert(target, event.object)
-        table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
-      end)
-    elseif event.type == "DELETED" then
-      for index, row in ipairs(target.rows) do
-        if row.object.metadata.name == event_name then
-          table.remove(target.rows, index)
-          break
-        end
-      end
-    elseif event.type == "MODIFIED" then
-      handle_events(function()
-        for index, row in ipairs(target.rows) do
-          if row.object.metadata.name == event_name then
-            target.rows[index].object = event.object
-            break
-          end
-        end
-      end)
-    end
+    process_event_target(builder.data, true)
   else
-    local target = builder.data.items
-    if event.type == "ADDED" then
-      handle_events(function()
-        table.insert(target, event.object)
-      end)
-    elseif event.type == "DELETED" then
-      for index, item in ipairs(target) do
-        if item.metadata.name == event_name then
-          table.remove(target, index)
-          break
-        end
-      end
-    elseif event.type == "MODIFIED" then
-      handle_events(function()
-        for index, item in ipairs(target) do
-          if item.metadata.name == event_name then
-            target[index] = event.object
-            break
-          end
-        end
-      end)
-    end
+    process_event_target(builder.data.items, false)
   end
 
   event_handler:emit(event.type, event)
