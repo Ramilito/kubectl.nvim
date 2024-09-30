@@ -7,61 +7,6 @@ local M = {
   events_handle = nil,
 }
 
-local function shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
-  opts = opts or { env = {} }
-  local result = ""
-  local command = commands.configure_command(cmd, opts.env, args)
-  local handle
-  local stdout = vim.loop.new_pipe(false)
-  local stderr = vim.loop.new_pipe(false)
-
-  handle = vim.loop.spawn(command.args[1], {
-    args = { unpack(command.args, 2) },
-    env = command.env,
-    stdio = { nil, stdout, stderr },
-    detached = opts.detach or false,
-  }, function(code)
-    stdout:close()
-    stderr:close()
-    if on_exit then
-      on_exit(result, code)
-    end
-    handle:close()
-  end)
-
-  stdout:read_start(function(err, data)
-    assert(not err, err)
-    if data then
-      result = result .. data
-      while true do
-        local newline_pos = result:find("\n")
-        if not newline_pos then
-          break
-        end
-
-        local json_str = result:sub(1, newline_pos - 1)
-        if on_stdout and on_stdout(json_str) then
-          result = result:sub(newline_pos + 1)
-        else
-          break
-        end
-      end
-    end
-  end)
-
-  stderr:read_start(function(err, data)
-    vim.schedule(function()
-      if data and not on_stderr then
-        vim.notify(data, vim.log.levels.ERROR)
-      elseif data and on_stderr then
-        on_stderr(err, data)
-      end
-    end)
-  end)
-
-  return handle
-end
-
 local function process_event(builder, event_string)
   local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
@@ -136,20 +81,58 @@ local function process_event(builder, event_string)
   return true
 end
 
-local function on_err(err, data)
-  vim.schedule(function()
-    vim.notify(
-      string.format("Error occurred while watching %s %s, refresh view to fix", err or "", data or ""),
-      vim.log.levels.ERROR
-    )
+local function shell_uv_async(cmd, args)
+  local result = ""
+  local command = commands.configure_command(cmd, {}, args)
+  local handle
+  local stdout = vim.loop.new_pipe(false)
+  local stderr = vim.loop.new_pipe(false)
+
+  handle = vim.loop.spawn(command.args[1], {
+    args = { unpack(command.args, 2) },
+    env = command.env,
+    stdio = { nil, stdout, stderr },
+    detached = false,
+  }, function()
+    stdout:close()
+    stderr:close()
+    -- result = ""
+    handle:close()
   end)
-end
 
-local function on_stdout(data)
-  return process_event(M.builder, data)
-end
+  stdout:read_start(function(err, data)
+    assert(not err, err)
+    if data then
+      result = result .. data
+      while true do
+        local newline_pos = result:find("\n")
+        if not newline_pos then
+          break
+        end
 
-local function on_exit() end
+        local json_str = result:sub(1, newline_pos - 1)
+        if process_event(M.builder, json_str) then
+          result = result:sub(newline_pos + 1)
+        else
+          break
+        end
+      end
+    end
+  end)
+
+  stderr:read_start(function(err, data)
+    vim.schedule(function()
+      if data then
+        vim.notify(
+          string.format("Error occurred while watching %s %s, refresh view to fix", err or "", data or ""),
+          vim.log.levels.ERROR
+        )
+      end
+    end)
+  end)
+
+  return handle
+end
 
 function M.start(builder)
   if not builder.data or not builder.data.metadata then
@@ -173,8 +156,8 @@ function M.start(builder)
     end
   end
 
-  M.handle = shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.events_handle = shell_uv_async("curl", event_cmd, on_exit, on_stdout, on_err)
+  M.handle = shell_uv_async(builder.cmd, args)
+  M.events_handle = shell_uv_async("curl", event_cmd)
 
   M.builder = builder
   return M.handle
