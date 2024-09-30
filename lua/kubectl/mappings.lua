@@ -405,7 +405,7 @@ function M.register()
       local opts = { noremap = true, silent = true, callback = nil }
       vim.api.nvim_buf_set_keymap(0, "n", "q", "<Plug>(kubectl.quit)", opts)
       vim.api.nvim_buf_set_keymap(0, "n", "<esc>", "<Plug>(kubectl.quit)", opts)
-      vim.api.nvim_buf_set_keymap(0, "n", "<C-c>", "<Plug>(kubectl.quit)", opts)
+      vim.api.nvim_buf_set_keymap(0, "i", "<C-c>", "<Esc><Plug>(kubectl.quit)", opts)
     end
 
     M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
