@@ -5,6 +5,7 @@ local event_handler = require("kubectl.actions.eventhandler").handler
 local M = {
   handle = nil,
   events_handle = nil,
+  event_queue = "",
 }
 
 local function process_event(builder, event_string)
@@ -90,16 +91,17 @@ local function on_err(err, data)
   end)
 end
 
-local function on_stdout(result)
+local function on_stdout(data)
+  M.event_queue = M.event_queue .. data
   while true do
-    local newline_pos = result:find("\n")
+    local newline_pos = M.event_queue:find("\n")
     if not newline_pos then
       break
     end
 
-    local json_str = result:sub(1, newline_pos - 1)
+    local json_str = M.event_queue:sub(1, newline_pos - 1)
     if process_event(M.builder, json_str) then
-      result = result:sub(newline_pos + 1)
+      M.event_queue = M.event_queue:sub(newline_pos + 1)
     else
       break
     end
