@@ -169,7 +169,8 @@ function M.process(builder)
     if M.parse_retries < M.max_retries then
       return M.process(builder)
     else
-      log.fmt_error("Failed to decode json: %s. json_objects: %s", decode_error, json_objects)
+      log.fmt_error("Failed to decode json: %s", decode_error)
+      log.fmt_debug('Failed json text: "%s"', json_objects)
       return
     end
   end
@@ -227,6 +228,7 @@ function M.start(builder)
     end
   end
 
+  log.fmt_debug('Starting informer with command: "%s %s"', builder.cmd, table.concat(args, " "))
   M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
   M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
   M.builder = builder

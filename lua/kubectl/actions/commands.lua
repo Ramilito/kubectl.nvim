@@ -1,3 +1,4 @@
+local log = require("kubectl.log")
 local M = {}
 
 function M.configure_command(cmd, envs, args)
@@ -33,6 +34,7 @@ function M.configure_command(cmd, envs, args)
   -- Add the command itself as the first argument
   table.insert(result.args, 1, cmd)
 
+  log.fmt_debug("Configured command: %s", result.args)
   return result
 end
 
@@ -47,6 +49,7 @@ function M.shell_command(cmd, args, opts)
   local error_result = ""
   local command = M.configure_command(cmd, opts.env, args)
 
+  log.fmt_debug("Executing command: %s", command.args)
   local job = vim.system(command.args, {
     text = true,
     env = command.env,
@@ -69,9 +72,11 @@ function M.shell_command(cmd, args, opts)
 
   -- Wait for the job to complete
   local exit_code = job:wait()
+  log.fmt_debug("Command exited with code: %s", exit_code.code)
 
   if exit_code.code ~= 0 and error_result ~= "" then
     vim.notify(error_result, vim.log.levels.ERROR)
+    log.fmt_error("Error executing command (%s): %s", command.args, error_result)
   end
 
   return result
@@ -113,6 +118,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or { env = {} }
   local result = ""
   local command = M.configure_command(cmd, opts.env, args)
+  log.fmt_debug("Executing command: %s", command.args)
   local handle = vim.system(command.args, {
     text = true,
     env = command.env,
@@ -133,6 +139,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
 
     stderr = function(err, data)
       vim.schedule(function()
+        log.fmt_error("Error executing command (%s): %s", command.args, data)
         if data and not on_stderr then
           vim.notify(data, vim.log.levels.ERROR)
         elseif data and on_stderr then
@@ -159,8 +166,10 @@ function M.execute_shell_command(cmd, args)
   end
 
   local full_command = cmd .. " " .. args
+  log.fmt_debug("Executing command: %s", full_command)
   local handle = io.popen(full_command, "r")
   if handle == nil then
+    log.fmt_error("Failed to execute command: %s", full_command)
     return "Failed to execute command: " .. cmd
   end
   local result = handle:read("*a")
@@ -196,9 +205,9 @@ function M.execute_terminal(cmd, args, opts)
     on_stdout = opts.on_stdout,
     on_exit = function(_, code, _)
       if code == 0 then
-        print("Command executed successfully")
+        log.fmt_info("Command %s executed successfully", full_command)
       else
-        print("Command failed with exit code " .. code)
+        log.fmt_error("Command %s failed with exit code %s", full_command, code)
       end
     end,
   })
@@ -223,6 +232,7 @@ function M.load_config(file_name)
   if ok then
     return decoded
   end
+  log.fmt_error("Failed to decode json: %s", decoded)
   return nil
 end
 
@@ -240,6 +250,8 @@ function M.save_config(file_name, data)
       file:write(encoded)
       file:close()
     end
+  else
+    log.fmt_error("Failed to encode json: %s", encoded)
   end
   return ok
 end
