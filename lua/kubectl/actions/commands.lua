@@ -22,8 +22,12 @@ function M.configure_command(cmd, envs, args)
 
   table.insert(result.env, "PATH=" .. current_env["PATH"])
   table.insert(result.env, "HOME=" .. current_env["HOME"])
-  table.insert(result.env, "KUBECONFIG=" .. current_env["KUBECONFIG"])
-  table.insert(result.env, "KUBECACHEDIR=" .. current_env["KUBECACHEDIR"])
+  if current_env["KUBECONFIG"] then
+    table.insert(result.env, "KUBECONFIG=" .. current_env["KUBECONFIG"])
+  end
+  if current_env["KUBECACHEDIR"] then
+    table.insert(result.env, "KUBECACHEDIR=" .. current_env["KUBECACHEDIR"])
+  end
 
   if envs then
     vim.list_extend(result.env, envs)
