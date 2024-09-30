@@ -28,10 +28,6 @@ function M.start_loop_for_buffer(buf, callback, opts)
     if not running then
       running = true
 
-      if informer.handle and not informer.lock and informer.event_queue ~= "" then
-        informer.process(informer.builder)
-      end
-
       vim.schedule(function()
         if vim.api.nvim_get_current_buf() == buf then
           callback(is_cancelled)

@@ -3,65 +3,70 @@ local state = require("kubectl.state")
 local event_handler = require("kubectl.actions.eventhandler").handler
 
 local M = {
-  event_queue = "",
   handle = nil,
   events_handle = nil,
-  max_retries = 10,
-  lock = false,
-  parse_retries = 0,
 }
 
-local function release_lock()
-  M.lock = false
-end
+local function shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
+  opts = opts or { env = {} }
+  local result = ""
+  local command = commands.configure_command(cmd, opts.env, args)
+  local handle
+  local stdout = vim.loop.new_pipe(false)
+  local stderr = vim.loop.new_pipe(false)
 
-local function acquire_lock()
-  while M.lock do
-    vim.wait(10)
-  end
-  M.lock = true
-end
-
-local function split_events(input)
-  local objects = {}
-  local pattern = '}{"type":"'
-  local start = 1
-
-  while true do
-    local split_point = input:find(pattern, start, true)
-
-    if not split_point then
-      -- If no more split points, add the rest of the string as the last JSON object
-      table.insert(objects, input:sub(start))
-      break
+  handle = vim.loop.spawn(command.args[1], {
+    args = { unpack(command.args, 2) },
+    env = command.env,
+    stdio = { nil, stdout, stderr },
+    detached = opts.detach or false,
+  }, function(code)
+    stdout:close()
+    stderr:close()
+    if on_exit then
+      on_exit(result, code)
     end
+    handle:close()
+  end)
 
-    -- Add the JSON object up to the split point to the objects table
-    table.insert(objects, input:sub(start, split_point))
+  stdout:read_start(function(err, data)
+    assert(not err, err)
+    if data then
+      result = result .. data
+      while true do
+        local newline_pos = result:find("\n")
+        if not newline_pos then
+          break
+        end
 
-    -- Move the start point to the next character after '}{'
-    start = split_point + 1
-  end
-
-  return objects
-end
-
-local function decode_json_objects(json_strings)
-  local decoded_events = {}
-
-  for _, json_string in ipairs(json_strings) do
-    local success, decoded_event = pcall(vim.json.decode, json_string, { luanil = { object = true, array = true } })
-    if success then
-      table.insert(decoded_events, decoded_event)
+        local json_str = result:sub(1, newline_pos - 1)
+        if on_stdout and on_stdout(json_str) then
+          result = result:sub(newline_pos + 1)
+        else
+          break
+        end
+      end
     end
-  end
+  end)
 
-  return decoded_events
+  stderr:read_start(function(err, data)
+    vim.schedule(function()
+      if data and not on_stderr then
+        vim.notify(data, vim.log.levels.ERROR)
+      elseif data and on_stderr then
+        on_stderr(err, data)
+      end
+    end)
+  end)
+
+  return handle
 end
 
-local function process_event(builder, event)
-  if not event or not event.object or not event.object.metadata then
-    return
+local function process_event(builder, event_string)
+  local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
+
+  if not ok or not event or not event.object or not event.object.metadata then
+    return false
   end
   local event_name = event.object.metadata.name
 
@@ -128,52 +133,7 @@ local function process_event(builder, event)
   end
 
   event_handler:emit(event.type, event)
-end
-
-local function sort_events_by_resource_version(events)
-  table.sort(events, function(event_a, event_b)
-    if event_a.object and event_b.object then
-      local event_a_version = tonumber(event_a.object.metadata.resourceVersion)
-      local event_b_version = tonumber(event_b.object.metadata.resourceVersion)
-
-      if event_a_version and event_b_version then
-        return event_a_version < event_b_version
-      end
-    end
-    return false
-  end)
-end
-
-function M.process(builder)
-  M.parse_retries = M.parse_retries + 1
-  if M.event_queue == "" or not builder.data then
-    return
-  end
-
-  local event_queue_content = M.event_queue:gsub("\n", "")
-  M.event_queue = ""
-
-  local json_objects = split_events(event_queue_content)
-  local decoded_events, decode_error = decode_json_objects(json_objects)
-
-  if not decoded_events then
-    if M.parse_retries < M.max_retries then
-      return M.process(builder)
-    else
-      print(decode_error)
-      return
-    end
-  end
-
-  M.parse_retries = 0
-
-  sort_events_by_resource_version(decoded_events)
-
-  if decoded_events then
-    for _, event in ipairs(decoded_events) do
-      process_event(builder, event)
-    end
-  end
+  return true
 end
 
 local function on_err(err, data)
@@ -185,10 +145,8 @@ local function on_err(err, data)
   end)
 end
 
-local function on_stdout(result)
-  acquire_lock()
-  M.event_queue = M.event_queue .. result
-  release_lock()
+local function on_stdout(data)
+  return process_event(M.builder, data)
 end
 
 local function on_exit() end
@@ -215,10 +173,10 @@ function M.start(builder)
     end
   end
 
-  M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
-  M.builder = builder
+  M.handle = shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
+  M.events_handle = shell_uv_async("curl", event_cmd, on_exit, on_stdout, on_err)
 
+  M.builder = builder
   return M.handle
 end
 
@@ -230,7 +188,6 @@ function M.stop()
   if M.events_handle and not M.events_handle:is_closing() then
     M.events_handle:kill(2)
   end
-  M.event_queue = ""
 end
 
 return M
