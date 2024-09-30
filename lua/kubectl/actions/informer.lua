@@ -3,64 +3,14 @@ local state = require("kubectl.state")
 local event_handler = require("kubectl.actions.eventhandler").handler
 
 local M = {
-  event_queue = "",
   handle = nil,
   events_handle = nil,
-  max_retries = 10,
-  lock = false,
-  parse_retries = 0,
 }
 
-local function release_lock()
-  M.lock = false
-end
+local function process_event(builder, event_string)
+  local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
-local function acquire_lock()
-  while M.lock do
-    vim.wait(10)
-  end
-  M.lock = true
-end
-
-local function split_events(input)
-  local objects = {}
-  local pattern = '}{"type":"'
-  local start = 1
-
-  while true do
-    local split_point = input:find(pattern, start, true)
-
-    if not split_point then
-      -- If no more split points, add the rest of the string as the last JSON object
-      table.insert(objects, input:sub(start))
-      break
-    end
-
-    -- Add the JSON object up to the split point to the objects table
-    table.insert(objects, input:sub(start, split_point))
-
-    -- Move the start point to the next character after '}{'
-    start = split_point + 1
-  end
-
-  return objects
-end
-
-local function decode_json_objects(json_strings)
-  local decoded_events = {}
-
-  for _, json_string in ipairs(json_strings) do
-    local success, decoded_event = pcall(vim.json.decode, json_string, { luanil = { object = true, array = true } })
-    if success then
-      table.insert(decoded_events, decoded_event)
-    end
-  end
-
-  return decoded_events
-end
-
-local function process_event(builder, event)
-  if not event or not event.object or not event.object.metadata then
+  if not ok or not event or not event.object or not event.object.metadata then
     return
   end
   local event_name = event.object.metadata.name
@@ -130,52 +80,6 @@ local function process_event(builder, event)
   event_handler:emit(event.type, event)
 end
 
-local function sort_events_by_resource_version(events)
-  table.sort(events, function(event_a, event_b)
-    if event_a.object and event_b.object then
-      local event_a_version = tonumber(event_a.object.metadata.resourceVersion)
-      local event_b_version = tonumber(event_b.object.metadata.resourceVersion)
-
-      if event_a_version and event_b_version then
-        return event_a_version < event_b_version
-      end
-    end
-    return false
-  end)
-end
-
-function M.process(builder)
-  M.parse_retries = M.parse_retries + 1
-  if M.event_queue == "" or not builder.data then
-    return
-  end
-
-  local event_queue_content = M.event_queue:gsub("\n", "")
-  M.event_queue = ""
-
-  local json_objects = split_events(event_queue_content)
-  local decoded_events, decode_error = decode_json_objects(json_objects)
-
-  if not decoded_events then
-    if M.parse_retries < M.max_retries then
-      return M.process(builder)
-    else
-      print(decode_error)
-      return
-    end
-  end
-
-  M.parse_retries = 0
-
-  sort_events_by_resource_version(decoded_events)
-
-  if decoded_events then
-    for _, event in ipairs(decoded_events) do
-      process_event(builder, event)
-    end
-  end
-end
-
 local function on_err(err, data)
   vim.schedule(function()
     vim.notify(
@@ -186,9 +90,7 @@ local function on_err(err, data)
 end
 
 local function on_stdout(result)
-  acquire_lock()
-  M.event_queue = M.event_queue .. result
-  release_lock()
+  process_event(M.builder, result)
 end
 
 local function on_exit() end
@@ -201,7 +103,16 @@ function M.start(builder)
     M.stop()
   end
 
-  local args = { "-N", "--keepalive-time", "60", "-X", "GET", "-sS", "-H", "Content-Type: application/json" }
+  local args = {
+    "-N",
+    "--keepalive-time",
+    "60",
+    "-X",
+    "GET",
+    "-sS",
+    "-H",
+    "Content-Type: application/json",
+  }
 
   local event_cmd = { state.getProxyUrl() .. "/api/v1/events?pretty=false&watch=true" }
   for _, arg in ipairs(args) do
@@ -215,11 +126,12 @@ function M.start(builder)
     end
   end
 
-  M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
-  M.builder = builder
-
-  return M.handle
+  vim.schedule(function()
+    M.handle = commands.shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
+    M.builder = builder
+    return M.handle
+  end)
+  -- M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
 end
 
 function M.stop()

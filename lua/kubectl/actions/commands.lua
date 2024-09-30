@@ -164,6 +164,53 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   return handle
 end
 
+function M.shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
+  opts = opts or { env = {} }
+  local result = ""
+  local command = M.configure_command(cmd, opts.env, args)
+  local handle
+  local stdout = vim.loop.new_pipe(false)
+  local stderr = vim.loop.new_pipe(false)
+
+  handle = vim.loop.spawn(command.args[1], {
+    args = { unpack(command.args, 2) },
+    env = command.env,
+    stdio = { nil, stdout, stderr },
+    detached = opts.detach or false,
+  }, function(code)
+    stdout:close()
+    stderr:close()
+    if on_exit then
+      on_exit(result, code)
+    end
+    handle:close()
+  end)
+
+  stdout:read_start(function(err, data)
+    if err then
+      return
+    end
+    if data then
+      result = result .. data
+      if on_stdout then
+        on_stdout(data)
+      end
+    end
+  end)
+
+  stderr:read_start(function(err, data)
+    vim.schedule(function()
+      if data and not on_stderr then
+        vim.notify(data, vim.log.levels.ERROR)
+      elseif data and on_stderr then
+        on_stderr(err, data)
+      end
+    end)
+  end)
+
+  return handle
+end
+
 --- Execute a shell command using io.popen
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command
