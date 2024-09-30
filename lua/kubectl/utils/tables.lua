@@ -109,7 +109,7 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addHeaderRow(headers, hints, marks)
-  local hint_line = "Hint: "
+  local hint_line = "Hints: "
   local length = #hint_line
   M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 

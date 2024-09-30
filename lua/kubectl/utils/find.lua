@@ -76,23 +76,41 @@ function M.filter(tbl, predicate)
   return result
 end
 
---- Filter lines in an array based on a pattern starting from a given index
+--- Filter lines in an array based on multiple patterns starting from a given index
 ---@param array table[]
----@param pattern string
+---@param patterns string
 ---@param startAt number
 ---@return table[]
-function M.filter_line(array, pattern, startAt)
-  if not pattern or pattern == "" then
+function M.filter_line(array, patterns, startAt)
+  if not patterns or patterns == "" then
     return array
   end
 
   startAt = startAt or 1
   local filtered_array = {}
+  local pattern_list = {}
+
+  -- Split the patterns by comma
+  for pattern in patterns:gmatch("[^,]+") do
+    table.insert(pattern_list, pattern)
+  end
 
   -- Filter the array starting from startAt
   for index = startAt, #array do
     local line = array[index]
-    if M.is_in_table(line, pattern) then
+    local all_match = true
+
+    for _, pattern in ipairs(pattern_list) do
+      local is_negative = pattern:sub(1, 1) == "!"
+      local actual_pattern = is_negative and pattern:sub(2) or pattern
+      local match = M.is_in_table(line, actual_pattern)
+
+      if (is_negative and match) or (not is_negative and not match) then
+        all_match = false
+      end
+    end
+
+    if all_match then
       table.insert(filtered_array, line)
     end
   end

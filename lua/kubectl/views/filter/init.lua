@@ -124,6 +124,13 @@ function M.filter()
     { key = "<Plug>(kubectl.quit)", desc = "close" },
   }, false, false)
 
+  -- Add textual hints
+  local header_len = #header
+  table.insert(header, header_len - 1, "Use commas to separate multiple patterns.")
+  table.insert(header, header_len - 1, "Prefix a pattern with ! for negative filtering.")
+  table.insert(header, header_len - 1, "All patterns must match for a line to be included.")
+  marks[#marks].row = #header - 1
+
   table.insert(header, "History:")
   local headers_len = #header
   for _, value in ipairs(state.filter_history) do
