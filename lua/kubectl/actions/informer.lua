@@ -7,10 +7,69 @@ local M = {
   events_handle = nil,
 }
 
-local function shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
-  opts = opts or { env = {} }
+local function process_event(builder, event_string)
+  local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
+
+  if not ok or not event or not event.object or not event.object.metadata then
+    return false
+  end
+
+  local event_name = event.object.metadata.name
+
+  local function handle_events(action)
+    if event.object.kind == "Event" and builder.resource ~= "events" then
+      if event.object.involvedObject and event.object.involvedObject.name then
+        event.object.metadata.name = event.object.involvedObject.name
+      end
+    else
+      action()
+    end
+  end
+
+  local function process_event_target(target, is_table)
+    if event.type == "ADDED" then
+      handle_events(function()
+        table.insert(target, event.object)
+        if is_table then
+          table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
+        end
+      end)
+    elseif event.type == "DELETED" then
+      for index, item in ipairs(is_table and target.rows or target) do
+        if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+          table.remove(is_table and target.rows or target, index)
+          break
+        end
+      end
+    elseif event.type == "MODIFIED" then
+      handle_events(function()
+        for index, item in ipairs(is_table and target.rows or target) do
+          if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+            if is_table then
+              target.rows[index].object = event.object
+            else
+              target[index] = event.object
+            end
+            break
+          end
+        end
+      end)
+    end
+  end
+
+  if builder.data.kind == "Table" then
+    process_event_target(builder.data, true)
+  else
+    process_event_target(builder.data.items, false)
+  end
+
+  event_handler:emit(event.type, event)
+  return true
+end
+
+local function shell_uv_async(cmd, args)
   local result = ""
-  local command = commands.configure_command(cmd, opts.env, args)
+  local command = commands.configure_command(cmd, {}, args)
   local handle
   local stdout = vim.loop.new_pipe(false)
   local stderr = vim.loop.new_pipe(false)
@@ -19,13 +78,11 @@ local function shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
     args = { unpack(command.args, 2) },
     env = command.env,
     stdio = { nil, stdout, stderr },
-    detached = opts.detach or false,
-  }, function(code)
+    detached = false,
+  }, function()
     stdout:close()
     stderr:close()
-    if on_exit then
-      on_exit(result, code)
-    end
+    -- result = ""
     handle:close()
   end)
 
@@ -40,7 +97,7 @@ local function shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
         end
 
         local json_str = result:sub(1, newline_pos - 1)
-        if on_stdout and on_stdout(json_str) then
+        if process_event(M.builder, json_str) then
           result = result:sub(newline_pos + 1)
         else
           break
@@ -51,105 +108,17 @@ local function shell_uv_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
 
   stderr:read_start(function(err, data)
     vim.schedule(function()
-      if data and not on_stderr then
-        vim.notify(data, vim.log.levels.ERROR)
-      elseif data and on_stderr then
-        on_stderr(err, data)
+      if data then
+        vim.notify(
+          string.format("Error occurred while watching %s %s, refresh view to fix", err or "", data or ""),
+          vim.log.levels.ERROR
+        )
       end
     end)
   end)
 
   return handle
 end
-
-local function process_event(builder, event_string)
-  local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
-
-  if not ok or not event or not event.object or not event.object.metadata then
-    return false
-  end
-  local event_name = event.object.metadata.name
-
-  local function handle_events(action)
-    -- If the event is an event and we are not in events resource,
-    -- we assign the involvedObject as event name so the eventhandler can react to those changes
-    if event.object.kind == "Event" and builder.resource ~= "events" then
-      if event.object.involvedObject and event.object.involvedObject.name then
-        event.object.metadata.name = event.object.involvedObject.name
-      end
-    else
-      action()
-    end
-  end
-
-  -- TODO: prettify this code
-  if builder.data.kind == "Table" then
-    local target = builder.data
-    if event.type == "ADDED" then
-      handle_events(function()
-        table.insert(target, event.object)
-        table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
-      end)
-    elseif event.type == "DELETED" then
-      for index, row in ipairs(target.rows) do
-        if row.object.metadata.name == event_name then
-          table.remove(target.rows, index)
-          break
-        end
-      end
-    elseif event.type == "MODIFIED" then
-      handle_events(function()
-        for index, row in ipairs(target.rows) do
-          if row.object.metadata.name == event_name then
-            target.rows[index].object = event.object
-            break
-          end
-        end
-      end)
-    end
-  else
-    local target = builder.data.items
-    if event.type == "ADDED" then
-      handle_events(function()
-        table.insert(target, event.object)
-      end)
-    elseif event.type == "DELETED" then
-      for index, item in ipairs(target) do
-        if item.metadata.name == event_name then
-          table.remove(target, index)
-          break
-        end
-      end
-    elseif event.type == "MODIFIED" then
-      handle_events(function()
-        for index, item in ipairs(target) do
-          if item.metadata.name == event_name then
-            target[index] = event.object
-            break
-          end
-        end
-      end)
-    end
-  end
-
-  event_handler:emit(event.type, event)
-  return true
-end
-
-local function on_err(err, data)
-  vim.schedule(function()
-    vim.notify(
-      string.format("Error occurred while watching %s %s, refresh view to fix", err or "", data or ""),
-      vim.log.levels.ERROR
-    )
-  end)
-end
-
-local function on_stdout(data)
-  return process_event(M.builder, data)
-end
-
-local function on_exit() end
 
 function M.start(builder)
   if not builder.data or not builder.data.metadata then
@@ -173,8 +142,8 @@ function M.start(builder)
     end
   end
 
-  M.handle = shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.events_handle = shell_uv_async("curl", event_cmd, on_exit, on_stdout, on_err)
+  M.handle = shell_uv_async(builder.cmd, args)
+  M.events_handle = shell_uv_async("curl", event_cmd)
 
   M.builder = builder
   return M.handle
