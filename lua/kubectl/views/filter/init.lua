@@ -116,60 +116,63 @@ function M.filter()
   end
   completion.with_completion(buf, list, nil, false)
 
-  local header, marks = tables.generateHeader({
-    { key = "<Plug>(kubectl.select)", desc = "apply" },
-    { key = "<Plug>(kubectl.tab)", desc = "next" },
-    { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
-    -- TODO: Definition should be moved to mappings.lua
-    { key = "<Plug>(kubectl.quit)", desc = "close" },
-  }, false, false)
+  -- We wrap because with_completion is adding keymappings that generateHeader needs
+  vim.schedule(function()
+    local header, marks = tables.generateHeader({
+      { key = "<Plug>(kubectl.select)", desc = "apply" },
+      { key = "<Plug>(kubectl.tab)", desc = "next" },
+      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+      -- TODO: Definition should be moved to mappings.lua
+      { key = "<Plug>(kubectl.quit)", desc = "close" },
+    }, false, false)
 
-  -- Add textual hints
-  local header_len = #header
-  table.insert(header, header_len - 1, "Use commas to separate multiple patterns.")
-  table.insert(header, header_len - 1, "Prefix a pattern with ! for negative filtering.")
-  table.insert(header, header_len - 1, "All patterns must match for a line to be included.")
-  marks[#marks].row = #header - 1
+    -- Add textual hints
+    local header_len = #header
+    table.insert(header, header_len - 1, "Use commas to separate multiple patterns.")
+    table.insert(header, header_len - 1, "Prefix a pattern with ! for negative filtering.")
+    table.insert(header, header_len - 1, "All patterns must match for a line to be included.")
+    marks[#marks].row = #header - 1
 
-  table.insert(header, "History:")
-  local headers_len = #header
-  for _, value in ipairs(state.filter_history) do
-    table.insert(header, headers_len + 1, value)
-  end
-  table.insert(header, "")
+    table.insert(header, "History:")
+    local headers_len = #header
+    for _, value in ipairs(state.filter_history) do
+      table.insert(header, headers_len + 1, value)
+    end
+    table.insert(header, "")
 
-  buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
-  vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
+    buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
+    vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
 
-  -- TODO: Marks should be set in buffers.set_content above
-  buffers.apply_marks(buf, marks, header)
-  buffers.fit_to_content(buf, 0)
+    -- TODO: Marks should be set in buffers.set_content above
+    buffers.apply_marks(buf, marks, header)
+    buffers.fit_to_content(buf, 0)
 
-  -- TODO: Registering keymap after generateheader makes it not appear in hints
-  vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
-    noremap = true,
-    callback = function()
-      local line = vim.api.nvim_get_current_line()
+    -- TODO: Registering keymap after generateheader makes it not appear in hints
+    vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
+      noremap = true,
+      callback = function()
+        local line = vim.api.nvim_get_current_line()
 
-      -- Don't act on prompt line
-      local current_line = vim.api.nvim_win_get_cursor(0)[1]
-      if current_line >= #header then
-        return
-      end
+        -- Don't act on prompt line
+        local current_line = vim.api.nvim_win_get_cursor(0)[1]
+        if current_line >= #header then
+          return
+        end
 
-      local prompt = "% "
+        local prompt = "% "
 
-      vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
-      vim.api.nvim_win_set_cursor(0, { #header + 2, #(prompt .. line) })
-      vim.cmd("startinsert!")
+        vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
+        vim.api.nvim_win_set_cursor(0, { #header + 2, #(prompt .. line) })
+        vim.cmd("startinsert!")
 
-      if config.options.filter.apply_on_select_from_history then
-        vim.schedule(function()
-          vim.api.nvim_input("<cr>")
-        end)
-      end
-    end,
-  })
+        if config.options.filter.apply_on_select_from_history then
+          vim.schedule(function()
+            vim.api.nvim_input("<cr>")
+          end)
+        end
+      end,
+    })
+  end)
 end
 
 return M
