@@ -28,7 +28,7 @@ function M.get_ki_val(mem)
 end
 
 function M.kib_to_mib_or_gib(mem)
-  local final_val = math.floor(mem / 1024)
+  local final_val = math.ceil(mem / 1024)
   local unit = "Mi"
   if final_val > 10240 then
     final_val = math.floor(final_val / 1024)
@@ -70,9 +70,10 @@ function M.getCpuPercent(row, node)
   end
 
   local cpu = tonumber(string.sub(tmp_cpu.value, 1, -2)) or 0
-  local out_of = node and node.status and node.status.capacity.cpu or ""
-  if out_of ~= "" then
-    local total = tonumber(out_of) * 1000
+  local out_of = node and node.status and node.status.allocatable and node.status.allocatable.cpu
+  if out_of ~= nil then
+    out_of = string.sub(out_of, 1, -2)
+    local total = tonumber(out_of)
     local percent = math.ceil((cpu / total) * 100) or 0
     status.sort_by = percent
     status.value = percent .. "%"
