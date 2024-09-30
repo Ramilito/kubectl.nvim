@@ -21,6 +21,9 @@ local function match_prefix_suffix(key, _, prefix, suffix)
 end
 
 local function getRole(row)
+  if not row.metadata.labels then
+    return ""
+  end
   local key, _ = find.dictionary(row.metadata.labels, function(key, value)
     return match_prefix_suffix(key, value, find.escape("node-role.kubernetes.io/"), find.escape("kubernetes.io/role"))
   end)
@@ -44,6 +47,9 @@ local nodeConditions = {
 }
 
 function M.getStatus(row)
+  if not row.status or not row.status.conditions then
+    return { symbol = events.ColorStatus("Error"), value = "Unknown" }
+  end
   local conditions = {}
   local exempt = row.spec.unschedulable
 
@@ -67,7 +73,11 @@ function M.getStatus(row)
   end
 end
 
-local function getIPs(addrs)
+local function getIPs(row)
+  if not row.status or not row.status.addresses then
+    return "<none>", "<none>"
+  end
+  local addrs = row.status.addresses
   local iIP, eIP
   for _, value in ipairs(addrs) do
     if value.type == "InternalIP" then
@@ -89,13 +99,13 @@ function M.processRow(rows)
   end
 
   for _, row in pairs(rows.items) do
-    local iIP, eIP = getIPs(row.status.addresses)
+    local iIP, eIP = getIPs(row)
     local pod = {
       name = row.metadata.name,
       status = M.getStatus(row),
       roles = getRole(row),
       age = time.since(row.metadata.creationTimestamp),
-      version = row.status.nodeInfo.kubeletVersion,
+      version = row.status and row.status.nodeInfo and row.status.nodeInfo.kubeletVersion,
       ["internal-ip"] = iIP,
       ["external-ip"] = eIP,
     }

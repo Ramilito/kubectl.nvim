@@ -10,6 +10,9 @@ local M = {
 function M.processRow(rows)
   local data = {}
   for _, v in pairs(rows) do
+    if type(v) == "string" then
+      return
+    end
     local res = vim.deepcopy(v)
     res.url = nil
     res.namespaced = tostring(v.namespaced)
