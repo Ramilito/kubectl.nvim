@@ -3,17 +3,12 @@ local state = require("kubectl.state")
 local event_handler = require("kubectl.actions.eventhandler").handler
 
 local M = {
-  event_queue = "",
   handle = nil,
   events_handle = nil,
-  max_retries = 10,
-  lock = false,
-  parse_retries = 0,
 }
 
-local function release_lock()
-  M.lock = false
-end
+local function process_event(builder, event_string)
+  local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
   if not ok or not event or not event.object or not event.object.metadata then
     return false
@@ -86,52 +81,6 @@ end
   return true
 end
 
-local function sort_events_by_resource_version(events)
-  table.sort(events, function(event_a, event_b)
-    if event_a.object and event_b.object then
-      local event_a_version = tonumber(event_a.object.metadata.resourceVersion)
-      local event_b_version = tonumber(event_b.object.metadata.resourceVersion)
-
-      if event_a_version and event_b_version then
-        return event_a_version < event_b_version
-      end
-    end
-    return false
-  end)
-end
-
-function M.process(builder)
-  M.parse_retries = M.parse_retries + 1
-  if M.event_queue == "" or not builder.data then
-    return
-  end
-
-  local event_queue_content = M.event_queue:gsub("\n", "")
-  M.event_queue = ""
-
-  local json_objects = split_events(event_queue_content)
-  local decoded_events, decode_error = decode_json_objects(json_objects)
-
-  if not decoded_events then
-    if M.parse_retries < M.max_retries then
-      return M.process(builder)
-    else
-      print(decode_error)
-      return
-    end
-  end
-
-  M.parse_retries = 0
-
-  sort_events_by_resource_version(decoded_events)
-
-  if decoded_events then
-    for _, event in ipairs(decoded_events) do
-      process_event(builder, event)
-    end
-  end
-end
-
 local function on_err(err, data)
   vim.schedule(function()
     vim.notify(
@@ -169,10 +118,10 @@ function M.start(builder)
     end
   end
 
-  M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
-  M.builder = builder
+  M.handle = commands.shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
+  M.events_handle = commands.shell_uv_async("curl", event_cmd, on_exit, on_stdout, on_err)
 
+  M.builder = builder
   return M.handle
 end
 
