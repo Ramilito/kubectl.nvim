@@ -278,7 +278,7 @@ function M.register()
 
       vim.api.nvim_set_option_value("modified", false, { buf = 0 })
       vim.notify("filtering for.. " .. filter_term)
-      vim.api.nvim_input("gr")
+      vim.api.nvim_input("<Plug>(kubectl.refresh)")
     end,
   })
 
