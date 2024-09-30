@@ -5,21 +5,29 @@ local M = {
   ft = "k8s_clusterrolebinding",
   url = { "{{BASE}}/apis/rbac.authorization.k8s.io/v1/clusterrolebindings?pretty=false" },
 }
-local function getSubjects(data)
-  local subjects = {}
-  local kind = ""
+local hl = require("kubectl.actions.highlight")
 
-  if data then
-    for _, subject in ipairs(data) do
-      if subject.kind == "ServiceAccount" then
-        subject.kind = "SvcAcct"
-      end
-      kind = subject.kind
-      table.insert(subjects, subject.name)
-    end
-    return kind, table.concat(subjects, ", ")
+local function getSubjects(row)
+  if not row or not row.subjects then
+    return "", ""
   end
-  return "", ""
+  local data = row.subjects
+  local subjects = {}
+  local kind = { symbol = "", value = "" }
+
+  for _, subject in ipairs(data) do
+    kind.value = subject.kind
+    if kind.value == "ServiceAccount" then
+      kind.symbol = hl.symbols.success
+      kind.value = "SvcAcct"
+    elseif kind.value == "User" then
+      kind.symbol = hl.symbols.note
+    elseif kind.value == "Group" then
+      kind.symbol = hl.symbols.debug
+    end
+    table.insert(subjects, subject.name)
+  end
+  return kind, table.concat(subjects, ", ")
 end
 
 function M.processRow(rows)
@@ -30,7 +38,7 @@ function M.processRow(rows)
   end
 
   for _, row in ipairs(rows.items) do
-    local kind, subjects = getSubjects(row.subjects)
+    local kind, subjects = getSubjects(row)
     local role = {
       name = row.metadata.name,
       role = row.roleRef.name,

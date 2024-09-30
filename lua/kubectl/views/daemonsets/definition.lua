@@ -13,7 +13,7 @@ local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 local function getNodeSelector(row)
-  local ns = row.spec.template.spec.nodeSelector
+  local ns = row.spec and row.spec.template and row.spec.template.spec.nodeSelector
   if ns then
     local result = ""
     for key, value in pairs(ns) do

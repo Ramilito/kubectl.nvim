@@ -10,11 +10,12 @@ local time = require("kubectl.utils.time")
 ---@param data table
 ---@return number
 local function getData(data)
+  if not data then
+    return 0
+  end
   local count = 0
-  if data then
-    for _ in pairs(data) do
-      count = count + 1
-    end
+  for _ in pairs(data) do
+    count = count + 1
   end
   return count
 end
