@@ -115,6 +115,8 @@ function M.filter()
     table.insert(list, { name = value })
   end
   completion.with_completion(buf, list, nil, false)
+
+  -- We wrap because with_completion is adding keymappings that generateHeader needs
   vim.schedule(function()
     local header, marks = tables.generateHeader({
       { key = "<Plug>(kubectl.select)", desc = "apply" },
