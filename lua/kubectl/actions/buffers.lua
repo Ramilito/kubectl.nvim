@@ -143,7 +143,7 @@ function M.filter_buffer(filetype, callback, opts)
 
     api.nvim_set_option_value("modified", false, { buf = buf })
     vim.cmd.close()
-    vim.api.nvim_input("gr")
+    vim.api.nvim_input("<Plug>(kubectl.refresh)")
   end)
 
   vim.cmd("startinsert")
@@ -222,7 +222,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     vim.fn.prompt_setcallback(buf, function(input)
       api.nvim_set_option_value("modified", false, { buf = buf })
       vim.cmd.close()
-      vim.api.nvim_input("gr")
+      vim.api.nvim_input("<Plug>(kubectl.refresh)")
 
       callback(input)
     end)
