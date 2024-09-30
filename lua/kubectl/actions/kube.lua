@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local log = require("kubectl.log")
 local state = require("kubectl.state")
 
 local M = {}
@@ -16,7 +17,7 @@ end
 function M.start_kubectl_proxy(callback)
   local function on_stdout(err, data)
     if err then
-      print("Error reading stdout:", err)
+      log.fmt_error("Error reading stdout: %s", err)
       return
     end
     if data then
@@ -27,16 +28,17 @@ function M.start_kubectl_proxy(callback)
           state.setProxyUrl(port)
           callback()
         else
-          print("Invalid port number:", port)
+          log.fmt_error("Invalid port number: %s", port)
         end
       else
-        print("No port number found in the output.")
+        log.fmt_error("No port number found in the output.")
       end
     end
   end
   local cmd = "kubectl"
   local command = commands.configure_command(cmd, {}, { "proxy", "--port=0" })
 
+  log.fmt_debug("Executing command: %s", command.args)
   local handle = vim.system(command.args, {
     clear_env = true,
     env = command.env,
