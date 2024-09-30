@@ -1,6 +1,5 @@
 local loop = require("kubectl.utils.loop")
 local pvc_view = require("kubectl.views.pvc")
-local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
@@ -17,7 +16,7 @@ local function set_keymaps(bufnr)
       end
 
       -- get pv of pvc
-
+      local state = require("kubectl.state")
       local resource = tables.find_resource(state.instance.data, name, ns)
       if not resource then
         return
@@ -25,7 +24,7 @@ local function set_keymaps(bufnr)
       local pv_name = resource.spec.volumeName
 
       -- add to filter and view
-      require("kubectl.state").filter = pv_name
+      state.setFilter(pv_name)
       pv_view.View()
     end,
   })
