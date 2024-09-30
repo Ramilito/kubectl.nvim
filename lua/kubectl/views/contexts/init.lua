@@ -62,15 +62,16 @@ end
 --- Change context and restart proxy
 --- @param cmd string
 function M.change_context(cmd)
+  local state = require("kubectl.state")
   local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
 
   if not results then
     vim.notify(results, vim.log.levels.INFO)
   end
+  state.set_session()
   kube.stop_kubectl_proxy()
   kube.start_kubectl_proxy(function()
     local view = require("kubectl.views")
-    local state = require("kubectl.state")
     view.LoadFallbackData(true)
     state.setup()
   end)
