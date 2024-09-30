@@ -1,7 +1,7 @@
 local api = vim.api
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local pods_top_view = require("kubectl.views.top-pods")
+local nodes_top_view = require("kubectl.views.top-nodes")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
@@ -10,7 +10,8 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Top pods",
     callback = function()
-      pods_top_view.View()
+      local top_view = require("kubectl.views.top-pods")
+      top_view.View()
     end,
   })
 
@@ -19,8 +20,8 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Top nodes",
     callback = function()
-      local top_view = require("kubectl.views.top-nodes")
-      top_view.View()
+      nodes_top_view.View()
+      top_def.res_type = "nodes"
     end,
   })
 end
@@ -29,7 +30,7 @@ end
 local function init()
   set_keymaps(0)
   if not loop.is_running() then
-    loop.start_loop(pods_top_view.View)
+    loop.start_loop(nodes_top_view.View)
   end
 end
 

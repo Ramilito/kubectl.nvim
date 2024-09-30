@@ -158,7 +158,8 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.view_pv)", "", opts) -- PersistentVolumes view
     k("n", "<Plug>(kubectl.view_pvc)", "", opts) -- PersistentVolumeClaims view
     k("n", "<Plug>(kubectl.view_sa)", "", opts) -- ServiceAccounts view
-    k("n", "<Plug>(kubectl.view_top)", "", opts) -- Top view
+    k("n", "<Plug>(kubectl.view_top_nodes)", "", opts) -- Top view for nodes
+    k("n", "<Plug>(kubectl.view_top_pods)", "", opts) -- Top view for pods
 
     -- Deployment/DaemonSet actions
     k("n", "<Plug>(kubectl.rollout_restart)", "grr", opts) -- Rollout restart
