@@ -91,7 +91,21 @@ local function on_err(err, data)
 end
 
 local function on_stdout(result)
-  return process_event(M.builder, result)
+  while true do
+    local newline_pos = result:find("\n")
+    if not newline_pos then
+      break
+    end
+
+    local json_str = result:sub(1, newline_pos - 1)
+    if process_event(M.builder, json_str) then
+      result = result:sub(newline_pos + 1)
+    else
+      break
+    end
+  end
+
+  -- return process_event(M.builder, result)
 end
 
 local function on_exit() end
@@ -118,8 +132,8 @@ function M.start(builder)
     end
   end
 
-  M.handle = commands.shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.events_handle = commands.shell_uv_async("curl", event_cmd, on_exit, on_stdout, on_err)
+  M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
+  M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
 
   M.builder = builder
   return M.handle
