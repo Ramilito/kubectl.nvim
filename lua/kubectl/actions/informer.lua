@@ -15,53 +15,8 @@ local function release_lock()
   M.lock = false
 end
 
-local function acquire_lock()
-  while M.lock do
-    vim.wait(10)
-  end
-  M.lock = true
-end
-
-local function split_events(input)
-  local objects = {}
-  local pattern = '}{"type":"'
-  local start = 1
-
-  while true do
-    local split_point = input:find(pattern, start, true)
-
-    if not split_point then
-      -- If no more split points, add the rest of the string as the last JSON object
-      table.insert(objects, input:sub(start))
-      break
-    end
-
-    -- Add the JSON object up to the split point to the objects table
-    table.insert(objects, input:sub(start, split_point))
-
-    -- Move the start point to the next character after '}{'
-    start = split_point + 1
-  end
-
-  return objects
-end
-
-local function decode_json_objects(json_strings)
-  local decoded_events = {}
-
-  for _, json_string in ipairs(json_strings) do
-    local success, decoded_event = pcall(vim.json.decode, json_string, { luanil = { object = true, array = true } })
-    if success then
-      table.insert(decoded_events, decoded_event)
-    end
-  end
-
-  return decoded_events
-end
-
-local function process_event(builder, event)
-  if not event or not event.object or not event.object.metadata then
-    return
+  if not ok or not event or not event.object or not event.object.metadata then
+    return false
   end
   local event_name = event.object.metadata.name
 
@@ -128,6 +83,7 @@ local function process_event(builder, event)
   end
 
   event_handler:emit(event.type, event)
+  return true
 end
 
 local function sort_events_by_resource_version(events)
@@ -186,9 +142,7 @@ local function on_err(err, data)
 end
 
 local function on_stdout(result)
-  acquire_lock()
-  M.event_queue = M.event_queue .. result
-  release_lock()
+  return process_event(M.builder, result)
 end
 
 local function on_exit() end
