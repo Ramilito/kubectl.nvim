@@ -7,7 +7,6 @@ local M = {
     { key = "<Plug>(kubectl.top_pods)", desc = "top-pods", long_desc = "Top pods" },
     { key = "<Plug>(kubectl.top_nodes)", desc = "top-nodes", long_desc = "Top nodes" },
   },
-  nodes = {},
 }
 
 function M.getHeaders()
