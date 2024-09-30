@@ -126,12 +126,11 @@ function M.start(builder)
     end
   end
 
-  vim.schedule(function()
-    M.handle = commands.shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
-    M.builder = builder
-    return M.handle
-  end)
-  -- M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
+  M.handle = commands.shell_uv_async(builder.cmd, args, on_exit, on_stdout, on_err)
+  M.events_handle = commands.shell_uv_async("curl", event_cmd, on_exit, on_stdout, on_err)
+
+  M.builder = builder
+  return M.handle
 end
 
 function M.stop()
