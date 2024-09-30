@@ -103,16 +103,7 @@ function M.start(builder)
     M.stop()
   end
 
-  local args = {
-    "-N",
-    "--keepalive-time",
-    "60",
-    "-X",
-    "GET",
-    "-sS",
-    "-H",
-    "Content-Type: application/json",
-  }
+  local args = { "-N", "--keepalive-time", "60", "-X", "GET", "-sS", "-H", "Content-Type: application/json" }
 
   local event_cmd = { state.getProxyUrl() .. "/api/v1/events?pretty=false&watch=true" }
   for _, arg in ipairs(args) do
