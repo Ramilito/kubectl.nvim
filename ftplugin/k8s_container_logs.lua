@@ -1,3 +1,4 @@
+local container_view = require("kubectl.views.containers")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local str = require("kubectl.utils.string")
@@ -9,7 +10,6 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Tail logs",
     callback = function()
-      local container_view = require("kubectl.views.containers")
       pod_view.TailLogs(pod_view.selection.pod, pod_view.selection.ns, container_view.selection)
     end,
   })
@@ -37,10 +37,9 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Log history",
     callback = function()
-      vim.ui.input({ prompt = "Since (seconds)=", default = pod_view.log_since }, function(input)
-        local container_view = require("kubectl.views.containers")
+      vim.ui.input({ prompt = "Since (seconds)=", default = container_view.log_since }, function(input)
         container_view.log_since = input
-        container_view.logs(pod_view.selection.pod, pod_view.selection.ns)
+        container_view.logs(pod_view.selection.pod, pod_view.selection.ns, false)
       end)
     end,
   })
