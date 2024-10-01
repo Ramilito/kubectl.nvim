@@ -86,7 +86,7 @@ function M.selectPod(pod, ns)
   M.selection = { pod = pod, ns = ns, container = nil }
 end
 
-function M.Logs()
+function M.Logs(reload)
   local def = {
     resource = "logs",
     ft = "k8s_pod_logs",
@@ -110,7 +110,7 @@ function M.Logs()
     },
   }
 
-  ResourceBuilder:view_float(def, { cmd = "kubectl" })
+  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
 end
 
 function M.Edit(name, ns)

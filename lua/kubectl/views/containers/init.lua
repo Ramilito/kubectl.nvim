@@ -24,7 +24,7 @@ function M.exec(pod, ns)
   commands.execute_terminal("kubectl", { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" })
 end
 
-function M.logs(pod, ns)
+function M.logs(pod, ns, reload)
   ResourceBuilder:view_float({
     resource = "containerLogs",
     ft = "k8s_container_logs",
@@ -45,7 +45,7 @@ function M.logs(pod, ns)
       { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
     },
-  })
+  }, { reload = reload })
 end
 
 return M
