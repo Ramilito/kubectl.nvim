@@ -377,6 +377,16 @@ function M.register()
     })
   end
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.quit)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Close buffer",
+    callback = function()
+      vim.api.nvim_set_option_value("modified", false, { buf = 0 })
+      vim.cmd.close()
+    end,
+  })
+
   vim.schedule(function()
     -- Global mappings
     if win_config.relative == "" then
@@ -391,6 +401,11 @@ function M.register()
       M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
       M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
       M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+    else
+      local opts = { noremap = true, silent = true, callback = nil }
+      vim.api.nvim_buf_set_keymap(0, "n", "q", "<Plug>(kubectl.quit)", opts)
+      vim.api.nvim_buf_set_keymap(0, "n", "<esc>", "<Plug>(kubectl.quit)", opts)
+      vim.api.nvim_buf_set_keymap(0, "i", "<C-c>", "<Esc><Plug>(kubectl.quit)", opts)
     end
 
     M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")

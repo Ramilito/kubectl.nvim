@@ -101,10 +101,6 @@ function M.aliases_buffer(filetype, callback, opts)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
-    vim.keymap.set("n", "q", function()
-      api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd.close()
-    end, { buffer = buf, silent = true })
   end
 
   local win = layout.float_dynamic_layout(buf, filetype, opts.title)
@@ -132,10 +128,6 @@ function M.filter_buffer(filetype, callback, opts)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
-    vim.keymap.set("n", "q", function()
-      api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd.close()
-    end, { buffer = buf, silent = true })
   end
 
   local win = layout.float_dynamic_layout(buf, filetype, opts.title or "")
@@ -193,7 +185,6 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
       vim.api.nvim_win_close(win, true)
     end,
   })
-  vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, filetype, opts.syntax or filetype, bufname)
   layout.set_win_options(win)
@@ -223,10 +214,6 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     else
       buf = create_buffer(bufname)
     end
-    vim.keymap.set("n", "q", function()
-      api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd.close()
-    end, { buffer = buf, silent = true })
   end
 
   local win = layout.float_dynamic_layout(buf, opts.syntax or filetype, title or "")
@@ -281,10 +268,6 @@ function M.floating_buffer(filetype, title, syntax, win)
   end
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
-
-  vim.keymap.set("n", "q", function()
-    vim.cmd.close()
-  end, { buffer = buf, silent = true })
 
   return buf, win
 end
