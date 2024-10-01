@@ -32,7 +32,7 @@ local function set_keymaps(bufnr)
       else
         pod_view.show_timestamps = "true"
       end
-      pod_view.Logs()
+      pod_view.Logs(false)
     end,
   })
 
@@ -43,7 +43,7 @@ local function set_keymaps(bufnr)
     callback = function()
       vim.ui.input({ prompt = "Since (5s, 2m, 3h)=", default = pod_view.log_since }, function(input)
         pod_view.log_since = input
-        pod_view.Logs()
+        pod_view.Logs(false)
       end)
     end,
   })
@@ -58,7 +58,7 @@ local function set_keymaps(bufnr)
       else
         pod_view.show_log_prefix = "true"
       end
-      pod_view.Logs()
+      pod_view.Logs(false)
     end,
   })
 

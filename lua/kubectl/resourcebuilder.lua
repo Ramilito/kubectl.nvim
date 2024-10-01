@@ -282,6 +282,8 @@ function ResourceBuilder:view_float(definition, opts)
     self = ResourceBuilder:new(definition.resource)
     self.definition = definition
     self:displayFloat(self.definition.ft, self.definition.resource, self.definition.syntax)
+  else
+    self.definition = definition
   end
 
   self:setCmd(self.definition.url, opts.cmd, opts.contentType):fetchAsync(function(builder)
