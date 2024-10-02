@@ -1,8 +1,6 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
-local kube = require("kubectl.actions.kube")
 local state = require("kubectl.state")
-local time = require("kubectl.utils.time")
 local M = {}
 
 --- Calculate column widths for table data
