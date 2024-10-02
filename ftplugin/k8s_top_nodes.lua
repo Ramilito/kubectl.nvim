@@ -2,6 +2,7 @@ local api = vim.api
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local nodes_top_view = require("kubectl.views.top-nodes")
+local top_def = require("kubectl.views.top.definition")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
