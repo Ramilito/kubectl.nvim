@@ -219,16 +219,20 @@ local function addHeartbeatVirtText(hints, marks)
   local hb_text = proxy_state.text
   local hb_symbol = proxy_state.symbol
   local hb_desc = "Heartbeat: "
+  local virt_text = {
+    { hb_desc, "Normal" },
+    { hb_text, hb_symbol },
+  }
+  if not proxy_state.ok and proxy_state.timestamp ~= 0 then
+    local time_diff, _ = time.short_diff(time.currentTime(), proxy_state.timestamp)
+    table.insert(virt_text, { " (" .. time_diff .. ")", "Pending" })
+  end
   table.insert(marks, {
     row = #hints - 1,
     start_col = -1,
-    virt_text = { { hb_desc, "Normal" }, { hb_text, hb_symbol } },
+    virt_text = virt_text,
     virt_text_pos = "right_align",
   })
-  if not proxy_state.ok and proxy_state.timestamp ~= 0 then
-    local time_diff, _ = time.short_diff(time.currentTime(), proxy_state.timestamp)
-    hb_text = hb_text .. " (" .. time_diff .. ")"
-  end
 end
 
 --- Generate header hints and marks

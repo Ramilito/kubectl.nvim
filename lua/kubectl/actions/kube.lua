@@ -29,7 +29,7 @@ local function set_proxy_state(state_txt)
     state_tbl.ok = false
     state_tbl.symbol = hl.symbols.error
   end
-  M.proxy_state = state_tbl
+  M.proxy_state = vim.tbl_extend("force", M.proxy_state, state_tbl)
 end
 
 function M.stop_kubectl_proxy()
