@@ -149,6 +149,11 @@ local function addContextRows(context, hints, marks)
       line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
+    if state.livez then
+      line = line .. " ✅"
+    else
+      line = line .. " ⚠️"
+    end
   end
 
   M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)

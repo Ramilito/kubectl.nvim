@@ -29,6 +29,8 @@ M.instance = nil
 M.instance_float = nil
 ---@type table
 M.history = {}
+---@type boolean
+M.livez = true
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -62,6 +64,23 @@ function M.setup()
     M.filter = ""
     vim.schedule(function()
       M.restore_session()
+      M.checkHealth()
+    end)
+  end)
+end
+
+function M.checkHealth()
+  local timer = vim.uv.new_timer()
+  local ResourceBuilder = require("kubectl.resourcebuilder")
+  local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
+
+  timer:start(0, 10000, function()
+    builder:fetchAsync(function(self)
+      if self.data == "ok" then
+        M.livez = true
+      else
+        M.livez = false
+      end
     end)
   end)
 end
