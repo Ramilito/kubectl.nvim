@@ -135,7 +135,14 @@ local function addHeartbeat(hints, marks)
     table.insert(marks, {
       row = #hints - 1,
       start_col = -1,
-      virt_text = { { "Heartbeat: ", hl.symbols.gray }, { "ok", hl.symbols.success } },
+      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "ok", hl.symbols.success } },
+      virt_text_pos = "right_align",
+    })
+  elseif state.livez.ok == nil then
+    table.insert(marks, {
+      row = #hints - 1,
+      start_col = -1,
+      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "pending", hl.symbols.warning } },
       virt_text_pos = "right_align",
     })
   else

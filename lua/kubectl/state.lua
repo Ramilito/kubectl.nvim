@@ -30,7 +30,7 @@ M.instance_float = nil
 ---@type table
 M.history = {}
 ---@type table
-M.livez = { ok = true, time_of_ok = nil }
+M.livez = { ok = nil, time_of_ok = nil }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
