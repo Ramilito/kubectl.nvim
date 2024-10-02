@@ -130,6 +130,29 @@ local function addHeaderRow(headers, hints, marks)
   table.insert(hints, hint_line .. "\n")
 end
 
+local function addHeartbeat(hints, marks)
+  if state.livez.ok then
+    table.insert(marks, {
+      row = #hints - 1,
+      start_col = -1,
+      virt_text = { { "Heartbeat: ", hl.symbols.gray }, { "ok", hl.symbols.success } },
+      virt_text_pos = "right_align",
+    })
+  else
+    local current_time = os.time()
+    local time_since = os.difftime(current_time, state.livez.time_of_ok)
+    table.insert(marks, {
+      row = #hints - 1,
+      start_col = -1,
+      virt_text = {
+        { "Heartbeat: ", hl.symbols.note },
+        { "failed ", hl.symbols.error },
+        { "(" .. time_since .. "s)", hl.symbols.error },
+      },
+      virt_text_pos = "right_align",
+    })
+  end
+end
 --- Add context rows to the hints and marks tables
 ---@param context table
 ---@param hints table[]
@@ -149,27 +172,6 @@ local function addContextRows(context, hints, marks)
       line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
-    if state.livez.ok then
-      table.insert(marks, {
-        row = #hints,
-        start_col = -1,
-        virt_text = { { "Heartbeat: ", hl.symbols.gray }, { "ok", hl.symbols.success } },
-        virt_text_pos = "right_align",
-      })
-    else
-      local current_time = os.time()
-      local time_since = os.difftime(current_time, state.livez.time_of_ok)
-      table.insert(marks, {
-        row = #hints,
-        start_col = -1,
-        virt_text = {
-          { "Heartbeat: ", hl.symbols.note },
-          { "failed ", hl.symbols.error },
-          { "(" .. time_since .. "s)", hl.symbols.error },
-        },
-        virt_text_pos = "right_align",
-      })
-    end
   end
 
   M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
@@ -267,6 +269,11 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     if context then
       addContextRows(context, hints, marks)
     end
+  end
+
+  -- Add heartbeat
+  if config.options.heartbeat then
+    addHeartbeat(hints, marks)
   end
 
   addDividerRow(divider, hints, marks)
