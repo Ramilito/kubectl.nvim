@@ -1,5 +1,4 @@
 local config = require("kubectl.config")
-local informer = require("kubectl.actions.informer")
 local M = {}
 
 local timers = {}
