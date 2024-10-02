@@ -145,7 +145,6 @@ local function addContextRows(context, hints, marks)
     table.insert(hints, line)
   end
   local desc, namespace = "Namespace: ", state.getNamespace()
-  M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
   local line = desc .. namespace
   if context.clusters then
     if context.contexts then
@@ -153,6 +152,7 @@ local function addContextRows(context, hints, marks)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
   end
+  M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
 
   table.insert(hints, line .. "\n")
 end
