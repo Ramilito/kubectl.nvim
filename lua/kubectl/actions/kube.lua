@@ -1,57 +1,9 @@
 local commands = require("kubectl.actions.commands")
-local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
-local time = require("kubectl.utils.time")
 
-local M = {
-  proxy_state = {
-    ok = false,
-    text = "pending",
-    timestamp = 0,
-    symbol = hl.symbols.experimental,
-  },
-  handle = {},
-  pid = -1,
-}
-
-local function set_proxy_state(state_txt)
-  local state_tbl = { text = state_txt }
-  if state_txt == "ok" then
-    state_tbl.ok = true
-    state_tbl.symbol = hl.symbols.success
-    state_tbl.timestamp = time.currentTime()
-  elseif state_txt == "failed" or state_txt == "not running" then
-    state_tbl.ok = false
-    state_tbl.symbol = hl.symbols.error
-  end
-  M.proxy_state = vim.tbl_extend("force", M.proxy_state, state_tbl)
-end
-
-local function api_server_healthcheck()
-  if M.handle and not M.handle:is_closing() then
-    vim.system({ "curl", "-s", state.getProxyUrl() .. "/livez" }, {
-      text = true,
-      timeout = 5000,
-      stderr = function(_, data)
-        if data then
-          set_proxy_state("failed")
-        end
-      end,
-      stdout = function(_, data)
-        if data then
-          local status = data:match("ok")
-          if status then
-            set_proxy_state("ok")
-          else
-            set_proxy_state("failed")
-          end
-        end
-      end,
-    })
-  else
-    set_proxy_state("not running")
-  end
-end
+local M = {}
+M.handle = {}
+M.pid = -1
 
 function M.stop_kubectl_proxy()
   return function()
@@ -92,7 +44,7 @@ function M.start_kubectl_proxy(callback)
     stderr = function(_, data)
       vim.schedule(function()
         if data then
-          set_proxy_state("failed")
+          vim.notify(data, vim.log.levels.ERROR)
         end
       end)
     end,
@@ -101,11 +53,6 @@ function M.start_kubectl_proxy(callback)
   }, M.stop_kubectl_proxy())
 
   M.handle = handle
-
-  -- Heartbeat timer
-  local timer = vim.uv.new_timer()
-  timer:start(0, 5000, api_server_healthcheck)
-
   vim.api.nvim_create_autocmd("VimLeavePre", {
     callback = function()
       handle:kill(2)

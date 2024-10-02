@@ -6,7 +6,6 @@ local M = {}
 ---@field namespace string
 ---@field hints boolean
 ---@field context boolean
----@field heartbeat boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
 local defaults = {
@@ -27,7 +26,6 @@ local defaults = {
   namespace_fallback = {},
   hints = true,
   context = true,
-  heartbeat = true,
   alias = {
     apply_on_select_from_history = true,
     max_history = 5,
