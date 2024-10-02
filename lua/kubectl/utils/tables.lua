@@ -1,7 +1,6 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
-local time = require("kubectl.utils.time")
 local M = {}
 
 --- Calculate column widths for table data
@@ -150,11 +149,11 @@ local function addContextRows(context, hints, marks)
       line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
-    if not state.livez.ok then
+    if state.livez.ok then
       table.insert(marks, {
         row = #hints,
         start_col = -1,
-        virt_text = { { "Heartbeat: ", hl.symbols.note }, { "OK", hl.symbols.success } },
+        virt_text = { { "Heartbeat: ", hl.symbols.gray }, { "ok", hl.symbols.success } },
         virt_text_pos = "right_align",
       })
     else
@@ -166,7 +165,7 @@ local function addContextRows(context, hints, marks)
         virt_text = {
           { "Heartbeat: ", hl.symbols.note },
           { "failed ", hl.symbols.error },
-          { "(" .. time_since .. "s)", hl.symbols.note },
+          { "(" .. time_since .. "s)", hl.symbols.error },
         },
         virt_text_pos = "right_align",
       })

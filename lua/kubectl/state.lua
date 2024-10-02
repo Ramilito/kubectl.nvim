@@ -74,7 +74,7 @@ function M.checkHealth()
   local ResourceBuilder = require("kubectl.resourcebuilder")
   local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
 
-  timer:start(0, 10000, function()
+  timer:start(0, 5000, function()
     builder:fetchAsync(function(self)
       if self.data == "ok" then
         M.livez.ok = true
