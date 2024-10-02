@@ -32,15 +32,7 @@ local function set_proxy_state(state_txt)
   M.proxy_state = vim.tbl_extend("force", M.proxy_state, state_tbl)
 end
 
-function M.stop_kubectl_proxy()
-  return function()
-    if M.handle and not M.handle:is_closing() then
-      M.handle:kill(2)
-    end
-  end
-end
-
-function M.api_server_healthcheck()
+local function api_server_healthcheck()
   if M.handle and not M.handle:is_closing() then
     vim.system({ "curl", "-s", state.getProxyUrl() .. "/livez" }, {
       text = true,
@@ -65,6 +57,15 @@ function M.api_server_healthcheck()
     set_proxy_state("not running")
   end
 end
+
+function M.stop_kubectl_proxy()
+  return function()
+    if M.handle and not M.handle:is_closing() then
+      M.handle:kill(2)
+    end
+  end
+end
+
 
 function M.start_kubectl_proxy(callback)
   local function on_stdout(err, data)
@@ -109,7 +110,7 @@ function M.start_kubectl_proxy(callback)
 
   -- Heartbeat timer
   local timer = vim.uv.new_timer()
-  timer:start(0, 5000, M.api_server_healthcheck)
+  timer:start(0, 5000, api_server_healthcheck)
 
   vim.api.nvim_create_autocmd("VimLeavePre", {
     callback = function()
