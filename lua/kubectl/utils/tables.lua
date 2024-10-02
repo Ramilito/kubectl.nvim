@@ -1,6 +1,7 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
+local time = require("kubectl.utils.time")
 local M = {}
 
 --- Calculate column widths for table data
@@ -131,30 +132,32 @@ local function addHeaderRow(headers, hints, marks)
 end
 
 local function addHeartbeat(hints, marks)
+  local padding = "   "
   if state.livez.ok then
     table.insert(marks, {
       row = #hints - 1,
       start_col = -1,
-      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "ok", hl.symbols.success } },
+      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "ok", hl.symbols.success }, { padding } },
       virt_text_pos = "right_align",
     })
   elseif state.livez.ok == nil then
     table.insert(marks, {
       row = #hints - 1,
       start_col = -1,
-      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "pending", hl.symbols.warning } },
+      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "pending", hl.symbols.warning }, { padding } },
       virt_text_pos = "right_align",
     })
   else
     local current_time = os.time()
-    local time_since = os.difftime(current_time, state.livez.time_of_ok)
+    local since = time.diff_str(current_time, state.livez.time_of_ok)
     table.insert(marks, {
       row = #hints - 1,
       start_col = -1,
       virt_text = {
         { "Heartbeat: ", hl.symbols.note },
         { "failed ", hl.symbols.error },
-        { "(" .. time_since .. "s)", hl.symbols.error },
+        { "(" .. since .. ")", hl.symbols.error },
+        { padding },
       },
       virt_text_pos = "right_align",
     })
