@@ -1,7 +1,6 @@
 local api = vim.api
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
-local nodes_top_def = require("kubectl.views.nodes.definition")
 local nodes_top_view = require("kubectl.views.top-nodes")
 
 --- Set key mappings for the buffer
@@ -22,7 +21,7 @@ local function set_keymaps(bufnr)
     desc = "Top nodes",
     callback = function()
       nodes_top_view.View()
-      nodes_top_def.res_type = "nodes"
+      top_def.res_type = "nodes"
     end,
   })
 end
