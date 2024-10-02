@@ -20,10 +20,7 @@ local function set_proxy_state(state_txt)
     state_tbl.ok = true
     state_tbl.symbol = hl.symbols.success
     state_tbl.timestamp = time.currentTime()
-  elseif state_txt == "failed" then
-    state_tbl.ok = false
-    state_tbl.symbol = hl.symbols.error
-  elseif state_txt == "not running" then
+  elseif state_txt == "failed" or state_txt == "not running" then
     state_tbl.ok = false
     state_tbl.symbol = hl.symbols.error
   end
