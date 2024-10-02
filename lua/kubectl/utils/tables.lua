@@ -150,12 +150,26 @@ local function addContextRows(context, hints, marks)
       line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
-    if state.livez.ok then
-      line = line .. " ✅"
+    if not state.livez.ok then
+      table.insert(marks, {
+        row = #hints,
+        start_col = -1,
+        virt_text = { { "Heartbeat: ", hl.symbols.note }, { "OK", hl.symbols.success } },
+        virt_text_pos = "right_align",
+      })
     else
       local current_time = os.time()
       local time_since = os.difftime(current_time, state.livez.time_of_ok)
-      line = line .. " ⚠️" .. " (" .. time_since .. "s)"
+      table.insert(marks, {
+        row = #hints,
+        start_col = -1,
+        virt_text = {
+          { "Heartbeat: ", hl.symbols.note },
+          { "failed ", hl.symbols.error },
+          { "(" .. time_since .. "s)", hl.symbols.note },
+        },
+        virt_text_pos = "right_align",
+      })
     end
   end
 
