@@ -75,14 +75,21 @@ function M.checkHealth()
   local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
 
   timer:start(0, 5000, function()
-    builder:fetchAsync(function(self)
-      if self.data == "ok" then
-        M.livez.ok = true
-        M.livez.time_of_ok = os.time()
-      else
+    builder:fetchAsync(
+      function(self)
+        if self.data == "ok" then
+          M.livez.ok = true
+          M.livez.time_of_ok = os.time()
+        else
+          M.livez.ok = false
+        end
+      end,
+      nil,
+      function(_)
         M.livez.ok = false
-      end
-    end)
+      end,
+      { timeout = 5000 }
+    )
   end)
 end
 

@@ -123,7 +123,7 @@ end
 --- @param on_exit? function The callback function to execute when the command exits
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
 --- @param on_stderr? function The callback function to execute when there is stderr output (optional)
---- @param opts { env: table, stdin: string, detach: boolean }|nil The arguments for the command
+--- @param opts { env: table, stdin: string, detach: boolean, timeout: number }|nil The arguments for the command
 function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or { env = {} }
   local result = ""
@@ -134,6 +134,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
     clear_env = true,
     detach = opts.detach or false,
     stdin = opts.stdin,
+    timeout = opts.timeout or nil,
     stdout = function(err, data)
       if err then
         return
