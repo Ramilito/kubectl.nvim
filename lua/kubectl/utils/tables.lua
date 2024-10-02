@@ -275,11 +275,6 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     end
   end
 
-  -- Add heartbeat virt text
-  if config.options.heartbeat then
-    addHeartbeatVirtText(hints, marks)
-  end
-
   -- Add versions row
   if true then
     addVersionsRow(state.getVersions(), hints, marks)
