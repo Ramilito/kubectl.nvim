@@ -5,7 +5,12 @@ local M = {}
 local obj_fresh = config.options.obj_fresh
 local success_symbol = hl.symbols.success
 
-function M.short_diff(timeA, timeB)
+--- get a string representation of the time difference between two timestamps
+---@param timeA number more recent timestamp
+---@param timeB number older timestamp
+---@return string diff_str
+---@return boolean is_fresh
+function M.diff_str(timeA, timeB)
   local diff = timeA - timeB
   local days = math.floor(diff / 86400)
   local years = math.floor(days / 365)
@@ -53,7 +58,7 @@ function M.since(timestamp, fresh, currentTime, format)
   if not parsed_time or parsed_time == 0 then
     return nil
   end
-  local diff_str, is_fresh = M.short_diff(currentTime, parsed_time)
+  local diff_str, is_fresh = M.diff_str(currentTime, parsed_time)
   local status = { symbol = "", value = diff_str, sort_by = tonumber(parsed_time) }
   if fresh and is_fresh then
     status.symbol = success_symbol
