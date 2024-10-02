@@ -1,18 +1,36 @@
 local commands = require("kubectl.actions.commands")
+local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local time = require("kubectl.utils.time")
 
 local M = {
   proxy_state = {
-    running = false,
+    ok = false,
     text = "pending",
     timestamp = 0,
+    symbol = hl.symbols.experimental,
   },
   handle = {},
   pid = -1,
   hc_handle = {},
   hc_pid = -1,
 }
+
+local function set_proxy_state(state_txt)
+  local state_tbl = { text = state_txt }
+  if state_txt == "ok" then
+    state_tbl.ok = true
+    state_tbl.symbol = hl.symbols.success
+    state_tbl.timestamp = time.currentTime()
+  elseif state_txt == "failed" then
+    state_tbl.ok = false
+    state_tbl.symbol = hl.symbols.error
+  elseif state_txt == "not running" then
+    state_tbl.ok = false
+    state_tbl.symbol = hl.symbols.error
+  end
+  M.proxy_state = state_tbl
+end
 
 function M.stop_kubectl_proxy()
   return function()
@@ -28,32 +46,23 @@ function M.api_server_healthcheck()
       text = true,
       timeout = 5000,
       stderr = function(_, data)
-        vim.schedule(function()
-          if data then
-            M.proxy_state.running = false
-            M.proxy_state.text = "failed"
-          end
-        end)
+        if data then
+          set_proxy_state("failed")
+        end
       end,
       stdout = function(_, data)
-        vim.schedule(function()
-          if data then
-            local status = data:match("ok")
-            if status then
-              M.proxy_state.running = true
-              M.proxy_state.text = "running"
-              M.proxy_state.timestamp = time.currentTime()
-            else
-              M.proxy_state.running = false
-              M.proxy_state.text = "failed"
-            end
+        if data then
+          local status = data:match("ok")
+          if status then
+            set_proxy_state("ok")
+          else
+            set_proxy_state("failed")
           end
-        end)
+        end
       end,
     })
   else
-    M.proxy_state.running = false
-    M.proxy_state.text = "not running"
+    set_proxy_state("not running")
   end
 end
 
@@ -88,8 +97,7 @@ function M.start_kubectl_proxy(callback)
     stderr = function(_, data)
       vim.schedule(function()
         if data then
-          M.proxy_state.running = false
-          M.proxy_state.text = "failed"
+          set_proxy_state("failed")
         end
       end)
     end,

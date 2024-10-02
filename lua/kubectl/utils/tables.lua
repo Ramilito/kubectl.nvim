@@ -145,6 +145,7 @@ local function addContextRows(context, hints, marks)
     table.insert(hints, line)
   end
   local desc, namespace = "Namespace: ", state.getNamespace()
+  M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
   local line = desc .. namespace
   if context.clusters then
     if context.contexts then
@@ -152,13 +153,7 @@ local function addContextRows(context, hints, marks)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
   end
-  line = line .. " | Heartbeat: " .. kube.proxy_state.text
-  if not kube.proxy_state.running and kube.proxy_state.timestamp ~= 0 then
-    local time_diff, _ = time.short_diff(time.currentTime(), kube.proxy_state.timestamp)
-    line = line .. " (" .. time_diff .. ")"
-  end
 
-  M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
   table.insert(hints, line .. "\n")
 end
 
@@ -218,6 +213,24 @@ local function addDividerRow(divider, hints, marks)
 
   table.insert(hints, row)
 end
+
+local function addHeartbeatVirtText(hints, marks)
+  local proxy_state = kube.proxy_state
+  local hb_text = proxy_state.text
+  local hb_symbol = proxy_state.symbol
+  local hb_desc = "Heartbeat: "
+  table.insert(marks, {
+    row = #hints - 1,
+    start_col = -1,
+    virt_text = { { hb_desc, "Normal" }, { hb_text, hb_symbol } },
+    virt_text_pos = "right_align",
+  })
+  if not proxy_state.ok and proxy_state.timestamp ~= 0 then
+    local time_diff, _ = time.short_diff(time.currentTime(), proxy_state.timestamp)
+    hb_text = hb_text .. " (" .. time_diff .. ")"
+  end
+end
+
 --- Generate header hints and marks
 ---@param headers table[]
 ---@param include_defaults boolean
@@ -253,6 +266,24 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     if context then
       addContextRows(context, hints, marks)
     end
+  end
+
+  if config.options.heartbeat then
+    addHeartbeatVirtText(hints, marks)
+    -- local proxy_state = kube.proxy_state
+    -- local hb_text = proxy_state.text
+    -- local hb_symbol = proxy_state.symbol
+    -- local hb_desc = "Heartbeat: "
+    -- table.insert(marks, {
+    --   row = #hints - 1,
+    --   start_col = -1,
+    --   virt_text = { { hb_desc, "Normal" }, { hb_text, hb_symbol } },
+    --   virt_text_pos = "right_align",
+    -- })
+    -- if not proxy_state.ok and proxy_state.timestamp ~= 0 then
+    --   local time_diff, _ = time.short_diff(time.currentTime(), proxy_state.timestamp)
+    --   hb_text = hb_text .. " (" .. time_diff .. ")"
+    -- end
   end
 
   addDividerRow(divider, hints, marks)
