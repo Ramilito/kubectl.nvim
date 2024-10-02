@@ -225,7 +225,7 @@ local function addHeartbeatVirtText(hints, marks)
   }
   if not proxy_state.ok and proxy_state.timestamp ~= 0 then
     local time_diff, _ = time.diff_str(time.currentTime(), proxy_state.timestamp)
-    table.insert(virt_text, { " (" .. time_diff .. ")", "Pending" })
+    table.insert(virt_text, { " (" .. time_diff .. ")", "Comment" })
   end
   table.insert(marks, {
     row = #hints - 1,
