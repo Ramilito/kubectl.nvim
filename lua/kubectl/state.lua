@@ -4,6 +4,8 @@ local M = {}
 
 ---@type table
 M.context = {}
+---@type { client: { major: number, minor: number }, server: { major: number, minor: number } }
+M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
 ---@type string
 M.ns = ""
 ---@type string
@@ -63,6 +65,38 @@ function M.setup()
     vim.schedule(function()
       M.restore_session()
     end)
+  end)
+  -- get client and server version
+  commands.shell_command_async("kubectl", { "version", "--output", "json" }, function(data)
+    local result = decode(data)
+    if result then
+      -- vim.schedule(function()
+      local clientVersion = result.clientVersion.gitVersion
+      local serverVersion = result.serverVersion.gitVersion
+      M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
+      M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
+      M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
+      M.versions.server.minor = tonumber(string.match(serverVersion, "%d+%.(%d+)%..*")) or 0
+      -- vim.notify(
+      --   "Client Version: " .. clientVersion .. " | major: " .. clientMajor .. " minor: " .. clientMinor,
+      --   vim.log.levels.INFO
+      -- )
+      -- vim.notify(
+      --   "Server Version: " .. serverVersion .. " | major: " .. serverMajor .. " minor: " .. serverMinor,
+      --   vim.log.levels.INFO
+      -- )
+      --   if clientMajor < serverMajor or (clientMajor == serverMajor and clientMinor < serverMinor) then
+      --     vim.notify("Client version is lower than server version, please update kubectl", vim.log.levels.WARN)
+      --     -- check if the minor skew is more than 1
+      --     if serverMajor - clientMajor > 1 or (serverMajor - clientMajor == 1 and serverMinor > 1) then
+      --       vim.notify(
+      --         "Client version is lower than server version allowed skew, please update kubectl",
+      --         vim.log.levels.WARN
+      --       )
+      --     end
+      --   end
+      -- end)
+    end
   end)
 end
 

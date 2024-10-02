@@ -272,8 +272,30 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     end
   end
 
+  -- Add heartbeat virt text
   if config.options.heartbeat then
     addHeartbeatVirtText(hints, marks)
+  end
+
+  -- Add versions row
+  if true then
+    -- versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
+    local versions = state.versions
+    local client = "Client: " .. versions.client.major .. "." .. versions.client.minor
+    local server = "Server: " .. versions.server.major .. "." .. versions.server.minor
+    local line = client .. string.rep(" ", #server - #client) .. "    │ " .. server
+    table.insert(hints, line)
+    -- table.insert(marks, {
+    --   row = #hints - 1,
+    --   start_col = #client,
+    --   end_col = #client + #server,
+    --   virt_text = {
+    --     { client, hl.symbols.pending },
+    --     { " │ ", hl.symbols.success },
+    --     { server, hl.symbols.pending },
+    --   },
+    --   virt_text_pos = "overlay",
+    -- })
   end
 
   addDividerRow(divider, hints, marks)
