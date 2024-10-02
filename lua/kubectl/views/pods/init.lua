@@ -110,6 +110,13 @@ function M.Logs(reload)
     },
   }
 
+  if reload == false and M.tail_handle then
+    M.tail_handle:kill(2)
+    M.tail_handle = nil
+    vim.schedule(function()
+      M.TailLogs(M.selection.pod, M.selection.ns)
+    end)
+  end
   ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
 end
 
