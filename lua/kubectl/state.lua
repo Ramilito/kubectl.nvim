@@ -124,6 +124,12 @@ function M.getProxyUrl()
   return M.proxyUrl
 end
 
+--- Get the versions
+--- @return table versions The versions
+function M.getVersions()
+  return M.versions
+end
+
 --- Set the filter pattern
 --- @param pattern string The filter pattern to set
 function M.setFilter(pattern)
