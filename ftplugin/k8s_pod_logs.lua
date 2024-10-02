@@ -42,7 +42,7 @@ local function set_keymaps(bufnr)
     desc = "Log history",
     callback = function()
       vim.ui.input({ prompt = "Since (5s, 2m, 3h)=", default = pod_view.log_since }, function(input)
-        pod_view.log_since = input
+        pod_view.log_since = input or pod_view.log_since
         pod_view.Logs(false)
       end)
     end,
