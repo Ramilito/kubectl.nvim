@@ -12,8 +12,6 @@ local M = {
   },
   handle = {},
   pid = -1,
-  hc_handle = {},
-  hc_pid = -1,
 }
 
 local function set_proxy_state(state_txt)
