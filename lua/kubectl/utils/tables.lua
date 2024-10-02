@@ -193,22 +193,22 @@ local function addVersionsRow(versions, hints, marks)
   local server_ver = versions.server.major .. "." .. versions.server.minor
   local client_str = "Client: " .. client_ver
   local server_str = "Server: " .. server_ver
-  local line = client_str .. string.rep(" ", #server_str - #client_str) .. " │ " .. server_str
-  table.insert(hints, line)
+  local line = client_str .. string.rep(" ", #server_str - #client_str) .. " │ " .. server_str .. "\n"
 
   -- https://kubernetes.io/releases/version-skew-policy/#kubectl
   if versions.server.major > versions.client.major then
-    M.add_mark(marks, #hints - 1, #client_str - #client_ver, #client_str, hl.symbols.error)
+    M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.error)
   else
     if versions.server.major == versions.client.major and versions.server.minor > versions.client.minor then
       -- check if diff of minor is more than 1
       if versions.server.minor - versions.client.minor > 1 then
-        M.add_mark(marks, #hints - 1, #client_str - #client_ver, #client_str, hl.symbols.error)
+        M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.error)
       else
-        M.add_mark(marks, #hints - 1, #client_str - #client_ver, #client_str, hl.symbols.deprecated)
+        M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.deprecated)
       end
     end
   end
+  table.insert(hints, line)
 end
 
 --- Add divider row
