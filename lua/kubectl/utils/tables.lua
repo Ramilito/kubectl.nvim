@@ -1,6 +1,8 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
+local kube = require("kubectl.actions.kube")
 local state = require("kubectl.state")
+local time = require("kubectl.utils.time")
 local M = {}
 
 --- Calculate column widths for table data
@@ -149,6 +151,11 @@ local function addContextRows(context, hints, marks)
       line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
+  end
+  line = line .. " | Heartbeat: " .. kube.proxy_state.text
+  if not kube.proxy_state.running and kube.proxy_state.timestamp ~= 0 then
+    local time_diff, _ = time.short_diff(time.currentTime(), kube.proxy_state.timestamp)
+    line = line .. " (" .. time_diff .. ")"
   end
 
   M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
