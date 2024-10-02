@@ -1,6 +1,7 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
+local time = require("kubectl.utils.time")
 local M = {}
 
 --- Calculate column widths for table data
@@ -149,10 +150,12 @@ local function addContextRows(context, hints, marks)
       line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
-    if state.livez then
+    if state.livez.ok then
       line = line .. " ✅"
     else
-      line = line .. " ⚠️"
+      local current_time = os.time()
+      local time_since = os.difftime(current_time, state.livez.time_of_ok)
+      line = line .. " ⚠️" .. " (" .. time_since .. "s)"
     end
   end
 

@@ -29,8 +29,8 @@ M.instance = nil
 M.instance_float = nil
 ---@type table
 M.history = {}
----@type boolean
-M.livez = true
+---@type table
+M.livez = { ok = true, time_of_ok = nil }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -77,9 +77,10 @@ function M.checkHealth()
   timer:start(0, 10000, function()
     builder:fetchAsync(function(self)
       if self.data == "ok" then
-        M.livez = true
+        M.livez.ok = true
+        M.livez.time_of_ok = os.time()
       else
-        M.livez = false
+        M.livez.ok = false
       end
     end)
   end)
