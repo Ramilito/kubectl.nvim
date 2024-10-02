@@ -23,7 +23,7 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
-local function align_table(tbl)
+local function align_and_mark_table(tbl, hints)
   -- Calculate the maximum width of each column
   local max_widths = {}
   for _, row in ipairs(tbl) do
@@ -33,11 +33,17 @@ local function align_table(tbl)
   end
 
   -- Align the table elements and concatenate them with a space
-  for i, row in ipairs(tbl) do
+  for _, row in ipairs(tbl) do
     for j, col in ipairs(row) do
-      row[j] = col .. string.rep(" ", max_widths[j] - #col)
+      if type(col) == "table" then
+        row[j] = col.value .. string.rep(" ", max_widths[j] - #col)
+        -- M.add_mark(hints, #hints, #col, #col + #col.value, col.symbol)
+      else
+        row[j] = col .. string.rep(" ", max_widths[j] - #col)
+      end
     end
-    tbl[i] = table.concat(row, " ")
+    vim.print(table.concat(row, " "))
+    -- table.insert(hints, table.concat(row, " "))
   end
 end
 
@@ -187,21 +193,35 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addContextRows(context, hints, marks)
+  local context_rows = {}
   if context.contexts then
-    local desc, context_info = "Context: ", context.contexts[1].context
-    local line = desc .. context_info.cluster .. " │ User: " .. context_info.user .. "\n"
+    local context_info = context.contexts[1].context
+    table.insert(context_rows, {
+      "Context:",
+      { value = context_info.cluster, symbol = hl.symbols.pending },
+      "|",
+      "User:",
+      context_info.user,
+      "\n",
+    })
+    local line = "Context: " .. context_info.cluster .. " │ User: " .. context_info.user .. "\n"
 
-    M.add_mark(marks, #hints, #desc, #desc + #context_info.cluster, hl.symbols.pending)
+    -- M.add_mark(marks, #hints, #desc, #desc + #context_info.cluster, hl.symbols.pending)
     table.insert(hints, line)
   end
-  local desc, namespace = "Namespace: ", state.getNamespace()
-  local line = desc .. namespace
+  local ns_row = { "Namespace:", { value = state.getNamespace(), symbol = hl.symbols.pending } }
+  local line = "Namespace: " .. state.getNamespace()
   if context.clusters then
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
+    vim.list_extend(ns_row, { "|", "Cluster:", context.clusters[1].name })
   end
+  table.insert(ns_row, "\n")
+  table.insert(context_rows, ns_row)
 
-  M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
+  -- M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
   table.insert(hints, line .. "\n")
+  -- vim.print(vim.inspect(context_rows))
+  return context_rows
 end
 
 local function addVersionsRow(versions, hints, marks)
@@ -210,21 +230,33 @@ local function addVersionsRow(versions, hints, marks)
   local client_str = "Client: " .. client_ver
   local server_str = "Server: " .. server_ver
   local line = client_str .. " │ " .. server_str .. "\n"
+  local row = {
+    "Client:",
+    { value = client_ver, symbol = hl.symbols.pending },
+    "│",
+    "Server:",
+    { value = server_ver, symbol = hl.symbols.pending },
+    "\n",
+  }
 
   -- https://kubernetes.io/releases/version-skew-policy/#kubectl
   if versions.server.major > versions.client.major then
+    row[2].symbol = hl.symbols.error
     M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.error)
   else
     if versions.server.major == versions.client.major and versions.server.minor > versions.client.minor then
       -- check if diff of minor is more than 1
       if versions.server.minor - versions.client.minor > 1 then
+        row[2].symbol = hl.symbols.error
         M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.error)
       else
+        row[2].symbol = hl.symbols.deprecated
         M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.deprecated)
       end
     end
   end
   table.insert(hints, line)
+  return { row }
 end
 
 --- Add divider row
@@ -315,42 +347,48 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
 
   -- Add context rows
   local hints_len_before = #hints
+  local context_rows = {}
   if include_context and config.options.context then
     local context = state.getContext()
     if context then
-      addContextRows(context, hints, marks)
+      -- addContextRows(context, hints, marks)
+      vim.list_extend(context_rows, addContextRows(context, hints, marks))
     end
   end
 
   -- Add versions row
   if true then
-    addVersionsRow(state.getVersions(), hints, marks)
+    -- addVersionsRow(state.getVersions(), hints, marks)
+    vim.list_extend(context_rows, addVersionsRow(state.getVersions(), hints, marks))
   end
+  -- vim.print(vim.inspect(context_rows))
+  align_and_mark_table(context_rows, hints)
+  -- vim.print(vim.inspect(list_to_align))
 
   -- Align context and versions rows
-  local hints_len_after = #hints
-  local context_lines = {}
-  for i = hints_len_before + 1, hints_len_after do
-    table.insert(context_lines, vim.split(hints[i], " ", { trimempty = true }))
-  end
-  local context_marks = {}
-  for i, mark in ipairs(marks) do
-    if mark.row >= hints_len_before and mark.row < hints_len_after then
-      if not context_marks[mark.row] then
-        context_marks[mark.row] = {}
-      end
-      table.insert(context_marks[mark.row], i)
-    end
-  end
+  -- local hints_len_after = #hints
+  -- local context_lines = {}
+  -- for i = hints_len_before + 1, hints_len_after do
+  --   table.insert(context_lines, vim.split(hints[i], " ", { trimempty = true }))
+  -- end
+  -- local context_marks = {}
+  -- for i, mark in ipairs(marks) do
+  --   if mark.row >= hints_len_before and mark.row < hints_len_after then
+  --     if not context_marks[mark.row] then
+  --       context_marks[mark.row] = {}
+  --     end
+  --     table.insert(context_marks[mark.row], i)
+  --   end
+  -- end
   -- vim.print(vim.inspect(context_lines))
-  align_table(context_lines)
-  for i, m_index in pairs(context_marks) do
-    for _, mark_index in ipairs(m_index) do
-      local mark = marks[mark_index]
-      mark.start_col = 0
-      mark.end_col = #context_lines[i]
-    end
-  end
+  -- align_table(context_lines)
+  -- for i, m_index in pairs(context_marks) do
+  --   for _, mark_index in ipairs(m_index) do
+  --     local mark = marks[mark_index]
+  --     mark.start_col = 0
+  --     mark.end_col = #context_lines[i]
+  --   end
+  -- end
   -- for i = hints_len_before + 1, hints_len_after do
   --   hints[i] = context_lines[i - hints_len_before]
   --   for _, mark in ipairs(marks) do
