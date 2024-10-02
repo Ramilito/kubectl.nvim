@@ -23,6 +23,24 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
+local function align_table(tbl)
+  -- Calculate the maximum width of each column
+  local max_widths = {}
+  for _, row in ipairs(tbl) do
+    for i, col in ipairs(row) do
+      max_widths[i] = math.max(max_widths[i] or 0, #col)
+    end
+  end
+
+  -- Align the table elements and concatenate them with a space
+  for i, row in ipairs(tbl) do
+    for j, col in ipairs(row) do
+      row[j] = col .. string.rep(" ", max_widths[j] - #col)
+    end
+    tbl[i] = table.concat(row, " ")
+  end
+end
+
 local function calculate_extra_padding(widths, headers)
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
@@ -163,14 +181,15 @@ local function addHeartbeat(hints, marks)
     })
   end
 end
+
 --- Add context rows to the hints and marks tables
 ---@param context table
 ---@param hints table[]
 ---@param marks table[]
 local function addContextRows(context, hints, marks)
   if context.contexts then
-    local desc, context_info = "Context:   ", context.contexts[1].context
-    local line = desc .. context_info.cluster .. " │ User:    " .. context_info.user .. "\n"
+    local desc, context_info = "Context: ", context.contexts[1].context
+    local line = desc .. context_info.cluster .. " │ User: " .. context_info.user .. "\n"
 
     M.add_mark(marks, #hints, #desc, #desc + #context_info.cluster, hl.symbols.pending)
     table.insert(hints, line)
@@ -178,9 +197,6 @@ local function addContextRows(context, hints, marks)
   local desc, namespace = "Namespace: ", state.getNamespace()
   local line = desc .. namespace
   if context.clusters then
-    if context.contexts then
-      line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
-    end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
   end
 
@@ -193,7 +209,7 @@ local function addVersionsRow(versions, hints, marks)
   local server_ver = versions.server.major .. "." .. versions.server.minor
   local client_str = "Client: " .. client_ver
   local server_str = "Server: " .. server_ver
-  local line = client_str .. string.rep(" ", #server_str - #client_str) .. " │ " .. server_str .. "\n"
+  local line = client_str .. " │ " .. server_str .. "\n"
 
   -- https://kubernetes.io/releases/version-skew-policy/#kubectl
   if versions.server.major > versions.client.major then
@@ -244,7 +260,6 @@ local function addDividerRow(divider, hints, marks)
     end
     table.insert(virt_text, { " " .. padding, hl.symbols.success })
 
-    vim.print("hints len: " .. #hints)
     table.insert(marks, {
       row = #hints,
       start_col = 0,
@@ -299,6 +314,7 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   end
 
   -- Add context rows
+  local hints_len_before = #hints
   if include_context and config.options.context then
     local context = state.getContext()
     if context then
@@ -310,6 +326,55 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   if true then
     addVersionsRow(state.getVersions(), hints, marks)
   end
+
+  -- Align context and versions rows
+  local hints_len_after = #hints
+  local context_lines = {}
+  for i = hints_len_before + 1, hints_len_after do
+    table.insert(context_lines, vim.split(hints[i], " ", { trimempty = true }))
+  end
+  local context_marks = {}
+  for i, mark in ipairs(marks) do
+    if mark.row >= hints_len_before and mark.row < hints_len_after then
+      if not context_marks[mark.row] then
+        context_marks[mark.row] = {}
+      end
+      table.insert(context_marks[mark.row], i)
+    end
+  end
+  -- vim.print(vim.inspect(context_lines))
+  align_table(context_lines)
+  for i, m_index in pairs(context_marks) do
+    for _, mark_index in ipairs(m_index) do
+      local mark = marks[mark_index]
+      mark.start_col = 0
+      mark.end_col = #context_lines[i]
+    end
+  end
+  -- for i = hints_len_before + 1, hints_len_after do
+  --   hints[i] = context_lines[i - hints_len_before]
+  --   for _, mark in ipairs(marks) do
+  --     if mark.row == i - 1 then
+  --       vim.print(vim.inspect(mark))
+  --       -- mark.start_col = 0
+  --       -- mark.end_col = #hints[i]
+  --     end
+  --   end
+  -- end
+
+  -- check if the line contains extmarks and adjust the column position
+  -- for i, row in ipairs(hints) do
+  --   local line = i - 1 -- Convert to 0-based index for Neovim
+  --   local col = 0
+  --   for _, mark in ipairs(marks) do
+  --     if mark.row == line then
+  --       -- Adjust the column position based on the new alignment
+  --       local new_col = col + #hints[i]:sub(1, mark.start_col)
+  --       mark.start_col = new_col
+  --       mark.end_col = new_col + #hints[i]:sub(mark.start_col, mark.end_col)
+  --     end
+  --   end
+  -- end
 
   -- Add heartbeat
   if config.options.heartbeat then
