@@ -103,6 +103,8 @@ end
 --- Fetch the data asynchronously
 ---@param on_exit function The callback function to execute after fetching data
 ---@param on_stdout function|nil The callback function to execute on stdout
+---@param on_stderr function|nil The callback function to execute on stdout
+---@param opts? table|nil The callback function to execute on stdout
 ---@return ResourceBuilder
 function ResourceBuilder:fetchAsync(on_exit, on_stdout, on_stderr, opts)
   commands.shell_command_async(self.cmd, self.args, function(data)
