@@ -22,14 +22,8 @@ M.LoadFallbackData = function(force)
     M.cached_api_resources.shortNames = {}
 
     local cmds = {
-      {
-        cmd = "kubectl",
-        args = { "get", "--raw", "/api/v1" },
-      },
-      {
-        cmd = "kubectl",
-        args = { "get", "--raw", "/apis" },
-      },
+      { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
+      { cmd = "kubectl", args = { "get", "--raw", "/apis" } },
     }
     ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
       self:decodeJson()
