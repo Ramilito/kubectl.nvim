@@ -100,6 +100,17 @@ function ResourceBuilder:fetch()
   return self
 end
 
+--- Fetch all data asynchronously
+---@return ResourceBuilder
+function ResourceBuilder:fetchAllAsync(cmds, callback)
+  self.handles = commands.await_shell_command_async(cmds, function(data)
+    self.data = data
+    callback(self)
+  end)
+
+  return self
+end
+
 --- Fetch the data asynchronously
 ---@param on_exit function The callback function to execute after fetching data
 ---@param on_stdout function|nil The callback function to execute on stdout
