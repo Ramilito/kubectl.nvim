@@ -4,12 +4,14 @@ local M = {}
 --- Replace placeholders in the argument string
 ---@param arg string
 ---@return string
-local function replacePlaceholders(arg)
-  arg = arg:gsub("{{BASE}}", state.getProxyUrl())
-  if state.ns and state.ns ~= "All" then
-    arg = arg:gsub("{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
-  else
-    arg = arg:gsub("{{NAMESPACE}}", "")
+function M.replacePlaceholders(arg)
+  if type(arg) == "string" then
+    arg = arg:gsub("{{BASE}}", state.getProxyUrl())
+    if state.ns and state.ns ~= "All" then
+      arg = arg:gsub("{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
+    else
+      arg = arg:gsub("{{NAMESPACE}}", "")
+    end
   end
   return arg
 end
@@ -55,7 +57,7 @@ end
 function M.build(args)
   local parsed_args = {}
   for i, arg in ipairs(args) do
-    parsed_args[i] = replacePlaceholders(arg)
+    parsed_args[i] = M.replacePlaceholders(arg)
   end
 
   return parsed_args

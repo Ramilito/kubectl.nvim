@@ -5,8 +5,10 @@ local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local logger = require("kubectl.utils.logging")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
 local M = {}
@@ -54,6 +56,24 @@ M.LoadFallbackData = function(force)
           self:decodeJson()
           definition.process_apis("apis", "", self.data.groupVersion, self.data, M.cached_api_resources)
         end
+        local all_urls = { "--parallel", "--parallel-immediate" }
+        for _, resource in pairs(M.cached_api_resources.values) do
+          if resource.url then
+            table.insert(all_urls, url.replacePlaceholders(resource.url))
+          end
+        end
+
+        timeme.start()
+        local function processRow(row) end
+        ResourceBuilder:new("all"):setCmd(all_urls, "curl"):fetchAsync(function(builder)
+          builder:decodeJson()
+          logger.notify_table(self.data)
+          -- for index, rows in ipairs(self.data) do
+          --   vim.print(rows)
+          -- end
+          --
+          timeme.stop()
+        end)
       end)
     end)
 
