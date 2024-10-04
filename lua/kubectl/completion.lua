@@ -53,27 +53,70 @@ local top_level_commands = {
   "wait",
 }
 
+local comps = {}
+local is_processing = false
+local last_processed = ""
+
 --- User command completion
 --- @param _ any Unused parameter
 --- @param cmd string The command to complete
 --- @return string[]|nil commands The list of top-level commands if applicable
-function M.user_command_completion(_, cmd)
+function M.user_command_completion(last, cmd)
+  vim.notify("is_processing: " .. tostring(is_processing) .. " comps: " .. #comps)
   local parts = {}
   for part in string.gmatch(cmd, "%S+") do
     table.insert(parts, part)
   end
-  if #parts == 1 then
-    return top_level_commands
-  elseif #parts == 2 and parts[2] == "get" then
-    local view = require("kubectl.views")
-    local data = {}
-    for _, res in pairs(view.cached_api_resources.values) do
-      table.insert(data, res.name)
-    end
-    return data
-  elseif #parts == 2 and parts[2] == "top" then
-    return { "pods", "nodes" }
+  table.remove(parts, 1)
+  if last == "" then
+    table.insert(parts, "")
   end
+  -- prepend kubectl __complete to parts
+  table.insert(parts, 1, "kubectl")
+  table.insert(parts, 2, "__complete")
+  local final_cmd = vim.iter(parts):flatten():totable()
+  if last_processed == table.concat(final_cmd, " ") and not vim.tbl_isempty(comps) then
+    return comps
+  end
+  if is_processing then
+    return {}
+  end
+
+  is_processing = true
+  vim.notify('Starting completion for "' .. table.concat(final_cmd, " ") .. '"')
+  vim.system(final_cmd, { text = true }, function(comp)
+    -- vim.print(vim.inspect(vim.tbl_keys(comp)))
+    -- split the output by newline
+    local lines = vim.split(comp.stdout, "\n")
+    table.remove(lines, #lines)
+    table.remove(lines, #lines)
+    -- for i, line in ipairs(lines) do
+    --   lines[i] = string.match(line, "^(.-)\t")
+    -- end
+
+    comps = lines
+    is_processing = false
+    last_processed = table.concat(final_cmd, " ")
+  end)
+
+  return is_processing and {} or comps
+
+  -- local parts = {}
+  -- for part in string.gmatch(cmd, "%S+") do
+  --   table.insert(parts, part)
+  -- end
+  -- if #parts == 1 then
+  --   return top_level_commands
+  -- elseif #parts == 2 and parts[2] == "get" then
+  --   local view = require("kubectl.views")
+  --   local data = {}
+  --   for _, res in pairs(view.cached_api_resources.values) do
+  --     table.insert(data, res.name)
+  --   end
+  --   return data
+  -- elseif #parts == 2 and parts[2] == "top" then
+  --   return { "pods", "nodes" }
+  -- end
 end
 
 function M.diff(path)
