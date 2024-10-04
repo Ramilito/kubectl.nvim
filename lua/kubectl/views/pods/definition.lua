@@ -2,11 +2,13 @@ local events = require("kubectl.utils.events")
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
+local base_url = "{{BASE}}/api/v1/{{NAMESPACE}}pods"
 local M = {
   resource = "pods",
   display_name = "Pods",
   ft = "k8s_pods",
-  url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" },
+  url_base = base_url,
+  url = { base_url .. "?pretty=false" },
   hints = {
     { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
     { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
