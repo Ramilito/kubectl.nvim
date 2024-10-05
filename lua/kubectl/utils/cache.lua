@@ -2,7 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
-local M = {}
+local M = { handles = nil }
 
 local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
   if not group_resources.resources then
@@ -114,11 +114,22 @@ function M.load_cache(cached_api_resources)
       local all_urls = {}
       for _, resource in pairs(cached_api_resources.values) do
         if resource.url then
-          table.insert(all_urls, url.replacePlaceholders(resource.url))
+          table.insert(all_urls, { cmd = "curl", args = { resource.url } })
+        end
+      end
+      for _, cmd in ipairs(all_urls) do
+        if cmd.cmd == "curl" then
+          cmd.args = url.build(cmd.args)
+          cmd.args = url.addHeaders(cmd.args, cmd.contentType)
+        else
         end
       end
 
-      ResourceBuilder:new("all"):setCmd(all_urls, "curl"):fetchAsync(function(builder)
+      if M.handles then
+        return
+      end
+
+      M.handles = ResourceBuilder:new("all"):fetchAllAsync(all_urls, function(builder)
         builder:splitData()
         builder:decodeJson()
         builder.processedData = {}
@@ -130,6 +141,7 @@ function M.load_cache(cached_api_resources)
         collectgarbage("collect")
 
         timeme.stop()
+        M.handles = nil
       end)
     end)
   end)
