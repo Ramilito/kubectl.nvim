@@ -1,14 +1,13 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local cache = require("kubectl.utils.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
-local logger = require("kubectl.utils.logging")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
 local M = {}
@@ -23,60 +22,7 @@ M.LoadFallbackData = function(force)
     M.cached_api_resources.values = {}
     M.cached_api_resources.shortNames = {}
 
-    local cmds = {
-      { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
-      { cmd = "kubectl", args = { "get", "--raw", "/apis" } },
-    }
-    ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
-      self:decodeJson()
-      definition.process_apis("api", "", "v1", self.data[1], M.cached_api_resources)
-
-      if self.data[2].groups == nil then
-        return
-      end
-      local group_cmds = {}
-      for _, group in ipairs(self.data[2].groups) do
-        local group_name = group.name
-        local group_version = group.preferredVersion.groupVersion
-
-        -- Skip if name contains 'metrics.k8s.io'
-        if not string.find(group.name, "metrics.k8s.io") then
-          table.insert(group_cmds, {
-            group_name = group_name,
-            group_version = group_version,
-            cmd = "kubectl",
-            args = { "get", "--raw", "/apis/" .. group_version },
-          })
-        end
-      end
-
-      self:fetchAllAsync(group_cmds, function(results)
-        for _, value in ipairs(results.data) do
-          self.data = value
-          self:decodeJson()
-          definition.process_apis("apis", "", self.data.groupVersion, self.data, M.cached_api_resources)
-        end
-        local all_urls = { "--parallel", "--parallel-immediate" }
-        for _, resource in pairs(M.cached_api_resources.values) do
-          if resource.url then
-            table.insert(all_urls, url.replacePlaceholders(resource.url))
-          end
-        end
-
-        timeme.start()
-        local function processRow(row) end
-        ResourceBuilder:new("all"):setCmd(all_urls, "curl"):fetchAsync(function(builder)
-          builder:decodeJson()
-          logger.notify_table(self.data)
-          -- for index, rows in ipairs(self.data) do
-          --   vim.print(rows)
-          -- end
-          --
-          timeme.stop()
-        end)
-      end)
-    end)
-
+    cache.load_cache(M.cached_api_resources)
     M.timestamp = os.time()
   end
 end
