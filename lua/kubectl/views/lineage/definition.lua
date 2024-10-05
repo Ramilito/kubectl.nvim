@@ -16,8 +16,6 @@ function M.collect_all_resources(data_sample)
           or kind_key:lower()
         table.insert(resources, resource)
       end
-    else
-      -- No 'data' field; skip or handle as needed
     end
   end
   return resources
@@ -40,8 +38,6 @@ function M.build_graph(resources)
       resource.kind = resource.kind and resource.kind:lower() or "unknownkind"
       local resource_key = M.get_resource_key(resource)
       graph[resource_key] = { resource = resource, neighbors = {} }
-      -- Debug: print added resource
-      -- print("Added resource to graph:", resource_key, resource.kind, resource.name)
     end
   end
 
@@ -57,14 +53,41 @@ function M.build_graph(resources)
           local owner_key = M.get_resource_key(owner)
           if not graph[owner_key] then
             graph[owner_key] = { resource = owner, neighbors = {} }
-            -- Debug: print added owner
-            -- print("Added owner to graph:", owner_key, owner.kind, owner.name)
           end
           -- Add bidirectional edge
           table.insert(node.neighbors, graph[owner_key])
           table.insert(graph[owner_key].neighbors, node)
-          -- Debug: print linking
-          -- print("Linking", resource_key, "to owner", owner_key)
+        end
+      end
+    end
+  end
+
+  -- Third pass: build label selector edges
+  for _, resource in ipairs(resources) do
+    if resource.name and resource.selectors then
+      local resource_key = M.get_resource_key(resource)
+      local node = graph[resource_key]
+
+      -- Match resources by label selectors
+      for _, potential_child in ipairs(resources) do
+        if potential_child.labels then
+          local is_match = true
+          -- Check if labels match the selector
+          for key, value in pairs(resource.selectors) do
+            if potential_child.labels[key] ~= value then
+              is_match = false
+              break
+            end
+          end
+          if is_match then
+            local child_key = M.get_resource_key(potential_child)
+            if not graph[child_key] then
+              graph[child_key] = { resource = potential_child, neighbors = {} }
+            end
+            -- Add bidirectional edge (resource -> child and child -> resource)
+            table.insert(node.neighbors, graph[child_key])
+            table.insert(graph[child_key].neighbors, node)
+          end
         end
       end
     end

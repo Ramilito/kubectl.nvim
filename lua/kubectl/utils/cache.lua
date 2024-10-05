@@ -49,7 +49,6 @@ local function processRow(rows, cached_api_resources)
     for _, item in ipairs(rows.items) do
       item.metadata.managedFields = {}
       item.metadata.annotations = {}
-      item.metadata.labels = {}
 
       local cache_key = nil
       for key, value in pairs(cached_api_resources.values) do
@@ -62,7 +61,15 @@ local function processRow(rows, cached_api_resources)
           name = item.metadata.name,
           ns = item.metadata.namespace,
           owners = item.metadata.ownerReferences,
+          labels = item.metadata.labels,
         }
+
+        if item.spec and item.spec.selector then
+          local label_selector = item.spec.selector.matchLabels or item.spec.selector
+          if label_selector then
+            row.selectors = label_selector
+          end
+        end
 
         if cache_key then
           if not cached_api_resources.values[cache_key].data then
