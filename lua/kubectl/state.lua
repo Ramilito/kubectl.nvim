@@ -3,8 +3,6 @@ local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
 ---@type table
-M.cached_context = {}
----@type table
 M.context = {}
 ---@type string
 M.ns = ""
