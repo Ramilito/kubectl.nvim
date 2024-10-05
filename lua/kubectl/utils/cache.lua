@@ -41,9 +41,6 @@ local function processRow(rows, cached_api_resources)
   if rows and rows.items then
     for _, item in ipairs(rows.items) do
       item.metadata.managedFields = {}
-      if not item.kind then
-        break
-      end
 
       local cache_key = nil
       for key, value in pairs(cached_api_resources.values) do
@@ -59,10 +56,12 @@ local function processRow(rows, cached_api_resources)
           owners = item.metadata.ownerReferences,
         }
 
-        if not cached_api_resources.values[cache_key].data then
-          cached_api_resources.values[cache_key].data = {}
+        if cache_key then
+          if not cached_api_resources.values[cache_key].data then
+            cached_api_resources.values[cache_key].data = {}
+          end
+          table.insert(cached_api_resources.values[cache_key].data, row)
         end
-        table.insert(cached_api_resources.values[cache_key].data, row)
       end
     end
   end
