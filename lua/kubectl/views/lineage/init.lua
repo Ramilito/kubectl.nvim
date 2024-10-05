@@ -1,3 +1,4 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.lineage.definition")
 local logger = require("kubectl.utils.logging")
 local view = require("kubectl.views")
@@ -14,11 +15,16 @@ function M.View(name, ns, kind)
 
   local associated_resources = definition.find_associated_resources(graph, selected_key)
 
-  print("Associated Resources:", selected_key)
+  local builder = ResourceBuilder:new(definition.resource)
+  builder:displayFloat(definition.ft, definition.resource, definition.syntax)
+
+  builder.data = { "Associated Resources: " }
   for _, res in ipairs(associated_resources) do
-    local res_ns = res.ns or "cluster"
-    print("- " .. res.kind .. ": " .. res_ns .. "/" .. res.name)
+    table.insert(builder.data, "- " .. res.kind .. ": " .. res.ns .. "/" .. res.name)
   end
+
+  builder:splitData()
+  builder:setContentRaw()
 end
 
 return M
