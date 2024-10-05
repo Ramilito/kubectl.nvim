@@ -1,6 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local logger = require("kubectl.utils.logging")
-local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 local M = {}
 
@@ -119,18 +117,12 @@ function M.load_cache(cached_api_resources)
         process_apis("apis", "", self.data.groupVersion, self.data, cached_api_resources)
       end
       local all_urls = { "--parallel", "--parallel-immediate" }
-      local count = 0
 
       for _, resource in pairs(cached_api_resources.values) do
-        -- if count < 10 then
         if resource.url then
           table.insert(all_urls, url.replacePlaceholders(resource.url))
-          count = count + 1
-          -- end
         end
       end
-
-      timeme.start()
 
       ResourceBuilder:new("all"):setCmd(all_urls, "curl"):fetchAsync(function(builder)
         builder:splitData()
@@ -139,14 +131,8 @@ function M.load_cache(cached_api_resources)
         for _, values in ipairs(builder.data) do
           processRow(values, cached_api_resources)
         end
-
-        -- logger.notify_table(cached_api_resources.values)
-        -- cached_api_resources.values[]
-        -- for index, rows in ipairs(self.data) do
-        --   vim.print(rows)
-        -- end
-        --
-        timeme.stop()
+        -- Memory usage after creating the table
+        collectgarbage("collect")
       end)
     end)
   end)
