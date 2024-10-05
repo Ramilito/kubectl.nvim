@@ -38,18 +38,22 @@ local function process_apis(api_url, group_name, group_version, group_resources,
 end
 
 local function processRow(rows, cached_api_resources)
+  local kind = ""
+  if rows.kind then
+    kind = rows.kind:gsub("List", "")
+  end
   if rows and rows.items then
     for _, item in ipairs(rows.items) do
       item.metadata.managedFields = {}
 
       local cache_key = nil
       for key, value in pairs(cached_api_resources.values) do
-        if value.version == string.lower(rows.apiVersion) and value.kind == item.kind then
+        if value.version == string.lower(rows.apiVersion) and value.kind == kind then
           cache_key = key
         end
       end
 
-      if item.metadata.name and item.metadata.name ~= "" then
+      if item.metadata.name then
         local row = {
           name = item.metadata.name,
           ns = item.metadata.namespace,
