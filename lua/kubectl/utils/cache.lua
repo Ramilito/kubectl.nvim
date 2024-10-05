@@ -1,6 +1,9 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
+
 local M = {}
+
 local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
   if not group_resources.resources then
     return
@@ -45,6 +48,8 @@ local function processRow(rows, cached_api_resources)
   if rows and rows.items then
     for _, item in ipairs(rows.items) do
       item.metadata.managedFields = {}
+      item.metadata.annotations = {}
+      item.metadata.labels = {}
 
       local cache_key = nil
       for key, value in pairs(cached_api_resources.values) do
@@ -52,7 +57,6 @@ local function processRow(rows, cached_api_resources)
           cache_key = key
         end
       end
-
       if item.metadata.name then
         local row = {
           name = item.metadata.name,
@@ -72,6 +76,7 @@ local function processRow(rows, cached_api_resources)
 end
 
 function M.load_cache(cached_api_resources)
+  timeme.start()
   local cmds = {
     { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
     { cmd = "kubectl", args = { "get", "--raw", "/apis" } },
@@ -105,8 +110,8 @@ function M.load_cache(cached_api_resources)
         self:decodeJson()
         process_apis("apis", "", self.data.groupVersion, self.data, cached_api_resources)
       end
-      local all_urls = { "--parallel", "--parallel-immediate" }
 
+      local all_urls = {}
       for _, resource in pairs(cached_api_resources.values) do
         if resource.url then
           table.insert(all_urls, url.replacePlaceholders(resource.url))
@@ -116,12 +121,15 @@ function M.load_cache(cached_api_resources)
       ResourceBuilder:new("all"):setCmd(all_urls, "curl"):fetchAsync(function(builder)
         builder:splitData()
         builder:decodeJson()
-        self.processedData = {}
+        builder.processedData = {}
+
         for _, values in ipairs(builder.data) do
           processRow(values, cached_api_resources)
         end
         -- Memory usage after creating the table
         collectgarbage("collect")
+
+        timeme.stop()
       end)
     end)
   end)
