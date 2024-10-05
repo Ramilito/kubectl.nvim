@@ -1,7 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local url = require("kubectl.utils.url")
 local M = {}
-
 local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
   if not group_resources.resources then
     return
@@ -34,19 +33,6 @@ local function process_apis(api_url, group_name, group_version, group_resources,
           cached_api_resources.shortNames[shortName] = resource_name
         end
       end
-
-      -- ResourceBuilder:new(resource_name):setCmd({ resource_url }, "curl"):fetchAsync(function(self)
-      --   self:decodeJson()
-      --   local data = {}
-      --   if self.data.items then
-      --     for _, row in ipairs(self.data.items) do
-      --       if row.metadata.ownerReferences then
-      --         table.insert(data, { owners = row.metadata.ownerReferences })
-      --       end
-      --     end
-      --     cached_api_resources.values[resource_name].data = data
-      --   end
-      -- end)
     end
   end
 end
