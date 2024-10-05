@@ -107,23 +107,23 @@ function M.find_associated_resources(graph, start_key)
     return associated_resources
   end
 
-  table.insert(queue, start_key)
+  table.insert(queue, { key = start_key, level = 0 })
   visited[start_key] = true
-  -- Debug: print starting traversal
-  -- print("Starting traversal from key:", start_key)
 
   while #queue > 0 do
-    local current_key = table.remove(queue, 1)
+    local current = table.remove(queue, 1)
+    local current_key = current.key
+    local level = current.level
     local node = graph[current_key]
+
     if node then
+      node.resource.level = level
       table.insert(associated_resources, node.resource)
-      -- Debug: print visited node
-      -- print("Visited:", current_key, node.resource.kind, node.resource.name)
       for _, neighbor in ipairs(node.neighbors) do
         local neighbor_key = M.get_resource_key(neighbor.resource)
         if not visited[neighbor_key] then
           visited[neighbor_key] = true
-          table.insert(queue, neighbor_key)
+          table.insert(queue, { key = neighbor_key, level = level + 1 })
         end
       end
     end

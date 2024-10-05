@@ -20,7 +20,10 @@ function M.View(name, ns, kind)
 
   builder.data = { "Associated Resources: " }
   for _, res in ipairs(associated_resources) do
-    table.insert(builder.data, "- " .. res.kind .. ": " .. res.ns .. "/" .. res.name)
+    table.insert(
+      builder.data,
+      string.rep("    ", tonumber(res.level)) .. "- " .. res.kind .. ": " .. res.ns .. "/" .. res.name
+    )
   end
 
   builder:splitData()
