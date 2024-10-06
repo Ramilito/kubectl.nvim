@@ -135,9 +135,10 @@ function M.load_cache(cached_api_resources)
 
       local all_urls = {}
       local count = 0
-      vim.print("limit is set to:", count)
+      local limit = 30
+      vim.print("limit is set to:", limit)
       for _, resource in pairs(cached_api_resources.values) do
-        if count > 30 then
+        if count > limit then
           vim.print("limit reached, breaking")
           break
         end
