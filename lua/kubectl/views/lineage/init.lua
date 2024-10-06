@@ -16,14 +16,11 @@ function M.View(name, ns, kind)
   local associated_resources = definition.find_associated_resources(graph, selected_key)
 
   local builder = ResourceBuilder:new(definition.resource)
-  builder:displayFloat(definition.ft, definition.resource, definition.syntax)
+  builder:displayFloatFit(definition.ft, definition.resource, definition.syntax)
 
   builder.data = { "Associated Resources: " }
   for _, res in ipairs(associated_resources) do
-    table.insert(
-      builder.data,
-      string.rep("    ", tonumber(res.level)) .. "- " .. res.kind .. ": " .. res.ns .. "/" .. res.name
-    )
+    table.insert(builder.data, string.rep("    ", res.level) .. "- " .. res.kind .. ": " .. res.ns .. "/" .. res.name)
   end
 
   builder:splitData()
