@@ -5,13 +5,11 @@ local M = {}
 ---@param arg string
 ---@return string
 function M.replacePlaceholders(arg)
-  if type(arg) == "string" then
-    arg = arg:gsub("{{BASE}}", state.getProxyUrl())
-    if state.ns and state.ns ~= "All" then
-      arg = arg:gsub("{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
-    else
-      arg = arg:gsub("{{NAMESPACE}}", "")
-    end
+  arg = arg:gsub("{{BASE}}", state.getProxyUrl())
+  if state.ns and state.ns ~= "All" then
+    arg = arg:gsub("{{NAMESPACE}}", string.format("namespaces/%s/", state.ns))
+  else
+    arg = arg:gsub("{{NAMESPACE}}", "")
   end
   return arg
 end

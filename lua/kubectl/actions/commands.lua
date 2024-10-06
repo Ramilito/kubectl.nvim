@@ -42,9 +42,7 @@ function M.configure_command(cmd, envs, args)
   end
 
   for key, value in pairs(result.args) do
-    if type(value) == "string" then
-      result.args[key] = value:gsub("%$(%w+)", os.getenv)
-    end
+    result.args[key] = value:gsub("%$(%w+)", os.getenv)
   end
 
   -- Add the command itself as the first argument
