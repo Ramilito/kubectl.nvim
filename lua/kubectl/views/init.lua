@@ -18,7 +18,7 @@ local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
 M.LoadFallbackData = function(force)
-  if force or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+  if force and not cache.loading or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
     M.cached_api_resources.values = {}
     M.cached_api_resources.shortNames = {}
 
