@@ -56,8 +56,23 @@ local function processRow(rows, cached_api_resources)
           cache_key = key
         end
       end
-      if item.metadata.name then
-        local row = {
+      local row = {}
+
+      if cache_key == "events" then
+        local owners = {}
+        table.insert(owners, {
+          kind = item.regarding.kind,
+          name = item.regarding.name,
+          uid = item.regarding.uid,
+          ns = item.regarding.namespace,
+        })
+        row = {
+          name = item.metadata.name,
+          ns = item.metadata.namespace,
+          owners = owners,
+        }
+      elseif item.metadata.name then
+        row = {
           name = item.metadata.name,
           ns = item.metadata.namespace,
           owners = item.metadata.ownerReferences,
@@ -70,13 +85,12 @@ local function processRow(rows, cached_api_resources)
             row.selectors = label_selector
           end
         end
-
-        if cache_key then
-          if not cached_api_resources.values[cache_key].data then
-            cached_api_resources.values[cache_key].data = {}
-          end
-          table.insert(cached_api_resources.values[cache_key].data, row)
+      end
+      if cache_key then
+        if not cached_api_resources.values[cache_key].data then
+          cached_api_resources.values[cache_key].data = {}
         end
+        table.insert(cached_api_resources.values[cache_key].data, row)
       end
     end
   end
