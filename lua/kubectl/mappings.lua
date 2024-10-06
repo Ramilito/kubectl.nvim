@@ -393,12 +393,10 @@ function M.register()
     desc = "Application lineage",
     callback = function()
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
-      if not view_ok then
-        return
-      end
+      local view = require("kubectl.views")
+      local current_view, _ = view.view_and_definition(string.lower(vim.trim(buf_name)))
 
-      local name, ns = view.getCurrentSelection()
+      local name, ns = current_view.getCurrentSelection()
       local lineage_view = require("kubectl.views.lineage")
 
       lineage_view.View(name, ns, buf_name)

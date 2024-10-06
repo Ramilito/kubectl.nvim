@@ -25,7 +25,11 @@ function M.View(name, ns, kind)
     if kind:sub(-1) == "s" then
       kind = kind:sub(1, -2)
     end
-    local selected_key = kind .. "/" .. ns .. "/" .. name
+    local selected_key = kind
+    if ns then
+      selected_key = selected_key .. "/" .. ns
+    end
+    selected_key = selected_key .. "/" .. name
 
     local associated_resources = definition.find_associated_resources(graph, selected_key)
 
