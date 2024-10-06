@@ -2,7 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
-local M = { handles = nil }
+local M = { handles = nil, loading = false }
 
 local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
   if not group_resources.resources then
@@ -83,6 +83,7 @@ local function processRow(rows, cached_api_resources)
 end
 
 function M.load_cache(cached_api_resources)
+  M.loading = true
   timeme.start()
   local cmds = {
     { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
@@ -149,6 +150,7 @@ function M.load_cache(cached_api_resources)
 
         timeme.stop()
         M.handles = nil
+        M.loading = false
       end)
     end)
   end)
