@@ -134,9 +134,16 @@ function M.load_cache(cached_api_resources)
       end
 
       local all_urls = {}
+      local count = 0
+      vim.print("limit is set to:", count)
       for _, resource in pairs(cached_api_resources.values) do
+        if count > 30 then
+          vim.print("limit reached, breaking")
+          break
+        end
         if resource.url then
           table.insert(all_urls, { cmd = "curl", args = { resource.url } })
+          count = count + 1
         end
       end
       for _, cmd in ipairs(all_urls) do
