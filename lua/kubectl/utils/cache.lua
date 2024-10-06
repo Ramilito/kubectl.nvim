@@ -135,7 +135,7 @@ function M.load_cache(cached_api_resources)
 
       local all_urls = {}
       local count = 0
-      local limit = 30
+      local limit = 100
       vim.print("limit is set to:", limit)
       for _, resource in pairs(cached_api_resources.values) do
         if count > limit then
@@ -159,6 +159,11 @@ function M.load_cache(cached_api_resources)
         return
       end
 
+      collectgarbage("collect")
+
+      -- Memory usage before creating the table
+      local mem_before = collectgarbage("count")
+
       M.handles = ResourceBuilder:new("all"):fetchAllAsync(all_urls, function(builder)
         builder:splitData()
         builder:decodeJson()
@@ -167,9 +172,11 @@ function M.load_cache(cached_api_resources)
         for _, values in ipairs(builder.data) do
           processRow(values, cached_api_resources)
         end
+
         -- Memory usage after creating the table
         collectgarbage("collect")
-
+        local mem_after = collectgarbage("count")
+        print(mem_after - mem_before)
         timeme.stop()
         M.handles = nil
         M.loading = false
