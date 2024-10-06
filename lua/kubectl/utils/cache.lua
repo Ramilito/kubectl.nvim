@@ -176,7 +176,8 @@ function M.load_cache(cached_api_resources)
         -- Memory usage after creating the table
         collectgarbage("collect")
         local mem_after = collectgarbage("count")
-        print(mem_after - mem_before)
+        local mem_diff_mb = (mem_after - mem_before) / 1024
+        print("Memory used by the table (in MB):", mem_diff_mb)
         timeme.stop()
         M.handles = nil
         M.loading = false
