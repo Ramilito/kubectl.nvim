@@ -373,6 +373,9 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
 
   -- Add heartbeat
   if config.options.heartbeat then
+    if #hints == 0 then
+      hints = { "\n" }
+    end
     addHeartbeat(hints, marks)
   end
 
