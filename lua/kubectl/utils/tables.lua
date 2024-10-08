@@ -362,7 +362,7 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
 
   -- Add versions
   local versions_rows = {}
-  if true then
+  if config.options.kubernetes_versions then
     versions_rows = addVersionsRows(state.getVersions())
   end
 
