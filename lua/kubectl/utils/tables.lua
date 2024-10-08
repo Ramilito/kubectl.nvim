@@ -241,26 +241,27 @@ local function addVersionsRows(versions)
     { value = client_ver, symbol = hl.symbols.pending },
     "{{SEP}}",
     "Server:",
-    { value = server_ver, symbol = hl.symbols.pending },
+    server_ver,
   }
+  if client_ver == "0.0" then
+    return { row }
+  end
 
   -- https://kubernetes.io/releases/version-skew-policy/#kubectl
   if versions.server.major > versions.client.major then
     row[2].symbol = hl.symbols.error
-    -- M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.error)
   else
     if versions.server.major == versions.client.major and versions.server.minor > versions.client.minor then
       -- check if diff of minor is more than 1
       if versions.server.minor - versions.client.minor > 1 then
         row[2].symbol = hl.symbols.error
-        -- M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.error)
       else
         row[2].symbol = hl.symbols.deprecated
-        -- M.add_mark(marks, #hints, #client_str - #client_ver, #client_str, hl.symbols.deprecated)
       end
+    else
+      row[2].symbol = hl.symbols.success
     end
   end
-  -- table.insert(hints, line)
   return { row }
 end
 
