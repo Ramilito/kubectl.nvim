@@ -216,6 +216,7 @@ vim.api.nvim_create_autocmd("FileType", {
   hints = true,
   context = true,
   heartbeat = true,
+  kubernetes_versions = true,
   alias = {
     apply_on_select_from_history = true,
     max_history = 5,

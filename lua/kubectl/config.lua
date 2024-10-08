@@ -1,11 +1,13 @@
 local M = {}
 
 ---@class KubectlOptions
----@field log_level string
+---@field log_level number
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field namespace string
 ---@field hints boolean
 ---@field context boolean
+---@field heartbeat boolean
+---@field kubernetes_versions boolean
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
 local defaults = {
@@ -27,6 +29,7 @@ local defaults = {
   hints = true,
   context = true,
   heartbeat = true,
+  kubernetes_versions = true,
   alias = {
     apply_on_select_from_history = true,
     max_history = 5,

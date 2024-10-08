@@ -4,6 +4,8 @@ local M = {}
 
 ---@type table
 M.context = {}
+---@type { client: { major: number, minor: number }, server: { major: number, minor: number } }
+M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
 ---@type string
 M.ns = ""
 ---@type string
@@ -67,6 +69,18 @@ function M.setup()
       M.checkHealth()
     end)
   end)
+  -- get client and server version
+  commands.shell_command_async("kubectl", { "version", "--output", "json" }, function(data)
+    local result = decode(data)
+    if result then
+      local clientVersion = result.clientVersion.gitVersion
+      local serverVersion = result.serverVersion.gitVersion
+      M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
+      M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
+      M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
+      M.versions.server.minor = tonumber(string.match(serverVersion, "%d+%.(%d+)%..*")) or 0
+    end
+  end)
 end
 
 function M.checkHealth()
@@ -115,6 +129,12 @@ end
 --- @return string proxyurl The proxy URL
 function M.getProxyUrl()
   return M.proxyUrl
+end
+
+--- Get the versions
+--- @return table versions The versions
+function M.getVersions()
+  return M.versions
 end
 
 --- Set the filter pattern
