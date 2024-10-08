@@ -5,7 +5,7 @@ local M = {}
 local obj_fresh = config.options.obj_fresh
 local success_symbol = hl.symbols.success
 
---- get a string representation of the time difference between two timestamps
+--- Get a string representation of the time difference between two timestamps
 ---@param timeA number more recent timestamp
 ---@param timeB number older timestamp
 ---@return string diff_str

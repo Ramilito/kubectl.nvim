@@ -16,6 +16,9 @@ local function create_buffer(bufname, buftype)
   return buf
 end
 
+--- Gets buffer number by name
+--- @param bufname string: The name of the buffer
+--- @return integer|nil: The buffer number
 local function get_buffer_by_name(bufname)
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     local name = vim.api.nvim_buf_get_name(buf)
@@ -121,6 +124,7 @@ end
 
 --- Creates a filter buffer.
 --- @param filetype string: The filetype of the buffer.
+--- @param callback function: The callback function.
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.filter_buffer(filetype, callback, opts)
   local bufname = "kubectl_filter"
@@ -202,6 +206,7 @@ end
 --- Creates a namespace buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param title string|nil: The filetype of the buffer.
+--- @param callback function: The callback function.
 --- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
@@ -236,6 +241,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   return buf
 end
 
+--- Sets buffer content.
 --- @param buf number: Buffer number
 --- @param opts { content: table, marks: table,  header: { data: table }}
 function M.set_content(buf, opts)

@@ -25,7 +25,7 @@ end
 ---@param tbl table
 ---@param str string
 ---@return boolean
-function M.is_in_table(tbl, str, exact)
+function M.is_in_table(tbl, str)
   if str == nil then
     return false
   end
@@ -36,10 +36,7 @@ function M.is_in_table(tbl, str, exact)
       if M.is_in_table(value, str) then
         return true
       end
-    end
-    if exact and tostring(value):lower() == lowered_str then
-      return true
-    elseif not exact and tostring(value):lower():find(lowered_str, 1, true) then
+    elseif tostring(value):lower():find(lowered_str, 1, true) then
       return true
     end
   end
@@ -65,7 +62,9 @@ function M.single(tbl, keys, value)
   return nil
 end
 
--- @type function(tbl: table, predicate: function): table
+---@param tbl table
+---@param predicate table
+---@return table
 function M.filter(tbl, predicate)
   local result = {}
   for _, v in ipairs(tbl) do
