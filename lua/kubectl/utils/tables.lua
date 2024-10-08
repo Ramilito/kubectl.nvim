@@ -105,7 +105,7 @@ function M.add_mark(extmarks, row, start_col, end_col, hl_group)
   table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
 end
 
-local function align_headers(headers)
+local function align_headers(headers, marks, start_row)
   local max_lengths = { 0, 0, 0, 0, 0 }
 
   -- Calculate max lengths for each column
@@ -124,37 +124,28 @@ local function align_headers(headers)
 
   -- Format each line
   local formatted_lines = {}
-  for _, line in ipairs(headers) do
+  for l_num, line in ipairs(headers) do
     local formatted_line = ""
     for i, item in ipairs(line) do
       local value = type(item) == "table" and item.value or item
+      local symbol = type(item) == "table" and item.symbol or nil
       if value == "{{SEP}}" then
         value = "|"
       end
-      formatted_line = formatted_line .. string.format("%-" .. max_lengths[i] .. "s", value)
+      local new_part_of_the_line = string.format("%-" .. max_lengths[i] .. "s", value)
       if i < #line then
-        formatted_line = formatted_line .. " "
+        new_part_of_the_line = new_part_of_the_line .. " "
+      end
+      formatted_line = formatted_line .. new_part_of_the_line
+      if symbol then
+        local start_col = #formatted_line - #new_part_of_the_line
+        M.add_mark(marks, start_row + l_num - 1, start_col, start_col + #value, symbol)
       end
     end
     table.insert(formatted_lines, vim.trim(formatted_line) .. "\n")
   end
 
   return formatted_lines
-end
-
-local function add_marks(headers, extmarks)
-  for row, line in ipairs(headers) do
-    local col = 0
-    for _, item in ipairs(line) do
-      local value = type(item) == "table" and item.value or item
-      if type(item) == "table" and item.symbol then
-        local start_col = col
-        local end_col = col + #value
-        M.add_mark(extmarks, row, start_col, end_col, item.symbol)
-      end
-      col = col + #value + 1
-    end
-  end
 end
 
 --- Add a header row to the hints and marks tables
@@ -376,10 +367,8 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
 
   -- align and mark header lines
   local header_lines = vim.list_extend(context_rows, versions_rows)
-  local formatted_headers = align_headers(header_lines)
+  local formatted_headers = align_headers(header_lines, marks, #hints)
   vim.list_extend(hints, formatted_headers)
-  -- vim.print(vim.inspect(vim.list_extend(hints, formatted_headers)))
-  -- add_marks(header_lines, marks)
 
   -- Add heartbeat
   if config.options.heartbeat then
