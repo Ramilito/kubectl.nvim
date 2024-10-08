@@ -104,7 +104,6 @@ function M.await_shell_command_async(cmds, callback)
   local start_command
   local on_command_done
 
-  vim.print("Total: ", #cmds)
   -- Function to start a command
   start_command = function(i)
     local cmd = cmds[i]
@@ -119,8 +118,6 @@ function M.await_shell_command_async(cmds, callback)
     results[i] = result
     done_count = done_count + 1
     active_count = active_count - 1 -- Decrement the count of active commands
-
-    vim.print("Done: ", done_count)
 
     -- Start the next command if any are left
     if next_cmd_index <= #cmds then

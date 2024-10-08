@@ -34,7 +34,7 @@ function M.View(name, ns, kind)
     local associated_resources = definition.find_associated_resources(graph, selected_key)
 
     for _, res in ipairs(associated_resources) do
-      table.insert(builder.data, string.rep("    ", res.level) .. "- " .. res.kind .. ": " .. res.ns .. "/" .. res.name)
+      table.insert(builder.data, string.rep("    ", res.level) .. "- " .. res.kind .. ": " .. (res.ns or "") .. "/" .. res.name)
     end
   end
 
