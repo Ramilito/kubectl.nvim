@@ -193,25 +193,21 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addContextRows(context, hints, marks)
-  local context_rows = {}
-  if context.contexts then
-    local context_info = context.contexts[1].context
-    table.insert(context_rows, {
-      "Context:",
-      { value = context_info.cluster, symbol = hl.symbols.pending },
-      "|",
-      "User:",
-      context_info.user,
-      "\n",
-    })
-    local line = "Context: " .. context_info.cluster .. " │ User: " .. context_info.user .. "\n"
+  local current_context = context.contexts[1]
+  if current_context then
+    local desc, context_info = "Context:   ", current_context.context
+    local line = desc .. current_context.name .. " │ User:    " .. context_info.user .. "\n"
 
     -- M.add_mark(marks, #hints, #desc, #desc + #context_info.cluster, hl.symbols.pending)
+    M.add_mark(marks, #hints, #desc, #desc + #current_context.name, hl.symbols.pending)
     table.insert(hints, line)
   end
   local ns_row = { "Namespace:", { value = state.getNamespace(), symbol = hl.symbols.pending } }
   local line = "Namespace: " .. state.getNamespace()
   if context.clusters then
+    if context.contexts then
+      line = line .. string.rep(" ", #current_context.name - #namespace)
+    end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
     vim.list_extend(ns_row, { "|", "Cluster:", context.clusters[1].name })
   end

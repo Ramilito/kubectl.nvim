@@ -18,7 +18,7 @@ function EventHandler:on(event, buf_nr, callback)
 
   handler_instance.listeners[event][buf_nr] = callback
 
-  vim.api.nvim_create_autocmd({ "BufDelete" }, {
+  vim.api.nvim_create_autocmd({ "WinClosed", "BufDelete" }, {
     buffer = buf_nr,
     callback = function()
       EventHandler:off(event, buf_nr)

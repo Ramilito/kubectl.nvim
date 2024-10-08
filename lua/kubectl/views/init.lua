@@ -1,6 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
@@ -21,32 +20,41 @@ M.LoadFallbackData = function(force)
   if force or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
     M.cached_api_resources.values = {}
     M.cached_api_resources.shortNames = {}
-    ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
+
+    local cmds = {
+      { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
+      { cmd = "kubectl", args = { "get", "--raw", "/apis" } },
+    }
+    ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
       self:decodeJson()
+      definition.process_apis("api", "", "v1", self.data[1], M.cached_api_resources)
 
-      -- process default api group
-      commands.shell_command_async("kubectl", { "get", "--raw", "/api/v1" }, function(group_data)
-        self.data = group_data
-        self:decodeJson()
-        definition.process_apis("api", "", "v1", self.data, M.cached_api_resources)
-      end)
-
-      if self.data.groups == nil then
+      if self.data[2].groups == nil then
         return
       end
-      for _, group in ipairs(self.data.groups) do
+      local group_cmds = {}
+      for _, group in ipairs(self.data[2].groups) do
         local group_name = group.name
         local group_version = group.preferredVersion.groupVersion
 
         -- Skip if name contains 'metrics.k8s.io'
-        if not string.find(group_name, "metrics.k8s.io") then
-          commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
-            self.data = group_data
-            self:decodeJson()
-            definition.process_apis("apis", group_name, group_version, self.data, M.cached_api_resources)
-          end)
+        if not string.find(group.name, "metrics.k8s.io") then
+          table.insert(group_cmds, {
+            group_name = group_name,
+            group_version = group_version,
+            cmd = "kubectl",
+            args = { "get", "--raw", "/apis/" .. group_version },
+          })
         end
       end
+
+      self:fetchAllAsync(group_cmds, function(results)
+        for _, value in ipairs(results.data) do
+          self.data = value
+          self:decodeJson()
+          definition.process_apis("apis", "", self.data.groupVersion, self.data, M.cached_api_resources)
+        end
+      end)
     end)
 
     M.timestamp = os.time()
