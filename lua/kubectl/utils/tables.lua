@@ -105,49 +105,6 @@ function M.add_mark(extmarks, row, start_col, end_col, hl_group)
   table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
 end
 
-local function align_headers(headers, marks, start_row)
-  local max_lengths = { 0, 0, 0, 0, 0 }
-
-  -- Calculate max lengths for each column
-  for _, line in ipairs(headers) do
-    for i, item in ipairs(line) do
-      local value = type(item) == "table" and item.value or item
-      local length = #value
-      if value == "{{SEP}}" then
-        length = 1
-      end
-      if length > max_lengths[i] then
-        max_lengths[i] = length
-      end
-    end
-  end
-
-  -- Format each line
-  local formatted_lines = {}
-  for l_num, line in ipairs(headers) do
-    local formatted_line = ""
-    for i, item in ipairs(line) do
-      local value = type(item) == "table" and item.value or item
-      local symbol = type(item) == "table" and item.symbol or nil
-      if value == "{{SEP}}" then
-        value = "│"
-      end
-      local new_part_of_the_line = string.format("%-" .. max_lengths[i] .. "s", value)
-      if i < #line then
-        new_part_of_the_line = new_part_of_the_line .. " "
-      end
-      formatted_line = formatted_line .. new_part_of_the_line
-      if symbol then
-        local start_col = #formatted_line - #new_part_of_the_line
-        M.add_mark(marks, start_row + l_num - 1, start_col, start_col + #value, symbol)
-      end
-    end
-    table.insert(formatted_lines, vim.trim(formatted_line) .. "\n")
-  end
-
-  return formatted_lines
-end
-
 --- Add a header row to the hints and marks tables
 ---@param headers table[]
 ---@param hints table[]
@@ -211,58 +168,52 @@ end
 ---@param context table
 ---@return table[]
 local function addContextRows(context)
-  local context_rows = {}
+  local items = {}
   local current_context = context.contexts[1]
   if current_context then
-    local context_info = current_context.context
-    table.insert(context_rows, {
-      "Context:",
-      { value = current_context.name, symbol = hl.symbols.pending },
-      "{{SEP}}",
-      "User:",
-      context_info.user,
-    })
+    table.insert(items, { label = "Context:", value = current_context.name, symbol = hl.symbols.pending })
+    table.insert(items, { label = "User:", value = current_context.context.user })
   end
-  local namespace = state.getNamespace()
-  local ns_row = { "Namespace:", { value = namespace, symbol = hl.symbols.pending } }
-  if context.clusters then
-    vim.list_extend(ns_row, { "{{SEP}}", "Cluster:", context.clusters[1].name })
-  end
-  table.insert(context_rows, ns_row)
 
-  return context_rows
+  -- Prepare the namespace and cluster information
+  local namespace = state.getNamespace()
+  table.insert(items, { label = "Namespace:", value = namespace, symbol = hl.symbols.pending })
+
+  if context.clusters then
+    table.insert(items, { label = "Cluster:", value = context.clusters[1].name })
+  end
+
+  return items
 end
 
 local function addVersionsRows(versions)
   local client_ver = versions.client.major .. "." .. versions.client.minor
   local server_ver = versions.server.major .. "." .. versions.server.minor
-  local row = {
-    "Client:",
-    { value = client_ver, symbol = hl.symbols.pending },
-    "{{SEP}}",
-    "Server:",
-    server_ver,
-  }
+  local items = {}
+
+  table.insert(items, { label = "Client:", value = client_ver })
+  table.insert(items, { label = "Server:", value = server_ver })
+
   if client_ver == "0.0" then
-    return { row }
+    return items
   end
 
   -- https://kubernetes.io/releases/version-skew-policy/#kubectl
   if versions.server.major > versions.client.major then
-    row[2].symbol = hl.symbols.error
+    items[1].symbol = hl.symbols.error
   else
     if versions.server.major == versions.client.major and versions.server.minor > versions.client.minor then
       -- check if diff of minor is more than 1
       if versions.server.minor - versions.client.minor > 1 then
-        row[2].symbol = hl.symbols.error
+        items[1].symbol = hl.symbols.error
       else
-        row[2].symbol = hl.symbols.deprecated
+        items[1].symbol = hl.symbols.deprecated
       end
     else
-      row[2].symbol = hl.symbols.success
+      items[1].symbol = hl.symbols.success
     end
   end
-  return { row }
+  return items
 end
 
 --- Add divider row
@@ -351,25 +302,48 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     table.insert(hints, "\n")
   end
 
+  local items = {}
+
   -- Add context rows
-  local context_rows = {}
   if include_context and config.options.context then
     local context = state.getContext()
     if context then
-      context_rows = addContextRows(context)
+      vim.list_extend(items, addContextRows(context))
     end
   end
 
   -- Add versions
-  local versions_rows = {}
   if config.options.kubernetes_versions then
-    versions_rows = addVersionsRows(state.getVersions())
+    vim.list_extend(items, addVersionsRows(state.getVersions()))
   end
 
-  -- align and mark header lines
-  local header_lines = vim.list_extend(context_rows, versions_rows)
-  local formatted_headers = align_headers(header_lines, marks, #hints)
-  vim.list_extend(hints, formatted_headers)
+  local columns = { "label", "value" }
+  local left_columns = {}
+
+  -- Increase the third parameter to increase columns
+  for i = 1, #items, 2 do
+    table.insert(left_columns, items[i])
+  end
+  local column_widths = calculate_column_widths(left_columns, columns)
+
+  local function format_item(item)
+    local label = item.label .. string.rep(" ", column_widths["label"] - vim.fn.strdisplaywidth(item.label))
+    local value = item.value .. string.rep(" ", column_widths["value"] - vim.fn.strdisplaywidth(item.value))
+    return label, value
+  end
+
+  -- Increase the third parameter to increase columns
+  for i = 1, #items, 2 do
+    local left_label, left_value = format_item(items[i])
+    local right_label, right_value = format_item(items[i + 1])
+
+    local line = left_label .. " " .. left_value .. " │ " .. right_label .. " " .. right_value
+
+    if items[i].symbol then
+      M.add_mark(marks, #hints, #left_label, #left_label + #left_value + 1, items[i].symbol)
+    end
+    table.insert(hints, line .. "\n")
+  end
 
   -- Add heartbeat
   if config.options.heartbeat then
