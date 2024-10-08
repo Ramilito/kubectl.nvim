@@ -168,18 +168,19 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addContextRows(context, hints, marks)
-  if context.contexts then
-    local desc, context_info = "Context:   ", context.contexts[1].context
-    local line = desc .. context_info.cluster .. " │ User:    " .. context_info.user .. "\n"
+  local current_context = context.contexts[1]
+  if current_context then
+    local desc, context_info = "Context:   ", current_context.context
+    local line = desc .. current_context.name .. " │ User:    " .. context_info.user .. "\n"
 
-    M.add_mark(marks, #hints, #desc, #desc + #context_info.cluster, hl.symbols.pending)
+    M.add_mark(marks, #hints, #desc, #desc + #current_context.name, hl.symbols.pending)
     table.insert(hints, line)
   end
   local desc, namespace = "Namespace: ", state.getNamespace()
   local line = desc .. namespace
   if context.clusters then
     if context.contexts then
-      line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
+      line = line .. string.rep(" ", #current_context.name - #namespace)
     end
     line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
   end
