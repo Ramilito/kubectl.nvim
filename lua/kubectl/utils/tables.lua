@@ -318,7 +318,13 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   end
 
   local columns = { "label", "value" }
-  local column_widths = calculate_column_widths(items, columns)
+  local left_columns = {}
+
+  -- Increase the third parameter to increase columns
+  for i = 1, #items, 2 do
+    table.insert(left_columns, items[i])
+  end
+  local column_widths = calculate_column_widths(left_columns, columns)
 
   local function format_item(item)
     local label = item.label .. string.rep(" ", column_widths["label"] - vim.fn.strdisplaywidth(item.label))
