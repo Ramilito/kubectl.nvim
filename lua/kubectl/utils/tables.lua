@@ -130,7 +130,7 @@ local function align_headers(headers, marks, start_row)
       local value = type(item) == "table" and item.value or item
       local symbol = type(item) == "table" and item.symbol or nil
       if value == "{{SEP}}" then
-        value = "|"
+        value = "│"
       end
       local new_part_of_the_line = string.format("%-" .. max_lengths[i] .. "s", value)
       if i < #line then
