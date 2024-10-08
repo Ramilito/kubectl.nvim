@@ -105,6 +105,49 @@ function M.add_mark(extmarks, row, start_col, end_col, hl_group)
   table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
 end
 
+local function align_headers(headers, marks, start_row)
+  local max_lengths = { 0, 0, 0, 0, 0 }
+
+  -- Calculate max lengths for each column
+  for _, line in ipairs(headers) do
+    for i, item in ipairs(line) do
+      local value = type(item) == "table" and item.value or item
+      local length = #value
+      if value == "{{SEP}}" then
+        length = 1
+      end
+      if length > max_lengths[i] then
+        max_lengths[i] = length
+      end
+    end
+  end
+
+  -- Format each line
+  local formatted_lines = {}
+  for l_num, line in ipairs(headers) do
+    local formatted_line = ""
+    for i, item in ipairs(line) do
+      local value = type(item) == "table" and item.value or item
+      local symbol = type(item) == "table" and item.symbol or nil
+      if value == "{{SEP}}" then
+        value = "│"
+      end
+      local new_part_of_the_line = string.format("%-" .. max_lengths[i] .. "s", value)
+      if i < #line then
+        new_part_of_the_line = new_part_of_the_line .. " "
+      end
+      formatted_line = formatted_line .. new_part_of_the_line
+      if symbol then
+        local start_col = #formatted_line - #new_part_of_the_line
+        M.add_mark(marks, start_row + l_num - 1, start_col, start_col + #value, symbol)
+      end
+    end
+    table.insert(formatted_lines, vim.trim(formatted_line) .. "\n")
+  end
+
+  return formatted_lines
+end
+
 --- Add a header row to the hints and marks tables
 ---@param headers table[]
 ---@param hints table[]
@@ -163,30 +206,63 @@ local function addHeartbeat(hints, marks)
     })
   end
 end
+
 --- Add context rows to the hints and marks tables
 ---@param context table
----@param hints table[]
----@param marks table[]
-local function addContextRows(context, hints, marks)
+---@return table[]
+local function addContextRows(context)
+  local context_rows = {}
   local current_context = context.contexts[1]
   if current_context then
-    local desc, context_info = "Context:   ", current_context.context
-    local line = desc .. current_context.name .. " │ User:    " .. context_info.user .. "\n"
-
-    M.add_mark(marks, #hints, #desc, #desc + #current_context.name, hl.symbols.pending)
-    table.insert(hints, line)
+    local context_info = current_context.context
+    table.insert(context_rows, {
+      "Context:",
+      { value = current_context.name, symbol = hl.symbols.pending },
+      "{{SEP}}",
+      "User:",
+      context_info.user,
+    })
   end
-  local desc, namespace = "Namespace: ", state.getNamespace()
-  local line = desc .. namespace
+  local namespace = state.getNamespace()
+  local ns_row = { "Namespace:", { value = namespace, symbol = hl.symbols.pending } }
   if context.clusters then
-    if context.contexts then
-      line = line .. string.rep(" ", #current_context.name - #namespace)
-    end
-    line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
+    vim.list_extend(ns_row, { "{{SEP}}", "Cluster:", context.clusters[1].name })
+  end
+  table.insert(context_rows, ns_row)
+
+  return context_rows
+end
+
+local function addVersionsRows(versions)
+  local client_ver = versions.client.major .. "." .. versions.client.minor
+  local server_ver = versions.server.major .. "." .. versions.server.minor
+  local row = {
+    "Client:",
+    { value = client_ver, symbol = hl.symbols.pending },
+    "{{SEP}}",
+    "Server:",
+    server_ver,
+  }
+  if client_ver == "0.0" then
+    return { row }
   end
 
-  M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
-  table.insert(hints, line .. "\n")
+  -- https://kubernetes.io/releases/version-skew-policy/#kubectl
+  if versions.server.major > versions.client.major then
+    row[2].symbol = hl.symbols.error
+  else
+    if versions.server.major == versions.client.major and versions.server.minor > versions.client.minor then
+      -- check if diff of minor is more than 1
+      if versions.server.minor - versions.client.minor > 1 then
+        row[2].symbol = hl.symbols.error
+      else
+        row[2].symbol = hl.symbols.deprecated
+      end
+    else
+      row[2].symbol = hl.symbols.success
+    end
+  end
+  return { row }
 end
 
 --- Add divider row
@@ -205,7 +281,7 @@ local function addDividerRow(divider, hints, marks)
     local count = divider.count or ""
     local filter = divider.filter or ""
     local info = resource .. count .. filter
-    local padding = string.rep("-", half_width - math.floor(#info / 2))
+    local padding = string.rep("—", half_width - math.floor(#info / 2))
 
     local virt_text = {
       { padding, hl.symbols.success },
@@ -229,7 +305,7 @@ local function addDividerRow(divider, hints, marks)
       virt_text_pos = "overlay",
     })
   else
-    local padding = string.rep("-", half_width)
+    local padding = string.rep("—", half_width)
     row = padding .. padding
     table.insert(marks, {
       row = #hints,
@@ -245,6 +321,7 @@ local function addDividerRow(divider, hints, marks)
 
   table.insert(hints, row)
 end
+
 --- Generate header hints and marks
 ---@param headers table[]
 ---@param include_defaults boolean
@@ -275,15 +352,30 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   end
 
   -- Add context rows
+  local context_rows = {}
   if include_context and config.options.context then
     local context = state.getContext()
     if context then
-      addContextRows(context, hints, marks)
+      context_rows = addContextRows(context)
     end
   end
 
+  -- Add versions
+  local versions_rows = {}
+  if config.options.kubernetes_versions then
+    versions_rows = addVersionsRows(state.getVersions())
+  end
+
+  -- align and mark header lines
+  local header_lines = vim.list_extend(context_rows, versions_rows)
+  local formatted_headers = align_headers(header_lines, marks, #hints)
+  vim.list_extend(hints, formatted_headers)
+
   -- Add heartbeat
   if config.options.heartbeat then
+    if #hints == 0 then
+      hints = { "\n" }
+    end
     addHeartbeat(hints, marks)
   end
 
