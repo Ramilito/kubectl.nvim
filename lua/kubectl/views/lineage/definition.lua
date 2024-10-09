@@ -75,37 +75,78 @@ function M.build_graph(data)
   return hierarchy
 end
 
-function M.get_relationships(graph, start_key)
-  local result = {}
-  local queue = {}
-  local visited = {}
-
-  -- Initialize the queue with the starting key and distance 0
-  table.insert(queue, { key = start_key, distance = 0 })
-
-  while #queue > 0 do
-    -- Dequeue the next node
-    local current = table.remove(queue, 1)
-    local key = current.key
-    local distance = current.distance
-
-    if not visited[key] then
-      visited[key] = true
-      result[key] = distance
-
-      local node = graph[key]
-      if node and node.children then
-        for _, child in ipairs(node.children) do
-          if not visited[child] then
-            -- Enqueue child nodes with incremented distance
-            table.insert(queue, { key = child, distance = distance + 1 })
-          end
-        end
+-- Function to build the parents mapping
+local function build_parents_mapping(graph)
+  local parents = {}
+  for parent_key, node in pairs(graph) do
+    if node.children then
+      for _, child_key in ipairs(node.children) do
+        parents[child_key] = parent_key
       end
     end
   end
+  return parents
+end
 
-  return result
+-- Function to get the path to root
+local function get_path_to_root(parents, node_key)
+  local path = {}
+  local current = node_key
+  while current do
+    table.insert(path, 1, current) -- Insert at the beginning
+    current = parents[current]
+  end
+  return path
+end
+
+-- Function to build the tree with distances
+local function build_tree(graph, current_node_key, distance, path_nodes, selected_node)
+  local subtree = { distance = distance }
+  local node = graph[current_node_key]
+  if node and node.children then
+    subtree.children = {}
+    for _, child_key in ipairs(node.children) do
+      if current_node_key == selected_node or path_nodes[child_key] then
+        -- Recursively build the subtree
+        subtree.children[child_key] = build_tree(graph, child_key, distance + 1, path_nodes, selected_node)
+      else
+        -- Include siblings as nodes without their descendants
+        subtree.children[child_key] = { distance = distance + 1 }
+      end
+    end
+  end
+  return subtree
+end
+
+function M.get_relationship(graph, key)
+  local parents = build_parents_mapping(graph)
+  local path = get_path_to_root(parents, key)
+  local path_nodes = {}
+  for _, node_key in ipairs(path) do
+    path_nodes[node_key] = true
+  end
+  local tree = {}
+  local root_key = path[1]
+  tree[root_key] = build_tree(graph, root_key, 0, path_nodes, key)
+  return tree
+end
+
+-- Function to build display lines
+function M.build_display_lines(tree, selected_node)
+  local lines = {}
+  local function helper(subtree, indent)
+    indent = indent or ""
+    for node_key, node in pairs(subtree) do
+      local distance = node.distance or 0
+      local marker = node_key == selected_node and " [Selected]" or ""
+      table.insert(lines, string.format("%s%s (Distance: %d)%s", indent, node_key, distance, marker))
+      if node.children then
+        helper(node.children, indent .. "  ")
+      end
+    end
+  end
+  helper(tree, "")
+  return lines
 end
 
 return M

@@ -1,7 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local cache = require("kubectl.utils.cache")
 local definition = require("kubectl.views.lineage.definition")
-local logger = require("kubectl.utils.logging")
 local view = require("kubectl.views")
 
 local M = {}
@@ -32,14 +31,8 @@ function M.View(name, ns, kind)
     end
     selected_key = selected_key .. "/" .. name
 
-    local associated_resources = definition.get_relationships(graph, selected_key)
-    logger.notify_table(associated_resources)
-    -- for _, res in ipairs(associated_resources) do
-    --   table.insert(
-    --     builder.data,
-    --     string.rep("    ", res.level) .. "- " .. res.kind .. ": " .. (res.ns or "") .. "/" .. res.name
-    --   )
-    -- end
+    local associated_resources = definition.get_relationship(graph, selected_key)
+    builder.data = definition.build_display_lines(associated_resources, selected_key)
   end
 
   builder:splitData()
