@@ -34,7 +34,7 @@ function M.is_in_table(tbl, str, exact)
   local lowered_str = str:lower()
   for _, value in pairs(tbl) do
     if type(value) == "table" then
-      if M.is_in_table(value, str, exact) then
+      if M.is_in_table(value, str, false) then
         return true
       end
     end
@@ -106,7 +106,7 @@ function M.filter_line(array, patterns, startAt)
     for _, pattern in ipairs(pattern_list) do
       local is_negative = pattern:sub(1, 1) == "!"
       local actual_pattern = is_negative and pattern:sub(2) or pattern
-      local match = M.is_in_table(line, actual_pattern)
+      local match = M.is_in_table(line, actual_pattern, false)
 
       if (is_negative and match) or (not is_negative and not match) then
         all_match = false

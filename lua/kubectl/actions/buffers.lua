@@ -206,7 +206,7 @@ end
 --- Creates a namespace buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param title string|nil: The filetype of the buffer.
---- @param callback function: The callback function.
+--- @param callback function|nil: The callback function.
 --- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
@@ -229,7 +229,9 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
       vim.cmd.close()
       vim.api.nvim_input("<Plug>(kubectl.refresh)")
 
-      callback(input)
+      if callback ~= nil then
+          callback(input)
+      end
     end)
 
     vim.cmd("startinsert")
