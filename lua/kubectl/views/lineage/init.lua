@@ -32,7 +32,7 @@ function M.View(name, ns, kind)
     selected_key = selected_key .. "/" .. name
 
     local associated_resources = definition.get_relationship(graph, selected_key)
-    builder.data = definition.build_display_lines(associated_resources, selected_key)
+    builder.data, builder.extmarks = definition.build_display_lines(associated_resources, selected_key)
   end
 
   builder:splitData()

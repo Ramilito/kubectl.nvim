@@ -1,3 +1,4 @@
+local hl = require("kubectl.actions.highlight")
 local M = {
   resource = "lineage",
   display_name = "Lineage",
@@ -134,19 +135,27 @@ end
 -- Function to build display lines
 function M.build_display_lines(tree, selected_node)
   local lines = {}
+  local marks = {}
   local function helper(subtree, indent)
     indent = indent or ""
     for node_key, node in pairs(subtree) do
-      local distance = node.distance or 0
-      local marker = node_key == selected_node and " [Selected]" or ""
-      table.insert(lines, string.format("%s%s (Distance: %d)%s", indent, node_key, distance, marker))
+      local key_values = vim.split(node_key, "/")
+      local line = indent .. key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
+      local hlgroup = node_key == selected_node and hl.symbols.success_bold or hl.symbols.white_bold
+
+      table.insert(marks, {
+        row = #lines,
+        start_col = #indent + #key_values[1] + #key_values[2] + 3,
+        end_col = #line,
+        hl_group = hlgroup,
+      })
+      table.insert(lines, line)
       if node.children then
-        helper(node.children, indent .. "  ")
+        helper(node.children, indent .. "    ")
       end
     end
   end
   helper(tree, "")
-  return lines
+  return lines, marks
 end
-
 return M
