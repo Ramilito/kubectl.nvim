@@ -3,7 +3,6 @@ local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local time = require("kubectl.utils.time")
 local M = {}
-local context_rows = {}
 
 --- Calculate column widths for table data
 ---@param rows table[]
