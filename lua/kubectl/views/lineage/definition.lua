@@ -100,16 +100,23 @@ local function get_path_to_root(parents, node_key)
   return path
 end
 
--- Function to build the tree with distances
-local function build_tree(graph, current_node_key, distance, path_nodes, selected_node)
+local function build_tree(graph, current_node_key, distance, path_nodes, selected_node, visited)
+  visited = visited or {}
+  if visited[current_node_key] then
+    return nil
+  end
+  visited[current_node_key] = true
+
   local subtree = { distance = distance }
   local node = graph[current_node_key]
   if node and node.children then
     subtree.children = {}
     for _, child_key in ipairs(node.children) do
       if current_node_key == selected_node or path_nodes[child_key] then
-        -- Recursively build the subtree
-        subtree.children[child_key] = build_tree(graph, child_key, distance + 1, path_nodes, selected_node)
+        local child_subtree = build_tree(graph, child_key, distance + 1, path_nodes, selected_node, visited)
+        if child_subtree then
+          subtree.children[child_key] = child_subtree
+        end
       else
         -- Include siblings as nodes without their descendants
         subtree.children[child_key] = { distance = distance + 1 }
@@ -128,7 +135,7 @@ function M.get_relationship(graph, key)
   end
   local tree = {}
   local root_key = path[1]
-  tree[root_key] = build_tree(graph, root_key, 0, path_nodes, key)
+  tree[root_key] = build_tree(graph, root_key, 0, path_nodes, key, {})
   return tree
 end
 
