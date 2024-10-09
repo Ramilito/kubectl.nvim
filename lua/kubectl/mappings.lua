@@ -275,7 +275,7 @@ function M.register()
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.toggle_heartbeat)", "", {
     noremap = true,
     silent = true,
-    desc = "Toggle kubernetes versions",
+    desc = "Toggle heartbeat",
     callback = function()
       local config = require("kubectl.config")
       config.options.heartbeat = not config.options.heartbeat
