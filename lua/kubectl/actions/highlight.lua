@@ -32,7 +32,7 @@ local highlights = {
   KubectlExperimental = { fg = "#CE9178" }, -- Brown
   KubectlNote = { fg = "#9CDCFE" }, -- Light Blue
   KubectlGray = { fg = "#666666" }, -- Dark Gray
-  KubectlPselect = { bg = "#3e4451" },
+  KubectlPselect = { bg = "#3e4451" }, -- Grey Blue
   KubectlPmatch = { link = "KubectlWarning" },
   KubectlUnderline = { underline = true },
 }

@@ -1,9 +1,12 @@
 local M = {}
 
+---@param str string
 function M.capitalize(str)
   return str:sub(1, 1):upper() .. str:sub(2)
 end
 
+---@param buf number The buffer number.
+---@param char string The divider.
 function M.divider(buf, char)
   if not char then
     char = "-"
@@ -14,6 +17,8 @@ function M.divider(buf, char)
   vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
 end
 
+--- Gets the text from the current visual selection
+---@return string
 function M.get_visual_selection()
   local esc = vim.api.nvim_replace_termcodes("<esc>", true, false, true)
   vim.api.nvim_feedkeys(esc, "x", false)

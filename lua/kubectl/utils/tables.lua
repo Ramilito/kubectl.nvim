@@ -23,6 +23,9 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
+--- Calculate and distribute extra padding
+---@param widths table The table of current column widths
+---@param headers string[] The column headers
 local function calculate_extra_padding(widths, headers)
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
@@ -72,6 +75,9 @@ local function calculate_extra_padding(widths, headers)
   end
 end
 
+--- Gets both global and buffer-local plug keymaps for the given mode
+--- @param headers table[] The header table
+--- @param mode string The VIM mode
 function M.get_plug_mappings(headers, mode)
   local keymaps_table = {}
   local header_lookup = {}
@@ -131,6 +137,9 @@ local function addHeaderRow(headers, hints, marks)
   table.insert(hints, hint_line .. "\n")
 end
 
+--- Adds the heartbeat element
+---@param hints table The keymap hints
+---@param marks table The extmarks
 local function addHeartbeat(hints, marks)
   local padding = "   "
   if state.livez.ok then
@@ -218,8 +227,8 @@ end
 
 --- Add divider row
 ---@param divider { resource: string, count: string, filter: string }|nil
----@param hints table[]
----@param marks table[]
+---@param hints table The keymap hints
+---@param marks table The extmarks
 local function addDividerRow(divider, hints, marks)
   -- Add separator row
   local win = vim.api.nvim_get_current_win()
@@ -274,11 +283,11 @@ local function addDividerRow(divider, hints, marks)
 end
 
 --- Generate header hints and marks
----@param headers table[]
+---@param headers table
 ---@param include_defaults boolean
 ---@param include_context boolean
 ---@param divider { resource: string, count: string, filter: string }|nil
----@return table[], table[]
+---@return table, table
 function M.generateHeader(headers, include_defaults, include_context, divider)
   local hints = {}
   local marks = {}
@@ -366,7 +375,7 @@ end
 --- Pretty print data in a table format
 ---@param data table[]
 ---@param headers string[]
----@return table[], table[]
+---@return table, table
 function M.pretty_print(data, headers, sort_by)
   if headers == nil or data == nil then
     return {}, {}

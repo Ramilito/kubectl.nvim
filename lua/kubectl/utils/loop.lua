@@ -7,7 +7,7 @@ local active_sessions = {}
 --- Start a loop for a specific buffer
 ---@param buf number
 ---@param callback fun(is_cancelled: fun(): boolean)
----@param opts? table
+---@param opts? { interval: number }: The arguments for the loop.
 function M.start_loop_for_buffer(buf, callback, opts)
   if timers[buf] then
     return
@@ -56,7 +56,7 @@ function M.start_loop_for_buffer(buf, callback, opts)
 end
 
 --- Stop the loop for a specific buffer
----@param buf number
+---@param buf number: The buffer number.
 function M.stop_loop_for_buffer(buf)
   local timer = timers[buf]
   if timer then
