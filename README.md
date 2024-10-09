@@ -132,12 +132,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.shift_tab)", "<Tab>", opts) -- Tab completion (descending, when applicable)
     k("n", "<Plug>(kubectl.quit)", "", opts) -- Close view (when applicable)
     k("n", "<Plug>(kubectl.kill)", "gk", opts) -- Pod/portforward kill
-
-    -- Header
-    k("n", "<Plug>(kubectl.toggle_hints)", "<M-h>", opts) -- Toggle hints
-    k("n", "<Plug>(kubectl.toggle_context)", "<M-c>", opts) -- Toggle context
-    k("n", "<Plug>(kubectl.toggle_versions)", "<M-v>", opts) -- Toggle versions
-    k("n", "<Plug>(kubectl.toggle_heartbeat)", "<M-b>", opts) -- Toggle heartbeat
+    k("n", "<Plug>(kubectl.toggle_headers)", "<M-h>", opts) -- Toggle headers
 
     -- Views
     k("n", "<Plug>(kubectl.alias_view)", "<C-a>", opts) -- Aliases view

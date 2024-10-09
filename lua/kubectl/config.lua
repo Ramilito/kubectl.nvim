@@ -4,6 +4,8 @@ local M = {}
 ---@field log_level number
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field namespace string
+---@field namespace_fallback string[]
+---@field headers boolean
 ---@field hints boolean
 ---@field context boolean
 ---@field heartbeat boolean
@@ -26,9 +28,13 @@ local defaults = {
   kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   namespace = "All",
   namespace_fallback = {},
+  headers = true,
+
+  -- only relevant if headers is true
   hints = true,
   context = true,
   heartbeat = true,
+
   kubernetes_versions = true,
   alias = {
     apply_on_select_from_history = true,
