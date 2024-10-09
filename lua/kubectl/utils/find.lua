@@ -24,8 +24,9 @@ end
 --- Check if a string is in a table, recursively
 ---@param tbl table
 ---@param str string
+---@param exact boolean
 ---@return boolean
-function M.is_in_table(tbl, str)
+function M.is_in_table(tbl, str, exact)
   if str == nil then
     return false
   end
@@ -33,10 +34,13 @@ function M.is_in_table(tbl, str)
   local lowered_str = str:lower()
   for _, value in pairs(tbl) do
     if type(value) == "table" then
-      if M.is_in_table(value, str) then
+      if M.is_in_table(value, str, exact) then
         return true
       end
-    elseif tostring(value):lower():find(lowered_str, 1, true) then
+    end
+    if exact and tostring(value):lower() == lowered_str then
+      return true
+    elseif not exact and tostring(value):lower():find(lowered_str, 1, true) then
       return true
     end
   end
