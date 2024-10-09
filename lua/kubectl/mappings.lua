@@ -242,6 +242,46 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.toggle_hints)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Toggle hints",
+    callback = function()
+      local config = require("kubectl.config")
+      config.options.hints = not config.options.hints
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.toggle_context)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Toggle context",
+    callback = function()
+      local config = require("kubectl.config")
+      config.options.context = not config.options.context
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.toggle_versions)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Toggle kubernetes versions",
+    callback = function()
+      local config = require("kubectl.config")
+      config.options.kubernetes_versions = not config.options.kubernetes_versions
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.toggle_heartbeat)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Toggle kubernetes versions",
+    callback = function()
+      local config = require("kubectl.config")
+      config.options.heartbeat = not config.options.heartbeat
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.alias_view)", "", {
     noremap = true,
     silent = true,
@@ -401,6 +441,10 @@ function M.register()
       M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
       M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
       M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+      M.map_if_plug_not_set("n", "<M-h>", "<Plug>(kubectl.toggle_hints)")
+      M.map_if_plug_not_set("n", "<M-c>", "<Plug>(kubectl.toggle_context)")
+      M.map_if_plug_not_set("n", "<M-v>", "<Plug>(kubectl.toggle_versions)")
+      M.map_if_plug_not_set("n", "<M-b>", "<Plug>(kubectl.toggle_heartbeat)")
     else
       local opts = { noremap = true, silent = true, callback = nil }
       vim.api.nvim_buf_set_keymap(0, "n", "q", "<Plug>(kubectl.quit)", opts)
