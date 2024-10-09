@@ -42,8 +42,12 @@ end
 
 local function processRow(rows, cached_api_resources)
   local kind = ""
+  if rows.code == "404" or not rows.items or #rows.items == 0 then
+    return
+  end
+
   if rows.kind then
-    kind = rows.kind:gsub("List", "")
+    kind = string.lower(rows.kind:gsub("List", "s"))
   end
   if rows and rows.items then
     for _, item in ipairs(rows.items) do
@@ -52,12 +56,11 @@ local function processRow(rows, cached_api_resources)
 
       local cache_key = nil
       for key, value in pairs(cached_api_resources.values) do
-        if value.version == string.lower(rows.apiVersion) and value.kind == kind then
+        if value.version == string.lower(rows.apiVersion) and value.name == kind then
           cache_key = key
         end
       end
       local row = {}
-
       if cache_key == "events" then
         local owners = {}
         table.insert(owners, {
@@ -78,6 +81,12 @@ local function processRow(rows, cached_api_resources)
           owners = item.metadata.ownerReferences,
           labels = item.metadata.labels,
         }
+
+        if row.owners then
+          for _, owner in ipairs(row.owners) do
+            owner.ns = item.metadata.namespace
+          end
+        end
 
         if item.spec and item.spec.selector then
           local label_selector = item.spec.selector.matchLabels or item.spec.selector

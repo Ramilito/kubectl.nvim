@@ -21,6 +21,7 @@ function M.View(name, ns, kind)
   else
     local data = definition.collect_all_resources(view.cached_api_resources.values)
     local graph = definition.build_graph(data)
+
     -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
     if kind:sub(-1) == "s" then
       kind = kind:sub(1, -2)
@@ -31,11 +32,14 @@ function M.View(name, ns, kind)
     end
     selected_key = selected_key .. "/" .. name
 
-    local associated_resources = definition.find_associated_resources(graph, selected_key)
-
-    for _, res in ipairs(associated_resources) do
-      table.insert(builder.data, string.rep("    ", res.level) .. "- " .. res.kind .. ": " .. (res.ns or "") .. "/" .. res.name)
-    end
+    local associated_resources = definition.get_relationships(graph, selected_key)
+    logger.notify_table(associated_resources)
+    -- for _, res in ipairs(associated_resources) do
+    --   table.insert(
+    --     builder.data,
+    --     string.rep("    ", res.level) .. "- " .. res.kind .. ": " .. (res.ns or "") .. "/" .. res.name
+    --   )
+    -- end
   end
 
   builder:splitData()
