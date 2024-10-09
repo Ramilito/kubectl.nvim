@@ -38,6 +38,12 @@ function M.View(name, ns, kind)
   builder:splitData()
   builder:addHints(hints, false, false, false)
   builder:setContentRaw()
+
+  -- TODO: Make the foldcolumn look better
+  vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = builder.win_nr })
+  vim.api.nvim_set_option_value("foldenable", true, { win = builder.win_nr })
+  vim.api.nvim_set_option_value("foldtext", "", { win = builder.win_nr })
+  vim.api.nvim_set_option_value("foldcolumn", "1", { win = builder.win_nr })
 end
 
 return M
