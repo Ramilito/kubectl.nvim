@@ -39,11 +39,27 @@ function M.View(name, ns, kind)
   builder:addHints(hints, false, false, false)
   builder:setContentRaw()
 
-  -- TODO: Make the foldcolumn look better
+  -- set fold options
   vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = builder.win_nr })
   vim.api.nvim_set_option_value("foldenable", true, { win = builder.win_nr })
   vim.api.nvim_set_option_value("foldtext", "", { win = builder.win_nr })
   vim.api.nvim_set_option_value("foldcolumn", "1", { win = builder.win_nr })
+
+  local fcs = { foldclose = "", foldopen = "" }
+  local function get_fold(lnum)
+    if vim.fn.foldlevel(lnum) <= vim.fn.foldlevel(lnum - 1) then
+      return " "
+    end
+    return vim.fn.foldclosed(lnum) == -1 and fcs.foldopen or fcs.foldclose
+  end
+  _G.kubectl_get_statuscol = function()
+    return "%s%l " .. get_fold(vim.v.lnum) .. " "
+  end
+  vim.api.nvim_set_option_value(
+    "statuscolumn",
+    "%!v:lua.kubectl_get_statuscol()",
+    { scope = "local", win = builder.win_nr }
+  )
 end
 
 return M
