@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local cache = require("kubectl.utils.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
@@ -17,46 +18,11 @@ local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
 M.LoadFallbackData = function(force)
-  if force or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+  if force and not cache.loading or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
     M.cached_api_resources.values = {}
     M.cached_api_resources.shortNames = {}
 
-    local cmds = {
-      { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
-      { cmd = "kubectl", args = { "get", "--raw", "/apis" } },
-    }
-    ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
-      self:decodeJson()
-      definition.process_apis("api", "", "v1", self.data[1], M.cached_api_resources)
-
-      if self.data[2].groups == nil then
-        return
-      end
-      local group_cmds = {}
-      for _, group in ipairs(self.data[2].groups) do
-        local group_name = group.name
-        local group_version = group.preferredVersion.groupVersion
-
-        -- Skip if name contains 'metrics.k8s.io'
-        if not string.find(group.name, "metrics.k8s.io") then
-          table.insert(group_cmds, {
-            group_name = group_name,
-            group_version = group_version,
-            cmd = "kubectl",
-            args = { "get", "--raw", "/apis/" .. group_version },
-          })
-        end
-      end
-
-      self:fetchAllAsync(group_cmds, function(results)
-        for _, value in ipairs(results.data) do
-          self.data = value
-          self:decodeJson()
-          definition.process_apis("apis", "", self.data.groupVersion, self.data, M.cached_api_resources)
-        end
-      end)
-    end)
-
+    cache.load_cache(M.cached_api_resources)
     M.timestamp = os.time()
   end
 end

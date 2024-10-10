@@ -13,6 +13,7 @@ M.symbols = {
   deprecated = "KubectlDeprecated",
   experimental = "KubectlExperimental",
   gray = "KubectlGray",
+  white = "KubectlWhite",
   note = "KubectlNote",
   clear = "KubectlClear",
   tab = "KubectlTab",
@@ -32,12 +33,24 @@ local highlights = {
   KubectlExperimental = { fg = "#CE9178" }, -- Brown
   KubectlNote = { fg = "#9CDCFE" }, -- Light Blue
   KubectlGray = { fg = "#666666" }, -- Dark Gray
+  KubectlWhite = { fg = "#FFFFFF" }, -- White
   KubectlPselect = { bg = "#3e4451" },
   KubectlPmatch = { link = "KubectlWarning" },
   KubectlUnderline = { underline = true },
 }
 
+local function add_bold_variant()
+  for group, attrs in pairs(highlights) do
+    highlights[group .. "Bold"] = vim.tbl_extend("force", attrs, { bold = true })
+  end
+
+  for key, group in pairs(M.symbols) do
+    M.symbols[key .. "_bold"] = group .. "Bold"
+  end
+end
+
 function M.setup()
+  add_bold_variant()
   for group, attrs in pairs(highlights) do
     local success, hl = pcall(api.nvim_get_hl, 0, group)
     if not success or not hl then

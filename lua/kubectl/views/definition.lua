@@ -124,42 +124,6 @@ function M.on_prompt_input(input)
   view.view_or_fallback(parsed_input)
 end
 
-function M.process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
-  if not group_resources.resources then
-    return
-  end
-  for _, resource in ipairs(group_resources.resources) do
-    -- Skip if resource name contains '/status'
-    if not string.find(resource.name, "/status") then
-      local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
-      local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
-      local resource_url =
-        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
-
-      cached_api_resources.values[resource_name] = {
-        name = resource.name,
-        url = resource_url,
-        namespaced = resource.namespaced,
-        kind = resource.kind,
-        version = group_version,
-      }
-
-      require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
-      cached_api_resources.shortNames[resource.name] = resource_name
-
-      if resource.singularName then
-        cached_api_resources.shortNames[resource.singularName] = resource_name
-      end
-
-      if resource.shortNames then
-        for _, shortName in ipairs(resource.shortNames) do
-          cached_api_resources.shortNames[shortName] = resource_name
-        end
-      end
-    end
-  end
-end
-
 function M.merge_views(cached_resources, views_table)
   -- merge the data from the viewsTable with the data from the cached_api_resources
   for _, views in pairs(views_table) do
