@@ -45,7 +45,7 @@ function M.View(name, ns, kind)
   vim.api.nvim_set_option_value("foldtext", "", { win = builder.win_nr })
   vim.api.nvim_set_option_value("foldcolumn", "1", { win = builder.win_nr })
 
-  local fcs = vim.opt.fillchars:get()
+  local fcs = { foldclose = "", foldopen = "" }
   local function get_fold(lnum)
     if vim.fn.foldlevel(lnum) <= vim.fn.foldlevel(lnum - 1) then
       return " "
