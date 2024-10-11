@@ -305,6 +305,11 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     end
   end
 
+  if not config.options.headers then
+    addDividerRow(divider, hints, marks)
+    return vim.split(table.concat(hints, ""), "\n"), marks
+  end
+
   -- Add hints rows
   if config.options.hints then
     addHeaderRow(headers, hints, marks)
