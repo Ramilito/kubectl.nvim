@@ -1,4 +1,3 @@
-local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local M = {}
 

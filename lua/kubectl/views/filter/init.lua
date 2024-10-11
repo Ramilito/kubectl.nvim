@@ -9,7 +9,7 @@ local views = require("kubectl.views")
 local M = {}
 
 --- Saves filter history
---- @param input string[]: The input
+--- @param input string: The input
 function M.save_history(input)
   local state = require("kubectl.state")
   local history = state.filter_history
