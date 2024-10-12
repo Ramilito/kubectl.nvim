@@ -63,7 +63,7 @@ end
 ---@param syntax? string The syntax to use for the floating window
 ---@return ResourceBuilder
 function ResourceBuilder:displayFloatFit(filetype, title, syntax)
-  self.buf_nr = buffers.floating_dynamic_buffer(filetype, title, false, { syntax })
+  self.buf_nr = buffers.floating_dynamic_buffer(filetype, title, nil, { syntax })
 
   return self
 end
