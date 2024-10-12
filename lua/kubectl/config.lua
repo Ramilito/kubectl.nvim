@@ -10,6 +10,7 @@ local M = {}
 ---@field context boolean
 ---@field heartbeat boolean
 ---@field kubernetes_versions boolean
+---@field lineage { enabled: boolean }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
 local defaults = {
@@ -36,6 +37,9 @@ local defaults = {
   heartbeat = true,
 
   kubernetes_versions = true,
+  lineage = {
+    enabled = false,
+  },
   alias = {
     apply_on_select_from_history = true,
     max_history = 5,

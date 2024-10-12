@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local config = require("kubectl.config")
 local viewsTable = require("kubectl.utils.viewsTable")
 local event_handler = require("kubectl.actions.eventhandler").handler
 local buffers = require("kubectl.actions.buffers")
@@ -247,7 +248,6 @@ function M.register()
     silent = true,
     desc = "Toggle headers",
     callback = function()
-      local config = require("kubectl.config")
       config.options.headers = not config.options.headers
     end,
   })
@@ -445,7 +445,10 @@ function M.register()
     M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
     M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
     M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
-    M.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.lineage)")
+
+    if config.options.lineage.enabled then
+      M.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.lineage)")
+    end
   end)
 end
 return M

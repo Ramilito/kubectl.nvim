@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local config = require("kubectl.config")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
@@ -156,7 +157,7 @@ function M.load_cache(cached_api_resources)
         end
       end
 
-      if M.handles then
+      if M.handles or not config.options.lineage.enabled then
         return
       end
 
