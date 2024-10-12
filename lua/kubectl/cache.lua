@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local config = require("kubectl.config")
+local logger = require("kubectl.utils.logging")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
@@ -54,8 +55,7 @@ local function process_apis(api_url, group_name, group_version, group_resources,
   end
 end
 
-local function processRow(rows, cached_api_resources)
-  local relationships = require("kubectl.utils.relationships")
+local function processRow(rows, cached_api_resources, relationships)
   if rows.code == "404" or not rows.items or #rows.items == 0 then
     return
   end
@@ -186,13 +186,14 @@ function M.load_cache(cached_api_resources)
       -- Memory usage before creating the table
       local mem_before = collectgarbage("count")
 
+      local relationships = require("kubectl.utils.relationships")
       M.handles = ResourceBuilder:new("all"):fetchAllAsync(all_urls, function(builder)
         builder:splitData()
         builder:decodeJson()
         builder.processedData = {}
 
         for _, values in ipairs(builder.data) do
-          processRow(values, cached_api_resources)
+          processRow(values, cached_api_resources, relationships)
         end
 
         -- Memory usage after creating the table
