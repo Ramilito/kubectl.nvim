@@ -143,7 +143,7 @@ end
 --- Execute a shell command asynchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
---- @param on_exit? function The callback function to execute when the command exits
+--- @param on_exit? function The callback function to execute when the command exits (optional)
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
 --- @param on_stderr? function The callback function to execute when there is stderr output (optional)
 --- @param opts { env: table, stdin: string, detach: boolean, timeout: number }|nil The arguments for the command
@@ -212,6 +212,7 @@ end
 --- NOTE: Don't use this for kubectl calls since this doesn't support clear_env
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command
+--- @param opts { env: table, stdin: string, on_stdout: string, detach: boolean, timeout: number }|nil The arguments for the command
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}
   local command = M.configure_command(cmd, opts.env, args)

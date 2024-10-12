@@ -83,7 +83,7 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints", false)
+  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints", nil)
 
   local content = vim.split(table.concat(hints, ""), "\n")
   buffers.set_content(buf, { content = content, marks = marks })
