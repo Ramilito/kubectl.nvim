@@ -55,14 +55,13 @@ local function process_apis(api_url, group_name, group_version, group_resources,
 end
 
 local function processRow(rows, cached_api_resources)
-  local kind = ""
-
+  local relationships = require("kubectl.utils.relationships")
   if rows.code == "404" or not rows.items or #rows.items == 0 then
     return
   end
-  if rows.kind then
-    kind = rows.kind:gsub("List", "")
-  end
+
+  local kind = rows.kind and rows.kind:gsub("List", "") or ""
+
   if rows and rows.items then
     for _, item in ipairs(rows.items) do
       item.metadata.managedFields = {}
@@ -74,14 +73,21 @@ local function processRow(rows, cached_api_resources)
           cache_key = key
         end
       end
+
       local row = {}
-      if cache_key == "events" then
+
+      -- Process relationships based on the relationships map
+      local rel_def = relationships[kind]
+      if rel_def and item[rel_def.owner_field] then
         local owners = {}
+        local owner_info = item[rel_def.owner_field]
+
         table.insert(owners, {
-          kind = item.regarding.kind,
-          name = item.regarding.name,
-          uid = item.regarding.uid,
-          ns = item.regarding.namespace,
+          kind = owner_info[rel_def.fields.kind] or "",
+          apiVersion = rows.apiVersion,
+          name = owner_info[rel_def.fields.name] or "",
+          uid = owner_info[rel_def.fields.uid] or "",
+          ns = owner_info[rel_def.fields.namespace] or item.metadata.namespace,
         })
         row = {
           name = item.metadata.name,
@@ -109,6 +115,7 @@ local function processRow(rows, cached_api_resources)
           end
         end
       end
+
       if cache_key then
         if not cached_api_resources.values[cache_key].data then
           cached_api_resources.values[cache_key].data = {}
