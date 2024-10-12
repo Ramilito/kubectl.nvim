@@ -34,7 +34,6 @@ function M.View(cancellationToken)
     if cmd.cmd == "curl" then
       cmd.args = url.build(cmd.args)
       cmd.args = url.addHeaders(cmd.args, cmd.contentType)
-    else
     end
   end
 
