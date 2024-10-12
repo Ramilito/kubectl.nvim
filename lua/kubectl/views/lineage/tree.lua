@@ -180,6 +180,19 @@ function Tree:get_related_items(node_key)
     end
   end
 
+  local function collect_selected(n)
+    for _, item in pairs(self.nodes_by_key) do
+      if item.selector_children then
+        for _, child in ipairs(item.selector_children) do
+          if child.key == n.key then
+            vim.print(child.resource.name)
+            add_node(item)
+          end
+        end
+      end
+    end
+  end
+
   -- For each ancestor (excluding the root), collect all descendants
   for _, ancestor in ipairs(related_nodes) do
     collect_descendants(ancestor)
@@ -188,6 +201,7 @@ function Tree:get_related_items(node_key)
   -- Finally, include the selected node itself and its descendants
   add_node(node)
   collect_descendants(node)
+  collect_selected(node)
 
   return related_nodes
 end
