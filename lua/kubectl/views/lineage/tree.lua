@@ -1,12 +1,11 @@
-local function get_kind(resource, default_kind)
-  return (resource.kind and resource.kind:lower()) or (default_kind and default_kind:lower()) or "unknownkind"
-end
-
 -- Function to generate a unique key for each resource
 local function get_resource_key(resource)
-  local ns = resource.ns or "cluster"
-  local kind = get_kind(resource)
-  return string.format("%s/%s/%s", kind, ns, resource.name)
+  local kind = string.lower(resource.kind)
+  if resource.ns and kind ~= "node" then
+    return string.lower(string.format("%s/%s/%s", kind, resource.ns, resource.name))
+  else
+    return string.lower(string.format("%s/%s", kind, resource.name))
+  end
 end
 
 local TreeNode = {}
@@ -78,6 +77,7 @@ function Tree:link_nodes()
           node.is_linked = true
         else
           print("Owner not found in the tree for: " .. resource.name)
+          print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
         end
       end
     end

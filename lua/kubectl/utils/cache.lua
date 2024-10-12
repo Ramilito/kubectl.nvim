@@ -42,12 +42,12 @@ end
 
 local function processRow(rows, cached_api_resources)
   local kind = ""
+
   if rows.code == "404" or not rows.items or #rows.items == 0 then
     return
   end
-
   if rows.kind then
-    kind = string.lower(rows.kind:gsub("List", "s"))
+    kind = rows.kind:gsub("List", "")
   end
   if rows and rows.items then
     for _, item in ipairs(rows.items) do
@@ -56,7 +56,7 @@ local function processRow(rows, cached_api_resources)
 
       local cache_key = nil
       for key, value in pairs(cached_api_resources.values) do
-        if value.version == string.lower(rows.apiVersion) and value.name == kind then
+        if value.version == string.lower(rows.apiVersion) and value.kind == kind then
           cache_key = key
         end
       end
