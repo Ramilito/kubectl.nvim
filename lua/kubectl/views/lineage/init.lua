@@ -2,7 +2,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local cache = require("kubectl.cache")
 local definition = require("kubectl.views.lineage.definition")
 local logger = require("kubectl.utils.logging")
-local tables = require("kubectl.utils.tables")
 
 local M = {}
 
