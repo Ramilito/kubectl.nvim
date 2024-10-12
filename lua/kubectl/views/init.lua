@@ -1,6 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
-local cache = require("kubectl.utils.cache")
+local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
@@ -11,21 +11,6 @@ local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 
 local M = {}
-
-M.cached_api_resources = { values = {}, shortNames = {}, timestamp = nil }
-
-local one_day_in_seconds = 24 * 60 * 60
-local current_time = os.time()
-
-M.LoadFallbackData = function(force)
-  if force and not cache.loading or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
-    M.cached_api_resources.values = {}
-    M.cached_api_resources.shortNames = {}
-
-    cache.load_cache(M.cached_api_resources)
-    M.timestamp = os.time()
-  end
-end
 
 --- Generate hints and display them in a floating buffer
 ---@alias Hint { key: string, desc: string, long_desc: string }
@@ -107,7 +92,7 @@ end
 function M.Aliases()
   local self = ResourceBuilder:new("aliases")
   local viewsTable = require("kubectl.utils.viewsTable")
-  self.data = M.cached_api_resources.values
+  self.data = cache.cached_api_resources.values
   self:splitData():decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
 
@@ -119,7 +104,7 @@ function M.Aliases()
 
   completion.with_completion(buf, self.data, function()
     -- We reassign the cache since it can be slow to load
-    self.data = M.cached_api_resources.values
+    self.data = cache.cached_api_resources.values
     self:splitData():decodeJson()
     self.data = definition.merge_views(self.data, viewsTable)
   end)

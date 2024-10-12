@@ -1,3 +1,4 @@
+local cache = require("kubectl.cache")
 local ctx_view = require("kubectl.views.contexts")
 local informer = require("kubectl.actions.informer")
 local ns_view = require("kubectl.views.namespace")
@@ -15,7 +16,7 @@ function M.open()
 
   hl.setup()
   kube.start_kubectl_proxy(function()
-    view.LoadFallbackData()
+    cache.LoadFallbackData()
     state.setup()
   end)
 end

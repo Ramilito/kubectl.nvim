@@ -3,7 +3,20 @@ local config = require("kubectl.config")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
-local M = { handles = nil, loading = false }
+local M = { handles = nil, loading = false, cached_api_resources = { values = {}, shortNames = {}, timestamp = nil } }
+
+local one_day_in_seconds = 24 * 60 * 60
+local current_time = os.time()
+
+M.LoadFallbackData = function(force)
+  if force and not M.loading or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+    M.cached_api_resources.values = {}
+    M.cached_api_resources.shortNames = {}
+
+    M.load_cache(M.cached_api_resources)
+    M.timestamp = os.time()
+  end
+end
 
 local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
   if not group_resources.resources then

@@ -1,8 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local cache = require("kubectl.utils.cache")
+local cache = require("kubectl.cache")
 local definition = require("kubectl.views.lineage.definition")
 local logger = require("kubectl.utils.logging")
-local view = require("kubectl.views")
 
 local M = {}
 
@@ -19,7 +18,7 @@ function M.View(name, ns, kind)
     table.insert(builder.data, "")
     table.insert(builder.data, "Cache still loading...")
   else
-    local data = definition.collect_all_resources(view.cached_api_resources.values)
+    local data = definition.collect_all_resources(cache.cached_api_resources.values)
     local graph = definition.build_graph(data)
 
     -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
