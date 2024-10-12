@@ -185,7 +185,6 @@ function Tree:get_related_items(node_key)
       if item.selector_children then
         for _, child in ipairs(item.selector_children) do
           if child.key == n.key then
-            vim.print(child.resource.name)
             add_node(item)
           end
         end

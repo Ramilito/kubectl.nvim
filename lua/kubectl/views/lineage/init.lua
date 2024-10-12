@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local cache = require("kubectl.cache")
 local definition = require("kubectl.views.lineage.definition")
 local logger = require("kubectl.utils.logging")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -59,6 +60,21 @@ function M.View(name, ns, kind)
     "%!v:lua.kubectl_get_statuscol()",
     { scope = "local", win = builder.win_nr }
   )
+end
+
+--- Get current seletion for view
+function M.getCurrentSelection()
+  local line = vim.api.nvim_get_current_line()
+  local selection = vim.split(line, ":")
+  local columns = vim.split(selection[2], "/")
+
+  local kind = vim.trim(selection[1])
+  local name = vim.trim(columns[1])
+  local ns = vim.trim(columns[2])
+  if kind:sub(-1) ~= "s" then
+    kind = kind .. "s"
+  end
+  return kind, name, ns
 end
 
 return M
