@@ -8,18 +8,6 @@ local function get_resource_key(resource)
   end
 end
 
-local function selectors_match(selectors, labels)
-  if not selectors or not labels then
-    return false
-  end
-  for key, value in pairs(selectors) do
-    if labels[key] ~= value then
-      return false
-    end
-  end
-  return true
-end
-
 local TreeNode = {}
 TreeNode.__index = TreeNode
 
@@ -27,7 +15,7 @@ function TreeNode:new(resource)
   local node = {
     resource = resource,
     children = {},
-    selector_children = {},
+    leafs = {},
     key = get_resource_key(resource),
     parent = nil,
   }
@@ -35,14 +23,13 @@ function TreeNode:new(resource)
   return node
 end
 
+function TreeNode:add_leaf(leaf_node)
+  table.insert(self.leafs, leaf_node)
+end
+
 function TreeNode:add_child(child_node)
   table.insert(self.children, child_node)
   child_node.parent = self
-end
-
-function TreeNode:add_selector_child(child_node)
-  table.insert(self.selector_children, child_node)
-  -- Note: We don't set parent here to avoid interfering with the ownership hierarchy
 end
 
 local Tree = {}
@@ -98,33 +85,12 @@ function Tree:link_nodes()
           print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
         end
       end
-    end
-  end
 
-  -- Second, handle selector-based relationships
-  for _, node in pairs(self.nodes_by_key) do
-    local resource = node.resource
-
-    if resource.selectors then
-      -- For each node that has selectors, find nodes whose labels match
-      for _, potential_child in pairs(self.nodes_by_key) do
-        if potential_child ~= node then -- Avoid self
-          local potential_child_resource = potential_child.resource
-          if potential_child_resource.labels then
-            if selectors_match(resource.selectors, potential_child_resource.labels) then
-              -- Check if the potential_child is not already in selector_children
-              local already_child = false
-              for _, child in ipairs(node.selector_children) do
-                if child == potential_child then
-                  already_child = true
-                  break
-                end
-              end
-              if not already_child then
-                node:add_selector_child(potential_child)
-              end
-            end
-          end
+      if resource.relations then
+        for _, relation in ipairs(resource.relations) do
+          local leaf_key = get_resource_key(relation)
+          local leaf_node = self.nodes_by_key[leaf_key]
+          node:add_leaf(leaf_node)
         end
       end
     end
@@ -163,30 +129,20 @@ function Tree:get_related_items(node_key)
     current_node = current_node.parent
   end
 
-  -- Helper function to collect all descendants (recursively)
-  local function collect_descendants(n)
-    for _, child in ipairs(n.children) do
-      if not visited[child.key] then
-        add_node(child) -- Add child
-        collect_descendants(child) -- Recursively collect all descendants
-      end
-    end
-    -- Include selector-based children
-    for _, child in ipairs(n.selector_children) do
-      if not visited[child.key] then
-        add_node(child)
-        collect_descendants(child)
+  local function collect_leafs(n)
+    if n.leafs then
+      for _, leaf in ipairs(n.leafs) do
+        add_node(leaf)
       end
     end
   end
-
-  local function collect_selected(n)
-    for _, item in pairs(self.nodes_by_key) do
-      if item.selector_children then
-        for _, child in ipairs(item.selector_children) do
-          if child.key == n.key then
-            add_node(item)
-          end
+  -- Helper function to collect all descendants (recursively)
+  local function collect_descendants(n)
+    if n.children then
+      for _, child in ipairs(n.children) do
+        if not visited[child.key] then
+          add_node(child) -- Add child
+          collect_descendants(child) -- Recursively collect all descendants
         end
       end
     end
@@ -200,7 +156,7 @@ function Tree:get_related_items(node_key)
   -- Finally, include the selected node itself and its descendants
   add_node(node)
   collect_descendants(node)
-  collect_selected(node)
+  collect_leafs(node)
 
   return related_nodes
 end

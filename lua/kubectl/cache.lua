@@ -65,7 +65,6 @@ local function processRow(rows, cached_api_resources, relationships)
   if rows and rows.items then
     for _, item in ipairs(rows.items) do
       item.metadata.managedFields = {}
-      item.metadata.annotations = {}
 
       local cache_key = nil
       for key, value in pairs(cached_api_resources.values) do
@@ -76,27 +75,10 @@ local function processRow(rows, cached_api_resources, relationships)
 
       local row = {}
 
-      -- Check the relationship map for the current kind
-      local rel_def = relationships[kind]
-
       if item.metadata.name then
         local owners = {}
-
-        -- Handle relationships defined in the relationship map
-        if rel_def and item[rel_def.owner_field] then
-          local owner_info = item[rel_def.owner_field]
-
-          -- Extract owner details from the field defined in the relationship
-          table.insert(owners, {
-            kind = owner_info[rel_def.fields.kind] or "",
-            apiVersion = rows.apiVersion,
-            name = owner_info[rel_def.fields.name] or "",
-            uid = owner_info[rel_def.fields.uid] or "",
-            ns = owner_info[rel_def.fields.namespace] or item.metadata.namespace,
-          })
-        end
+        -- Add ownerReferences
         if item.metadata.ownerReferences then
-          -- Fallback to ownerReferences if no specific relationship is defined
           for _, owner in ipairs(item.metadata.ownerReferences) do
             table.insert(owners, {
               kind = owner.kind,
@@ -107,28 +89,23 @@ local function processRow(rows, cached_api_resources, relationships)
             })
           end
         end
+
+        -- Build the row data
         row = {
           name = item.metadata.name,
           ns = item.metadata.namespace,
+          apiVersion = rows.apiVersion,
           owners = owners,
-          labels = item.metadata.labels,
+          relations = relationships.addRelationship(kind, item, rows),
         }
 
-        -- Add selectors if available
-        if item.spec and item.spec.selector then
-          local label_selector = item.spec.selector.matchLabels or item.spec.selector
-          if label_selector then
-            row.selectors = label_selector
+        -- Add the row to the cache if cache_key is available
+        if cache_key then
+          if not cached_api_resources.values[cache_key].data then
+            cached_api_resources.values[cache_key].data = {}
           end
+          table.insert(cached_api_resources.values[cache_key].data, row)
         end
-      end
-
-      -- Add the row to the cache if cache_key is available
-      if cache_key then
-        if not cached_api_resources.values[cache_key].data then
-          cached_api_resources.values[cache_key].data = {}
-        end
-        table.insert(cached_api_resources.values[cache_key].data, row)
       end
     end
   end
