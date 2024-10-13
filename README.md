@@ -218,6 +218,11 @@ vim.api.nvim_create_autocmd("FileType", {
   context = true,
   heartbeat = true,
   kubernetes_versions = true,
+  logs = {
+    prefix = true,
+    timestamps = true,
+    since = "5m"
+  },
   alias = {
     apply_on_select_from_history = true,
     max_history = 5,
