@@ -82,7 +82,10 @@ function Tree:link_nodes()
           owner_node:add_child(node)
           node.is_linked = true
         else
-          print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
+          -- We ignore events since they can have references to resources that no longer exist
+          if resource.kind ~= "event" then
+            print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
+          end
         end
       end
 
