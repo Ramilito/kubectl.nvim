@@ -8,7 +8,7 @@ function M.extractFieldValue(field_path, item)
   return field
 end
 
-function M.addRelationship(kind, item, rows)
+function M.getRelationship(kind, item, rows)
   local rel_def = M.definition[kind]
   local relations = {}
 
@@ -24,6 +24,7 @@ function M.addRelationship(kind, item, rows)
               local k = type(rel.target_kind) == "function" and rel.target_kind(subfield_value) or rel.target_kind
               local name = type(rel.target_name) == "function" and rel.target_name(subfield_value) or subfield_value
               local namespace = rel.target_namespace and item.metadata.namespace or nil
+              local uid = type(rel.target_uid) == "function" and rel.target_uid(subfield_value) or nil
 
               if k and name then
                 table.insert(relations, {
@@ -31,6 +32,7 @@ function M.addRelationship(kind, item, rows)
                   apiVersion = rows.apiVersion,
                   name = name,
                   ns = namespace,
+                  uid = uid,
                 })
               end
             end
@@ -40,6 +42,7 @@ function M.addRelationship(kind, item, rows)
           local k = type(rel.target_kind) == "function" and rel.target_kind(field_value) or rel.target_kind
           local name = type(rel.target_name) == "function" and rel.target_name(field_value) or field_value
           local namespace = rel.target_namespace and item.metadata.namespace or nil
+          local uid = rel.target_uid and rel.target_uid(field_value) or field_value
 
           if k and name then
             table.insert(relations, {
@@ -47,6 +50,7 @@ function M.addRelationship(kind, item, rows)
               apiVersion = rows.apiVersion,
               name = name,
               ns = namespace,
+              uid = uid,
             })
           end
         end
@@ -71,6 +75,9 @@ M.definition = {
         end,
         target_namespace = function(field_value)
           return field_value.namespace
+        end,
+        target_uid = function(field_value)
+          return field_value.uid
         end,
       },
       {
