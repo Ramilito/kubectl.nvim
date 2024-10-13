@@ -40,7 +40,7 @@ function M.start_kubectl_proxy(callback)
   local handle = vim.system(command.args, {
     clear_env = true,
     env = command.env,
-    stdin = false,
+    stdin = nil,
     stderr = function(_, data)
       vim.schedule(function()
         if data then
