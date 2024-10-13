@@ -1,6 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.pods.definition")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
@@ -10,10 +11,9 @@ local M = {
   selection = {},
   pfs = {},
   tail_handle = nil,
-  -- TODO: should propably be configurable
-  show_log_prefix = "true",
-  log_since = "5m",
-  show_timestamps = "true",
+  show_log_prefix = tostring(config.options.logs.prefix),
+  log_since = config.options.logs.since,
+  show_timestamps = tostring(config.options.logs.timestamps),
 }
 
 function M.View(cancellationToken)
