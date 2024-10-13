@@ -1,11 +1,12 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.containers.definition")
 
 local M = {
   selection = {},
-  log_since = "300",
+  log_since = config.options.logs.since,
 }
 
 function M.selectContainer(name)
@@ -25,6 +26,14 @@ function M.exec(pod, ns)
 end
 
 function M.logs(pod, ns, reload)
+  local since_last_char = string.sub(M.log_since, -1)
+  if since_last_char == "s" then
+    M.log_since = string.sub(M.log_since, 1, -2)
+  elseif since_last_char == "m" then
+    M.log_since = tostring(tonumber(string.sub(M.log_since, 1, -2)) * 60)
+  elseif since_last_char == "h" then
+    M.log_since = tostring(tonumber(string.sub(M.log_since, 1, -2)) * 60 * 60)
+  end
   ResourceBuilder:view_float({
     resource = "containerLogs",
     ft = "k8s_container_logs",
