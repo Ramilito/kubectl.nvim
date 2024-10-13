@@ -300,6 +300,143 @@ M.definition = {
       },
     },
   },
+  ClusterRole = {
+    kind = "ClusterRole",
+    relationships = {
+      -- RelationshipClusterRoleAggregationRule
+      {
+        relationship_type = "dependency",
+        field_path = "aggregationRule.clusterRoleSelectors",
+        extract_subfield = function(selector)
+          local selectors = {}
+          for _, s in ipairs(selector) do
+            table.insert(selectors, {
+              kind = "ClusterRole",
+              group = "rbac.authorization.k8s.io",
+              selector = s.matchLabels,
+            })
+          end
+          return selectors
+        end,
+        target_kind = "ClusterRole",
+        target_name = function(selector)
+          return selector
+        end,
+        target_namespace = false,
+      },
+      -- RelationshipClusterRolePolicyRule (PodSecurityPolicy)
+      {
+        relationship_type = "dependency",
+        field_path = "rules",
+        extract_subfield = function(rule)
+          local policies = {}
+          if rule.apiGroups and rule.resources and rule.verbs then
+            for _, resource in ipairs(rule.resources) do
+              if resource == "podsecuritypolicies" then
+                if #rule.resourceNames == 0 then
+                  -- No resource names: Add the general PodSecurityPolicy selector
+                  table.insert(policies, {
+                    kind = "PodSecurityPolicy",
+                    group = "policy",
+                    name = nil,
+                  })
+                else
+                  -- Specific resource names provided
+                  for _, name in ipairs(rule.resourceNames) do
+                    table.insert(policies, {
+                      kind = "PodSecurityPolicy",
+                      group = "policy",
+                      name = name,
+                    })
+                  end
+                end
+              end
+            end
+          end
+          return policies
+        end,
+        target_kind = "PodSecurityPolicy",
+        target_name = function(policy)
+          return policy.name
+        end,
+        target_namespace = false,
+      },
+    },
+  },
+  ClusterRoleBinding = {
+    kind = "ClusterRoleBinding",
+    relationships = {
+      -- RelationshipClusterRoleBindingSubject
+      {
+        relationship_type = "dependent",
+        field_path = "subjects",
+        extract_subfield = function(subject)
+          local refs = {}
+          -- Handle ServiceAccountKind
+          if subject.kind == "ServiceAccount" and subject.apiGroup == "core" and subject.namespace then
+            table.insert(refs, {
+              kind = "ServiceAccount",
+              name = subject.name,
+              ns = subject.namespace,
+            })
+            -- Handle GroupKind and UserKind cases
+          elseif subject.kind == "Group" and subject.apiGroup == "rbac.authorization.k8s.io" then
+            -- All authenticated users or all service accounts
+            if subject.name == "system:authenticated" or subject.name == "system:serviceaccounts" then
+              table.insert(refs, {
+                kind = "ServiceAccount",
+                name = "*",
+                ns = "*",
+              })
+              -- Handle service accounts for specific namespaces
+            elseif string.find(subject.name, "system:serviceaccounts:") then
+              local sns = string.gsub(subject.name, "system:serviceaccounts:", "")
+              table.insert(refs, {
+                kind = "ServiceAccount",
+                name = "*",
+                ns = sns,
+              })
+            end
+          elseif subject.kind == "User" and subject.apiGroup == "rbac.authorization.k8s.io" then
+            -- Handle UserKind formatted as ServiceAccount (extract ns and name)
+            local ns, sa = subject.name:match("([^:]+):([^:]+)")
+            if ns and sa then
+              table.insert(refs, {
+                kind = "ServiceAccount",
+                name = sa,
+                ns = ns,
+              })
+            end
+          end
+          return refs
+        end,
+        target_kind = function(ref)
+          return ref.kind
+        end,
+        target_name = function(ref)
+          return ref.name
+        end,
+        target_namespace = function(ref)
+          return ref.ns
+        end,
+      },
+      -- RelationshipClusterRoleBindingRole
+      {
+        relationship_type = "dependency",
+        field_path = "roleRef",
+        target_kind = function(roleRef)
+          if roleRef.kind == "ClusterRole" then
+            return "ClusterRole"
+          end
+          return nil
+        end,
+        target_name = function(roleRef)
+          return roleRef.name
+        end,
+        target_namespace = false,
+      },
+    },
+  },
 }
 
 return M
