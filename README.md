@@ -219,9 +219,9 @@ vim.api.nvim_create_autocmd("FileType", {
   heartbeat = true,
   kubernetes_versions = true,
   logs = {
-    wrap = false,
     prefix = true,
     timestamps = true,
+    since = "5m"
   },
   alias = {
     apply_on_select_from_history = true,
