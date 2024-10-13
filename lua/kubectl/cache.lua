@@ -76,38 +76,45 @@ local function processRow(rows, cached_api_resources, relationships)
 
       local row = {}
 
-      -- Process relationships based on the relationships map
+      -- Check the relationship map for the current kind
       local rel_def = relationships[kind]
-      if rel_def and item[rel_def.owner_field] then
-        local owners = {}
-        local owner_info = item[rel_def.owner_field]
 
-        table.insert(owners, {
-          kind = owner_info[rel_def.fields.kind] or "",
-          apiVersion = rows.apiVersion,
-          name = owner_info[rel_def.fields.name] or "",
-          uid = owner_info[rel_def.fields.uid] or "",
-          ns = owner_info[rel_def.fields.namespace] or item.metadata.namespace,
-        })
+      if item.metadata.name then
+        local owners = {}
+
+        -- Handle relationships defined in the relationship map
+        if rel_def and item[rel_def.owner_field] then
+          local owner_info = item[rel_def.owner_field]
+
+          -- Extract owner details from the field defined in the relationship
+          table.insert(owners, {
+            kind = owner_info[rel_def.fields.kind] or "",
+            apiVersion = rows.apiVersion,
+            name = owner_info[rel_def.fields.name] or "",
+            uid = owner_info[rel_def.fields.uid] or "",
+            ns = owner_info[rel_def.fields.namespace] or item.metadata.namespace,
+          })
+        end
+        if item.metadata.ownerReferences then
+          -- Fallback to ownerReferences if no specific relationship is defined
+          for _, owner in ipairs(item.metadata.ownerReferences) do
+            table.insert(owners, {
+              kind = owner.kind,
+              apiVersion = owner.apiVersion,
+              name = owner.name,
+              uid = owner.uid,
+              ns = owner.namespace or item.metadata.namespace,
+            })
+          end
+        end
         row = {
           name = item.metadata.name,
           ns = item.metadata.namespace,
           owners = owners,
-        }
-      elseif item.metadata.name then
-        row = {
-          name = item.metadata.name,
-          ns = item.metadata.namespace,
-          owners = item.metadata.ownerReferences,
           labels = item.metadata.labels,
         }
 
-        if row.owners then
-          for _, owner in ipairs(row.owners) do
-            owner.ns = item.metadata.namespace
-          end
-        end
-
+        -- Add selectors if available
         if item.spec and item.spec.selector then
           local label_selector = item.spec.selector.matchLabels or item.spec.selector
           if label_selector then
@@ -116,6 +123,7 @@ local function processRow(rows, cached_api_resources, relationships)
         end
       end
 
+      -- Add the row to the cache if cache_key is available
       if cache_key then
         if not cached_api_resources.values[cache_key].data then
           cached_api_resources.values[cache_key].data = {}
