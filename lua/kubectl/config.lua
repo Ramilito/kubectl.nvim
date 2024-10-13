@@ -40,6 +40,7 @@ local defaults = {
   kubernetes_versions = true,
   lineage = {
     enabled = false,
+  },
   logs = {
     prefix = true,
     timestamps = true,
