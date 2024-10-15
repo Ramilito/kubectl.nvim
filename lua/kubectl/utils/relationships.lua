@@ -361,21 +361,23 @@ M.definition = {
           if rule.apiGroups and rule.resources and rule.verbs then
             for _, resource in ipairs(rule.resources) do
               if resource == "podsecuritypolicies" then
-                if #rule.resourceNames == 0 then
-                  -- No resource names: Add the general PodSecurityPolicy selector
-                  table.insert(policies, {
-                    kind = "PodSecurityPolicy",
-                    group = "policy",
-                    name = nil,
-                  })
-                else
-                  -- Specific resource names provided
-                  for _, name in ipairs(rule.resourceNames) do
+                if rule.resourceNames then
+                  if #rule.resourceNames == 0 then
+                    -- No resource names: Add the general PodSecurityPolicy selector
                     table.insert(policies, {
                       kind = "PodSecurityPolicy",
                       group = "policy",
-                      name = name,
+                      name = nil,
                     })
+                  else
+                    -- Specific resource names provided
+                    for _, name in ipairs(rule.resourceNames) do
+                      table.insert(policies, {
+                        kind = "PodSecurityPolicy",
+                        group = "policy",
+                        name = name,
+                      })
+                    end
                   end
                 end
               end
