@@ -8,6 +8,18 @@ local function get_resource_key(resource)
   end
 end
 
+local function selectors_match(selectors, labels)
+  if not selectors or not labels then
+    return false
+  end
+  for key, value in pairs(selectors) do
+    if labels[key] ~= value then
+      return false
+    end
+  end
+  return true
+end
+
 local TreeNode = {}
 TreeNode.__index = TreeNode
 
@@ -89,6 +101,28 @@ function Tree:link_nodes()
         end
       end
 
+      if resource.selectors then
+        for _, potential_child in pairs(self.nodes_by_key) do
+          if potential_child ~= node then -- Avoid self
+            local potential_child_resource = potential_child.resource
+            if potential_child_resource.labels then
+              if selectors_match(resource.selectors, potential_child_resource.labels) then
+                local already_child = false
+                for _, child in ipairs(node.leafs) do
+                  if child == potential_child then
+                    already_child = true
+                    break
+                  end
+                end
+                if not already_child then
+                  node:add_leaf(potential_child)
+                  potential_child:add_leaf(node)
+                end
+              end
+            end
+          end
+        end
+      end
       if resource.relations then
         for _, relation in ipairs(resource.relations) do
           local leaf_key = get_resource_key(relation)
@@ -145,6 +179,7 @@ function Tree:get_related_items(node_key)
       for _, child in ipairs(n.children) do
         if not visited[child.key] then
           add_node(child) -- Add child
+          collect_leafs(child)
           collect_descendants(child) -- Recursively collect all descendants
         end
       end

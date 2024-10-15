@@ -22,12 +22,20 @@ function M.View(name, ns, kind)
     local graph = definition.build_graph(data)
 
     -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
-    if kind:sub(-1) == "s" and kind ~= "ingresses" and kind ~= "storageclasses" and kind ~= "sa" then
+    if
+      kind:sub(-1) == "s"
+      and kind ~= "ingresses"
+      and kind ~= "storageclasses"
+      and kind ~= "sa"
+      and kind ~= "ingressclasses"
+    then
       kind = kind:sub(1, -2)
     elseif kind == "storageclasses" then
       kind = "storageclass"
     elseif kind == "ingresses" then
       kind = "ingress"
+    elseif kind == "ingressclasses" then
+      kind = "ingressclass"
     elseif kind == "sa" then
       kind = "serviceaccount"
     end

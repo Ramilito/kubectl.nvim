@@ -77,10 +77,14 @@ local function processRow(rows, cached_api_resources, relationships)
 
       if item.metadata.name then
         local owners = {}
+        local relations = {}
 
-        if cache_key == "events" then
-          local event = relationships.getRelationship(kind, item, rows)
-          table.insert(owners, event[1])
+        for _, relation in ipairs(relationships.getRelationship(kind, item, rows)) do
+          if relation.relationship_type == "owner" then
+            table.insert(owners, relation)
+          elseif relation.relationship_type == "dependency" then
+            table.insert(relations, relation)
+          end
         end
 
         -- Add ownerReferences
@@ -101,9 +105,18 @@ local function processRow(rows, cached_api_resources, relationships)
           name = item.metadata.name,
           ns = item.metadata.namespace,
           apiVersion = rows.apiVersion,
+          labels = item.metadata.labels,
           owners = owners,
-          relations = relationships.getRelationship(kind, item, rows),
+          relations = relations,
         }
+
+        -- Add selectors if available
+        if item.spec and item.spec.selector then
+          local label_selector = item.spec.selector.matchLabels or item.spec.selector
+          if label_selector then
+            row.selectors = label_selector
+          end
+        end
 
         -- Add the row to the cache if cache_key is available
         if cache_key then

@@ -33,6 +33,7 @@ function M.getRelationship(kind, item, rows)
                   name = name,
                   ns = namespace,
                   uid = uid,
+                  relationship_type = rel.relationship_type,
                 })
               end
             end
@@ -51,6 +52,7 @@ function M.getRelationship(kind, item, rows)
               name = name,
               ns = namespace,
               uid = uid,
+              relationship_type = rel.relationship_type,
             })
           end
         end
@@ -65,7 +67,7 @@ M.definition = {
     kind = "Event",
     relationships = {
       {
-        relationship_type = "dependency",
+        relationship_type = "owner",
         field_path = "regarding",
         target_kind = function(field_value)
           return field_value.kind
@@ -81,7 +83,7 @@ M.definition = {
         end,
       },
       {
-        relationship_type = "dependency",
+        relationship_type = "owner",
         field_path = "related",
         target_kind = function(field_value)
           return field_value.kind
@@ -127,7 +129,7 @@ M.definition = {
         target_namespace = true,
       },
       {
-        relationship_type = "dependency",
+        relationship_type = "owner",
         field_path = "spec.rules",
         extract_subfield = function(rule)
           local backends = {}
@@ -168,6 +170,43 @@ M.definition = {
       },
     },
   },
+  IngressClass = {
+    kind = "IngressClass",
+    relationships = {
+      -- RelationshipIngressClassParameters
+      {
+        relationship_type = "dependency",
+        field_path = "spec.parameters",
+        extract_subfield = function(parameters)
+          local refs = {}
+          if parameters then
+            local group = parameters.apiGroup or ""
+            local namespace = parameters.namespace or ""
+            local kind = parameters.kind
+            local name = parameters.name
+            if kind and name then
+              table.insert(refs, {
+                kind = kind,
+                group = group,
+                name = name,
+                ns = namespace,
+              })
+            end
+          end
+          return refs
+        end,
+        target_kind = function(ref)
+          return ref.kind
+        end,
+        target_name = function(ref)
+          return ref.name
+        end,
+        target_namespace = function(ref)
+          return ref.ns
+        end,
+      },
+    },
+  },
   Pod = {
     kind = "Pod",
     relationships = {
@@ -199,17 +238,6 @@ M.definition = {
         target_name = function(field_value)
           return field_value
         end,
-      },
-
-      -- RelationshipPodSecurityPolicy: Handles the PodSecurityPolicy assigned to the pod.
-      {
-        relationship_type = "dependency",
-        field_path = "metadata.annotations",
-        target_kind = "PodSecurityPolicy",
-        target_name = function(annotations)
-          return annotations["kubernetes.io/psp"]
-        end,
-        target_namespace = false,
       },
 
       -- RelationshipPodServiceAccount: Handles the ServiceAccount assigned to the pod.
