@@ -41,7 +41,9 @@ local highlights = {
 
 local function add_bold_variant()
   for group, attrs in pairs(highlights) do
-    highlights[group .. "Bold"] = vim.tbl_extend("force", attrs, { bold = true })
+    if not group:match("Bold$") then
+      highlights[group .. "Bold"] = vim.tbl_extend("force", attrs, { bold = true })
+    end
   end
 
   for key, group in pairs(M.symbols) do
