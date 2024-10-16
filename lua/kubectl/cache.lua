@@ -130,7 +130,7 @@ local function processRow(rows, cached_api_resources, relationships)
   end
 end
 
-function M.load_cache(cached_api_resources)
+function M.load_cache(cached_api_resources, callback)
   M.loading = true
   timeme.start()
   local cmds = {
@@ -208,6 +208,9 @@ function M.load_cache(cached_api_resources)
         timeme.stop()
         M.handles = nil
         M.loading = false
+        if callback then
+          callback()
+        end
       end)
     end)
   end)
