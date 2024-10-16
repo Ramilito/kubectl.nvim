@@ -15,7 +15,7 @@ M.LoadFallbackData = function(force)
     M.cached_api_resources.shortNames = {}
 
     M.load_cache(M.cached_api_resources)
-    M.timestamp = os.time()
+    M.cached_api_resources.timestamp = os.time()
   end
 end
 

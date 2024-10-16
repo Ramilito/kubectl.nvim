@@ -1,6 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local cache = require("kubectl.cache")
 local definition = require("kubectl.views.lineage.definition")
+local hl = require("kubectl.actions.highlight")
 local logger = require("kubectl.utils.logging")
 
 local M = {}
@@ -50,6 +51,18 @@ function M.View(name, ns, kind)
 
   builder:splitData()
   builder:addHints(hints, false, false, false)
+  if cache.cached_api_resources.timestamp and not cache.loading then
+    local time = os.date("%H:%M:%S", cache.cached_api_resources.timestamp)
+    local line = "Cache refreshed at: " .. time
+    table.insert(builder.header.marks, {
+      row = #builder.header.data,
+      start_col = 0,
+      end_col = #line,
+      hl_group = hl.symbols.gray,
+    })
+    table.insert(builder.header.data, line)
+  end
+
   builder:setContentRaw()
 
   -- set fold options
