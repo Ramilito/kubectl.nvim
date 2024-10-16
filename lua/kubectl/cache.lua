@@ -4,18 +4,18 @@ local logger = require("kubectl.utils.logging")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
-local M = { handles = nil, loading = false, cached_api_resources = { values = {}, shortNames = {}, timestamp = nil } }
+local M = { handles = nil, loading = false, timestamp = nil, cached_api_resources = { values = {}, shortNames = {} } }
 
 local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
-M.LoadFallbackData = function(force)
+M.LoadFallbackData = function(force, callback)
   if force and not M.loading or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
     M.cached_api_resources.values = {}
     M.cached_api_resources.shortNames = {}
 
-    M.load_cache(M.cached_api_resources)
-    M.cached_api_resources.timestamp = os.time()
+    M.load_cache(M.cached_api_resources, callback)
+    M.timestamp = os.time()
   end
 end
 

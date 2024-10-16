@@ -6,7 +6,7 @@ function M.capitalize(str)
 end
 
 ---@param buf number The buffer number.
----@param char string The divider.
+---@param char string|nil The divider.
 function M.divider(buf, char)
   if not char then
     char = "-"

@@ -2,16 +2,25 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local cache = require("kubectl.cache")
 local definition = require("kubectl.views.lineage.definition")
 local hl = require("kubectl.actions.highlight")
-local logger = require("kubectl.utils.logging")
+local mappings = require("kubectl.mappings")
+local view = require("kubectl.views")
 
-local M = {}
+local M = {
+  selection = {},
+}
 
 function M.View(name, ns, kind)
+  M.selection.name = name
+  M.selection.ns = ns
+  M.selection.kind = kind
+
   local builder = ResourceBuilder:new(definition.resource)
   builder:displayFloatFit(definition.ft, definition.resource, definition.syntax)
+  M.set_keymaps(builder.buf_nr)
 
   local hints = {
     { key = "<Plug>(kubectl.select)", desc = "go to" },
+    { key = "<Plug>(kubectl.refresh)", desc = "refresh cache" },
   }
 
   builder.data = { "Associated Resources: " }
@@ -51,8 +60,8 @@ function M.View(name, ns, kind)
 
   builder:splitData()
   builder:addHints(hints, false, false, false)
-  if cache.cached_api_resources.timestamp and not cache.loading then
-    local time = os.date("%H:%M:%S", cache.cached_api_resources.timestamp)
+  if cache.timestamp and not cache.loading then
+    local time = os.date("%H:%M:%S", cache.timestamp)
     local line = "Cache refreshed at: " .. time
     table.insert(builder.header.marks, {
       row = #builder.header.data,
@@ -86,6 +95,46 @@ function M.View(name, ns, kind)
     "%!v:lua.kubectl_get_statuscol()",
     { scope = "local", win = builder.win_nr }
   )
+end
+
+function M.set_keymaps(bufnr)
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Select",
+    callback = function()
+      local kind, name, ns = M.getCurrentSelection()
+      if name and ns then
+        vim.api.nvim_set_option_value("modified", false, { buf = 0 })
+        vim.cmd.close()
+
+        view.view_or_fallback(kind)
+      else
+        vim.api.nvim_err_writeln("Failed to select resource.")
+      end
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.refresh)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Refresh",
+    callback = function()
+      cache.LoadFallbackData(true, function()
+        vim.schedule(function()
+          vim.cmd.close()
+          M.View(M.selection.name, M.selection.ns, M.selection.kind)
+        end)
+      end)
+      vim.cmd.close()
+      M.View(M.selection.name, M.selection.ns, M.selection.kind)
+    end,
+  })
+
+  vim.schedule(function()
+    mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
+    mappings.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
+  end)
 end
 
 --- Get current seletion for view
