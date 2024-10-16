@@ -2,11 +2,11 @@ local M = {}
 
 ---@param str string
 function M.capitalize(str)
-    if str and #str > 0 then
-        return str:sub(1, 1):upper() .. str:sub(2)
-    else
-        return str
-    end
+  if str and #str > 0 then
+    return str:sub(1, 1):upper() .. str:sub(2)
+  else
+    return str
+  end
 end
 
 ---@param buf number The buffer number.
