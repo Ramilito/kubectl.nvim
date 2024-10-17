@@ -32,6 +32,15 @@ end
 
 local function getContainerData(row, key)
   local containers = {}
+  if
+    not row.spec
+    or not row.spec.jobTemplate
+    or not row.spec.jobTemplate.spec.template
+    or not row.spec.jobTemplate.spec.template.spec
+    or not row.spec.jobTemplate.spec.template.spec.containers
+  then
+    return ""
+  end
   for _, container in ipairs(row.spec.jobTemplate.spec.template.spec.containers) do
     table.insert(containers, container[key])
   end

@@ -85,6 +85,9 @@ end
 ---@param startAt number
 ---@return table[]
 function M.filter_line(array, patterns, startAt)
+  if not array then
+    array = {}
+  end
   if not patterns or patterns == "" then
     return array
   end
