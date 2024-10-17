@@ -124,25 +124,71 @@ function M.set_keymaps(bufnr)
 end
 
 function M.set_folding(win_nr)
-  -- set fold options
-  vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("foldenable", true, { win = win_nr })
-  vim.api.nvim_set_option_value("foldtext", "", { win = win_nr })
-  vim.api.nvim_set_option_value("foldcolumn", "1", { win = win_nr })
+  -- Set fold options using nvim_set_option_value
+  vim.api.nvim_set_option_value("foldmethod", "expr", { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("foldexpr", "v:lua.kubectl_fold_expr(v:lnum)", { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("foldenable", true, { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("foldtext", "", { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("foldcolumn", "1", { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("shiftwidth", 4, { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("tabstop", 4, { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("expandtab", false, { scope = "local", win = win_nr })
+
+  -- Corrected fold expression function
+  _G.kubectl_fold_expr = function(lnum)
+    local shiftwidth = vim.api.nvim_get_option_value("shiftwidth", { scope = "local", win = win_nr })
+    shiftwidth = shiftwidth > 0 and shiftwidth or 1
+
+    local indent = vim.fn.indent(lnum)
+    local level = math.floor(indent / shiftwidth)
+
+    return level
+  end
 
   local fcs = { foldclose = "", foldopen = "" }
-  local function get_fold(lnum)
-    if vim.fn.foldlevel(lnum) <= vim.fn.foldlevel(lnum - 1) then
-      return " "
+
+  -- Updated fold start detection function
+  local function kubectl_is_fold_start(lnum)
+    if lnum == 1 then
+      return false
     end
-    return vim.fn.foldclosed(lnum) == -1 and fcs.foldopen or fcs.foldclose
+
+    local shiftwidth = vim.api.nvim_get_option_value("shiftwidth", { scope = "local", win = win_nr })
+    shiftwidth = shiftwidth > 0 and shiftwidth or 1
+
+    local current_indent = vim.fn.indent(lnum)
+    local prev_indent = vim.fn.indent(lnum - 1)
+
+    local current_level = math.floor(current_indent / shiftwidth)
+    local prev_level = math.floor(prev_indent / shiftwidth)
+
+    return current_level > prev_level
   end
+
+  -- Function to get the appropriate fold icon
+  local function get_fold(lnum)
+    if kubectl_is_fold_start(lnum) then
+      local fold_closed = vim.fn.foldclosed(lnum)
+      if fold_closed == -1 then
+        -- Fold is open
+        return fcs.foldopen
+      else
+        -- Fold is closed
+        return fcs.foldclose
+      end
+    else
+      -- Not the start of a fold, no icon
+      return "  "
+    end
+  end
+
+  -- Define the status column function
   _G.kubectl_get_statuscol = function()
-    return "%s%l " .. get_fold(vim.v.lnum) .. " "
+    return string.format("%s%3d %s", " ", vim.v.lnum, get_fold(vim.v.lnum))
   end
+
   vim.api.nvim_set_option_value("statuscolumn", "%!v:lua.kubectl_get_statuscol()", { scope = "local", win = win_nr })
 end
-
 --- Get current seletion for view
 function M.getCurrentSelection()
   local line = vim.api.nvim_get_current_line()
