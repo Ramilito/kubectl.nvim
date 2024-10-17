@@ -1,4 +1,5 @@
-# kubectl.nvim
+
+# ![kubernetes (1)](https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91) kubectl.nvim
 
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 
