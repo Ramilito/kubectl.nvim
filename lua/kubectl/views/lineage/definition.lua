@@ -1,6 +1,5 @@
 local Tree = require("kubectl.views.lineage.tree")
 local hl = require("kubectl.actions.highlight")
-local logger = require("kubectl.utils.logging")
 local state = require("kubectl.state")
 local M = {
   resource = "lineage",
