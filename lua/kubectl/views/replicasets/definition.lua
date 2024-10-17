@@ -4,8 +4,8 @@ local M = {
   ft = "k8s_replicasets",
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}replicasets?pretty=false" },
   hints = {
-    { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change deployment image" },
-    { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },
+    { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change replicaset image" },
+    { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected replicaset" },
     { key = "<Plug>(kubectl.scale)", desc = "scale", long_desc = "Scale replicas" },
     { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
   },
