@@ -7,6 +7,7 @@ local definition = require("kubectl.views.containers.definition")
 local M = {
   selection = {},
   log_since = config.options.logs.since,
+  show_previous = "false",
 }
 
 function M.selectContainer(name)
@@ -46,13 +47,16 @@ function M.logs(pod, ns, reload)
         .. M.selection
         .. "&pretty=true"
         .. "&sinceSeconds="
-        .. M.log_since,
+        .. M.log_since
+        .. "&previous="
+        .. M.show_previous,
     },
     syntax = "less",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
+      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. M.show_previous .. "]" },
     },
   }, { reload = reload })
 end
