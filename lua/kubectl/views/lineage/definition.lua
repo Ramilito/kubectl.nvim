@@ -26,7 +26,8 @@ function M.collect_all_resources(data_sample)
 end
 
 function M.build_graph(data)
-  local tree = Tree:new({ kind = "cluster", name = state.getContext() }) -- Root node could be cluster or any top-level entity
+  local context = state.getContext()
+  local tree = Tree:new({ kind = "cluster", name = context.clusters[1].name })
 
   for _, item in ipairs(data) do
     tree:add_node(item)
