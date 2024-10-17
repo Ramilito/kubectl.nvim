@@ -11,10 +11,11 @@ local M = {
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
-local function getPorts(ports)
-  if not ports then
+local function getPorts(row)
+  if not row or not row.spec or not row.spec.ports then
     return ""
   end
+  local ports = row.spec.ports
   local string_ports = ""
   for index, value in ipairs(ports) do
     string_ports = string_ports .. value.port .. "/" .. value.protocol
@@ -26,7 +27,8 @@ local function getPorts(ports)
   return string_ports
 end
 
-local function getType(type)
+local function getType(row)
+  local type = row and row.spec and row.spec.type or ""
   local typeColor = {
     ClusterIP = "",
     NodePort = hl.symbols.debug,
@@ -37,7 +39,7 @@ local function getType(type)
 end
 
 local function getClusterIP(row)
-  local clusterIP = row.spec.clusterIP or "<none>"
+  local clusterIP = row and row.spec and row.spec.clusterIP or "<none>"
   if clusterIP == "None" then
     clusterIP = "<none>"
   end
@@ -45,10 +47,7 @@ local function getClusterIP(row)
 end
 
 local function lbIngressIPs(row)
-  local ingress = row.status and row.status.loadBalancer and row.status.loadBalancer.ingress
-  if not ingress then
-    return {}
-  end
+  local ingress = row and row.status and row.status.loadBalancer and row.status.loadBalancer.ingress or {}
   local result = {}
   for _, v in ipairs(ingress) do
     table.insert(result, v.ip or v.hostname)
@@ -57,7 +56,7 @@ local function lbIngressIPs(row)
 end
 
 local function getExternalIP(row)
-  local svcType = row.spec.type
+  local svcType = row and row.spec and row.spec.type or ""
   local final_res = {}
 
   if svcType == "ClusterIP" then
@@ -94,10 +93,10 @@ function M.processRow(rows)
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
-      type = getType(row.spec.type),
+      type = getType(row),
       ["cluster-ip"] = getClusterIP(row),
       ["external-ip"] = getExternalIP(row),
-      ports = getPorts(row.spec.ports),
+      ports = getPorts(row),
       age = time.since(row.metadata.creationTimestamp),
     }
 
