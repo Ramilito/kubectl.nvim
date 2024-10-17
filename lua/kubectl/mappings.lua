@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local config = require("kubectl.config")
 local viewsTable = require("kubectl.utils.viewsTable")
 local event_handler = require("kubectl.actions.eventhandler").handler
 local buffers = require("kubectl.actions.buffers")
@@ -247,7 +248,6 @@ function M.register()
     silent = true,
     desc = "Toggle headers",
     callback = function()
-      local config = require("kubectl.config")
       config.options.headers = not config.options.headers
     end,
   })
@@ -397,6 +397,22 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.lineage)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Application lineage",
+    callback = function()
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view = require("kubectl.views")
+      local current_view, _ = view.view_and_definition(string.lower(vim.trim(buf_name)))
+
+      local name, ns = current_view.getCurrentSelection()
+      local lineage_view = require("kubectl.views.lineage")
+
+      lineage_view.View(name, ns, buf_name)
+    end,
+  })
+
   vim.schedule(function()
     -- Global mappings
     if win_config.relative == "" then
@@ -429,6 +445,10 @@ function M.register()
     M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
     M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
     M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
+
+    if config.options.lineage.enabled then
+      M.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.lineage)")
+    end
   end)
 end
 return M
