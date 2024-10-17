@@ -51,8 +51,10 @@ function Tree:new(root_resource)
   local tree = {
     root = TreeNode:new(root_resource),
     nodes_by_key = {}, -- Lookup table for nodes by unique key
+    nodes_list = {}, -- Ordered list of nodes
   }
   tree.nodes_by_key[tree.root.key] = tree.root -- Add root node to lookup
+  table.insert(tree.nodes_list, tree.root) -- Add root node to list
   setmetatable(tree, Tree)
   return tree
 end
@@ -68,11 +70,16 @@ function Tree:add_node(resource)
   -- Create a new node and add it to the lookup table
   local new_node = TreeNode:new(resource)
   self.nodes_by_key[new_node.key] = new_node
+  table.insert(self.nodes_list, new_node) -- Add to nodes_list
 end
 
 function Tree:link_nodes()
+  table.sort(self.nodes_list, function(a, b)
+    return a.key < b.key
+  end)
+
   -- First, handle ownership relationships
-  for _, node in pairs(self.nodes_by_key) do
+  for _, node in ipairs(self.nodes_list) do
     -- Skip the root node
     if node == self.root then
       node.is_linked = true
@@ -102,7 +109,7 @@ function Tree:link_nodes()
       end
 
       if resource.selectors then
-        for _, potential_child in pairs(self.nodes_by_key) do
+        for _, potential_child in ipairs(self.nodes_list) do
           if potential_child ~= node then -- Avoid self
             local potential_child_resource = potential_child.resource
             if potential_child_resource.labels then
@@ -127,7 +134,9 @@ function Tree:link_nodes()
         for _, relation in ipairs(resource.relations) do
           local leaf_key = get_resource_key(relation)
           local leaf_node = self.nodes_by_key[leaf_key]
-          node:add_leaf(leaf_node)
+          if leaf_node then
+            node:add_leaf(leaf_node)
+          end
         end
       end
     end
@@ -195,6 +204,11 @@ function Tree:get_related_items(node_key)
   add_node(node)
   collect_descendants(node)
   collect_leafs(node)
+
+  -- Sort related_nodes by node.key before returning
+  table.sort(related_nodes, function(a, b)
+    return a.key < b.key
+  end)
 
   return related_nodes
 end
