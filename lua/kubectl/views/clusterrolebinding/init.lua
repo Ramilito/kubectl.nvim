@@ -15,11 +15,6 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
-function M.Edit(name)
-  buffers.floating_buffer("k8s_clusterrolebinding_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "clusterrolebinding/" .. name })
-end
-
 function M.Desc(name, _, reload)
   ResourceBuilder:view_float({
     resource = "clusterrolebinding_desc_" .. name,

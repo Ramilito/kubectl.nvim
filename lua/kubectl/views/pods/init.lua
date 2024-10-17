@@ -120,11 +120,6 @@ function M.Logs(reload)
   ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
 end
 
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_pod_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", ns })
-end
-
 function M.Desc(name, ns, reload)
   local def = {
     resource = "pods_desc_" .. name .. "_" .. ns,

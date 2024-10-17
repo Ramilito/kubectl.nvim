@@ -24,11 +24,6 @@ function M.Desc(name, ns, reload)
   }, { cmd = "kubectl", reload = reload })
 end
 
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_deployment_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "deployments/" .. name, "-n", ns })
-end
-
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
