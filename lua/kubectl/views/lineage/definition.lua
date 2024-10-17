@@ -81,15 +81,16 @@ function M.build_display_lines(tree, selected_node_key)
     local hlgroup = node.key == selected_node_key and hl.symbols.success_bold or hl.symbols.white_bold
 
     -- Insert marks for highlighting
-    table.insert(marks, {
-      row = #lines,
-      start_col = #indent + #key_values[1] + #key_values[2] + 3,
-      end_col = #line,
-      hl_group = hlgroup,
-    })
-
-    -- Insert the line into the output
-    table.insert(lines, line)
+    if line then
+      table.insert(marks, {
+        row = #lines,
+        start_col = #indent + #key_values[1] + #key_values[2] + 3,
+        end_col = #line,
+        hl_group = hlgroup,
+      })
+      -- Insert the line into the output
+      table.insert(lines, line)
+    end
 
     -- Recursively process the children if they are in the related nodes list
     for _, child in ipairs(node.children) do

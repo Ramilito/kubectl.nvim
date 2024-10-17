@@ -7,25 +7,30 @@ local view = require("kubectl.views")
 
 local M = {
   selection = {},
+  builder = nil,
 }
 
 function M.View(name, ns, kind)
+  M.builder = nil
   M.selection.name = name
   M.selection.ns = ns
   M.selection.kind = kind
 
-  local builder = ResourceBuilder:new(definition.resource)
-  builder:displayFloatFit(definition.ft, definition.resource, definition.syntax)
+  M.builder = ResourceBuilder:new(definition.resource)
+  M.builder:displayFloatFit(definition.ft, definition.resource, definition.syntax)
+  M.Draw()
+end
 
-  local hints = {
-    { key = "<Plug>(kubectl.select)", desc = "go to" },
-    { key = "<Plug>(kubectl.refresh)", desc = "refresh cache" },
-  }
+function M.Draw()
+  if vim.api.nvim_get_current_buf() ~= M.builder.buf_nr then
+    return
+  end
 
-  builder.data = { "Associated Resources: " }
+  local kind, ns, name = M.selection.kind, M.selection.ns, M.selection.name
+  M.builder.data = { "Associated Resources: " }
   if cache.loading then
-    table.insert(builder.data, "")
-    table.insert(builder.data, "Cache still loading...")
+    table.insert(M.builder.data, "")
+    table.insert(M.builder.data, "Cache still loading...")
   else
     local data = definition.collect_all_resources(cache.cached_api_resources.values)
     local graph = definition.build_graph(data)
@@ -54,34 +59,38 @@ function M.View(name, ns, kind)
     end
     selected_key = selected_key .. "/" .. name
 
-    builder.data, builder.extmarks = definition.build_display_lines(graph, selected_key)
+    M.builder.data, M.builder.extmarks = definition.build_display_lines(graph, selected_key)
   end
 
-  builder:splitData()
+  M.builder:splitData()
 
-  M.set_keymaps(builder.buf_nr)
+  M.set_keymaps(M.builder.buf_nr)
 
   vim.schedule(function()
     mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
     mappings.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
-    builder:addHints(hints, false, false, false)
+    M.builder:addHints({
+      { key = "<Plug>(kubectl.select)", desc = "go to" },
+      { key = "<Plug>(kubectl.refresh)", desc = "refresh cache" },
+    }, false, false, false)
     if cache.timestamp and not cache.loading then
       local time = os.date("%H:%M:%S", cache.timestamp)
       local line = "Cache refreshed at: " .. time
-      table.insert(builder.header.marks, {
-        row = #builder.header.data,
+      table.insert(M.builder.header.marks, {
+        row = #M.builder.header.data or 0,
         start_col = 0,
         end_col = #line,
         hl_group = hl.symbols.gray,
       })
-      table.insert(builder.header.data, line)
+      table.insert(M.builder.header.data, line)
     end
-    builder:setContentRaw()
+
+    M.builder:setContentRaw()
     -- set fold options
-    vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = builder.win_nr })
-    vim.api.nvim_set_option_value("foldenable", true, { win = builder.win_nr })
-    vim.api.nvim_set_option_value("foldtext", "", { win = builder.win_nr })
-    vim.api.nvim_set_option_value("foldcolumn", "1", { win = builder.win_nr })
+    vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = M.builder.win_nr })
+    vim.api.nvim_set_option_value("foldenable", true, { win = M.builder.win_nr })
+    vim.api.nvim_set_option_value("foldtext", "", { win = M.builder.win_nr })
+    vim.api.nvim_set_option_value("foldcolumn", "1", { win = M.builder.win_nr })
 
     local fcs = { foldclose = "", foldopen = "" }
     local function get_fold(lnum)
@@ -96,7 +105,7 @@ function M.View(name, ns, kind)
     vim.api.nvim_set_option_value(
       "statuscolumn",
       "%!v:lua.kubectl_get_statuscol()",
-      { scope = "local", win = builder.win_nr }
+      { scope = "local", win = M.builder.win_nr }
     )
   end)
 end
@@ -126,12 +135,9 @@ function M.set_keymaps(bufnr)
     callback = function()
       cache.LoadFallbackData(true, function()
         vim.schedule(function()
-          vim.cmd.close()
-          M.View(M.selection.name, M.selection.ns, M.selection.kind)
+          M.Draw()
         end)
       end)
-      vim.cmd.close()
-      M.View(M.selection.name, M.selection.ns, M.selection.kind)
     end,
   })
 end
