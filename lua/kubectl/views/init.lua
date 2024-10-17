@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
+local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
@@ -10,56 +11,6 @@ local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 
 local M = {}
-
-M.cached_api_resources = { values = {}, shortNames = {}, timestamp = nil }
-
-local one_day_in_seconds = 24 * 60 * 60
-local current_time = os.time()
-
-M.LoadFallbackData = function(force)
-  if force or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
-    M.cached_api_resources.values = {}
-    M.cached_api_resources.shortNames = {}
-
-    local cmds = {
-      { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
-      { cmd = "kubectl", args = { "get", "--raw", "/apis" } },
-    }
-    ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
-      self:decodeJson()
-      definition.process_apis("api", "", "v1", self.data[1], M.cached_api_resources)
-
-      if self.data[2].groups == nil then
-        return
-      end
-      local group_cmds = {}
-      for _, group in ipairs(self.data[2].groups) do
-        local group_name = group.name
-        local group_version = group.preferredVersion.groupVersion
-
-        -- Skip if name contains 'metrics.k8s.io'
-        if not string.find(group.name, "metrics.k8s.io") then
-          table.insert(group_cmds, {
-            group_name = group_name,
-            group_version = group_version,
-            cmd = "kubectl",
-            args = { "get", "--raw", "/apis/" .. group_version },
-          })
-        end
-      end
-
-      self:fetchAllAsync(group_cmds, function(results)
-        for _, value in ipairs(results.data) do
-          self.data = value
-          self:decodeJson()
-          definition.process_apis("apis", "", self.data.groupVersion, self.data, M.cached_api_resources)
-        end
-      end)
-    end)
-
-    M.timestamp = os.time()
-  end
-end
 
 --- Generate hints and display them in a floating buffer
 ---@alias Hint { key: string, desc: string, long_desc: string }
@@ -80,6 +31,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.sort)", desc = "Sort column" },
     { key = "<Plug>(kubectl.edit)", desc = "Edit resource" },
     { key = "<Plug>(kubectl.toggle_headers)", desc = "Toggle headers" },
+    { key = "<Plug>(kubectl.lineage)", desc = "View Lineage" },
     { key = "<Plug>(kubectl.refresh)", desc = "Refresh view" },
     { key = "<Plug>(kubectl.view_deployments)", desc = "Deployments" },
     { key = "<Plug>(kubectl.view_pods)", desc = "Pods" },
@@ -141,7 +93,7 @@ end
 function M.Aliases()
   local self = ResourceBuilder:new("aliases")
   local viewsTable = require("kubectl.utils.viewsTable")
-  self.data = M.cached_api_resources.values
+  self.data = cache.cached_api_resources.values
   self:splitData():decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
 
@@ -153,7 +105,7 @@ function M.Aliases()
 
   completion.with_completion(buf, self.data, function()
     -- We reassign the cache since it can be slow to load
-    self.data = M.cached_api_resources.values
+    self.data = cache.cached_api_resources.values
     self:splitData():decodeJson()
     self.data = definition.merge_views(self.data, viewsTable)
   end)

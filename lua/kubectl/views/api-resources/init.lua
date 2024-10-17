@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local cache = require("kubectl.cache")
 local definition = require("kubectl.views.api-resources.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -14,7 +15,7 @@ function M.View(cancellationToken)
   self:display(definition.ft, definition.resource, cancellationToken)
 
   state.instance = self
-  local cached_resources = require("kubectl.views").cached_api_resources
+  local cached_resources = cache.cached_api_resources
   self.data = cached_resources and cached_resources.values or {}
 
   vim.schedule(function()
@@ -24,7 +25,7 @@ end
 
 function M.Draw(cancellationToken)
   if #state.instance.data == 0 then
-    local cached_resources = require("kubectl.views").cached_api_resources
+    local cached_resources = cache.cached_api_resources
     if #vim.tbl_keys(cached_resources.values) > 0 then
       state.instance.data = cached_resources.values
     end
