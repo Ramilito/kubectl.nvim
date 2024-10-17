@@ -327,7 +327,7 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   end
 
   -- Add versions
-  if config.options.kubernetes_versions then
+  if include_context and config.options.kubernetes_versions then
     vim.list_extend(items, addVersionsRows(state.getVersions()))
   end
 
@@ -360,7 +360,8 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   end
 
   -- Add heartbeat
-  if config.options.heartbeat then
+  -- TODO: heartbeat should have it's own config option
+  if include_context and config.options.heartbeat then
     if #hints == 0 then
       hints = { "\n" }
     end
