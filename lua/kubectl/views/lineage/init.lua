@@ -86,6 +86,9 @@ function M.Draw()
     end
 
     M.builder:setContentRaw()
+
+    collectgarbage("collect")
+
     -- set fold options
     vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = M.builder.win_nr })
     vim.api.nvim_set_option_value("foldenable", true, { win = M.builder.win_nr })
