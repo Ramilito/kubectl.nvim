@@ -48,7 +48,7 @@ function M.View(cancellationToken, resource)
     definition.cmd = "kubectl"
 
     -- cached resources fallback values
-    local cached_resources = require("kubectl.views").cached_api_resources
+    local cached_resources = require("kubectl.cache").cached_api_resources
     local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
     if resource_name and not M.configured_curl then
       definition.resource = resource_name
