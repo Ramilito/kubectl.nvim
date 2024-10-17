@@ -15,14 +15,6 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
---- Edit a configmap
----@param name string
----@param namespace string
-function M.Edit(name, namespace)
-  buffers.floating_buffer("k8s_configmap_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "configmaps/" .. name, "-n", namespace })
-end
-
 --- Describe a configmap
 ---@param name string
 ---@param ns string

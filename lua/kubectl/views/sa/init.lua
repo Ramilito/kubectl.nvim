@@ -15,11 +15,6 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_sa_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "sa/" .. name, "-n", ns })
-end
-
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = "sa_desc_" .. name .. "_" .. ns,
