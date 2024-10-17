@@ -175,6 +175,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.wrap)", "gw", opts) -- Toggle wrap log lines
     k("n", "<Plug>(kubectl.prefix)", "gp", opts) -- Toggle container name prefix
     k("n", "<Plug>(kubectl.timestamps)", "gt", opts) -- Toggle timestamps prefix
+    k("n", "<Plug>(kubectl.previous_logs)", "gpp", opts) -- Toggle show previous logs
 
     -- Node actions
     k("n", "<Plug>(kubectl.cordon)", "gC", opts) -- Cordon node
