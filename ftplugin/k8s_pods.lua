@@ -43,6 +43,37 @@ local function set_keymaps(bufnr)
     end,
   })
 
+  api.nvim_buf_set_keymap(bufnr, "v", "<Plug>(kubectl.kill)", "", {
+    noremap = true,
+    silent = true,
+    desc = "delete pod",
+    callback = function()
+      local rows = pod_view.getCurrentSelection()
+      if not rows then
+        return
+      end
+
+      for _, row in ipairs(rows) do
+        local name, ns = unpack(row)
+        if name and ns then
+          local port_forwards = {}
+          root_definition.getPFData(port_forwards, false, "pods")
+          for _, pf in ipairs(port_forwards) do
+            if pf.resource == name then
+              vim.notify("Killing port forward for " .. pf.resource)
+              commands.shell_command_async("kill", { pf.pid })
+            end
+          end
+          vim.notify("Deleting pod " .. name)
+          commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
+          pod_view.Draw()
+        else
+          api.nvim_err_writeln("Failed to select pod.")
+        end
+      end
+    end,
+  })
+
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
     silent = true,
@@ -190,4 +221,5 @@ vim.schedule(function()
   mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
   mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
   mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+  mappings.map_if_plug_not_set("v", "gk", "<Plug>(kubectl.kill)")
 end)

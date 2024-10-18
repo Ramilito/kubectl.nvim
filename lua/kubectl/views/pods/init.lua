@@ -133,9 +133,14 @@ function M.Desc(name, ns, reload)
 end
 
 --- Get current seletion for view
----@return string|nil
 function M.getCurrentSelection()
-  return tables.getCurrentSelection(2, 1)
+  local mode = vim.fn.mode()
+
+  if mode == "V" then
+    return tables.getCurrentVisualSelection(2, 1)
+  else
+    return tables.getCurrentSelection(2, 1)
+  end
 end
 
 return M
