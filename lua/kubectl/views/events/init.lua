@@ -1,5 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
 local definition = require("kubectl.views.events.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -15,8 +14,15 @@ function M.Draw(cancellationToken)
 end
 
 function M.ShowMessage(event)
-  local buf = buffers.floating_buffer("event_msg", "Message", "less")
-  buffers.set_content(buf, { content = vim.split(event, "\n"), {}, {} })
+  local builder = ResourceBuilder:new("event_msg")
+  builder:displayFloatFit("k8s_event_msg", "Message", "less")
+  builder:addHints({ {
+    key = "<Plug>(kubectl.quit)",
+    desc = "quit",
+  } }, false, false, false)
+  builder.data = vim.split(event, "\n")
+  builder:setContentRaw()
+  vim.api.nvim_set_option_value("wrap", true, { win = builder.win_nr })
 end
 
 function M.Desc(name, ns, reload)
