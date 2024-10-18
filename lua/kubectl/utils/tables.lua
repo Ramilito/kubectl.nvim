@@ -1,6 +1,7 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
+local string_utils = require("kubectl.utils.string")
 local time = require("kubectl.utils.time")
 local M = {}
 
@@ -475,9 +476,27 @@ function M.pretty_print(data, headers, sort_by)
   return tbl, extmarks
 end
 
+function M.getCurrentVisualSelection(...)
+  local indices = { ... }
+  local results = {}
+  local lines = vim.split(string_utils.get_visual_selection(), "\n")
+
+  for _, line in ipairs(lines) do
+    local columns = vim.split(line, "%s%s+")
+
+    local row = {}
+    for i = 1, #indices do
+      local index = indices[i]
+      local trimmed = vim.trim(columns[index])
+      table.insert(row, trimmed)
+    end
+    table.insert(results, row)
+  end
+
+  return results
+end
+
 --- Get the current selection from the buffer
----@vararg number
----@return string|nil
 function M.getCurrentSelection(...)
   local line_number = vim.api.nvim_win_get_cursor(0)[1]
   if line_number <= state.content_row_start then
