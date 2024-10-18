@@ -29,11 +29,24 @@ local function getReady(row)
       end
     end
   end
-  if readyCount == containers then
-    status.symbol = hl.symbols.note
-  else
-    status.symbol = hl.symbols.deprecated
+  local isJob = false
+  if row.metadata.ownerReferences and row.metadata.ownerReferences[1].kind then
+    isJob = row.metadata.ownerReferences[1].kind == "Job"
   end
+  if readyCount == containers then
+    if isJob then
+      status.symbol = hl.symbols.deprecated
+    else
+      status.symbol = hl.symbols.note
+    end
+  else
+    if isJob then
+      status.symbol = hl.symbols.note
+    else
+      status.symbol = hl.symbols.deprecated
+    end
+  end
+
   status.value = readyCount .. "/" .. containers
   status.sort_by = (readyCount * 1000) + containers
   return status
@@ -191,6 +204,9 @@ function M.processRow(rows)
   local currentTime = time.currentTime()
   if rows and rows.items then
     for i = 1, #rows.items do
+      -- Set managedFields to nil so the garbage collector can free up the memory
+      rows.items[i].metadata.managedFields = nil
+
       local row = rows.items[i]
       data[i] = {
         namespace = row.metadata.namespace,
