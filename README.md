@@ -63,6 +63,12 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <summary>Overview</summary>
   <img src="https://github.com/user-attachments/assets/cb1f46be-fcc0-4a6d-9d1e-ffcd5bdb32b3" width="700px">
 </details>
+<details>
+  <summary>Lineage</summary>
+  <sub>A plugin similar to <a href="https://github.com/tohjustin/kube-lineage/tree/master">kube-lineage</a></sub>
+  <sub>⚠️ This is a beta feature and not all bugs are sorted out</sub>
+  <img src="https://github.com/user-attachments/assets/6c170724-d86d-46a7-af98-2862c45bcd01" width="700px">
+</details>
 
 ## ⚡️ Required Dependencies
 
@@ -220,6 +226,9 @@ vim.api.nvim_create_autocmd("FileType", {
   context = true,
   heartbeat = true,
   kubernetes_versions = true,
+  lineage = {
+    enabled = false, -- This feature is in beta at the moment
+  },
   logs = {
     prefix = true,
     timestamps = true,
