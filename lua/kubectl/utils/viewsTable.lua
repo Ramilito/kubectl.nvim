@@ -6,6 +6,7 @@ return {
   ["api-resources"] = { "api-resources", "apiresources" },
   pods = { "pods", "pod", "po" },
   deployments = { "deployments", "deployment", "deploy", "deployments.apps" },
+  replicasets = { "replicasets", "replicaset", "rs", "replicasets.apps" },
   daemonsets = { "daemonsets", "daemonset", "ds", "daemonsets.apps" },
   jobs = { "jobs", "job", "jo", "jobs.batch" },
   cronjobs = { "cronjobs", "cronjob", "cj", "cronjobs.batch" },

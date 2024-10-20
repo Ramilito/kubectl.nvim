@@ -10,6 +10,7 @@ local M = {}
 ---@field context boolean
 ---@field heartbeat boolean
 ---@field kubernetes_versions boolean
+---@field lineage { enabled: boolean }
 ---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
@@ -37,6 +38,9 @@ local defaults = {
   heartbeat = true,
 
   kubernetes_versions = true,
+  lineage = {
+    enabled = false,
+  },
   logs = {
     prefix = true,
     timestamps = true,

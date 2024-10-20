@@ -13,6 +13,20 @@ local function set_keymaps(bufnr)
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.previous_logs)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Previous logs",
+    callback = function()
+      if pod_view.show_previous == "true" then
+        pod_view.show_previous = "false"
+      else
+        pod_view.show_previous = "true"
+      end
+      pod_view.Logs(false)
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.wrap)", "", {
     noremap = true,
     silent = true,
@@ -86,4 +100,5 @@ vim.schedule(function()
   mappings.map_if_plug_not_set("n", "gt", "<Plug>(kubectl.timestamps)")
   mappings.map_if_plug_not_set("n", "gh", "<Plug>(kubectl.history)")
   mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
+  mappings.map_if_plug_not_set("n", "gpp", "<Plug>(kubectl.previous_logs)")
 end)

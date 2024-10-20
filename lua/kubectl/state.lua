@@ -64,17 +64,34 @@ function M.setup()
 
     M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
+    M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
-      M.checkHealth()
+      M.checkVersions()
+      M.checkHealth(function()
+        if
+          M.versions.client.major == 0
+          or M.versions.server.major == 0
+          or M.versions.client.minor == 0
+          or M.versions.server.minor == 0
+        then
+          M.checkVersions()
+        end
+      end)
     end)
   end)
+end
+
+function M.checkVersions()
   -- get client and server version
   commands.shell_command_async("kubectl", { "version", "--output", "json" }, function(data)
     local result = decode(data)
     if result then
       local clientVersion = result.clientVersion.gitVersion
       local serverVersion = result.serverVersion.gitVersion
+      if not clientVersion or not serverVersion then
+        return
+      end
       M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
       M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
       M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
@@ -83,7 +100,7 @@ function M.setup()
   end)
 end
 
-function M.checkHealth()
+function M.checkHealth(cb)
   local timer = vim.uv.new_timer()
   local ResourceBuilder = require("kubectl.resourcebuilder")
   local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
@@ -94,6 +111,9 @@ function M.checkHealth()
         if self.data == "ok" then
           M.livez.ok = true
           M.livez.time_of_ok = os.time()
+          if cb then
+            cb()
+          end
         else
           M.livez.ok = false
         end

@@ -65,9 +65,9 @@ function M.user_command_completion(_, cmd)
   if #parts == 1 then
     return top_level_commands
   elseif #parts == 2 and parts[2] == "get" then
-    local view = require("kubectl.views")
+    local cache = require("kubectl.cache")
     local data = {}
-    for _, res in pairs(view.cached_api_resources.values) do
+    for _, res in pairs(cache.cached_api_resources.values) do
       table.insert(data, res.name)
     end
     return data

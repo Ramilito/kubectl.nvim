@@ -11,6 +11,9 @@ local M = {
 }
 
 local function get_ports(row)
+  if not row or not row.spec or not row.spec.rules then
+    return ""
+  end
   local ports = {}
 
   for _, rule in ipairs(row.spec.rules) do
@@ -47,14 +50,15 @@ local function get_hosts(row)
 end
 
 local function get_address(row)
+  if not row or not row.status or not row.status.loadBalancer or not row.status.loadBalancer.ingress then
+    return ""
+  end
   local addresses = {}
-  if row.status and row.status.loadBalancer and row.status.loadBalancer.ingress then
-    for _, ingress in ipairs(row.status.loadBalancer.ingress) do
-      if ingress.hostname then
-        table.insert(addresses, ingress.hostname)
-      elseif ingress.ip then
-        table.insert(addresses, ingress.ip)
-      end
+  for _, ingress in ipairs(row.status.loadBalancer.ingress) do
+    if ingress.hostname then
+      table.insert(addresses, ingress.hostname)
+    elseif ingress.ip then
+      table.insert(addresses, ingress.ip)
     end
   end
 
@@ -62,9 +66,12 @@ local function get_address(row)
 end
 
 local function get_class(row)
-  return row.spec.ingressClassName
-    or row.metadata.annotations and row.metadata.annotations["kubernetes.io/ingress.class"]
-    or ""
+  local class_name = row.spec and row.spec.ingressClassName
+  local class_annotation = row
+    and row.metadata
+    and row.metadata.annotations
+    and row.metadata.annotations["kubernetes.io/ingress.class"]
+  return class_name or class_annotation or ""
 end
 
 function M.processRow(rows)

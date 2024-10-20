@@ -19,11 +19,6 @@ function M.Draw(cancellationToken)
   root_definition.setPortForwards(state.instance.extmarks, state.instance.prettyData, M.pfs)
 end
 
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_service_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "services/" .. name, "-n", ns })
-end
-
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = "services_desc_" .. name .. "_" .. ns,

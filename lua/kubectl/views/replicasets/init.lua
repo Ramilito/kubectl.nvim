@@ -1,7 +1,7 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.sa.definition")
+local definition = require("kubectl.views.replicasets.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -17,9 +17,9 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "sa_desc_" .. name .. "_" .. ns,
+    resource = "replicasets_desc_" .. name .. "_" .. ns,
     ft = "k8s_desc",
-    url = { "describe", "sa", name, "-n", ns },
+    url = { "describe", "replicaset", name, "-n", ns },
     syntax = "yaml",
   }, { cmd = "kubectl", reload = reload })
 end

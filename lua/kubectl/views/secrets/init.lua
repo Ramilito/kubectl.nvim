@@ -15,11 +15,6 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_secret_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "secrets/" .. name, "-n", ns })
-end
-
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = "secrets_desc_" .. name .. "_" .. ns,

@@ -1,5 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.pods.definition")
@@ -14,6 +13,7 @@ local M = {
   show_log_prefix = tostring(config.options.logs.prefix),
   log_since = config.options.logs.since,
   show_timestamps = tostring(config.options.logs.timestamps),
+  show_previous = "false",
 }
 
 function M.View(cancellationToken)
@@ -92,6 +92,7 @@ function M.Logs(reload)
     ft = "k8s_pod_logs",
     url = {
       "logs",
+      "-p=" .. M.show_previous,
       "--all-containers=true",
       "--since=" .. M.log_since,
       "--prefix=" .. M.show_log_prefix,
@@ -104,9 +105,10 @@ function M.Logs(reload)
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
-      { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
-      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps" },
+      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. M.show_log_prefix .. "]" },
+      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. M.show_timestamps .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
+      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. M.show_previous .. "]" },
     },
   }
 
@@ -118,11 +120,6 @@ function M.Logs(reload)
     end)
   end
   ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
-end
-
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_pod_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", ns })
 end
 
 function M.Desc(name, ns, reload)
