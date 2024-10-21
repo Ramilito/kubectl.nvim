@@ -475,6 +475,8 @@ function M.pretty_print(data, headers, sort_by)
       current_col_position = current_col_position + #display_value
     end
     table.insert(tbl, table.concat(row_line, ""))
+
+    -- selections
   end
 
   return tbl, extmarks
@@ -512,6 +514,20 @@ function M.find_index(haystack, needle)
 end
 
 function M.find_resource(data, name, namespace)
+  if data.items then
+    return vim.iter(data.items):find(function(row)
+      return row.metadata.name == name and (namespace and row.metadata.namespace == namespace or true)
+    end)
+  end
+  if data.rows then
+    return vim.iter(data.rows):find(function(row)
+      return row.object.metadata.name == name and (namespace and row.object.metadata.namespace == namespace or true)
+    end).object
+  end
+  return nil
+end
+
+function M.find_processed_resource(data, name, namespace)
   if data.items then
     return vim.iter(data.items):find(function(row)
       return row.metadata.name == name and (namespace and row.metadata.namespace == namespace or true)

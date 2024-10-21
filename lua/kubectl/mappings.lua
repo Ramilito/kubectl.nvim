@@ -408,7 +408,22 @@ function M.register()
       local current_view, _ = view.view_and_definition(string.lower(vim.trim(buf_name)))
 
       local name, ns = current_view.getCurrentSelection()
+      local resource_idx = 0
+      for i, row in ipairs(state.instance.processedData) do
+        if row.name == name and (ns and row.ns == ns or true) then
+          resource_idx = i
+          break
+        end
+      end
+      local resource = state.instance.processedData[resource_idx]
       local line_number = vim.api.nvim_win_get_cursor(0)[1]
+
+      if resource.selected then
+        resource.selected = false
+      else
+        resource.selected = true
+      end
+      vim.print("resource selected: " .. vim.inspect(resource))
 
       if state.selections.selected["line" .. line_number] then
         state.selections.selected["line" .. line_number] = nil
