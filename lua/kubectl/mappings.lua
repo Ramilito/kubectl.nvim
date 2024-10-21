@@ -403,19 +403,28 @@ function M.register()
     desc = "Select resource",
     callback = function()
       local state = require("kubectl.state")
+      local ns_id = vim.api.nvim_create_namespace("__kubectl_selection")
       if state.marks.selection_ns_id == 0 then
-        state.marks.selection_ns_id = vim.api.nvim_create_namespace("__kubectl_selection")
+        state.marks.selection_ns_id = ns_id
       end
       local line_number = vim.api.nvim_win_get_cursor(0)[1]
-      local ok, err = pcall(vim.api.nvim_buf_set_extmark, 0, state.marks.selection_ns_id, line_number - 1, -1, {
-        id = line_number,
-        sign_text = ">>",
-        priority = 999,
-        sign_hl_group = "WildMenu",
-        -- number_hl_group = config.numhl and hls.numhl or nil,
-        -- line_hl_group = config.linehl and hls.linehl or nil,
-        -- cursorline_hl_group = config.culhl and hls.culhl or nil,
-      })
+      -- check if line already is selected
+      local is_selected = vim.api.nvim_buf_get_extmark_by_id(0, ns_id, line_number, {})
+      if is_selected and #is_selected > 0 then
+        vim.api.nvim_buf_del_extmark(0, ns_id, line_number)
+      else
+        pcall(vim.api.nvim_buf_set_extmark, 0, ns_id, line_number - 1, -1, {
+          id = line_number,
+          sign_text = ">>",
+          priority = 999,
+          sign_hl_group = "WildMenu",
+          -- number_hl_group = config.numhl and hls.numhl or nil,
+          -- line_hl_group = config.linehl and hls.linehl or nil,
+          -- cursorline_hl_group = config.culhl and hls.culhl or nil,
+        })
+      end
+      -- move cursor one line down
+      vim.api.nvim_feedkeys("j", "n", true)
     end,
   })
 
