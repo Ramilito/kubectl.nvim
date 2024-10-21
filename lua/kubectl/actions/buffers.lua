@@ -1,5 +1,4 @@
 local layout = require("kubectl.actions.layout")
-local state = require("kubectl.state")
 local api = vim.api
 local M = {}
 
@@ -43,11 +42,28 @@ local function set_buffer_lines(buf, header, content)
   end
 end
 
+--- Applies selection marks to a buffer.
+--- @param bufnr integer: The buffer number.
+function M.apply_selections(bufnr)
+  local state = require("kubectl.state")
+  local ns_id = api.nvim_create_namespace("__kubectl_selection")
+  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  state.selections.ns_id = ns_id
+
+  for _, selection in pairs(state.selections.selected) do
+    api.nvim_buf_set_extmark(bufnr, ns_id, selection.row, 0, {
+      sign_text = ">>",
+      sign_hl_group = "WildMenu",
+    })
+  end
+end
+
 --- Applies marks to a buffer.
 --- @param bufnr integer: The buffer number.
 --- @param marks table|nil: The marks to apply (optional).
 --- @param header table|nil: The header data (optional).
 function M.apply_marks(bufnr, marks, header)
+  local state = require("kubectl.state")
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   state.marks.ns_id = ns_id
@@ -88,6 +104,8 @@ function M.apply_marks(bufnr, marks, header)
       end
     end
   end
+
+  M.apply_selections(bufnr)
 end
 
 function M.fit_to_content(buf, offset)
@@ -127,6 +145,7 @@ end
 --- @param callback function: The callback function.
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.filter_buffer(filetype, callback, opts)
+  local state = require("kubectl.state")
   local bufname = "kubectl_filter"
   local buf = get_buffer_by_name(bufname)
 
