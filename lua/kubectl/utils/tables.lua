@@ -242,6 +242,11 @@ local function addDividerRow(divider, hints, marks)
     local filter = divider.filter or ""
     local info = resource .. count .. filter
     local padding = string.rep("—", half_width - math.floor(#info / 2))
+    local selected = state.getSelections().selected
+    local selected_count = vim.tbl_count(selected)
+    if selected_count > 0 then
+      count = selected_count .. "/" .. count
+    end
 
     local virt_text = {
       { padding, hl.symbols.success },

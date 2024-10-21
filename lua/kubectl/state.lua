@@ -147,6 +147,12 @@ function M.getFilter()
   return M.filter
 end
 
+--- Get the selections
+--- @return table selections The selections
+function M.getSelections()
+  return M.selections
+end
+
 --- Get the current URL
 --- @return string proxyurl The proxy URL
 function M.getProxyUrl()
