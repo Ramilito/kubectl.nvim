@@ -19,7 +19,7 @@ M.proxyUrl = ""
 ---@type number
 M.content_row_start = 0
 ---@type table
-M.marks = { ns_id = 0, header = {} }
+M.marks = { ns_id = 0, selection_ns_id = 0, header = {} }
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }

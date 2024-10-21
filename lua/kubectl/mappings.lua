@@ -397,6 +397,28 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.tab)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Select resource",
+    callback = function()
+      local state = require("kubectl.state")
+      if state.marks.selection_ns_id == 0 then
+        state.marks.selection_ns_id = vim.api.nvim_create_namespace("__kubectl_selection")
+      end
+      local line_number = vim.api.nvim_win_get_cursor(0)[1]
+      local ok, err = pcall(vim.api.nvim_buf_set_extmark, 0, state.marks.selection_ns_id, line_number - 1, -1, {
+        id = line_number,
+        sign_text = ">>",
+        priority = 999,
+        sign_hl_group = "WildMenu",
+        -- number_hl_group = config.numhl and hls.numhl or nil,
+        -- line_hl_group = config.linehl and hls.linehl or nil,
+        -- cursorline_hl_group = config.culhl and hls.culhl or nil,
+      })
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.lineage)", "", {
     noremap = true,
     silent = true,
@@ -427,6 +449,7 @@ function M.register()
       M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
       M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
       M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+      M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
       M.map_if_plug_not_set("n", "<M-h>", "<Plug>(kubectl.toggle_headers)")
     else
       local opts = { noremap = true, silent = true, callback = nil }
