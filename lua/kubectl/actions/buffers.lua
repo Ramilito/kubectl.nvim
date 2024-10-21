@@ -230,7 +230,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
       vim.api.nvim_input("<Plug>(kubectl.refresh)")
 
       if callback ~= nil then
-          callback(input)
+        callback(input)
       end
     end)
 
