@@ -381,7 +381,7 @@ end
 --- Pretty print data in a table format
 ---@param data table[]
 ---@param headers string[]
----@param sort_by table
+---@param sort_by? table
 ---@return table, table
 function M.pretty_print(data, headers, sort_by)
   if headers == nil or data == nil then
