@@ -28,9 +28,13 @@ end
 
 function M.debug(pod, ns)
   buffers.floating_buffer("k8s_container_debug", "debug " .. M.selection)
+  local image = vim.fn.input("Image for debug container [busybox]:  ")
+  if image == "" then
+    image = "busybox"
+  end
   commands.execute_terminal(
     "kubectl",
-    { "debug", pod, "-n", ns, "-c ", M.selection .. "-debug", "--image=busybox", "-it", "--", "/bin/sh" }
+    { "debug", pod, "-n", ns, "-c ", M.selection .. "-debug", "--image=" .. image, "-it", "--", "/bin/sh" }
   )
 end
 
