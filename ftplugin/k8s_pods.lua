@@ -58,7 +58,7 @@ local function set_keymaps(bufnr)
         end
       end
 
-      for _, selection in ipairs(selections) do
+      for i, selection in ipairs(selections) do
         local name = selection.name
         local ns = selection.namespace
 
@@ -72,6 +72,8 @@ local function set_keymaps(bufnr)
         end
         vim.notify("Deleting pod " .. name)
         commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
+        -- remove from selections
+        table.remove(selections, i)
       end
       pod_view.Draw()
     end,
