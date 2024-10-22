@@ -411,6 +411,7 @@ function M.register()
       table.insert(state.selections, { name = name, namespace = ns })
 
       vim.api.nvim_feedkeys("j", "n", true)
+      current_view.Draw()
     end,
   })
 
