@@ -71,6 +71,7 @@ function M.getStatus(row)
   if ready and ready.status == "True" then
     return { symbol = hl.symbols.success, value = nodeConditions.NodeReady }
   end
+  return { symbol = events.ColorStatus("Error"), value = "Unknown" }
 end
 
 local function getIPs(row)
@@ -104,7 +105,7 @@ function M.processRow(rows)
       name = row.metadata.name,
       status = M.getStatus(row),
       roles = getRole(row),
-      age = time.since(row.metadata.creationTimestamp),
+      age = time.since(row.metadata.creationTimestamp, true),
       version = row.status and row.status.nodeInfo and row.status.nodeInfo.kubeletVersion,
       ["internal-ip"] = iIP,
       ["external-ip"] = eIP,
