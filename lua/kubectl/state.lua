@@ -21,7 +21,7 @@ M.content_row_start = 0
 ---@type table
 M.marks = { ns_id = 0, header = {} }
 ---@type table
-M.selections = { ns_id = 0, selected = {} }
+M.selections = {}
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }

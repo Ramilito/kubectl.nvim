@@ -242,7 +242,7 @@ local function addDividerRow(divider, hints, marks)
     local filter = divider.filter or ""
     local info = resource .. count .. filter
     local padding = string.rep("—", half_width - math.floor(#info / 2))
-    local selected = state.getSelections().selected
+    local selected = state.getSelections()
     local selected_count = vim.tbl_count(selected)
     if selected_count > 0 then
       count = selected_count .. "/" .. count
@@ -381,6 +381,7 @@ end
 --- Pretty print data in a table format
 ---@param data table[]
 ---@param headers string[]
+---@param sort_by table
 ---@return table, table
 function M.pretty_print(data, headers, sort_by)
   if headers == nil or data == nil then
@@ -475,11 +476,25 @@ function M.pretty_print(data, headers, sort_by)
       current_col_position = current_col_position + #display_value
     end
     table.insert(tbl, table.concat(row_line, ""))
-
-    -- selections
   end
 
   return tbl, extmarks
+end
+
+function M.is_selected(row, selections)
+  if not selections or #selections == 0 then
+    return false
+  end
+  for _, selection in ipairs(selections) do
+    local is_selected = true
+    for key, value in pairs(selection) do
+      if row[key] ~= value then
+        is_selected = false
+      end
+    end
+    return is_selected
+  end
+  return true
 end
 
 --- Get the current selection from the buffer
