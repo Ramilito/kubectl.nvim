@@ -408,8 +408,17 @@ function M.register()
       local current_view, _ = view.view_and_definition(string.lower(vim.trim(buf_name)))
 
       local name, ns = current_view.getCurrentSelection()
-      table.insert(state.selections, { name = name, namespace = ns })
 
+      for i, selection in ipairs(state.selections) do
+        if selection.name == name and (ns and selection.namespace == ns or true) then
+          table.remove(state.selections, i)
+          vim.api.nvim_feedkeys("j", "n", true)
+          current_view.Draw()
+          return
+        end
+      end
+
+      table.insert(state.selections, { name = name, namespace = ns })
       vim.api.nvim_feedkeys("j", "n", true)
       current_view.Draw()
     end,
