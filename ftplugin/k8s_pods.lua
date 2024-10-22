@@ -58,7 +58,7 @@ local function set_keymaps(bufnr)
         end
       end
 
-      for _, selection in ipairs(vim.deepcopy(selections)) do
+      for _, selection in ipairs(selections) do
         local name = selection.name
         local ns = selection.namespace
 
