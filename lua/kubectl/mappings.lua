@@ -117,6 +117,19 @@ function M.register()
       local name, ns = view.getCurrentSelection()
       if name then
         local ok = pcall(view.Desc, name, ns, true)
+        vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.refresh)", "", {
+          noremap = true,
+          silent = true,
+          desc = "Refresh",
+          callback = function()
+            vim.schedule(function()
+              pcall(view.Desc, name, ns, false)
+            end)
+          end,
+        })
+        vim.schedule(function()
+          M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
+        end)
         if ok then
           local state = require("kubectl.state")
           event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
