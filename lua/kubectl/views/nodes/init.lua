@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.nodes.definition")
+local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -13,6 +14,25 @@ end
 
 function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
+end
+
+local function add_row(builder, text, value)
+  table.insert(builder.data, text .. value)
+  local row = #builder.data - 1
+  local line_length = #builder.data[#builder.data]
+
+  table.insert(builder.extmarks, {
+    row = row,
+    start_col = 0,
+    end_col = line_length - #value,
+    hl_group = hl.symbols.warning,
+  })
+  table.insert(builder.extmarks, {
+    row = row,
+    start_col = line_length - #value,
+    end_col = line_length,
+    hl_group = hl.symbols.success,
+  })
 end
 
 function M.Drain(node)
@@ -53,21 +73,21 @@ function M.Drain(node)
           table.insert(args, "--force")
         end
 
-        vim.print(vim.inspect(args))
         -- commands.shell_command_async("kubectl", { "drain", "nodes/" .. node })
       end
     end
   )
 
   builder.data = {}
+  builder.extmarks = {}
   local confirmation = "[y]es [n]o:"
   local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
 
-  table.insert(builder.data, "Grace period: -1")
-  table.insert(builder.data, "Timeout: 5s")
-  table.insert(builder.data, "Ignore daemonset: false")
-  table.insert(builder.data, "Delete local data: false")
-  table.insert(builder.data, "Force: false")
+  add_row(builder, "Grace period: ", "-1")
+  add_row(builder, "Timeout: ", "5s")
+  add_row(builder, "Ignore daemonset: ", "false")
+  add_row(builder, "Delete local data: ", "false")
+  add_row(builder, "Force: ", "false")
   table.insert(builder.data, padding .. confirmation)
 
   builder:setContentRaw()
