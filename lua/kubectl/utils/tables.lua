@@ -440,10 +440,20 @@ function M.pretty_print(data, headers, sort_by)
   end
   table.insert(tbl, table.concat(header_line, ""))
 
+  local selections = state.selections
   -- Create table rows
   for row_index, row in ipairs(data) do
+    local is_selected = M.is_selected(row, selections)
     local row_line = {}
     local current_col_position = 0
+    if is_selected then
+      table.insert(extmarks, {
+        row = row_index,
+        start_col = 0,
+        sign_text = ">>",
+        sign_hl_group = "Note",
+      })
+    end
 
     for _, col in ipairs(columns) do
       local cell = row[col]
@@ -492,9 +502,11 @@ function M.is_selected(row, selections)
         is_selected = false
       end
     end
-    return is_selected
+    if is_selected then
+      return true
+    end
   end
-  return true
+  return false
 end
 
 --- Get the current selection from the buffer

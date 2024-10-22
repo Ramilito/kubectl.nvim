@@ -43,21 +43,6 @@ local function set_buffer_lines(buf, header, content)
   end
 end
 
---- Applies selection marks to a buffer.
---- @param bufnr integer: The buffer number.
-function M.apply_selections(bufnr)
-  local ns_id = api.nvim_create_namespace("__kubectl_selection")
-  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-  state.selections.ns_id = ns_id
-
-  for _, selection in pairs(state.selections.selected) do
-    api.nvim_buf_set_extmark(bufnr, ns_id, selection.row, 0, {
-      sign_text = ">>",
-      sign_hl_group = "WildMenu",
-    })
-  end
-end
-
 --- Applies marks to a buffer.
 --- @param bufnr integer: The buffer number.
 --- @param marks table|nil: The marks to apply (optional).
@@ -89,12 +74,14 @@ function M.apply_marks(bufnr, marks, header)
       end
       local result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
-        end_col = mark.end_col,
+        end_col = mark.end_col or nil,
         hl_eol = mark.hl_eol or nil,
         hl_group = mark.hl_group or nil,
         hl_mode = mark.hl_mode or nil,
         virt_text = mark.virt_text or nil,
         virt_text_pos = mark.virt_text_pos or nil,
+        sign_text = mark.sign_text or nil,
+        sign_hl_group = mark.sign_hl_group or nil,
       })
       -- the first row is always column headers, we save that so other content can use it
       if mark.row == 0 then
@@ -103,8 +90,6 @@ function M.apply_marks(bufnr, marks, header)
       end
     end
   end
-
-  M.apply_selections(bufnr)
 end
 
 function M.fit_to_content(buf, offset)
