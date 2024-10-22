@@ -20,6 +20,8 @@ M.proxyUrl = ""
 M.content_row_start = 0
 ---@type table
 M.marks = { ns_id = 0, header = {} }
+---@type table
+M.selections = {}
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
@@ -143,6 +145,12 @@ end
 --- @return string filter The current filter
 function M.getFilter()
   return M.filter
+end
+
+--- Get the selections
+--- @return table selections The selections
+function M.getSelections()
+  return M.selections
 end
 
 --- Get the current URL

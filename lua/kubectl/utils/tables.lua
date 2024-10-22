@@ -242,6 +242,11 @@ local function addDividerRow(divider, hints, marks)
     local filter = divider.filter or ""
     local info = resource .. count .. filter
     local padding = string.rep("—", half_width - math.floor(#info / 2))
+    local selected = state.getSelections()
+    local selected_count = vim.tbl_count(selected)
+    if selected_count > 0 then
+      count = selected_count .. "/" .. count
+    end
 
     local virt_text = {
       { padding, hl.symbols.success },
@@ -376,6 +381,7 @@ end
 --- Pretty print data in a table format
 ---@param data table[]
 ---@param headers string[]
+---@param sort_by? table
 ---@return table, table
 function M.pretty_print(data, headers, sort_by)
   if headers == nil or data == nil then
@@ -434,10 +440,20 @@ function M.pretty_print(data, headers, sort_by)
   end
   table.insert(tbl, table.concat(header_line, ""))
 
+  local selections = state.selections
   -- Create table rows
   for row_index, row in ipairs(data) do
+    local is_selected = M.is_selected(row, selections)
     local row_line = {}
     local current_col_position = 0
+    if is_selected then
+      table.insert(extmarks, {
+        row = row_index,
+        start_col = 0,
+        sign_text = ">>",
+        sign_hl_group = "Note",
+      })
+    end
 
     for _, col in ipairs(columns) do
       local cell = row[col]
@@ -473,6 +489,24 @@ function M.pretty_print(data, headers, sort_by)
   end
 
   return tbl, extmarks
+end
+
+function M.is_selected(row, selections)
+  if not selections or #selections == 0 then
+    return false
+  end
+  for _, selection in ipairs(selections) do
+    local is_selected = true
+    for key, value in pairs(selection) do
+      if row[key] ~= value then
+        is_selected = false
+      end
+    end
+    if is_selected then
+      return true
+    end
+  end
+  return false
 end
 
 --- Get the current selection from the buffer

@@ -397,6 +397,35 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.tab)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Select resource",
+    callback = function()
+      local state = require("kubectl.state")
+      local view = require("kubectl.views")
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local current_view, _ = view.view_and_definition(string.lower(vim.trim(buf_name)))
+
+      local name, ns = current_view.getCurrentSelection()
+
+      for i, selection in ipairs(state.selections) do
+        if selection.name == name and (ns and selection.namespace == ns or true) then
+          table.remove(state.selections, i)
+          vim.api.nvim_feedkeys("j", "n", true)
+          current_view.Draw()
+          return
+        end
+      end
+
+      if name then
+        table.insert(state.selections, { name = name, namespace = ns })
+        vim.api.nvim_feedkeys("j", "n", true)
+        current_view.Draw()
+      end
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.lineage)", "", {
     noremap = true,
     silent = true,
@@ -427,6 +456,7 @@ function M.register()
       M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
       M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
       M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
+      M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
       M.map_if_plug_not_set("n", "<M-h>", "<Plug>(kubectl.toggle_headers)")
     else
       local opts = { noremap = true, silent = true, callback = nil }

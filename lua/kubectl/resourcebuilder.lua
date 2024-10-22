@@ -354,6 +354,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
     end)
 
   state.instance = self
+  state.selections = {}
   return self
 end
 

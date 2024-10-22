@@ -74,12 +74,14 @@ function M.apply_marks(bufnr, marks, header)
       end
       local result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
-        end_col = mark.end_col,
+        end_col = mark.end_col or nil,
         hl_eol = mark.hl_eol or nil,
         hl_group = mark.hl_group or nil,
         hl_mode = mark.hl_mode or nil,
         virt_text = mark.virt_text or nil,
         virt_text_pos = mark.virt_text_pos or nil,
+        sign_text = mark.sign_text or nil,
+        sign_hl_group = mark.sign_hl_group or nil,
       })
       -- the first row is always column headers, we save that so other content can use it
       if mark.row == 0 then
@@ -230,7 +232,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
       vim.api.nvim_input("<Plug>(kubectl.refresh)")
 
       if callback ~= nil then
-          callback(input)
+        callback(input)
       end
     end)
 
