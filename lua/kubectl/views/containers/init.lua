@@ -26,6 +26,14 @@ function M.exec(pod, ns)
   commands.execute_terminal("kubectl", { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" })
 end
 
+function M.debug(pod, ns)
+  buffers.floating_buffer("k8s_container_debug", "debug " .. M.selection)
+  commands.execute_terminal(
+    "kubectl",
+    { "debug", pod, "-n", ns, "-c ", M.selection .. "-debug", "--image=busybox", "-it", "--", "/bin/sh" }
+  )
+end
+
 function M.logs(pod, ns, reload)
   local since_last_char = string.sub(M.log_since, -1)
   if since_last_char == "s" then

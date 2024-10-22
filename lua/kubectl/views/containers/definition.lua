@@ -7,6 +7,7 @@ local M = {
   url = {},
   hints = {
     { key = "<Plug>(kubectl.logs)", desc = "logs" },
+    { key = "<Plug>(kubectl.debug)", desc = "debug" },
     { key = "<Plug>(kubectl.select)", desc = "exec" },
   },
 }
