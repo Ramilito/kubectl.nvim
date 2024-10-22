@@ -48,9 +48,20 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "delete pod",
     callback = function()
-      local name, ns = pod_view.getCurrentSelection()
+      local selections = state.getSelections()
+      if vim.tbl_count(selections) == 0 then
+        local name, ns = pod_view.getCurrentSelection()
+        if name and ns then
+          selections = { { name = name, namespace = ns } }
+        else
+          api.nvim_err_writeln("Failed to select pod.")
+        end
+      end
 
-      if name and ns then
+      for _, selection in ipairs(selections) do
+        local name = selection.name
+        local ns = selection.namespace
+
         local port_forwards = {}
         root_definition.getPFData(port_forwards, false, "pods")
         for _, pf in ipairs(port_forwards) do
@@ -61,10 +72,9 @@ local function set_keymaps(bufnr)
         end
         vim.notify("Deleting pod " .. name)
         commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
-        pod_view.Draw()
-      else
-        api.nvim_err_writeln("Failed to select pod.")
       end
+      state.selections = {}
+      pod_view.Draw()
     end,
   })
 
