@@ -6,7 +6,9 @@ local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local M = {
+  drain_args = {},
+}
 
 function M.View(cancellationToken)
   ResourceBuilder:view(definition, cancellationToken)
@@ -25,7 +27,7 @@ local function add_row(builder, text, value)
     row = row,
     start_col = 0,
     end_col = line_length - #value,
-    hl_group = hl.symbols.warning,
+    hl_group = hl.symbols.header,
   })
   table.insert(builder.extmarks, {
     row = row,
@@ -36,6 +38,7 @@ local function add_row(builder, text, value)
 end
 
 function M.Drain(node)
+  M.drain_args = {}
   local builder = ResourceBuilder:new("kubectl_drain")
   local win_config
 
@@ -44,7 +47,23 @@ function M.Drain(node)
     "k8s_node_drain",
     function(confirm)
       if confirm then
-        local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        vim.print(M.drain_args)
+        -- commands.shell_command_async("kubectl", { "drain", "nodes/" .. node })
+      end
+    end
+  )
+
+  vim.api.nvim_buf_attach(builder.buf_nr, false, {
+    on_lines = function(
+      _, -- use nil as first argument (since it is buffer handle)
+      buf_nr, -- buffer number
+      _, -- buffer changedtick
+      firstline, -- first line number of the change (0-indexed)
+      lastline, -- last line number of the change
+      new_lastline -- last line number after the change
+    )
+      if firstline ~= lastline or lastline ~= new_lastline then
+        local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, -1, false)
         local grace_period, timeout, ignore_daemonset, delete_local_data, force
 
         for _, line in ipairs(lines) do
@@ -73,10 +92,18 @@ function M.Drain(node)
           table.insert(args, "--force")
         end
 
-        -- commands.shell_command_async("kubectl", { "drain", "nodes/" .. node })
+        M.drain_args = args
+        for i, line in ipairs(lines) do
+          if line:match("^Args:") then
+            vim.schedule(function()
+              pcall(vim.api.nvim_buf_set_text, buf_nr, i - 1, #"Args: ", i - 1, -1, { table.concat(args, " ") })
+            end)
+            break
+          end
+        end
       end
-    end
-  )
+    end,
+  })
 
   builder.data = {}
   builder.extmarks = {}
@@ -88,6 +115,8 @@ function M.Drain(node)
   add_row(builder, "Ignore daemonset: ", "false")
   add_row(builder, "Delete local data: ", "false")
   add_row(builder, "Force: ", "false")
+  table.insert(builder.data, "")
+  add_row(builder, "Args: ", "")
   table.insert(builder.data, padding .. confirmation)
 
   builder:setContentRaw()
