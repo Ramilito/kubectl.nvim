@@ -45,7 +45,7 @@ function M.Drain(node)
     "k8s_node_drain",
     function(confirm)
       if confirm then
-        commands.shell_command_async("kubectl", M.drain_args)
+        commands.shell_command_async("kubectl", drain_args)
       end
     end
   )
@@ -56,7 +56,7 @@ function M.Drain(node)
         return
       end
       local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, -1, false)
-      local grace_period, timeout, ignore_daemonset, delete_local_data, force
+      local grace_period, timeout, ignore_daemonset, delete_emptydir_data, force
 
       for _, line in ipairs(lines) do
         if line:match("Grace period:") then
@@ -65,8 +65,8 @@ function M.Drain(node)
           timeout = line:match("Timeout:%s*(.*)")
         elseif line:match("Ignore daemonset:") then
           ignore_daemonset = line:match("Ignore daemonset:%s*(.*)")
-        elseif line:match("Delete local data:") then
-          delete_local_data = line:match("Delete local data:%s*(.*)")
+        elseif line:match("Delete emptydir data:") then
+          delete_emptydir_data = line:match("Delete emptydir data:%s*(.*)")
         elseif line:match("Force:") then
           force = line:match("Force:%s*(.*)")
         end
@@ -77,8 +77,8 @@ function M.Drain(node)
       if ignore_daemonset == "true" then
         table.insert(args, "--ignore-daemonsets")
       end
-      if delete_local_data == "true" then
-        table.insert(args, "--delete-local-data")
+      if delete_emptydir_data == "true" then
+        table.insert(args, "--delete-emptydir-data")
       end
       if force == "true" then
         table.insert(args, "--force")
@@ -106,7 +106,7 @@ function M.Drain(node)
   add_row(builder, "Grace period: ", "-1")
   add_row(builder, "Timeout: ", "5s")
   add_row(builder, "Ignore daemonset: ", "false")
-  add_row(builder, "Delete local data: ", "false")
+  add_row(builder, "Delete emptydir data: ", "false")
   add_row(builder, "Force: ", "false")
   table.insert(builder.data, "")
   add_row(builder, "Args: ", "")
