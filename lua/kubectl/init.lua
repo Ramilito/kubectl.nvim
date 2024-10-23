@@ -28,6 +28,7 @@ function M.close()
   if win_config.relative == "" then
     local kube = require("kubectl.actions.kube")
     state.set_session()
+    state.stop_livez()
     kube.stop_kubectl_proxy()()
     informer.stop()
   end

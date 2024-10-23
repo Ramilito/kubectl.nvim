@@ -34,7 +34,7 @@ M.instance_float = nil
 ---@type table
 M.history = {}
 ---@type table
-M.livez = { ok = nil, time_of_ok = os.time() }
+M.livez = { ok = nil, time_of_ok = os.time(), handle = nil }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -102,12 +102,18 @@ function M.checkVersions()
   end)
 end
 
+function M.stop_livez()
+  if M.livez.timer then
+    M.livez.timer:stop()
+  end
+end
+
 function M.checkHealth(cb)
-  local timer = vim.uv.new_timer()
+  M.livez.timer = vim.uv.new_timer()
   local ResourceBuilder = require("kubectl.resourcebuilder")
   local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
 
-  timer:start(0, 5000, function()
+  M.livez.timer:start(0, 5000, function()
     builder:fetchAsync(
       function(self)
         if self.data == "ok" then
