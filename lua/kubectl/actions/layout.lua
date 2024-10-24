@@ -133,8 +133,9 @@ end
 --- Fits content to window size
 --- @param buf_nr integer: The buffer number.
 --- @param height_offset integer: The height offset.
+--- @param min_width integer: The minimum width.
 --- @return { height: number, width: number }
-function M.win_size_fit_content(buf_nr, height_offset)
+function M.win_size_fit_content(buf_nr, height_offset, min_width)
   local win_id = vim.api.nvim_get_current_win()
   local win_config = vim.api.nvim_win_get_config(win_id)
 
@@ -151,7 +152,7 @@ function M.win_size_fit_content(buf_nr, height_offset)
   end
 
   win_config.height = rows + height_offset
-  win_config.width = max_columns
+  win_config.width = math.max(max_columns, min_width or 0)
 
   api.nvim_set_option_value("scrolloff", rows + height_offset, { win = win_id })
   vim.api.nvim_win_set_config(win_id, win_config)

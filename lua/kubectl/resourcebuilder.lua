@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local informer = require("kubectl.actions.informer")
+local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
@@ -435,6 +436,7 @@ function ResourceBuilder:action_view(definition, data)
         end
 
         args = args_tmp
+        layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
       end, 200)
     end,
   })
