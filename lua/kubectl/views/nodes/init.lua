@@ -1,5 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.nodes.definition")
 local state = require("kubectl.state")
@@ -16,7 +15,8 @@ function M.Draw(cancellationToken)
 end
 
 function M.Drain(node)
-  commands.shell_command_async("kubectl", { "drain", "nodes/" .. node })
+  local node_action = require("kubectl.views.nodes.action")
+  node_action.drain(node)
 end
 
 function M.UnCordon(node)
