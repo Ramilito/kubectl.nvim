@@ -23,7 +23,7 @@ function M.Drain(node)
     cmd = { "drain", "nodes/" .. node },
   }
   local data = {
-    { text = "Grace period:", value = "-1s", cmd = "--grace-period" },
+    { text = "Grace period:", value = "-1", cmd = "--grace-period" },
     { text = "Timeout:", value = "5s", cmd = "--timeout" },
     { text = "Ignore daemonset:", value = "false", cmd = "--ignore-daemonsets" },
     { text = "Delete emptydir data:", value = "false", cmd = "--delete-emptydir-data" },
