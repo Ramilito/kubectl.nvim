@@ -23,14 +23,16 @@ function M.Drain(node)
     cmd = { "drain", "nodes/" .. node },
   }
   local data = {
-    { text = "Grace period:", value = "-1", cmd = "--grace-period" },
-    { text = "Timeout:", value = "5s", cmd = "--timeout" },
-    { text = "Ignore daemonset:", value = "false", cmd = "--ignore-daemonsets" },
-    { text = "Delete emptydir data:", value = "false", cmd = "--delete-emptydir-data" },
-    { text = "Force:", value = "false", cmd = "--force" },
+    { text = "grace period:", value = "-1", cmd = "--grace-period" },
+    { text = "timeout:", value = "5s", cmd = "--timeout" },
+    { text = "ignore daemonset:", value = "false", cmd = "--ignore-daemonsets" },
+    { text = "delete emptydir data:", value = "false", cmd = "--delete-emptydir-data" },
+    { text = "force:", value = "false", cmd = "--force" },
   }
 
-  builder:action_view(node_def, data)
+  builder:action_view(node_def, data, function(args)
+    commands.shell_command_async("kubectl", args)
+  end)
 end
 
 function M.UnCordon(node)

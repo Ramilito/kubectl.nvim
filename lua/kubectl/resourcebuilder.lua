@@ -374,7 +374,7 @@ function ResourceBuilder:draw(definition, cancellationToken)
   return self
 end
 
-function ResourceBuilder:action_view(definition, data)
+function ResourceBuilder:action_view(definition, data, callback)
   local args = definition.cmd
   local win_config
 
@@ -382,7 +382,7 @@ function ResourceBuilder:action_view(definition, data)
   self.extmarks = {}
   self.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     if confirm then
-      commands.shell_command_async("kubectl", args)
+      callback(args)
     end
   end)
 
