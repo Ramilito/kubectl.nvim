@@ -133,7 +133,7 @@ end
 --- Fits content to window size
 --- @param buf_nr integer: The buffer number.
 --- @param height_offset integer: The height offset.
---- @param min_width integer: The minimum width.
+--- @param min_width integer|nil: The minimum width.
 --- @return { height: number, width: number }
 function M.win_size_fit_content(buf_nr, height_offset, min_width)
   local win_id = vim.api.nvim_get_current_win()
