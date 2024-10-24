@@ -6,6 +6,20 @@ local tables = require("kubectl.utils.tables")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.debug)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Debug",
+    callback = function()
+      local container_name = tables.getCurrentSelection(unpack({ 1 }))
+      if container_name then
+        container_view.selectContainer(container_name)
+        container_view.debug(pod_view.selection.pod, pod_view.selection.ns)
+      else
+        print("Failed to create debug container.")
+      end
+    end,
+  })
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.logs)", "", {
     noremap = true,
     silent = true,
@@ -46,4 +60,5 @@ init()
 
 vim.schedule(function()
   mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
+  mappings.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.debug)")
 end)
