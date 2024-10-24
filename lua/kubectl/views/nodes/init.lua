@@ -15,8 +15,22 @@ function M.Draw(cancellationToken)
 end
 
 function M.Drain(node)
-  local node_action = require("kubectl.views.nodes.action")
-  node_action.drain(node)
+  local builder = ResourceBuilder:new("kubectl_drain")
+  local node_def = {
+    ft = "k8s_node_drain",
+    display = "Drain node: " .. node .. "?",
+    resource = node,
+    cmd = { "drain", "nodes/" .. node },
+  }
+  local data = {
+    { text = "Grace period:", value = "-1", cmd = "--grace-period" },
+    { text = "Timeout:", value = "5s", cmd = "--timeout" },
+    { text = "Ignore daemonset:", value = "false", cmd = "--ignore-daemonsets" },
+    { text = "Delete emptydir data:", value = "false", cmd = "--delete-emptydir-data" },
+    { text = "Force:", value = "false", cmd = "--force" },
+  }
+
+  builder:action_view(node_def, data)
 end
 
 function M.UnCordon(node)

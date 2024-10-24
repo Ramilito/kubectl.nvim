@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local informer = require("kubectl.actions.informer")
+local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
@@ -370,6 +371,108 @@ function ResourceBuilder:draw(definition, cancellationToken)
   end)
 
   state.instance = self
+  return self
+end
+
+function ResourceBuilder:action_view(definition, data)
+  local args = definition.cmd
+  local win_config
+
+  self.data = {}
+  self.extmarks = {}
+  self.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
+    if confirm then
+      commands.shell_command_async("kubectl", args)
+    end
+  end)
+
+  vim.api.nvim_buf_attach(self.buf_nr, false, {
+    on_lines = function(_, buf_nr, _, first, last_orig, last_new, byte_count)
+      vim.defer_fn(function()
+        if first == last_orig and last_orig == last_new and byte_count == 0 then
+          return
+        end
+        local marks = vim.api.nvim_buf_get_extmarks(
+          0,
+          state.marks.ns_id,
+          0,
+          -1,
+          { details = true, overlap = true, type = "virt_text" }
+        )
+        local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, -1, false)
+        local args_tmp = {}
+        for _, value in ipairs(definition.cmd) do
+          table.insert(args_tmp, value)
+        end
+
+        for index, line in ipairs(lines) do
+          local mark = marks[index]
+          if mark then
+            local text = mark[4].virt_text[1][1]
+            if string.match(text, "Args") then
+              vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, index, 0, {
+                id = mark[1],
+                virt_text = { { "Args | kubectl " .. table.concat(args_tmp, " "), "KubectlWhite" } },
+                virt_text_pos = "inline",
+                right_gravity = false,
+              })
+            else
+              for _, item in ipairs(data) do
+                if string.match(text, item.text) then
+                  local value = line
+
+                  if value == "true" then
+                    table.insert(args_tmp, item.cmd)
+                    break
+                  elseif value ~= "false" and value ~= "" and value ~= nil and item.cmd ~= "" then
+                    table.insert(args_tmp, item.cmd)
+                    table.insert(args_tmp, value)
+                    break
+                  end
+                end
+              end
+            end
+          end
+        end
+
+        args = args_tmp
+      end, 200)
+      vim.defer_fn(function()
+        layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
+      end, 1000)
+    end,
+  })
+
+  for index, item in ipairs(data) do
+    table.insert(self.data, item.value)
+
+    table.insert(self.extmarks, {
+      row = index - 1,
+      start_col = 0,
+      virt_text = { { item.text .. " ", "KubectlHeader" } },
+      virt_text_pos = "inline",
+      right_gravity = false,
+    })
+  end
+
+  table.insert(self.data, "")
+  table.insert(self.data, "")
+
+  table.insert(self.extmarks, {
+    row = #data + 1,
+    start_col = 0,
+    virt_text = { { "Args | " .. " ", "KubectlWhite" } },
+    virt_text_pos = "inline",
+    right_gravity = false,
+  })
+
+  local confirmation = "[y]es [n]o"
+  local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
+  table.insert(self.data, padding .. confirmation)
+
+  self:setContentRaw()
+  vim.cmd([[syntax match KubectlPending /.*/]])
+
   return self
 end
 
