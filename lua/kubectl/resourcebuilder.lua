@@ -440,9 +440,9 @@ function ResourceBuilder:action_view(definition, data, callback)
 
         args = args_tmp
       end, 200)
-      vim.defer_fn(function()
-        layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
-      end, 1000)
+      -- vim.defer_fn(function()
+      --   layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
+      -- end, 1000)
     end,
   })
 
