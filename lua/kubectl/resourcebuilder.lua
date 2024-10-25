@@ -420,7 +420,6 @@ function ResourceBuilder:action_view(definition, data, callback)
               for _, item in ipairs(data) do
                 if string.match(text, item.text) then
                   local value = line
-
                   if value == "true" then
                     table.insert(args_tmp, item.cmd)
                     break
@@ -472,6 +471,60 @@ function ResourceBuilder:action_view(definition, data, callback)
 
   self:setContentRaw()
   vim.cmd([[syntax match KubectlPending /.*/]])
+
+  local current_enums = {}
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<tab>", "", {
+    noremap = true,
+    silent = true,
+    desc = "toggle options",
+    callback = function()
+      -- get marks of current line
+      local current_line = vim.api.nvim_win_get_cursor(0)[1] - 1
+      local current_line_text = vim.api.nvim_buf_get_lines(0, current_line, current_line + 1, false)[1]
+      local marks_ok, marks = pcall(
+        vim.api.nvim_buf_get_extmarks,
+        0,
+        state.marks.ns_id,
+        current_line + 1,
+        current_line + 1,
+        { details = true, overlap = true, type = "virt_text" }
+      )
+      if not marks_ok then
+        return
+      end
+      local key = marks[1][4].virt_text[1][1]
+      -- vim.print("key: " .. key .. " text: " .. current_line_text)
+      for _, item in ipairs(data) do
+        -- if string.match(key, item.text) and item.enum and #item.enum > 1 then
+        if string.match(key, item.text) and item.enum then
+          -- get next value of enum
+          if current_enums[item.text] == nil then
+            current_enums[item.text] = 2
+          else
+            current_enums[item.text] = current_enums[item.text] + 1
+            if current_enums[item.text] > #item.enum then
+              current_enums[item.text] = 1
+            end
+          end
+          -- change line to item.enum[current_enums[item.text]]
+          vim.api.nvim_buf_set_lines(
+            self.buf_nr,
+            current_line,
+            current_line,
+            false,
+            { item.enum[current_enums[item.text]] }
+          )
+          -- vim.api.nvim_buf_set_extmark(self.buf_nr, state.marks.ns_id, current_line, 0, {
+          --   id = marks[1][1],
+          --   virt_text = { { item.text, "KubectlHeader" } },
+          --   virt_text_pos = "inline",
+          --   right_gravity = false,
+          -- })
+          vim.print(item.enum[current_enums[item.text]])
+        end
+      end
+    end,
+  })
 
   return self
 end
