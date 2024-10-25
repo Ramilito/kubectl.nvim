@@ -386,62 +386,62 @@ function ResourceBuilder:action_view(definition, data, callback)
     end
   end)
 
-  vim.api.nvim_buf_attach(self.buf_nr, false, {
-    on_lines = function(_, buf_nr, _, first, last_orig, last_new, byte_count)
-      vim.defer_fn(function()
-        if first == last_orig and last_orig == last_new and byte_count == 0 then
-          return
-        end
-        local marks = vim.api.nvim_buf_get_extmarks(
-          0,
-          state.marks.ns_id,
-          0,
-          -1,
-          { details = true, overlap = true, type = "virt_text" }
-        )
-        local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, -1, false)
-        local args_tmp = {}
-        for _, value in ipairs(definition.cmd) do
-          table.insert(args_tmp, value)
-        end
-
-        for index, line in ipairs(lines) do
-          local mark = marks[index]
-          if mark then
-            local text = mark[4].virt_text[1][1]
-            if string.match(text, "Args") then
-              vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, index, 0, {
-                id = mark[1],
-                virt_text = { { "Args | kubectl " .. table.concat(args_tmp, " "), "KubectlWhite" } },
-                virt_text_pos = "inline",
-                right_gravity = false,
-              })
-            else
-              for _, item in ipairs(data) do
-                if string.match(text, item.text) then
-                  local value = line
-                  if value == "true" then
-                    table.insert(args_tmp, item.cmd)
-                    break
-                  elseif value ~= "false" and value ~= "" and value ~= nil and item.cmd ~= "" then
-                    table.insert(args_tmp, item.cmd)
-                    table.insert(args_tmp, value)
-                    break
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        args = args_tmp
-      end, 200)
-      vim.defer_fn(function()
-        layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
-      end, 1000)
-    end,
-  })
-
+  -- vim.api.nvim_buf_attach(self.buf_nr, false, {
+  --   on_lines = function(_, buf_nr, _, first, last_orig, last_new, byte_count)
+  --     vim.defer_fn(function()
+  --       if first == last_orig and last_orig == last_new and byte_count == 0 then
+  --         return
+  --       end
+  --       local marks = vim.api.nvim_buf_get_extmarks(
+  --         0,
+  --         state.marks.ns_id,
+  --         0,
+  --         -1,
+  --         { details = true, overlap = true, type = "virt_text" }
+  --       )
+  --       local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, -1, false)
+  --       local args_tmp = {}
+  --       for _, value in ipairs(definition.cmd) do
+  --         table.insert(args_tmp, value)
+  --       end
+  --
+  --       for index, line in ipairs(lines) do
+  --         local mark = marks[index]
+  --         if mark then
+  --           local text = mark[4].virt_text[1][1]
+  --           if string.match(text, "Args") then
+  --             vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, index, 0, {
+  --               id = mark[1],
+  --               virt_text = { { "Args | kubectl " .. table.concat(args_tmp, " "), "KubectlWhite" } },
+  --               virt_text_pos = "inline",
+  --               right_gravity = false,
+  --             })
+  --           else
+  --             for _, item in ipairs(data) do
+  --               if string.match(text, item.text) then
+  --                 local value = line
+  --                 if value == "true" then
+  --                   table.insert(args_tmp, item.cmd)
+  --                   break
+  --                 elseif value ~= "false" and value ~= "" and value ~= nil and item.cmd ~= "" then
+  --                   table.insert(args_tmp, item.cmd)
+  --                   table.insert(args_tmp, value)
+  --                   break
+  --                 end
+  --               end
+  --             end
+  --           end
+  --         end
+  --       end
+  --
+  --       args = args_tmp
+  --     end, 200)
+  --     vim.defer_fn(function()
+  --       layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
+  --     end, 1000)
+  --   end,
+  -- })
+  --
   for index, item in ipairs(data) do
     table.insert(self.data, item.value)
 
@@ -480,7 +480,6 @@ function ResourceBuilder:action_view(definition, data, callback)
     callback = function()
       -- get marks of current line
       local current_line = vim.api.nvim_win_get_cursor(0)[1] - 1
-      local current_line_text = vim.api.nvim_buf_get_lines(0, current_line, current_line + 1, false)[1]
       local marks_ok, marks = pcall(
         vim.api.nvim_buf_get_extmarks,
         0,
@@ -493,9 +492,7 @@ function ResourceBuilder:action_view(definition, data, callback)
         return
       end
       local key = marks[1][4].virt_text[1][1]
-      -- vim.print("key: " .. key .. " text: " .. current_line_text)
       for _, item in ipairs(data) do
-        -- if string.match(key, item.text) and item.enum and #item.enum > 1 then
         if string.match(key, item.text) and item.enum then
           -- get next value of enum
           if current_enums[item.text] == nil then
@@ -506,7 +503,8 @@ function ResourceBuilder:action_view(definition, data, callback)
               current_enums[item.text] = 1
             end
           end
-          -- change line to item.enum[current_enums[item.text]]
+          -- get current line text
+          local current_line_text = vim.api.nvim_buf_get_lines(self.buf_nr, current_line, current_line + 1, false)[1]
           vim.api.nvim_buf_set_lines(
             self.buf_nr,
             current_line,
