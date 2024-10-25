@@ -483,7 +483,6 @@ function ResourceBuilder:action_view(definition, data, callback)
     silent = true,
     desc = "toggle options",
     callback = function()
-      -- get marks of current line
       local current_line = vim.api.nvim_win_get_cursor(0)[1]
       local marks_ok, marks = pcall(
         vim.api.nvim_buf_get_extmarks,
