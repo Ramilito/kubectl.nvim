@@ -18,6 +18,29 @@ local function set_keymaps(bufnr)
       view.set_and_open_pod_selector(name, ns)
     end,
   })
+
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.create_job)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Create job from job",
+    callback = function()
+      local name, ns = job_view.getCurrentSelection()
+      vim.ui.input({ prompt = "New job name " }, function(input)
+        if not input or input == "" then
+          return
+        end
+        commands.shell_command_async(
+          "kubectl",
+          { "create", "job", input, "--from", "jobs/" .. name, "-n", ns },
+          function(response)
+            vim.schedule(function()
+              vim.notify(response)
+            end)
+          end
+        )
+      end)
+    end,
+  })
 end
 
 --- Initialize the module
@@ -29,3 +52,7 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
+end)
