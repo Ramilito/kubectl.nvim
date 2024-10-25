@@ -424,8 +424,12 @@ function ResourceBuilder:action_view(definition, data, callback)
                   if value == "true" then
                     table.insert(args_tmp, item.cmd)
                     break
-                  elseif value ~= "false" and value ~= "" and value ~= nil and item.cmd ~= "" then
-                    table.insert(args_tmp, item.cmd .. "=" .. value)
+                  elseif value ~= "false" and value ~= "" and value ~= nil then
+                    if item.cmd ~= "" then
+                      table.insert(args_tmp, item.cmd .. "=" .. value)
+                    else
+                      table.insert(args_tmp, value)
+                    end
                     break
                   end
                 end

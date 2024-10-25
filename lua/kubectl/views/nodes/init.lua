@@ -32,7 +32,11 @@ function M.Drain(node)
   }
 
   builder:action_view(node_def, data, function(args)
-    commands.shell_command_async("kubectl", args)
+    commands.shell_command_async("kubectl", args, function(response)
+      vim.schedule(function()
+        vim.notify(response)
+      end)
+    end)
   end)
 end
 
