@@ -27,15 +27,28 @@ function M.exec(pod, ns)
 end
 
 function M.debug(pod, ns)
-  buffers.floating_buffer("k8s_container_debug", "debug " .. M.selection)
-  local image = vim.fn.input("Image for debug container [busybox]:  ")
-  if image == "" then
-    image = "busybox"
-  end
-  commands.execute_terminal(
-    "kubectl",
-    { "debug", pod, "-n", ns, "-c ", M.selection .. "-debug", "--image=" .. image, "-it", "--", "/bin/sh" }
-  )
+  local builder = ResourceBuilder:new("kubectl_debug")
+
+  local debug_def = {
+    ft = "k8s_container_debug",
+    display = "Debug: " .. pod .. "-" .. M.selection .. "?",
+    resource = pod,
+    cmd = { "debug", pod, "-n", ns },
+  }
+  local data = {
+    { text = "name:", value = M.selection .. "-debug", cmd = "-c" },
+    { text = "image:", value = "busybox", cmd = "--image" },
+    { text = "stdin", value = "true", cmd = "--stdin" },
+    { text = "tty", value = "true", cmd = "--tty" },
+    { text = "shell", value = "/bin/sh", cmd = "--" },
+  }
+
+  builder:action_view(debug_def, data, function(args)
+    vim.schedule(function()
+      buffers.floating_buffer("k8s_container_debug", "debug " .. M.selection)
+      commands.execute_terminal("kubectl", args)
+    end)
+  end)
 end
 
 function M.logs(pod, ns, reload)

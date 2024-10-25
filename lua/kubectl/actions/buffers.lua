@@ -80,6 +80,7 @@ function M.apply_marks(bufnr, marks, header)
         hl_mode = mark.hl_mode or nil,
         virt_text = mark.virt_text or nil,
         virt_text_pos = mark.virt_text_pos or nil,
+        right_gravity = mark.right_gravity,
         sign_text = mark.sign_text or nil,
         sign_hl_group = mark.sign_hl_group or nil,
       })
