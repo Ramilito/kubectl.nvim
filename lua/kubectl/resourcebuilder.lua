@@ -474,7 +474,7 @@ function ResourceBuilder:action_view(definition, data, callback)
   vim.cmd([[syntax match KubectlPending /.*/]])
 
   local current_enums = {}
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<tab>", "", {
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.tab)", "", {
     noremap = true,
     silent = true,
     desc = "toggle options",
@@ -505,12 +505,15 @@ function ResourceBuilder:action_view(definition, data, callback)
           end
           self.data[current_line] = item.enum[current_enums[item.text]]
           self:setContentRaw()
-          vim.print(item.enum[current_enums[item.text]])
         end
       end
     end,
   })
 
+  vim.schedule(function()
+    local mappings = require("kubectl.mappings")
+    mappings.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
+  end)
   return self
 end
 
