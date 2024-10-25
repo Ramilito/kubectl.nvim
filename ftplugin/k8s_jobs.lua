@@ -30,20 +30,6 @@ local function set_keymaps(bufnr)
       else
         api.nvim_err_writeln("Failed to create job.")
       end
-      -- vim.ui.input({ prompt = "New job name " }, function(input)
-      --   if not input or input == "" then
-      --     return
-      --   end
-      --   commands.shell_command_async(
-      --     "kubectl",
-      --     { "create", "job", input, "--from", "jobs/" .. name, "-n", ns },
-      --     function(response)
-      --       vim.schedule(function()
-      --         vim.notify(response)
-      --       end)
-      --     end
-      --   )
-      -- end)
     end,
   })
 end
