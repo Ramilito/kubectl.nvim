@@ -62,7 +62,7 @@ function M.getCpuPercent(row, node)
   if not row or not row.usage or not row.usage.cpu then
     return status
   end
-  local tmp_cpu = row.usage.cpu
+  local tmp_cpu
   if string.sub(row.usage.cpu, -1) == "n" then
     tmp_cpu = M.getCpuUsage(row)
   else

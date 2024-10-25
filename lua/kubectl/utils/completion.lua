@@ -157,7 +157,7 @@ function M.with_completion(buf, data, callback, shortest)
     end
 
     -- Cycle through the suggestions
-    local desired_prompt = ""
+    local desired_prompt
     if #filtered_suggestions > 0 then
       if asc then
         current_suggestion_index = current_suggestion_index + 1

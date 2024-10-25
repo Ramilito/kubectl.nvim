@@ -236,8 +236,8 @@ function M.register()
         callback = function()
           -- Defer action to let :wq have time to modify file
           vim.defer_fn(function()
-            ---@diagnostic disable-next-line: redefined-local
-            local ok, original_mtime = pcall(vim.api.nvim_buf_get_var, 0, "original_mtime")
+            local ok
+            ok, original_mtime = pcall(vim.api.nvim_buf_get_var, 0, "original_mtime")
             local current_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
 
             if ok and current_mtime ~= original_mtime then

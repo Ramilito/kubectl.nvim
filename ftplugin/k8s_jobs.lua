@@ -1,8 +1,6 @@
 local api = vim.api
-local commands = require("kubectl.actions.commands")
 local job_view = require("kubectl.views.jobs")
 local loop = require("kubectl.utils.loop")
-local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local view = require("kubectl.views")
 

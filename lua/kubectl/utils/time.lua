@@ -19,7 +19,7 @@ function M.diff_str(timeA, timeB)
   local seconds = diff % 60
 
   local fresh = math.floor(diff / 60)
-  local diff_str = ""
+  local diff_str
   if days > 365 then
     diff_str = string.format("%dy%dd", years, days % 365)
   elseif days > 7 then
