@@ -25,9 +25,10 @@ function M.Drain(node)
   local data = {
     { text = "grace period:", value = "-1", cmd = "--grace-period" },
     { text = "timeout:", value = "5s", cmd = "--timeout" },
-    { text = "ignore daemonset:", value = "false", enum = { "false", "true" }, cmd = "--ignore-daemonsets" },
-    { text = "delete emptydir data:", value = "false", cmd = "--delete-emptydir-data" },
-    { text = "force:", value = "false", cmd = "--force" },
+    { text = "ignore daemonset:", enum = { "false", "true" }, cmd = "--ignore-daemonsets" },
+    { text = "delete emptydir data:", enum = { "false", "true" }, cmd = "--delete-emptydir-data" },
+    { text = "force:", enum = { "false", "true" }, cmd = "--force" },
+  {text= "dry run:", enum= {"none", "client", "server"}, cmd= "--dry-run"}
   }
 
   builder:action_view(node_def, data, function(args)
