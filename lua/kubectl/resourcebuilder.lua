@@ -480,13 +480,13 @@ function ResourceBuilder:action_view(definition, data, callback)
     desc = "toggle options",
     callback = function()
       -- get marks of current line
-      local current_line = vim.api.nvim_win_get_cursor(0)[1] - 1
+      local current_line = vim.api.nvim_win_get_cursor(0)[1]
       local marks_ok, marks = pcall(
         vim.api.nvim_buf_get_extmarks,
         0,
         state.marks.ns_id,
-        current_line + 1,
-        current_line + 1,
+        current_line,
+        current_line,
         { details = true, overlap = true, type = "virt_text" }
       )
       if not marks_ok then
@@ -503,7 +503,7 @@ function ResourceBuilder:action_view(definition, data, callback)
               current_enums[item.text] = 1
             end
           end
-          self.data[current_line + 1] = item.enum[current_enums[item.text]]
+          self.data[current_line] = item.enum[current_enums[item.text]]
           self:setContentRaw()
           vim.print(item.enum[current_enums[item.text]])
         end
