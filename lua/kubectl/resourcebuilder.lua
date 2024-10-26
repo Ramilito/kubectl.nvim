@@ -290,6 +290,8 @@ function ResourceBuilder:setContent(cancellationToken)
   return self
 end
 
+-- We ignore the override of self in luacheck
+--luacheck: ignore
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
