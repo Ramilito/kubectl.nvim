@@ -1,0 +1,12 @@
+# Reference: https://commitlint.js.org/guides/ci-setup
+name: lintcommit
+
+on: [pull_request]
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    name: Commitlint
+    steps:
+      - name: Run commitlint
+        uses: opensource-nepal/commitlint@v1

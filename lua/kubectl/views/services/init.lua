@@ -1,6 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")

@@ -1,0 +1,21 @@
+name: stylua
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+      - main
+
+jobs:
+  stylua:
+    name: stylua
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: JohnnyMorganz/stylua-action@v3
+        with:
+          version: latest
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --color always --check lua

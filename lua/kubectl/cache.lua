@@ -1,6 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local config = require("kubectl.config")
-local logger = require("kubectl.utils.logging")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")
 
@@ -73,7 +72,7 @@ local function processRow(rows, cached_api_resources, relationships)
         end
       end
 
-      local row = {}
+      local row
 
       if item.metadata.name then
         local owners = {}
@@ -177,7 +176,6 @@ function M.load_cache(cached_api_resources, callback)
         if cmd.cmd == "curl" then
           cmd.args = url.build(cmd.args)
           cmd.args = url.addHeaders(cmd.args, cmd.contentType)
-        else
         end
       end
 

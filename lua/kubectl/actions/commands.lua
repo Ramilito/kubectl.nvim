@@ -212,6 +212,7 @@ end
 --- NOTE: Don't use this for kubectl calls since this doesn't support clear_env
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command
+-- luacheck: no max line length
 --- @param opts { env: table, stdin: string, on_stdout: string, detach: boolean, timeout: number }|nil The arguments for the command
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}

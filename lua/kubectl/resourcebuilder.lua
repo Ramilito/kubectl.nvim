@@ -22,14 +22,14 @@ ResourceBuilder.__index = ResourceBuilder
 ---@param resource string The resource to build
 ---@return ResourceBuilder
 function ResourceBuilder:new(resource)
-  self = setmetatable({}, ResourceBuilder)
-  self.resource = resource
-  self.display_name = nil
-  self.processedData = nil
-  self.data = nil
-  self.prettyData = nil
-  self.header = { data = nil, marks = nil }
-  return self
+  local instance = setmetatable({}, { __index = ResourceBuilder })
+  instance.resource = resource
+  instance.display_name = nil
+  instance.processedData = nil
+  instance.data = nil
+  instance.prettyData = nil
+  instance.header = { data = nil, marks = nil }
+  return instance
 end
 
 --- Display the data in a buffer
@@ -290,6 +290,8 @@ function ResourceBuilder:setContent(cancellationToken)
   return self
 end
 
+-- We ignore the override of self in luacheck
+--luacheck: ignore
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
