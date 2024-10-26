@@ -14,4 +14,4 @@ jobs:
       - name: Release
         uses: cycjimmy/semantic-release-action@v4
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
