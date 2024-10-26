@@ -203,6 +203,7 @@ end
 ---@param needle string
 ---@param haystacks table<string>
 ---@param case_sensitive boolean? @defaults to false
+-- luacheck: no max line length
 ---@return table<{idx: number, positions: table<number>, score: number}> @an array with one entry per matching line in `haystacks`, each entry giving the index of the line in `haystacks` as well as the equivalent to the return value of `positions` for that line.
 function fzy.filter(needle, haystacks, case_sensitive)
   local result = {}
