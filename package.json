@@ -1,5 +1,5 @@
 {
-  "name": "kubectl-nvim",
+  "name": "kubectl.nvim",
   "version": "1.0.0",
-  "description": "⎈ Streamline your Kubernetes management within Neovim—control and monitor your cluster seamlessly, all without leaving your coding environment.",
+  "description": "⎈ Streamline your Kubernetes management within Neovim—control and monitor your cluster seamlessly, all without leaving your coding environment."
 }
