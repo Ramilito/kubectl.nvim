@@ -71,7 +71,7 @@ function M.getStatus(row)
   if ready and ready.status == "True" then
     return { symbol = hl.symbols.success, value = nodeConditions.NodeReady }
   end
-  return { symbol = events.ColorStatus("Error"), value = "Unknown" }
+  return { symbol = events.ColorStatus("NotReady"), value = "NotReady" }
 end
 
 local function getIPs(row)

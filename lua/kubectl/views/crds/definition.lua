@@ -13,7 +13,11 @@ local M = {
 --- Get the count of items in the provided data table
 ---@param data table
 ---@return string|table
-local function getVersions(data)
+local function getVersions(row)
+  if not row or not row.spec or not row.spec.versions then
+    return ""
+  end
+  local data = row.spec.versions
   local versions = ""
   local has_deprecated = false
   for _, version in ipairs(data) do
@@ -46,7 +50,7 @@ function M.processRow(rows)
       name = row.metadata.name,
       group = row.spec.group,
       kind = row.spec.names.kind,
-      versions = getVersions(row.spec.versions),
+      versions = getVersions(row),
       scope = row.spec.scope,
       age = time.since(row.metadata.creationTimestamp),
     }

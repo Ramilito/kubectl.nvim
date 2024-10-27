@@ -35,8 +35,8 @@ end
 
 local function getCompletions(row)
   local completions = { symbol = "", value = "" }
-  local desired = row.spec.completions
-  local actual = row.status.succeeded or 0
+  local desired = row and row.spec and row.spec.completions or "0"
+  local actual = row and row.status and row.status.succeeded or "0"
   if desired == actual then
     completions.symbol = hl.symbols.note
   else
