@@ -84,6 +84,7 @@ end
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
 --- @param title string|nil: The title for the buffer (optional).
+-- luacheck: no max line length
 --- @param opts { relative: string|nil, size: { width: number|nil, height: number|nil, row: number|nil,col: number|nil }}|nil: The options for the float layout (optional).
 --- @return integer: The window number.
 function M.float_layout(buf, filetype, title, opts)

@@ -22,14 +22,14 @@ ResourceBuilder.__index = ResourceBuilder
 ---@param resource string The resource to build
 ---@return ResourceBuilder
 function ResourceBuilder:new(resource)
-  self = setmetatable({}, ResourceBuilder)
-  self.resource = resource
-  self.display_name = nil
-  self.processedData = nil
-  self.data = nil
-  self.prettyData = nil
-  self.header = { data = nil, marks = nil }
-  return self
+  local instance = setmetatable({}, { __index = ResourceBuilder })
+  instance.resource = resource
+  instance.display_name = nil
+  instance.processedData = nil
+  instance.data = nil
+  instance.prettyData = nil
+  instance.header = { data = nil, marks = nil }
+  return instance
 end
 
 --- Display the data in a buffer
@@ -290,6 +290,8 @@ function ResourceBuilder:setContent(cancellationToken)
   return self
 end
 
+-- We ignore the override of self in luacheck
+--luacheck: ignore
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"
@@ -400,6 +402,7 @@ function ResourceBuilder:action_view(definition, data, callback)
           { details = true, overlap = true, type = "virt_text" }
         )
         local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, -1, false)
+        self.data = lines
         local args_tmp = {}
         for _, value in ipairs(definition.cmd) do
           table.insert(args_tmp, value)
@@ -420,13 +423,15 @@ function ResourceBuilder:action_view(definition, data, callback)
               for _, item in ipairs(data) do
                 if string.match(text, item.text) then
                   local value = line
-
                   if value == "true" then
                     table.insert(args_tmp, item.cmd)
                     break
-                  elseif value ~= "false" and value ~= "" and value ~= nil and item.cmd ~= "" then
-                    table.insert(args_tmp, item.cmd)
-                    table.insert(args_tmp, value)
+                  elseif value ~= "false" and value ~= "" and value ~= nil then
+                    if item.cmd ~= "" then
+                      table.insert(args_tmp, item.cmd .. "=" .. value)
+                    else
+                      table.insert(args_tmp, value)
+                    end
                     break
                   end
                 end
@@ -438,13 +443,16 @@ function ResourceBuilder:action_view(definition, data, callback)
         args = args_tmp
       end, 200)
       vim.defer_fn(function()
-        layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
+        if vim.api.nvim_get_current_buf() == buf_nr then
+          layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
+        end
       end, 1000)
     end,
   })
 
   for index, item in ipairs(data) do
-    table.insert(self.data, item.value)
+    local value_or_enum = item.enum and item.enum[1] or item.value
+    table.insert(self.data, value_or_enum)
 
     table.insert(self.extmarks, {
       row = index - 1,
@@ -473,6 +481,46 @@ function ResourceBuilder:action_view(definition, data, callback)
   self:setContentRaw()
   vim.cmd([[syntax match KubectlPending /.*/]])
 
+  local current_enums = {}
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.tab)", "", {
+    noremap = true,
+    silent = true,
+    desc = "toggle options",
+    callback = function()
+      local current_line = vim.api.nvim_win_get_cursor(0)[1]
+      local marks_ok, marks = pcall(
+        vim.api.nvim_buf_get_extmarks,
+        0,
+        state.marks.ns_id,
+        current_line,
+        current_line,
+        { details = true, overlap = true, type = "virt_text" }
+      )
+      if not marks_ok then
+        return
+      end
+      local key = marks[1][4].virt_text[1][1]
+      for _, item in ipairs(data) do
+        if string.match(key, item.text) and item.enum then
+          if current_enums[item.text] == nil then
+            current_enums[item.text] = 2
+          else
+            current_enums[item.text] = current_enums[item.text] + 1
+            if current_enums[item.text] > #item.enum then
+              current_enums[item.text] = 1
+            end
+          end
+          self.data[current_line] = item.enum[current_enums[item.text]]
+          self:setContentRaw()
+        end
+      end
+    end,
+  })
+
+  vim.schedule(function()
+    local mappings = require("kubectl.mappings")
+    mappings.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
+  end)
   return self
 end
 

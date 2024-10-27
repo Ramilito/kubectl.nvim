@@ -29,20 +29,11 @@ local function set_keymaps(bufnr)
     desc = "Create job from cronjob",
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
-      vim.ui.input({ prompt = "New job name " }, function(input)
-        if not input or input == "" then
-          return
-        end
-        commands.shell_command_async(
-          "kubectl",
-          { "create", "job", input, "--from", "cronjobs/" .. name, "-n", ns },
-          function(response)
-            vim.schedule(function()
-              vim.notify(response)
-            end)
-          end
-        )
-      end)
+      if name and ns then
+        cronjob_view.create_from_cronjob(name, ns)
+      else
+        api.nvim_err_writeln("Failed to create job.")
+      end
     end,
   })
 
