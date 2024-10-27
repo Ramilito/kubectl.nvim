@@ -58,23 +58,28 @@ local function set_keymaps(bufnr)
         end
       end
 
-      for _, selection in ipairs(selections) do
-        local name = selection.name
-        local ns = selection.namespace
+      local prompt = "Are you sure you want to delete the selected pod(s)?"
+      buffers.confirmation_buffer(prompt, "prompt", function(confirm)
+        if confirm then
+          for _, selection in ipairs(selections) do
+            local name = selection.name
+            local ns = selection.namespace
 
-        local port_forwards = {}
-        root_definition.getPFData(port_forwards, false, "pods")
-        for _, pf in ipairs(port_forwards) do
-          if pf.resource == name then
-            vim.notify("Killing port forward for " .. pf.resource)
-            commands.shell_command_async("kill", { pf.pid })
+            local port_forwards = {}
+            root_definition.getPFData(port_forwards, false, "pods")
+            for _, pf in ipairs(port_forwards) do
+              if pf.resource == name then
+                vim.notify("Killing port forward for " .. pf.resource)
+                commands.shell_command_async("kill", { pf.pid })
+              end
+            end
+            vim.notify("Deleting pod " .. name)
+            commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
           end
+          state.selections = {}
+          pod_view.Draw()
         end
-        vim.notify("Deleting pod " .. name)
-        commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
-      end
-      state.selections = {}
-      pod_view.Draw()
+      end)
     end,
   })
 
