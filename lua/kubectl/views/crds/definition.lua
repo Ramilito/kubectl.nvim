@@ -11,7 +11,7 @@ local M = {
 }
 
 --- Get the count of items in the provided data table
----@param data table
+---@param row table
 ---@return string|table
 local function getVersions(row)
   if not row or not row.spec or not row.spec.versions then
