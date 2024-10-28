@@ -100,7 +100,6 @@ function M.with_completion(buf, data, callback, shortest)
         close_completion_pum(M.pum_win)
       end
       if M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
-        vim.print("in if")
         vim.api.nvim_win_set_config(M.pum_win, {
           relative = "cursor",
           row = 1,
