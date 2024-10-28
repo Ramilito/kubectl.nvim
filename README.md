@@ -116,7 +116,7 @@ You can also override the plugin's keymaps using the `<Plug>` mappings:
 
 ```lua
 -- default mappings
-local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = false })
+local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = "k8s_*",
