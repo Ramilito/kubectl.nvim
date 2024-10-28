@@ -49,7 +49,7 @@ function M.processRow(rows)
       reason = getReason(row.reason),
       object = row.involvedObject.name,
       count = tonumber(row.count) or 0,
-      message = row.message:gsub("\n", ""),
+      message = row and row.message and row.message:gsub("\n", "") or "",
     }
 
     table.insert(data, pod)

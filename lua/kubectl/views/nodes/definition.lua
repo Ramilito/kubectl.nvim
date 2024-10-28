@@ -68,8 +68,12 @@ function M.getStatus(row)
   end
 
   local ready = conditions[nodeConditions.NodeReady]
-  if ready and ready.status == "True" then
-    return { symbol = hl.symbols.success, value = nodeConditions.NodeReady }
+  if ready then
+    if ready.status == "True" then
+      return { symbol = hl.symbols.success, value = nodeConditions.NodeReady }
+    else
+      return { symbol = events.ColorStatus("NotReady"), value = "NotReady" }
+    end
   end
   return { symbol = events.ColorStatus("Error"), value = "Unknown" }
 end
