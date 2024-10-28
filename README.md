@@ -1,4 +1,3 @@
-
 # ![kubernetes (1)](https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91) kubectl.nvim
 
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
@@ -110,7 +109,9 @@ We expose open, close and toggle to bind against:
 vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
 ```
 
-You can also override the plugin's keymaps using the `<Plug>` mappings:
+#### Default Mappings
+
+You can override the plugin's keymaps using the `<Plug>` mappings:
 
 <details><summary>Default Mappings</summary>
 
@@ -192,9 +193,9 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.top_nodes)", "gn", opts) -- Top nodes
     k("n", "<Plug>(kubectl.top_pods)", "gp", opts) -- Top pods
 
-    -- CronJob/Job actions
-    k("n", "<Plug>(kubectl.suspend_job)", "gx", opts) -- only for CronJob
-    k("n", "<Plug>(kubectl.create_job)", "gc", opts) -- Create Job from CronJob or Job
+    -- CronJob actions
+    k("n", "<Plug>(kubectl.suspend_cronjob)", "gx", opts) -- Suspend CronJob
+    k("n", "<Plug>(kubectl.create_job)", "gc", opts) -- Create Job from CronJob
 
     k("n", "<Plug>(kubectl.portforward)", "gp", opts) -- Pods/Services portforward
     k("n", "<Plug>(kubectl.browse)", "gx", opts) -- Ingress view
@@ -204,6 +205,10 @@ vim.api.nvim_create_autocmd("FileType", {
 ```
 
 </details>
+
+#### Lazy Setup
+
+For overriding the default mappings when using `lazy.nvim` [check out our wiki page.](https://github.com/Ramilito/kubectl.nvim/wiki/Lazy-setup)
 
 ## ⚙️ Configuration
 
