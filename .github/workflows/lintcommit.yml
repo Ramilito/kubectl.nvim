@@ -1,7 +1,9 @@
 # Reference: https://commitlint.js.org/guides/ci-setup
 name: lintcommit
 
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   commitlint:
