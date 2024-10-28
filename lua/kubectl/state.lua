@@ -89,8 +89,8 @@ function M.checkVersions()
   commands.shell_command_async("kubectl", { "version", "--output", "json" }, function(data)
     local result = decode(data)
     if result then
-      local clientVersion = result and result.clientVersion and result.clientVersion.gitVersion or "0.0"
-      local serverVersion = result and result.serverVersion and result.serverVersion.gitVersion or "0.0"
+      local clientVersion = result.clientVersion and result.clientVersion.gitVersion or "0.0"
+      local serverVersion = result.serverVersion and result.serverVersion.gitVersion or "0.0"
       if not clientVersion or not serverVersion then
         return
       end
