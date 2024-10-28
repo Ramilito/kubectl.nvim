@@ -37,7 +37,7 @@ local function set_keymaps(bufnr)
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.suspend_job)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.suspend_cronjob)", "", {
     noremap = true,
     silent = true,
     desc = "Suspend selected cronjob",
@@ -81,5 +81,5 @@ init()
 
 vim.schedule(function()
   mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
-  mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
+  mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_cronjob)")
 end)
