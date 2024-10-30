@@ -37,6 +37,11 @@ local function process_event(builder, event_string)
     elseif event.type == "DELETED" then
       for index, item in ipairs(is_table and target.rows or target) do
         if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+          for selection_index, selection in ipairs(state.selections) do
+            if selection.name == item.metadata.name then
+              table.remove(state.selections, selection_index)
+            end
+          end
           table.remove(is_table and target.rows or target, index)
           break
         end
