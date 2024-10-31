@@ -428,7 +428,7 @@ function ResourceBuilder:action_view(definition, data, callback)
                     break
                   elseif value ~= "false" and value ~= "" and value ~= nil then
                     if item.cmd ~= "" then
-                      table.insert(args_tmp, item.cmd .. "=" .. value)
+                      table.insert(args_tmp, item.cmd .. " " .. value)
                     else
                       table.insert(args_tmp, value)
                     end
