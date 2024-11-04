@@ -380,8 +380,14 @@ function ResourceBuilder:action_view(definition, data, callback)
   local args = definition.cmd
   local win_config
 
-  self.data = {}
-  self.extmarks = {}
+  if not self.data then
+    self.data = {}
+  end
+
+  if not self.extmarks then
+    self.extmarks = {}
+  end
+
   self.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     if confirm then
       callback(args)
@@ -401,19 +407,16 @@ function ResourceBuilder:action_view(definition, data, callback)
           -1,
           { details = true, overlap = true, type = "virt_text" }
         )
-        local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, -1, false)
-        self.data = lines
         local args_tmp = {}
         for _, value in ipairs(definition.cmd) do
           table.insert(args_tmp, value)
         end
 
-        for index, line in ipairs(lines) do
-          local mark = marks[index]
+        for _, mark in ipairs(marks) do
           if mark then
             local text = mark[4].virt_text[1][1]
             if string.match(text, "Args") then
-              vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, index, 0, {
+              vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, mark[2], 0, {
                 id = mark[1],
                 virt_text = { { "Args | kubectl " .. table.concat(args_tmp, " "), "KubectlWhite" } },
                 virt_text_pos = "inline",
@@ -422,6 +425,7 @@ function ResourceBuilder:action_view(definition, data, callback)
             else
               for _, item in ipairs(data) do
                 if string.match(text, item.text) then
+                  local line = vim.api.nvim_buf_get_lines(0, mark[2], mark[2] + 1, false)[1]
                   local value = line
                   if value == "true" then
                     table.insert(args_tmp, item.cmd)
@@ -439,7 +443,6 @@ function ResourceBuilder:action_view(definition, data, callback)
             end
           end
         end
-
         args = args_tmp
       end, 200)
       vim.defer_fn(function()
@@ -450,12 +453,10 @@ function ResourceBuilder:action_view(definition, data, callback)
     end,
   })
 
-  for index, item in ipairs(data) do
-    local value_or_enum = item.enum and item.enum[1] or item.value
-    table.insert(self.data, value_or_enum)
-
+  for _, item in ipairs(data) do
+    table.insert(self.data, item.value)
     table.insert(self.extmarks, {
-      row = index - 1,
+      row = #self.data - 1,
       start_col = 0,
       virt_text = { { item.text .. " ", "KubectlHeader" } },
       virt_text_pos = "inline",
@@ -467,13 +468,14 @@ function ResourceBuilder:action_view(definition, data, callback)
   table.insert(self.data, "")
 
   table.insert(self.extmarks, {
-    row = #data + 1,
+    row = #self.data - 1,
     start_col = 0,
     virt_text = { { "Args | " .. " ", "KubectlWhite" } },
     virt_text_pos = "inline",
     right_gravity = false,
   })
 
+  table.insert(self.data, "")
   local confirmation = "[y]es [n]o"
   local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
   table.insert(self.data, padding .. confirmation)
