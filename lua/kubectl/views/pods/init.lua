@@ -155,8 +155,9 @@ function M.PortForward(pod, ns)
   table.insert(builder.data, " ")
 
   local data = {
-    { text = "container:", value = "2222", cmd = "" },
-    { text = "local:", value = "1111", cmd = "" },
+    { text = "container name:", value = tostring(containers[1].name.value), cmd = "" },
+    { text = "container port:", value = tostring(containers[1].port.value), cmd = "" },
+    { text = "local:", value = tostring(containers[1].port.value), cmd = "" },
     { text = "address:", value = "localhost", cmd = "--address" },
   }
 
