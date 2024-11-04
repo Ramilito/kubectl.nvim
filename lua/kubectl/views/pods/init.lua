@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.pods.definition")
+local hl = require("kubectl.actions.highlight")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -120,6 +121,52 @@ function M.Logs(reload)
     end)
   end
   ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+end
+
+function M.PortForward(pod, ns)
+  local builder = ResourceBuilder:new("kubectl_pf")
+  local pf_def = {
+    ft = "k8s_pod_pf",
+    display = "PF: " .. pod .. "-" .. "?",
+    resource = pod,
+    cmd = { "port-forward", "pods/" .. pod, "-n", ns },
+  }
+
+  local resource = tables.find_resource(state.instance.data, pod, ns)
+  if not resource then
+    return
+  end
+  local containers = {}
+  for _, container in ipairs(resource.spec.containers) do
+    if container.ports then
+      for _, port in ipairs(container.ports) do
+        table.insert(containers, {
+          name = { value = port.name, symbol = hl.symbols.pending },
+          port = { value = port.containerPort, symbol = hl.symbols.success },
+          protocol = port.protocol,
+        })
+      end
+    end
+  end
+  if next(containers) == nil then
+    containers[1] = { port = { value = "" } }
+  end
+  builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
+  table.insert(builder.data, " ")
+
+  local data = {
+    { text = "container:", value = "2222", cmd = "" },
+    { text = "local:", value = "1111", cmd = "" },
+    { text = "address:", value = "localhost", cmd = "--address" },
+  }
+
+  builder:action_view(pf_def, data, function(args)
+    vim.print(args)
+    -- vim.schedule(function()
+    -- buffers.floating_buffer(pf_def.ft, "debug " .. M.selection)
+    -- commands.execute_terminal("kubectl", args)
+    -- end)
+  end)
 end
 
 function M.Desc(name, ns, reload)
