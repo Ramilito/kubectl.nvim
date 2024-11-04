@@ -141,7 +141,7 @@ function M.PortForward(pod, ns)
     if container.ports then
       for _, port in ipairs(container.ports) do
         table.insert(containers, {
-          name = { value = port.name, symbol = hl.symbols.pending },
+          name = { value = container.name, symbol = hl.symbols.pending },
           port = { value = port.containerPort, symbol = hl.symbols.success },
           protocol = port.protocol,
         })
@@ -149,13 +149,12 @@ function M.PortForward(pod, ns)
     end
   end
   if next(containers) == nil then
-    containers[1] = { port = { value = "" } }
+    containers[1] = { port = { value = "" }, name = { value = "" } }
   end
   builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
   table.insert(builder.data, " ")
 
   local data = {
-    { text = "container name:", value = tostring(containers[1].name.value), cmd = "" },
     { text = "container port:", value = tostring(containers[1].port.value), cmd = "" },
     { text = "local:", value = tostring(containers[1].port.value), cmd = "" },
     { text = "address:", value = "localhost", cmd = "--address" },
