@@ -28,10 +28,9 @@ end
 
 function M.debug(pod, ns)
   local builder = ResourceBuilder:new("kubectl_debug")
-  local ft = "k8s_container_debug"
 
   local debug_def = {
-    ft = ft,
+    ft = "k8s_container_debug",
     display = "Debug: " .. pod .. "-" .. M.selection .. "?",
     resource = pod,
     cmd = { "debug", pod, "-n", ns },
@@ -46,7 +45,7 @@ function M.debug(pod, ns)
 
   builder:action_view(debug_def, data, function(args)
     vim.schedule(function()
-      buffers.floating_buffer(ft, "debug " .. M.selection)
+      buffers.floating_buffer(debug_def.ft, "debug " .. M.selection)
       commands.execute_terminal("kubectl", args)
     end)
   end)
