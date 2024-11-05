@@ -11,6 +11,7 @@ local M = {}
 ---@field heartbeat boolean
 ---@field kubernetes_versions boolean
 ---@field lineage { enabled: boolean }
+---@field completion { follow_cursor: boolean }
 ---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
@@ -40,6 +41,9 @@ local defaults = {
   kubernetes_versions = true,
   lineage = {
     enabled = false,
+  },
+  completion = {
+    follow_cursor = false,
   },
   logs = {
     prefix = true,

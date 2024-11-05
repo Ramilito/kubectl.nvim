@@ -1,3 +1,4 @@
+local config = require("kubectl.config")
 local fzy = require("kubectl.utils.fzy")
 local hl = require("kubectl.actions.highlight")
 local mappings = require("kubectl.mappings")
@@ -92,6 +93,16 @@ function M.with_completion(buf, data, callback, shortest)
 
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function()
+      if config.options.completion.follow_cursor and M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
+        vim.schedule(function()
+          vim.api.nvim_win_set_config(M.pum_win, {
+            relative = "cursor",
+            anchor = "NW",
+            row = 1,
+            col = 0,
+          })
+        end)
+      end
       local line = vim.api.nvim_get_current_line()
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
       if #input == 0 then
