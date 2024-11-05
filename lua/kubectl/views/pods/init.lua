@@ -170,7 +170,6 @@ function M.PortForward(pod, ns)
   }
 
   builder:action_view(pf_def, data, function(args)
-    vim.print(args)
     commands.shell_command_async("kubectl", args)
     vim.schedule(function()
       M.View()
