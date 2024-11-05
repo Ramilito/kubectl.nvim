@@ -489,9 +489,16 @@ function ResourceBuilder:action_view(definition, data, callback)
   })
 
   table.insert(self.data, "")
+  table.insert(self.data, "")
+
   local confirmation = "[y]es [n]o"
   local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
-  table.insert(self.data, padding .. confirmation)
+  table.insert(self.extmarks, {
+    row = #self.data - 1,
+    start_col = 0,
+    virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
+    virt_text_pos = "inline",
+  })
 
   self:setContentRaw()
   vim.cmd([[syntax match KubectlPending /.*/]])
