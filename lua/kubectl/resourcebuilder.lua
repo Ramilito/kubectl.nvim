@@ -415,7 +415,7 @@ function ResourceBuilder:action_view(definition, data, callback)
         for _, mark in ipairs(marks) do
           if mark then
             local text = mark[4].virt_text[1][1]
-            if string.match(text, "Args") then
+            if string.find(text, "Args", 1, true) then
               vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, mark[2], 0, {
                 id = mark[1],
                 virt_text = { { "Args | kubectl " .. table.concat(args_tmp, " "), "KubectlWhite" } },
@@ -424,20 +424,33 @@ function ResourceBuilder:action_view(definition, data, callback)
               })
             else
               for _, item in ipairs(data) do
-                if string.match(text, item.text) then
-                  local line = vim.api.nvim_buf_get_lines(0, mark[2], mark[2] + 1, false)[1]
-                  local value = line
-                  if value == "true" then
-                    table.insert(args_tmp, item.cmd)
-                    break
-                  elseif value ~= "false" and value ~= "" and value ~= nil then
-                    if item.cmd ~= "" then
-                      table.insert(args_tmp, item.cmd .. " " .. value)
-                    else
-                      table.insert(args_tmp, value)
+                if string.find(text, item.text, 1, true) then
+                  local line_number = mark[2]
+                  local line = vim.api.nvim_buf_get_lines(0, line_number, line_number + 1, false)[1] or ""
+                  local value = vim.trim(line)
+
+                  if item.type == "flag" then
+                    if value == "true" then
+                      table.insert(args_tmp, item.cmd)
                     end
-                    break
+                  elseif item.type == "option" then
+                    if value ~= "" and value ~= "false" and value ~= nil then
+                      table.insert(args_tmp, item.cmd .. "=" .. value)
+                    end
+                  elseif item.type == "positional" then
+                    if value ~= "" and value ~= nil then
+                      if item.cmd then
+                        table.insert(args_tmp, item.cmd .. " " .. value)
+                      else
+                        table.insert(args_tmp, value)
+                      end
+                    end
+                  elseif item.type == "merge_above" then
+                    if value ~= "" and value ~= nil then
+                      args_tmp[#args_tmp] = args_tmp[#args_tmp] .. item.cmd .. value
+                    end
                   end
+                  break
                 end
               end
             end
@@ -503,16 +516,16 @@ function ResourceBuilder:action_view(definition, data, callback)
       end
       local key = marks[1][4].virt_text[1][1]
       for _, item in ipairs(data) do
-        if string.match(key, item.text) and item.enum then
+        if string.match(key, item.text) and item.options then
           if current_enums[item.text] == nil then
             current_enums[item.text] = 2
           else
             current_enums[item.text] = current_enums[item.text] + 1
-            if current_enums[item.text] > #item.enum then
+            if current_enums[item.text] > #item.options then
               current_enums[item.text] = 1
             end
           end
-          self.data[current_line] = item.enum[current_enums[item.text]]
+          self.data[current_line] = item.options[current_enums[item.text]]
           self:setContentRaw()
         end
       end

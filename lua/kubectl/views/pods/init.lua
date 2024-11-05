@@ -140,8 +140,17 @@ function M.PortForward(pod, ns)
   for _, container in ipairs(resource.spec.containers) do
     if container.ports then
       for _, port in ipairs(container.ports) do
+        local name
+        if port.name and container.name then
+          name = container.name .. "::(" .. port.name .. ")"
+        elseif container.name then
+          name = container.name
+        else
+          name = nil
+        end
+
         table.insert(containers, {
-          name = { value = container.name, symbol = hl.symbols.pending },
+          name = { value = name, symbol = hl.symbols.pending },
           port = { value = port.containerPort, symbol = hl.symbols.success },
           protocol = port.protocol,
         })
@@ -155,17 +164,17 @@ function M.PortForward(pod, ns)
   table.insert(builder.data, " ")
 
   local data = {
-    { text = "container port:", value = tostring(containers[1].port.value), cmd = "" },
-    { text = "local:", value = tostring(containers[1].port.value), cmd = "" },
-    { text = "address:", value = "localhost", cmd = "--address" },
+    { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
+    { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
+    { text = "address:", value = "localhost", cmd = "--address", type = "option" },
   }
 
   builder:action_view(pf_def, data, function(args)
     vim.print(args)
-    -- vim.schedule(function()
-    -- buffers.floating_buffer(pf_def.ft, "debug " .. M.selection)
-    -- commands.execute_terminal("kubectl", args)
-    -- end)
+    commands.shell_command_async("kubectl", args)
+    vim.schedule(function()
+      M.View()
+    end)
   end)
 end
 
