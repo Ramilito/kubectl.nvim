@@ -23,12 +23,30 @@ function M.Drain(node)
     cmd = { "drain", "nodes/" .. node },
   }
   local data = {
-    { text = "grace period:", value = "-1", cmd = "--grace-period" },
-    { text = "timeout:", value = "5s", cmd = "--timeout" },
-    { text = "ignore daemonset:", enum = { "false", "true" }, cmd = "--ignore-daemonsets" },
-    { text = "delete emptydir data:", enum = { "false", "true" }, cmd = "--delete-emptydir-data" },
-    { text = "force:", enum = { "false", "true" }, cmd = "--force" },
-    { text = "dry run:", enum = { "none", "server", "client" }, cmd = "--dry-run" },
+    { text = "grace period:", value = "-1", cmd = "--grace-period", type = "option" },
+    { text = "timeout:", value = "5s", cmd = "--timeout", type = "option" },
+    {
+      text = "ignore daemonset:",
+      value = "false",
+      options = { "false", "true" },
+      cmd = "--ignore-daemonsets",
+      type = "flag",
+    },
+    {
+      text = "delete emptydir data:",
+      value = "false",
+      options = { "false", "true" },
+      cmd = "--delete-emptydir-data",
+      type = "flag",
+    },
+    { text = "force:", value = "false", options = { "false", "true" }, cmd = "--force", type = "flag" },
+    {
+      text = "dry run:",
+      value = "none",
+      options = { "none", "server", "client" },
+      cmd = "--dry-run",
+      type = "option",
+    },
   }
 
   builder:action_view(node_def, data, function(args)
