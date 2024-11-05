@@ -15,43 +15,6 @@ local M = {
   },
 }
 
-local function getReady(row)
-  local status = { symbol = "", value = "", sort_by = 0 }
-  local containers = 0
-  if row.spec and row.spec.containers then
-    containers = #row.spec.containers
-  end
-  local readyCount = 0
-  if row.status and row.status.containerStatuses then
-    for _, value in ipairs(row.status.containerStatuses) do
-      if value.ready then
-        readyCount = readyCount + 1
-      end
-    end
-  end
-  local isJob = false
-  if row.metadata.ownerReferences and row.metadata.ownerReferences[1].kind then
-    isJob = row.metadata.ownerReferences[1].kind == "Job"
-  end
-  if readyCount == containers then
-    if isJob then
-      status.symbol = hl.symbols.deprecated
-    else
-      status.symbol = hl.symbols.note
-    end
-  else
-    if isJob then
-      status.symbol = hl.symbols.note
-    else
-      status.symbol = hl.symbols.deprecated
-    end
-  end
-
-  status.value = readyCount .. "/" .. containers
-  status.sort_by = (readyCount * 1000) + containers
-  return status
-end
-
 --- Get restarts as a symbol
 ---@param row table
 ---@param currentTime number
@@ -192,6 +155,36 @@ local function getPodStatus(row)
   end
 
   return { value = "Terminating", symbol = events.ColorStatus("Terminating") }
+end
+
+local function getReady(row)
+  local status = { symbol = "", value = "", sort_by = 0 }
+  local containers = 0
+  if row.spec and row.spec.containers then
+    containers = #row.spec.containers
+  end
+  local readyCount = 0
+  if row.status and row.status.containerStatuses then
+    for _, value in ipairs(row.status.containerStatuses) do
+      if value.ready then
+        readyCount = readyCount + 1
+      end
+    end
+  end
+  if readyCount == containers then
+    status.symbol = hl.symbols.note
+  else
+    status.symbol = hl.symbols.deprecated
+  end
+
+  local pod_status = getPodStatus(row)
+  if pod_status.value == "Completed" then
+    status.symbol = hl.symbols.note
+  end
+  status.value = readyCount .. "/" .. containers
+  status.sort_by = (readyCount * 1000) + containers
+
+  return status
 end
 
 function M.processRow(rows)

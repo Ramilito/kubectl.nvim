@@ -116,8 +116,7 @@ local function set_keymaps(bufnr)
 
       vim.schedule(function()
         if next(data) == nil then
-          api.nvim_err_writeln("No container ports exposed in pod")
-          return
+          data[1] = { port = { value = "" } }
         end
 
         local win_config
