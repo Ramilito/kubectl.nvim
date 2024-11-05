@@ -439,7 +439,7 @@ function ResourceBuilder:action_view(definition, data, callback)
                     end
                   elseif item.type == "positional" then
                     if value ~= "" and value ~= nil then
-                      if item.cmd then
+                      if item.cmd and item.cmd ~= "" then
                         table.insert(args_tmp, item.cmd .. " " .. value)
                       else
                         table.insert(args_tmp, value)
@@ -518,10 +518,14 @@ function ResourceBuilder:action_view(definition, data, callback)
         current_line,
         { details = true, overlap = true, type = "virt_text" }
       )
-      if not marks_ok then
+      if not marks_ok or not marks[1] then
         return
       end
-      local key = marks[1][4].virt_text[1][1]
+      local mark = marks[1][4]
+      local key
+      if mark then
+        key = mark.virt_text[1][1]
+      end
       for _, item in ipairs(data) do
         if string.match(key, item.text) and item.options then
           if current_enums[item.text] == nil then
