@@ -66,7 +66,7 @@ local function set_keymaps(bufnr)
             local ns = selection.namespace
 
             local port_forwards = {}
-            root_definition.getPFData(port_forwards, false, "pods")
+            root_definition.getPFData(port_forwards, false)
             for _, pf in ipairs(port_forwards) do
               if pf.resource == name then
                 vim.notify("Killing port forward for " .. pf.resource)

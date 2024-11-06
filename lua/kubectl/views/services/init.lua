@@ -8,7 +8,7 @@ local M = { builder = nil, pfs = {} }
 
 function M.View(cancellationToken)
   M.pfs = {}
-  root_definition.getPFData(M.pfs, true, "svc")
+  root_definition.getPFData(M.pfs, true)
   ResourceBuilder:view(definition, cancellationToken)
 end
 

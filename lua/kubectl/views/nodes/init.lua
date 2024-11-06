@@ -28,18 +28,16 @@ function M.Drain(node)
     {
       text = "ignore daemonset:",
       value = "false",
-      options = { "false", "true" },
       cmd = "--ignore-daemonsets",
       type = "flag",
     },
     {
       text = "delete emptydir data:",
       value = "false",
-      options = { "false", "true" },
       cmd = "--delete-emptydir-data",
       type = "flag",
     },
-    { text = "force:", value = "false", options = { "false", "true" }, cmd = "--force", type = "flag" },
+    { text = "force:", value = "false", cmd = "--force", type = "flag" },
     {
       text = "dry run:",
       value = "none",
