@@ -20,17 +20,22 @@ function M.getPFData(port_forwards, async, kind)
     end
 
     for _, line in ipairs(vim.split(data, "\n")) do
-      local pid = vim.trim(line):match("^(%d+)")
+      if line == "" then
+        return
+      end
+      line = vim.trim(line)
+      local pid = line:match("^(%d+)")
       local resource_type = line:match("%s(pods)/") or line:match("%s(svc)/")
 
-      local resource, port, ns
+      local resource, ns
+      local port = line:match("(%d+:%d+)")
       ns = line:match("%-n%s+(%S+)")
       if kind == "pods" then
-        resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
+        resource = line:match("pods/([^%s]+)")
       elseif kind == "svc" then
-        resource, port = line:match("svc/([^%s]+)%s+(%d+:%d+)$")
+        resource = line:match("svc/([^%s]+)")
       elseif kind == "all" then
-        resource, port = line:match("/([^%s]+)%s+(%d+:%d+)$")
+        resource = line:match("[ps][ov][cd]s?/([%w%-]+)")
       end
 
       if resource and port then
