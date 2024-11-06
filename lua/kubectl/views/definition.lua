@@ -7,9 +7,8 @@ local M = {}
 
 ---@param port_forwards {pid: string, type: string, resource: string, port: string} @Array of port forwards
 ---@param async boolean @Indicates whether the function should run asynchronously
----@param kind "pods"|"svc"|"all" @What types we want to retrieve
 ---@return table[] @Returns the modified array of port forwards
-function M.getPFData(port_forwards, async, kind)
+function M.getPFData(port_forwards, async)
   if vim.fn.has("win32") == 1 then
     return port_forwards
   end
@@ -26,18 +25,10 @@ function M.getPFData(port_forwards, async, kind)
       line = vim.trim(line)
       local pid = line:match("^(%d+)")
       local resource_type = line:match("%s(pods)/") or line:match("%s(svc)/")
-
-      local resource, ns
       local port = line:match("(%d+:%d+)")
-      ns = line:match("%-n%s+(%S+)")
-      if kind == "pods" then
-        resource = line:match("pods/([^%s]+)")
-      elseif kind == "svc" then
-        resource = line:match("svc/([^%s]+)")
-      elseif kind == "all" then
-        -- either pods/ or svc/
-        resource = line:match("[ps][ov][cd]s?/([%w%-]+)")
-      end
+      local ns = line:match("%-n%s+(%S+)")
+      -- either pods/ or svc/
+      local resource = line:match("[ps][ov][cd]s?/([%w%-]+)")
 
       if resource and port then
         table.insert(port_forwards, { pid = pid, type = resource_type, resource = resource, ns = ns, port = port })

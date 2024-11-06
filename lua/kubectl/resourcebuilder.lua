@@ -514,8 +514,8 @@ function ResourceBuilder:action_view(definition, data, callback)
         vim.api.nvim_buf_get_extmarks,
         0,
         state.marks.ns_id,
-        current_line,
-        current_line,
+        { current_line - 1, 0 },
+        { current_line - 1, 0 },
         { details = true, overlap = true, type = "virt_text" }
       )
       if not marks_ok or not marks[1] then
@@ -527,6 +527,9 @@ function ResourceBuilder:action_view(definition, data, callback)
         key = mark.virt_text[1][1]
       end
       for _, item in ipairs(data) do
+        if item.type == "flag" then
+          item.options = { "false", "true" }
+        end
         if string.match(key, item.text) and item.options then
           if current_enums[item.text] == nil then
             current_enums[item.text] = 2

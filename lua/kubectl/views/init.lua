@@ -164,7 +164,7 @@ end
 -- @return nil
 function M.PortForwards()
   local pfs = {}
-  pfs = definition.getPFData(pfs, false, "all")
+  pfs = definition.getPFData(pfs, false)
 
   local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
   self.data = definition.getPFRows(pfs)
