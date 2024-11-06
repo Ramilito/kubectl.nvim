@@ -35,6 +35,7 @@ function M.getPFData(port_forwards, async, kind)
       elseif kind == "svc" then
         resource = line:match("svc/([^%s]+)")
       elseif kind == "all" then
+        -- either pods/ or svc/
         resource = line:match("[ps][ov][cd]s?/([%w%-]+)")
       end
 
