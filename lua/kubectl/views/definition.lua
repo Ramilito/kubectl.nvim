@@ -26,11 +26,14 @@ function M.getPFData(port_forwards, async, kind)
       local resource, port, ns
       ns = line:match("%-n%s+(%S+)")
       if kind == "pods" then
-        resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
+        resource = line:match("pods/([^%s]+)%s+")
+        port = line:match("(%d+:%d+)")
       elseif kind == "svc" then
-        resource, port = line:match("svc/([^%s]+)%s+(%d+:%d+)$")
+        resource = line:match("svc/([^%s]+)%s+")
+        port = line:match("(%d+:%d+)")
       elseif kind == "all" then
-        resource, port = line:match("/([^%s]+)%s+(%d+:%d+)$")
+        resource = line:match("/([^%s]+)%s+")
+        port = line:match("(%d+:%d+)")
       end
 
       if resource and port then
