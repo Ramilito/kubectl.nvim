@@ -7,6 +7,7 @@ local api = vim.api
 function M.set_win_options(win)
   api.nvim_set_option_value("cursorline", true, { win = win })
   api.nvim_set_option_value("wrap", false, { win = win })
+  api.nvim_set_option_value("sidescrolloff", 0, { scope = "local", win = win })
 end
 
 --- Set buffer options.
@@ -36,54 +37,6 @@ end
 function M.main_layout()
   -- TODO: Should we create a new win?
   return api.nvim_get_current_win()
-end
-
---- Create an Aliases layout.
---- @param buf integer: The buffer number.
---- @param filetype string: The filetype for the buffer.
---- @param title string|nil: The title for the buffer (optional).
---- @return integer: The window number.
-function M.aliases_layout(buf, filetype, title)
-  local width = 0.8 * vim.o.columns
-  local height = 13
-  local row = 10
-  local col = 10
-
-  local win = api.nvim_open_win(buf, true, {
-    relative = "editor",
-    style = "minimal",
-    width = math.floor(width),
-    height = math.floor(height),
-    row = row,
-    border = "rounded",
-    col = col,
-    title = filetype .. " - " .. (title or ""),
-  })
-  return win
-end
-
---- Create a filter layout.
---- @param buf integer: The buffer number.
---- @param filetype string: The filetype for the buffer.
---- @param title string|nil: The title for the buffer (optional).
---- @return integer: The window number.
-function M.filter_layout(buf, filetype, title)
-  local width = 0.8 * vim.o.columns
-  local height = 13
-  local row = 10
-  local col = 10
-
-  local win = api.nvim_open_win(buf, true, {
-    relative = "editor",
-    style = "minimal",
-    width = math.floor(width),
-    height = math.floor(height),
-    row = row,
-    border = "rounded",
-    col = col,
-    title = filetype .. " - " .. (title or ""),
-  })
-  return win
 end
 
 --- Create a float dynamic layout.
@@ -131,6 +84,7 @@ end
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
 --- @param title string|nil: The title for the buffer (optional).
+-- luacheck: no max line length
 --- @param opts { relative: string|nil, size: { width: number|nil, height: number|nil, row: number|nil,col: number|nil }}|nil: The options for the float layout (optional).
 --- @return integer: The window number.
 function M.float_layout(buf, filetype, title, opts)
@@ -177,7 +131,12 @@ function M.get_editor_dimensions()
   return width, height
 end
 
-function M.win_size_fit_content(buf_nr, offset)
+--- Fits content to window size
+--- @param buf_nr integer: The buffer number.
+--- @param height_offset integer: The height offset.
+--- @param min_width integer|nil: The minimum width.
+--- @return { height: number, width: number }
+function M.win_size_fit_content(buf_nr, height_offset, min_width)
   local win_id = vim.api.nvim_get_current_win()
   local win_config = vim.api.nvim_win_get_config(win_id)
 
@@ -193,10 +152,10 @@ function M.win_size_fit_content(buf_nr, offset)
     end
   end
 
-  win_config.height = rows + offset
-  win_config.width = max_columns
+  win_config.height = rows + height_offset
+  win_config.width = math.max(max_columns, min_width or 0)
 
-  api.nvim_set_option_value("scrolloff", rows + offset, { win = win_id })
+  api.nvim_set_option_value("scrolloff", rows + height_offset, { win = win_id })
   vim.api.nvim_win_set_config(win_id, win_config)
   return win_config
 end

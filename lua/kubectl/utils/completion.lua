@@ -1,3 +1,4 @@
+local config = require("kubectl.config")
 local fzy = require("kubectl.utils.fzy")
 local hl = require("kubectl.actions.highlight")
 local mappings = require("kubectl.mappings")
@@ -7,17 +8,13 @@ local M = {
   ns = nil,
 }
 
-local function close_completion_pum()
-  vim.schedule(function()
-    if M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
-      vim.api.nvim_win_close(M.pum_win, true)
-    end
-  end)
+local function close_completion_pum(pum_win)
+  pcall(vim.api.nvim_win_close, pum_win, true)
 end
 
 local function open_completion_pum(items, selected_index, search_term)
   if not items or #items <= 1 then
-    close_completion_pum()
+    close_completion_pum(M.pum_win)
     return
   end
   local cursorline_enabled = true
@@ -57,7 +54,7 @@ local function open_completion_pum(items, selected_index, search_term)
 
   -- Enable cursorline and define custom highlight for cursorline
   vim.api.nvim_set_option_value("cursorline", cursorline_enabled, { win = M.pum_win })
-  vim.api.nvim_set_option_value("winhl", "CursorLine:KubectlPum", { win = M.pum_win })
+  vim.api.nvim_set_option_value("winhl", "CursorLine:KubectlPselect,Search:None", { win = M.pum_win })
   vim.api.nvim_set_option_value("bufhidden", "wipe", { scope = "local" })
   -- Clear the buffer
   vim.api.nvim_buf_set_lines(M.pum_buf, 0, -1, false, {})
@@ -72,7 +69,7 @@ local function open_completion_pum(items, selected_index, search_term)
     local s = fzy.positions(search_term:lower(), item:lower())
     if s then
       for _, e in pairs(s) do
-        vim.api.nvim_buf_add_highlight(M.pum_buf, -1, hl.symbols.warning, i - 1, e - 1, e)
+        vim.api.nvim_buf_add_highlight(M.pum_buf, -1, hl.symbols.match, i - 1, e - 1, e)
       end
     end
   end
@@ -96,16 +93,26 @@ function M.with_completion(buf, data, callback, shortest)
 
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function()
+      if config.options.completion.follow_cursor and M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
+        vim.schedule(function()
+          vim.api.nvim_win_set_config(M.pum_win, {
+            relative = "cursor",
+            anchor = "NW",
+            row = 1,
+            col = 0,
+          })
+        end)
+      end
       local line = vim.api.nvim_get_current_line()
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
       if #input == 0 then
         original_input = ""
         current_suggestion_index = 0
-        close_completion_pum()
+        close_completion_pum(M.pum_win)
       end
     end,
     on_detach = function()
-      close_completion_pum()
+      close_completion_pum(M.pum_win)
       if M.ns then
         vim.on_key(nil, M.ns)
         vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
@@ -125,7 +132,7 @@ function M.with_completion(buf, data, callback, shortest)
       local input = line:sub(3) -- Remove the `% ` prefix to get the user input
       original_input = input
       current_suggestion_index = 0
-      close_completion_pum()
+      close_completion_pum(M.pum_win)
       return
     end
   end, M.ns)
@@ -161,7 +168,7 @@ function M.with_completion(buf, data, callback, shortest)
     end
 
     -- Cycle through the suggestions
-    local desired_prompt = ""
+    local desired_prompt
     if #filtered_suggestions > 0 then
       if asc then
         current_suggestion_index = current_suggestion_index + 1
@@ -192,9 +199,6 @@ function M.with_completion(buf, data, callback, shortest)
     return ""
   end
 
-  mappings.map_if_plug_not_set("i", "<Tab>", "<Plug>(kubectl.tab)")
-  mappings.map_if_plug_not_set("i", "<S-Tab>", "<Plug>(kubectl.shift_tab)")
-
   vim.api.nvim_buf_set_keymap(buf, "i", "<Plug>(kubectl.tab)", "", {
     noremap = true,
     callback = function()
@@ -208,6 +212,11 @@ function M.with_completion(buf, data, callback, shortest)
       tab_toggle(false)
     end,
   })
+
+  vim.schedule(function()
+    mappings.map_if_plug_not_set("i", "<Tab>", "<Plug>(kubectl.tab)")
+    mappings.map_if_plug_not_set("i", "<S-Tab>", "<Plug>(kubectl.shift_tab)")
+  end)
 end
 
 return M

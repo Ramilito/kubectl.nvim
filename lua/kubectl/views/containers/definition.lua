@@ -7,6 +7,7 @@ local M = {
   url = {},
   hints = {
     { key = "<Plug>(kubectl.logs)", desc = "logs" },
+    { key = "<Plug>(kubectl.debug)", desc = "debug" },
     { key = "<Plug>(kubectl.select)", desc = "exec" },
   },
 }
@@ -30,9 +31,7 @@ local function getContainerState(state)
   return key
 end
 
-function M.processRow(row)
-  local data = {}
-
+local function addContainers(row, data)
   if row.spec and row.status and row.status.containerStatuses then
     for _, container in pairs(row.spec.containers) do
       for _, status in ipairs(row.status.containerStatuses) do
@@ -42,7 +41,7 @@ function M.processRow(row)
             image = container.image,
             ready = status.ready,
             state = getContainerState(status.state),
-            init = false,
+            type = "container",
             restarts = status.restartCount,
             ports = getPorts(container.ports),
             age = time.since(row.metadata.creationTimestamp),
@@ -53,6 +52,58 @@ function M.processRow(row)
       end
     end
   end
+end
+
+local function addInitContianers(row, data)
+  if row.spec and row.status and row.status.initContainerStatuses then
+    for _, container in pairs(row.spec.initContainers) do
+      for _, status in ipairs(row.status.initContainerStatuses) do
+        if status.name == container.name then
+          local result = {
+            name = container.name,
+            image = container.image,
+            ready = status.ready,
+            state = getContainerState(status.state),
+            type = "init",
+            restarts = status.restartCount,
+            ports = getPorts(container.ports),
+            age = time.since(row.metadata.creationTimestamp),
+          }
+
+          table.insert(data, result)
+        end
+      end
+    end
+  end
+end
+local function addEphemeralContianers(row, data)
+  if row.spec and row.status and row.status.ephemeralContainerStatuses then
+    for _, container in pairs(row.spec.ephemeralContainers) do
+      for _, status in ipairs(row.status.ephemeralContainerStatuses) do
+        if status.name == container.name then
+          local result = {
+            name = container.name,
+            image = container.image,
+            ready = status.ready,
+            state = getContainerState(status.state),
+            type = "ephemeral",
+            restarts = status.restartCount,
+            ports = getPorts(container.ports),
+            age = time.since(row.metadata.creationTimestamp),
+          }
+
+          table.insert(data, result)
+        end
+      end
+    end
+  end
+end
+
+function M.processRow(row)
+  local data = {}
+  addContainers(row, data)
+  addInitContianers(row, data)
+  addEphemeralContianers(row, data)
   return data
 end
 
@@ -62,7 +113,7 @@ function M.getHeaders()
     "IMAGE",
     "READY",
     "STATE",
-    "INIT",
+    "TYPE",
     "RESTARTS",
     "PORTS",
     "AGE",

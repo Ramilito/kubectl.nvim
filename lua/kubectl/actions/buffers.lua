@@ -16,6 +16,9 @@ local function create_buffer(bufname, buftype)
   return buf
 end
 
+--- Gets buffer number by name
+--- @param bufname string: The name of the buffer
+--- @return integer|nil: The buffer number
 local function get_buffer_by_name(bufname)
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     local name = vim.api.nvim_buf_get_name(buf)
@@ -71,12 +74,15 @@ function M.apply_marks(bufnr, marks, header)
       end
       local result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
-        end_col = mark.end_col,
+        end_col = mark.end_col or nil,
         hl_eol = mark.hl_eol or nil,
         hl_group = mark.hl_group or nil,
         hl_mode = mark.hl_mode or nil,
         virt_text = mark.virt_text or nil,
         virt_text_pos = mark.virt_text_pos or nil,
+        right_gravity = mark.right_gravity,
+        sign_text = mark.sign_text or nil,
+        sign_hl_group = mark.sign_hl_group or nil,
       })
       -- the first row is always column headers, we save that so other content can use it
       if mark.row == 0 then
@@ -87,22 +93,23 @@ function M.apply_marks(bufnr, marks, header)
   end
 end
 
+function M.fit_to_content(buf, offset)
+  local win_config = layout.win_size_fit_content(buf, offset or 2)
+  return win_config
+end
+
 --- Creates an alias buffer.
 --- @param filetype string: The filetype of the buffer.
---- @param opts { title: string|nil, header: { data: table }, suggestions: table}: Options for the buffer.
+--- @param opts { title: string|nil }: Options for the buffer.
 function M.aliases_buffer(filetype, callback, opts)
   local bufname = "kubectl_aliases"
   local buf = get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
-    vim.keymap.set("n", "q", function()
-      api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd.close()
-    end, { buffer = buf, silent = true })
   end
 
-  local win = layout.aliases_layout(buf, filetype, opts.title or "")
+  local win = layout.float_dynamic_layout(buf, filetype, opts.title)
 
   vim.fn.prompt_setcallback(buf, function(input)
     callback(input)
@@ -120,6 +127,7 @@ end
 
 --- Creates a filter buffer.
 --- @param filetype string: The filetype of the buffer.
+--- @param callback function: The callback function.
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.filter_buffer(filetype, callback, opts)
   local bufname = "kubectl_filter"
@@ -127,13 +135,9 @@ function M.filter_buffer(filetype, callback, opts)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
-    vim.keymap.set("n", "q", function()
-      api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd.close()
-    end, { buffer = buf, silent = true })
   end
 
-  local win = layout.filter_layout(buf, filetype, opts.title or "")
+  local win = layout.float_dynamic_layout(buf, filetype, opts.title or "")
 
   vim.fn.prompt_setcallback(buf, function(input)
     input = vim.trim(input)
@@ -146,7 +150,7 @@ function M.filter_buffer(filetype, callback, opts)
 
     api.nvim_set_option_value("modified", false, { buf = buf })
     vim.cmd.close()
-    vim.api.nvim_input("gr")
+    vim.api.nvim_input("<Plug>(kubectl.refresh)")
   end)
 
   vim.cmd("startinsert")
@@ -160,6 +164,7 @@ end
 --- @param prompt string: The prompt to display.
 --- @param filetype string: The filetype of the buffer.
 --- @param onConfirm function: The function to call on confirmation.
+-- luacheck: no max line length
 --- @param opts { syntax: string|nil, content: table|nil, marks: table|nil, width: number|nil }|nil: Options for the buffer.
 --- @return integer, table: The buffer and window config.
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
@@ -188,14 +193,13 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
       vim.api.nvim_win_close(win, true)
     end,
   })
-  vim.keymap.set("n", "q", vim.cmd.close, { buffer = buf, silent = true })
 
   layout.set_buf_options(buf, filetype, opts.syntax or filetype, bufname)
   layout.set_win_options(win)
 
   M.apply_marks(buf, opts.marks, nil)
 
-  local win_config = layout.win_size_fit_content(buf, 2)
+  local win_config = M.fit_to_content(buf, 2)
 
   local padding = string.rep(" ", win_config.width / 2)
   M.set_content(buf, { content = { padding .. "[y]es [n]o" } })
@@ -206,6 +210,7 @@ end
 --- Creates a namespace buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param title string|nil: The filetype of the buffer.
+--- @param callback function|nil: The callback function.
 --- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
@@ -218,10 +223,6 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     else
       buf = create_buffer(bufname)
     end
-    vim.keymap.set("n", "q", function()
-      api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd.close()
-    end, { buffer = buf, silent = true })
   end
 
   local win = layout.float_dynamic_layout(buf, opts.syntax or filetype, title or "")
@@ -230,9 +231,11 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     vim.fn.prompt_setcallback(buf, function(input)
       api.nvim_set_option_value("modified", false, { buf = buf })
       vim.cmd.close()
-      vim.api.nvim_input("gr")
+      vim.api.nvim_input("<Plug>(kubectl.refresh)")
 
-      callback(input)
+      if callback ~= nil then
+        callback(input)
+      end
     end)
 
     vim.cmd("startinsert")
@@ -240,10 +243,11 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
 
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
-  layout.win_size_fit_content(buf, 2)
+  M.fit_to_content(buf, 2)
   return buf
 end
 
+--- Sets buffer content.
 --- @param buf number: Buffer number
 --- @param opts { content: table, marks: table,  header: { data: table }}
 function M.set_content(buf, opts)
@@ -277,10 +281,6 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  vim.keymap.set("n", "q", function()
-    vim.cmd.close()
-  end, { buffer = buf, silent = true })
-
   return buf, win
 end
 
@@ -294,8 +294,10 @@ function M.buffer(filetype, title)
 
   if not buf then
     buf = create_buffer(bufname)
-    layout.set_buf_options(buf, filetype, filetype, bufname)
-    layout.set_win_options(win)
+    vim.schedule(function()
+      layout.set_win_options(win)
+      layout.set_buf_options(buf, filetype, filetype, bufname)
+    end)
   end
 
   api.nvim_set_current_buf(buf)

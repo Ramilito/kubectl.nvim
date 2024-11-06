@@ -1,6 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.configmaps.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -13,14 +11,6 @@ end
 
 function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
-end
-
---- Edit a configmap
----@param name string
----@param namespace string
-function M.Edit(name, namespace)
-  buffers.floating_buffer("k8s_configmap_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "configmaps/" .. name, "-n", namespace })
 end
 
 --- Describe a configmap

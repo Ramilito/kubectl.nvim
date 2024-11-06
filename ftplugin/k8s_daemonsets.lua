@@ -1,14 +1,12 @@
 local api = vim.api
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
+local state = require("kubectl.state")
+local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
-
-mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
-mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
@@ -18,7 +16,8 @@ local function set_keymaps(bufnr)
     desc = "Go to pods",
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
-      view.set_and_open_pod_selector("daemonsets", name, ns)
+      state.setFilter("")
+      view.set_and_open_pod_selector(name, ns)
     end,
   })
 
@@ -29,17 +28,14 @@ local function set_keymaps(bufnr)
     desc = "Set image",
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
-
-      local self = ResourceBuilder:new("daemonset_images")
-        :setCmd({
-          "{{BASE}}/apis/apps/v1/namespaces/" .. ns .. "/daemonsets/" .. name .. "?pretty=false",
-        }, "curl")
-        :fetch()
-        :decodeJson()
+      local resource = tables.find_resource(state.instance.data, name, ns)
+      if not resource then
+        return
+      end
 
       local containers = {}
 
-      for _, container in ipairs(self.data.spec.template.spec.containers) do
+      for _, container in ipairs(resource.spec.template.spec.containers) do
         table.insert(containers, { image = container.image, name = container.name })
       end
 
@@ -100,3 +96,8 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
+  mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
+end)

@@ -1,6 +1,8 @@
+local events_util = require("kubectl.utils.events")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local node_def = require("kubectl.views.nodes.definition")
+local time = require("kubectl.utils.time")
 local top_def = require("kubectl.views.top.definition")
 
 local M = {
@@ -17,7 +19,7 @@ local function getInfo(nodes, replicas)
   local kubelets_up = 0
   for _, node in ipairs(nodes.items) do
     local status = node_def.getStatus(node)
-    if status.value == "Ready" then
+    if status and status.value == "Ready" then
       kubelets_up = kubelets_up + 1
     end
   end
@@ -62,17 +64,34 @@ local function getNamespaces(pods)
 end
 local function getNodes(nodes, nodes_metrics)
   local data = {}
+  local results = {}
   for _, node in ipairs(nodes.items) do
     local metrics = find.single(nodes_metrics.items, { "metadata", "name" }, node.metadata.name)
 
     local cpu_percent = top_def.getCpuPercent(metrics, node)
     local mem_percent = top_def.getMemPercent(metrics, node)
 
-    table.insert(data, {
+    if #cpu_percent.value == 0 then
+      cpu_percent.value = "<unknown>"
+    end
+
+    if #mem_percent.value == 0 then
+      mem_percent.value = "<unknown>"
+    end
+    table.insert(results, {
       name = node.metadata.name,
-      value = "CPU: " .. cpu_percent.value .. "," .. "RAM: " .. mem_percent.value .. " Pods: TBD",
-      symbol = hl.symbols.error,
+      value = "CPU: " .. cpu_percent.value .. ", " .. "RAM: " .. mem_percent.value .. ", Pods: TBD",
+      sort_by = cpu_percent.sort_by + mem_percent.sort_by,
+      symbol = cpu_percent.symbol,
     })
+  end
+
+  table.sort(results, function(a, b)
+    return a.sort_by > b.sort_by
+  end)
+
+  for i = 1, math.min(10, #results) do
+    table.insert(data, { name = results[i].name, value = results[i].value, symbol = hl.symbols.error })
   end
   return data
 end
@@ -134,32 +153,91 @@ local function getRam(nodes, pods, pods_metrics)
   return data
 end
 
+local function is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas, events)
+  if not nodes or not nodes.items then
+    return false
+  end
+  if
+    not pods
+    or not pods.items
+    or not replicas
+    or not replicas.items
+    or not nodes_metrics
+    or not nodes_metrics.items
+    or not pods_metrics
+    or not pods_metrics.items
+    or not events
+    or not events.items
+  then
+    return false
+  end
+
+  return true
+end
+
+local function getEvents(rows)
+  local data = {}
+  local tmp = {}
+  local currentTime = time.currentTime()
+  for _, row in ipairs(rows.items) do
+    if row.type ~= "Normal" then
+      local message = row.message:gsub("\n", "")
+      local name = row.involvedObject.name
+
+      if #message > 200 then
+        message = string.sub(message, 1, 200) .. "..."
+      end
+
+      local creation_date = time.since(row.metadata.creationTimestamp, false, currentTime)
+      table.insert(tmp, {
+        name = name,
+        value = message,
+        symbol = events_util.ColorStatus(row.reason),
+        creation_date = creation_date,
+      })
+    end
+  end
+
+  table.sort(tmp, function(a, b)
+    return a.creation_date.sort_by > b.creation_date.sort_by
+  end)
+
+  for i = 1, math.min(10, #tmp) do
+    table.insert(data, { name = tmp[i].name, value = tmp[i].value, symbol = tmp[i].symbol })
+  end
+  return data
+end
+
 function M.processRow(rows)
   local nodes_metrics = rows[1]
   local nodes = rows[2]
   local pods_metrics = rows[3]
   local pods = rows[4]
   local replicas = rows[5]
-  local data = {
+  local events = rows[6]
 
+  if not is_valid(nodes_metrics, nodes, pods_metrics, pods, replicas, events) then
+    return nil
+  end
+
+  local data = {
     info = getInfo(nodes, replicas),
     nodes = getNodes(nodes, nodes_metrics),
     namespaces = getNamespaces(pods),
     ["high-cpu"] = getCpu(nodes, pods, pods_metrics),
     ["high-ram"] = getRam(nodes, pods, pods_metrics),
+    events = getEvents(events),
   }
 
   return data
 end
 
 function M.getSections()
-  local sections = {
+  local sections = { {
     "info",
     "nodes",
     "namespaces",
-    "high-cpu",
-    "high-ram",
-  }
+  }, { "high-cpu", "high-ram" }, { "events" } }
 
   return sections
 end

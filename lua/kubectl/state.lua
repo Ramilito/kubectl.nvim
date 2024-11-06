@@ -4,6 +4,8 @@ local M = {}
 
 ---@type table
 M.context = {}
+---@type { client: { major: number, minor: number }, server: { major: number, minor: number } }
+M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
 ---@type string
 M.ns = ""
 ---@type string
@@ -18,6 +20,8 @@ M.proxyUrl = ""
 M.content_row_start = 0
 ---@type table
 M.marks = { ns_id = 0, header = {} }
+---@type table
+M.selections = {}
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
@@ -29,6 +33,8 @@ M.instance = nil
 M.instance_float = nil
 ---@type table
 M.history = {}
+---@type table
+M.livez = { ok = nil, time_of_ok = os.time(), handle = nil }
 
 --- Decode a JSON string
 --- @param string string The JSON string to decode
@@ -60,9 +66,72 @@ function M.setup()
 
     M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
+    M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
+      M.checkVersions()
+      M.checkHealth(function()
+        if
+          M.versions.client.major == 0
+          or M.versions.server.major == 0
+          or M.versions.client.minor == 0
+          or M.versions.server.minor == 0
+        then
+          M.checkVersions()
+        end
+      end)
     end)
+  end)
+end
+
+function M.checkVersions()
+  -- get client and server version
+  commands.shell_command_async("kubectl", { "version", "--output", "json" }, function(data)
+    local result = decode(data)
+    if result then
+      local clientVersion = result.clientVersion and result.clientVersion.gitVersion or "0.0"
+      local serverVersion = result.serverVersion and result.serverVersion.gitVersion or "0.0"
+      if not clientVersion or not serverVersion then
+        return
+      end
+      M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
+      M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
+      M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
+      M.versions.server.minor = tonumber(string.match(serverVersion, "%d+%.(%d+)%..*")) or 0
+    end
+  end)
+end
+
+function M.stop_livez()
+  if M.livez.timer then
+    M.livez.timer:stop()
+  end
+end
+
+function M.checkHealth(cb)
+  M.livez.timer = vim.uv.new_timer()
+  local ResourceBuilder = require("kubectl.resourcebuilder")
+  local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
+
+  M.livez.timer:start(0, 5000, function()
+    builder:fetchAsync(
+      function(self)
+        if self.data == "ok" then
+          M.livez.ok = true
+          M.livez.time_of_ok = os.time()
+          if cb then
+            cb()
+          end
+        else
+          M.livez.ok = false
+        end
+      end,
+      nil,
+      function(_)
+        M.livez.ok = false
+      end,
+      { timeout = 5000 }
+    )
   end)
 end
 
@@ -84,10 +153,22 @@ function M.getFilter()
   return M.filter
 end
 
+--- Get the selections
+--- @return table selections The selections
+function M.getSelections()
+  return M.selections
+end
+
 --- Get the current URL
 --- @return string proxyurl The proxy URL
 function M.getProxyUrl()
   return M.proxyUrl
+end
+
+--- Get the versions
+--- @return table versions The versions
+function M.getVersions()
+  return M.versions
 end
 
 --- Set the filter pattern

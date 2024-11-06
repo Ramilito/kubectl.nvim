@@ -1,13 +1,11 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.fallback.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {
   resource = "",
-  builder = nil,
+  configure_definition = true,
 }
 
 local function add_namespace(args, ns)
@@ -36,41 +34,38 @@ function M.View(cancellationToken, resource)
   end
 
   -- default fallback values
-  definition.resource = M.resource
-  definition.display_name = M.resource
-  definition.url = get_args()
-  definition.ft = "k8s_fallback"
-  definition.hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
-  }
-  definition.cmd = "kubectl"
-
-  -- cached resources fallback values
-  local cached_resources = require("kubectl.views").cached_api_resources
-  local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
-  if resource_name then
-    definition.resource = resource_name
-    definition.display_name = resource_name
-    definition.url = {
-      "-H",
-      "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
-      cached_resources.values[resource_name].url,
+  if M.configure_definition then
+    definition.resource = M.resource
+    definition.display_name = M.resource
+    definition.url = get_args()
+    definition.ft = "k8s_fallback"
+    definition.headers = { "NAME" }
+    definition.hints = {
+      { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
     }
-    definition.cmd = "curl"
-    definition.namespaced = cached_resources.values[resource_name].namespaced
+    definition.cmd = "kubectl"
+
+    -- cached resources fallback values
+    local cached_resources = require("kubectl.cache").cached_api_resources
+    local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
+    if resource_name and not M.configured_curl then
+      definition.resource = resource_name
+      definition.display_name = resource_name
+      definition.url = {
+        "-H",
+        "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
+        cached_resources.values[resource_name].url,
+      }
+      definition.cmd = "curl"
+      definition.namespaced = cached_resources.values[resource_name].namespaced
+    end
   end
 
-  M.builder = nil -- clear any previously set values
-  M.builder = ResourceBuilder:new(definition.resource):view(definition, cancellationToken, { cmd = definition.cmd })
+  ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd })
 end
 
 function M.Draw(cancellationToken)
-  M.builder = M.builder:draw(definition, cancellationToken)
-end
-
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_fallback_edit", name, "yaml")
-  commands.execute_terminal("kubectl", add_namespace({ "edit", M.resource .. "/" .. name }, ns))
+  state.instance:draw(definition, cancellationToken)
 end
 
 function M.Desc(name, ns, reload)
@@ -85,10 +80,12 @@ end
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  if definition.namespaced then
-    return tables.getCurrentSelection(2, 1)
+  local name_idx = tables.find_index(definition.headers, "NAME")
+  local ns_idx = tables.find_index(definition.headers, "NAMESPACE")
+  if ns_idx then
+    return tables.getCurrentSelection(name_idx, ns_idx)
   end
-  return tables.getCurrentSelection(1)
+  return tables.getCurrentSelection(name_idx)
 end
 
 return M

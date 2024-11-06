@@ -3,190 +3,127 @@ local state = require("kubectl.state")
 local event_handler = require("kubectl.actions.eventhandler").handler
 
 local M = {
-  event_queue = "",
   handle = nil,
   events_handle = nil,
-  max_retries = 10,
-  lock = false,
-  parse_retries = 0,
 }
 
-local function release_lock()
-  M.lock = false
-end
+local function process_event(builder, event_string)
+  local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
-local function acquire_lock()
-  while M.lock do
-    vim.wait(10)
-  end
-  M.lock = true
-end
-
-local function split_events(input)
-  local objects = {}
-  local pattern = '}{"type":"'
-  local start = 1
-
-  while true do
-    local split_point = input:find(pattern, start, true)
-
-    if not split_point then
-      -- If no more split points, add the rest of the string as the last JSON object
-      table.insert(objects, input:sub(start))
-      break
-    end
-
-    -- Add the JSON object up to the split point to the objects table
-    table.insert(objects, input:sub(start, split_point))
-
-    -- Move the start point to the next character after '}{'
-    start = split_point + 1
+  if not ok or not event or not event.object or not event.object.metadata then
+    return false
   end
 
-  return objects
-end
-
-local function decode_json_objects(json_strings)
-  local decoded_events = {}
-
-  for _, json_string in ipairs(json_strings) do
-    local success, decoded_event = pcall(vim.json.decode, json_string, { luanil = { object = true, array = true } })
-    if success then
-      table.insert(decoded_events, decoded_event)
-    else
-      return nil, decoded_event
-    end
-  end
-
-  return decoded_events
-end
-
-local function process_event(builder, event)
-  if not event or not event.object or not event.object.metadata then
-    return
-  end
   local event_name = event.object.metadata.name
 
   local function handle_events(action)
-    -- If the event is an event and we are not in events resource,
-    -- we assign the involvedObject as event name so the eventhandler can react to those changes
     if event.object.kind == "Event" and builder.resource ~= "events" then
-      event.object.metadata.name = event.object.involvedObject.name
+      if event.object.involvedObject and event.object.involvedObject.name then
+        event.object.metadata.name = event.object.involvedObject.name
+      end
     else
       action()
     end
   end
 
-  -- TODO: prettify this code
+  local function process_event_target(target, is_table)
+    if event.type == "ADDED" then
+      handle_events(function()
+        table.insert(target, event.object)
+        if is_table then
+          table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
+        end
+      end)
+    elseif event.type == "DELETED" then
+      for index, item in ipairs(is_table and target.rows or target) do
+        if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+          for selection_index, selection in ipairs(state.selections) do
+            if selection.name == item.metadata.name then
+              table.remove(state.selections, selection_index)
+            end
+          end
+          table.remove(is_table and target.rows or target, index)
+          break
+        end
+      end
+    elseif event.type == "MODIFIED" then
+      handle_events(function()
+        for index, item in ipairs(is_table and target.rows or target) do
+          if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+            if is_table then
+              target.rows[index].object = event.object
+            else
+              target[index] = event.object
+            end
+            break
+          end
+        end
+      end)
+    end
+  end
+
   if builder.data.kind == "Table" then
-    local target = builder.data
-    if event.type == "ADDED" then
-      handle_events(function()
-        table.insert(target, event.object)
-        table.insert(target.rows, { object = event.object, cells = target.rows[1].cells })
-      end)
-    elseif event.type == "DELETED" then
-      for index, row in ipairs(target.rows) do
-        if row.object.metadata.name == event_name then
-          table.remove(target.rows, index)
-          break
-        end
-      end
-    elseif event.type == "MODIFIED" then
-      handle_events(function()
-        for index, row in ipairs(target.rows) do
-          if row.object.metadata.name == event_name then
-            target.rows[index].object = event.object
-            break
-          end
-        end
-      end)
-    end
+    process_event_target(builder.data, true)
   else
-    local target = builder.data.items
-    if event.type == "ADDED" then
-      handle_events(function()
-        table.insert(target, event.object)
-      end)
-    elseif event.type == "DELETED" then
-      for index, item in ipairs(target) do
-        if item.metadata.name == event_name then
-          table.remove(target, index)
-          break
-        end
-      end
-    elseif event.type == "MODIFIED" then
-      handle_events(function()
-        for index, item in ipairs(target) do
-          if item.metadata.name == event_name then
-            target[index] = event.object
-            break
-          end
-        end
-      end)
-    end
+    process_event_target(builder.data.items, false)
   end
 
   event_handler:emit(event.type, event)
+  return true
 end
 
-local function sort_events_by_resource_version(events)
-  table.sort(events, function(event_a, event_b)
-    if event_a.object and event_b.object then
-      return tonumber(event_a.object.metadata.resourceVersion) < tonumber(event_b.object.metadata.resourceVersion)
-    end
-    return false
+local function shell_uv_async(cmd, args)
+  local result = ""
+  local command = commands.configure_command(cmd, {}, args)
+  local handle
+  local stdout = vim.loop.new_pipe(false)
+  local stderr = vim.loop.new_pipe(false)
+
+  handle = vim.loop.spawn(command.args[1], {
+    args = { unpack(command.args, 2) },
+    env = command.env,
+    stdio = { nil, stdout, stderr },
+    detached = false,
+  }, function()
+    stdout:close()
+    stderr:close()
+    -- result = ""
+    handle:close()
   end)
-end
 
-function M.process(builder)
-  M.parse_retries = M.parse_retries + 1
-  if M.event_queue == "" or not builder.data then
-    return
-  end
+  stdout:read_start(function(err, data)
+    assert(not err, err)
+    if data then
+      result = result .. data
+      while true do
+        local newline_pos = result:find("\n")
+        if not newline_pos then
+          break
+        end
 
-  local event_queue_content = M.event_queue:gsub("\n", "")
-  M.event_queue = ""
-
-  local json_objects = split_events(event_queue_content)
-  local decoded_events, decode_error = decode_json_objects(json_objects)
-
-  if not decoded_events then
-    if M.parse_retries < M.max_retries then
-      return M.process(builder)
-    else
-      print(decode_error)
-      return
+        local json_str = result:sub(1, newline_pos - 1)
+        if process_event(M.builder, json_str) then
+          result = result:sub(newline_pos + 1)
+        else
+          break
+        end
+      end
     end
-  end
-
-  M.parse_retries = 0
-
-  sort_events_by_resource_version(decoded_events)
-
-  if decoded_events then
-    for _, event in ipairs(decoded_events) do
-      process_event(builder, event)
-    end
-  end
-end
-
-local function on_err(err, data)
-  vim.schedule(function()
-    vim.notify(
-      string.format("Error occurred while watching %s %s, refresh view to fix", err or "", data or ""),
-      vim.log.levels.ERROR
-    )
   end)
-end
 
-local function on_stdout(result)
-  acquire_lock()
-  M.event_queue = M.event_queue .. result
-  release_lock()
-end
+  stderr:read_start(function(err, data)
+    vim.schedule(function()
+      if data then
+        vim.notify(
+          string.format("Error occurred while watching %s %s, refresh view to fix", err or "", data or ""),
+          vim.log.levels.ERROR
+        )
+      end
+    end)
+  end)
 
-local function on_exit() end
+  return handle
+end
 
 function M.start(builder)
   if not builder.data or not builder.data.metadata then
@@ -210,10 +147,10 @@ function M.start(builder)
     end
   end
 
-  M.handle = commands.shell_command_async(builder.cmd, args, on_exit, on_stdout, on_err)
-  M.events_handle = commands.shell_command_async("curl", event_cmd, on_exit, on_stdout, on_err)
-  M.builder = builder
+  M.handle = shell_uv_async(builder.cmd, args)
+  M.events_handle = shell_uv_async("curl", event_cmd)
 
+  M.builder = builder
   return M.handle
 end
 
@@ -225,7 +162,6 @@ function M.stop()
   if M.events_handle and not M.events_handle:is_closing() then
     M.events_handle:kill(2)
   end
-  M.event_queue = ""
 end
 
 return M

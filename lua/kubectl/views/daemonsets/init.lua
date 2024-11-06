@@ -1,6 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.daemonsets.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -22,11 +20,6 @@ function M.Desc(name, ns, reload)
     url = { "describe", "daemonset", name, "-n", ns },
     syntax = "yaml",
   }, { cmd = "kubectl", reload = reload })
-end
-
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_daemonset_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "daemonsets/" .. name, "-n", ns })
 end
 
 --- Get current seletion for view

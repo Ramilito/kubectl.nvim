@@ -1,55 +1,16 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
+local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local url = require("kubectl.utils.url")
 
 local M = {}
-
-M.cached_api_resources = { values = {}, shortNames = {}, timestamp = nil }
-
-local one_day_in_seconds = 24 * 60 * 60
-local current_time = os.time()
-
-M.LoadFallbackData = function(force)
-  if force or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
-    M.cached_api_resources.values = {}
-    M.cached_api_resources.shortNames = {}
-    ResourceBuilder:new("api_resources"):setCmd({ "get", "--raw", "/apis" }, "kubectl"):fetchAsync(function(self)
-      self:decodeJson()
-
-      -- process default api group
-      commands.shell_command_async("kubectl", { "get", "--raw", "/api/v1" }, function(group_data)
-        self.data = group_data
-        self:decodeJson()
-        definition.process_apis("api", "", "v1", self.data, M.cached_api_resources)
-      end)
-
-      if self.data.groups == nil then
-        return
-      end
-      for _, group in ipairs(self.data.groups) do
-        local group_name = group.name
-        local group_version = group.preferredVersion.groupVersion
-
-        -- Skip if name contains 'metrics.k8s.io'
-        if not string.find(group_name, "metrics.k8s.io") then
-          commands.shell_command_async("kubectl", { "get", "--raw", "/apis/" .. group_version }, function(group_data)
-            self.data = group_data
-            self:decodeJson()
-            definition.process_apis("apis", group_name, group_version, self.data, M.cached_api_resources)
-          end)
-        end
-      end
-    end)
-
-    M.timestamp = os.time()
-  end
-end
 
 --- Generate hints and display them in a floating buffer
 ---@alias Hint { key: string, desc: string, long_desc: string }
@@ -60,6 +21,7 @@ function M.Hints(headers)
   local globals = {
     { key = "<Plug>(kubectl.alias_view)", desc = "Aliases" },
     { key = "<Plug>(kubectl.filter_view)", desc = "Filter on a phrase" },
+    { key = "<Plug>(kubectl.filter_label)", desc = "Filter on labels" },
     { key = "<Plug>(kubectl.namespace_view)", desc = "Change namespace" },
     { key = "<Plug>(kubectl.contexts_view)", desc = "Change context" },
     { key = "<Plug>(kubectl.go_up)", desc = "Go up a level" },
@@ -68,12 +30,30 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.portforwards_view)", desc = "Port forwards" },
     { key = "<Plug>(kubectl.sort)", desc = "Sort column" },
     { key = "<Plug>(kubectl.edit)", desc = "Edit resource" },
+    { key = "<Plug>(kubectl.toggle_headers)", desc = "Toggle headers" },
+    { key = "<Plug>(kubectl.lineage)", desc = "View Lineage" },
     { key = "<Plug>(kubectl.refresh)", desc = "Refresh view" },
-    { key = "<Plug>(kubectl.view_1)", desc = "Deployments" },
-    { key = "<Plug>(kubectl.view_2)", desc = "Pods" },
-    { key = "<Plug>(kubectl.view_3)", desc = "Configmaps" },
-    { key = "<Plug>(kubectl.view_4)", desc = "Secrets" },
-    { key = "<Plug>(kubectl.view_5)", desc = "Services" },
+    { key = "<Plug>(kubectl.view_deployments)", desc = "Deployments" },
+    { key = "<Plug>(kubectl.view_pods)", desc = "Pods" },
+    { key = "<Plug>(kubectl.view_configmaps)", desc = "Configmaps" },
+    { key = "<Plug>(kubectl.view_secrets)", desc = "Secrets" },
+    { key = "<Plug>(kubectl.view_services)", desc = "Services" },
+    { key = "<Plug>(kubectl.view_ingresses)", desc = "Ingresses" },
+    { key = "<Plug>(kubectl.view_api_resources)", desc = "API-Resources" },
+    { key = "<Plug>(kubectl.view_clusterrolebinding)", desc = "ClusterRoleBindings" },
+    { key = "<Plug>(kubectl.view_crds)", desc = "CRDs" },
+    { key = "<Plug>(kubectl.view_cronjobs)", desc = "CronJobs" },
+    { key = "<Plug>(kubectl.view_daemonsets)", desc = "DaemonSets" },
+    { key = "<Plug>(kubectl.view_events)", desc = "Events" },
+    { key = "<Plug>(kubectl.view_helm)", desc = "Helm" },
+    { key = "<Plug>(kubectl.view_jobs)", desc = "Jobs" },
+    { key = "<Plug>(kubectl.view_nodes)", desc = "Nodes" },
+    { key = "<Plug>(kubectl.view_overview)", desc = "Overview" },
+    { key = "<Plug>(kubectl.view_pv)", desc = "PersistentVolumes" },
+    { key = "<Plug>(kubectl.view_pvc)", desc = "PersistentVolumeClaims" },
+    { key = "<Plug>(kubectl.view_sa)", desc = "ServiceAccounts" },
+    { key = "<Plug>(kubectl.view_top_nodes)", desc = "Top Nodes" },
+    { key = "<Plug>(kubectl.view_top_pods)", desc = "Top Pods" },
   }
 
   local global_keymaps = tables.get_plug_mappings(globals, "n")
@@ -104,7 +84,7 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints", false)
+  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints", nil)
 
   local content = vim.split(table.concat(hints, ""), "\n")
   buffers.set_content(buf, { content = content, marks = marks })
@@ -113,16 +93,9 @@ end
 function M.Aliases()
   local self = ResourceBuilder:new("aliases")
   local viewsTable = require("kubectl.utils.viewsTable")
-  self.data = M.cached_api_resources.values
+  self.data = cache.cached_api_resources.values
   self:splitData():decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
-
-  local header, marks = tables.generateHeader({
-    { key = "<Plug>(kubectl.select)", desc = "go to" },
-    { key = "<Plug>(kubectl.tab)", desc = "tab" },
-    -- TODO: Definition should be moved to mappings.lua
-    { key = "<Plug>(kubectl.quit)", desc = "close" },
-  }, false, false)
 
   local buf = buffers.aliases_buffer(
     "k8s_aliases",
@@ -130,43 +103,60 @@ function M.Aliases()
     { title = "Aliases", header = { data = {} }, suggestions = self.data }
   )
 
-  table.insert(header, "History:")
-  local headers_len = #header
-  for _, value in ipairs(state.alias_history) do
-    table.insert(header, headers_len + 1, value)
-  end
-  table.insert(header, "")
-
-  vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
-  vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
-
-  buffers.apply_marks(buf, marks, header)
-
   completion.with_completion(buf, self.data, function()
     -- We reassign the cache since it can be slow to load
-    self.data = M.cached_api_resources.values
+    self.data = cache.cached_api_resources.values
     self:splitData():decodeJson()
     self.data = definition.merge_views(self.data, viewsTable)
   end)
 
-  vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
-    noremap = true,
-    callback = function()
-      local line = vim.api.nvim_get_current_line()
+  vim.schedule(function()
+    local header, marks = tables.generateHeader({
+      { key = "<Plug>(kubectl.select)", desc = "apply" },
+      { key = "<Plug>(kubectl.tab)", desc = "next" },
+      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+      -- TODO: Definition should be moved to mappings.lua
+      { key = "<Plug>(kubectl.quit)", desc = "close" },
+    }, false, false)
 
-      -- Don't act on prompt line
-      local current_line = vim.api.nvim_win_get_cursor(0)[1]
-      if current_line >= #header then
-        return
-      end
+    table.insert(header, "History:")
+    local headers_len = #header
+    for _, value in ipairs(state.alias_history) do
+      table.insert(header, headers_len + 1, value)
+    end
+    table.insert(header, "")
 
-      local prompt = "% "
+    buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
+    vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
 
-      vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
-      vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
-      vim.cmd("startinsert")
-    end,
-  })
+    buffers.apply_marks(buf, marks, header)
+    buffers.fit_to_content(buf, 1)
+
+    vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
+      noremap = true,
+      callback = function()
+        local line = vim.api.nvim_get_current_line()
+
+        -- Don't act on prompt line
+        local current_line = vim.api.nvim_win_get_cursor(0)[1]
+        if current_line >= #header then
+          return
+        end
+
+        local prompt = "% "
+
+        vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
+        vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
+        vim.cmd("startinsert!")
+
+        if config.options.alias.apply_on_select_from_history then
+          vim.schedule(function()
+            vim.api.nvim_input("<cr>")
+          end)
+        end
+      end,
+    })
+  end)
 end
 
 --- PortForwards function retrieves port forwards and displays them in a float window.
@@ -174,7 +164,7 @@ end
 -- @return nil
 function M.PortForwards()
   local pfs = {}
-  pfs = definition.getPFData(pfs, false, "all")
+  pfs = definition.getPFData(pfs, false)
 
   local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
   self.data = definition.getPFRows(pfs)
@@ -186,7 +176,7 @@ function M.PortForwards()
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
     vim.cmd.close()
-    vim.api.nvim_input("gr")
+    vim.api.nvim_input("<Plug>(kubectl.refresh)")
   end, { buffer = self.buf_nr, silent = true })
 end
 
@@ -206,22 +196,23 @@ function M.UserCmd(args)
   end)
 end
 
-function M.set_and_open_pod_selector(kind, name, ns)
-  local pod_view = require("kubectl.views.pods")
-  if not kind or not name or not ns then
+function M.set_and_open_pod_selector(name, ns)
+  local kind = state.instance.resource
+  local pod_view, pod_definition = M.view_and_definition("pods")
+  if not name or not ns then
     return pod_view.View()
   end
 
   -- save url details
-  local pod_definition = require("kubectl.views.pods.definition")
   local original_url = pod_definition.url[1]
-  local url_no_query_params, original_query_params = original_url:match("(.+)%?(.+)")
+  local url_no_query_params, original_query_params = url.breakUrl(original_url, true, false)
 
   -- get the selectors for the pods
   local encode = vim.uri_encode
-  local get_selectors = { "get", kind, name, "-n", ns, "-o", "json" }
-  local resource =
-    vim.json.decode(commands.shell_command("kubectl", get_selectors), { luanil = { object = true, array = true } })
+  local resource = tables.find_resource(state.instance.data, name, ns)
+  if not resource then
+    return
+  end
   local selector_t = (resource.spec.selector and resource.spec.selector.matchLabels or resource.spec.selector)
     or resource.metadata.labels
   local key_value_pairs = vim.tbl_map(function(key)
@@ -236,6 +227,16 @@ function M.set_and_open_pod_selector(kind, name, ns)
   )
   pod_view.View()
   pod_definition.url = { original_url }
+end
+
+function M.view_and_definition(view_name)
+  local view_ok, view = pcall(require, "kubectl.views." .. view_name)
+  if not view_ok then
+    view_name = "fallback"
+    view = require("kubectl.views.fallback")
+  end
+  local view_definition = require("kubectl.views." .. view_name .. ".definition")
+  return view, view_definition
 end
 
 function M.view_or_fallback(view_name)

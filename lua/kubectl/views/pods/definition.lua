@@ -15,28 +15,6 @@ local M = {
   },
 }
 
-local function getReady(row)
-  local status = { symbol = "", value = "", sort_by = 0 }
-  local readyCount = 0
-  local containers = 0
-  if row.status and row.status.containerStatuses then
-    for _, value in ipairs(row.status.containerStatuses) do
-      containers = containers + 1
-      if value.ready then
-        readyCount = readyCount + 1
-      end
-    end
-  end
-  if readyCount == containers then
-    status.symbol = hl.symbols.note
-  else
-    status.symbol = hl.symbols.deprecated
-  end
-  status.value = readyCount .. "/" .. containers
-  status.sort_by = (readyCount * 1000) + containers
-  return status
-end
-
 --- Get restarts as a symbol
 ---@param row table
 ---@param currentTime number
@@ -179,6 +157,36 @@ local function getPodStatus(row)
   return { value = "Terminating", symbol = events.ColorStatus("Terminating") }
 end
 
+local function getReady(row)
+  local status = { symbol = "", value = "", sort_by = 0 }
+  local containers = 0
+  if row.spec and row.spec.containers then
+    containers = #row.spec.containers
+  end
+  local readyCount = 0
+  if row.status and row.status.containerStatuses then
+    for _, value in ipairs(row.status.containerStatuses) do
+      if value.ready then
+        readyCount = readyCount + 1
+      end
+    end
+  end
+  if readyCount == containers then
+    status.symbol = hl.symbols.note
+  else
+    status.symbol = hl.symbols.deprecated
+  end
+
+  local pod_status = getPodStatus(row)
+  if pod_status.value == "Completed" then
+    status.symbol = hl.symbols.note
+  end
+  status.value = readyCount .. "/" .. containers
+  status.sort_by = (readyCount * 1000) + containers
+
+  return status
+end
+
 function M.processRow(rows)
   local data = {}
 
@@ -189,6 +197,9 @@ function M.processRow(rows)
   local currentTime = time.currentTime()
   if rows and rows.items then
     for i = 1, #rows.items do
+      -- Set managedFields to nil so the garbage collector can free up the memory
+      rows.items[i].metadata.managedFields = nil
+
       local row = rows.items[i]
       data[i] = {
         namespace = row.metadata.namespace,
@@ -197,7 +208,7 @@ function M.processRow(rows)
         status = getPodStatus(row),
         restarts = getRestarts(row, currentTime),
         ip = row.status and row.status.podIP or "",
-        node = row.spec.nodeName,
+        node = row.spec and row.spec.nodeName or "",
         age = time.since(row.metadata.creationTimestamp, true, currentTime),
       }
     end

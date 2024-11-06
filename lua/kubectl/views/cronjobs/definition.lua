@@ -4,7 +4,7 @@ local M = {
   ft = "k8s_cronjobs",
   url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}cronjobs?pretty=false" },
   hints = {
-    { key = "<Plug>(kubectl.create_job)", desc = "restart", long_desc = "Create job from cronjob" },
+    { key = "<Plug>(kubectl.create_job)", desc = "create", long_desc = "Create job from cronjob" },
     { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
     { key = "<Plug>(kubectl.suspend_job)", desc = "suspend", long_desc = "Suspend/Unsuspend cronjob" },
   },
@@ -32,6 +32,15 @@ end
 
 local function getContainerData(row, key)
   local containers = {}
+  if
+    not row.spec
+    or not row.spec.jobTemplate
+    or not row.spec.jobTemplate.spec.template
+    or not row.spec.jobTemplate.spec.template.spec
+    or not row.spec.jobTemplate.spec.template.spec.containers
+  then
+    return ""
+  end
   for _, container in ipairs(row.spec.jobTemplate.spec.template.spec.containers) do
     table.insert(containers, container[key])
   end

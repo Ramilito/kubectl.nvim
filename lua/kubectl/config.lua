@@ -1,13 +1,22 @@
 local M = {}
 
 ---@class KubectlOptions
+---@field log_level number
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field namespace string
+---@field namespace_fallback string[]
+---@field headers boolean
 ---@field hints boolean
 ---@field context boolean
+---@field heartbeat boolean
+---@field kubernetes_versions boolean
+---@field lineage { enabled: boolean }
+---@field completion { follow_cursor: boolean }
+---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
 local defaults = {
+  log_level = vim.log.levels.INFO,
   auto_refresh = {
     enabled = true,
     interval = 300, -- milliseconds
@@ -22,10 +31,32 @@ local defaults = {
   kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   namespace = "All",
   namespace_fallback = {},
+  headers = true,
+
+  -- only relevant if headers is true
   hints = true,
   context = true,
+  heartbeat = true,
+
+  kubernetes_versions = true,
+  lineage = {
+    enabled = false,
+  },
+  completion = {
+    follow_cursor = false,
+  },
+  logs = {
+    prefix = true,
+    timestamps = true,
+    since = "5m",
+  },
+  alias = {
+    apply_on_select_from_history = true,
+    max_history = 5,
+  },
   filter = {
     apply_on_select_from_history = true,
+    max_history = 10,
   },
   float_size = {
     -- Almost fullscreen:

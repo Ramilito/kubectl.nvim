@@ -11,12 +11,23 @@ function M.configure_command(cmd, envs, args)
 
   if cmd == "kubectl" then
     cmd = config.options.kubectl_cmd.cmd
-    vim.list_extend(result.args, config.options.kubectl_cmd.args or {})
-    vim.list_extend(result.env, config.options.kubectl_cmd.env or {})
+    local options_args = config.options.kubectl_cmd.args or {}
+    local options_env = config.options.kubectl_cmd.env or {}
+    local mixer = function(key, value)
+      return type(key) == "number" and value or key .. "=" .. value
+    end
+    vim.list_extend(result.args, vim.iter(options_args):map(mixer):totable())
+    vim.list_extend(result.env, vim.iter(options_env):map(mixer):totable())
   end
 
   table.insert(result.env, "PATH=" .. current_env["PATH"])
   table.insert(result.env, "HOME=" .. current_env["HOME"])
+  if current_env["KUBECONFIG"] then
+    table.insert(result.env, "KUBECONFIG=" .. current_env["KUBECONFIG"])
+  end
+  if current_env["KUBECACHEDIR"] then
+    table.insert(result.env, "KUBECACHEDIR=" .. current_env["KUBECACHEDIR"])
+  end
 
   if envs then
     vim.list_extend(result.env, envs)
@@ -28,6 +39,10 @@ function M.configure_command(cmd, envs, args)
 
   if args then
     vim.list_extend(result.args, args)
+  end
+
+  for key, value in pairs(result.args) do
+    result.args[key] = value:gsub("%$(%w+)", os.getenv)
   end
 
   -- Add the command itself as the first argument
@@ -81,34 +96,57 @@ function M.await_shell_command_async(cmds, callback)
   local handles = {}
   local results = {}
   local done_count = 0
+  local active_count = 0
+  local max_concurrent = 50
+  local next_cmd_index = 1 -- Index of the next command to start
+
+  -- Forward declarations of functions
+  local start_command
+  local on_command_done
+
+  -- Function to start a command
+  start_command = function(i)
+    local cmd = cmds[i]
+    active_count = active_count + 1
+    handles[i] = M.shell_command_async(cmd.cmd, cmd.args, function(result)
+      on_command_done(i, result)
+    end)
+  end
 
   -- Callback to check when all commands are done
-  local function on_command_done(i, result)
+  on_command_done = function(i, result)
     results[i] = result
     done_count = done_count + 1
-    if done_count == #cmds then
-      -- When all commands are complete, call the on_all_complete callback with the results
+    active_count = active_count - 1 -- Decrement the count of active commands
+
+    -- Start the next command if any are left
+    if next_cmd_index <= #cmds then
+      start_command(next_cmd_index)
+      next_cmd_index = next_cmd_index + 1
+    elseif done_count == #cmds then
+      -- All commands are complete; call the callback with the results
       if callback then
         callback(results)
       end
     end
   end
 
-  for i, cmd in ipairs(cmds) do
-    handles[i] = M.shell_command_async(cmd.cmd, cmd.args, function(result)
-      on_command_done(i, result)
-    end)
+  -- Start the initial batch of commands
+  while active_count < max_concurrent and next_cmd_index <= #cmds do
+    start_command(next_cmd_index)
+    next_cmd_index = next_cmd_index + 1
   end
+
   return handles
 end
 
 --- Execute a shell command asynchronously
 --- @param cmd string The command to execute
 --- @param args string[] The arguments for the command
---- @param on_exit? function The callback function to execute when the command exits
+--- @param on_exit? function The callback function to execute when the command exits (optional)
 --- @param on_stdout? function The callback function to execute when there is stdout output (optional)
 --- @param on_stderr? function The callback function to execute when there is stderr output (optional)
---- @param opts { env: table, stdin: string, detach: boolean }|nil The arguments for the command
+--- @param opts { env: table, stdin: string, detach: boolean, timeout: number }|nil The arguments for the command
 function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   opts = opts or { env = {} }
   local result = ""
@@ -119,6 +157,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
     clear_env = true,
     detach = opts.detach or false,
     stdin = opts.stdin,
+    timeout = opts.timeout or nil,
     stdout = function(err, data)
       if err then
         return
@@ -133,7 +172,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
 
     stderr = function(err, data)
       vim.schedule(function()
-        if data and not on_stderr then
+        if data then
           vim.notify(data, vim.log.levels.ERROR)
         elseif data and on_stderr then
           on_stderr(err, data)
@@ -173,6 +212,8 @@ end
 --- NOTE: Don't use this for kubectl calls since this doesn't support clear_env
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command
+-- luacheck: no max line length
+--- @param opts { env: table, stdin: string, on_stdout: string, detach: boolean, timeout: number }|nil The arguments for the command
 function M.execute_terminal(cmd, args, opts)
   opts = opts or {}
   local command = M.configure_command(cmd, opts.env, args)

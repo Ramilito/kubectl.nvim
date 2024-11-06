@@ -1,7 +1,7 @@
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
-local string_util = require("kubectl.utils.string")
+local time = require("kubectl.utils.time")
 local M = {}
 
 --- Calculate column widths for table data
@@ -13,9 +13,9 @@ local function calculate_column_widths(rows, columns)
   for _, row in ipairs(rows) do
     for _, column in pairs(columns) do
       if type(row[column]) == "table" then
-        widths[column] = math.max(widths[column] or 0, #tostring(row[column].value))
+        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column].value)))
       else
-        widths[column] = math.max(widths[column] or 0, #tostring(row[column]))
+        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column])))
       end
     end
   end
@@ -23,22 +23,61 @@ local function calculate_column_widths(rows, columns)
   return widths
 end
 
+--- Calculate and distribute extra padding
+---@param widths table The table of current column widths
+---@param headers string[] The column headers
 local function calculate_extra_padding(widths, headers)
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
-  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
+  local textoff = vim.fn.getwininfo(win)[1].textoff
+  local text_width = win_width - textoff
   local total_width = 0
-  for key, value in pairs(widths) do
-    local max_width = math.max(#key, value)
-    -- We add the default padding (+3)
-    total_width = total_width + max_width + 3
-    widths[key] = max_width
+  local separator_width = 3 -- Padding for sort icon or column separator
+  local column_count = #headers
+
+  -- Calculate the maximum width for each column, including separator width
+  for index, key in ipairs(headers) do
+    local value_width = widths[string.lower(key)] or 0
+    local header_width = #key
+    local max_width = math.max(header_width, value_width) + separator_width
+    if index == #headers then
+      max_width = max_width - separator_width + 1
+    end
+    widths[string.lower(key)] = max_width
+    total_width = total_width + max_width
   end
-  -- We subtract the last padding (-3)
-  local padding = math.floor(math.max((text_width - total_width - 3) / #headers, 0))
-  return padding
+
+  -- Calculate total padding needed (subtracting 2 for any additional offsets, not sure why this is needed tbh)
+  local total_padding = text_width - total_width - 2
+
+  if total_padding < 0 then
+    -- Not enough space to add extra padding
+    return
+  end
+
+  -- Exclude the last column from receiving extra padding
+  local padding_columns = column_count - 1
+
+  if padding_columns > 0 then
+    -- Calculate base padding and distribute any remainder
+    local base_padding = math.floor(total_padding / padding_columns)
+    local extra_padding = total_padding % padding_columns
+
+    -- Add padding to each column except the last one
+    for i, key in ipairs(headers) do
+      if i == column_count then
+        -- Do not add extra padding to the last column
+        break
+      end
+      local extra = (i <= extra_padding) and 1 or 0
+      widths[string.lower(key)] = widths[string.lower(key)] + base_padding + extra
+    end
+  end
 end
 
+--- Gets both global and buffer-local plug keymaps for the given mode
+--- @param headers table[] The header table
+--- @param mode string The VIM mode
 function M.get_plug_mappings(headers, mode)
   local keymaps_table = {}
   local header_lookup = {}
@@ -77,7 +116,7 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addHeaderRow(headers, hints, marks)
-  local hint_line = "Hint: "
+  local hint_line = "Hints: "
   local length = #hint_line
   M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 
@@ -98,35 +137,98 @@ local function addHeaderRow(headers, hints, marks)
   table.insert(hints, hint_line .. "\n")
 end
 
+--- Adds the heartbeat element
+---@param hints table The keymap hints
+---@param marks table The extmarks
+local function addHeartbeat(hints, marks)
+  local padding = "   "
+  if state.livez.ok then
+    table.insert(marks, {
+      row = #hints - 1,
+      start_col = -1,
+      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "ok", hl.symbols.success }, { padding } },
+      virt_text_pos = "right_align",
+    })
+  elseif state.livez.ok == nil then
+    table.insert(marks, {
+      row = #hints - 1,
+      start_col = -1,
+      virt_text = { { "Heartbeat: ", hl.symbols.note }, { "pending", hl.symbols.warning }, { padding } },
+      virt_text_pos = "right_align",
+    })
+  else
+    local current_time = os.time()
+    local since = time.diff_str(current_time, state.livez.time_of_ok)
+    table.insert(marks, {
+      row = #hints - 1,
+      start_col = -1,
+      virt_text = {
+        { "Heartbeat: ", hl.symbols.note },
+        { "failed ", hl.symbols.error },
+        { "(" .. since .. ")", hl.symbols.error },
+        { padding },
+      },
+      virt_text_pos = "right_align",
+    })
+  end
+end
+
 --- Add context rows to the hints and marks tables
 ---@param context table
----@param hints table[]
----@param marks table[]
-local function addContextRows(context, hints, marks)
-  if context.contexts then
-    local desc, context_info = "Context:   ", context.contexts[1].context
-    local line = desc .. context_info.cluster .. " │ User:    " .. context_info.user .. "\n"
-
-    M.add_mark(marks, #hints, #desc, #desc + #context_info.cluster, hl.symbols.pending)
-    table.insert(hints, line)
+---@return table[]
+local function addContextRows(context)
+  local items = {}
+  local current_context = context.contexts[1]
+  if current_context then
+    table.insert(items, { label = "Context:", value = current_context.name, symbol = hl.symbols.pending })
+    table.insert(items, { label = "User:", value = current_context.context.user })
   end
-  local desc, namespace = "Namespace: ", state.getNamespace()
-  local line = desc .. namespace
+
+  -- Prepare the namespace and cluster information
+  local namespace = state.getNamespace()
+  table.insert(items, { label = "Namespace:", value = namespace, symbol = hl.symbols.pending })
+
   if context.clusters then
-    if context.contexts then
-      line = line .. string.rep(" ", #context.contexts[1].context.cluster - #namespace)
-    end
-    line = line .. " │ " .. "Cluster: " .. context.clusters[1].name
+    table.insert(items, { label = "Cluster:", value = context.clusters[1].name })
   end
 
-  M.add_mark(marks, #hints, #desc, #desc + #namespace, hl.symbols.pending)
-  table.insert(hints, line .. "\n")
+  return items
+end
+
+local function addVersionsRows(versions)
+  local client_ver = versions.client.major .. "." .. versions.client.minor
+  local server_ver = versions.server.major .. "." .. versions.server.minor
+  local items = {}
+
+  table.insert(items, { label = "Client:", value = client_ver })
+  table.insert(items, { label = "Server:", value = server_ver })
+
+  if client_ver == "0.0" then
+    return items
+  end
+
+  -- https://kubernetes.io/releases/version-skew-policy/#kubectl
+  if versions.server.major > versions.client.major then
+    items[1].symbol = hl.symbols.error
+  else
+    if versions.server.major == versions.client.major and versions.server.minor > versions.client.minor then
+      -- check if diff of minor is more than 1
+      if versions.server.minor - versions.client.minor > 1 then
+        items[1].symbol = hl.symbols.error
+      else
+        items[1].symbol = hl.symbols.deprecated
+      end
+    else
+      items[1].symbol = hl.symbols.success
+    end
+  end
+  return items
 end
 
 --- Add divider row
 ---@param divider { resource: string, count: string, filter: string }|nil
----@param hints table[]
----@param marks table[]
+---@param hints table The keymap hints
+---@param marks table The extmarks
 local function addDividerRow(divider, hints, marks)
   -- Add separator row
   local win = vim.api.nvim_get_current_win()
@@ -139,7 +241,12 @@ local function addDividerRow(divider, hints, marks)
     local count = divider.count or ""
     local filter = divider.filter or ""
     local info = resource .. count .. filter
-    local padding = string.rep("-", half_width - math.floor(#info / 2))
+    local padding = string.rep("—", half_width - math.floor(#info / 2))
+    local selected = state.getSelections()
+    local selected_count = vim.tbl_count(selected)
+    if selected_count > 0 then
+      count = selected_count .. "/" .. count
+    end
 
     local virt_text = {
       { padding, hl.symbols.success },
@@ -163,7 +270,7 @@ local function addDividerRow(divider, hints, marks)
       virt_text_pos = "overlay",
     })
   else
-    local padding = string.rep("-", half_width)
+    local padding = string.rep("—", half_width)
     row = padding .. padding
     table.insert(marks, {
       row = #hints,
@@ -179,12 +286,13 @@ local function addDividerRow(divider, hints, marks)
 
   table.insert(hints, row)
 end
+
 --- Generate header hints and marks
----@param headers table[]
+---@param headers table
 ---@param include_defaults boolean
 ---@param include_context boolean
 ---@param divider { resource: string, count: string, filter: string }|nil
----@return table[], table[]
+---@return table, table
 function M.generateHeader(headers, include_defaults, include_context, divider)
   local hints = {}
   local marks = {}
@@ -202,18 +310,67 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     end
   end
 
+  if not config.options.headers then
+    addDividerRow(divider, hints, marks)
+    return vim.split(table.concat(hints, ""), "\n"), marks
+  end
+
   -- Add hints rows
   if config.options.hints then
     addHeaderRow(headers, hints, marks)
     table.insert(hints, "\n")
   end
 
+  local items = {}
+
   -- Add context rows
   if include_context and config.options.context then
     local context = state.getContext()
     if context then
-      addContextRows(context, hints, marks)
+      vim.list_extend(items, addContextRows(context))
     end
+  end
+
+  -- Add versions
+  if include_context and config.options.kubernetes_versions then
+    vim.list_extend(items, addVersionsRows(state.getVersions()))
+  end
+
+  local columns = { "label", "value" }
+  local left_columns = {}
+
+  -- Increase the third parameter to increase columns
+  for i = 1, #items, 2 do
+    table.insert(left_columns, items[i])
+  end
+  local column_widths = calculate_column_widths(left_columns, columns)
+
+  local function format_item(item)
+    local label = item.label .. string.rep(" ", column_widths["label"] - vim.fn.strdisplaywidth(item.label))
+    local value = item.value .. string.rep(" ", column_widths["value"] - vim.fn.strdisplaywidth(item.value))
+    return label, value
+  end
+
+  -- Increase the third parameter to increase columns
+  for i = 1, #items, 2 do
+    local left_label, left_value = format_item(items[i])
+    local right_label, right_value = format_item(items[i + 1])
+
+    local line = left_label .. " " .. left_value .. " │ " .. right_label .. " " .. right_value
+
+    if items[i].symbol then
+      M.add_mark(marks, #hints, #left_label, #left_label + #left_value + 1, items[i].symbol)
+    end
+    table.insert(hints, line .. "\n")
+  end
+
+  -- Add heartbeat
+  -- TODO: heartbeat should have it's own config option
+  if include_context and config.options.heartbeat then
+    if #hints == 0 then
+      hints = { "\n" }
+    end
+    addHeartbeat(hints, marks)
   end
 
   addDividerRow(divider, hints, marks)
@@ -224,7 +381,8 @@ end
 --- Pretty print data in a table format
 ---@param data table[]
 ---@param headers string[]
----@return table[], table[]
+---@param sort_by? table
+---@return table, table
 function M.pretty_print(data, headers, sort_by)
   if headers == nil or data == nil then
     return {}, {}
@@ -241,7 +399,7 @@ function M.pretty_print(data, headers, sort_by)
     widths[key] = math.max(#key, value)
   end
 
-  local extra_padding = calculate_extra_padding(widths, headers)
+  calculate_extra_padding(widths, headers)
   local tbl = {}
   local extmarks = {}
 
@@ -254,9 +412,8 @@ function M.pretty_print(data, headers, sort_by)
   local header_col_position = 0
   for i, header in ipairs(headers) do
     local column_width = widths[columns[i]] or 0
-    local padding = string.rep(" ", column_width - #header + extra_padding)
-    -- "   " is to add space for sort icon even when width is small
-    local value = header .. "   " .. padding
+    local padding = string.rep(" ", column_width - #header)
+    local value = header .. padding
     table.insert(header_line, value)
 
     local start_col = header_col_position
@@ -283,10 +440,20 @@ function M.pretty_print(data, headers, sort_by)
   end
   table.insert(tbl, table.concat(header_line, ""))
 
+  local selections = state.selections
   -- Create table rows
   for row_index, row in ipairs(data) do
+    local is_selected = M.is_selected(row, selections)
     local row_line = {}
     local current_col_position = 0
+    if is_selected then
+      table.insert(extmarks, {
+        row = row_index,
+        start_col = 0,
+        sign_text = ">>",
+        sign_hl_group = "Note",
+      })
+    end
 
     for _, col in ipairs(columns) do
       local cell = row[col]
@@ -299,9 +466,8 @@ function M.pretty_print(data, headers, sort_by)
         value = tostring(cell)
       end
 
-      local padding = string.rep(" ", widths[col] - #value + extra_padding)
-      -- "   " is to add space for sort icon even when width is small
-      local display_value = value .. "   " .. padding
+      local padding = string.rep(" ", widths[col] - #value)
+      local display_value = value .. padding
 
       table.insert(row_line, display_value)
 
@@ -325,6 +491,24 @@ function M.pretty_print(data, headers, sort_by)
   return tbl, extmarks
 end
 
+function M.is_selected(row, selections)
+  if not selections or #selections == 0 then
+    return false
+  end
+  for _, selection in ipairs(selections) do
+    local is_selected = true
+    for key, value in pairs(selection) do
+      if row[key] ~= value then
+        is_selected = false
+      end
+    end
+    if is_selected then
+      return true
+    end
+  end
+  return false
+end
+
 --- Get the current selection from the buffer
 ---@vararg number
 ---@return string|nil
@@ -340,11 +524,34 @@ function M.getCurrentSelection(...)
   local indices = { ... }
   for i = 1, #indices do
     local index = indices[i]
-    local trimmed = string_util.trim(columns[index])
+    local trimmed = vim.trim(columns[index])
     table.insert(results, trimmed)
   end
 
   return unpack(results)
+end
+
+function M.find_index(haystack, needle)
+  for index, value in ipairs(haystack) do
+    if value == needle then
+      return index
+    end
+  end
+  return nil -- Return nil if the needle is not found
+end
+
+function M.find_resource(data, name, namespace)
+  if data.items then
+    return vim.iter(data.items):find(function(row)
+      return row.metadata.name == name and (namespace and row.metadata.namespace == namespace or true)
+    end)
+  end
+  if data.rows then
+    return vim.iter(data.rows):find(function(row)
+      return row.object.metadata.name == name and (namespace and row.object.metadata.namespace == namespace or true)
+    end).object
+  end
+  return nil
 end
 
 --- Check if a table is empty

@@ -7,7 +7,8 @@ end
 
 M.stop = function()
   local elapsed_time = vim.fn.reltimefloat(vim.fn.reltime(M.startTime))
-  print("Execution time: " .. elapsed_time .. " seconds")
+  -- local log = require("kubectl.log")
+  vim.print("Execution time: seconds", elapsed_time)
 end
 
 return M

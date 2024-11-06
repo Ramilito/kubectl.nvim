@@ -1,3 +1,4 @@
+local cache = require("kubectl.cache")
 local ctx_view = require("kubectl.views.contexts")
 local informer = require("kubectl.actions.informer")
 local ns_view = require("kubectl.views.namespace")
@@ -15,7 +16,7 @@ function M.open()
 
   hl.setup()
   kube.start_kubectl_proxy(function()
-    view.LoadFallbackData()
+    cache.LoadFallbackData()
     state.setup()
   end)
 end
@@ -27,6 +28,7 @@ function M.close()
   if win_config.relative == "" then
     local kube = require("kubectl.actions.kube")
     state.set_session()
+    state.stop_livez()
     kube.stop_kubectl_proxy()()
     informer.stop()
   end
@@ -57,9 +59,7 @@ function M.setup(options)
     group = group,
     pattern = "k8s_*",
     callback = function()
-      vim.schedule(function()
-        mappings.register()
-      end)
+      mappings.register()
     end,
   })
 
@@ -77,14 +77,14 @@ function M.setup(options)
     elseif action == "apply" then
       completion.apply()
     elseif action == "top" then
-      local top_view = require("kubectl.views.top")
-      local top_def = require("kubectl.views.top.definition")
+      local top_view
       if #opts.fargs == 2 then
-        top_view.View()
-        top_def.res_type = opts.fargs[2]
+        local top_type = opts.fargs[2]
+        top_view = require("kubectl.views.top-" .. top_type)
       else
-        top_view.View()
+        top_view = require("kubectl.views.top-pods")
       end
+      top_view.View()
     elseif action == "api-resources" then
       require("kubectl.views.api-resources").View()
     else

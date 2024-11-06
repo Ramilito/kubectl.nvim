@@ -1,5 +1,4 @@
 local config = require("kubectl.config")
-local informer = require("kubectl.actions.informer")
 local M = {}
 
 local timers = {}
@@ -8,6 +7,7 @@ local active_sessions = {}
 --- Start a loop for a specific buffer
 ---@param buf number
 ---@param callback fun(is_cancelled: fun(): boolean)
+---@param opts? { interval: number }: The arguments for the loop.
 function M.start_loop_for_buffer(buf, callback, opts)
   if timers[buf] then
     return
@@ -27,10 +27,6 @@ function M.start_loop_for_buffer(buf, callback, opts)
   timer:start(0, interval, function()
     if not running then
       running = true
-
-      if informer.handle and not informer.lock and informer.event_queue ~= "" then
-        informer.process(informer.builder)
-      end
 
       vim.schedule(function()
         if vim.api.nvim_get_current_buf() == buf then
@@ -60,7 +56,7 @@ function M.start_loop_for_buffer(buf, callback, opts)
 end
 
 --- Stop the loop for a specific buffer
----@param buf number
+---@param buf number: The buffer number.
 function M.stop_loop_for_buffer(buf)
   local timer = timers[buf]
   if timer then

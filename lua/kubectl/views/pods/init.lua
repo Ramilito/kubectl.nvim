@@ -1,7 +1,8 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local definition = require("kubectl.views.pods.definition")
+local hl = require("kubectl.actions.highlight")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -10,15 +11,15 @@ local M = {
   selection = {},
   pfs = {},
   tail_handle = nil,
-  -- TODO: should propably be configurable
-  show_log_prefix = "true",
-  log_since = "5m",
-  show_timestamps = "true",
+  show_log_prefix = tostring(config.options.logs.prefix),
+  log_since = config.options.logs.since,
+  show_timestamps = tostring(config.options.logs.timestamps),
+  show_previous = "false",
 }
 
 function M.View(cancellationToken)
   M.pfs = {}
-  root_definition.getPFData(M.pfs, true, "pods")
+  root_definition.getPFData(M.pfs, true)
   ResourceBuilder:view(definition, cancellationToken)
 end
 
@@ -86,12 +87,13 @@ function M.selectPod(pod, ns)
   M.selection = { pod = pod, ns = ns, container = nil }
 end
 
-function M.Logs()
+function M.Logs(reload)
   local def = {
     resource = "logs",
     ft = "k8s_pod_logs",
     url = {
       "logs",
+      "-p=" .. M.show_previous,
       "--all-containers=true",
       "--since=" .. M.log_since,
       "--prefix=" .. M.show_log_prefix,
@@ -104,18 +106,81 @@ function M.Logs()
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
-      { key = "<Plug>(kubectl.prefix)", desc = "Prefix" },
-      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps" },
+      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. M.show_log_prefix .. "]" },
+      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. M.show_timestamps .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
+      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. M.show_previous .. "]" },
     },
   }
 
-  ResourceBuilder:view_float(def, { cmd = "kubectl" })
+  if reload == false and M.tail_handle then
+    M.tail_handle:kill(2)
+    M.tail_handle = nil
+    vim.schedule(function()
+      M.TailLogs(M.selection.pod, M.selection.ns)
+    end)
+  end
+  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
 end
 
-function M.Edit(name, ns)
-  buffers.floating_buffer("k8s_pod_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "pod/" .. name, "-n", ns })
+function M.PortForward(pod, ns)
+  local builder = ResourceBuilder:new("kubectl_pf")
+  local pf_def = {
+    ft = "k8s_pod_pf",
+    display = "PF: " .. pod .. "-" .. "?",
+    resource = pod,
+    cmd = { "port-forward", "pods/" .. pod, "-n", ns },
+  }
+
+  local resource = tables.find_resource(state.instance.data, pod, ns)
+  if not resource then
+    return
+  end
+  local containers = {}
+  for _, container in ipairs(resource.spec.containers) do
+    if container.ports then
+      for _, port in ipairs(container.ports) do
+        local name
+        if port.name and container.name then
+          name = container.name .. "::(" .. port.name .. ")"
+        elseif container.name then
+          name = container.name
+        else
+          name = nil
+        end
+
+        table.insert(containers, {
+          name = { value = name, symbol = hl.symbols.pending },
+          port = { value = port.containerPort, symbol = hl.symbols.success },
+          protocol = port.protocol,
+        })
+      end
+    end
+  end
+  if next(containers) == nil then
+    containers[1] = { port = { value = "" }, name = { value = "" } }
+  end
+  builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
+  table.insert(builder.data, " ")
+
+  local data = {
+    {
+      text = "address:",
+      value = "localhost",
+      options = { "localhost", "0.0.0.0" },
+      cmd = "--address",
+      type = "option",
+    },
+    { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
+    { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
+  }
+
+  builder:action_view(pf_def, data, function(args)
+    commands.shell_command_async("kubectl", args)
+    vim.schedule(function()
+      M.View()
+    end)
+  end)
 end
 
 function M.Desc(name, ns, reload)

@@ -1,15 +1,14 @@
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
-local string_utils = require("kubectl.utils.string")
 
 local M = {}
 
 ---@param port_forwards {pid: string, type: string, resource: string, port: string} @Array of port forwards
 ---@param async boolean @Indicates whether the function should run asynchronously
----@param kind "pods"|"svc"|"all" @What types we want to retrieve
 ---@return table[] @Returns the modified array of port forwards
-function M.getPFData(port_forwards, async, kind)
+function M.getPFData(port_forwards, async)
   if vim.fn.has("win32") == 1 then
     return port_forwards
   end
@@ -20,18 +19,16 @@ function M.getPFData(port_forwards, async, kind)
     end
 
     for _, line in ipairs(vim.split(data, "\n")) do
-      local pid = string_utils.trim(line):match("^(%d+)")
-      local resource_type = line:match("%s(pods)/") or line:match("%s(svc)/")
-
-      local resource, port, ns
-      ns = line:match("%-n%s+(%S+)")
-      if kind == "pods" then
-        resource, port = line:match("pods/([^%s]+)%s+(%d+:%d+)$")
-      elseif kind == "svc" then
-        resource, port = line:match("svc/([^%s]+)%s+(%d+:%d+)$")
-      elseif kind == "all" then
-        resource, port = line:match("/([^%s]+)%s+(%d+:%d+)$")
+      if line == "" then
+        return
       end
+      line = vim.trim(line)
+      local pid = line:match("^(%d+)")
+      local resource_type = line:match("%s(pods)/") or line:match("%s(svc)/")
+      local port = line:match("(%d+:%d+)")
+      local ns = line:match("%-n%s+(%S+)")
+      -- either pods/ or svc/
+      local resource = line:match("[ps][ov][cd]s?/([%w%-]+)")
 
       if resource and port then
         table.insert(port_forwards, { pid = pid, type = resource_type, resource = resource, ns = ns, port = port })
@@ -97,7 +94,7 @@ function M.on_prompt_input(input)
     return
   end
   local history = state.alias_history
-  local history_size = 5
+  local history_size = config.options.alias.max_history
 
   local result = {}
   local exists = false
@@ -119,45 +116,9 @@ function M.on_prompt_input(input)
 
   state.alias_history = result
 
-  local parsed_input = string.lower(string_utils.trim(input))
+  local parsed_input = string.lower(vim.trim(input))
   local view = require("kubectl.views")
   view.view_or_fallback(parsed_input)
-end
-
-function M.process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
-  if not group_resources.resources then
-    return
-  end
-  for _, resource in ipairs(group_resources.resources) do
-    -- Skip if resource name contains '/status'
-    if not string.find(resource.name, "/status") then
-      local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
-      local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
-      local resource_url =
-        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
-
-      cached_api_resources.values[resource_name] = {
-        name = resource.name,
-        url = resource_url,
-        namespaced = resource.namespaced,
-        kind = resource.kind,
-        version = group_version,
-      }
-
-      require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
-      cached_api_resources.shortNames[resource.name] = resource_name
-
-      if resource.singularName then
-        cached_api_resources.shortNames[resource.singularName] = resource_name
-      end
-
-      if resource.shortNames then
-        for _, shortName in ipairs(resource.shortNames) do
-          cached_api_resources.shortNames[shortName] = resource_name
-        end
-      end
-    end
-  end
 end
 
 function M.merge_views(cached_resources, views_table)

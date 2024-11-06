@@ -1,4 +1,7 @@
 {
     "Lua.runtime.version": "Lua 5.1",
+    "runtime.version": "LuaJIT",
     "Lua.diagnostics.globals": ["vim"],
+    "workspace.checkThirdParty": "Disable",
+    "diagnostics.libraryFiles": "Disable",
 }

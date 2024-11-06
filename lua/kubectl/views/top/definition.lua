@@ -1,21 +1,5 @@
-local M = {
-  resource = "top",
-  display_name = "top",
-  ft = "k8s_top",
-  url = {},
-  urls = {
-    pods = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
-    nodes = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/nodes?pretty=false" },
-  },
-  res_type = "pods",
-  hints = {
-    { key = "<Plug>(kubectl.top_pods)", desc = "top-pods", long_desc = "Top pods" },
-    { key = "<Plug>(kubectl.top_nodes)", desc = "top-nodes", long_desc = "Top nodes" },
-  },
-  nodes = {},
-}
-
 local hl = require("kubectl.actions.highlight")
+local M = { res_type = "pods", nodes = {} }
 
 function M.getHl(percent)
   local symbol
@@ -29,22 +13,22 @@ function M.getHl(percent)
   return symbol
 end
 
-local function split_num_unit(mem)
+function M.split_num_unit(mem)
   local num = tonumber(string.sub(mem, 1, -3)) or 0
   local unit = string.sub(mem, -2) or "Ki"
   return num, unit
 end
 
-local function get_ki_val(mem)
-  local mem_val, unit = split_num_unit(mem)
+function M.get_ki_val(mem)
+  local mem_val, unit = M.split_num_unit(mem)
   if unit == "Mi" then
     mem_val = math.floor(mem_val * 1024)
   end
   return mem_val
 end
 
-local function kib_to_mib_or_gib(mem)
-  local final_val = math.floor(mem / 1024)
+function M.kib_to_mib_or_gib(mem)
+  local final_val = math.ceil(mem / 1024)
   local unit = "Mi"
   if final_val > 10240 then
     final_val = math.floor(final_val / 1024)
@@ -78,7 +62,7 @@ function M.getCpuPercent(row, node)
   if not row or not row.usage or not row.usage.cpu then
     return status
   end
-  local tmp_cpu = row.usage.cpu
+  local tmp_cpu
   if string.sub(row.usage.cpu, -1) == "n" then
     tmp_cpu = M.getCpuUsage(row)
   else
@@ -86,9 +70,10 @@ function M.getCpuPercent(row, node)
   end
 
   local cpu = tonumber(string.sub(tmp_cpu.value, 1, -2)) or 0
-  local out_of = node and node.status and node.status.capacity.cpu or ""
-  if out_of ~= "" then
-    local total = tonumber(out_of) * 1000
+  local out_of = node and node.status and node.status.allocatable and node.status.allocatable.cpu
+  if out_of ~= nil then
+    out_of = string.sub(out_of, 1, -2)
+    local total = tonumber(out_of)
     local percent = math.ceil((cpu / total) * 100) or 0
     status.sort_by = percent
     status.value = percent .. "%"
@@ -104,7 +89,7 @@ function M.getMemUsage(row)
   if row.containers then
     for _, container in pairs(row.containers) do
       local mem = container.usage.memory
-      temp_val = temp_val + get_ki_val(mem)
+      temp_val = temp_val + M.get_ki_val(mem)
     end
   elseif row.usage.memory then
     local mem = row.usage.memory
@@ -112,7 +97,7 @@ function M.getMemUsage(row)
   end
 
   status.sort_by = temp_val
-  local final_val, unit = kib_to_mib_or_gib(temp_val)
+  local final_val, unit = M.kib_to_mib_or_gib(temp_val)
   status.value = final_val .. unit
   return status
 end
@@ -122,10 +107,10 @@ function M.getMemPercent(row, node)
   if not row or not row.usage or not row.usage.memory then
     return status
   end
-  local mem = get_ki_val(row.usage.memory)
+  local mem = M.get_ki_val(row.usage.memory)
   local out_of = node and node.status and node.status.capacity.memory or ""
   if out_of ~= "" then
-    local total = get_ki_val(out_of)
+    local total = M.get_ki_val(out_of)
     local percent = math.ceil((mem / total) * 100)
     status.value = percent .. "%"
     status.symbol = M.getHl(percent)
@@ -152,7 +137,7 @@ function M.processRow(rows)
         end
       end
     end
-    local pod = {
+    local res = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
       ["cpu-cores"] = M.getCpuUsage(row),
@@ -161,7 +146,7 @@ function M.processRow(rows)
       ["mem-%"] = M.getMemPercent(row, node_details),
     }
 
-    table.insert(data, pod)
+    table.insert(data, res)
   end
   return data
 end
@@ -191,8 +176,7 @@ function M.get_nodes()
   ResourceBuilder:new("nodes"):setCmd(nodes_def.url, "curl"):fetchAsync(function(self)
     self:decodeJson()
     M.nodes = self.data.items
-    --
-    ----
   end)
 end
+
 return M

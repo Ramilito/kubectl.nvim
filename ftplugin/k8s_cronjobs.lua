@@ -6,9 +6,6 @@ local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local tables = require("kubectl.utils.tables")
 
-mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
-mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_job)")
-
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
@@ -32,24 +29,15 @@ local function set_keymaps(bufnr)
     desc = "Create job from cronjob",
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
-      vim.ui.input({ prompt = "New job name " }, function(input)
-        if not input or input == "" then
-          return
-        end
-        commands.shell_command_async(
-          "kubectl",
-          { "create", "job", input, "--from", "cronjobs/" .. name, "-n", ns },
-          function(response)
-            vim.schedule(function()
-              vim.notify(response)
-            end)
-          end
-        )
-      end)
+      if name and ns then
+        cronjob_view.create_from_cronjob(name, ns)
+      else
+        api.nvim_err_writeln("Failed to create job.")
+      end
     end,
   })
 
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.suspend_job)", "", {
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.suspend_cronjob)", "", {
     noremap = true,
     silent = true,
     desc = "Suspend selected cronjob",
@@ -90,3 +78,8 @@ local function init()
 end
 
 init()
+
+vim.schedule(function()
+  mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
+  mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_cronjob)")
+end)

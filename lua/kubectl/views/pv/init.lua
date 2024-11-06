@@ -1,6 +1,4 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.pv.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -13,11 +11,6 @@ end
 
 function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
-end
-
-function M.Edit(name)
-  buffers.floating_buffer("k8s_pv_edit", name, "yaml")
-  commands.execute_terminal("kubectl", { "edit", "pv/" .. name })
 end
 
 function M.Desc(name, _, reload)

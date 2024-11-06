@@ -24,6 +24,7 @@ end
 --- Check if a string is in a table, recursively
 ---@param tbl table
 ---@param str string
+---@param exact boolean
 ---@return boolean
 function M.is_in_table(tbl, str, exact)
   if str == nil then
@@ -33,7 +34,7 @@ function M.is_in_table(tbl, str, exact)
   local lowered_str = str:lower()
   for _, value in pairs(tbl) do
     if type(value) == "table" then
-      if M.is_in_table(value, str) then
+      if M.is_in_table(value, str, false) then
         return true
       end
     end
@@ -47,6 +48,9 @@ function M.is_in_table(tbl, str, exact)
 end
 
 function M.single(tbl, keys, value)
+  if not tbl then
+    return nil
+  end
   for _, v in ipairs(tbl) do
     local current = v
     for _, key in ipairs(keys) do
@@ -62,7 +66,9 @@ function M.single(tbl, keys, value)
   return nil
 end
 
--- @type function(tbl: table, predicate: function): table
+---@param tbl table
+---@param predicate table
+---@return table
 function M.filter(tbl, predicate)
   local result = {}
   for _, v in ipairs(tbl) do
@@ -73,23 +79,44 @@ function M.filter(tbl, predicate)
   return result
 end
 
---- Filter lines in an array based on a pattern starting from a given index
+--- Filter lines in an array based on multiple patterns starting from a given index
 ---@param array table[]
----@param pattern string
+---@param patterns string
 ---@param startAt number
 ---@return table[]
-function M.filter_line(array, pattern, startAt)
-  if not pattern or pattern == "" then
+function M.filter_line(array, patterns, startAt)
+  if not array then
+    array = {}
+  end
+  if not patterns or patterns == "" then
     return array
   end
 
   startAt = startAt or 1
   local filtered_array = {}
+  local pattern_list = {}
+
+  -- Split the patterns by comma
+  for pattern in patterns:gmatch("[^,]+") do
+    table.insert(pattern_list, pattern)
+  end
 
   -- Filter the array starting from startAt
   for index = startAt, #array do
     local line = array[index]
-    if M.is_in_table(line, pattern) then
+    local all_match = true
+
+    for _, pattern in ipairs(pattern_list) do
+      local is_negative = pattern:sub(1, 1) == "!"
+      local actual_pattern = is_negative and pattern:sub(2) or pattern
+      local match = M.is_in_table(line, actual_pattern, false)
+
+      if (is_negative and match) or (not is_negative and not match) then
+        all_match = false
+      end
+    end
+
+    if all_match then
       table.insert(filtered_array, line)
     end
   end

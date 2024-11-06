@@ -1,44 +1,49 @@
-# kubectl.nvim
+# ![kubernetes (1)](https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91) kubectl.nvim
 
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
-<img src="https://github.com/user-attachments/assets/3c070dc5-1b93-47a0-9412-bf34ae611267" width="1700px">
+
+<img src="https://github.com/user-attachments/assets/2243c9d8-0808-4734-92aa-7612496c920b" width="1700px">
 
 ## ✨ Features
 
 <details>
   <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
 </summary>
-  <img src="https://github.com/user-attachments/assets/422fa6e3-1e3d-4efc-85a2-e6087bdd8815" width="700px">
+  <img src="https://github.com/user-attachments/assets/2243c9d8-0808-4734-92aa-7612496c920b" width="700px">
 </details>
 <details>
   <summary>Colored output and smart highlighting</summary>
-  <img src="https://github.com/user-attachments/assets/d9b34465-7644-486a-8ad2-8d4ae960a8f3" width="700px">
+  <img src="https://github.com/user-attachments/assets/f42fa62c-0ddc-4733-9a83-b9d55b4745a1" width="700px">
 </details>
 <details>
   <summary>Floating windows for contextual stuff such as logs, description, containers..</summary>
-  <img src="https://github.com/user-attachments/assets/d5c927b4-cfa7-4906-8a73-a0b7c822a00b" width="700px">
+  <img src="https://github.com/user-attachments/assets/899cb923-e038-4822-890b-d88466797d52" width="700px">
 </details>
 <details>
-  <summary>Run custom commands e.g <code>:Kubectl get configmaps -A</code></summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/d889e44e-d22a-4cb5-96fb-61de9d37ad43" width="700px">
+  <summary>Completion</summary>
+  <img src="https://github.com/user-attachments/assets/f6d5d38a-2b1d-4262-9c15-0587277e2b7a" width="700px">
 </details>
 <details>
-  <summary>Change context using cmd <code>:Kubectx context-name</code></summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/8473233/9ca4f5b6-fb8c-47bf-a588-560e219c439c" width="700px">
+  <summary>Run custom commands e.g <code>:Kubectl get endpoints</code></summary>
+  <img src="https://github.com/user-attachments/assets/3162ef16-4730-472b-95f8-4bdc2948647f" width="700px">
+</details>
+<details>
+  <summary>Change context using cmd <code>:Kubectx context-name</code> or the context view</summary>
+  <img src="https://github.com/user-attachments/assets/bca7c827-4207-47d2-b828-5dc6caab005a" width="700px">
 </details>
 <details>
   <summary>Exec into containers</summary>
   <sub>In the pod view, select a pod by pressing <code>&lt;cr&gt;</code> and then again <code>&lt;cr&gt;</code> on the container you want to exec into</sub>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/24e15963-bfd2-43a5-9e35-9d33cf5d976e" width="700px">
+  <img src="https://github.com/user-attachments/assets/ffb9cfb1-8e75-4917-88f5-477a443669a9" width="700px">
 </details>
 <details>
   <summary>Sort by headers</summary>
-    <sub>By moving the cursor to a column and pressing <code>s</code></sub>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/9f96e943-eda4-458e-a4ba-cf23e0417963" width="700px">
+  <sub>By moving the cursor to anywhere in a column and pressing <code>gs</code></sub>
+  <img src="https://github.com/user-attachments/assets/918038d4-60ed-4d7a-a20d-8d9e57fd1be9" width="700px">
 </details>
 <details>
   <summary>Tail logs</summary>
-  <img src="https://github.com/Ramilito/kubectl.nvim/assets/17252601/8ab220a7-459a-4faf-8709-7f106a36a53b" width="700px">
+  <img src="https://github.com/user-attachments/assets/8a1f59fb-59f2-4093-a479-8900940edfc9" width="700px">
 </details>
 <details>
   <summary>Diff view: <code>:Kubectl diff (path)</code></summary>
@@ -46,12 +51,22 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 </details>
 <details>
   <summary>Port forward</summary>
-  <img src="https://github.com/user-attachments/assets/ff52acdb-6341-456a-a6df-1bb88bec4ef8" width="700px">
+  <img src="https://github.com/user-attachments/assets/9dec1bb8-b65c-4b5a-a8fe-4ca26c93ab43" width="700px">
 </details>
 <details>
   <summary>Aliases (fallback view)</summary>
-  <sub>A fallback view that directs custom resources</sub>
-  <img src="https://github.com/user-attachments/assets/226394a0-7579-4574-9337-2dd036a0dc63" width="700px">
+  <sub>A fallback view that directs custom resources and has basic functionality such desc, edit, del</sub>
+  <img src="https://github.com/user-attachments/assets/6d5bbb82-bc42-4ab4-9f9d-a40b1e7f0286" width="700px">
+</details>
+<details>
+  <summary>Overview</summary>
+  <img src="https://github.com/user-attachments/assets/cb1f46be-fcc0-4a6d-9d1e-ffcd5bdb32b3" width="700px">
+</details>
+<details>
+  <summary>Lineage</summary>
+  <sub>A plugin similar to <a href="https://github.com/tohjustin/kube-lineage/tree/master">kube-lineage</a></sub>
+  <sub>⚠️ This is a beta feature and not all bugs are sorted out</sub>
+  <img src="https://github.com/user-attachments/assets/6c170724-d86d-46a7-af98-2862c45bcd01" width="700px">
 </details>
 
 ## ⚡️ Required Dependencies
@@ -62,7 +77,10 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 
 ## ⚡️ Optional Dependencies
 
-- [kubediff](https://github.com/Ramilito/kubediff) or [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff feature)
+- [kubediff](https://github.com/Ramilito/kubediff) or
+  [DirDiff](https://github.com/will133/vim-dirdiff) (If you want to use the diff
+  feature)
+- [Helm](https://helm.sh/docs/intro/install/) (for helm view)
 
 ## 📦 Installation
 
@@ -91,51 +109,106 @@ We expose open, close and toggle to bind against:
 vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
 ```
 
-You can also override the plugin's keymaps using the `<Plug>` mappings:
+#### Default Mappings
+
+You can override the plugin's keymaps using the `<Plug>` mappings:
+
+<details><summary>Default Mappings</summary>
 
 ```lua
 -- default mappings
-vim.keymap.set("n", "<Plug>(kubectl.alias_view)", "<C-a>")
-vim.keymap.set("n", "<Plug>(kubectl.browse)", "gx")
-vim.keymap.set("n", "<Plug>(kubectl.contexts_view)", "<C-x>")
-vim.keymap.set("n", "<Plug>(kubectl.cordon)", "gC")
-vim.keymap.set("n", "<Plug>(kubectl.create_job)", "gc")
-vim.keymap.set("n", "<Plug>(kubectl.delete)", "gD")
-vim.keymap.set("n", "<Plug>(kubectl.describe)", "gd")
-vim.keymap.set("n", "<Plug>(kubectl.drain)", "gR")
-vim.keymap.set("n", "<Plug>(kubectl.edit)", "ge")
-vim.keymap.set("v", "<Plug>(kubectl.filter_term)", "<C-f>")
-vim.keymap.set("n", "<Plug>(kubectl.filter_view)", "<C-f>")
-vim.keymap.set("n", "<Plug>(kubectl.follow)", "f")
-vim.keymap.set("n", "<Plug>(kubectl.go_up)", "<BS>")
-vim.keymap.set("n", "<Plug>(kubectl.help)", "g?")
-vim.keymap.set("n", "<Plug>(kubectl.history)", "gh")
-vim.keymap.set("n", "<Plug>(kubectl.kill)", "gk")
-vim.keymap.set("n", "<Plug>(kubectl.logs)", "gl")
-vim.keymap.set("n", "<Plug>(kubectl.namespace_view)", "<C-n>")
-vim.keymap.set("n", "<Plug>(kubectl.portforward)", "gp")
-vim.keymap.set("n", "<Plug>(kubectl.portforwards_view)", "gP")
-vim.keymap.set("n", "<Plug>(kubectl.prefix)", "gp")
-vim.keymap.set("n", "<Plug>(kubectl.quit)", "")
-vim.keymap.set("n", "<Plug>(kubectl.refresh)", "gr")
-vim.keymap.set("n", "<Plug>(kubectl.rollout_restart)", "grr")
-vim.keymap.set("n", "<Plug>(kubectl.scale)", "gss")
-vim.keymap.set("n", "<Plug>(kubectl.select)", "<CR>")
-vim.keymap.set("n", "<Plug>(kubectl.set_image)", "gi")
-vim.keymap.set("n", "<Plug>(kubectl.sort)", "gs")
-vim.keymap.set("n", "<Plug>(kubectl.suspend_job)", "gx")
-vim.keymap.set("n", "<Plug>(kubectl.tab)", "<Tab>")
-vim.keymap.set("n", "<Plug>(kubectl.timestamps)", "gt")
-vim.keymap.set("n", "<Plug>(kubectl.top_nodes)", "gn")
-vim.keymap.set("n", "<Plug>(kubectl.top_pods)", "gp")
-vim.keymap.set("n", "<Plug>(kubectl.uncordon)", "gU")
-vim.keymap.set("n", "<Plug>(kubectl.view_1)", "1")
-vim.keymap.set("n", "<Plug>(kubectl.view_2)", "2")
-vim.keymap.set("n", "<Plug>(kubectl.view_3)", "3")
-vim.keymap.set("n", "<Plug>(kubectl.view_4)", "4")
-vim.keymap.set("n", "<Plug>(kubectl.view_5)", "5")
-vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
+local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
+vim.api.nvim_create_autocmd("FileType", {
+  group = group,
+  pattern = "k8s_*",
+  callback = function(ev)
+    local k = vim.keymap.set
+    local opts = { buffer = ev.buf }
+
+    -- Global
+    k("n", "<Plug>(kubectl.help)", "g?", opts) -- Help float
+    k("n", "<Plug>(kubectl.refresh)", "gr", opts) -- Refresh view
+    k("n", "<Plug>(kubectl.sort)", "gs", opts) -- Sort by column
+    k("n", "<Plug>(kubectl.delete)", "gD", opts) -- Delete resource
+    k("n", "<Plug>(kubectl.describe)", "gd", opts) -- Describe resource
+    k("n", "<Plug>(kubectl.edit)", "ge", opts) -- Edit resource
+    k("n", "<Plug>(kubectl.filter_label)", "<C-l>", opts) -- Filter labels
+    k("n", "<Plug>(kubectl.go_up)", "<BS>", opts) -- Go back to previous view
+    k("v", "<Plug>(kubectl.filter_term)", "<C-f>", opts) -- Filter selected text
+    k("n", "<Plug>(kubectl.select)", "<CR>", opts) -- Resource select action (different on each view)
+    k("n", "<Plug>(kubectl.tab)", "<Tab>", opts) -- Tab completion (ascending, when applicable)
+    k("n", "<Plug>(kubectl.shift_tab)", "<Tab>", opts) -- Tab completion (descending, when applicable)
+    k("n", "<Plug>(kubectl.quit)", "", opts) -- Close view (when applicable)
+    k("n", "<Plug>(kubectl.kill)", "gk", opts) -- Pod/portforward kill
+    k("n", "<Plug>(kubectl.toggle_headers)", "<M-h>", opts) -- Toggle headers
+
+    -- Views
+    k("n", "<Plug>(kubectl.alias_view)", "<C-a>", opts) -- Aliases view
+    k("n", "<Plug>(kubectl.contexts_view)", "<C-x>", opts) -- Contexts view
+    k("n", "<Plug>(kubectl.filter_view)", "<C-f>", opts) -- Filter view
+    k("n", "<Plug>(kubectl.namespace_view)", "<C-n>", opts) -- Namespaces view
+    k("n", "<Plug>(kubectl.portforwards_view)", "gP", opts) -- Portforwards view
+    k("n", "<Plug>(kubectl.view_deployments)", "1", opts) -- Deployments view
+    k("n", "<Plug>(kubectl.view_pods)", "2", opts) -- Pods view
+    k("n", "<Plug>(kubectl.view_configmaps)", "3", opts) -- ConfigMaps view
+    k("n", "<Plug>(kubectl.view_secrets)", "4", opts) -- Secrets view
+    k("n", "<Plug>(kubectl.view_services)", "5", opts) -- Services view
+    k("n", "<Plug>(kubectl.view_ingresses)", "6", opts) -- Ingresses view
+    k("n", "<Plug>(kubectl.view_api_resources)", "", opts) -- API-Resources view
+    k("n", "<Plug>(kubectl.view_clusterrolebinding)", "", opts) -- ClusterRoleBindings view
+    k("n", "<Plug>(kubectl.view_crds)", "", opts) -- CRDs view
+    k("n", "<Plug>(kubectl.view_cronjobs)", "", opts) -- CronJobs view
+    k("n", "<Plug>(kubectl.view_daemonsets)", "", opts) -- DaemonSets view
+    k("n", "<Plug>(kubectl.view_events)", "", opts) -- Events view
+    k("n", "<Plug>(kubectl.view_helm)", "", opts) -- Helm view
+    k("n", "<Plug>(kubectl.view_jobs)", "", opts) -- Jobs view
+    k("n", "<Plug>(kubectl.view_nodes)", "", opts) -- Nodes view
+    k("n", "<Plug>(kubectl.view_overview)", "", opts) -- Overview view
+    k("n", "<Plug>(kubectl.view_pv)", "", opts) -- PersistentVolumes view
+    k("n", "<Plug>(kubectl.view_pvc)", "", opts) -- PersistentVolumeClaims view
+    k("n", "<Plug>(kubectl.view_sa)", "", opts) -- ServiceAccounts view
+    k("n", "<Plug>(kubectl.view_top_nodes)", "", opts) -- Top view for nodes
+    k("n", "<Plug>(kubectl.view_top_pods)", "", opts) -- Top view for pods
+
+    -- Deployment/DaemonSet actions
+    k("n", "<Plug>(kubectl.rollout_restart)", "grr", opts) -- Rollout restart
+    k("n", "<Plug>(kubectl.scale)", "gss", opts) -- Scale workload
+    k("n", "<Plug>(kubectl.set_image)", "gi", opts) -- Set image (only if 1 container)
+
+    -- Pod/Container logs
+    k("n", "<Plug>(kubectl.logs)", "gl", opts) -- Logs view
+    k("n", "<Plug>(kubectl.history)", "gh", opts) -- Change logs --since= flag
+    k("n", "<Plug>(kubectl.follow)", "f", opts) -- Follow logs
+    k("n", "<Plug>(kubectl.wrap)", "gw", opts) -- Toggle wrap log lines
+    k("n", "<Plug>(kubectl.prefix)", "gp", opts) -- Toggle container name prefix
+    k("n", "<Plug>(kubectl.timestamps)", "gt", opts) -- Toggle timestamps prefix
+    k("n", "<Plug>(kubectl.previous_logs)", "gpp", opts) -- Toggle show previous logs
+
+    -- Node actions
+    k("n", "<Plug>(kubectl.cordon)", "gC", opts) -- Cordon node
+    k("n", "<Plug>(kubectl.uncordon)", "gU", opts) -- Uncordon node
+    k("n", "<Plug>(kubectl.drain)", "gR", opts) -- Drain node
+
+    -- Top actions
+    k("n", "<Plug>(kubectl.top_nodes)", "gn", opts) -- Top nodes
+    k("n", "<Plug>(kubectl.top_pods)", "gp", opts) -- Top pods
+
+    -- CronJob actions
+    k("n", "<Plug>(kubectl.suspend_cronjob)", "gx", opts) -- Suspend CronJob
+    k("n", "<Plug>(kubectl.create_job)", "gc", opts) -- Create Job from CronJob
+
+    k("n", "<Plug>(kubectl.portforward)", "gp", opts) -- Pods/Services portforward
+    k("n", "<Plug>(kubectl.browse)", "gx", opts) -- Ingress view
+    k("n", "<Plug>(kubectl.yaml)", "gy", opts) -- Helm view
+  end,
+})
 ```
+
+</details>
+
+#### Lazy Setup
+
+For overriding the default mappings when using `lazy.nvim` [check out our wiki page.](https://github.com/Ramilito/kubectl.nvim/wiki/Lazy-setup)
 
 ## ⚙️ Configuration
 
@@ -143,6 +216,7 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
 
 ```lua
 {
+  log_level = vim.log.levels.INFO,
   auto_refresh = {
     enabled = true,
     interval = 300, -- milliseconds
@@ -155,8 +229,23 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
   hints = true,
   context = true,
+  heartbeat = true,
+  kubernetes_versions = true,
+  lineage = {
+    enabled = false, -- This feature is in beta at the moment
+  },
+  logs = {
+    prefix = true,
+    timestamps = true,
+    since = "5m"
+  },
+  alias = {
+    apply_on_select_from_history = true,
+    max_history = 5,
+  },
   filter = {
     apply_on_select_from_history = true,
+    max_history = 10,
   },
   float_size = {
     -- Almost fullscreen:
@@ -175,19 +264,53 @@ vim.keymap.set("n", "<Plug>(kubectl.wrap)", "gw")
 }
 ```
 
-## Performance
+## 🎨 Colors
+
+The plugin uses the following highlight groups:
+
+<details><summary>Highlight Groups</summary>
+
+| Name                | Default                       | Color                                                                                     |
+| ------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
+| KubectlHeader       | `{ fg = "#569CD6" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
+| KubectlWarning      | `{ fg = "#D19A66" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
+| KubectlError        | `{ fg = "#D16969" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D16969" width="20" /> |
+| KubectlInfo         | `{ fg = "#608B4E" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=608B4E" width="20" /> |
+| KubectlDebug        | `{ fg = "#DCDCAA" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=DCDCAA" width="20" /> |
+| KubectlSuccess      | `{ fg = "#4EC9B0" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=4EC9B0" width="20" /> |
+| KubectlPending      | `{ fg = "#C586C0" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=C586C0" width="20" /> |
+| KubectlDeprecated   | `{ fg = "#D4A5A5" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D4A5A5" width="20" /> |
+| KubectlExperimental | `{ fg = "#CE9178" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=CE9178" width="20" /> |
+| KubectlNote         | `{ fg = "#9CDCFE" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=9CDCFE" width="20" /> |
+| KubectlGray         | `{ fg = "#666666" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=666666" width="20" /> |
+| KubectlPselect      | `{ bg = "#3e4451" }`          | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=3e4451" width="20" /> |
+| KubectlPmatch       | `{ link = "KubectlWarning" }` | <img src="https://www.thecolorapi.com/id?format=svg&named=false&hex=D19A66" width="20" /> |
+| KubectlUnderline    | `{ underline = true }`        | -                                                                                         |
+
+</details>
+
+## 🚀 Performance
 
 ### Startup
 
 The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
-## Versioning
+### Efficient Resource Monitoring
 
-> [!WARNING]
-> As we have not yet reached v1.0.0, we may have some breaking changes
-> in cases where it is deemed necessary.
+We leverage the Kubernetes Informer to efficiently monitor resource updates.
 
-## Motivation
+By using the `resourceVersion`, we avoid fetching all resources in each loop.
 
-This plugins main purpose is to browse the kubernetes state using vim like navigation and keys, similar to oil.nvim for file browsing.
+Instead, the Informer provides only the changes, significantly reducing overhead and improving performance.
+
+## ⚠️ Versioning
+
+As we advance to `v1.0.0`, our primary goal is to maintain the stability of the
+plugin and minimize any breaking changes. We are committed to providing a
+reliable and consistent user experience.
+
+## 💪🏼 Motivation
+
+This plugins main purpose is to browse the kubernetes state using vim like
+navigation and keys, similar to oil.nvim for file browsing.
