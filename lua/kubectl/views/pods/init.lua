@@ -164,9 +164,9 @@ function M.PortForward(pod, ns)
   table.insert(builder.data, " ")
 
   local data = {
+    { text = "address:", value = "localhost", cmd = "--address", type = "option" },
     { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
     { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
-    { text = "address:", value = "localhost", cmd = "--address", type = "option" },
   }
 
   builder:action_view(pf_def, data, function(args)
