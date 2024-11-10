@@ -56,9 +56,9 @@ local top_level_commands = {
 local comps = {}
 local is_processing = false
 local last_processed = ""
+local completions = {}
 
 --- User command completion
---- @param _ any Unused parameter
 --- @param cmd string The command to complete
 --- @return string[]|nil commands The list of top-level commands if applicable
 function M.user_command_completion(last, cmd)
