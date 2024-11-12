@@ -124,8 +124,8 @@ function M.register()
           syntax = "yaml",
         }
         if ns then
-          table.insert(url, "-ns")
-          table.insert(url, ns)
+          table.insert(def.url, "-ns")
+          table.insert(def.url, ns)
           def.resource = def.resource .. "_" .. ns
         end
 
