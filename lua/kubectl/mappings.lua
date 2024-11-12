@@ -129,7 +129,7 @@ function M.register()
           def.resource = def.resource .. "_" .. ns
         end
 
-        ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+        ResourceBuilder:view_float(def, { cmd = "kubectl" })
       end
     end,
   })
