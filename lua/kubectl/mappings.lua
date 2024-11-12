@@ -104,6 +104,36 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.yaml)", "", {
+    noremap = true,
+    silent = true,
+    desc = "View yaml",
+    callback = function()
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+      if not view_ok then
+        view = require("kubectl.views.fallback")
+      end
+      local name, ns = view.getCurrentSelection()
+
+      if name then
+        local def = {
+          resource = buf_name .. "_" .. name,
+          ft = "k8s_yaml",
+          url = { "get", buf_name, name, "-o", "yaml" },
+          syntax = "yaml",
+        }
+        if ns then
+          table.insert(def.url, "-n")
+          table.insert(def.url, ns)
+          def.resource = def.resource .. "_" .. ns
+        end
+
+        ResourceBuilder:view_float(def, { cmd = "kubectl" })
+      end
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.describe)", "", {
     noremap = true,
     silent = true,
@@ -467,6 +497,7 @@ function M.register()
       M.map_if_plug_not_set("n", "<bs>", "<Plug>(kubectl.go_up)")
       M.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
       M.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
+      M.map_if_plug_not_set("n", "gy", "<Plug>(kubectl.yaml)")
       M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
       M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
       M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")

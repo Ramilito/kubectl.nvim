@@ -27,6 +27,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.go_up)", desc = "Go up a level" },
     { key = "<Plug>(kubectl.delete)", desc = "Delete resource" },
     { key = "<Plug>(kubectl.describe)", desc = "Describe resource" },
+    { key = "<Plug>(kubectl.yaml)", desc = "View YAML" },
     { key = "<Plug>(kubectl.portforwards_view)", desc = "Port forwards" },
     { key = "<Plug>(kubectl.sort)", desc = "Sort column" },
     { key = "<Plug>(kubectl.edit)", desc = "Edit resource" },
