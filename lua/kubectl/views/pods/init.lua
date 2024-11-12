@@ -19,7 +19,7 @@ local M = {
 
 function M.View(cancellationToken)
   M.pfs = {}
-  root_definition.getPFData(M.pfs, true, "pods")
+  root_definition.getPFData(M.pfs, true)
   ResourceBuilder:view(definition, cancellationToken)
 end
 
@@ -164,9 +164,15 @@ function M.PortForward(pod, ns)
   table.insert(builder.data, " ")
 
   local data = {
+    {
+      text = "address:",
+      value = "localhost",
+      options = { "localhost", "0.0.0.0" },
+      cmd = "--address",
+      type = "option",
+    },
     { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
     { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
-    { text = "address:", value = "localhost", cmd = "--address", type = "option" },
   }
 
   builder:action_view(pf_def, data, function(args)

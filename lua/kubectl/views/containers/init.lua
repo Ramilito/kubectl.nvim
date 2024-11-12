@@ -38,8 +38,8 @@ function M.debug(pod, ns)
   local data = {
     { text = "name:", value = M.selection .. "-debug", cmd = "-c", type = "option" },
     { text = "image:", value = "busybox", cmd = "--image", type = "option" },
-    { text = "stdin:", value = "true", options = { "true", "false" }, cmd = "--stdin", type = "flag" },
-    { text = "tty:", value = "true", options = { "true", "false" }, cmd = "--tty", type = "flag" },
+    { text = "stdin:", value = "true", cmd = "--stdin", type = "flag" },
+    { text = "tty:", value = "true", cmd = "--tty", type = "flag" },
     { text = "shell:", value = "/bin/sh", options = { "/bin/sh", "/bin/bash" }, cmd = "--", type = "positional" },
   }
 
