@@ -131,6 +131,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.sort)", "gs", opts) -- Sort by column
     k("n", "<Plug>(kubectl.delete)", "gD", opts) -- Delete resource
     k("n", "<Plug>(kubectl.describe)", "gd", opts) -- Describe resource
+    k("n", "<Plug>(kubectl.yaml)", "gy", opts) -- View yaml
     k("n", "<Plug>(kubectl.edit)", "ge", opts) -- Edit resource
     k("n", "<Plug>(kubectl.filter_label)", "<C-l>", opts) -- Filter labels
     k("n", "<Plug>(kubectl.go_up)", "<BS>", opts) -- Go back to previous view
