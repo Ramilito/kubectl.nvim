@@ -197,7 +197,16 @@ function M.UserCmd(args)
   end)
 end
 
+--- Set a new URL and open the view
+---@param opts table Options. Possible fields:
+---   - <src> - Source view name where we are redirecting from
+---   - <dest> - Destination view name where we are redirecting to
+---   - <new_query_params> - New query parameters to set to the
+---     destination view URL
+---   - <name> - Resource name from src
+---   - <ns> - Namespace name from src
 function M.set_url_and_open_view(opts)
+  opts = opts or {}
   local src = opts.src
   local dest = opts.dest
   local new_query_params = opts.new_query_params
