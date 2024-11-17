@@ -197,37 +197,65 @@ function M.UserCmd(args)
   end)
 end
 
-function M.set_and_open_pod_selector(name, ns)
-  local kind = state.instance.resource
-  local pod_view, pod_definition = M.view_and_definition("pods")
-  if not name or not ns then
-    return pod_view.View()
+function M.set_url_and_open_view(opts)
+  local src = opts.src
+  local dest = opts.dest
+  local new_query_params = opts.new_query_params
+  local name = opts.name
+  local ns = opts.ns
+  local encode = function(str)
+    return vim.uri_encode(str, "rfc2396")
   end
-
+  local res_view, res_definition = M.view_and_definition(dest)
   -- save url details
-  local original_url = pod_definition.url[1]
+  local original_url = res_definition.url[1]
   local url_no_query_params, original_query_params = url.breakUrl(original_url, true, false)
+  local all_query_params = {}
+  for key, value in pairs(new_query_params) do
+    table.insert(all_query_params, encode(key) .. "=" .. encode(value))
+  end
+  local str_query_params = "?" .. table.concat(all_query_params, "&")
+  if original_query_params ~= "" then
+    str_query_params = str_query_params .. "&" .. original_query_params
+  end
+  local new_url = url_no_query_params .. str_query_params
 
+  local msg = {
+    string.format("Loading %s for %s: %s", dest, src, name),
+    "Refresh the view to see all " .. dest,
+  }
+  if ns then
+    msg[1] = msg[1] .. " in namespace: " .. ns
+  end
+  vim.notify(table.concat(msg, "\n"))
+  res_definition.url = { new_url }
+  res_view.View()
+  res_definition.url = { original_url }
+end
+
+function M.set_and_open_pod_selector(name, ns)
   -- get the selectors for the pods
-  local encode = vim.uri_encode
   local resource = tables.find_resource(state.instance.data, name, ns)
   if not resource then
     return
   end
   local selector_t = (resource.spec.selector and resource.spec.selector.matchLabels or resource.spec.selector)
     or resource.metadata.labels
-  local key_value_pairs = vim.tbl_map(function(key)
-    return encode(key .. "=" .. selector_t[key])
-  end, vim.tbl_keys(selector_t))
-  local label_selector = "?labelSelector=" .. table.concat(key_value_pairs, encode(","))
-  local new_url = url_no_query_params .. label_selector .. "&" .. original_query_params
-
-  pod_definition.url = { new_url }
-  vim.notify(
-    "Loading pods for " .. kind .. ": " .. name .. " in namespace: " .. ns .. "\nRefresh the view to see all pods"
+  local key_vals = table.concat(
+    vim.tbl_map(function(key)
+      return key .. "=" .. selector_t[key]
+    end, vim.tbl_keys(selector_t)),
+    ","
   )
-  pod_view.View()
-  pod_definition.url = { original_url }
+  M.set_url_and_open_view({
+    src = state.instance.resource,
+    dest = "pods",
+    new_query_params = {
+      labelSelector = key_vals,
+    },
+    name = name,
+    ns = ns,
+  })
 end
 
 function M.view_and_definition(view_name)

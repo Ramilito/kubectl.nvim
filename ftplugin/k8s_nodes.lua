@@ -2,9 +2,27 @@ local api = vim.api
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local node_view = require("kubectl.views.nodes")
+local state = require("kubectl.state")
+local view = require("kubectl.views")
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Go to pods",
+    callback = function()
+      local name = node_view.getCurrentSelection()
+      state.setFilter("")
+      view.set_url_and_open_view({
+        src = "nodes",
+        dest = "pods",
+        new_query_params = { fieldSelector = "spec.nodeName=" .. name },
+        name = name,
+      })
+    end,
+  })
+
   api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.drain)", "", {
     noremap = true,
     silent = true,
