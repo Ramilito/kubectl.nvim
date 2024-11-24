@@ -1,5 +1,11 @@
 # ![kubernetes (1)](https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91) kubectl.nvim
 
+[![neovim: v0.10.1+](https://img.shields.io/static/v1?style=flat-square&label=neovim&message=v0.10.0%2b&logo=neovim&color=414b32)](https://neovim.io/)
+![code size](https://img.shields.io/github/languages/code-size/Ramilito/kubectl.nvim?style=flat-square)
+![license](https://img.shields.io/github/license/Ramilito/kubectl.nvim?style=flat-square)
+![check-runs](https://img.shields.io/github/check-runs/Ramilito/kubectl.nvim/main)
+![release](https://img.shields.io/github/v/release/Ramilito/kubectl.nvim)
+
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 
 <img src="https://github.com/user-attachments/assets/2243c9d8-0808-4734-92aa-7612496c920b" width="1700px">
