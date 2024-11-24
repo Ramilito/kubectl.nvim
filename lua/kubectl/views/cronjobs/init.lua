@@ -34,8 +34,18 @@ function M.create_from_cronjob(name, ns)
   }
   local unix_time = os.time()
   local data = {
-    { text = "name:", value = name .. "-" .. tostring(unix_time), cmd = "" },
-    { text = "dry run:", enum = { "none", "server", "client" }, cmd = "--dry-run" },
+    {
+      text = "name:",
+      value = name .. "-" .. tostring(unix_time),
+      type = "positional",
+    },
+    {
+      text = "dry run:",
+      value = "none",
+      options = { "none", "server", "client" },
+      cmd = "--dry-run",
+      type = "option",
+    },
   }
 
   builder:action_view(create_def, data, function(args)
