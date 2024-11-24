@@ -4,7 +4,7 @@
 ![code size](https://img.shields.io/github/languages/code-size/Ramilito/kubectl.nvim?style=flat-square)
 [![license](https://img.shields.io/github/license/Ramilito/kubectl.nvim?style=flat-square)](LICENSE)
 ![check-runs](https://img.shields.io/github/check-runs/Ramilito/kubectl.nvim/main)
-[![release](https://img.shields.io/github/v/release/Ramilito/kubectl.nvim)](/releases/latest)
+[![release](https://img.shields.io/github/v/release/Ramilito/kubectl.nvim)](https://github.com/Ramilito/kubectl.nvim/releases/latest)
 
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 
