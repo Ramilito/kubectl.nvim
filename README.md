@@ -195,7 +195,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.top_pods)", "gp", opts) -- Top pods
 
     -- CronJob actions
-    k("n", "<Plug>(kubectl.suspend_cronjob)", "gx", opts) -- Suspend CronJob
+    k("n", "<Plug>(kubectl.suspend_cronjob)", "gss", opts) -- Suspend CronJob
     k("n", "<Plug>(kubectl.create_job)", "gc", opts) -- Create Job from CronJob
 
     k("n", "<Plug>(kubectl.portforward)", "gp", opts) -- Pods/Services portforward

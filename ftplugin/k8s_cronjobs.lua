@@ -81,5 +81,5 @@ init()
 
 vim.schedule(function()
   mappings.map_if_plug_not_set("n", "gc", "<Plug>(kubectl.create_job)")
-  mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.suspend_cronjob)")
+  mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.suspend_cronjob)")
 end)
