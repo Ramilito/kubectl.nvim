@@ -1,4 +1,5 @@
-# ![kubernetes (1)](https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91) kubectl.nvim
+<h1 align="center"><img src="https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91"> kubectl.nvim</h1>
+
 
 [![neovim: v0.10.1+](https://img.shields.io/static/v1?style=flat-square&label=neovim&message=v0.10.0%2b&logo=neovim&color=414b32)](https://neovim.io/)
 ![code size](https://img.shields.io/github/languages/code-size/Ramilito/kubectl.nvim?style=flat-square)
