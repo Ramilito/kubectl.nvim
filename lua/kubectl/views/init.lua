@@ -97,12 +97,29 @@ function M.Aliases()
   self.data = cache.cached_api_resources.values
   self:splitData():decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
-
-  local buf = buffers.aliases_buffer(
+  local buf, win = buffers.aliases_buffer(
     "k8s_aliases",
     definition.on_prompt_input,
-    { title = "Aliases", header = { data = {} }, suggestions = self.data }
+    { title = "Aliases - " .. vim.tbl_count(self.data), header = { data = {} }, suggestions = self.data }
   )
+
+  -- autocmd for KubectlCacheLoaded
+  vim.api.nvim_create_autocmd("User", {
+    pattern = "KubectlCacheLoaded",
+    callback = function()
+      -- check if win and buf are valid
+      local _, is_valid_win = pcall(vim.api.nvim_win_is_valid, win)
+      local _, is_valid_buf = pcall(vim.api.nvim_buf_is_valid, buf)
+      -- if both valid, update the window title
+      if is_valid_win and is_valid_buf then
+        local new_cached = require("kubectl.cache").cached_api_resources.values
+        self.data = new_cached
+        self:splitData():decodeJson()
+        self.data = definition.merge_views(self.data, viewsTable)
+        vim.api.nvim_win_set_config(win, { title = "k8s_aliases - Aliases - " .. vim.tbl_count(self.data) })
+      end
+    end,
+  })
 
   completion.with_completion(buf, self.data, function()
     -- We reassign the cache since it can be slow to load

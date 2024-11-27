@@ -9,7 +9,7 @@ local one_day_in_seconds = 24 * 60 * 60
 local current_time = os.time()
 
 M.LoadFallbackData = function(force, callback)
-  if force and not M.loading or M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds then
+  if force and not M.loading or (M.timestamp == nil or current_time - M.timestamp >= one_day_in_seconds) then
     M.cached_api_resources.values = {}
     M.cached_api_resources.shortNames = {}
 
@@ -179,6 +179,11 @@ function M.load_cache(cached_api_resources, callback)
         end
       end
 
+      M.loading = false
+      vim.schedule(function()
+        vim.cmd("doautocmd User KubectlCacheLoaded")
+      end)
+
       if M.handles or not config.options.lineage.enabled then
         return
       end
@@ -205,7 +210,6 @@ function M.load_cache(cached_api_resources, callback)
         print("Memory used by the table (in MB):", mem_diff_mb)
         timeme.stop()
         M.handles = nil
-        M.loading = false
         if callback then
           callback()
         end
@@ -213,4 +217,5 @@ function M.load_cache(cached_api_resources, callback)
     end)
   end)
 end
+
 return M

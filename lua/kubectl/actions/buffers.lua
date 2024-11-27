@@ -122,7 +122,7 @@ function M.aliases_buffer(filetype, callback, opts)
 
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
-  return buf
+  return buf, win
 end
 
 --- Creates a filter buffer.
