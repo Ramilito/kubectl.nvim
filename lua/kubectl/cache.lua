@@ -206,6 +206,9 @@ function M.load_cache(cached_api_resources, callback)
         print("Memory used by the table (in MB):", mem_diff_mb)
         timeme.stop()
         M.handles = nil
+        vim.schedule(function()
+          vim.cmd("doautocmd User KubectlCacheLoaded")
+        end)
         if callback then
           callback()
         end
@@ -213,4 +216,5 @@ function M.load_cache(cached_api_resources, callback)
     end)
   end)
 end
+
 return M
