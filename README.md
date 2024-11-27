@@ -1,4 +1,17 @@
-# ![kubernetes (1)](https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91) kubectl.nvim
+<h1 align="center"><img src="https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91"> kubectl.nvim</h1>
+<p align="center">
+  <a href="https://nvim.io/">
+    <img src="https://img.shields.io/static/v1?style=flat-square&label=neovim&message=v0.10.0%2b&logo=neovim&color=414b32">
+  </a>
+  <img src="https://img.shields.io/github/languages/code-size/Ramilito/kubectl.nvim?style=flat-square">
+  <a href="https://github.com/Ramilito/kubectl.nvim/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Ramilito/kubectl.nvim?style=flat-square">
+  </a>
+  <img src="https://img.shields.io/github/check-runs/Ramilito/kubectl.nvim/main">
+  <a href="https://github.com/Ramilito/kubectl.nvim/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Ramilito/kubectl.nvim">
+  </a>
+</p>
 
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.
 
@@ -195,7 +208,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<Plug>(kubectl.top_pods)", "gp", opts) -- Top pods
 
     -- CronJob actions
-    k("n", "<Plug>(kubectl.suspend_cronjob)", "gx", opts) -- Suspend CronJob
+    k("n", "<Plug>(kubectl.suspend_cronjob)", "gss", opts) -- Suspend CronJob
     k("n", "<Plug>(kubectl.create_job)", "gc", opts) -- Create Job from CronJob
 
     k("n", "<Plug>(kubectl.portforward)", "gp", opts) -- Pods/Services portforward

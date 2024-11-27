@@ -56,6 +56,7 @@ function M.setup()
   for group, attrs in pairs(highlights) do
     local success, hl = pcall(api.nvim_get_hl, 0, group)
     if not success or not hl then
+      attrs.default = true
       api.nvim_set_hl(0, group, attrs)
     end
   end

@@ -6,7 +6,7 @@ local M = {
   hints = {
     { key = "<Plug>(kubectl.create_job)", desc = "create", long_desc = "Create job from cronjob" },
     { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
-    { key = "<Plug>(kubectl.suspend_job)", desc = "suspend", long_desc = "Suspend/Unsuspend cronjob" },
+    { key = "<Plug>(kubectl.suspend_cronjob)", desc = "suspend", long_desc = "Suspend/Unsuspend cronjob" },
   },
 }
 local hl = require("kubectl.actions.highlight")
