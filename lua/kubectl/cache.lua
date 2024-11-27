@@ -160,7 +160,6 @@ function M.load_cache(cached_api_resources, callback)
     end
 
     self:fetchAllAsync(group_cmds, function(results)
-      M.loading = false
       for _, value in ipairs(results.data) do
         self.data = value
         self:decodeJson()
@@ -179,6 +178,11 @@ function M.load_cache(cached_api_resources, callback)
           cmd.args = url.addHeaders(cmd.args, cmd.contentType)
         end
       end
+
+      M.loading = false
+      vim.schedule(function()
+        vim.cmd("doautocmd User KubectlCacheLoaded")
+      end)
 
       if M.handles or not config.options.lineage.enabled then
         return
@@ -206,9 +210,6 @@ function M.load_cache(cached_api_resources, callback)
         print("Memory used by the table (in MB):", mem_diff_mb)
         timeme.stop()
         M.handles = nil
-        vim.schedule(function()
-          vim.cmd("doautocmd User KubectlCacheLoaded")
-        end)
         if callback then
           callback()
         end
