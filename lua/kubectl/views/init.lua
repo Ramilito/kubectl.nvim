@@ -97,11 +97,15 @@ function M.Aliases()
   self.data = cache.cached_api_resources.values
   self:splitData():decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
+  local count = 0
+  for _ in pairs(self.data) do
+    count = count + 1
+  end
 
   local buf = buffers.aliases_buffer(
     "k8s_aliases",
     definition.on_prompt_input,
-    { title = "Aliases", header = { data = {} }, suggestions = self.data }
+    { title = "Aliases - " .. count, header = { data = {} }, suggestions = self.data }
   )
 
   completion.with_completion(buf, self.data, function()
