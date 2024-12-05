@@ -9,12 +9,12 @@ local M = {}
 ---@field hints boolean
 ---@field context boolean
 ---@field heartbeat boolean
----@field kubernetes_versions boolean
 ---@field lineage { enabled: boolean }
 ---@field completion { follow_cursor: boolean }
 ---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
+---@field skew { enabled: boolean, log_level: number }
 local defaults = {
   log_level = vim.log.levels.INFO,
   auto_refresh = {
@@ -38,7 +38,6 @@ local defaults = {
   context = true,
   heartbeat = true,
 
-  kubernetes_versions = true,
   lineage = {
     enabled = false,
   },

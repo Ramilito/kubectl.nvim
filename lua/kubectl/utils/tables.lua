@@ -332,7 +332,7 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   end
 
   -- Add versions
-  if include_context and config.options.kubernetes_versions then
+  if include_context and config.options.skew.enabled then
     vim.list_extend(items, addVersionsRows(state.getVersions()))
   end
 
