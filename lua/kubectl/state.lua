@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
@@ -52,8 +53,6 @@ end
 
 --- Setup the kubectl state
 function M.setup()
-  local config = require("kubectl.config")
-
   for k, _ in pairs(viewsTable) do
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
   end
@@ -69,37 +68,50 @@ function M.setup()
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
-      M.checkVersions()
-      M.checkHealth(function()
-        if
-          M.versions.client.major == 0
-          or M.versions.server.major == 0
-          or M.versions.client.minor == 0
-          or M.versions.server.minor == 0
-        then
-          M.checkVersions()
-        end
-      end)
+      if config.options.skew.enabled then
+        M.checkVersions()
+        M.checkHealth(function()
+          if
+            M.versions.client.major == 0
+            or M.versions.server.major == 0
+            or M.versions.client.minor == 0
+            or M.versions.server.minor == 0
+          then
+            M.checkVersions()
+          end
+        end)
+      end
     end)
   end)
 end
 
 function M.checkVersions()
   -- get client and server version
-  commands.shell_command_async("kubectl", { "version", "--output", "json" }, function(data)
-    local result = decode(data)
-    if result then
-      local clientVersion = result.clientVersion and result.clientVersion.gitVersion or "0.0"
-      local serverVersion = result.serverVersion and result.serverVersion.gitVersion or "0.0"
-      if not clientVersion or not serverVersion then
-        return
+  commands.shell_command_async(
+    "kubectl",
+    { "version", "--output", "json" },
+    function(data)
+      local result = decode(data)
+      if result then
+        local clientVersion = result.clientVersion and result.clientVersion.gitVersion or "0.0"
+        local serverVersion = result.serverVersion and result.serverVersion.gitVersion or "0.0"
+        if not clientVersion or not serverVersion then
+          return
+        end
+        M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
+        M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
+        M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
+        M.versions.server.minor = tonumber(string.match(serverVersion, "%d+%.(%d+)%..*")) or 0
       end
-      M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
-      M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
-      M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
-      M.versions.server.minor = tonumber(string.match(serverVersion, "%d+%.(%d+)%..*")) or 0
-    end
-  end)
+    end,
+    nil,
+    function(_, data)
+      if data and config.options.skew.log_level < 5 then
+        vim.notify(data, vim.log.levels.ERROR)
+      end
+    end,
+    nil
+  )
 end
 
 function M.stop_livez()
