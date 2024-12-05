@@ -126,11 +126,9 @@ function ResourceBuilder:fetchAsync(on_exit, on_stdout, on_stderr, opts)
     if on_stdout then
       on_stdout(data)
     end
-  end, function(data)
-    if on_stderr then
-      on_stderr(data)
-    end
-  end, opts)
+  end, on_stderr and function(data)
+    on_stderr(data)
+  end or nil, opts)
   return self
 end
 
