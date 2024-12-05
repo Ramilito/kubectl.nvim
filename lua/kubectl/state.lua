@@ -66,20 +66,23 @@ function M.setup()
 
     M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
+
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
-      M.checkVersions()
-      M.checkHealth(function()
-        if
-          M.versions.client.major == 0
-          or M.versions.server.major == 0
-          or M.versions.client.minor == 0
-          or M.versions.server.minor == 0
-        then
-          M.checkVersions()
-        end
-      end)
+      if config.options.skew.enabled then
+        M.checkVersions()
+        M.checkHealth(function()
+          if
+            M.versions.client.major == 0
+            or M.versions.server.major == 0
+            or M.versions.client.minor == 0
+            or M.versions.server.minor == 0
+          then
+            M.checkVersions()
+          end
+        end)
+      end
     end)
   end)
 end
