@@ -69,10 +69,10 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 5, -- highghlight if age is less than minutes
-	skew = {
-		enabled = true,
-		log_level = vim.log.levels.INFO
-	}
+  skew = {
+    enabled = true,
+    log_level = vim.log.levels.INFO,
+  },
 }
 
 ---@type KubectlOptions
