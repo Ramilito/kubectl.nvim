@@ -196,8 +196,12 @@ local function addContextRows(context)
 end
 
 local function addVersionsRows(versions)
-  local client_ver = versions.client.major .. "." .. versions.client.minor
-  local server_ver = versions.server.major .. "." .. versions.server.minor
+  local client_major = tonumber(versions.client.major)
+  local client_minor = tonumber(versions.client.minor)
+  local server_major = tonumber(versions.server.major)
+  local server_minor = tonumber(versions.server.minor)
+  local client_ver = client_major .. "." .. client_minor
+  local server_ver = server_major .. "." .. server_minor
   local items = {}
 
   table.insert(items, { label = "Client:", value = client_ver })
@@ -208,17 +212,15 @@ local function addVersionsRows(versions)
   end
 
   -- https://kubernetes.io/releases/version-skew-policy/#kubectl
-  if versions.server.major > versions.client.major then
+  if client_major ~= server_major then
     items[1].symbol = hl.symbols.error
   else
-    if versions.server.major == versions.client.major and versions.server.minor > versions.client.minor then
-      -- check if diff of minor is more than 1
-      if versions.server.minor - versions.client.minor > 1 then
-        items[1].symbol = hl.symbols.error
-      else
-        items[1].symbol = hl.symbols.deprecated
-      end
-    else
+    local minor_diff = client_minor - server_minor
+    if minor_diff > 1 or minor_diff < -1 then
+      items[1].symbol = hl.symbols.error
+    elseif minor_diff == 1 or minor_diff == -1 then
+      items[1].symbol = hl.symbols.warning
+    else -- minor_diff == 0
       items[1].symbol = hl.symbols.success
     end
   end
