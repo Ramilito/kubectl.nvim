@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
@@ -52,8 +53,6 @@ end
 
 --- Setup the kubectl state
 function M.setup()
-  local config = require("kubectl.config")
-
   for k, _ in pairs(viewsTable) do
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
   end
@@ -107,9 +106,12 @@ function M.checkVersions()
       end
     end,
     nil,
-    function(error)
-      print("error")
-    end
+    function(_, data)
+      if data and config.options.skew.log_level < 5 then
+        vim.notify(data, vim.log.levels.ERROR)
+      end
+    end,
+    nil
   )
 end
 

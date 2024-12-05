@@ -71,7 +71,7 @@ local defaults = {
   obj_fresh = 5, -- highghlight if age is less than minutes
   skew = {
     enabled = true,
-    log_level = vim.log.levels.INFO,
+    log_level = vim.log.levels.OFF,
   },
 }
 
