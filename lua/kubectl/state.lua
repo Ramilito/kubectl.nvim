@@ -65,7 +65,6 @@ function M.setup()
 
     M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
-
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
@@ -88,7 +87,10 @@ end
 
 function M.checkVersions()
   -- get client and server version
-  commands.shell_command_async("kubectl", { "version", "--output", "json" }, function(data)
+  commands.shell_command_async(
+    "kubectl",
+    { "version", "--output", "json" },
+    function(data)
       local result = decode(data)
       if result then
         local clientVersion = result.clientVersion and result.clientVersion.gitVersion or "0.0"
