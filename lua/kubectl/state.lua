@@ -220,7 +220,6 @@ function M.set_session()
 end
 
 function M.restore_session()
-  local config = commands.load_config("kubectl.json")
   local current_context = M.context["current-context"]
   if config then
     if config.contexts then
