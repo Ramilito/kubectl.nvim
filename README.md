@@ -139,81 +139,81 @@ vim.api.nvim_create_autocmd("FileType", {
     local opts = { buffer = ev.buf }
 
     -- Global
-    k("n", "<Plug>(kubectl.help)", "g?", opts) -- Help float
-    k("n", "<Plug>(kubectl.refresh)", "gr", opts) -- Refresh view
-    k("n", "<Plug>(kubectl.sort)", "gs", opts) -- Sort by column
-    k("n", "<Plug>(kubectl.delete)", "gD", opts) -- Delete resource
-    k("n", "<Plug>(kubectl.describe)", "gd", opts) -- Describe resource
-    k("n", "<Plug>(kubectl.yaml)", "gy", opts) -- View yaml
-    k("n", "<Plug>(kubectl.edit)", "ge", opts) -- Edit resource
-    k("n", "<Plug>(kubectl.filter_label)", "<C-l>", opts) -- Filter labels
-    k("n", "<Plug>(kubectl.go_up)", "<BS>", opts) -- Go back to previous view
-    k("v", "<Plug>(kubectl.filter_term)", "<C-f>", opts) -- Filter selected text
-    k("n", "<Plug>(kubectl.select)", "<CR>", opts) -- Resource select action (different on each view)
-    k("n", "<Plug>(kubectl.tab)", "<Tab>", opts) -- Tab completion (ascending, when applicable)
-    k("n", "<Plug>(kubectl.shift_tab)", "<Tab>", opts) -- Tab completion (descending, when applicable)
-    k("n", "<Plug>(kubectl.quit)", "", opts) -- Close view (when applicable)
-    k("n", "<Plug>(kubectl.kill)", "gk", opts) -- Pod/portforward kill
-    k("n", "<Plug>(kubectl.toggle_headers)", "<M-h>", opts) -- Toggle headers
+    k("n", "g?", "<Plug>(kubectl.help)", opts) -- Help float
+    k("n", "gr", "<Plug>(kubectl.refresh)", opts) -- Refresh view
+    k("n", "gs", "<Plug>(kubectl.sort)", opts) -- Sort by column
+    k("n", "gD", "<Plug>(kubectl.delete)", opts) -- Delete resource
+    k("n", "gd", "<Plug>(kubectl.describe)", opts) -- Describe resource
+    k("n", "gy", "<Plug>(kubectl.yaml)", opts) -- View yaml
+    k("n", "ge", "<Plug>(kubectl.edit)", opts) -- Edit resource
+    k("n", "<C-l>", "<Plug>(kubectl.filter_label)", opts) -- Filter labels
+    k("n", "<BS>", "<Plug>(kubectl.go_up)", opts) -- Go back to previous view
+    k("v", "<C-f>", "<Plug>(kubectl.filter_term)", opts) -- Filter selected text
+    k("n", "<CR>", "<Plug>(kubectl.select)", opts) -- Resource select action (different on each view)
+    k("n", "<Tab>", "<Plug>(kubectl.tab)", opts) -- Tab completion (ascending, when applicable)
+    k("n", "<Tab>", "<Plug>(kubectl.shift_tab)", opts) -- Tab completion (descending, when applicable)
+    k("n", "", "<Plug>(kubectl.quit)", opts) -- Close view (when applicable)
+    k("n", "gk", "<Plug>(kubectl.kill)", opts) -- Pod/portforward kill
+    k("n", "<M-h>", "<Plug>(kubectl.toggle_headers)", opts) -- Toggle headers
 
     -- Views
-    k("n", "<Plug>(kubectl.alias_view)", "<C-a>", opts) -- Aliases view
-    k("n", "<Plug>(kubectl.contexts_view)", "<C-x>", opts) -- Contexts view
-    k("n", "<Plug>(kubectl.filter_view)", "<C-f>", opts) -- Filter view
-    k("n", "<Plug>(kubectl.namespace_view)", "<C-n>", opts) -- Namespaces view
-    k("n", "<Plug>(kubectl.portforwards_view)", "gP", opts) -- Portforwards view
-    k("n", "<Plug>(kubectl.view_deployments)", "1", opts) -- Deployments view
-    k("n", "<Plug>(kubectl.view_pods)", "2", opts) -- Pods view
-    k("n", "<Plug>(kubectl.view_configmaps)", "3", opts) -- ConfigMaps view
-    k("n", "<Plug>(kubectl.view_secrets)", "4", opts) -- Secrets view
-    k("n", "<Plug>(kubectl.view_services)", "5", opts) -- Services view
-    k("n", "<Plug>(kubectl.view_ingresses)", "6", opts) -- Ingresses view
-    k("n", "<Plug>(kubectl.view_api_resources)", "", opts) -- API-Resources view
-    k("n", "<Plug>(kubectl.view_clusterrolebinding)", "", opts) -- ClusterRoleBindings view
-    k("n", "<Plug>(kubectl.view_crds)", "", opts) -- CRDs view
-    k("n", "<Plug>(kubectl.view_cronjobs)", "", opts) -- CronJobs view
-    k("n", "<Plug>(kubectl.view_daemonsets)", "", opts) -- DaemonSets view
-    k("n", "<Plug>(kubectl.view_events)", "", opts) -- Events view
-    k("n", "<Plug>(kubectl.view_helm)", "", opts) -- Helm view
-    k("n", "<Plug>(kubectl.view_jobs)", "", opts) -- Jobs view
-    k("n", "<Plug>(kubectl.view_nodes)", "", opts) -- Nodes view
-    k("n", "<Plug>(kubectl.view_overview)", "", opts) -- Overview view
-    k("n", "<Plug>(kubectl.view_pv)", "", opts) -- PersistentVolumes view
-    k("n", "<Plug>(kubectl.view_pvc)", "", opts) -- PersistentVolumeClaims view
-    k("n", "<Plug>(kubectl.view_sa)", "", opts) -- ServiceAccounts view
-    k("n", "<Plug>(kubectl.view_top_nodes)", "", opts) -- Top view for nodes
-    k("n", "<Plug>(kubectl.view_top_pods)", "", opts) -- Top view for pods
+    k("n", "<C-a>", "<Plug>(kubectl.alias_view)", opts) -- Aliases view
+    k("n", "<C-x>", "<Plug>(kubectl.contexts_view)", opts) -- Contexts view
+    k("n", "<C-f>", "<Plug>(kubectl.filter_view)", opts) -- Filter view
+    k("n", "<C-n>", "<Plug>(kubectl.namespace_view)", opts) -- Namespaces view
+    k("n", "gP", "<Plug>(kubectl.portforwards_view)", opts) -- Portforwards view
+    k("n", "1", "<Plug>(kubectl.view_deployments)", opts) -- Deployments view
+    k("n", "2", "<Plug>(kubectl.view_pods)", opts) -- Pods view
+    k("n", "3", "<Plug>(kubectl.view_configmaps)", opts) -- ConfigMaps view
+    k("n", "4", "<Plug>(kubectl.view_secrets)", opts) -- Secrets view
+    k("n", "5", "<Plug>(kubectl.view_services)", opts) -- Services view
+    k("n", "6", "<Plug>(kubectl.view_ingresses)", opts) -- Ingresses view
+    k("n", "", "<Plug>(kubectl.view_api_resources)", opts) -- API-Resources view
+    k("n", "", "<Plug>(kubectl.view_clusterrolebinding)", opts) -- ClusterRoleBindings view
+    k("n", "", "<Plug>(kubectl.view_crds)", opts) -- CRDs view
+    k("n", "", "<Plug>(kubectl.view_cronjobs)", opts) -- CronJobs view
+    k("n", "", "<Plug>(kubectl.view_daemonsets)", opts) -- DaemonSets view
+    k("n", "", "<Plug>(kubectl.view_events)", opts) -- Events view
+    k("n", "", "<Plug>(kubectl.view_helm)", opts) -- Helm view
+    k("n", "", "<Plug>(kubectl.view_jobs)", opts) -- Jobs view
+    k("n", "", "<Plug>(kubectl.view_nodes)", opts) -- Nodes view
+    k("n", "", "<Plug>(kubectl.view_overview)", opts) -- Overview view
+    k("n", "", "<Plug>(kubectl.view_pv)", opts) -- PersistentVolumes view
+    k("n", "", "<Plug>(kubectl.view_pvc)", opts) -- PersistentVolumeClaims view
+    k("n", "", "<Plug>(kubectl.view_sa)", opts) -- ServiceAccounts view
+    k("n", "", "<Plug>(kubectl.view_top_nodes)", opts) -- Top view for nodes
+    k("n", "", "<Plug>(kubectl.view_top_pods)", opts) -- Top view for pods
 
     -- Deployment/DaemonSet actions
-    k("n", "<Plug>(kubectl.rollout_restart)", "grr", opts) -- Rollout restart
-    k("n", "<Plug>(kubectl.scale)", "gss", opts) -- Scale workload
-    k("n", "<Plug>(kubectl.set_image)", "gi", opts) -- Set image (only if 1 container)
+    k("n", "grr", "<Plug>(kubectl.rollout_restart)", opts) -- Rollout restart
+    k("n", "gss", "<Plug>(kubectl.scale)", opts) -- Scale workload
+    k("n", "gi", "<Plug>(kubectl.set_image)", opts) -- Set image (only if 1 container)
 
     -- Pod/Container logs
-    k("n", "<Plug>(kubectl.logs)", "gl", opts) -- Logs view
-    k("n", "<Plug>(kubectl.history)", "gh", opts) -- Change logs --since= flag
-    k("n", "<Plug>(kubectl.follow)", "f", opts) -- Follow logs
-    k("n", "<Plug>(kubectl.wrap)", "gw", opts) -- Toggle wrap log lines
-    k("n", "<Plug>(kubectl.prefix)", "gp", opts) -- Toggle container name prefix
-    k("n", "<Plug>(kubectl.timestamps)", "gt", opts) -- Toggle timestamps prefix
-    k("n", "<Plug>(kubectl.previous_logs)", "gpp", opts) -- Toggle show previous logs
+    k("n", "gl", "<Plug>(kubectl.logs)", opts) -- Logs view
+    k("n", "gh", "<Plug>(kubectl.history)", opts) -- Change logs --since= flag
+    k("n", "f", "<Plug>(kubectl.follow)", opts) -- Follow logs
+    k("n", "gw", "<Plug>(kubectl.wrap)", opts) -- Toggle wrap log lines
+    k("n", "gp", "<Plug>(kubectl.prefix)", opts) -- Toggle container name prefix
+    k("n", "gt", "<Plug>(kubectl.timestamps)", opts) -- Toggle timestamps prefix
+    k("n", "gpp", "<Plug>(kubectl.previous_logs)", opts) -- Toggle show previous logs
 
     -- Node actions
-    k("n", "<Plug>(kubectl.cordon)", "gC", opts) -- Cordon node
-    k("n", "<Plug>(kubectl.uncordon)", "gU", opts) -- Uncordon node
-    k("n", "<Plug>(kubectl.drain)", "gR", opts) -- Drain node
+    k("n", "gC", "<Plug>(kubectl.cordon)", opts) -- Cordon node
+    k("n", "gU", "<Plug>(kubectl.uncordon)", opts) -- Uncordon node
+    k("n", "gR", "<Plug>(kubectl.drain)", opts) -- Drain node
 
     -- Top actions
-    k("n", "<Plug>(kubectl.top_nodes)", "gn", opts) -- Top nodes
-    k("n", "<Plug>(kubectl.top_pods)", "gp", opts) -- Top pods
+    k("n", "gn", "<Plug>(kubectl.top_nodes)", opts) -- Top nodes
+    k("n", "gp", "<Plug>(kubectl.top_pods)", opts) -- Top pods
 
     -- CronJob actions
-    k("n", "<Plug>(kubectl.suspend_cronjob)", "gss", opts) -- Suspend CronJob
-    k("n", "<Plug>(kubectl.create_job)", "gc", opts) -- Create Job from CronJob
+    k("n", "gss", "<Plug>(kubectl.suspend_cronjob)", opts) -- Suspend CronJob
+    k("n", "gc", "<Plug>(kubectl.create_job)", opts) -- Create Job from CronJob
 
-    k("n", "<Plug>(kubectl.portforward)", "gp", opts) -- Pods/Services portforward
-    k("n", "<Plug>(kubectl.browse)", "gx", opts) -- Ingress view
-    k("n", "<Plug>(kubectl.yaml)", "gy", opts) -- Helm view
+    k("n", "gp", "<Plug>(kubectl.portforward)", opts) -- Pods/Services portforward
+    k("n", "gx", "<Plug>(kubectl.browse)", opts) -- Ingress view
+    k("n", "gy", "<Plug>(kubectl.yaml)", opts) -- Helm view
   end,
 })
 ```
