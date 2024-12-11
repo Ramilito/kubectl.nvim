@@ -71,13 +71,15 @@ function M.getCpuPercent(row, node)
 
   local cpu = tonumber(string.sub(tmp_cpu.value, 1, -2)) or 0
   local out_of = node and node.status and node.status.allocatable and node.status.allocatable.cpu
-  if out_of ~= nil then
+  if out_of ~= nil and cpu ~= nil then
     out_of = string.sub(out_of, 1, -2)
     local total = tonumber(out_of)
-    local percent = math.ceil((cpu / total) * 100) or 0
-    status.sort_by = percent
-    status.value = percent .. "%"
-    status.symbol = M.getHl(percent)
+    if total ~= nil then
+      local percent = math.ceil((cpu / total) * 100) or 0
+      status.sort_by = percent
+      status.value = percent .. "%"
+      status.symbol = M.getHl(percent)
+    end
   end
 
   return status
