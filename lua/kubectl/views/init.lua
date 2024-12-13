@@ -215,9 +215,14 @@ function M.UserCmd(args)
 end
 
 function M.Redraw()
-  local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-  local current_view, _ = M.view_and_definition(string.lower(vim.trim(buf_name)))
-  pcall(current_view.Draw)
+  local win_id = vim.api.nvim_get_current_win()
+  local win_config = vim.api.nvim_win_get_config(win_id)
+
+  if win_config.relative == "" then
+    local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+    local current_view, _ = M.view_and_definition(string.lower(vim.trim(buf_name)))
+    pcall(current_view.Draw)
+  end
 end
 
 --- Set a new URL and open the view
