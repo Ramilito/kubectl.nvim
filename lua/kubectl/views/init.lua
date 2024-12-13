@@ -214,6 +214,12 @@ function M.UserCmd(args)
   end)
 end
 
+function M.Redraw()
+  local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+  local current_view, _ = M.view_and_definition(string.lower(vim.trim(buf_name)))
+  pcall(current_view.Draw)
+end
+
 --- Set a new URL and open the view
 ---@param opts table Options. Possible fields:
 ---   - <src> - Source view name where we are redirecting from
