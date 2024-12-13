@@ -292,6 +292,7 @@ function M.register()
     desc = "Toggle headers",
     callback = function()
       config.options.headers = not config.options.headers
+      pcall(require("kubectl.views").Redraw)
     end,
   })
 

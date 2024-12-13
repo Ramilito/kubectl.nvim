@@ -6,6 +6,7 @@ local url = require("kubectl.utils.url")
 
 local M = {
   handles = nil,
+  builder = nil,
 }
 
 function M.View(cancellationToken)
@@ -38,23 +39,28 @@ function M.View(cancellationToken)
   end
 
   M.handles = commands.await_shell_command_async(cmds, function(data)
-    local builder = ResourceBuilder:new(definition.resource)
-    builder.data = data
+    M.builder = ResourceBuilder:new(definition.resource)
+    M.builder.data = data
+    M.Draw(cancellationToken)
+  end)
+end
 
-    vim.schedule(function()
-      builder:decodeJson():process(definition.processRow, true)
-      if builder.processedData then
-        builder.prettyData, builder.extmarks = grid.pretty_print(builder.processedData, definition.getSections())
-        builder:addHints(definition.hints, true, true, true)
-        if cancellationToken and cancellationToken() then
-          return nil
-        end
+function M.Draw(cancellationToken)
+  -- M.View(cancellationToken)
 
-        builder:display(definition.ft, definition.resource)
-        builder:setContent(nil)
-        M.handles = nil
+  vim.schedule(function()
+    M.builder:decodeJson():process(definition.processRow, true)
+    if M.builder.processedData then
+      M.builder.prettyData, M.builder.extmarks = grid.pretty_print(M.builder.processedData, definition.getSections())
+      M.builder:addHints(definition.hints, true, true, true)
+      if cancellationToken and cancellationToken() then
+        return nil
       end
-    end)
+
+      M.builder:display(definition.ft, definition.resource)
+      M.builder:setContent(nil)
+      M.handles = nil
+    end
   end)
 end
 
