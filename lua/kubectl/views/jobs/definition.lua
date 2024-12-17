@@ -12,7 +12,7 @@ local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
 local function getDuration(row)
-  local is_complete = row.status.completionTime
+  local is_complete = row and row.status and row.status.completionTime
   local duration
   if is_complete then
     duration = time.since(row.metadata.creationTimestamp, false, vim.fn.strptime("%Y-%m-%dT%H:%M:%SZ", is_complete))
@@ -47,6 +47,15 @@ local function getCompletions(row)
 end
 
 local function getContainerData(row, key)
+  if
+    not row
+    or not row.spec
+    or not row.spec.template
+    or not row.spec.template.spec
+    or not row.spec.template.spec.containers
+  then
+    return ""
+  end
   local containers = {}
   for _, container in ipairs(row.spec.template.spec.containers) do
     table.insert(containers, container[key])

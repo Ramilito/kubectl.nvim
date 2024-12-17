@@ -2,11 +2,20 @@ local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 local event_handler = require("kubectl.actions.eventhandler").handler
 
+---@class Informer
+---@field handle any Process handle for the main informer
+---@field events_handle any Process handle for the events informer
+---@field builder any Builder instance containing resource information
 local M = {
   handle = nil,
   events_handle = nil,
+  builder = nil,
 }
 
+---Process an event from the Kubernetes watch stream
+---@param builder table The builder instance
+---@param event_string string JSON string containing the event data
+---@return boolean success Whether the event was processed successfully
 local function process_event(builder, event_string)
   local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
@@ -38,7 +47,7 @@ local function process_event(builder, event_string)
       for index, item in ipairs(is_table and target.rows or target) do
         if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
           for selection_index, selection in ipairs(state.selections) do
-            if selection.name == item.metadata.name then
+            if item.metadata and selection.name == item.metadata.name then
               table.remove(state.selections, selection_index)
             end
           end
@@ -49,13 +58,15 @@ local function process_event(builder, event_string)
     elseif event.type == "MODIFIED" then
       handle_events(function()
         for index, item in ipairs(is_table and target.rows or target) do
-          if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
-            if is_table then
-              target.rows[index].object = event.object
-            else
-              target[index] = event.object
+          if item.object and item.object.metadata or item.metadata then
+            if (is_table and item.object.metadata.name or item.metadata.name) == event_name then
+              if is_table then
+                target.rows[index].object = event.object
+              else
+                target[index] = event.object
+              end
+              break
             end
-            break
           end
         end
       end)
@@ -72,13 +83,20 @@ local function process_event(builder, event_string)
   return true
 end
 
+---Execute a shell command asynchronously using libuv
+---@param cmd string The command to execute
+---@param args table List of command arguments
+---@return userdata handle Process handle
 local function shell_uv_async(cmd, args)
   local result = ""
   local command = commands.configure_command(cmd, {}, args)
   local handle
+  ---@diagnostic disable-next-line: undefined-field
   local stdout = vim.loop.new_pipe(false)
+  ---@diagnostic disable-next-line: undefined-field
   local stderr = vim.loop.new_pipe(false)
 
+  ---@diagnostic disable-next-line: undefined-field
   handle = vim.loop.spawn(command.args[1], {
     args = { unpack(command.args, 2) },
     env = command.env,
@@ -125,6 +143,9 @@ local function shell_uv_async(cmd, args)
   return handle
 end
 
+---Start the informer for a given resource
+---@param builder table The builder instance containing resource information
+---@return userdata|nil handle Process handle for the informer
 function M.start(builder)
   if not builder.data or not builder.data.metadata then
     return
@@ -154,6 +175,7 @@ function M.start(builder)
   return M.handle
 end
 
+---Stop the informer and its event watcher
 function M.stop()
   if M.handle and not M.handle:is_closing() then
     M.handle:kill(2)

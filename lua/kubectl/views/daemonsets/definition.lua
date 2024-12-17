@@ -5,7 +5,7 @@ local M = {
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}daemonsets?pretty=false" },
   hints = {
     { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected daemonset" },
-    { key = "<Plug>(kubectl.rollout_restart)", desc = "image", long_desc = "Set image" },
+    { key = "<Plug>(kubectl.set_image)", desc = "image", long_desc = "Set image" },
     { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
   },
 }

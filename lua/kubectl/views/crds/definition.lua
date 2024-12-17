@@ -46,16 +46,16 @@ function M.processRow(rows)
     return data
   end
   for _, row in pairs(rows.items) do
-    local pod = {
+    local crd = {
       name = row.metadata.name,
-      group = row.spec.group,
-      kind = row.spec.names.kind,
+      group = row.spec and row.spec.group,
+      kind = row.spec and row.spec.names and row.spec.names.kind,
       versions = getVersions(row),
-      scope = row.spec.scope,
+      scope = row.spec and row.spec.scope,
       age = time.since(row.metadata.creationTimestamp),
     }
 
-    table.insert(data, pod)
+    table.insert(data, crd)
   end
   return data
 end
