@@ -12,7 +12,7 @@ local M = {
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 local function getActive(row)
-  local active = row.status.active
+  local active = row and row.status and row.status.active
   if active == nil then
     return 0
   end
