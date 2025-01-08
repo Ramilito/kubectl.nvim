@@ -221,15 +221,16 @@ end
 
 function M.restore_session()
   local current_context = M.context["current-context"]
-  if config then
-    if config.contexts then
-      M.session.contexts = config.contexts
+  local config_file = commands.load_config("kubectl.json")
+  if config_file then
+    if config_file.contexts then
+      M.session.contexts = config_file.contexts
     end
-    if config.filter_history then
-      M.session.filter_history = config.filter_history
+    if config_file.filter_history then
+      M.session.filter_history = config_file.filter_history
     end
-    if config.alias_history then
-      M.session.alias_history = config.alias_history
+    if config_file.alias_history then
+      M.session.alias_history = config_file.alias_history
     end
   end
 
