@@ -92,25 +92,23 @@ function M.with_completion(buf, data, callback, shortest)
   local current_suggestion_index = 0
 
   vim.api.nvim_buf_attach(buf, false, {
-    on_lines = function()
-      vim.schedule(function()
-        if config.options.completion.follow_cursor and M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
-          vim.api.nvim_win_set_config(M.pum_win, {
-            relative = "cursor",
-            anchor = "NW",
-            row = 1,
-            col = 0,
-          })
-        end
-        local line = vim.api.nvim_get_current_line()
-        local input = line:sub(3) -- Remove the `% ` prefix to get the user input
-        if #input == 0 then
-          original_input = ""
-          current_suggestion_index = 0
-          close_completion_pum(M.pum_win)
-        end
-      end)
-    end,
+    on_lines = vim.schedule_wrap(function()
+      if config.options.completion.follow_cursor and M.pum_win and vim.api.nvim_win_is_valid(M.pum_win) then
+        vim.api.nvim_win_set_config(M.pum_win, {
+          relative = "cursor",
+          anchor = "NW",
+          row = 1,
+          col = 0,
+        })
+      end
+      local line = vim.api.nvim_get_current_line()
+      local input = line:sub(3) -- Remove the `% ` prefix to get the user input
+      if #input == 0 then
+        original_input = ""
+        current_suggestion_index = 0
+        close_completion_pum(M.pum_win)
+      end
+    end),
     on_detach = function()
       close_completion_pum(M.pum_win)
       if M.ns then
