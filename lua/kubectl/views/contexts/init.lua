@@ -63,11 +63,15 @@ end
 --- @param cmd string
 function M.change_context(cmd)
   local state = require("kubectl.state")
-  local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
+  local config = require("kubectl.config")
+  if config.kubectl_cmd.persist_context_change then
+    local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
 
-  if not results then
-    vim.notify(results, vim.log.levels.INFO)
+    if not results then
+      vim.notify(results, vim.log.levels.INFO)
+    end
   end
+  state.context["current-context"] = cmd
   state.set_session()
   kube.stop_kubectl_proxy()
   kube.start_kubectl_proxy(function()

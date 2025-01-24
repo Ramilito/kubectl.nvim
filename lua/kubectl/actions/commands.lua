@@ -18,6 +18,13 @@ function M.configure_command(cmd, envs, args)
     end
     vim.list_extend(result.args, vim.iter(options_args):map(mixer):totable())
     vim.list_extend(result.env, vim.iter(options_env):map(mixer):totable())
+
+    local state = require("kubectl.state")
+    if state.context["current-context"] then
+      table.insert(result.args, "--context")
+      table.insert(result.args, state.context["current-context"])
+      vim.print(result.args)
+    end
   end
 
   table.insert(result.env, "PATH=" .. current_env["PATH"])

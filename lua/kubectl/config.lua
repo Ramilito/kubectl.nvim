@@ -28,7 +28,7 @@ local defaults = {
   -- The subshells invoked will have PATH, HOME and the environments listed below
   -- NOTE: Some executions using the io.open and vim.fn.terminal will still have default shell environments,
   -- in that case, the environments below will not override the defaults and should not be in your .zshrc/.bashrc files
-  kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
+  kubectl_cmd = { cmd = "kubectl", env = {}, args = {}, persist_context_change = false },
   namespace = "All",
   namespace_fallback = {},
   headers = true,

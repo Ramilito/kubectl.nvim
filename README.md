@@ -238,7 +238,7 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
   diff = {
     bin = "kubediff" -- or any other binary
   },
-  kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
+  kubectl_cmd = { cmd = "kubectl", env = {}, args = {}, persist_context_change = false },
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
   hints = true,
