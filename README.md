@@ -239,6 +239,7 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
     bin = "kubediff" -- or any other binary
   },
   kubectl_cmd = { cmd = "kubectl", env = {}, args = {}, persist_context_change = false },
+  terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
   hints = true,

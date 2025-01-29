@@ -3,6 +3,7 @@ local M = {}
 ---@class KubectlOptions
 ---@field log_level number
 ---@field auto_refresh { enabled: boolean, interval: number }
+---@field terminal_cmd string?
 ---@field namespace string
 ---@field namespace_fallback string[]
 ---@field headers boolean
@@ -29,6 +30,7 @@ local defaults = {
   -- NOTE: Some executions using the io.open and vim.fn.terminal will still have default shell environments,
   -- in that case, the environments below will not override the defaults and should not be in your .zshrc/.bashrc files
   kubectl_cmd = { cmd = "kubectl", env = {}, args = {}, persist_context_change = false },
+  terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {},
   headers = true,

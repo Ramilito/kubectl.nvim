@@ -22,8 +22,15 @@ function M.View(pod, ns)
 end
 
 function M.exec(pod, ns)
-  buffers.floating_buffer("k8s_container_exec", "ssh " .. M.selection)
-  commands.execute_terminal("kubectl", { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" })
+  local cmd = "kubectl"
+  local args = string.format("exec -it %s -n %s -c %s -- /bin/sh", pod, ns, M.selection)
+
+  if config.options.terminal_cmd then
+    vim.fn.jobstart(config.options.terminal_cmd .. " " .. cmd .. " " .. args)
+  else
+    buffers.floating_buffer("k8s_container_exec", "ssh " .. M.selection)
+    commands.execute_terminal(cmd, vim.split(args, " "))
+  end
 end
 
 function M.debug(pod, ns)
