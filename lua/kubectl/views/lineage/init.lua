@@ -100,7 +100,7 @@ function M.set_keymaps(bufnr)
       local kind, name, ns = M.getCurrentSelection()
       if name and ns then
         vim.api.nvim_set_option_value("modified", false, { buf = 0 })
-        vim.cmd.close()
+        vim.cmd.fclose()
 
         view.view_or_fallback(kind)
       else

@@ -115,7 +115,7 @@ function M.aliases_buffer(filetype, callback, opts)
     callback(input)
     vim.cmd("stopinsert")
     api.nvim_set_option_value("modified", false, { buf = buf })
-    vim.cmd.close()
+    vim.cmd.fclose()
   end)
 
   vim.cmd("startinsert")
@@ -149,7 +149,7 @@ function M.filter_buffer(filetype, callback, opts)
     end
 
     api.nvim_set_option_value("modified", false, { buf = buf })
-    vim.cmd.close()
+    vim.cmd.fclose()
     vim.api.nvim_input("<Plug>(kubectl.refresh)")
   end)
 
@@ -230,7 +230,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   if opts.prompt then
     vim.fn.prompt_setcallback(buf, function(input)
       api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd.close()
+      vim.cmd.fclose()
       vim.api.nvim_input("<Plug>(kubectl.refresh)")
 
       if callback ~= nil then
