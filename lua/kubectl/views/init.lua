@@ -193,7 +193,7 @@ function M.PortForwards()
 
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
-    vim.cmd.close()
+    vim.cmd.fclose()
     vim.api.nvim_input("<Plug>(kubectl.refresh)")
   end, { buffer = self.buf_nr, silent = true })
 end
