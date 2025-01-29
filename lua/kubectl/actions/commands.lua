@@ -23,7 +23,6 @@ function M.configure_command(cmd, envs, args)
     if state.context["current-context"] then
       table.insert(result.args, "--context")
       table.insert(result.args, state.context["current-context"])
-      vim.print(result.args)
     end
   end
 
