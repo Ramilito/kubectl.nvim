@@ -230,7 +230,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   if opts.prompt then
     vim.fn.prompt_setcallback(buf, function(input)
       api.nvim_set_option_value("modified", false, { buf = buf })
-      -- vim.cmd.fclose()
+      vim.cmd.fclose()
       if vim.api.nvim_win_is_valid(win) then
         vim.api.nvim_win_hide(win)
       end
@@ -247,8 +247,12 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
   M.fit_to_content(buf, 2)
-  if not state.buffers[win] and bufname ~= "Picker" then
-    state.buffers[win] = { name = bufname }
+
+  if not state.buffers[buf] and bufname ~= "Picker" then
+    state.buffers[buf] = {
+      open = M.floating_dynamic_buffer,
+      args = { filetype, title, callback, opts },
+    }
   end
   return buf
 end
@@ -286,6 +290,13 @@ function M.floating_buffer(filetype, title, syntax, win)
   end
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
+
+  if not state.buffers[buf] and bufname ~= "Picker" then
+    state.buffers[buf] = {
+      open = M.floating_buffer,
+      args = { filetype, title, syntax, win },
+    }
+  end
 
   return buf, win
 end

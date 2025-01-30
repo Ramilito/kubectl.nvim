@@ -447,12 +447,7 @@ function M.register()
     desc = "Close buffer",
     callback = function()
       vim.api.nvim_set_option_value("modified", false, { buf = 0 })
-      -- vim.cmd.close()
-      local win = vim.api.nvim_get_current_win()
-      if vim.api.nvim_win_is_valid(win) then
-				vim.print("hiding", win)
-        vim.api.nvim_win_hide(win)
-      end
+      vim.cmd.close()
     end,
   })
 

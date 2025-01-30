@@ -92,10 +92,12 @@ function M.Hints(headers)
 end
 
 function M.Picker()
+  vim.cmd("fclose!")
   local buf = buffers.floating_dynamic_buffer("k8s_picker", "Picker", nil)
   local content = {}
+
   for id, value in pairs(state.buffers) do
-    table.insert(content, tostring(id))
+    table.insert(content, tostring(id) .. " | " .. value.args[1])
   end
   buffers.set_content(buf, { content = content, marks = {} })
 
@@ -103,10 +105,15 @@ function M.Picker()
     noremap = true,
     callback = function()
       local line = vim.api.nvim_get_current_line()
-      local win = vim.fn.win_getid(tonumber(line))
-			vim.print(win)
-      if win and vim.api.nvim_win_is_valid(win) then
-        vim.api.nvim_set_current_win(win)
+      local bufnr = line:match("^(%d+)%s*|")
+
+      local buffer = state.buffers[tonumber(bufnr)]
+
+      if buffer then
+        vim.cmd("fclose!")
+        vim.schedule(function()
+          buffer.open(unpack(buffer.args))
+        end)
       end
     end,
   })
