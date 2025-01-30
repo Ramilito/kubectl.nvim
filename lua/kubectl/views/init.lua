@@ -91,6 +91,27 @@ function M.Hints(headers)
   buffers.set_content(buf, { content = content, marks = marks })
 end
 
+function M.Picker()
+  local buf = buffers.floating_dynamic_buffer("k8s_picker", "Picker", nil)
+  local content = {}
+  for id, value in pairs(state.buffers) do
+    table.insert(content, tostring(id))
+  end
+  buffers.set_content(buf, { content = content, marks = {} })
+
+  vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
+    noremap = true,
+    callback = function()
+      local line = vim.api.nvim_get_current_line()
+      local win = vim.fn.win_getid(tonumber(line))
+			vim.print(win)
+      if win and vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_set_current_win(win)
+      end
+    end,
+  })
+end
+
 function M.Aliases()
   local self = ResourceBuilder:new("aliases")
   local viewsTable = require("kubectl.utils.viewsTable")

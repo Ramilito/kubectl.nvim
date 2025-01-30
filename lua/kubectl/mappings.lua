@@ -316,6 +316,16 @@ function M.register()
     end,
   })
 
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.picker_view)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Picker",
+    callback = function()
+      local view = require("kubectl.views")
+      view.Picker()
+    end,
+  })
+
   vim.api.nvim_buf_set_keymap(0, "v", "<Plug>(kubectl.filter_term)", "", {
     noremap = true,
     silent = true,
@@ -437,7 +447,12 @@ function M.register()
     desc = "Close buffer",
     callback = function()
       vim.api.nvim_set_option_value("modified", false, { buf = 0 })
-      vim.cmd.close()
+      -- vim.cmd.close()
+      local win = vim.api.nvim_get_current_win()
+      if vim.api.nvim_win_is_valid(win) then
+				vim.print("hiding", win)
+        vim.api.nvim_win_hide(win)
+      end
     end,
   })
 
@@ -515,6 +530,7 @@ function M.register()
     M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
     M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
     M.map_if_plug_not_set("n", "<C-l>", "<Plug>(kubectl.filter_label)")
+    M.map_if_plug_not_set("n", "<C-p>", "<Plug>(kubectl.picker_view)")
     M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
     M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
     M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
