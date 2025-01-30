@@ -64,7 +64,7 @@ end
 function M.change_context(cmd)
   local state = require("kubectl.state")
   local config = require("kubectl.config")
-  if config.kubectl_cmd.persist_context_change then
+  if config.kubectl_cmd and config.kubectl_cmd.persist_context_change then
     local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
 
     if not results then
