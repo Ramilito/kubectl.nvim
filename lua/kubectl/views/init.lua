@@ -97,7 +97,7 @@ function M.Picker()
   local content = {}
 
   for id, value in pairs(state.buffers) do
-    table.insert(content, tostring(id) .. " | " .. value.args[1])
+    table.insert(content, tostring(id) .. " | " .. value.args[1] .. " - " .. value.args[2])
   end
   buffers.set_content(buf, { content = content, marks = {} })
 
