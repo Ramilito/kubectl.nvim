@@ -5,6 +5,8 @@ local M = {}
 
 ---@type table
 M.context = {}
+---@type table
+M.buffers = {}
 ---@type { client: { major: number, minor: number }, server: { major: number, minor: number } }
 M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
 ---@type string
