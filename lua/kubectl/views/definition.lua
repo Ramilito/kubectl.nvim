@@ -35,8 +35,13 @@ function M.getPFData(port_forwards, async)
       end
     end
   end
+  local grep_cmd = "[k]ubectl"
+  if state.context["current-context"] then
+    grep_cmd = grep_cmd .. " --context " .. state.context["current-context"]
+  end
+  grep_cmd = grep_cmd .. " port-forward"
 
-  local args = "ps -eo pid,args | grep '[k]ubectl port-forward'"
+  local args = "ps -eo pid,args | grep '" .. grep_cmd .. "'"
   if async then
     commands.shell_command_async("sh", { "-c", args }, function(data)
       parse(data)
