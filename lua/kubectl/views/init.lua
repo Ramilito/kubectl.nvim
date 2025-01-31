@@ -6,6 +6,7 @@ local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
@@ -93,15 +94,33 @@ end
 
 function M.Picker()
   vim.cmd("fclose!")
-  local buf = buffers.floating_dynamic_buffer("k8s_picker", "Picker", nil)
-  local content = {}
+
+  local self = ResourceBuilder:new("Picker")
+
+  self:displayFloatFit("k8s_picker", "Picker")
+  local data = {}
 
   for id, value in pairs(state.buffers) do
-    table.insert(content, tostring(id) .. " | " .. value.args[1] .. " - " .. value.args[2])
+    table.insert(data, tostring(id) .. " | " .. value.args[1] .. " - " .. value.args[2])
   end
-  buffers.set_content(buf, { content = content, marks = {} })
+  self.data = data
 
-  vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
+  self:addHints({
+    { key = "<Plug>(kubectl.kill)", desc = "kill" },
+    { key = "<Plug>(kubectl.select)", desc = "select" },
+  }, false, false, false)
+
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
+    noremap = true,
+    callback = function()
+      local line = vim.api.nvim_get_current_line()
+      local bufnr = line:match("^(%d+)%s*|")
+
+      state.buffers[bufnr] = nil
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     callback = function()
       local line = vim.api.nvim_get_current_line()
@@ -117,6 +136,10 @@ function M.Picker()
       end
     end,
   })
+  vim.schedule(function()
+    self:setContentRaw()
+    mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+  end)
 end
 
 function M.Aliases()
