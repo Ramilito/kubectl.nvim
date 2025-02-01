@@ -116,7 +116,9 @@ function M.Picker()
       local line = vim.api.nvim_get_current_line()
       local bufnr = line:match("^(%d+)%s*|")
 
-      state.buffers[bufnr] = nil
+      state.buffers[tonumber(bufnr)] = nil
+      local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+      vim.api.nvim_buf_set_lines(0, row, row + 1, false, {})
     end,
   })
 
