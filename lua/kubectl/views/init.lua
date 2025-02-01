@@ -96,11 +96,13 @@ function M.Picker()
   vim.cmd("fclose!")
 
   local self = ResourceBuilder:new("Picker")
-
   local data = {}
-
+  local max_length = 1
   for id, value in pairs(state.buffers) do
-    table.insert(data, tostring(id) .. " | " .. value.args[1] .. " - " .. value.args[2])
+    max_length = math.max(#value.args[1], 20)
+  end
+  for id, value in pairs(state.buffers) do
+    table.insert(data, tostring(id) .. " | " .. value.args[1] .. string.rep(" ", max_length - #value.args[1]) .. " | " .. value.args[2])
   end
   self:addHints({
     { key = "<Plug>(kubectl.kill)", desc = "kill" },
