@@ -247,8 +247,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
   M.fit_to_content(buf, 2)
-
-  if not state.buffers[buf] and bufname ~= "Picker" then
+  if bufname ~= "Picker" and (not state.buffers[buf] or state.buffers[buf].args.filetype ~= filetype) then
     state.buffers[buf] = {
       open = M.floating_dynamic_buffer,
       args = { filetype, title, callback, opts },
@@ -291,7 +290,8 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  if not state.buffers[buf] and bufname ~= "Picker" then
+	vim.print(buf, bufname)
+  if bufname ~= "Picker" and (not state.buffers[buf] or state.buffers[buf].args[1] ~= filetype) then
     state.buffers[buf] = {
       open = M.floating_buffer,
       args = { filetype, title, syntax, win },

@@ -97,6 +97,7 @@ function M.Picker()
 
   local self = ResourceBuilder:new("Picker")
   local data = {}
+
   for id, value in pairs(state.buffers) do
     local parts = vim.split(value.args[2], "|")
     local resource = vim.trim(parts[1])
@@ -108,6 +109,7 @@ function M.Picker()
       namespace = { value = namespace },
     })
   end
+
   self.data = data
   self:addHints({
     { key = "<Plug>(kubectl.kill)", desc = "kill" },
@@ -121,7 +123,6 @@ function M.Picker()
     callback = function()
       local line = vim.api.nvim_get_current_line()
       local bufnr = line:match("^(%d+)%s*|")
-
       state.buffers[tonumber(bufnr)] = nil
       local row = vim.api.nvim_win_get_cursor(0)[1] - 1
       vim.api.nvim_buf_set_lines(0, row, row + 1, false, {})
@@ -131,9 +132,7 @@ function M.Picker()
   vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     callback = function()
-      local line = vim.api.nvim_get_current_line()
-      local bufnr = line:match("^(%d+)%s*|")
-
+      local bufnr = tables.getCurrentSelection(1)
       local buffer = state.buffers[tonumber(bufnr)]
 
       if buffer then
