@@ -97,19 +97,18 @@ function M.Picker()
 
   local self = ResourceBuilder:new("Picker")
 
-  self:displayFloatFit("k8s_picker", "Picker")
   local data = {}
 
   for id, value in pairs(state.buffers) do
     table.insert(data, tostring(id) .. " | " .. value.args[1] .. " - " .. value.args[2])
   end
-  self.data = data
-
   self:addHints({
     { key = "<Plug>(kubectl.kill)", desc = "kill" },
     { key = "<Plug>(kubectl.select)", desc = "select" },
   }, false, false, false)
 
+  self.data = data
+  self:displayFloatFit("k8s_picker", "Picker")
   vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
     callback = function()
@@ -138,8 +137,8 @@ function M.Picker()
       end
     end,
   })
+  self:setContentRaw()
   vim.schedule(function()
-    self:setContentRaw()
     mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
   end)
 end
