@@ -16,7 +16,7 @@ end
 
 function M.View(pod, ns)
   definition.display_name = pod
-  definition.resource = definition.resource .. " | " .. pod .. " | " .. ns
+  definition.resource = pod .. " | " .. ns
   definition.url = { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }
 
   ResourceBuilder:view_float(definition)

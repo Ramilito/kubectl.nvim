@@ -214,7 +214,7 @@ end
 --- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
-  local bufname = title or filetype
+  local bufname = (filetype .. title) or "kubectl_dynamic_float"
   local buf = get_buffer_by_name(bufname)
 
   if not buf then
@@ -271,7 +271,7 @@ end
 --- @param win integer?: The buffer title
 --- @return integer, integer: The buffer and win number.
 function M.floating_buffer(filetype, title, syntax, win)
-  local bufname = title or "kubectl_float"
+  local bufname = (filetype .. title) or "kubectl_float"
   local buf = get_buffer_by_name(bufname)
 
   if not buf then
