@@ -97,20 +97,25 @@ function M.Picker()
 
   local self = ResourceBuilder:new("Picker")
   local data = {}
-  local max_length = 1
   for id, value in pairs(state.buffers) do
-    max_length = math.max(#value.args[1], 20)
+    local parts = vim.split(value.args[2], "|")
+    local resource = vim.trim(parts[1])
+    local namespace = vim.trim(parts[2] or "")
+    table.insert(data, {
+      id = { value = id },
+      type = { value = value.args[1]:gsub("k8s_", ""), symbol = hl.symbols.info },
+      resource = { value = resource, symbol = hl.symbols.success },
+      namespace = { value = namespace },
+    })
   end
-  for id, value in pairs(state.buffers) do
-    table.insert(data, tostring(id) .. " | " .. value.args[1] .. string.rep(" ", max_length - #value.args[1]) .. " | " .. value.args[2])
-  end
+  self.data = data
   self:addHints({
     { key = "<Plug>(kubectl.kill)", desc = "kill" },
     { key = "<Plug>(kubectl.select)", desc = "select" },
   }, false, false, false)
-
-  self.data = data
   self:displayFloatFit("k8s_picker", "Picker")
+  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "RESOURCE", "NAMESPACE" })
+
   vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
     callback = function()
@@ -139,7 +144,7 @@ function M.Picker()
       end
     end,
   })
-  self:setContentRaw()
+  self:setContent()
   vim.schedule(function()
     mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
   end)
