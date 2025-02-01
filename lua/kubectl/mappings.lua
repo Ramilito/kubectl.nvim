@@ -118,7 +118,7 @@ function M.register()
 
       if name then
         local def = {
-          resource = buf_name .. "_" .. name,
+          resource = name .. " | " .. ns,
           ft = "k8s_yaml",
           url = { "get", buf_name, name, "-o", "yaml" },
           syntax = "yaml",
