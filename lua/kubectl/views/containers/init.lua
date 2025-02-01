@@ -30,7 +30,7 @@ function M.exec(pod, ns)
     local command = commands.configure_command(cmd, {}, args)
     vim.fn.jobstart(config.options.terminal_cmd .. " " .. table.concat(command.args, " "))
   else
-    buffers.floating_buffer("k8s_container_exec", "ssh " .. M.selection)
+    buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
     commands.execute_terminal(cmd, args)
   end
 end

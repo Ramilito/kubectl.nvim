@@ -244,7 +244,8 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
   M.fit_to_content(buf, 2)
-  if bufname ~= "Picker" and (not state.buffers[buf] or state.buffers[buf].args.filetype ~= filetype) then
+
+  if bufname ~= filetype .. "Picker" and (not state.buffers[buf] or state.buffers[buf].args.filetype ~= filetype) then
     state.buffers[buf] = {
       open = M.floating_dynamic_buffer,
       args = { filetype, title, callback, opts },
