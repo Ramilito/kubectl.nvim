@@ -118,7 +118,7 @@ function M.register()
 
       if name then
         local def = {
-          resource = name .. " | " .. ns,
+          resource = buf_name .. " | " .. name,
           ft = "k8s_yaml",
           url = { "get", buf_name, name, "-o", "yaml" },
           syntax = "yaml",
@@ -126,7 +126,7 @@ function M.register()
         if ns then
           table.insert(def.url, "-n")
           table.insert(def.url, ns)
-          def.resource = def.resource .. "_" .. ns
+          def.resource = def.resource .. " | " .. ns
         end
 
         ResourceBuilder:view_float(def, { cmd = "kubectl" })

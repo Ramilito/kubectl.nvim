@@ -100,11 +100,13 @@ function M.Picker()
 
   for id, value in pairs(state.buffers) do
     local parts = vim.split(value.args[2], "|")
-    local resource = vim.trim(parts[1])
-    local namespace = vim.trim(parts[2] or "")
+    local kind = vim.trim(parts[1])
+    local resource = vim.trim(parts[2])
+    local namespace = vim.trim(parts[3] or "")
     table.insert(data, {
-      id = { value = id },
-      type = { value = value.args[1]:gsub("k8s_", ""), symbol = hl.symbols.info },
+      id = { value = id, symbol = hl.symbols.gray },
+      kind = { value = kind, symbol = hl.symbols.success },
+      type = { value = value.args[1]:gsub("k8s_", ""), symbol = hl.symbols.success },
       resource = { value = resource, symbol = hl.symbols.success },
       namespace = { value = namespace },
     })
@@ -116,7 +118,7 @@ function M.Picker()
     { key = "<Plug>(kubectl.select)", desc = "select" },
   }, false, false, false)
   self:displayFloatFit("k8s_picker", "Picker")
-  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "RESOURCE", "NAMESPACE" })
+  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" })
 
   vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
