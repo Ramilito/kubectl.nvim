@@ -231,9 +231,6 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     vim.fn.prompt_setcallback(buf, function(input)
       api.nvim_set_option_value("modified", false, { buf = buf })
       vim.cmd.fclose()
-      if vim.api.nvim_win_is_valid(win) then
-        vim.api.nvim_win_hide(win)
-      end
       vim.api.nvim_input("<Plug>(kubectl.refresh)")
 
       if callback ~= nil then
