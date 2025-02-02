@@ -20,6 +20,11 @@ end
 local function get_args()
   local ns_filter = state.getNamespace()
   local args = add_namespace({ "ls", "-a", "--output", "json" }, ns_filter)
+
+  if state.context["current-context"] then
+    table.insert(args, "--kube-context")
+    table.insert(args, state.context["current-context"])
+  end
   return args
 end
 
