@@ -36,10 +36,10 @@ end
 --- @param content table: The content lines.
 local function set_buffer_lines(buf, header, content)
   if header and #header >= 1 then
-    vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
-    vim.api.nvim_buf_set_lines(buf, #header, -1, false, content)
+    pcall(vim.api.nvim_buf_set_lines, buf, 0, #header, false, header)
+    pcall(vim.api.nvim_buf_set_lines, buf, #header, -1, false, content)
   else
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+    pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, content)
   end
 end
 

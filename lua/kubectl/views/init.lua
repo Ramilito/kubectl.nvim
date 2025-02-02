@@ -123,11 +123,15 @@ function M.Picker()
   vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
     callback = function()
-      local line = vim.api.nvim_get_current_line()
-      local bufnr = line:match("^(%d+)%s*|")
-      state.buffers[tonumber(bufnr)] = nil
-      local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-      vim.api.nvim_buf_set_lines(0, row, row + 1, false, {})
+      local selection = tables.getCurrentSelection(1)
+      local bufnr = tonumber(selection)
+
+      if bufnr then
+        state.buffers[bufnr] = nil
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+        local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+        vim.api.nvim_buf_set_lines(0, row, row + 1, false, {})
+      end
     end,
   })
 
