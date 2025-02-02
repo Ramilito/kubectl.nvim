@@ -288,7 +288,6 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-	vim.print(buf, bufname)
   if bufname ~= "Picker" and (not state.buffers[buf] or state.buffers[buf].args[1] ~= filetype) then
     state.buffers[buf] = {
       open = M.floating_buffer,

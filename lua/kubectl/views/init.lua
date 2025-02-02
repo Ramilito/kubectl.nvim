@@ -86,7 +86,7 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints", nil)
+  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints | global keys", nil)
 
   local content = vim.split(table.concat(hints, ""), "\n")
   buffers.set_content(buf, { content = content, marks = marks })
@@ -101,7 +101,7 @@ function M.Picker()
   for id, value in pairs(state.buffers) do
     local parts = vim.split(value.args[2], "|")
     local kind = vim.trim(parts[1])
-    local resource = vim.trim(parts[2])
+    local resource = vim.trim(parts[2] or "")
     local namespace = vim.trim(parts[3] or "")
     table.insert(data, {
       id = { value = id, symbol = hl.symbols.gray },
