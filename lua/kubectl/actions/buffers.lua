@@ -251,7 +251,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     filetype,
     "dynamic",
     M.floating_dynamic_buffer,
-    { filetype = filetype, title = title, callback = callback, opts = opts }
+    { filetype, title, callback, opts }
   )
   return buf
 end
