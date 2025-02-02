@@ -35,7 +35,7 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = name .. " | " .. ns,
+    resource = "helm | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "status", name, "-n", ns, "--show-resources" },
     syntax = "yaml",
