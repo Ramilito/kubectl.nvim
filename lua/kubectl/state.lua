@@ -250,4 +250,18 @@ function M.restore_session()
   require("kubectl.views").view_or_fallback(session_view)
 end
 
+function M.set_buffer_state(buf, bufname, filetype, mode, open_func, args)
+  local function valid()
+    return bufname ~= filetype .. "Picker"
+      and filetype ~= "k8s_container_exec"
+      and (not M.buffers[buf] or M.buffers[buf].args.filetype ~= filetype)
+  end
+
+  if mode == "dynamic" and valid() then
+    M.buffers[buf] = { open = open_func, args = args }
+  elseif mode == "floating" and valid() then
+    M.buffers[buf] = { open = open_func, args = args }
+  end
+end
+
 return M

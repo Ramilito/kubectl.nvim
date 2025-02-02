@@ -245,12 +245,14 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_win_options(win)
   M.fit_to_content(buf, 2)
 
-  if bufname ~= filetype .. "Picker" and (not state.buffers[buf] or state.buffers[buf].args.filetype ~= filetype) then
-    state.buffers[buf] = {
-      open = M.floating_dynamic_buffer,
-      args = { filetype, title, callback, opts },
-    }
-  end
+  state.set_buffer_state(
+    buf,
+    bufname,
+    filetype,
+    "dynamic",
+    M.floating_dynamic_buffer,
+    { filetype = filetype, title = title, callback = callback, opts = opts }
+  )
   return buf
 end
 
@@ -288,15 +290,7 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  if
-    (bufname ~= "Picker" and filetype ~= "k8s_container_exec")
-    and (not state.buffers[buf] or state.buffers[buf].args[1] ~= filetype)
-  then
-    state.buffers[buf] = {
-      open = M.floating_buffer,
-      args = { filetype, title, syntax, win },
-    }
-  end
+  state.set_buffer_state(buf, bufname, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
 
   return buf, win
 end
