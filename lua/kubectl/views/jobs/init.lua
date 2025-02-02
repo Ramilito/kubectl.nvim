@@ -20,7 +20,7 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "job | " .. name .. " | " .. ns,
+    resource = "jobs | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "describe", "job", name, "-n", ns },
     syntax = "yaml",

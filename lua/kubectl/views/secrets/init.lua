@@ -15,7 +15,7 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "secret | " .. name .. " | " .. ns,
+    resource = "secrets | " .. name .. " | " .. ns,
     ft = "k8s_secret_desc",
     url = { "get", "secret", name, "-n", ns, "-o", "yaml" },
     syntax = "yaml",

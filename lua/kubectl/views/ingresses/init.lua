@@ -15,7 +15,7 @@ end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = "ingress | " .. name .. " | " .. ns,
+    resource = "ingresses | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "describe", "ingress", name, "-n", ns },
     syntax = "yaml",
