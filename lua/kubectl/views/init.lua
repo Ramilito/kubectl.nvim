@@ -112,14 +112,25 @@ function M.Picker()
     })
   end
 
+  local function sort_by_id_value(tbl)
+    table.sort(tbl, function(a, b)
+      return a.id.value > b.id.value
+    end)
+  end
+  sort_by_id_value(data)
   self.data = data
+  self.processedData = self.data
+
   self:addHints({
     { key = "<Plug>(kubectl.kill)", desc = "kill" },
     { key = "<Plug>(kubectl.select)", desc = "select" },
   }, false, false, false)
   self:displayFloatFit("k8s_picker", "Picker")
-  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" })
-
+  self.prettyData, self.extmarks = tables.pretty_print(
+    self.processedData,
+    { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" },
+    { current_word = "ID", order = "desc" }
+  )
   vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
     noremap = true,
     callback = function()
