@@ -13,9 +13,9 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
-function M.ShowMessage(event)
-  local builder = ResourceBuilder:new("event_msg")
-  builder:displayFloatFit("k8s_event_msg", "Message", "less")
+function M.ShowMessage(ns, object, event)
+  local builder = ResourceBuilder:new("events")
+  builder:displayFloatFit("k8s_event_msg", "events | " .. object .. " | " .. ns, "less")
   builder:addHints({ {
     key = "<Plug>(kubectl.quit)",
     desc = "quit",
@@ -27,7 +27,7 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "events_desc_" .. name .. "_" .. ns,
+    resource = "events | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "describe", "events", name, "-n", ns },
     syntax = "yaml",

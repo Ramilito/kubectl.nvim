@@ -5,6 +5,8 @@ local M = {}
 
 ---@type table
 M.context = {}
+---@type table
+M.buffers = {}
 ---@type { client: { major: number, minor: number }, server: { major: number, minor: number } }
 M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
 ---@type string
@@ -246,6 +248,23 @@ function M.restore_session()
   -- change view
   local session_view = M.session.contexts[current_context].view
   require("kubectl.views").view_or_fallback(session_view)
+end
+
+function M.set_buffer_state(buf, bufname, filetype, mode, open_func, args)
+  local function valid()
+    return bufname ~= filetype .. "Picker"
+      and filetype ~= "k8s_container_exec"
+      and filetype ~= "k8s_namespace"
+      and filetype ~= "k8s_aliases"
+      and filetype ~= "k8s_filter"
+      and (not M.buffers[buf] or M.buffers[buf].args.filetype ~= filetype)
+  end
+
+  if mode == "dynamic" and valid() then
+    M.buffers[buf] = { open = open_func, args = args }
+  elseif mode == "floating" and valid() then
+    M.buffers[buf] = { open = open_func, args = args }
+  end
 end
 
 return M

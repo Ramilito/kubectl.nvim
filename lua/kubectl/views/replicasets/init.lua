@@ -15,7 +15,7 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "replicasets_desc_" .. name .. "_" .. ns,
+    resource = "replicasets | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "describe", "replicaset", name, "-n", ns },
     syntax = "yaml",

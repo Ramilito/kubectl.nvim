@@ -18,7 +18,7 @@ end
 ---@param ns string
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "configmaps_desc_" .. name .. "_" .. ns,
+    resource = "configmaps | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "describe", "configmaps", name, "-n", ns },
     syntax = "yaml",

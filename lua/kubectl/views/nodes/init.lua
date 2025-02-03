@@ -66,7 +66,7 @@ end
 
 function M.Desc(node, _, reload)
   ResourceBuilder:view_float({
-    resource = "nodes_desc_" .. node,
+    resource = "nodes |" .. node,
     ft = "k8s_node_desc",
     url = { "describe", "node", node },
     syntax = "yaml",
