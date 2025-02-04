@@ -7,12 +7,9 @@ local commands = require("kubectl.actions.commands")
 local string_utils = require("kubectl.utils.string")
 local M = {}
 
-local function is_plug_mapped(plug_target, mode)
-  local mappings = vim.tbl_extend("force", vim.api.nvim_get_keymap(mode), vim.api.nvim_buf_get_keymap(0, mode))
-  for _, mapping in ipairs(mappings) do
-    if mapping.rhs and mapping.rhs == plug_target then
-      return true
-    end
+local function is_plug_mapped(plug_target, lhs, mode)
+  if vim.fn.hasmapto(plug_target, mode) == 1 and vim.fn.maparg(lhs, mode) == "" then
+    return true
   end
   return false
 end
