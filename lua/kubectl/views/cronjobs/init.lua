@@ -16,7 +16,7 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = "cronjobs_desc_" .. name .. "_" .. ns,
+    resource = "cronjobs | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "describe", "cronjob", name, "-n", ns },
     syntax = "yaml",

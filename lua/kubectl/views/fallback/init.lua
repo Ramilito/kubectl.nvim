@@ -70,7 +70,7 @@ end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
-    resource = M.resource .. "_desc_" .. name .. "_" .. ns,
+    resource = M.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
     syntax = "yaml",

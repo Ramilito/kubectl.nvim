@@ -10,9 +10,9 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "View message",
     callback = function()
-      local message = tables.getCurrentSelection(unpack({ 7 }))
-      if message then
-        event_view.ShowMessage(message)
+      local ns, object, message = tables.getCurrentSelection(unpack({ 1, 5, 7 }))
+      if ns and object and message then
+        event_view.ShowMessage(ns, object, message)
       else
         print("Failed to extract event message.")
       end

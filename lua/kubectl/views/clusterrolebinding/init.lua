@@ -15,7 +15,7 @@ end
 
 function M.Desc(name, _, reload)
   ResourceBuilder:view_float({
-    resource = "clusterrolebinding_desc_" .. name,
+    resource = "clusterrolebinding | " .. name,
     ft = "k8s_desc",
     url = { "describe", "clusterrolebinding", name },
     syntax = "yaml",

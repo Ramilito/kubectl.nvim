@@ -115,7 +115,7 @@ function M.register()
 
       if name then
         local def = {
-          resource = buf_name .. "_" .. name,
+          resource = buf_name .. " | " .. name,
           ft = "k8s_yaml",
           url = { "get", buf_name, name, "-o", "yaml" },
           syntax = "yaml",
@@ -123,7 +123,7 @@ function M.register()
         if ns then
           table.insert(def.url, "-n")
           table.insert(def.url, ns)
-          def.resource = def.resource .. "_" .. ns
+          def.resource = def.resource .. " | " .. ns
         end
 
         ResourceBuilder:view_float(def, { cmd = "kubectl" })
@@ -310,6 +310,16 @@ function M.register()
     callback = function()
       local filter_view = require("kubectl.views.filter")
       filter_view.filter()
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.picker_view)", "", {
+    noremap = true,
+    silent = true,
+    desc = "Picker",
+    callback = function()
+      local view = require("kubectl.views")
+      view.Picker()
     end,
   })
 
@@ -512,6 +522,7 @@ function M.register()
     M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
     M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
     M.map_if_plug_not_set("n", "<C-l>", "<Plug>(kubectl.filter_label)")
+    M.map_if_plug_not_set("n", "<C-p>", "<Plug>(kubectl.picker_view)")
     M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
     M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
     M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")

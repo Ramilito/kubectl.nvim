@@ -76,6 +76,10 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/user-attachments/assets/cb1f46be-fcc0-4a6d-9d1e-ffcd5bdb32b3" width="700px">
 </details>
 <details>
+  <summary>Picker for recent items</summary>
+  <img src="https://github.com/user-attachments/assets/fb519986-4d6e-437d-8fda-bd14199a71f2" width="700px">
+</details>
+<details>
   <summary>Lineage</summary>
   <sub>A plugin similar to <a href="https://github.com/tohjustin/kube-lineage/tree/master">kube-lineage</a></sub>
   <sub>⚠️ This is a beta feature and not all bugs are sorted out</sub>

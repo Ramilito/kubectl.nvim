@@ -36,10 +36,10 @@ end
 --- @param content table: The content lines.
 local function set_buffer_lines(buf, header, content)
   if header and #header >= 1 then
-    vim.api.nvim_buf_set_lines(buf, 0, #header, false, header)
-    vim.api.nvim_buf_set_lines(buf, #header, -1, false, content)
+    pcall(vim.api.nvim_buf_set_lines, buf, 0, #header, false, header)
+    pcall(vim.api.nvim_buf_set_lines, buf, #header, -1, false, content)
   else
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+    pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, content)
   end
 end
 
@@ -214,7 +214,7 @@ end
 --- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
-  local bufname = title or filetype
+  local bufname = (filetype .. title) or "kubectl_dynamic_float"
   local buf = get_buffer_by_name(bufname)
 
   if not buf then
@@ -244,6 +244,15 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
   M.fit_to_content(buf, 2)
+
+  state.set_buffer_state(
+    buf,
+    bufname,
+    filetype,
+    "dynamic",
+    M.floating_dynamic_buffer,
+    { filetype, title, callback, opts }
+  )
   return buf
 end
 
@@ -265,7 +274,7 @@ end
 --- @param win integer?: The buffer title
 --- @return integer, integer: The buffer and win number.
 function M.floating_buffer(filetype, title, syntax, win)
-  local bufname = title or "kubectl_float"
+  local bufname = (filetype .. title) or "kubectl_float"
   local buf = get_buffer_by_name(bufname)
 
   if not buf then
@@ -280,6 +289,8 @@ function M.floating_buffer(filetype, title, syntax, win)
   end
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
+
+  state.set_buffer_state(buf, bufname, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
 
   return buf, win
 end

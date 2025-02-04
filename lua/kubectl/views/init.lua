@@ -6,6 +6,7 @@ local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
@@ -85,10 +86,84 @@ function M.Hints(headers)
     tables.add_mark(marks, start_row + index - 1, 0, #header.key, hl.symbols.pending)
   end
 
-  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints", nil)
+  local buf = buffers.floating_dynamic_buffer("k8s_hints", "Hints | global keys", nil)
 
   local content = vim.split(table.concat(hints, ""), "\n")
   buffers.set_content(buf, { content = content, marks = marks })
+end
+
+function M.Picker()
+  vim.cmd("fclose!")
+
+  local self = ResourceBuilder:new("Picker")
+  local data = {}
+
+  for id, value in pairs(state.buffers) do
+    local parts = vim.split(value.args[2], "|")
+    local kind = vim.trim(parts[1])
+    local resource = vim.trim(parts[2] or "")
+    local namespace = vim.trim(parts[3] or "")
+    table.insert(data, {
+      id = { value = id, symbol = hl.symbols.gray },
+      kind = { value = kind, symbol = hl.symbols.success },
+      type = { value = value.args[1]:gsub("k8s_", ""), symbol = hl.symbols.success },
+      resource = { value = resource, symbol = hl.symbols.success },
+      namespace = { value = namespace },
+    })
+  end
+
+  local function sort_by_id_value(tbl)
+    table.sort(tbl, function(a, b)
+      return a.id.value > b.id.value
+    end)
+  end
+  sort_by_id_value(data)
+  self.data = data
+  self.processedData = self.data
+
+  self:addHints({
+    { key = "<Plug>(kubectl.kill)", desc = "kill" },
+    { key = "<Plug>(kubectl.select)", desc = "select" },
+  }, false, false, false)
+  self:displayFloatFit("k8s_picker", "Picker")
+  self.prettyData, self.extmarks = tables.pretty_print(
+    self.processedData,
+    { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" },
+    { current_word = "ID", order = "desc" }
+  )
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
+    noremap = true,
+    callback = function()
+      local selection = tables.getCurrentSelection(1)
+      local bufnr = tonumber(selection)
+
+      if bufnr then
+        state.buffers[bufnr] = nil
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+        local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+        vim.api.nvim_buf_set_lines(0, row, row + 1, false, {})
+      end
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.select)", "", {
+    noremap = true,
+    callback = function()
+      local bufnr = tables.getCurrentSelection(1)
+      local buffer = state.buffers[tonumber(bufnr)]
+
+      if buffer then
+        vim.cmd("fclose!")
+        vim.schedule(function()
+          buffer.open(unpack(buffer.args))
+        end)
+      end
+    end,
+  })
+  self:setContent()
+  vim.schedule(function()
+    mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+  end)
 end
 
 function M.Aliases()
