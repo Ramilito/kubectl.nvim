@@ -82,7 +82,6 @@ function M.Values(name, ns)
   end
 end
 
-
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
