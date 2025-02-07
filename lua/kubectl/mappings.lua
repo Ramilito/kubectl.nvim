@@ -117,19 +117,24 @@ function M.register()
       local name, ns = view.getCurrentSelection()
 
       if name then
-        local def = {
-          resource = buf_name .. " | " .. name,
-          ft = "k8s_yaml",
-          url = { "get", buf_name, name, "-o", "yaml" },
-          syntax = "yaml",
-        }
-        if ns then
-          table.insert(def.url, "-n")
-          table.insert(def.url, ns)
-          def.resource = def.resource .. " | " .. ns
-        end
+        if buf_name == "helm" then
+          local helm_view = require("kubectl.views.helm")
+          helm_view.Yaml(name, ns)
+        else
+          local def = {
+            resource = buf_name .. " | " .. name,
+            ft = "k8s_yaml",
+            url = { "get", buf_name, name, "-o", "yaml" },
+            syntax = "yaml",
+          }
+          if ns then
+            table.insert(def.url, "-n")
+            table.insert(def.url, ns)
+            def.resource = def.resource .. " | " .. ns
+          end
 
-        ResourceBuilder:view_float(def, { cmd = "kubectl" })
+          ResourceBuilder:view_float(def, { cmd = "kubectl" })
+        end
       end
     end,
   })
