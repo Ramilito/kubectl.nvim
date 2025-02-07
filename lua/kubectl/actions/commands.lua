@@ -27,7 +27,9 @@ function M.configure_command(cmd, envs, args)
   end
 
   table.insert(result.env, "PATH=" .. current_env["PATH"])
-  table.insert(result.env, "HOME=" .. current_env["HOME"])
+  if current_env["HOME"] then
+    table.insert(result.env, "HOME=" .. current_env["HOME"])
+  end
   if current_env["KUBECONFIG"] then
     table.insert(result.env, "KUBECONFIG=" .. current_env["KUBECONFIG"])
   end
