@@ -79,28 +79,70 @@ function M.register()
       if not view_ok then
         view = require("kubectl.views.fallback")
       end
-      local name, ns = view.getCurrentSelection()
-      if name then
-        local resource = string.lower(buf_name)
-        if buf_name == "fallback" then
-          resource = view.resource
+      local tables = require("kubectl.utils.tables")
+      local state = require("kubectl.state")
+      local selections = state.getSelections()
+      if vim.tbl_count(selections) == 0 then
+        local name, ns = view.getCurrentSelection()
+        if name then
+          selections = { { name = name, namespace = ns } }
         end
-        local args = { "delete", resource, name }
-        if ns and ns ~= "nil" then
-          table.insert(args, "-n")
-          table.insert(args, ns)
-        end
-        buffers.confirmation_buffer("execute: kubectl " .. table.concat(args, " "), "", function(confirm)
-          if not confirm then
-            return
-          end
-          commands.shell_command_async("kubectl", args, function(delete_data)
-            vim.schedule(function()
-              vim.notify(delete_data, vim.log.levels.INFO)
-            end)
-          end)
-        end)
       end
+
+      local data = {}
+      for _, value in ipairs(selections) do
+        table.insert(data, { name = value.name, namespace = value.namespace })
+      end
+
+      local self = ResourceBuilder:new("delete_resource")
+      self.data = data
+      self.processedData = self.data
+
+      local prompt = "Are you sure you want to delete the selected pod(s)?"
+      local buf_nr, win = buffers.confirmation_buffer(prompt, "prompt", function(confirm)
+        if confirm then
+          local resource = string.lower(buf_name)
+          for _, selection in ipairs(selections) do
+            local name = selection.name
+            local ns = selection.namespace
+            vim.notify("deleting " .. name)
+            if name then
+              if buf_name == "fallback" then
+                resource = view.resource
+              end
+              local args = { "delete", resource, name }
+              if ns and ns ~= "nil" then
+                table.insert(args, "-n")
+                table.insert(args, ns)
+              end
+              commands.shell_command_async("kubectl", args, function(delete_data)
+                vim.schedule(function()
+                  vim.notify(delete_data, vim.log.levels.INFO)
+                end)
+              end)
+            end
+          end
+          state.selections = {}
+          vim.schedule(function()
+            view.Draw()
+          end)
+        end
+      end)
+
+      self.buf_nr = buf_nr
+      self.prettyData, self.extmarks = tables.pretty_print(self.processedData, { "NAME", "NAMESPACE" })
+
+      table.insert(self.prettyData, "")
+      table.insert(self.prettyData, "")
+      local confirmation = "[y]es [n]o"
+      local padding = string.rep(" ", (win.width - #confirmation) / 2)
+      table.insert(self.extmarks, {
+        row = #self.prettyData - 1,
+        start_col = 0,
+        virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
+        virt_text_pos = "inline",
+      })
+      self:setContent()
     end,
   })
 
