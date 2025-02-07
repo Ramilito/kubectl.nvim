@@ -46,6 +46,43 @@ function M.Draw(cancellationToken)
   state.instance:draw(definition, cancellationToken)
 end
 
+function M.Yaml(name, ns)
+  if name then
+    local def = {
+      resource = "helm" .. " | " .. name,
+      ft = "k8s_yaml",
+      url = { "get", "manifest", name },
+      syntax = "yaml",
+    }
+    if ns then
+      table.insert(def.url, "-n")
+      table.insert(def.url, ns)
+      def.resource = def.resource .. " | " .. ns
+    end
+    vim.print(def)
+    ResourceBuilder:view_float(def, { cmd = "helm" })
+  end
+end
+
+function M.Values(name, ns)
+  if name then
+    local def = {
+      resource = "helm" .. " | " .. name,
+      ft = "k8s_yaml",
+      url = { "get", "values", name },
+      syntax = "yaml",
+    }
+    if ns then
+      table.insert(def.url, "-n")
+      table.insert(def.url, ns)
+      def.resource = def.resource .. " | " .. ns
+    end
+    vim.print(def)
+    ResourceBuilder:view_float(def, { cmd = "helm" })
+  end
+end
+
+
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()

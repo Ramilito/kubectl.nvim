@@ -29,34 +29,14 @@ local function set_keymaps(bufnr)
       )
     end,
   })
-  vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.yaml)", "", {
+
+  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.values)", "", {
     noremap = true,
     silent = true,
-    desc = "Get YAML",
+    desc = "Get helm values",
     callback = function()
       local name, ns = helm_view.getCurrentSelection()
-
-      if not name then
-        vim.notify("Not a valid selection to view yaml", vim.log.levels.INFO)
-        return
-      end
-
-      local args = { "status", name, "-n", ns, "-o", "json" }
-
-      -- Save the resource data to a temporary file
-      local self = ResourceBuilder:new("edit_resource"):setCmd(args, "helm"):fetch():decodeJson()
-
-      local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
-
-      local tmpfile = assert(io.open(tmpfilename, "w+"), "Failed to open temp file")
-      tmpfile:write(self.data.manifest)
-      tmpfile:close()
-
-      -- open the file
-      vim.cmd("tabnew | edit " .. tmpfilename)
-
-      vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = 0 })
-      vim.api.nvim_set_option_value("modified", false, { buf = 0 })
+      helm_view.Values(name, ns)
     end,
   })
 end
@@ -73,5 +53,5 @@ init()
 
 vim.schedule(function()
   mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
-  mappings.map_if_plug_not_set("n", "gy", "<Plug>(kubectl.yaml)")
+  mappings.map_if_plug_not_set("n", "gv", "<Plug>(kubectl.values)")
 end)
