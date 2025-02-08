@@ -98,7 +98,7 @@ function M.register()
       self.data = data
       self.processedData = self.data
 
-      local prompt = "Are you sure you want to delete the selected pod(s)?"
+      local prompt = "Are you sure you want to delete the selected resource(s)?"
       local buf_nr, win = buffers.confirmation_buffer(prompt, "prompt", function(confirm)
         if confirm then
           local resource = string.lower(buf_name)
