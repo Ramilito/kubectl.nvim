@@ -78,6 +78,7 @@ function M.apply_marks(bufnr, marks, header)
         hl_eol = mark.hl_eol or nil,
         hl_group = mark.hl_group or nil,
         hl_mode = mark.hl_mode or nil,
+        line_hl_group = mark.line_hl_group or nil,
         virt_text = mark.virt_text or nil,
         virt_text_pos = mark.virt_text_pos or nil,
         right_gravity = mark.right_gravity,
