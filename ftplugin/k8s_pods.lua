@@ -58,8 +58,16 @@ local function set_keymaps(bufnr)
         end
       end
 
-      local prompt = "Are you sure you want to delete the selected pod(s)?"
-      buffers.confirmation_buffer(prompt, "prompt", function(confirm)
+      local self = ResourceBuilder:new("kill_pods")
+      local data = {}
+      for _, value in ipairs(selections) do
+        table.insert(data, { name = value.name, namespace = value.namespace })
+      end
+      self.data = data
+      self.processedData = self.data
+
+      local prompt = "Are you sure you want to delete the selected resource(s)?"
+      local buf_nr, win_config = buffers.confirmation_buffer(prompt, "prompt", function(confirm)
         if confirm then
           for _, selection in ipairs(selections) do
             local name = selection.name
@@ -76,10 +84,27 @@ local function set_keymaps(bufnr)
             vim.notify("Deleting pod " .. name)
             commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
           end
-          state.selections = {}
-          pod_view.Draw()
+					state.selections = {}
+          vim.schedule(function()
+            pod_view.Draw()
+          end)
         end
       end)
+
+      self.buf_nr = buf_nr
+      self.prettyData, self.extmarks = tables.pretty_print(self.processedData, { "NAME", "NAMESPACE" })
+
+      table.insert(self.prettyData, "")
+      table.insert(self.prettyData, "")
+      local confirmation = "[y]es [n]o"
+      local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
+      table.insert(self.extmarks, {
+        row = #self.prettyData - 1,
+        start_col = 0,
+        virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
+        virt_text_pos = "inline",
+      })
+      self:setContent()
     end,
   })
 
