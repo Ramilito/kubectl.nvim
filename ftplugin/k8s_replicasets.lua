@@ -2,12 +2,12 @@ local api = vim.api
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local loop = require("kubectl.utils.loop")
+local mappings = require("kubectl.mappings")
 local replicaset_view = require("kubectl.views.replicasets")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
-
-local mappings = require("kubectl.mappings")
+local err_msg = "Failed to extract ReplicaSet name or namespace."
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
@@ -17,6 +17,10 @@ local function set_keymaps(bufnr)
     desc = "Go to pods",
     callback = function()
       local name, ns = replicaset_view.getCurrentSelection()
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
+      end
       state.setFilter("")
       view.set_and_open_pod_selector(name, ns)
     end,
@@ -29,6 +33,10 @@ local function set_keymaps(bufnr)
     desc = "Set image",
     callback = function()
       local name, ns = replicaset_view.getCurrentSelection()
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
+      end
       local container_images = {}
 
       local resource = tables.find_resource(state.instance.data, name, ns)
@@ -71,6 +79,10 @@ local function set_keymaps(bufnr)
     desc = "Scale replicas",
     callback = function()
       local name, ns = replicaset_view.getCurrentSelection()
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
+      end
       local resource = tables.find_resource(state.instance.data, name, ns)
       if not resource then
         return
@@ -109,6 +121,10 @@ local function set_keymaps(bufnr)
     desc = "Rollout restart",
     callback = function()
       local name, ns = replicaset_view.getCurrentSelection()
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
+      end
       buffers.confirmation_buffer(
         "Are you sure that you want to restart the replicaset: " .. name,
         "prompt",
