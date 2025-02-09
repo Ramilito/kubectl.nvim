@@ -28,10 +28,10 @@ local function process_apis(api_url, group_name, group_version, group_resources,
       local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
       local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
       local resource_url =
-        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
+        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource_name)
 
       cached_api_resources.values[resource_name] = {
-        name = resource.name,
+        name = resource_name,
         url = resource_url,
         namespaced = resource.namespaced,
         kind = resource.kind,
@@ -39,7 +39,7 @@ local function process_apis(api_url, group_name, group_version, group_resources,
       }
 
       require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
-      cached_api_resources.shortNames[resource.name] = resource_name
+      cached_api_resources.shortNames[resource_name] = resource_name
 
       if resource.singularName then
         cached_api_resources.shortNames[resource.singularName] = resource_name
@@ -163,7 +163,14 @@ function M.load_cache(cached_api_resources, callback)
       for _, value in ipairs(results.data) do
         self.data = value
         self:decodeJson()
-        process_apis("apis", "", self.data.groupVersion, self.data, cached_api_resources)
+
+        process_apis(
+          "apis",
+          self.data.groupVersion:gsub("/.*", ""),
+          self.data.groupVersion,
+          self.data,
+          cached_api_resources
+        )
       end
 
       local all_urls = {}
