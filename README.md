@@ -123,7 +123,7 @@ We expose open, close and toggle to bind against:
 #### Toggle
 
 ```lua
-vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle()<cr>', { noremap = true, silent = true })
+vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle({ tab: boolean })<cr>', { noremap = true, silent = true })
 ```
 
 #### Default Mappings
