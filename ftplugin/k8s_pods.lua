@@ -3,13 +3,13 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
-local hl = require("kubectl.actions.highlight")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local err_msg = "Failed to extract pod name or namespace."
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
@@ -19,12 +19,12 @@ local function set_keymaps(bufnr)
     desc = "View logs",
     callback = function()
       local name, ns = pod_view.getCurrentSelection()
-      if name and ns then
-        pod_view.selectPod(name, ns)
-        pod_view.Logs()
-      else
-        api.nvim_err_writeln("Failed to extract pod name or namespace.")
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
       end
+      pod_view.selectPod(name, ns)
+      pod_view.Logs()
     end,
   })
 
@@ -34,12 +34,12 @@ local function set_keymaps(bufnr)
     desc = "Select",
     callback = function()
       local name, ns = pod_view.getCurrentSelection()
-      if name and ns then
-        pod_view.selectPod(name, ns)
-        container_view.View(pod_view.selection.pod, pod_view.selection.ns)
-      else
-        api.nvim_err_writeln("Failed to select pod.")
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
       end
+      pod_view.selectPod(name, ns)
+      container_view.View(pod_view.selection.pod, pod_view.selection.ns)
     end,
   })
 
@@ -54,7 +54,7 @@ local function set_keymaps(bufnr)
         if name and ns then
           selections = { { name = name, namespace = ns } }
         else
-          api.nvim_err_writeln("Failed to select pod.")
+          vim.notify(err_msg, vim.log.levels.ERROR)
         end
       end
 
@@ -84,7 +84,7 @@ local function set_keymaps(bufnr)
             vim.notify("Deleting pod " .. name)
             commands.shell_command_async("kubectl", { "delete", "pod", name, "-n", ns })
           end
-					state.selections = {}
+          state.selections = {}
           vim.schedule(function()
             pod_view.Draw()
           end)
@@ -114,9 +114,8 @@ local function set_keymaps(bufnr)
     desc = "Port forward",
     callback = function()
       local name, ns = pod_view.getCurrentSelection()
-
       if not ns or not name then
-        api.nvim_err_writeln("Failed to select pod for port forward")
+        vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
 
