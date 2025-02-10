@@ -5,6 +5,7 @@ local cronjob_view = require("kubectl.views.cronjobs")
 local loop = require("kubectl.utils.loop")
 local mappings = require("kubectl.mappings")
 local tables = require("kubectl.utils.tables")
+local err_msg = "Failed to extract cronjob name or namespace."
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
@@ -14,6 +15,10 @@ local function set_keymaps(bufnr)
     desc = "Go to jobs",
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
+      end
       local job_view = require("kubectl.views.jobs")
       local job_def = require("kubectl.views.jobs.definition")
 
@@ -29,11 +34,11 @@ local function set_keymaps(bufnr)
     desc = "Create job from cronjob",
     callback = function()
       local name, ns = cronjob_view.getCurrentSelection()
-      if name and ns then
-        cronjob_view.create_from_cronjob(name, ns)
-      else
-        api.nvim_err_writeln("Failed to create job.")
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
       end
+      cronjob_view.create_from_cronjob(name, ns)
     end,
   })
 
@@ -43,6 +48,10 @@ local function set_keymaps(bufnr)
     desc = "Suspend selected cronjob",
     callback = function()
       local name, ns, current = tables.getCurrentSelection(2, 1, 4)
+      if not name or not ns or not current then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
+      end
       current = current == "true" and true or false
       local action = current and "unsuspend" or "suspend"
       buffers.confirmation_buffer(

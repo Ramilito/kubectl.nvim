@@ -35,11 +35,16 @@ function M.close()
   vim.api.nvim_buf_delete(0, { force = true })
 end
 
-function M.toggle()
+--- @param opts { tab: boolean }: Options for toggle function
+function M.toggle(opts)
+  opts = opts or {}
   if M.is_open then
     M.close()
     M.is_open = false
   else
+    if opts.tab then
+      vim.cmd("tabnew")
+    end
     M.open()
     M.is_open = true
   end

@@ -4,6 +4,7 @@ local mappings = require("kubectl.mappings")
 local node_view = require("kubectl.views.nodes")
 local state = require("kubectl.state")
 local view = require("kubectl.views")
+local err_msg = "Failed to extract node name."
 
 --- Set key mappings for the buffer
 local function set_keymaps(bufnr)
@@ -13,6 +14,10 @@ local function set_keymaps(bufnr)
     desc = "Go to pods",
     callback = function()
       local name = node_view.getCurrentSelection()
+      if not name then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
+      end
       state.setFilter("")
       view.set_url_and_open_view({
         src = "nodes",
@@ -28,12 +33,12 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Drain node",
     callback = function()
-      local node = node_view.getCurrentSelection()
-      if node then
-        node_view.Drain(node)
-      else
-        api.nvim_err_writeln("Failed to drain node.")
+      local name = node_view.getCurrentSelection()
+      if not name then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
       end
+      node_view.Drain(name)
     end,
   })
 
@@ -42,12 +47,12 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "UnCordon node",
     callback = function()
-      local node = node_view.getCurrentSelection()
-      if node then
-        node_view.UnCordon(node)
-      else
-        api.nvim_err_writeln("Failed to cordon node.")
+      local name = node_view.getCurrentSelection()
+      if not name then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
       end
+      node_view.UnCordon(name)
     end,
   })
 
@@ -56,12 +61,12 @@ local function set_keymaps(bufnr)
     silent = true,
     desc = "Cordon node",
     callback = function()
-      local node = node_view.getCurrentSelection()
-      if node then
-        node_view.Cordon(node)
-      else
-        api.nvim_err_writeln("Failed to cordon node.")
+      local name = node_view.getCurrentSelection()
+      if name then
+        vim.notify(err_msg, vim.log.levels.ERROR)
+        return
       end
+      node_view.Cordon(name)
     end,
   })
 end

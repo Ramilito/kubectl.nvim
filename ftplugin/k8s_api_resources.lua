@@ -19,6 +19,10 @@ local function set_keymaps(bufnr)
     desc = "Select",
     callback = function()
       local name = api_resources_view.getCurrentSelection()
+      if not name then
+        vim.notify("Failed to extract API resource name.", vim.log.levels.ERROR)
+        return
+      end
       local view = require("kubectl.views")
       view.view_or_fallback(name)
     end,
