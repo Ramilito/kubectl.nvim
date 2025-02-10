@@ -7,8 +7,8 @@ local commands = require("kubectl.actions.commands")
 local string_utils = require("kubectl.utils.string")
 local M = {}
 
-local function is_plug_mapped(plug_target, lhs, mode)
-  if vim.fn.hasmapto(plug_target, mode) == 1 and vim.fn.maparg(lhs, mode) == "" then
+local function is_plug_mapped(plug_target, mode)
+  if vim.fn.hasmapto(plug_target, mode) == 1 then
     return true
   end
   return false
