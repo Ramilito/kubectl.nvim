@@ -526,8 +526,10 @@ function M.setup()
     group = group,
     pattern = "k8s_*",
     callback = function(ev)
-      local ok, view_mappings = pcall(require, "kubectl.views." .. ev.file .. ".mappings")
+      local view_name = ev.match:gsub("k8s_", "")
+      local ok, view_mappings = pcall(require, "kubectl.views." .. view_name .. ".mappings")
 
+      vim.print(ev)
       local globals = M.get_mappings()
       local locals = {}
       if ok then
