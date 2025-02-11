@@ -2,18 +2,19 @@ local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local str = require("kubectl.utils.string")
 
---- Set key mappings for the buffer
-local function set_keymaps(bufnr)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.follow)", "", {
+local M = {}
+
+M.overrides = {
+  ["<Plug>(kubectl.follow)"] = {
     noremap = true,
     silent = true,
     desc = "Tail logs",
     callback = function()
       pod_view.TailLogs()
     end,
-  })
+  },
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.previous_logs)", "", {
+  ["<Plug>(kubectl.previous_logs)"] = {
     noremap = true,
     silent = true,
     desc = "Previous logs",
@@ -25,18 +26,18 @@ local function set_keymaps(bufnr)
       end
       pod_view.Logs(false)
     end,
-  })
+  },
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.wrap)", "", {
+  ["<Plug>(kubectl.wrap)"] = {
     noremap = true,
     silent = true,
     desc = "Toggle wrap",
     callback = function()
       vim.api.nvim_set_option_value("wrap", not vim.api.nvim_get_option_value("wrap", {}), {})
     end,
-  })
+  },
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.timestamps)", "", {
+  ["<Plug>(kubectl.timestamps)"] = {
     noremap = true,
     silent = true,
     desc = "Toggle timestamps",
@@ -48,9 +49,9 @@ local function set_keymaps(bufnr)
       end
       pod_view.Logs(false)
     end,
-  })
+  },
 
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.history)", "", {
+  ["<Plug>(kubectl.history)"] = {
     noremap = true,
     silent = true,
     desc = "Log history",
@@ -60,9 +61,8 @@ local function set_keymaps(bufnr)
         pod_view.Logs(false)
       end)
     end,
-  })
-
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.prefix)", "", {
+  },
+  ["<Plug>(kubectl.prefix)"] = {
     noremap = true,
     silent = true,
     desc = "Toggle prefix",
@@ -74,26 +74,18 @@ local function set_keymaps(bufnr)
       end
       pod_view.Logs(false)
     end,
-  })
-
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
+  },
+  ["<Plug>(kubectl.select)"] = {
     noremap = true,
     silent = true,
     desc = "Add divider",
     callback = function()
-      str.divider(bufnr)
+      str.divider(0)
     end,
-  })
-end
+  },
+}
 
---- Initialize the module
-local function init()
-  set_keymaps(0)
-end
-
-init()
-
-vim.schedule(function()
+function M.register()
   mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
   mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
   mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.prefix)")
@@ -101,4 +93,6 @@ vim.schedule(function()
   mappings.map_if_plug_not_set("n", "gh", "<Plug>(kubectl.history)")
   mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
   mappings.map_if_plug_not_set("n", "gpp", "<Plug>(kubectl.previous_logs)")
-end)
+end
+
+return M
