@@ -1,67 +1,58 @@
 local container_view = require("kubectl.views.containers")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
 M.overrides = {
-  ["<Plug>(kubectl.previous_logs)"] = {
+  ["<Plug>(kubectl.debug)"] = {
     noremap = true,
     silent = true,
-    desc = "Previous logs",
+    desc = "Debug",
     callback = function()
-      if container_view.show_previous == "true" then
-        container_view.show_previous = "false"
+      local container_name = tables.getCurrentSelection(unpack({ 1 }))
+      if container_name then
+        container_view.selectContainer(container_name)
+        container_view.debug(pod_view.selection.pod, pod_view.selection.ns)
       else
-        container_view.show_previous = "true"
+        print("Failed to create debug container.")
       end
-      container_view.logs(pod_view.selection.pod, pod_view.selection.ns, false)
     end,
   },
-  ["<Plug>(kubectl.follow)"] = {
+  ["<Plug>(kubectl.logs)"] = {
     noremap = true,
     silent = true,
-    desc = "Tail logs",
+    desc = "View logs",
     callback = function()
-      pod_view.TailLogs(pod_view.selection.pod, pod_view.selection.ns, container_view.selection)
-    end,
-  },
-  ["<Plug>(kubectl.wrap)"] = {
-    noremap = true,
-    silent = true,
-    desc = "Toggle wrap",
-    callback = function()
-      vim.api.nvim_set_option_value("wrap", not vim.api.nvim_get_option_value("wrap", {}), {})
+      local container_name = tables.getCurrentSelection(unpack({ 1 }))
+      if container_name then
+        container_view.selectContainer(container_name)
+        container_view.logs(pod_view.selection.pod, pod_view.selection.ns)
+      else
+        print("Failed to extract logs.")
+      end
     end,
   },
   ["<Plug>(kubectl.select)"] = {
     noremap = true,
     silent = true,
-    desc = "Add divider",
+    desc = "Exec into",
     callback = function()
-      str.divider(bufnr)
-    end,
-  },
-
-  ["<Plug>(kubectl.history)"] = {
-    noremap = true,
-    silent = true,
-    desc = "Log history",
-    callback = function()
-      vim.ui.input({ prompt = "Since (seconds)=", default = container_view.log_since }, function(input)
-        container_view.log_since = input
-        container_view.logs(pod_view.selection.pod, pod_view.selection.ns, false)
-      end)
+      local container_name = tables.getCurrentSelection(unpack({ 1 }))
+      if container_name then
+        container_view.selectContainer(container_name)
+        container_view.exec(pod_view.selection.pod, pod_view.selection.ns)
+      else
+        print("Failed to extract containers.")
+      end
     end,
   },
 }
 
 M.register = function()
-  mappings.map_if_plug_not_set("n", "f", "<Plug>(kubectl.follow)")
-  mappings.map_if_plug_not_set("n", "gw", "<Plug>(kubectl.wrap)")
-  mappings.map_if_plug_not_set("n", "gh", "<Plug>(kubectl.history)")
-  mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
-  mappings.map_if_plug_not_set("n", "gpp", "<Plug>(kubectl.previous_logs)")
+  mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
+  mappings.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.debug)")
 end
 
 return M
