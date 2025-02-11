@@ -24,6 +24,14 @@ function M.configure_command(cmd, envs, args)
       table.insert(result.args, "--context")
       table.insert(result.args, state.context["current-context"])
     end
+
+	elseif cmd == "helm" then
+    local state = require("kubectl.state")
+    if state.context["current-context"] then
+      table.insert(result.args, "--kube-context")
+      table.insert(result.args, state.context["current-context"])
+    end
+
   end
 
   table.insert(result.env, "PATH=" .. current_env["PATH"])
