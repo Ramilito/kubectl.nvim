@@ -546,7 +546,7 @@ function M.setup()
       end
 
       if ok then
-        view_mappings.register()
+        pcall(view_mappings.register)
       end
       M.register()
     end,
