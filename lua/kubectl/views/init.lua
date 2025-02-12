@@ -58,14 +58,14 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_top_pods)", desc = "Top Pods" },
   }
 
-  local global_keymaps = tables.get_plug_mappings(globals, "n")
+  local global_keymaps = tables.get_plug_mappings(globals)
 
   local title = "Buffer mappings: "
   tables.add_mark(marks, #hints, 0, #title, hl.symbols.success)
   table.insert(hints, title .. "\n")
   table.insert(hints, "\n")
 
-  local buffer_keymaps = tables.get_plug_mappings(headers, "n")
+  local buffer_keymaps = tables.get_plug_mappings(headers)
   local start_row = #hints
   for index, header in ipairs(buffer_keymaps) do
     local line = header.key .. " " .. (header.long_desc or header.desc)

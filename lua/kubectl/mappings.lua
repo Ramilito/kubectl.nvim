@@ -180,19 +180,6 @@ function M.get_mappings()
         local name, ns = view.getCurrentSelection()
         if name then
           local ok = pcall(view.Desc, name, ns, true)
-          vim.api.nvim_buf_set_keymap(0, "n", "<Plug>(kubectl.refresh)", "", {
-            noremap = true,
-            silent = true,
-            desc = "Refresh",
-            callback = function()
-              vim.schedule(function()
-                pcall(view.Desc, name, ns, false)
-              end)
-            end,
-          })
-          vim.schedule(function()
-            M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
-          end)
           if ok then
             local state = require("kubectl.state")
             event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
@@ -224,13 +211,34 @@ function M.get_mappings()
           end
         else
           local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-          local resource = vim.split(buf_name, "_")
-          local ok, view = pcall(require, "kubectl.views." .. resource[1])
+          ---@type string[] @Expected format: "resource_operation_name_namespace"
+          -- `operation`: string, the operation type
+          -- `kind`: string, the resource type
+          -- `name`: string|nil, the resource name
+          -- `ns`: string|nil, the namespace
+          local parts = vim.split(buf_name, "|")
+
+          vim.notify("Reloading " .. parts[3], vim.log.levels.INFO)
+          local ok, view = pcall(require, "kubectl.views." .. vim.trim(parts[2]))
 
           if not ok then
-            view = require("kubectl.views.fallback")
+            vim.notify(parts[3] .. " not found", vim.log.levels.INFO)
+            return
           end
-          pcall(view[string_utils.capitalize(resource[2])], resource[3] or "", resource[4] or "")
+
+          local operation = vim.trim(parts[1]:gsub("k8s_", ""))
+          local name = vim.trim(parts[3] or "")
+          local namespace = vim.trim(parts[4] or "")
+
+          local func = view[string_utils.capitalize(operation)]
+          if operation == "desc" then
+            pcall(func, name, namespace, false)
+          elseif operation == "yaml" then
+            vim.api.nvim_input("<Plug>(kubectl.yaml)")
+          else
+            assert(type(func) == "function", "Expected a function for key: " .. string_utils.capitalize(operation))
+            pcall(func, name, namespace)
+          end
         end
       end,
     },
@@ -531,7 +539,7 @@ function M.setup()
 
       local globals = M.get_mappings()
       local locals = {}
-      if ok then
+      if ok and view_mappings.overrides then
         locals = view_mappings.overrides
       end
 
