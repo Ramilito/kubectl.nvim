@@ -4,7 +4,7 @@ local state = require("kubectl.state")
 local store = require("kubectl.store")
 local M = {}
 
-function M.View(self, definition, data, win_config, callback)
+function M.View(self, definition, data, callback)
   local args = definition.cmd
   self.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     if confirm then

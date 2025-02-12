@@ -11,9 +11,9 @@ M.overrides = {
     silent = true,
     desc = "toggle options",
     callback = function()
-			local action_store = store.get("action")
-			local data = action_store.data
-			local self = action_store.self
+      local action_store = store.get("action")
+      local data = action_store.data
+      local self = action_store.self
       local current_line = vim.api.nvim_win_get_cursor(0)[1]
       local marks_ok, marks = pcall(
         vim.api.nvim_buf_get_extmarks,

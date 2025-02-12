@@ -374,8 +374,6 @@ function ResourceBuilder:draw(definition, cancellationToken)
 end
 
 function ResourceBuilder:action_view(definition, data, callback)
-  local win_config
-
   if not self.data then
     self.data = {}
   end
@@ -384,8 +382,8 @@ function ResourceBuilder:action_view(definition, data, callback)
     self.extmarks = {}
   end
 
-	definition.ft = "k8s_action"
-  require("kubectl.views.action").View(self,definition, data, win_config, callback)
+  definition.ft = "k8s_action"
+  require("kubectl.views.action").View(self, definition, data, callback)
 
   return self
 end
