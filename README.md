@@ -126,6 +126,40 @@ We expose open, close and toggle to bind against:
 vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle({ tab: boolean })<cr>', { noremap = true, silent = true })
 ```
 
+#### Override existing
+```lua
+local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
+  vim.api.nvim_create_autocmd("FileType", {
+  group = group,
+  pattern = "k8s_*",
+  callback = function(ev)
+    local k = vim.keymap
+    local opts = { buffer = ev.buf }
+    k.set("n", "<C-e", "<Plug>(kubectl.picker_view)", opts)
+  end,
+})
+```
+
+#### Delete existing
+
+```lua
+local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
+  vim.api.nvim_create_autocmd("FileType", {
+  group = group,
+  pattern = "k8s_*",
+  callback = function(ev)
+    local k = vim.keymap
+    local opts = { buffer = ev.buf }
+    k.del("n", "<Plug>(kubectl.view_deployments)", opts)
+    k.del("n", "<Plug>(kubectl.view_pods)", opts)
+    k.del("n", "<Plug>(kubectl.view_services)", opts)
+    k.del("n", "<Plug>(kubectl.view_secrets)", opts)
+    k.del("n", "<Plug>(kubectl.view_ingresses)", opts)
+    k.del("n", "<Plug>(kubectl.view_configmaps)", opts)
+  end,
+})
+```
+
 #### Default Mappings
 
 You can override the plugin's keymaps using the `<Plug>` mappings:
@@ -161,6 +195,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<M-h>", "<Plug>(kubectl.toggle_headers)", opts) -- Toggle headers
 
     -- Views
+    k("n", "<C-p>", "<Plug>(kubectl.picker_view)", opts) -- Picker view
     k("n", "<C-a>", "<Plug>(kubectl.alias_view)", opts) -- Aliases view
     k("n", "<C-x>", "<Plug>(kubectl.contexts_view)", opts) -- Contexts view
     k("n", "<C-f>", "<Plug>(kubectl.filter_view)", opts) -- Filter view
