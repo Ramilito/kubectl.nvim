@@ -1,7 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local informer = require("kubectl.actions.informer")
-local layout = require("kubectl.actions.layout")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
@@ -375,7 +374,6 @@ function ResourceBuilder:draw(definition, cancellationToken)
 end
 
 function ResourceBuilder:action_view(definition, data, callback)
-  local args = definition.cmd
   local win_config
 
   if not self.data then
@@ -386,168 +384,9 @@ function ResourceBuilder:action_view(definition, data, callback)
     self.extmarks = {}
   end
 
-  self.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
-    if confirm then
-      callback(args)
-    end
-  end)
+	definition.ft = "k8s_action"
+  require("kubectl.views.action").View(self,definition, data, win_config, callback)
 
-  vim.api.nvim_buf_attach(self.buf_nr, false, {
-    on_lines = function(_, buf_nr, _, first, last_orig, last_new, byte_count)
-      vim.defer_fn(function()
-        if first == last_orig and last_orig == last_new and byte_count == 0 then
-          return
-        end
-        local marks = vim.api.nvim_buf_get_extmarks(
-          0,
-          state.marks.ns_id,
-          0,
-          -1,
-          { details = true, overlap = true, type = "virt_text" }
-        )
-        local args_tmp = {}
-        for _, value in ipairs(definition.cmd) do
-          table.insert(args_tmp, value)
-        end
-
-        for _, mark in ipairs(marks) do
-          if mark then
-            local text = mark[4].virt_text[1][1]
-            if string.find(text, "Args", 1, true) then
-              vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, mark[2], 0, {
-                id = mark[1],
-                virt_text = { { "Args | kubectl " .. table.concat(args_tmp, " "), "KubectlWhite" } },
-                virt_text_pos = "inline",
-                right_gravity = false,
-              })
-            else
-              for _, item in ipairs(data) do
-                if string.find(text, item.text, 1, true) then
-                  local line_number = mark[2]
-                  local line = vim.api.nvim_buf_get_lines(0, line_number, line_number + 1, false)[1] or ""
-                  local value = vim.trim(line)
-
-                  if item.type == "flag" then
-                    if value == "true" then
-                      table.insert(args_tmp, item.cmd)
-                    end
-                  elseif item.type == "option" then
-                    if value ~= "" and value ~= "false" and value ~= nil then
-                      table.insert(args_tmp, item.cmd .. "=" .. value)
-                    end
-                  elseif item.type == "positional" then
-                    if value ~= "" and value ~= nil then
-                      if item.cmd and item.cmd ~= "" then
-                        table.insert(args_tmp, item.cmd .. " " .. value)
-                      else
-                        table.insert(args_tmp, value)
-                      end
-                    end
-                  elseif item.type == "merge_above" then
-                    if value ~= "" and value ~= nil then
-                      args_tmp[#args_tmp] = args_tmp[#args_tmp] .. item.cmd .. value
-                    end
-                  end
-                  break
-                end
-              end
-            end
-          end
-        end
-        args = args_tmp
-      end, 200)
-      vim.defer_fn(function()
-        if vim.api.nvim_get_current_buf() == buf_nr then
-          layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
-        end
-      end, 1000)
-    end,
-  })
-
-  for _, item in ipairs(data) do
-    table.insert(self.data, item.value)
-    table.insert(self.extmarks, {
-      row = #self.data - 1,
-      start_col = 0,
-      virt_text = { { item.text .. " ", "KubectlHeader" } },
-      virt_text_pos = "inline",
-      right_gravity = false,
-    })
-  end
-
-  table.insert(self.data, "")
-  table.insert(self.data, "")
-
-  table.insert(self.extmarks, {
-    row = #self.data - 1,
-    start_col = 0,
-    virt_text = { { "Args | " .. " ", "KubectlWhite" } },
-    virt_text_pos = "inline",
-    right_gravity = false,
-  })
-
-  table.insert(self.data, "")
-  table.insert(self.data, "")
-
-  local confirmation = "[y]es [n]o"
-  local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
-  table.insert(self.extmarks, {
-    row = #self.data - 1,
-    start_col = 0,
-    virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
-    virt_text_pos = "inline",
-  })
-
-  self:setContentRaw()
-  vim.cmd([[syntax match KubectlPending /.*/]])
-
-  local current_enums = {}
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.tab)", "", {
-    noremap = true,
-    silent = true,
-    desc = "toggle options",
-    callback = function()
-      local current_line = vim.api.nvim_win_get_cursor(0)[1]
-      local marks_ok, marks = pcall(
-        vim.api.nvim_buf_get_extmarks,
-        0,
-        state.marks.ns_id,
-        { current_line - 1, 0 },
-        { current_line - 1, 0 },
-        { details = true, overlap = true, type = "virt_text" }
-      )
-      if not marks_ok or not marks[1] then
-        return
-      end
-      local mark = marks[1][4]
-      local key
-      if mark then
-        key = mark.virt_text[1][1]
-      end
-      for _, item in ipairs(data) do
-        if item.type == "flag" then
-          item.options = { "false", "true" }
-        end
-        if string.match(key, item.text) and item.options then
-          if current_enums[item.text] == nil then
-            current_enums[item.text] = 2
-          else
-            current_enums[item.text] = current_enums[item.text] + 1
-            if current_enums[item.text] > #item.options then
-              current_enums[item.text] = 1
-            end
-          end
-          self.data[current_line] = item.options[current_enums[item.text]]
-          self:setContentRaw()
-        end
-      end
-    end,
-  })
-
-  vim.schedule(function()
-    local mappings = require("kubectl.mappings")
-    mappings.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
-  end)
   return self
 end
 

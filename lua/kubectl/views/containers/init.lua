@@ -39,7 +39,7 @@ function M.debug(pod, ns)
   local builder = ResourceBuilder:new("kubectl_debug")
 
   local debug_def = {
-    ft = "k8s_container_debug",
+    ft = "k8s_action",
     display = "Debug: " .. pod .. "-" .. M.selection .. "?",
     resource = pod,
     cmd = { "debug", pod, "-n", ns },
