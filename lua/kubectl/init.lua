@@ -79,7 +79,7 @@ function M.setup(options)
         local top_type = opts.fargs[2]
         top_view = require("kubectl.views.top-" .. top_type)
       else
-        top_view = require("kubectl.views.top-pods")
+        top_view = require("kubectl.views.top_pods")
       end
       top_view.View()
     elseif action == "api-resources" then

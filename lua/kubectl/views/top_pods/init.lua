@@ -1,5 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local definition = require("kubectl.views.top-pods.definition")
+local definition = require("kubectl.views.top_pods.definition")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
