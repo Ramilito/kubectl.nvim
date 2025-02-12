@@ -1,13 +1,7 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local container_view = require("kubectl.views.containers")
 local err_msg = "Failed to extract pod name or namespace."
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
-local root_definition = require("kubectl.views.definition")
-local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -25,7 +19,6 @@ M.overrides = {
     end,
   },
   ["<Plug>(kubectl.select)"] = {
-
     desc = "Select",
     callback = function()
       local name, ns = pod_view.getCurrentSelection()

@@ -1,5 +1,4 @@
 local loop = require("kubectl.utils.loop")
-local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 
 --- Initialize the module
