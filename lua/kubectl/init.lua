@@ -58,7 +58,7 @@ function M.setup(options)
   local config = require("kubectl.config")
   config.setup(options)
   state.setNS(config.options.namespace)
-	mappings.setup()
+  mappings.setup()
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local action = opts.fargs[1]
