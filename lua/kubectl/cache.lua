@@ -28,7 +28,7 @@ local function process_apis(api_url, group_name, group_version, group_resources,
       local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
       local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
       local resource_url =
-        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource_name)
+        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
 
       cached_api_resources.values[resource_name] = {
         name = resource_name,
