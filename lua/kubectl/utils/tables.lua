@@ -77,8 +77,7 @@ end
 
 --- Gets both global and buffer-local plug keymaps for the given mode
 --- @param headers table[] The header table
---- @param mode string The VIM mode
-function M.get_plug_mappings(headers, mode)
+function M.get_plug_mappings(headers)
   local keymaps_table = {}
   local header_lookup = {}
 
@@ -121,7 +120,7 @@ local function addHeaderRow(headers, hints, marks)
   local length = #hint_line
   M.add_mark(marks, #hints, 0, length, hl.symbols.success)
 
-  local keymaps = M.get_plug_mappings(headers, "n")
+  local keymaps = M.get_plug_mappings(headers)
   for index, map in ipairs(keymaps) do
     length = #hint_line
     hint_line = hint_line .. map.key .. " " .. map.desc

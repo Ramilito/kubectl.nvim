@@ -1,6 +1,7 @@
 local container_view = require("kubectl.views.containers")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
+local str = require("kubectl.utils.string")
 
 local M = {}
 
@@ -39,7 +40,8 @@ M.overrides = {
     silent = true,
     desc = "Add divider",
     callback = function()
-      str.divider(bufnr)
+      local buf = vim.api.nvim_get_current_buf()
+      str.divider(buf)
     end,
   },
 
