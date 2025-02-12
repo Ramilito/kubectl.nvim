@@ -6,6 +6,7 @@ local M = {}
 
 function M.View(self, definition, data, callback)
   local args = definition.cmd
+	local win_config
   self.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     if confirm then
       callback(args)
