@@ -135,6 +135,7 @@ local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
   callback = function(ev)
     local k = vim.keymap
     local opts = { buffer = ev.buf }
+    
     k.set("n", "<C-e", "<Plug>(kubectl.picker_view)", opts)
   end,
 })
@@ -150,12 +151,12 @@ local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
   callback = function(ev)
     local k = vim.keymap
     local opts = { buffer = ev.buf }
-    k.del("n", "<Plug>(kubectl.view_deployments)", opts)
-    k.del("n", "<Plug>(kubectl.view_pods)", opts)
-    k.del("n", "<Plug>(kubectl.view_services)", opts)
-    k.del("n", "<Plug>(kubectl.view_secrets)", opts)
-    k.del("n", "<Plug>(kubectl.view_ingresses)", opts)
-    k.del("n", "<Plug>(kubectl.view_configmaps)", opts)
+
+    pcall(k.del, "n", 1, opts)
+    pcall(k.del, "n", 2, opts)
+    pcall(k.del, "n", 3, opts)
+    pcall(k.del, "n", 5, opts)
+    pcall(k.del, "n", 6, opts)
   end,
 })
 ```
