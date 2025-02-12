@@ -75,7 +75,7 @@ local function calculate_extra_padding(widths, headers)
   end
 end
 
---- Gets both global and buffer-local plug keymaps for the given mode
+--- Gets both global and buffer-local plug keymaps
 --- @param headers table[] The header table
 function M.get_plug_mappings(headers)
   local keymaps_table = {}
@@ -88,16 +88,30 @@ function M.get_plug_mappings(headers)
   local keymaps = vim.fn.maplist()
 
   for _, header in ipairs(headers) do
-    header_lookup[header.key] = { desc = header.desc, long_desc = header.long_desc }
+    header_lookup[header.key] = { desc = header.desc, long_desc = header.long_desc, sort_order = header.sort_order }
   end
 
   -- Iterate over keymaps and check if they match any header key
   for _, keymap in ipairs(keymaps) do
     local header = header_lookup[keymap.rhs]
     if header then
-      table.insert(keymaps_table, { key = keymap.lhs, desc = header.desc, long_desc = header.long_desc })
+      table.insert(
+        keymaps_table,
+        { key = keymap.lhs, desc = header.desc, long_desc = header.long_desc, sort_order = header.sort_order }
+      )
     end
   end
+
+  -- Sort by key (change to desc if needed)
+  table.sort(keymaps_table, function(a, b)
+    if a.sort_order and not b.sort_order then
+      return false
+    elseif not a.sort_order and b.sort_order then
+      return true
+    else
+      return a.key > b.key
+    end
+  end)
   return keymaps_table
 end
 
@@ -303,7 +317,7 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
       { key = "<Plug>(kubectl.alias_view)", desc = "aliases" },
       { key = "<Plug>(kubectl.filter_view)", desc = "filter" },
       { key = "<Plug>(kubectl.namespace_view)", desc = "namespace" },
-      { key = "<Plug>(kubectl.help)", desc = "help" },
+      { key = "<Plug>(kubectl.help)", desc = "help", sort_order = 100 },
     }
     for _, default in ipairs(defaults) do
       table.insert(headers, default)
