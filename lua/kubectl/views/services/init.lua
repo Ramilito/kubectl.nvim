@@ -31,7 +31,7 @@ end
 function M.PortForward(name, ns)
   local builder = ResourceBuilder:new("kubectl_pf")
   local pf_def = {
-    ft = "k8s_svc_pf",
+    ft = "k8s_action",
     display = "PF: " .. name .. "-" .. "?",
     resource = name,
     cmd = { "port-forward", "svc/" .. name, "-n", ns },

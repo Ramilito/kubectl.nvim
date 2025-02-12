@@ -58,14 +58,14 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_top_pods)", desc = "Top Pods" },
   }
 
-  local global_keymaps = tables.get_plug_mappings(globals, "n")
+  local global_keymaps = tables.get_plug_mappings(globals)
 
   local title = "Buffer mappings: "
   tables.add_mark(marks, #hints, 0, #title, hl.symbols.success)
   table.insert(hints, title .. "\n")
   table.insert(hints, "\n")
 
-  local buffer_keymaps = tables.get_plug_mappings(headers, "n")
+  local buffer_keymaps = tables.get_plug_mappings(headers)
   local start_row = #hints
   for index, header in ipairs(buffer_keymaps) do
     local line = header.key .. " " .. (header.long_desc or header.desc)
@@ -264,7 +264,7 @@ function M.PortForwards()
   self.extmarks = {}
 
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "PID", "TYPE", "RESOURCE", "PORT" })
-  self:addHints({ { key = "<Plug>(kubectl.kill)", desc = "Kill PF" } }, false, false, false):setContent()
+  self:addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false):setContent()
 
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })

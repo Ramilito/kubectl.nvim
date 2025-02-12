@@ -17,7 +17,7 @@ end
 function M.Drain(node)
   local builder = ResourceBuilder:new("kubectl_drain")
   local node_def = {
-    ft = "k8s_node_drain",
+    ft = "k8s_action",
     display = "Drain node: " .. node .. "?",
     resource = node,
     cmd = { "drain", "nodes/" .. node },

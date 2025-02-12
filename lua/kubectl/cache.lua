@@ -32,6 +32,7 @@ local function process_apis(api_url, group_name, group_version, group_resources,
 
       cached_api_resources.values[resource_name] = {
         name = resource_name,
+        full_name = resource_name,
         url = resource_url,
         namespaced = resource.namespaced,
         kind = resource.kind,

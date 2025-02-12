@@ -58,15 +58,7 @@ function M.setup(options)
   local config = require("kubectl.config")
   config.setup(options)
   state.setNS(config.options.namespace)
-
-  local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
-  vim.api.nvim_create_autocmd("FileType", {
-    group = group,
-    pattern = "k8s_*",
-    callback = function()
-      mappings.register()
-    end,
-  })
+  mappings.setup()
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local action = opts.fargs[1]
@@ -87,7 +79,7 @@ function M.setup(options)
         local top_type = opts.fargs[2]
         top_view = require("kubectl.views.top-" .. top_type)
       else
-        top_view = require("kubectl.views.top-pods")
+        top_view = require("kubectl.views.top_pods")
       end
       top_view.View()
     elseif action == "api-resources" then

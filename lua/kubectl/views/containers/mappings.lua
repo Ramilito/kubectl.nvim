@@ -1,12 +1,12 @@
-local api = vim.api
 local container_view = require("kubectl.views.containers")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.views.pods")
 local tables = require("kubectl.utils.tables")
 
---- Set key mappings for the buffer
-local function set_keymaps(bufnr)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.debug)", "", {
+local M = {}
+
+M.overrides = {
+  ["<Plug>(kubectl.debug)"] = {
     noremap = true,
     silent = true,
     desc = "Debug",
@@ -19,8 +19,8 @@ local function set_keymaps(bufnr)
         print("Failed to create debug container.")
       end
     end,
-  })
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.logs)", "", {
+  },
+  ["<Plug>(kubectl.logs)"] = {
     noremap = true,
     silent = true,
     desc = "View logs",
@@ -33,9 +33,8 @@ local function set_keymaps(bufnr)
         print("Failed to extract logs.")
       end
     end,
-  })
-
-  api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
+  },
+  ["<Plug>(kubectl.select)"] = {
     noremap = true,
     silent = true,
     desc = "Exec into",
@@ -48,17 +47,12 @@ local function set_keymaps(bufnr)
         print("Failed to extract containers.")
       end
     end,
-  })
-end
+  },
+}
 
---- Initialize the module
-local function init()
-  set_keymaps(0)
-end
-
-init()
-
-vim.schedule(function()
+M.register = function()
   mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
   mappings.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.debug)")
-end)
+end
+
+return M

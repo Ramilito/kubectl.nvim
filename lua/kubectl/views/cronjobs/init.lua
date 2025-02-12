@@ -27,7 +27,7 @@ function M.create_from_cronjob(name, ns)
   local builder = ResourceBuilder:new("kubectl_create_job")
 
   local create_def = {
-    ft = "k8s_create_job",
+    ft = "k8s_action",
     display = string.format("create job from cronjob: %s/%s?", ns, name),
     resource = name,
     cmd = { "create", "job", "--from", "cronjobs/" .. name, "-n", ns },

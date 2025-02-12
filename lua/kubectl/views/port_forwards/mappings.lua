@@ -2,14 +2,16 @@ local commands = require("kubectl.actions.commands")
 local mappings = require("kubectl.mappings")
 local tables = require("kubectl.utils.tables")
 
-local function set_keymaps(bufnr)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.kill)", "", {
+local M = {}
+
+M.overrides = {
+  ["<Plug>(kubectl.delete)"] = {
     noremap = true,
     silent = true,
-    desc = "Kill port forward",
+    desc = "Delete port forward",
     callback = function()
       local pid, resource = tables.getCurrentSelection(1, 2)
-      vim.notify("Killing port forward for resource " .. resource .. " with pid: " .. pid)
+      vim.notify("Deleting port forward for resource " .. resource .. " with pid: " .. pid)
 
       commands.shell_command_async("sh", { "-c", "kill " .. pid }, function()
         vim.schedule(function()
@@ -18,15 +20,11 @@ local function set_keymaps(bufnr)
         end)
       end)
     end,
-  })
+  },
+}
+
+M.register = function()
+  mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
 end
 
-local function init()
-  set_keymaps(0)
-end
-
-init()
-
-vim.schedule(function()
-  mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
-end)
+return M

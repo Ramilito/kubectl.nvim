@@ -126,7 +126,7 @@ end
 function M.PortForward(pod, ns)
   local builder = ResourceBuilder:new("kubectl_pf")
   local pf_def = {
-    ft = "k8s_pod_pf",
+    ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
     resource = pod,
     cmd = { "port-forward", "pods/" .. pod, "-n", ns },
