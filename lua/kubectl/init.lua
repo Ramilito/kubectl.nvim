@@ -44,6 +44,8 @@ function M.toggle(opts)
   else
     if opts.tab then
       vim.cmd("tabnew")
+      local tab = vim.api.nvim_get_current_tabpage()
+      vim.api.nvim_tabpage_set_var(tab, "title", "kubectl_tab")
     end
     M.open()
     M.is_open = true
@@ -115,11 +117,27 @@ function M.setup(options)
   })
 end
 
-vim.api.nvim_create_autocmd("VimLeavePre", {
-  callback = function()
-    -- TODO: do we need to save session here or is it enough to do it when M.close is called?
-    state.set_session()
+vim.api.nvim_create_autocmd({ "VimLeavePre", "TabClosed" }, {
+  callback = function(args)
+    if args.event == "VimLeavePre" then
+      state.set_session()
+      return
+    end
+
+    local tab = tonumber(args.match)
+
+    if tab then
+      local ok, id = pcall(vim.api.nvim_tabpage_get_var, tab, "title")
+      if ok and id == "kubectl_tab" then
+        state.set_session()
+      end
+    end
+    -- local tab = vim.t[closed_tab]
+    -- local id = pcall(tab.id)
+    -- if closed_tab and vim.t[closed_tab] and vim.t[closed_tab].id == "kubectl_tab" then
+    --   state.set_session()
+    --   vim.print("setting session")
+    -- end
   end,
 })
-
 return M
