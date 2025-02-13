@@ -132,12 +132,6 @@ vim.api.nvim_create_autocmd({ "VimLeavePre", "TabClosed" }, {
         state.set_session()
       end
     end
-    -- local tab = vim.t[closed_tab]
-    -- local id = pcall(tab.id)
-    -- if closed_tab and vim.t[closed_tab] and vim.t[closed_tab].id == "kubectl_tab" then
-    --   state.set_session()
-    --   vim.print("setting session")
-    -- end
   end,
 })
 return M
