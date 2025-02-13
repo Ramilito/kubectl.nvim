@@ -123,20 +123,26 @@ We expose open, close and toggle to bind against:
 #### Toggle
 
 ```lua
-vim.keymap.set("n", "<leader>k", '<cmd>lua require("kubectl").toggle({ tab: boolean })<cr>', { noremap = true, silent = true })
+vim.keymap.set(
+  "n",
+  "<leader>k",
+  '<cmd>lua require("kubectl").toggle({ tab: boolean })<cr>',
+  { noremap = true, silent = true }
+)
 ```
 
 #### Override existing
+
 ```lua
 local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
-  vim.api.nvim_create_autocmd("FileType", {
+vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = "k8s_*",
   callback = function(ev)
     local k = vim.keymap
     local opts = { buffer = ev.buf }
-    
-    k.set("n", "<C-e", "<Plug>(kubectl.picker_view)", opts)
+
+    k.set("n", "<C-e>", "<Plug>(kubectl.picker_view)", opts)
   end,
 })
 ```
@@ -145,7 +151,7 @@ local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
 
 ```lua
 local group = vim.api.nvim_create_augroup("kubectl_mappings", { clear = true })
-  vim.api.nvim_create_autocmd("FileType", {
+vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = "k8s_*",
   callback = function(ev)
