@@ -167,7 +167,7 @@ function M.load_cache(cached_api_resources, callback)
 
         process_apis(
           "apis",
-          self.data.groupVersion:gsub("/.*", ""),
+          self.data.groupVersion and self.data.groupVersion:gsub("/.*", "") or "",
           self.data.groupVersion,
           self.data,
           cached_api_resources
