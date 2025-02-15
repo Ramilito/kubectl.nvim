@@ -211,11 +211,15 @@ function M.addToHistory(new_view)
 end
 
 function M.set_session(ev)
-  local session_name = M.context["current-context"]
-  M.session.contexts[session_name] = { view = ev.file, namespace = M.ns }
-  M.session.filter_history = M.filter_history
-  M.session.alias_history = M.alias_history
-  commands.save_config("kubectl.json", M.session)
+  local win_config = vim.api.nvim_win_get_config(0)
+
+  if win_config.relative == "" then
+    local session_name = M.context["current-context"]
+    M.session.contexts[session_name] = { view = ev.file, namespace = M.ns }
+  end
+	M.session.filter_history = M.filter_history
+	M.session.alias_history = M.alias_history
+	commands.save_config("kubectl.json", M.session)
 end
 
 function M.restore_session()
