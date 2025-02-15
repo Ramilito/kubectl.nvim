@@ -64,7 +64,6 @@ function M.setup(options)
     pattern = "k8s_*",
     callback = function(ev)
       mappings.setup(ev)
-			vim.print(ev)
       state.set_session(ev)
     end,
   })
