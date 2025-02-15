@@ -27,7 +27,6 @@ function M.close()
 
   if win_config.relative == "" then
     local kube = require("kubectl.actions.kube")
-    state.set_session()
     state.stop_livez()
     kube.stop_kubectl_proxy()()
     informer.stop()
@@ -44,8 +43,6 @@ function M.toggle(opts)
   else
     if opts.tab then
       vim.cmd("tabnew")
-      local tab = vim.api.nvim_get_current_tabpage()
-      vim.api.nvim_tabpage_set_var(tab, "title", "kubectl_tab")
     end
     M.open()
     M.is_open = true
@@ -60,7 +57,16 @@ function M.setup(options)
   local config = require("kubectl.config")
   config.setup(options)
   state.setNS(config.options.namespace)
-  mappings.setup()
+
+  local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
+  vim.api.nvim_create_autocmd("FileType", {
+    group = group,
+    pattern = "k8s_*",
+    callback = function(ev)
+      mappings.setup(ev)
+      state.set_session(ev)
+    end,
+  })
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local action = opts.fargs[1]
@@ -117,21 +123,4 @@ function M.setup(options)
   })
 end
 
-vim.api.nvim_create_autocmd({ "VimLeavePre", "TabClosed" }, {
-  callback = function(args)
-    if args.event == "VimLeavePre" then
-      state.set_session()
-      return
-    end
-
-    local tab = tonumber(args.match)
-
-    if tab then
-      local ok, id = pcall(vim.api.nvim_tabpage_get_var, tab, "title")
-      if ok and id == "kubectl_tab" then
-        state.set_session()
-      end
-    end
-  end,
-})
 return M

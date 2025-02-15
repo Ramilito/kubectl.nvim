@@ -72,7 +72,6 @@ function M.change_context(cmd)
     end
   end
   state.context["current-context"] = cmd
-  state.set_session()
   kube.stop_kubectl_proxy()
   kube.start_kubectl_proxy(function()
     local cache = require("kubectl.cache")
