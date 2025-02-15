@@ -210,12 +210,9 @@ function M.addToHistory(new_view)
   table.insert(M.history, new_view)
 end
 
-function M.set_session()
+function M.set_session(ev)
   local session_name = M.context["current-context"]
-  local ok, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-  if ok then
-    M.session.contexts[session_name] = { view = buf_name, namespace = M.ns }
-  end
+  M.session.contexts[session_name] = { view = ev.file, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
   commands.save_config("kubectl.json", M.session)

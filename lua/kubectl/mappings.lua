@@ -528,36 +528,29 @@ function M.register()
   end
 end
 
-function M.setup()
-  local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
-  vim.api.nvim_create_autocmd("FileType", {
-    group = group,
-    pattern = "k8s_*",
-    callback = function(ev)
-      local view_name = ev.match:gsub("k8s_", "")
-      local ok, view_mappings = pcall(require, "kubectl.views." .. view_name .. ".mappings")
+function M.setup(ev)
+  local view_name = ev.match:gsub("k8s_", "")
+  local ok, view_mappings = pcall(require, "kubectl.views." .. view_name .. ".mappings")
 
-      local globals = M.get_mappings()
-      local locals = {}
-      if ok and view_mappings.overrides then
-        locals = view_mappings.overrides
-      end
+  local globals = M.get_mappings()
+  local locals = {}
+  if ok and view_mappings.overrides then
+    locals = view_mappings.overrides
+  end
 
-      local all_mappings = vim.tbl_deep_extend("force", globals, locals)
-      for lhs, def in pairs(all_mappings) do
-        vim.keymap.set(def.mode or "n", lhs, def.callback, {
-          desc = def.desc,
-          noremap = def.noremap ~= false,
-          silent = def.silent ~= false,
-          buffer = true,
-        })
-      end
+  local all_mappings = vim.tbl_deep_extend("force", globals, locals)
+  for lhs, def in pairs(all_mappings) do
+    vim.keymap.set(def.mode or "n", lhs, def.callback, {
+      desc = def.desc,
+      noremap = def.noremap ~= false,
+      silent = def.silent ~= false,
+      buffer = true,
+    })
+  end
 
-      if ok then
-        pcall(view_mappings.register)
-      end
-      M.register()
-    end,
-  })
+  if ok then
+    pcall(view_mappings.register)
+  end
+  M.register()
 end
 return M

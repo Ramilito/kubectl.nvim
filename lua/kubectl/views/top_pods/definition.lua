@@ -1,5 +1,5 @@
 local M = {
-  resource = "top-pods",
+  resource = "top_pods",
   display_name = "top pods",
   ft = "k8s_top_pods",
   url = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
