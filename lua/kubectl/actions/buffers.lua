@@ -61,6 +61,9 @@ function M.apply_marks(bufnr, marks, header)
         hl_eol = mark.hl_eol or nil,
         virt_text = mark.virt_text or nil,
         virt_text_pos = mark.virt_text_pos or nil,
+        virt_lines_above = mark.virt_lines_above or nil,
+        virt_text_win_col = mark.virt_text_win_col or nil,
+        ephemeral = mark.ephemeral,
       })
     end
   end
@@ -69,9 +72,6 @@ function M.apply_marks(bufnr, marks, header)
     for _, mark in ipairs(marks) do
       -- adjust for content not being at first row
       local start_row = mark.row
-      if header and header.data then
-        start_row = start_row + #header.data
-      end
       local result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
         end_col = mark.end_col or nil,
@@ -292,6 +292,24 @@ function M.floating_buffer(filetype, title, syntax, win)
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
   state.set_buffer_state(buf, bufname, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
+
+  return buf, win
+end
+
+function M.header_buffer(win)
+  local bufname = "kubectl_header"
+  local buf = get_buffer_by_name(bufname)
+
+  if not buf then
+    buf = create_buffer(bufname)
+    M.set_content(buf, { content = { "Loading..." } })
+
+    win = vim.api.nvim_open_win(buf, false, {
+      split = "above",
+      height = 7,
+			style = "minimal"
+    })
+  end
 
   return buf, win
 end
