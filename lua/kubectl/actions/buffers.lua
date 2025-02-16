@@ -48,6 +48,9 @@ end
 --- @param marks table|nil: The marks to apply (optional).
 --- @param header table|nil: The header data (optional).
 function M.apply_marks(bufnr, marks, header)
+  if not bufnr then
+    return
+  end
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
   state.marks.ns_id = ns_id
@@ -301,13 +304,15 @@ function M.header_buffer(win)
   local buf = get_buffer_by_name(bufname)
 
   if not buf then
-    buf = create_buffer(bufname)
+    buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(buf, bufname)
     M.set_content(buf, { content = { "Loading..." } })
 
     win = vim.api.nvim_open_win(buf, false, {
+      focusable = false,
       split = "above",
       height = 7,
-			style = "minimal"
+      style = "minimal",
     })
   end
 
