@@ -283,10 +283,10 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
+	if self.header then
+		buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+	end
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
-  if self.header then
-    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
-  end
 
   return self
 end
