@@ -284,7 +284,9 @@ function ResourceBuilder:setContent(cancellationToken)
   end
 
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
-  buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+  if self.header then
+    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+  end
 
   return self
 end
