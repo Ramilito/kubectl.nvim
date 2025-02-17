@@ -42,7 +42,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   end
 
   self.buf_nr = buffers.buffer(filetype, title)
-  self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.win_header_nr)
+  self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr)
   state.addToHistory(title)
   return self
 end
@@ -283,9 +283,9 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
-	if self.header then
-		buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
-	end
+  if self.header then
+    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+  end
   buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
 
   return self
