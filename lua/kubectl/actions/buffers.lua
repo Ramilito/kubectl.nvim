@@ -75,6 +75,9 @@ function M.apply_marks(bufnr, marks, header)
     for _, mark in ipairs(marks) do
       -- adjust for content not being at first row
       local start_row = mark.row
+      if header and header.data then
+        start_row = start_row + #header.data
+      end
       local result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
         end_col = mark.end_col or nil,
@@ -312,7 +315,7 @@ function M.header_buffer(main_buf)
     win = vim.api.nvim_open_win(buf, false, {
       focusable = false,
       split = "above",
-      height = 7,
+      height = 6,
       style = "minimal",
     })
 
@@ -339,6 +342,23 @@ function M.header_buffer(main_buf)
           vim.cmd("wincmd p") -- Jump back to the previous window
         end
       end,
+    })
+
+    vim.schedule(function()
+      vim.api.nvim_set_option_value("laststatus", 0, {})
+      vim.api.nvim_set_option_value("winbar", "", { scope = "global" })
+
+      -- Hide global status line
+      -- vim.opt.laststatus = 0
+      -- vim.api.nvim_set_hl(0, "Statusline", { link = "Normal" })
+      -- vim.api.nvim_set_hl(0, "StatuslineNC", { link = "Normal" })
+
+      -- local width = vim.api.nvim_win_get_width(win)
+      -- local str = string.rep(" ", width)
+      -- vim.api.nvim_set_option_value("statusline", str, { win = win })
+      -- vim.api.nvim_set_option_value("scrolloff", 0, { win = win })
+      vim.api.nvim_set_option_value("filetype", "stickyheader", { buf = buf })
+    end)
   end
 
   return buf, win

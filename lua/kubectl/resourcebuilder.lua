@@ -283,10 +283,15 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
-  if self.header then
+  local win_id = vim.api.nvim_get_current_win()
+  local win_config = vim.api.nvim_win_get_config(win_id)
+
+  if self.header and win_config.relative == "" then
     buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+    buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
+  else
+    buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
   end
-  buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
 
   return self
 end
