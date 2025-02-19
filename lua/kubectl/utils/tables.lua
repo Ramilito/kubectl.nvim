@@ -239,75 +239,70 @@ local function addVersionsRows(versions)
   return items
 end
 
---- Add divider row
+--- Add divider row as a string (with highlight syntax) for winbar
 ---@param divider { resource: string, count: string, filter: string }|nil
 ---@param hints table The keymap hints
----@param marks table The extmarks
-local function addDividerRow(divider, hints, marks)
-  -- Add separator row
+---@return string The formatted divider row
+local function addDividerRow(divider, hints)
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local half_width = math.floor(text_width / 2)
   local row = " "
+
   if divider then
     local resource = divider.resource or ""
     local count = divider.count or ""
     local filter = divider.filter or ""
-    local info = resource .. count .. filter
-    local padding = string.rep("-", half_width - math.floor(#info / 2))
+
     local selected = state.getSelections()
     local selected_count = vim.tbl_count(selected)
     if selected_count > 0 then
       count = selected_count .. "/" .. count
     end
 
-    local virt_text = {
-      { padding, hl.symbols.success },
-      { " " .. resource, hl.symbols.header },
-      { "[", hl.symbols.header },
-      { count },
-      { "]", hl.symbols.header },
-    }
+    local info = resource .. count .. filter
+    local padding_len = half_width - math.floor(#info / 2)
+    if padding_len < 0 then padding_len = 0 end
+    local padding = string.rep("-", padding_len)
 
-    if filter ~= "" then
-      table.insert(virt_text, { " </", hl.symbols.header })
-      table.insert(virt_text, { filter, hl.symbols.pending })
-      table.insert(virt_text, { ">", hl.symbols.header })
-    end
-    table.insert(virt_text, { " " .. padding, hl.symbols.success })
-
-    table.insert(marks, {
-      row = #hints,
-      start_col = 0,
-      virt_text = virt_text,
-      virt_text_pos = "overlay",
+    row = table.concat({
+      "%#KubectlSuccess#", padding, "%*",
+      "%#KubectlHeader#", " " .. resource, "%*",
+      "%#KubectlHeader#", "[", "%*",
+      count,
+      "%#KubectlHeader#", "]", "%*",
+      filter ~= "" and ("%#KubectlHeader# </%*" .. "%#KubectlPending#" .. filter .. "%*" .. "%#KubectlHeader#>%*") or "",
+      "%#KubectlSuccess#", " " .. padding, "%*",
     })
+
+    table.insert(hints, row)
+    return row
   else
     local padding = string.rep("-", half_width)
-    row = padding .. padding
-    table.insert(marks, {
-      row = #hints,
-      start_col = 0,
-      end_col = #padding + #padding,
-      virt_text = {
-        { padding, hl.symbols.success },
-        { padding, hl.symbols.success },
-      },
-      virt_text_pos = "overlay",
+    row = table.concat({
+      "%#KubectlSuccess#", padding, padding, "%*"
     })
+    table.insert(hints, row)
+    return row
   end
+end
 
-  table.insert(hints, row)
+--- Generate header hints and marks
+---@param divider { resource: string, count: string, filter: string }|nil
+---@return string
+function M.generateDivider(divider)
+  local hints = {}
+
+  return addDividerRow(divider, hints)
 end
 
 --- Generate header hints and marks
 ---@param headers table
 ---@param include_defaults boolean
 ---@param include_context boolean
----@param divider { resource: string, count: string, filter: string }|nil
 ---@return table, table
-function M.generateHeader(headers, include_defaults, include_context, divider)
+function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
   local marks = {}
 
@@ -325,7 +320,6 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
   end
 
   if not config.options.headers then
-    addDividerRow(divider, hints, marks)
     return vim.split(table.concat(hints, ""), "\n"), marks
   end
 
@@ -386,8 +380,6 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     end
     addHeartbeat(hints, marks)
   end
-
-  addDividerRow(divider, hints, marks)
 
   return vim.split(table.concat(hints, ""), "\n"), marks
 end

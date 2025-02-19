@@ -302,10 +302,10 @@ function M.floating_buffer(filetype, title, syntax, win)
   return buf, win
 end
 
-function M.header_buffer(main_buf)
+function M.header_buffer(main_buf, header_win)
   local bufname = "kubectl_header"
   local buf = get_buffer_by_name(bufname)
-  local win
+  local win = header_win
 
   if not buf then
     buf = vim.api.nvim_create_buf(false, true)
@@ -332,14 +332,15 @@ function M.header_buffer(main_buf)
       end,
     })
 
-    -- Makes the header buffer not targetable
+    -- Redirect to main buffer
     vim.api.nvim_create_autocmd("WinEnter", {
       buffer = buf,
       callback = function()
         local bufnr = vim.api.nvim_get_current_buf()
         local current_buffname = vim.api.nvim_buf_get_name(bufnr)
         if current_buffname:match(bufname) then
-          vim.cmd("wincmd p") -- Jump back to the previous window
+          local win_id = vim.fn.bufwinid(main_buf)
+          vim.api.nvim_set_current_win(win_id)
         end
       end,
     })
