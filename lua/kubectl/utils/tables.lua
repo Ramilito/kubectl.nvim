@@ -263,17 +263,30 @@ local function addDividerRow(divider, hints)
 
     local info = resource .. count .. filter
     local padding_len = half_width - math.floor(#info / 2)
-    if padding_len < 0 then padding_len = 0 end
+    if padding_len < 0 then
+      padding_len = 0
+    end
     local padding = string.rep("-", padding_len)
 
     row = table.concat({
-      "%#KubectlSuccess#", padding, "%*",
-      "%#KubectlHeader#", " " .. resource, "%*",
-      "%#KubectlHeader#", "[", "%*",
+      "%#KubectlSuccess#",
+      padding,
+      "%*",
+      "%#KubectlHeader#",
+      " " .. resource,
+      "%*",
+      "%#KubectlHeader#",
+      "[",
+      "%*",
       count,
-      "%#KubectlHeader#", "]", "%*",
-      filter ~= "" and ("%#KubectlHeader# </%*" .. "%#KubectlPending#" .. filter .. "%*" .. "%#KubectlHeader#>%*") or "",
-      "%#KubectlSuccess#", " " .. padding, "%*",
+      "%#KubectlHeader#",
+      "]",
+      "%*",
+      filter ~= "" and ("%#KubectlHeader# </%*" .. "%#KubectlPending#" .. filter .. "%*" .. "%#KubectlHeader#>%*")
+        or "",
+      "%#KubectlSuccess#",
+      " " .. padding,
+      "%*",
     })
 
     table.insert(hints, row)
@@ -281,7 +294,10 @@ local function addDividerRow(divider, hints)
   else
     local padding = string.rep("-", half_width)
     row = table.concat({
-      "%#KubectlSuccess#", padding, padding, "%*"
+      "%#KubectlSuccess#",
+      padding,
+      padding,
+      "%*",
     })
     table.insert(hints, row)
     return row
