@@ -380,12 +380,14 @@ function ResourceBuilder:draw(definition, cancellationToken)
     :addHints(definition.hints, true, true, true)
   vim.schedule(function()
     self:setContent(cancellationToken)
-    if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
-      local win_config = vim.api.nvim_win_get_config(self.win_header_nr)
-      local rows = vim.api.nvim_buf_line_count(self.buf_header_nr)
-      win_config.height = rows
-      vim.api.nvim_win_set_config(self.win_header_nr, win_config)
-    end
+    vim.schedule(function()
+      if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
+        local win_config = vim.api.nvim_win_get_config(self.win_header_nr)
+        local rows = vim.api.nvim_buf_line_count(self.buf_header_nr)
+        win_config.height = rows
+        pcall(vim.api.nvim_win_set_config, self.win_header_nr, win_config)
+      end
+    end)
   end)
 
   state.instance = self
