@@ -129,30 +129,39 @@ function M.filter()
       { key = "<Plug>(kubectl.quit)", desc = "close" },
     }, false, false)
 
-    -- Add textual hints
-    local header_len = #header
-    table.insert(header, header_len - 1, "Use commas to separate multiple patterns.")
+    -- Remove the empty spacer lines
+    for i = #header, 1, -1 do
+      if header[i] == "" then
+        table.remove(header, i)
+      end
+    end
 
+    table.insert(header, "Use commas to separate multiple patterns.")
     table.insert(marks, {
-      row = #header_len - 1,
+      row = #header - 1,
       start_col = 0,
-      end_col = #header[header_len - 1],
+      end_col = #header[#header],
       hl_group = hl.symbols.gray,
     })
-    table.insert(header, header_len - 1, "Prefix a pattern with ! for negative filtering.")
 
-		vim.print(header[header_len - 1])
-		vim.print(header)
-    --
-    -- table.insert(marks, {
-    --   row = header_len ,
-    --   start_col = 0,
-    --   end_col = #header[header_len] - 2,
-    --   hl_group = hl.symbols.gray,
-    -- })
-    -- table.insert(header, header_len - 1, "All patterns must match for a line to be included.")
-    -- marks[#marks].row = #header - 1
+    table.insert(header, "Prefix a pattern with ! for negative filtering.")
+    table.insert(marks, {
+      row = #header - 1,
+      start_col = 0,
+      end_col = #header[#header],
+      hl_group = hl.symbols.gray,
+    })
 
+    table.insert(header, "All patterns must match for a line to be included.")
+    table.insert(marks, {
+      row = #header - 1,
+      start_col = 0,
+      end_col = #header[#header],
+      hl_group = hl.symbols.gray,
+    })
+
+    table.insert(header, "")
+    table.insert(header, "")
     table.insert(header, "History:")
     local headers_len = #header
     for _, value in ipairs(state.filter_history) do
