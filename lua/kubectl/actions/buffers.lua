@@ -57,7 +57,7 @@ function M.apply_marks(bufnr, marks, header)
 
   if header and header.marks then
     for _, mark in ipairs(header.marks) do
-      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
+      api.nvim_buf_set_extmark(bufnr, ns_id, mark.row, mark.start_col, {
         end_line = mark.row,
         end_col = mark.end_col,
         hl_group = mark.hl_group,
@@ -68,9 +68,6 @@ function M.apply_marks(bufnr, marks, header)
         virt_text_win_col = mark.virt_text_win_col or nil,
         ephemeral = mark.ephemeral,
       })
-      if not ok then
-        vim.print(result)
-      end
     end
   end
   if marks then
@@ -81,7 +78,7 @@ function M.apply_marks(bufnr, marks, header)
       if header and header.data then
         start_row = start_row + #header.data
       end
-      local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
+      local result = api.nvim_buf_set_extmark(bufnr, ns_id, start_row, mark.start_col, {
         end_line = start_row,
         end_col = mark.end_col or nil,
         hl_eol = mark.hl_eol or nil,
@@ -95,12 +92,9 @@ function M.apply_marks(bufnr, marks, header)
         sign_hl_group = mark.sign_hl_group or nil,
       })
       -- the first row is always column headers, we save that so other content can use it
-      if ok and mark.row == 0 then
+      if mark.row == 0 then
         state.content_row_start = start_row + 1
         table.insert(state.marks.header, result)
-      end
-      if not ok then
-        vim.print(result, mark)
       end
     end
   end
