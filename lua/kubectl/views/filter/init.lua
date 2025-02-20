@@ -130,56 +130,38 @@ function M.filter()
     }, false, false)
 
     -- Add textual hints
-    table.insert(header, "Use commas to separate multiple patterns.")
-    table.insert(marks, {
-      row = #header - 1,
-      start_col = 0,
-      end_col = #header[#header],
-      hl_group = hl.symbols.gray,
-      -- virt_text = { { "Use commas to separate multiple patterns.", hl.symbols.gray } },
-      -- virt_text_pos = "overlay",
-    })
+    local header_len = #header
+    table.insert(header, header_len - 1, "Use commas to separate multiple patterns.")
 
-    table.insert(header, "Prefix a pattern with ! for negative filtering.")
     table.insert(marks, {
-      row = 2,
+      row = #header_len - 1,
       start_col = 0,
+      end_col = #header[header_len - 1],
       hl_group = hl.symbols.gray,
-      -- virt_text = { { "Prefix a pattern with ! for negative filtering.", hl.symbols.gray } },
-      -- virt_text_pos = "overlay",
     })
+    table.insert(header, header_len - 1, "Prefix a pattern with ! for negative filtering.")
 
-    table.insert(header, "All patterns must match for a line to be included.")
-    table.insert(marks, {
-      row = 3,
-      start_col = 0,
-      hl_group = hl.symbols.gray,
-      -- virt_text = { { "All patterns must match for a line to be included.", hl.symbols.gray } },
-      -- virt_text_pos = "overlay",
-    })
+		vim.print(header[header_len - 1])
+		vim.print(header)
+    --
+    -- table.insert(marks, {
+    --   row = header_len ,
+    --   start_col = 0,
+    --   end_col = #header[header_len] - 2,
+    --   hl_group = hl.symbols.gray,
+    -- })
+    -- table.insert(header, header_len - 1, "All patterns must match for a line to be included.")
+    -- marks[#marks].row = #header - 1
 
     table.insert(header, "History:")
-    table.insert(marks, {
-      row = 5,
-      start_col = 0,
-      hl_group = hl.symbols.pending,
-      -- virt_text = { { "History:", hl.symbols.info } },
-      -- virt_text_pos = "overlay",
-    })
-
-    for index, value in ipairs(state.filter_history) do
-      table.insert(header, #header, value)
-
-      table.insert(marks, {
-        row = 5 + index,
-        start_col = 0,
-        hl_group = hl.symbols.pending,
-      })
+    local headers_len = #header
+    for _, value in ipairs(state.filter_history) do
+      table.insert(header, headers_len + 1, value)
     end
     table.insert(header, "")
 
     buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
-    vim.api.nvim_buf_set_lines(buf, #header - 1, -1, false, { "Filter: " .. state.getFilter(), "" })
+    vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
 
     -- TODO: Marks should be set in buffers.set_content above
     buffers.apply_marks(buf, marks, header)
