@@ -239,10 +239,8 @@ local function addVersionsRows(versions)
   return items
 end
 
---- Add divider row as a string (with highlight syntax) for winbar
 ---@param divider { resource: string, count: string, filter: string }|nil
 ---@return string The formatted divider row
--- Keep all original logic/parts but dynamically shrink only the padding if it exceeds the window.
 function M.generateDivider(divider)
   local win = vim.api.nvim_get_current_win()
   local text_width = vim.api.nvim_win_get_width(win)
