@@ -241,76 +241,59 @@ end
 
 --- Add divider row as a string (with highlight syntax) for winbar
 ---@param divider { resource: string, count: string, filter: string }|nil
----@param hints table The keymap hints
 ---@return string The formatted divider row
-local function addDividerRow(divider, hints)
-  local win = vim.api.nvim_get_current_win()
-  local win_width = vim.api.nvim_win_get_width(win)
-  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
-  local half_width = math.floor(text_width / 2)
-  local row = " "
-
-  if divider then
-    local resource = divider.resource or ""
-    local count = divider.count or ""
-    local filter = divider.filter or ""
-
-    local selected = state.getSelections()
-    local selected_count = vim.tbl_count(selected)
-    if selected_count > 0 then
-      count = selected_count .. "/" .. count
-    end
-
-    local info = resource .. count .. filter
-    local padding_len = half_width - math.floor(#info / 2)
-    if padding_len < 0 then
-      padding_len = 0
-    end
-    local padding = string.rep("-", padding_len)
-
-    row = table.concat({
-      "%#KubectlSuccess#",
-      padding,
-      "%*",
-      "%#KubectlHeader#",
-      " " .. resource,
-      "%*",
-      "%#KubectlHeader#",
-      "[",
-      "%*",
-      count,
-      "%#KubectlHeader#",
-      "]",
-      "%*",
-      filter ~= "" and ("%#KubectlHeader# </%*" .. "%#KubectlPending#" .. filter .. "%*" .. "%#KubectlHeader#>%*")
-        or "",
-      "%#KubectlSuccess#",
-      " " .. padding,
-      "%*",
-    })
-
-    table.insert(hints, row)
-    return row
-  else
-    local padding = string.rep("-", half_width)
-    row = table.concat({
-      "%#KubectlSuccess#",
-      padding,
-      padding,
-      "%*",
-    })
-    table.insert(hints, row)
-    return row
-  end
-end
-
---- Generate header hints and marks
----@param divider { resource: string, count: string, filter: string }|nil
----@return string
+-- Keep all original logic/parts but dynamically shrink only the padding if it exceeds the window.
 function M.generateDivider(divider)
-  local hints = {}
+  local win = vim.api.nvim_get_current_win()
+  local text_width = vim.api.nvim_win_get_width(win)
 
-  return addDividerRow(divider, hints)
+  if not divider then
+    return ("%#KubectlSuccess#%s%%*"):format(string.rep("-", text_width))
+  end
+
+  local resource = divider.resource or ""
+  local count = divider.count or ""
+  local filter = divider.filter or ""
+  local selected_count = vim.tbl_count(state.getSelections())
+
+  if selected_count > 0 then
+    count = ("%d/%s"):format(selected_count, count)
+  end
+
+  local center_text = table.concat({
+    "%#KubectlHeader#",
+    " ",
+    resource,
+    " [",
+    count,
+    "]",
+    filter ~= "" and (" </%#KubectlPending#" .. filter .. "%#KubectlHeader#> ") or "",
+    "%*",
+  })
+
+  local center_len = #resource + #count + 5
+  if filter ~= "" then
+    center_len = center_len + #filter + 4
+	else 
+		center_len = center_len - 1
+  end
+
+  local total_pad = text_width - center_len
+  local left_len = math.floor(total_pad / 2)
+  local right_len = math.floor(total_pad - left_len)
+
+  local left_pad = string.rep("-", left_len)
+  local right_pad = string.rep("-", right_len)
+
+  return table.concat({
+    "%#KubectlSuccess#",
+    left_pad,
+    "%*",
+    center_text,
+    "%#KubectlSuccess#",
+    right_pad,
+    "%*",
+  })
 end
 
 --- Generate header hints and marks
