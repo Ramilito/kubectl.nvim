@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
+local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 local views = require("kubectl.views")
@@ -129,21 +130,56 @@ function M.filter()
     }, false, false)
 
     -- Add textual hints
-    local header_len = #header
-    table.insert(header, header_len - 1, "Use commas to separate multiple patterns.")
-    table.insert(header, header_len - 1, "Prefix a pattern with ! for negative filtering.")
-    table.insert(header, header_len - 1, "All patterns must match for a line to be included.")
-    marks[#marks].row = #header - 1
+    table.insert(header, "Use commas to separate multiple patterns.")
+    table.insert(marks, {
+      row = #header - 1,
+      start_col = 0,
+      end_col = #header[#header],
+      hl_group = hl.symbols.gray,
+      -- virt_text = { { "Use commas to separate multiple patterns.", hl.symbols.gray } },
+      -- virt_text_pos = "overlay",
+    })
+
+    table.insert(header, "Prefix a pattern with ! for negative filtering.")
+    table.insert(marks, {
+      row = 2,
+      start_col = 0,
+      hl_group = hl.symbols.gray,
+      -- virt_text = { { "Prefix a pattern with ! for negative filtering.", hl.symbols.gray } },
+      -- virt_text_pos = "overlay",
+    })
+
+    table.insert(header, "All patterns must match for a line to be included.")
+    table.insert(marks, {
+      row = 3,
+      start_col = 0,
+      hl_group = hl.symbols.gray,
+      -- virt_text = { { "All patterns must match for a line to be included.", hl.symbols.gray } },
+      -- virt_text_pos = "overlay",
+    })
 
     table.insert(header, "History:")
-    local headers_len = #header
-    for _, value in ipairs(state.filter_history) do
-      table.insert(header, headers_len + 1, value)
+    table.insert(marks, {
+      row = 5,
+      start_col = 0,
+      hl_group = hl.symbols.pending,
+      -- virt_text = { { "History:", hl.symbols.info } },
+      -- virt_text_pos = "overlay",
+    })
+
+    for index, value in ipairs(state.filter_history) do
+      table.insert(header, #header, value)
+
+      table.insert(marks, {
+        row = 5 + index,
+        start_col = 0,
+        hl_group = hl.symbols.pending,
+      })
     end
     table.insert(header, "")
 
     buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
-    vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
+    vim.api.nvim_buf_set_lines(buf, #header - 1, -1, false, { "Filter: " .. state.getFilter(), "" })
 
     -- TODO: Marks should be set in buffers.set_content above
     buffers.apply_marks(buf, marks, header)

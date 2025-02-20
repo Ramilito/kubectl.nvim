@@ -346,19 +346,16 @@ function M.header_buffer(main_buf, header_win)
     })
 
     vim.schedule(function()
-      vim.api.nvim_set_option_value("laststatus", 0, {})
-      vim.api.nvim_set_option_value("winbar", "", { scope = "global" })
-
-      -- Hide global status line
+      -- vim.api.nvim_set_option_value("laststatus", 0, {})
+      -- -- vim.api.nvim_set_option_value("winbar", "", { scope = "global" })
+      --
       -- vim.opt.laststatus = 0
       -- vim.api.nvim_set_hl(0, "Statusline", { link = "Normal" })
       -- vim.api.nvim_set_hl(0, "StatuslineNC", { link = "Normal" })
-
+      --
       -- local width = vim.api.nvim_win_get_width(win)
       -- local str = string.rep(" ", width)
       -- vim.api.nvim_set_option_value("statusline", str, { win = win })
-      -- vim.api.nvim_set_option_value("scrolloff", 0, { win = win })
-      vim.api.nvim_set_option_value("filetype", "stickyheader", { buf = buf })
     end)
   end
 
