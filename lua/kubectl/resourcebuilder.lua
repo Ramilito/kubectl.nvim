@@ -257,13 +257,14 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   if include_filter and state.filter ~= "" then
     filter = state.filter
   end
-  self.header.data, self.header.marks, self.header.divider =
-    tables.generateHeader(hints_copy, include_defaults, include_context)
+
+  self.header.data, self.header.marks = tables.generateHeader(hints_copy, include_defaults, include_context)
   self.header.divider = tables.generateDivider({
     resource = string_util.capitalize(self.display_name or self.resource),
     count = count,
     filter = filter,
   })
+
   return self
 end
 
