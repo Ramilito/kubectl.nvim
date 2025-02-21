@@ -296,7 +296,7 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  state.set_buffer_state(buf, bufname, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
+  state.set_buffer_state(buf, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
 
   return buf, win
 end
