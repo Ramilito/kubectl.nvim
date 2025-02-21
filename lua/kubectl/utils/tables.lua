@@ -264,16 +264,14 @@ function M.generateDivider(divider)
     resource,
     " [",
     count,
-    "]",
-    filter ~= "" and (" </%#KubectlPending#" .. filter .. "%#KubectlHeader#> ") or "",
+    "] ",
+    filter ~= "" and ("</%#KubectlPending#" .. filter .. "%#KubectlHeader#> ") or "",
     "%*",
   })
 
   local center_len = #resource + #count + 5
   if filter ~= "" then
     center_len = center_len + #filter + 4
-  else
-    center_len = center_len - 1
   end
 
   local total_pad = text_width - center_len
