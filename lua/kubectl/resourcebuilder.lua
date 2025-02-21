@@ -41,7 +41,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     return nil
   end
 
-  self.buf_nr = buffers.buffer(filetype, title)
+  self.buf_nr, self.win_nr = buffers.buffer(filetype, title)
   self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
   state.addToHistory(title)
   return self
@@ -285,8 +285,7 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
-  local win_id = vim.api.nvim_get_current_win()
-  local win_config = vim.api.nvim_win_get_config(win_id)
+  local win_config = vim.api.nvim_win_get_config(self.win_nr)
 
   if self.header and win_config.relative == "" then
     buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })

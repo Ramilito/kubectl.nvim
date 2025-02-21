@@ -313,7 +313,7 @@ function M.header_buffer(main_buf, header_win)
     M.set_content(buf, { content = { "Loading..." } })
 
     win = vim.api.nvim_open_win(buf, false, {
-      focusable = false,
+      focusable = false, --TODO: Not working on non-floating https://github.com/neovim/neovim/issues/29365
       split = "above",
       height = 6,
       style = "minimal",
@@ -380,7 +380,7 @@ function M.buffer(filetype, title)
 
   api.nvim_set_current_buf(buf)
 
-  return buf
+  return buf, win
 end
 
 return M
