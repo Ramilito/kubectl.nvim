@@ -39,7 +39,7 @@ function M.View(cancellationToken)
   end
 
   M.handles = commands.await_shell_command_async(cmds, function(data)
-    if not M.builder then
+    if M.builder == nil or M.builder.data == nil then
       M.builder = ResourceBuilder:new(definition.resource)
     end
     M.builder.data = data
