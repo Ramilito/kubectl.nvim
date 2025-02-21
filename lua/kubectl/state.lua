@@ -251,9 +251,9 @@ function M.restore_session()
   require("kubectl.views").view_or_fallback(session_view)
 end
 
-function M.set_buffer_state(buf, bufname, filetype, mode, open_func, args)
+function M.set_buffer_state(buf, filetype, mode, open_func, args)
   local function valid()
-    return bufname ~= filetype .. "Picker"
+    return filetype ~= "k8s_picker"
       and filetype ~= "k8s_container_exec"
       and filetype ~= "k8s_namespace"
       and filetype ~= "k8s_aliases"

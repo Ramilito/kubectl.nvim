@@ -254,7 +254,6 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
 
   state.set_buffer_state(
     buf,
-    bufname,
     filetype,
     "dynamic",
     M.floating_dynamic_buffer,

@@ -285,14 +285,15 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
-  local win_config = vim.api.nvim_win_get_config(self.win_nr)
-
-  if self.header and win_config.relative == "" then
-    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
-    buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
-    vim.schedule(function()
-      vim.api.nvim_set_option_value("winbar", self.header.divider, { scope = "local", win = self.win_nr })
-    end)
+  if self.win_nr and vim.api.nvim_win_is_valid(self.win_nr) then
+    local win_config = vim.api.nvim_win_get_config(self.win_nr)
+    if self.header and win_config.relative == "" then
+      buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+      buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
+      vim.schedule(function()
+        vim.api.nvim_set_option_value("winbar", self.header.divider, { scope = "local", win = self.win_nr })
+      end)
+    end
   else
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
   end
