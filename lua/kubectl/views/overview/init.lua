@@ -39,17 +39,17 @@ function M.View(cancellationToken)
   end
 
   M.handles = commands.await_shell_command_async(cmds, function(data)
-    M.builder = ResourceBuilder:new(definition.resource)
+    if not M.builder then
+      M.builder = ResourceBuilder:new(definition.resource)
+    end
     M.builder.data = data
     M.Draw(cancellationToken)
   end)
 end
 
 function M.Draw(cancellationToken)
-  -- M.View(cancellationToken)
-
   vim.schedule(function()
-    M.builder:decodeJson():process(definition.processRow, true)
+    M.builder:decodeJson():decodeJson():process(definition.processRow, true)
     if M.builder.processedData then
       M.builder.prettyData, M.builder.extmarks = grid.pretty_print(M.builder.processedData, definition.getSections())
       M.builder:addHints(definition.hints, true, true, true)
@@ -57,8 +57,7 @@ function M.Draw(cancellationToken)
         return nil
       end
 
-      M.builder:display(definition.ft, definition.resource)
-      M.builder:setContent(nil)
+      M.builder:display(definition.ft, definition.resource):setContent():draw_header()
       M.handles = nil
     end
   end)
