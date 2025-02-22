@@ -60,6 +60,11 @@ function M.setup()
       api.nvim_set_hl(0, group, attrs)
     end
   end
+
+  api.nvim_set_hl(0, "WinBar", { bg = "NONE" })
+  api.nvim_set_hl(0, "WinBarNC", { bg = "NONE" })
+  api.nvim_set_hl(0, "StatusLineNC", { bg = "NONE" })
+  api.nvim_set_hl(0, "StatusLine", { bg = "NONE" })
 end
 
 return M

@@ -374,6 +374,12 @@ As we advance to `v1.0.0`, our primary goal is to maintain the stability of the
 plugin and minimize any breaking changes. We are committed to providing a
 reliable and consistent user experience.
 
+## Troubleshooting
+
+### Winbar
+
+If you have a Winbar plugin, such as `lualine` there will be conflicts with the winbar in this plugin. To solve this, you should add our filetypes to the exclude files table.
+
 ## 💪🏼 Motivation
 
 This plugins main purpose is to browse the kubernetes state using vim like

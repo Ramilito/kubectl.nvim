@@ -41,7 +41,8 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
     return nil
   end
 
-  self.buf_nr = buffers.buffer(filetype, title)
+  self.buf_nr, self.win_nr = buffers.buffer(filetype, title)
+  self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
   state.addToHistory(title)
   return self
 end
@@ -256,12 +257,14 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   if include_filter and state.filter ~= "" then
     filter = state.filter
   end
-  self.header.data, self.header.marks = tables.generateHeader(
-    hints_copy,
-    include_defaults,
-    include_context,
-    { resource = string_util.capitalize(self.display_name or self.resource), count = count, filter = filter }
-  )
+
+  self.header.data, self.header.marks = tables.generateHeader(hints_copy, include_defaults, include_context)
+  self.header.divider = tables.generateDivider({
+    resource = string_util.capitalize(self.display_name or self.resource),
+    count = count,
+    filter = filter,
+  })
+
   return self
 end
 
@@ -282,7 +285,18 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
-  buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
+  local win_config = vim.api.nvim_win_get_config(self.win_nr or 0)
+  if win_config.relative == "" then
+    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+    buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
+    vim.schedule(function()
+      vim.api.nvim_set_option_value("winbar", self.header.divider, { scope = "local", win = self.win_nr })
+      vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
+      vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
+    end)
+  else
+    buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
+  end
 
   return self
 end
@@ -367,10 +381,20 @@ function ResourceBuilder:draw(definition, cancellationToken)
     :addHints(definition.hints, true, true, true)
   vim.schedule(function()
     self:setContent(cancellationToken)
+    self:draw_header()
   end)
 
   state.instance = self
   return self
+end
+
+function ResourceBuilder:draw_header()
+  if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
+    local win_config = vim.api.nvim_win_get_config(self.win_header_nr)
+    local rows = vim.api.nvim_buf_line_count(self.buf_header_nr)
+    win_config.height = rows
+    pcall(vim.api.nvim_win_set_config, self.win_header_nr, win_config)
+  end
 end
 
 function ResourceBuilder:action_view(definition, data, callback)
