@@ -252,13 +252,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_win_options(win)
   M.fit_to_content(buf, 2)
 
-  state.set_buffer_state(
-    buf,
-    filetype,
-    "dynamic",
-    M.floating_dynamic_buffer,
-    { filetype, title, callback, opts }
-  )
+  state.set_buffer_state(buf, filetype, "dynamic", M.floating_dynamic_buffer, { filetype, title, callback, opts })
   return buf
 end
 
