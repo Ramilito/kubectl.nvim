@@ -364,7 +364,10 @@ function M.generateHeader(headers, include_defaults, include_context)
     if items[i].symbol then
       M.add_mark(marks, #hints, #left_label, #left_label + #left_value + 1, items[i].symbol)
     end
-    table.insert(hints, line .. "\n")
+    if i < #items - 2 then
+      line = line .. "\n"
+    end
+    table.insert(hints, line)
   end
 
   -- Add heartbeat

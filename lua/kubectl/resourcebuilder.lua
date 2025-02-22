@@ -292,6 +292,8 @@ function ResourceBuilder:setContent(cancellationToken)
       buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
       vim.schedule(function()
         vim.api.nvim_set_option_value("winbar", self.header.divider, { scope = "local", win = self.win_nr })
+        vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
+        vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
       end)
     end
   else
