@@ -325,18 +325,19 @@ function M.header_buffer(main_buf, header_win)
       end,
     })
 
-    -- Redirect to main buffer
-    vim.api.nvim_create_autocmd("WinEnter", {
-      buffer = buf,
-      callback = function()
-        local bufnr = vim.api.nvim_get_current_buf()
-        local current_buffname = vim.api.nvim_buf_get_name(bufnr)
-        if current_buffname:match(bufname) then
-          local win_id = vim.fn.bufwinid(main_buf)
-          vim.api.nvim_set_current_win(win_id)
-        end
-      end,
-    })
+		-- TODO: Do we wan this behaviour?
+    -- Redirect to main buffer 
+    -- vim.api.nvim_create_autocmd("WinEnter", {
+    --   buffer = buf,
+    --   callback = function()
+    --     local bufnr = vim.api.nvim_get_current_buf()
+    --     local current_buffname = vim.api.nvim_buf_get_name(bufnr)
+    --     if current_buffname:match(bufname) then
+    --       local win_id = vim.fn.bufwinid(main_buf)
+    --       vim.api.nvim_set_current_win(win_id)
+    --     end
+    --   end,
+    -- })
 
     vim.schedule(function()
       -- vim.api.nvim_set_option_value("laststatus", 0, {})
