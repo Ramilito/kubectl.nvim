@@ -240,76 +240,95 @@ local function addVersionsRows(versions)
 end
 
 --- Add divider row
----@param divider { resource: string, count: string, filter: string }|nil
 ---@param hints table The keymap hints
 ---@param marks table The extmarks
-local function addDividerRow(divider, hints, marks)
-  -- Add separator row
+function M.generateDividerRow(hints, marks)
   local win = vim.api.nvim_get_current_win()
   local win_width = vim.api.nvim_win_get_width(win)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local half_width = math.floor(text_width / 2)
-  local row = " "
-  if divider then
-    local resource = divider.resource or ""
-    local count = divider.count or ""
-    local filter = divider.filter or ""
-    local info = resource .. count .. filter
-    local padding = string.rep("-", half_width - math.floor(#info / 2))
-    local selected = state.getSelections()
-    local selected_count = vim.tbl_count(selected)
-    if selected_count > 0 then
-      count = selected_count .. "/" .. count
-    end
-
-    local virt_text = {
+  local padding = string.rep("-", half_width)
+  local row = padding .. padding
+  table.insert(marks, {
+    row = #hints,
+    start_col = 0,
+    end_col = #padding + #padding,
+    virt_text = {
       { padding, hl.symbols.success },
-      { " " .. resource, hl.symbols.header },
-      { "[", hl.symbols.header },
-      { count },
-      { "]", hl.symbols.header },
-    }
+      { padding, hl.symbols.success },
+    },
+    virt_text_pos = "overlay",
+  })
+  table.insert(hints, row)
+end
 
-    if filter ~= "" then
-      table.insert(virt_text, { " </", hl.symbols.header })
-      table.insert(virt_text, { filter, hl.symbols.pending })
-      table.insert(virt_text, { ">", hl.symbols.header })
-    end
-    table.insert(virt_text, { " " .. padding, hl.symbols.success })
+---@param divider { resource: string, count: string, filter: string }|nil
+---@return string The formatted divider row
+function M.generateDividerWinbar(divider)
+  local win = vim.api.nvim_get_current_win()
+  local text_width = vim.api.nvim_win_get_width(win)
 
-    table.insert(marks, {
-      row = #hints,
-      start_col = 0,
-      virt_text = virt_text,
-      virt_text_pos = "overlay",
-    })
-  else
-    local padding = string.rep("-", half_width)
-    row = padding .. padding
-    table.insert(marks, {
-      row = #hints,
-      start_col = 0,
-      end_col = #padding + #padding,
-      virt_text = {
-        { padding, hl.symbols.success },
-        { padding, hl.symbols.success },
-      },
-      virt_text_pos = "overlay",
-    })
+  if not divider then
+    return ("%#KubectlSuccess#%s%%*"):format(string.rep("-", text_width))
   end
 
-  table.insert(hints, row)
+  local resource = divider.resource or ""
+  local count = divider.count or ""
+  local filter = divider.filter or ""
+  local selected_count = vim.tbl_count(state.getSelections())
+
+  if selected_count > 0 then
+    count = ("%d/%s"):format(selected_count, count)
+  end
+
+  local center_text = table.concat({
+    "%#KubectlHeader#",
+    " ",
+    resource,
+    " [",
+    "%#KubectlWhite#",
+    count,
+    "%#KubectlHeader#",
+    "] ",
+    filter ~= "" and ("</%#KubectlPending#" .. filter .. "%#KubectlHeader#> ") or "",
+    "%*",
+  })
+
+  local center_len = #resource + #count + 5
+  if filter ~= "" then
+    center_len = center_len + #filter + 4
+  end
+
+  local total_pad = text_width - center_len
+  local left_len = math.floor(total_pad / 2)
+  local right_len = math.floor(total_pad - left_len)
+
+  local left_pad = string.rep("-", left_len)
+  local right_pad = string.rep("-", right_len)
+
+  return table.concat({
+    "%#KubectlSuccess#",
+    left_pad,
+    "%*",
+    center_text,
+    "%#KubectlSuccess#",
+    right_pad,
+    "%*",
+  })
 end
 
 --- Generate header hints and marks
 ---@param headers table
 ---@param include_defaults boolean
 ---@param include_context boolean
----@param divider { resource: string, count: string, filter: string }|nil
 ---@return table, table
-function M.generateHeader(headers, include_defaults, include_context, divider)
+function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
   local marks = {}
+
+  if not config.options.headers then
+    return hints, marks
+  end
 
   if include_defaults then
     local defaults = {
@@ -324,21 +343,18 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     end
   end
 
-  if not config.options.headers then
-    addDividerRow(divider, hints, marks)
-    return vim.split(table.concat(hints, ""), "\n"), marks
-  end
-
   -- Add hints rows
   if config.options.hints then
     addHeaderRow(headers, hints, marks)
-    table.insert(hints, "\n")
   end
 
   local items = {}
 
   -- Add context rows
   if include_context and config.options.context then
+    if config.options.hints then
+      table.insert(hints, "\n")
+    end
     local context = state.getContext()
     if context then
       vim.list_extend(items, addContextRows(context))
@@ -375,7 +391,10 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     if items[i].symbol then
       M.add_mark(marks, #hints, #left_label, #left_label + #left_value + 1, items[i].symbol)
     end
-    table.insert(hints, line .. "\n")
+    if i < #items - 2 then
+      line = line .. "\n"
+    end
+    table.insert(hints, line)
   end
 
   -- Add heartbeat
@@ -386,8 +405,6 @@ function M.generateHeader(headers, include_defaults, include_context, divider)
     end
     addHeartbeat(hints, marks)
   end
-
-  addDividerRow(divider, hints, marks)
 
   return vim.split(table.concat(hints, ""), "\n"), marks
 end

@@ -44,7 +44,6 @@ M.overrides = {
       str.divider(buf)
     end,
   },
-
   ["<Plug>(kubectl.history)"] = {
     noremap = true,
     silent = true,

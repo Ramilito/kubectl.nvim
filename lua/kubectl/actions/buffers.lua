@@ -19,7 +19,7 @@ end
 --- Gets buffer number by name
 --- @param bufname string: The name of the buffer
 --- @return integer|nil: The buffer number
-local function get_buffer_by_name(bufname)
+function M.get_buffer_by_name(bufname)
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     local name = vim.api.nvim_buf_get_name(buf)
     local filename = vim.fs.basename(name)
@@ -48,19 +48,25 @@ end
 --- @param marks table|nil: The marks to apply (optional).
 --- @param header table|nil: The header data (optional).
 function M.apply_marks(bufnr, marks, header)
+  if not bufnr then
+    return
+  end
   local ns_id = api.nvim_create_namespace("__kubectl_views")
-  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
   state.marks.ns_id = ns_id
 
   if header and header.marks then
     for _, mark in ipairs(header.marks) do
-      local _, _ = api.nvim_buf_set_extmark(bufnr, ns_id, mark.row, mark.start_col, {
+      api.nvim_buf_set_extmark(bufnr, ns_id, mark.row, mark.start_col, {
         end_line = mark.row,
         end_col = mark.end_col,
         hl_group = mark.hl_group,
         hl_eol = mark.hl_eol or nil,
         virt_text = mark.virt_text or nil,
         virt_text_pos = mark.virt_text_pos or nil,
+        virt_lines_above = mark.virt_lines_above or nil,
+        virt_text_win_col = mark.virt_text_win_col or nil,
+        ephemeral = mark.ephemeral,
       })
     end
   end
@@ -104,7 +110,7 @@ end
 --- @param opts { title: string|nil }: Options for the buffer.
 function M.aliases_buffer(filetype, callback, opts)
   local bufname = "kubectl_aliases"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
@@ -132,7 +138,7 @@ end
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.filter_buffer(filetype, callback, opts)
   local bufname = "kubectl_filter"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
@@ -171,7 +177,7 @@ end
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   opts = opts or {}
   local bufname = "kubectl_confirmation"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname)
@@ -216,7 +222,7 @@ end
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
   local bufname = (filetype .. " | " .. title) or "kubectl_dynamic_float"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     if opts.prompt then
@@ -246,14 +252,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_win_options(win)
   M.fit_to_content(buf, 2)
 
-  state.set_buffer_state(
-    buf,
-    bufname,
-    filetype,
-    "dynamic",
-    M.floating_dynamic_buffer,
-    { filetype, title, callback, opts }
-  )
+  state.set_buffer_state(buf, filetype, "dynamic", M.floating_dynamic_buffer, { filetype, title, callback, opts })
   return buf
 end
 
@@ -265,7 +264,7 @@ function M.set_content(buf, opts)
   set_buffer_lines(buf, opts.header.data, opts.content)
   M.apply_marks(buf, opts.marks, opts.header)
 
-  api.nvim_set_option_value("modified", false, { buf = buf })
+  pcall(api.nvim_set_option_value, "modified", false, { buf = buf })
 end
 
 --- Creates a floating buffer.
@@ -276,7 +275,7 @@ end
 --- @return integer, integer: The buffer and win number.
 function M.floating_buffer(filetype, title, syntax, win)
   local bufname = (filetype .. " | " .. title) or "kubectl_float"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname)
@@ -291,7 +290,68 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  state.set_buffer_state(buf, bufname, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
+  state.set_buffer_state(buf, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
+
+  return buf, win
+end
+
+function M.header_buffer(main_buf, header_win)
+  local bufname = "kubectl_header"
+  local buf = M.get_buffer_by_name(bufname)
+  local win = header_win
+
+  if not buf then
+    buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(buf, bufname)
+    M.set_content(buf, { content = { "Loading..." } })
+
+    win = vim.api.nvim_open_win(buf, false, {
+      focusable = false, --TODO: Not working on non-floating https://github.com/neovim/neovim/issues/29365
+      split = "above",
+      height = 6,
+      style = "minimal",
+    })
+
+    -- Connect the exit to the main window exit
+    vim.api.nvim_create_autocmd("BufWinLeave", {
+      buffer = main_buf,
+      callback = function()
+        if vim.api.nvim_win_is_valid(win) then
+          vim.api.nvim_win_close(win, true)
+        end
+        if vim.api.nvim_buf_is_valid(buf) then
+          vim.api.nvim_buf_delete(buf, { force = true })
+        end
+      end,
+    })
+
+    -- TODO: Do we want this behaviour?
+    -- Redirect to main buffer
+    -- vim.api.nvim_create_autocmd("WinEnter", {
+    --   buffer = buf,
+    --   callback = function()
+    --     local bufnr = vim.api.nvim_get_current_buf()
+    --     local current_buffname = vim.api.nvim_buf_get_name(bufnr)
+    --     if current_buffname:match(bufname) then
+    --       local win_id = vim.fn.bufwinid(main_buf)
+    --       vim.api.nvim_set_current_win(win_id)
+    --     end
+    --   end,
+    -- })
+
+    vim.schedule(function()
+      -- vim.api.nvim_set_option_value("laststatus", 0, {})
+      -- -- vim.api.nvim_set_option_value("winbar", "", { scope = "global" })
+      --
+      -- vim.opt.laststatus = 0
+      -- vim.api.nvim_set_hl(0, "Statusline", { link = "Normal" })
+      -- vim.api.nvim_set_hl(0, "StatuslineNC", { link = "Normal" })
+      --
+      -- local width = vim.api.nvim_win_get_width(win)
+      -- local str = string.rep(" ", width)
+      -- vim.api.nvim_set_option_value("statusline", str, { win = win })
+    end)
+  end
 
   return buf, win
 end
@@ -301,7 +361,7 @@ end
 --- @param title string: The buffer title
 function M.buffer(filetype, title)
   local bufname = title or "kubectl"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
   local win = layout.main_layout()
 
   if not buf then
@@ -314,7 +374,7 @@ function M.buffer(filetype, title)
 
   api.nvim_set_current_buf(buf)
 
-  return buf
+  return buf, win
 end
 
 return M

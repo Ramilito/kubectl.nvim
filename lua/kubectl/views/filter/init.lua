@@ -2,6 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
+local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 local views = require("kubectl.views")
@@ -128,12 +129,30 @@ function M.filter()
       { key = "<Plug>(kubectl.quit)", desc = "close" },
     }, false, false)
 
-    -- Add textual hints
-    local header_len = #header
-    table.insert(header, header_len - 1, "Use commas to separate multiple patterns.")
-    table.insert(header, header_len - 1, "Prefix a pattern with ! for negative filtering.")
-    table.insert(header, header_len - 1, "All patterns must match for a line to be included.")
-    marks[#marks].row = #header - 1
+    table.insert(header, "Use commas to separate multiple patterns.")
+    table.insert(marks, {
+      row = #header - 1,
+      start_col = 0,
+      end_col = #header[#header],
+      hl_group = hl.symbols.gray,
+    })
+
+    table.insert(header, "Prefix a pattern with ! for negative filtering.")
+    table.insert(marks, {
+      row = #header - 1,
+      start_col = 0,
+      end_col = #header[#header],
+      hl_group = hl.symbols.gray,
+    })
+
+    table.insert(header, "All patterns must match for a line to be included.")
+    table.insert(marks, {
+      row = #header - 1,
+      start_col = 0,
+      end_col = #header[#header],
+      hl_group = hl.symbols.gray,
+    })
+    tables.generateDividerRow(header, marks)
 
     table.insert(header, "History:")
     local headers_len = #header
