@@ -274,6 +274,9 @@ function ResourceBuilder:setContentRaw(cancellationToken)
     return nil
   end
 
+  if self.header.data then
+    tables.generateDividerRow(self.header.data, self.header.marks)
+  end
   buffers.set_content(self.buf_nr, { content = self.data, marks = self.extmarks, header = self.header })
 
   return self
