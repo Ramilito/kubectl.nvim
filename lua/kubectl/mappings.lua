@@ -314,6 +314,12 @@ function M.get_mappings()
       desc = "Toggle headers",
       callback = function()
         config.options.headers = not config.options.headers
+        if not config.options.headers then
+          local bufnr = buffers.get_buffer_by_name("kubectl_header")
+          if bufnr then
+            vim.api.nvim_buf_delete(bufnr, { force = false })
+          end
+        end
         pcall(require("kubectl.views").Redraw)
       end,
     },

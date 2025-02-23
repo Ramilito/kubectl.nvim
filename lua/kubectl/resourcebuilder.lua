@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local config = require("kubectl.config")
 local informer = require("kubectl.actions.informer")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
@@ -42,7 +43,6 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
   end
 
   self.buf_nr, self.win_nr = buffers.buffer(filetype, title)
-  self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
   state.addToHistory(title)
   return self
 end
@@ -290,7 +290,6 @@ function ResourceBuilder:setContent(cancellationToken)
 
   local win_config = vim.api.nvim_win_get_config(self.win_nr or 0)
   if win_config.relative == "" then
-    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
     vim.schedule(function()
       vim.api.nvim_set_option_value("winbar", self.header.divider_winbar, { scope = "local", win = self.win_nr })
@@ -398,6 +397,13 @@ function ResourceBuilder:draw(definition, cancellationToken)
 end
 
 function ResourceBuilder:draw_header()
+  if not config.options.headers then
+    return
+  end
+
+  self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
+  buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+
   if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
     local win_config = vim.api.nvim_win_get_config(self.win_header_nr)
     local rows = vim.api.nvim_buf_line_count(self.buf_header_nr)

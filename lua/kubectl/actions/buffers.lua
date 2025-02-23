@@ -19,7 +19,7 @@ end
 --- Gets buffer number by name
 --- @param bufname string: The name of the buffer
 --- @return integer|nil: The buffer number
-local function get_buffer_by_name(bufname)
+function M.get_buffer_by_name(bufname)
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     local name = vim.api.nvim_buf_get_name(buf)
     local filename = vim.fs.basename(name)
@@ -52,7 +52,7 @@ function M.apply_marks(bufnr, marks, header)
     return
   end
   local ns_id = api.nvim_create_namespace("__kubectl_views")
-  api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
   state.marks.ns_id = ns_id
 
   if header and header.marks then
@@ -110,7 +110,7 @@ end
 --- @param opts { title: string|nil }: Options for the buffer.
 function M.aliases_buffer(filetype, callback, opts)
   local bufname = "kubectl_aliases"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
@@ -138,7 +138,7 @@ end
 --- @param opts { title: string|nil, header: { data: table }}: Options for the buffer.
 function M.filter_buffer(filetype, callback, opts)
   local bufname = "kubectl_filter"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname, "prompt")
@@ -177,7 +177,7 @@ end
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   opts = opts or {}
   local bufname = "kubectl_confirmation"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname)
@@ -222,7 +222,7 @@ end
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
   local bufname = (filetype .. " | " .. title) or "kubectl_dynamic_float"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     if opts.prompt then
@@ -264,7 +264,7 @@ function M.set_content(buf, opts)
   set_buffer_lines(buf, opts.header.data, opts.content)
   M.apply_marks(buf, opts.marks, opts.header)
 
-  api.nvim_set_option_value("modified", false, { buf = buf })
+  pcall(api.nvim_set_option_value, "modified", false, { buf = buf })
 end
 
 --- Creates a floating buffer.
@@ -275,7 +275,7 @@ end
 --- @return integer, integer: The buffer and win number.
 function M.floating_buffer(filetype, title, syntax, win)
   local bufname = (filetype .. " | " .. title) or "kubectl_float"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
 
   if not buf then
     buf = create_buffer(bufname)
@@ -297,7 +297,7 @@ end
 
 function M.header_buffer(main_buf, header_win)
   local bufname = "kubectl_header"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
   local win = header_win
 
   if not buf then
@@ -325,8 +325,8 @@ function M.header_buffer(main_buf, header_win)
       end,
     })
 
-		-- TODO: Do we wan this behaviour?
-    -- Redirect to main buffer 
+    -- TODO: Do we want this behaviour?
+    -- Redirect to main buffer
     -- vim.api.nvim_create_autocmd("WinEnter", {
     --   buffer = buf,
     --   callback = function()
@@ -361,7 +361,7 @@ end
 --- @param title string: The buffer title
 function M.buffer(filetype, title)
   local bufname = title or "kubectl"
-  local buf = get_buffer_by_name(bufname)
+  local buf = M.get_buffer_by_name(bufname)
   local win = layout.main_layout()
 
   if not buf then

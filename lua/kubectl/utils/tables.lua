@@ -327,6 +327,10 @@ function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
   local marks = {}
 
+  if not config.options.headers then
+    return hints, marks
+  end
+
   if include_defaults then
     local defaults = {
       { key = "<Plug>(kubectl.refresh)", desc = "reload" },
@@ -338,10 +342,6 @@ function M.generateHeader(headers, include_defaults, include_context)
     for _, default in ipairs(defaults) do
       table.insert(headers, default)
     end
-  end
-
-  if not config.options.headers then
-    return vim.split(table.concat(hints, ""), "\n"), marks
   end
 
   -- Add hints rows
