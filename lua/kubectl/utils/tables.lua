@@ -353,7 +353,9 @@ function M.generateHeader(headers, include_defaults, include_context)
 
   -- Add context rows
   if include_context and config.options.context then
-    table.insert(hints, "\n")
+    if config.options.hints then
+      table.insert(hints, "\n")
+    end
     local context = state.getContext()
     if context then
       vim.list_extend(items, addContextRows(context))
