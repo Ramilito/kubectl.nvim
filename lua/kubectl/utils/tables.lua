@@ -248,8 +248,7 @@ function M.generateDividerRow(hints, marks)
   local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
   local half_width = math.floor(text_width / 2)
   local padding = string.rep("-", half_width)
-  local row = " "
-  row = padding .. padding
+  local row = padding .. padding
   table.insert(marks, {
     row = #hints,
     start_col = 0,
