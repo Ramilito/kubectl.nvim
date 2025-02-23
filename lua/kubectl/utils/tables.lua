@@ -239,9 +239,33 @@ local function addVersionsRows(versions)
   return items
 end
 
+--- Add divider row
+---@param hints table The keymap hints
+---@param marks table The extmarks
+function M.generateDividerRow(hints, marks)
+  local win = vim.api.nvim_get_current_win()
+  local win_width = vim.api.nvim_win_get_width(win)
+  local text_width = win_width - vim.fn.getwininfo(win)[1].textoff
+  local half_width = math.floor(text_width / 2)
+  local padding = string.rep("-", half_width)
+  local row = " "
+  row = padding .. padding
+  table.insert(marks, {
+    row = #hints,
+    start_col = 0,
+    end_col = #padding + #padding,
+    virt_text = {
+      { padding, hl.symbols.success },
+      { padding, hl.symbols.success },
+    },
+    virt_text_pos = "overlay",
+  })
+  table.insert(hints, row)
+end
+
 ---@param divider { resource: string, count: string, filter: string }|nil
 ---@return string The formatted divider row
-function M.generateDivider(divider)
+function M.generateDividerWinbar(divider)
   local win = vim.api.nvim_get_current_win()
   local text_width = vim.api.nvim_win_get_width(win)
 
@@ -323,13 +347,13 @@ function M.generateHeader(headers, include_defaults, include_context)
   -- Add hints rows
   if config.options.hints then
     addHeaderRow(headers, hints, marks)
-    table.insert(hints, "\n")
   end
 
   local items = {}
 
   -- Add context rows
   if include_context and config.options.context then
+    table.insert(hints, "\n")
     local context = state.getContext()
     if context then
       vim.list_extend(items, addContextRows(context))

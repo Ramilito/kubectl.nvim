@@ -129,13 +129,6 @@ function M.filter()
       { key = "<Plug>(kubectl.quit)", desc = "close" },
     }, false, false)
 
-    -- Remove the empty spacer lines
-    for i = #header, 1, -1 do
-      if header[i] == "" then
-        table.remove(header, i)
-      end
-    end
-
     table.insert(header, "Use commas to separate multiple patterns.")
     table.insert(marks, {
       row = #header - 1,
@@ -159,9 +152,8 @@ function M.filter()
       end_col = #header[#header],
       hl_group = hl.symbols.gray,
     })
+    tables.generateDividerRow(header, marks)
 
-    table.insert(header, "")
-    table.insert(header, "")
     table.insert(header, "History:")
     local headers_len = #header
     for _, value in ipairs(state.filter_history) do

@@ -259,7 +259,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
   end
 
   self.header.data, self.header.marks = tables.generateHeader(hints_copy, include_defaults, include_context)
-  self.header.divider = tables.generateDivider({
+  self.header.divider_winbar = tables.generateDividerWinbar({
     resource = string_util.capitalize(self.display_name or self.resource),
     count = count,
     filter = filter,
@@ -290,11 +290,17 @@ function ResourceBuilder:setContent(cancellationToken)
     buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
     vim.schedule(function()
-      vim.api.nvim_set_option_value("winbar", self.header.divider, { scope = "local", win = self.win_nr })
-      vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
-      vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
+      vim.api.nvim_set_option_value("winbar", self.header.divider_winbar, { scope = "local", win = self.win_nr })
+
+      if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
+        vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
+        vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
+      end
     end)
   else
+    if self.header.data then
+      tables.generateDividerRow(self.header.data, self.header.marks)
+    end
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
   end
 

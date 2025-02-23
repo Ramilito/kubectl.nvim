@@ -211,6 +211,7 @@ function M.Aliases()
       -- TODO: Definition should be moved to mappings.lua
       { key = "<Plug>(kubectl.quit)", desc = "close" },
     }, false, false)
+    tables.generateDividerRow(header, marks)
 
     table.insert(header, "History:")
     local headers_len = #header
