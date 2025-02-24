@@ -55,6 +55,7 @@ function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
   local config = require("kubectl.config")
+  local loop = require("kubectl.utils.loop")
   config.setup(options)
   state.setNS(config.options.namespace)
 
@@ -65,6 +66,15 @@ function M.setup(options)
     callback = function(ev)
       mappings.setup(ev)
       state.set_session(ev)
+
+      local win_config = vim.api.nvim_win_get_config(0)
+
+      if win_config.relative == "" then
+        if not loop.is_running(ev.buf) then
+          local current_view = require("kubectl.views").view_and_definition(ev.file)
+          loop.start_loop(current_view.Draw, { buf = ev.buf })
+        end
+      end
     end,
   })
 

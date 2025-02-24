@@ -50,14 +50,22 @@ function M.start_loop_for_buffer(buf, callback, opts)
   vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
     buffer = buf,
     callback = function()
-      M.stop_loop_for_buffer(buf)
+      M.stop_loop(buf)
     end,
   })
 end
 
+--- Start the loop
+---@param callback fun(is_cancelled: fun(): boolean)
+function M.start_loop(callback, opts)
+  if config.options.auto_refresh.enabled then
+    M.start_loop_for_buffer(opts.buf, callback, opts)
+  end
+end
+
 --- Stop the loop for a specific buffer
 ---@param buf number: The buffer number.
-function M.stop_loop_for_buffer(buf)
+function M.stop_loop(buf)
   local timer = timers[buf]
   if timer then
     timer:stop()
@@ -66,33 +74,10 @@ function M.stop_loop_for_buffer(buf)
   end
 end
 
---- Start the loop
----@param callback fun(is_cancelled: fun(): boolean)
-function M.start_loop(callback, opts)
-  if config.options.auto_refresh.enabled then
-    local current_buf = vim.api.nvim_get_current_buf()
-    M.start_loop_for_buffer(current_buf, callback, opts)
-  end
-end
-
---- Stop the loop
-function M.stop_loop()
-  local current_buf = vim.api.nvim_get_current_buf()
-  M.stop_loop_for_buffer(current_buf)
-end
-
---- Check if the loop is running for a specific buffer
----@param buf number
----@return boolean
-function M.is_running_for_buffer(buf)
-  return timers[buf] ~= nil
-end
-
 --- Check if the loop is running
 ---@return boolean
-function M.is_running()
-  local current_buf = vim.api.nvim_get_current_buf()
-  return M.is_running_for_buffer(current_buf)
+function M.is_running(buf)
+  return timers[buf] ~= nil
 end
 
 return M
