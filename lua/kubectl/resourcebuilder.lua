@@ -396,6 +396,10 @@ function ResourceBuilder:draw_header()
     return
   end
 
+  if vim.api.nvim_get_current_buf() ~= self.buf_nr then
+    return
+  end
+
   self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
   buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
 
