@@ -268,8 +268,11 @@ end
 
 ---@param divider { resource: string, count: string, filter: string }|nil
 ---@return string The formatted divider row
-function M.generateDividerWinbar(divider)
-  local win = vim.api.nvim_get_current_win()
+function M.generateDividerWinbar(divider, win)
+  win = win or vim.api.nvim_get_current_win()
+  if not vim.api.nvim_win_is_valid(win) then
+    return ""
+  end
   local text_width = vim.api.nvim_win_get_width(win)
 
   if not divider then

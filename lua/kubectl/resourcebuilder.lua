@@ -263,7 +263,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
     resource = string_util.capitalize(self.display_name or self.resource),
     count = count,
     filter = filter,
-  })
+  }, self.win_nr)
 
   return self
 end
@@ -396,16 +396,14 @@ function ResourceBuilder:draw_header()
     return
   end
 
-  if vim.api.nvim_get_current_buf() ~= self.buf_nr then
-    return
-  end
-
   self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
-  buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
 
   if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
-    vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
-    vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
+    if vim.api.nvim_get_current_buf() == self.buf_nr then
+      buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+      vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
+      vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
+    end
 
     local win_config = vim.api.nvim_win_get_config(self.win_header_nr)
     local rows = vim.api.nvim_buf_line_count(self.buf_header_nr)
