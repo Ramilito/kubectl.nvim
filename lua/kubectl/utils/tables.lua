@@ -26,8 +26,12 @@ end
 --- Calculate and distribute extra padding
 ---@param widths table The table of current column widths
 ---@param headers string[] The column headers
-local function calculate_extra_padding(widths, headers)
-  local win = vim.api.nvim_get_current_win()
+---@param win number? The window number
+local function calculate_extra_padding(widths, headers, win)
+  win = win or vim.api.nvim_get_current_win()
+  if not vim.api.nvim_win_is_valid(win) then
+    return
+  end
   local win_width = vim.api.nvim_win_get_width(win)
   local textoff = vim.fn.getwininfo(win)[1].textoff
   local text_width = win_width - textoff
@@ -413,8 +417,9 @@ end
 ---@param data table[]
 ---@param headers string[]
 ---@param sort_by? table
+---@param win? number
 ---@return table, table
-function M.pretty_print(data, headers, sort_by)
+function M.pretty_print(data, headers, sort_by, win)
   if headers == nil or data == nil then
     return {}, {}
   end
@@ -430,7 +435,7 @@ function M.pretty_print(data, headers, sort_by)
     widths[key] = math.max(#key, value)
   end
 
-  calculate_extra_padding(widths, headers)
+  calculate_extra_padding(widths, headers, win)
   local tbl = {}
   local extmarks = {}
 

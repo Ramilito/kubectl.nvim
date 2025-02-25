@@ -224,7 +224,7 @@ function M.Aliases()
     vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Aliases: " })
 
     buffers.apply_marks(buf, marks, header)
-    buffers.fit_to_content(buf, 1)
+    buffers.fit_to_content(buf, win, 1)
 
     vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
       noremap = true,

@@ -51,13 +51,15 @@ function M.float_dynamic_layout(buf, filetype, title, opts)
     title = filetype .. " - " .. (title or "")
   end
 
+  local width, height = M.get_editor_dimensions()
+  local win_width, win_height = 100, 15 -- Define the floating window size
   local win = api.nvim_open_win(buf, true, {
     relative = opts.relative or "editor",
     style = "minimal",
     width = 100,
     height = 5,
-    col = (vim.api.nvim_win_get_width(0) - 100 + 2) * 0.5,
-    row = (vim.api.nvim_win_get_height(0) - 20) * 0.5,
+    col = (width - win_width) * 0.5,
+    row = (height - win_height) * 0.5,
     border = "rounded",
     title = title,
   })
@@ -72,7 +74,7 @@ function M.float_dynamic_layout(buf, filetype, title, opts)
       new_lastline -- last line number after the change
     )
       if lastline ~= new_lastline then
-        M.win_size_fit_content(buf_nr, 2)
+        M.win_size_fit_content(buf_nr, win, 2)
       end
     end,
   })
@@ -136,9 +138,11 @@ end
 --- @param height_offset integer: The height offset.
 --- @param min_width integer|nil: The minimum width.
 --- @return { height: number, width: number }
-function M.win_size_fit_content(buf_nr, height_offset, min_width)
-  local win_id = vim.api.nvim_get_current_win()
-  local win_config = vim.api.nvim_win_get_config(win_id)
+function M.win_size_fit_content(buf_nr, win_nr, height_offset, min_width)
+  if not vim.api.nvim_win_is_valid(win_nr) then
+    win_nr = vim.api.nvim_get_current_win()
+  end
+  local win_config = vim.api.nvim_win_get_config(win_nr)
 
   local rows = vim.api.nvim_buf_line_count(buf_nr)
   -- Calculate the maximum width (number of columns of the widest line)
@@ -155,8 +159,8 @@ function M.win_size_fit_content(buf_nr, height_offset, min_width)
   win_config.height = rows + height_offset
   win_config.width = math.max(max_columns, min_width or 0)
 
-  api.nvim_set_option_value("scrolloff", rows + height_offset, { win = win_id })
-  vim.api.nvim_win_set_config(win_id, win_config)
+  api.nvim_set_option_value("scrolloff", rows + height_offset, { win = win_nr })
+  vim.api.nvim_win_set_config(win_nr, win_config)
   return win_config
 end
 

@@ -230,7 +230,7 @@ end
 ---@return ResourceBuilder
 function ResourceBuilder:prettyPrint(headersFunc)
   self.prettyData, self.extmarks =
-    tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource])
+    tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource], self.win_nr)
   return self
 end
 

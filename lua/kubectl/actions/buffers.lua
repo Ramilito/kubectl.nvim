@@ -100,8 +100,8 @@ function M.apply_marks(bufnr, marks, header)
   end
 end
 
-function M.fit_to_content(buf, offset)
-  local win_config = layout.win_size_fit_content(buf, offset or 2)
+function M.fit_to_content(buf, win, offset)
+  local win_config = layout.win_size_fit_content(buf, win, offset or 2)
   return win_config
 end
 
@@ -164,7 +164,7 @@ function M.filter_buffer(filetype, callback, opts)
 
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
-  return buf
+  return buf, win
 end
 
 --- Creates a confirmation buffer.
@@ -206,7 +206,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
 
   M.apply_marks(buf, opts.marks, nil)
 
-  local win_config = M.fit_to_content(buf, 2)
+  local win_config = M.fit_to_content(buf, win, 2)
 
   local padding = string.rep(" ", win_config.width / 2)
   M.set_content(buf, { content = { padding .. "[y]es [n]o" } })
@@ -250,7 +250,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
 
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
-  M.fit_to_content(buf, 2)
+  M.fit_to_content(buf, win, 2)
 
   state.set_buffer_state(buf, filetype, "dynamic", M.floating_dynamic_buffer, { filetype, title, callback, opts })
   return buf

@@ -79,7 +79,8 @@ function M.View(self, definition, data, callback)
       end, 200)
       vim.defer_fn(function()
         if vim.api.nvim_get_current_buf() == buf_nr then
-          layout.win_size_fit_content(buf_nr, 2, #table.concat(args) + 40)
+          local win_nr = vim.api.nvim_get_current_win()
+          layout.win_size_fit_content(buf_nr, win_nr, 2, #table.concat(args) + 40)
         end
       end, 1000)
     end,
