@@ -25,7 +25,11 @@ end
 
 function M.Draw(cancellationToken)
   state.instance[definition.resource]:draw(definition, cancellationToken)
-  root_definition.setPortForwards(state.instance[definition.resource].extmarks, state.instance[definition.resource].prettyData, M.pfs)
+  root_definition.setPortForwards(
+    state.instance[definition.resource].extmarks,
+    state.instance[definition.resource].prettyData,
+    M.pfs
+  )
 end
 
 function M.TailLogs(pod, ns, container)

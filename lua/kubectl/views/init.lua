@@ -348,7 +348,8 @@ end
 
 function M.set_and_open_pod_selector(name, ns)
   -- get the selectors for the pods
-  local resource = tables.find_resource(state.instance[opts.dest].data, name, ns)
+  local buf_name = vim.api.nvim_buf_get_var(0, "buf_name")
+  local resource = tables.find_resource(state.instance[buf_name].data, name, ns)
   if not resource then
     return
   end
