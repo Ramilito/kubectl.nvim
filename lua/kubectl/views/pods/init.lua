@@ -24,8 +24,12 @@ function M.View(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance:draw(definition, cancellationToken)
-  root_definition.setPortForwards(state.instance.extmarks, state.instance.prettyData, M.pfs)
+  state.instance[definition.resource]:draw(definition, cancellationToken)
+  root_definition.setPortForwards(
+    state.instance[definition.resource].extmarks,
+    state.instance[definition.resource].prettyData,
+    M.pfs
+  )
 end
 
 function M.TailLogs(pod, ns, container)
@@ -132,7 +136,7 @@ function M.PortForward(pod, ns)
     cmd = { "port-forward", "pods/" .. pod, "-n", ns },
   }
 
-  local resource = tables.find_resource(state.instance.data, pod, ns)
+  local resource = tables.find_resource(state.instance[definition.resource].data, pod, ns)
   if not resource then
     return
   end

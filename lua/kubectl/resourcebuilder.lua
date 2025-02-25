@@ -348,7 +348,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
   opts.cmd = opts.cmd or "curl"
   self.definition = definition
 
-  self = state.instance
+  self = state.instance[definition.resource]
   if not self or not self.resource or self.resource ~= definition.resource then
     self = ResourceBuilder:new(definition.resource)
   end
@@ -368,7 +368,7 @@ function ResourceBuilder:view(definition, cancellationToken, opts)
       end)
     end)
 
-  state.instance = self
+  state.instance[definition.resource] = self
   state.selections = {}
   return self
 end
@@ -385,7 +385,7 @@ function ResourceBuilder:draw(definition, cancellationToken)
     self:draw_header()
   end)
 
-  state.instance = self
+  state.instance[definition.resource] = self
   return self
 end
 

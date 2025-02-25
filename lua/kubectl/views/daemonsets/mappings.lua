@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local daemonset_def = require("kubectl.views.daemonsets.definition")
 local daemonset_view = require("kubectl.views.daemonsets")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
@@ -26,7 +27,7 @@ M.overrides = {
     desc = "Set image",
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
-      local resource = tables.find_resource(state.instance.data, name, ns)
+      local resource = tables.find_resource(state.instance[daemonset_def.resource].data, name, ns)
       if not resource then
         return
       end

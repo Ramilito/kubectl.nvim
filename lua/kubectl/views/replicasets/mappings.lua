@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local mappings = require("kubectl.mappings")
+local replicaset_definition = require("kubectl.views.replicasets.definition")
 local replicaset_view = require("kubectl.views.replicasets")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -37,7 +38,7 @@ M.overrides = {
       end
       local container_images = {}
 
-      local resource = tables.find_resource(state.instance.data, name, ns)
+      local resource = tables.find_resource(state.instance[replicaset_definition.resource].data, name, ns)
       if not resource then
         return
       end
@@ -81,7 +82,7 @@ M.overrides = {
         vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
-      local resource = tables.find_resource(state.instance.data, name, ns)
+      local resource = tables.find_resource(state.instance[replicaset_definition.resource].data, name, ns)
       if not resource then
         return
       end

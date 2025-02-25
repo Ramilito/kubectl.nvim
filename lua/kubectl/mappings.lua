@@ -254,7 +254,7 @@ function M.get_mappings()
           view = require("kubectl.views.fallback")
         end
 
-        local resource = state.instance.resource
+        local resource = state.instance[buf_name].resource
         local name, ns = view.getCurrentSelection()
 
         if not name then
