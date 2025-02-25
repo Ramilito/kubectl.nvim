@@ -288,15 +288,17 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
-  local win_config = vim.api.nvim_win_get_config(self.win_nr or 0)
-  if win_config.relative == "" then
+  local ok, win_config = pcall(vim.api.nvim_win_get_config, self.win_nr or 0)
+  if ok and win_config.relative == "" then
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
     vim.api.nvim_set_option_value("winbar", self.header.divider_winbar, { scope = "local", win = self.win_nr })
-  else
+  elseif ok then
     if self.header.data then
       tables.generateDividerRow(self.header.data, self.header.marks)
     end
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
+  else
+    return nil
   end
 
   return self
