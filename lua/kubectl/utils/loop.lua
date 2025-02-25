@@ -2,7 +2,6 @@ local config = require("kubectl.config")
 local M = {}
 
 local timers = {}
-local active_sessions = {}
 
 --- Start a loop for a specific buffer
 ---@param buf number
