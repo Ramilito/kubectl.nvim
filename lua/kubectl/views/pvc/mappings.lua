@@ -1,5 +1,5 @@
-local pvc_view = require("kubectl.views.pvc")
 local pvc_definiton = require("kubectl.views.pvc.definition")
+local pvc_view = require("kubectl.views.pvc")
 local tables = require("kubectl.utils.tables")
 
 local M = {}

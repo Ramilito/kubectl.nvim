@@ -1,5 +1,5 @@
-local ingresses_view = require("kubectl.views.ingresses")
 local ingresses_definition = require("kubectl.views.ingresses.definition")
+local ingresses_view = require("kubectl.views.ingresses")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
