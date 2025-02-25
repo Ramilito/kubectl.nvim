@@ -92,8 +92,8 @@ function M.filter_label()
     view.configure_definition = false
     vim.schedule(function()
       view.View()
-			definition.url = original_url
-			view.configure_definition = true
+      definition.url = original_url
+      view.configure_definition = true
     end)
   end)
 
