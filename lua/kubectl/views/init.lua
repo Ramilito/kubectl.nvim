@@ -348,7 +348,7 @@ end
 
 function M.set_and_open_pod_selector(name, ns)
   -- get the selectors for the pods
-  local resource = tables.find_resource(state.instance.data, name, ns)
+  local resource = tables.find_resource(state.instance[opts.dest].data, name, ns)
   if not resource then
     return
   end

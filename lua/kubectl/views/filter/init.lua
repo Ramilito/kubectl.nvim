@@ -38,8 +38,9 @@ function M.save_history(input)
 end
 
 function M.filter_label()
+  local buf_name = vim.api.nvim_buf_get_var(0, "buf_name")
   local state = require("kubectl.state")
-  local instance = state.instance
+  local instance = state.instance[buf_name]
   local view, definition = views.view_and_definition(instance.resource)
   local name, ns = view.getCurrentSelection()
   if not name then
@@ -89,9 +90,11 @@ function M.filter_label()
     state.setFilter("")
     definition.url = new_args
     view.configure_definition = false
-    view.View()
-    definition.url = original_url
-    view.configure_definition = true
+    vim.schedule(function()
+      view.View()
+			definition.url = original_url
+			view.configure_definition = true
+    end)
   end)
 
   local confirmation = "[y]es [n]o:"
