@@ -31,7 +31,7 @@ M.sortby_old = { current_word = "" }
 ---@type table
 M.session = { contexts = {}, filter_history = {}, alias_history = {} }
 ---@type table
-M.instance = nil
+M.instance = {}
 ---@type table
 M.instance_float = nil
 ---@type table

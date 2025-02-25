@@ -1,4 +1,5 @@
 local pvc_view = require("kubectl.views.pvc")
+local pvc_definiton = require("kubectl.views.pvc.definition")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -17,7 +18,7 @@ M.overrides = {
 
       -- get pv of pvc
       local state = require("kubectl.state")
-      local resource = tables.find_resource(state.instance.data, name, ns)
+      local resource = tables.find_resource(state.instance[pvc_definiton.resource].data, name, ns)
       if not resource then
         return
       end

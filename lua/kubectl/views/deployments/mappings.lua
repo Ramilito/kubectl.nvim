@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
+local deployment_definition = require("kubectl.views.deployments.definition")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -29,7 +30,7 @@ M.overrides = {
       local name, ns = deployment_view.getCurrentSelection()
       local container_images = {}
 
-      local resource = tables.find_resource(state.instance.data, name, ns)
+      local resource = tables.find_resource(state.instance[deployment_definition.resource].data, name, ns)
       if not resource then
         return
       end
@@ -68,7 +69,7 @@ M.overrides = {
     desc = "Scale replicas",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      local resource = tables.find_resource(state.instance.data, name, ns)
+      local resource = tables.find_resource(state.instance[deployment_definition.resource].data, name, ns)
       if not resource then
         return
       end

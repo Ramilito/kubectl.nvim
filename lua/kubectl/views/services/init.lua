@@ -15,8 +15,8 @@ function M.View(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance:draw(definition, cancellationToken)
-  root_definition.setPortForwards(state.instance.extmarks, state.instance.prettyData, M.pfs)
+  state.instance[definition.resource]:draw(definition, cancellationToken)
+  root_definition.setPortForwards(state.instance[definition.resource].extmarks, state.instance[definition.resource].prettyData, M.pfs)
 end
 
 function M.Desc(name, ns, reload)
@@ -37,7 +37,7 @@ function M.PortForward(name, ns)
     cmd = { "port-forward", "svc/" .. name, "-n", ns },
   }
 
-  local resource = tables.find_resource(state.instance.data, name, ns)
+  local resource = tables.find_resource(state.instance[definition.resource].data, name, ns)
   if not resource then
     return
   end

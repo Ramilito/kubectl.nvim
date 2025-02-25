@@ -15,7 +15,7 @@ function M.Draw(cancellationToken)
   if definition.owner.name then
     definition.display_name = "Jobs" .. "(" .. definition.owner.ns .. "/" .. definition.owner.name .. ")"
   end
-  state.instance:draw(definition, cancellationToken)
+  state.instance[definition.resource]:draw(definition, cancellationToken)
 end
 
 function M.Desc(name, ns, reload)

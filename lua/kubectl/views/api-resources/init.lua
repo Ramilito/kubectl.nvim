@@ -7,14 +7,14 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  local self = state.instance
+  local self = state.instance[definition.resource]
   if not self or not self.resource or self.resource ~= definition.resource then
     self = ResourceBuilder:new(definition.resource)
   end
 
   self:display(definition.ft, definition.resource, cancellationToken)
 
-  state.instance = self
+  state.instance[definition.resource] = self
   local cached_resources = cache.cached_api_resources
   self.data = cached_resources and cached_resources.values or {}
 
@@ -24,13 +24,13 @@ function M.View(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  if #state.instance.data == 0 then
+  if #state.instance[definition.resource].data == 0 then
     local cached_resources = cache.cached_api_resources
     if #vim.tbl_keys(cached_resources.values) > 0 then
-      state.instance.data = cached_resources.values
+      state.instance[definition.resource].data = cached_resources.values
     end
   end
-  state.instance:draw(definition, cancellationToken)
+  state.instance[definition.resource]:draw(definition, cancellationToken)
 end
 
 --- Get current seletion for view

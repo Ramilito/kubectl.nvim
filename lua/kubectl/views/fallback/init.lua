@@ -65,7 +65,7 @@ function M.View(cancellationToken, resource)
 end
 
 function M.Draw(cancellationToken)
-  state.instance:draw(definition, cancellationToken)
+  state.instance[definition.resource]:draw(definition, cancellationToken)
 end
 
 function M.Desc(name, ns, reload)

@@ -1,4 +1,5 @@
 local ingresses_view = require("kubectl.views.ingresses")
+local ingresses_definition = require("kubectl.views.ingresses.definition")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -12,7 +13,7 @@ M.overrides = {
     desc = "Open host in browser",
     callback = function()
       local name, ns = ingresses_view.getCurrentSelection()
-      local resource = tables.find_resource(state.instance.data, name, ns)
+      local resource = tables.find_resource(state.instance[ingresses_definition.resource].data, name, ns)
       if not resource then
         return
       end

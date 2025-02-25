@@ -10,7 +10,7 @@ function M.View(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance:draw(definition, cancellationToken)
+  state.instance[definition.resource]:draw(definition, cancellationToken)
 end
 
 --- Describe a configmap
