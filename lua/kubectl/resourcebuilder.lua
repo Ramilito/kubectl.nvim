@@ -384,15 +384,19 @@ function ResourceBuilder:draw(definition, cancellationToken)
     :addHints(definition.hints, true, true, true)
   vim.schedule(function()
     self:setContent(cancellationToken)
-    self:draw_header()
+    self:draw_header(cancellationToken)
   end)
 
   state.instance[definition.resource] = self
   return self
 end
 
-function ResourceBuilder:draw_header()
+function ResourceBuilder:draw_header(cancellationToken)
   if not config.options.headers then
+    return
+  end
+
+  if cancellationToken and cancellationToken() then
     return
   end
 

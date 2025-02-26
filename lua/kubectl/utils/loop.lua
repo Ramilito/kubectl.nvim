@@ -5,7 +5,7 @@ local timers = {}
 
 --- Start a loop for a specific buffer
 ---@param buf number
----@param callback fun()
+---@param callback fun(is_cancelled: fun(): boolean)
 ---@param opts? { interval: number }: The arguments for the loop.
 function M.start_loop_for_buffer(buf, callback, opts)
   if timers[buf] then
@@ -17,12 +17,16 @@ function M.start_loop_for_buffer(buf, callback, opts)
   local timer = vim.uv.new_timer()
   local running = false
 
+  local function is_cancelled()
+    return timers[buf] == nil
+  end
+
   timer:start(0, interval, function()
     if not running then
       running = true
 
       vim.schedule(function()
-        callback()
+        callback(is_cancelled)
 
         running = false
       end)
@@ -38,7 +42,7 @@ function M.start_loop_for_buffer(buf, callback, opts)
     end,
   })
 
-  vim.api.nvim_create_autocmd({ "BufHidden", "BufUnload", "BufDelete" }, {
+  vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
     buffer = buf,
     callback = function()
       M.stop_loop(buf)
