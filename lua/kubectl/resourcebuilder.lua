@@ -407,11 +407,9 @@ function ResourceBuilder:draw_header(cancellationToken)
   self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
 
   if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
-    if vim.api.nvim_get_current_buf() == self.buf_nr then
-      buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
-      vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
-      vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
-    end
+    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+    vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
+    vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
 
     local win_config = vim.api.nvim_win_get_config(self.win_header_nr)
     local rows = vim.api.nvim_buf_line_count(self.buf_header_nr)
