@@ -7,9 +7,8 @@ local event_handler = require("kubectl.actions.eventhandler").handler
 ---@field events_handle any Process handle for the events informer
 ---@field builder any Builder instance containing resource information
 local M = {
-  handle = nil,
   events_handle = nil,
-  builder = nil,
+  builders = {},
 }
 
 ---Process an event from the Kubernetes watch stream
@@ -17,6 +16,9 @@ local M = {
 ---@param event_string string JSON string containing the event data
 ---@return boolean success Whether the event was processed successfully
 local function process_event(builder, event_string)
+  if not builder then
+    return false
+  end
   local ok, event = pcall(vim.json.decode, event_string, { luanil = { object = true, array = true } })
 
   if not ok or not event or not event.object or not event.object.metadata then
@@ -87,7 +89,7 @@ end
 ---@param cmd string The command to execute
 ---@param args table List of command arguments
 ---@return userdata handle Process handle
-local function shell_uv_async(cmd, args)
+local function shell_uv_async(cmd, args, buf)
   local result = ""
   local command = commands.configure_command(cmd, {}, args)
   local handle
@@ -120,7 +122,7 @@ local function shell_uv_async(cmd, args)
         end
 
         local json_str = result:sub(1, newline_pos - 1)
-        if process_event(M.builder, json_str) then
+        if process_event(M.builders[buf], json_str) then
           result = result:sub(newline_pos + 1)
         else
           break
@@ -150,12 +152,8 @@ function M.start(builder)
   if not builder.data or not builder.data.metadata then
     return
   end
-  if M.handle or M.events_handle then
-    M.stop()
-  end
 
   local args = { "-N", "--keepalive-time", "60", "-X", "GET", "-sS", "-H", "Content-Type: application/json" }
-
   local event_cmd = { state.getProxyUrl() .. "/api/v1/events?pretty=false&watch=true" }
   for _, arg in ipairs(args) do
     table.insert(event_cmd, arg)
@@ -168,22 +166,40 @@ function M.start(builder)
     end
   end
 
-  M.handle = shell_uv_async(builder.cmd, args)
-  M.events_handle = shell_uv_async("curl", event_cmd)
+  M.builders[builder.buf_nr] = builder
+  M.start_events(event_cmd)
+  M.builders[builder.buf_nr].handle = shell_uv_async(builder.cmd, args, builder.buf_nr)
 
-  M.builder = builder
-  return M.handle
+  vim.schedule(function()
+    vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
+      buffer = builder.buf_nr,
+      callback = function(ev)
+        if ev.event == "QuitPre" then
+          M.stop_events()
+        end
+        M.stop(ev.buf)
+      end,
+    })
+  end)
 end
 
----Stop the informer and its event watcher
-function M.stop()
-  if M.handle and not M.handle:is_closing() then
-    M.handle:kill(2)
+function M.start_events(cmd)
+  if not M.events_handle then
+    M.events_handle = shell_uv_async("curl", cmd)
   end
+end
 
+function M.stop_events()
   if M.events_handle and not M.events_handle:is_closing() then
     M.events_handle:kill(2)
   end
+end
+
+function M.stop(buf)
+  if M.builders[buf] and M.builders[buf].handle and not M.builders[buf].handle:is_closing() then
+    M.builders[buf].handle:kill(2)
+  end
+  M.builders[buf] = nil
 end
 
 return M
