@@ -196,10 +196,13 @@ function M.stop_events()
 end
 
 function M.stop(buf)
+  M.builders = M.builders or {}
   if M.builders[buf] and M.builders[buf].handle and not M.builders[buf].handle:is_closing() then
     M.builders[buf].handle:kill(2)
   end
-  M.builders[buf] = nil
+  if buf then
+    M.builders[buf] = nil
+  end
 end
 
 return M

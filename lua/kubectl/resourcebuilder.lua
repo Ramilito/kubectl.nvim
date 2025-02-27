@@ -27,6 +27,8 @@ function ResourceBuilder:new(resource)
   instance.display_name = nil
   instance.processedData = nil
   instance.data = nil
+  instance.buf_nr = nil
+  instance.win_nr = nil
   instance.prettyData = nil
   instance.header = { data = nil, marks = nil }
   return instance
@@ -405,13 +407,17 @@ function ResourceBuilder:draw_header(cancellationToken)
   end
 
   self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
+  local ok, win_config = pcall(vim.api.nvim_win_get_config, self.win_header_nr)
 
+  local current_buf = vim.api.nvim_get_current_buf()
+  if ok and (win_config.relative ~= "" or current_buf ~= self.buf_nr) then
+    return
+  end
   if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
-    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
+    buffers.set_content(self.buf_header_nr, { content = self.header.data, marks = self.header.marks })
     vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
     vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
 
-    local win_config = vim.api.nvim_win_get_config(self.win_header_nr)
     local rows = vim.api.nvim_buf_line_count(self.buf_header_nr)
     win_config.height = rows
     pcall(vim.api.nvim_win_set_config, self.win_header_nr, win_config)

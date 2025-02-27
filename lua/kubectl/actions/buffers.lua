@@ -304,39 +304,38 @@ function M.header_buffer(main_buf, header_win)
     buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_name(buf, bufname)
     M.set_content(buf, { content = { "Loading..." } })
+  end
+  local win_list = vim.fn.win_findbuf(buf)
 
+  if #win_list == 0 then
     win = vim.api.nvim_open_win(buf, false, {
       focusable = false, --TODO: Not working on non-floating https://github.com/neovim/neovim/issues/29365
       split = "above",
-      height = 6,
+      height = 5,
       style = "minimal",
     })
 
     -- Connect the exit to the main window exit
-    vim.api.nvim_create_autocmd("BufWinLeave", {
-      buffer = main_buf,
-      callback = function()
-        if vim.api.nvim_win_is_valid(win) then
-          vim.api.nvim_win_close(win, true)
-        end
-        if vim.api.nvim_buf_is_valid(buf) then
-          vim.api.nvim_buf_delete(buf, { force = true })
-        end
+    vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
+      -- buffer = buf,
+      callback = function(args)
+        vim.schedule(function()
+          for _, winid in ipairs(vim.api.nvim_list_wins()) do
+            local bufnr = vim.api.nvim_win_get_buf(winid)
+            local ft = vim.bo[bufnr].filetype
+            if ft:match("^k8s_") then
+              return -- Still an active k8s buffer, don't close anything
+            end
+          end
+
+          pcall(vim.api.nvim_win_close, win, true)
+          pcall(vim.api.nvim_buf_delete, buf, { force = true })
+          pcall(vim.api.nvim_del_autocmd, args.id)
+        end)
       end,
     })
-
-    vim.schedule(function()
-      -- vim.api.nvim_set_option_value("laststatus", 0, {})
-      -- -- vim.api.nvim_set_option_value("winbar", "", { scope = "global" })
-      --
-      -- vim.opt.laststatus = 0
-      -- vim.api.nvim_set_hl(0, "Statusline", { link = "Normal" })
-      -- vim.api.nvim_set_hl(0, "StatuslineNC", { link = "Normal" })
-      --
-      -- local width = vim.api.nvim_win_get_width(win)
-      -- local str = string.rep(" ", width)
-      -- vim.api.nvim_set_option_value("statusline", str, { win = win })
-    end)
+  else
+    win = win_list[1]
   end
 
   return buf, win
