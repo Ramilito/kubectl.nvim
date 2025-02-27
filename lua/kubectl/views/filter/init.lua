@@ -114,7 +114,7 @@ end
 
 function M.filter()
   local state = require("kubectl.state")
-  local buf = buffers.filter_buffer("k8s_filter", M.save_history, { title = "Filter", header = { data = {} } })
+  local buf, win = buffers.filter_buffer("k8s_filter", M.save_history, { title = "Filter", header = { data = {} } })
 
   local list = {}
   for _, value in ipairs(state.filter_history) do
@@ -169,7 +169,7 @@ function M.filter()
 
     -- TODO: Marks should be set in buffers.set_content above
     buffers.apply_marks(buf, marks, header)
-    buffers.fit_to_content(buf, 0)
+    buffers.fit_to_content(buf, win, 0)
 
     -- TODO: Registering keymap after generateheader makes it not appear in hints
     vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {

@@ -230,7 +230,7 @@ end
 ---@return ResourceBuilder
 function ResourceBuilder:prettyPrint(headersFunc)
   self.prettyData, self.extmarks =
-    tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource])
+    tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource], self.win_nr)
   return self
 end
 
@@ -263,7 +263,7 @@ function ResourceBuilder:addHints(hints, include_defaults, include_context, incl
     resource = string_util.capitalize(self.display_name or self.resource),
     count = count,
     filter = filter,
-  })
+  }, self.win_nr)
 
   return self
 end
@@ -288,15 +288,21 @@ function ResourceBuilder:setContent(cancellationToken)
     return nil
   end
 
-  local win_config = vim.api.nvim_win_get_config(self.win_nr or 0)
-  if win_config.relative == "" then
+  local ok, win_config = pcall(vim.api.nvim_win_get_config, self.win_nr or 0)
+
+  if ok and win_config.relative == "" then
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
-    vim.api.nvim_set_option_value("winbar", self.header.divider_winbar, { scope = "local", win = self.win_nr })
-  else
+
+    vim.defer_fn(function()
+      vim.api.nvim_set_option_value("winbar", self.header.divider_winbar, { scope = "local", win = self.win_nr })
+    end, 10)
+  elseif ok then
     if self.header.data then
       tables.generateDividerRow(self.header.data, self.header.marks)
     end
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = self.header })
+  else
+    return nil
   end
 
   return self
@@ -382,22 +388,26 @@ function ResourceBuilder:draw(definition, cancellationToken)
     :addHints(definition.hints, true, true, true)
   vim.schedule(function()
     self:setContent(cancellationToken)
-    self:draw_header()
+    self:draw_header(cancellationToken)
   end)
 
   state.instance[definition.resource] = self
   return self
 end
 
-function ResourceBuilder:draw_header()
+function ResourceBuilder:draw_header(cancellationToken)
   if not config.options.headers then
     return
   end
 
+  if cancellationToken and cancellationToken() then
+    return
+  end
+
   self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
-  buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
 
   if self.win_header_nr and vim.api.nvim_win_is_valid(self.win_header_nr) then
+    buffers.set_content(self.buf_header_nr, { content = {}, marks = {}, header = self.header })
     vim.api.nvim_set_option_value("winbar", "", { scope = "local", win = self.win_header_nr })
     vim.api.nvim_set_option_value("statusline", " ", { scope = "local", win = self.win_header_nr })
 
