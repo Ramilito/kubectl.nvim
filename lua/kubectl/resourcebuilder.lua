@@ -294,7 +294,7 @@ function ResourceBuilder:setContent(cancellationToken)
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
 
     vim.defer_fn(function()
-      vim.api.nvim_set_option_value("winbar", self.header.divider_winbar, { scope = "local", win = self.win_nr })
+      pcall(vim.api.nvim_set_option_value, "winbar", self.header.divider_winbar, { scope = "local", win = self.win_nr })
     end, 10)
   elseif ok then
     if self.header.data then
