@@ -1,0 +1,11 @@
+[package]
+name = "kubectl-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "lua/kubectl/rust/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+mlua = { version = "0.10.2", features = ["module", "luajit"] }
