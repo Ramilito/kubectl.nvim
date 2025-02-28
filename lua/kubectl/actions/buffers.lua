@@ -298,6 +298,8 @@ end
 function M.header_buffer(header_win)
   local bufname = "kubectl_header"
   local buf = M.get_buffer_by_name(bufname)
+
+  -- luacheck: ignore win
   local win = header_win or nil
 
   if not buf then
