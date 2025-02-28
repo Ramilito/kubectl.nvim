@@ -1,11 +1,16 @@
 [package]
-name = "kubectl-rs"
+name = "kubectl_client"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-path = "lua/kubectl/rust/lib.rs"
+name = "kubectl_client"
+path = "lua/kubectl/client/rust/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
 mlua = { version = "0.10.2", features = ["module", "luajit"] }
+
+[build]
+rustflags = ["-Clink-arg=-Wl,-soname,custom_name.so"]
+[build-dependencies]

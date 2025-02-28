@@ -13,7 +13,9 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   local kube = require("kubectl.actions.kube")
-
+  local client = require("kubectl.client")
+	client.set_implementation()
+  client.test()
   hl.setup()
   kube.start_kubectl_proxy(function()
     cache.LoadFallbackData()
