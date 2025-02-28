@@ -406,7 +406,7 @@ function ResourceBuilder:draw_header(cancellationToken)
     return
   end
 
-  self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.buf_nr, self.win_header_nr)
+  self.buf_header_nr, self.win_header_nr = buffers.header_buffer(self.win_header_nr)
   local ok, win_config = pcall(vim.api.nvim_win_get_config, self.win_header_nr)
 
   local current_buf = vim.api.nvim_get_current_buf()
