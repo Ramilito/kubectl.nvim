@@ -44,35 +44,11 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-// /// Initializes the Tokio runtime and Kubernetes client with an optional context name.
-// fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
-//     // Initialize the runtime if it hasn't been already.
-//     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-//
-//     // Initialize the Kubernetes client with a specific context.
-//     CLIENT_INSTANCE.get_or_init(|| {
-//         rt.block_on(async {
-//             let options = KubeConfigOptions {
-//                 context: context_name.clone(),
-//                 cluster: None,
-//                 user: None,
-//             };
-//
-//             let config = Config::from_kubeconfig(&options)
-//                 .await
-//                 .expect("Failed to load kubeconfig");
-//             Client::try_from(config).expect("Failed to create Kubernetes client")
-//         })
-//     });
-//
-//     println!("Client initialized with context: {:?}", context_name);
-//     Ok(true)
-// }
-
 fn get_resource(
     _lua: &Lua,
-    (resource, group, version, name, namespace): (
+    (resource, group, version, name, namespace, sortby): (
         String,
+        Option<String>,
         Option<String>,
         Option<String>,
         Option<String>,

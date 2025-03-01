@@ -1,3 +1,3 @@
 --- @class kubectl.ClientImplementation
 --- @field init_runtime fun(context_name: string)
---- @field get_resource fun()
+--- @field get_resource fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?, sortby: string?)
