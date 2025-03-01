@@ -1,43 +1,74 @@
+use std::sync::Mutex;
+
 use k8s_openapi::serde_json;
 use kube::api::ApiResource;
+use kube::config::KubeConfigOptions;
 use kube::core::GroupVersionKind;
 use kube::{
     api::{Api, DynamicObject, ListParams},
-    Client,
+    Client, Config,
 };
 use mlua::prelude::*;
-use std::sync::OnceLock;
 use tokio::runtime::Runtime;
 
-static RUNTIME: OnceLock<Runtime> = OnceLock::new();
-static CLIENT_INSTANCE: OnceLock<Client> = OnceLock::new();
+static RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);
+static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 
-/// Initializes the Tokio runtime and Kubernetes client only once.
-fn init_runtime(_lua: &Lua, _: ()) -> LuaResult<bool> {
-    // Initialize the runtime if it hasn't been already.
-    RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
+    let mut rt_guard = RUNTIME.lock().expect("Failed to lock RUNTIME");
+    let mut client_guard = CLIENT_INSTANCE
+        .lock()
+        .expect("Failed to lock CLIENT_INSTANCE");
 
-    // Initialize the Kubernetes client using the runtime.
-    CLIENT_INSTANCE.get_or_init(|| {
-        RUNTIME
-            .get()
-            .unwrap()
-            .block_on(Client::try_default())
-            .expect("Failed to create Kubernetes client")
+    // Create a new runtime.
+    let new_rt = Runtime::new().expect("Failed to create Tokio runtime");
+
+    // Create a new client with an optional context.
+    let new_client = new_rt.block_on(async {
+        let options = KubeConfigOptions {
+            context: context_name.clone(),
+            cluster: None,
+            user: None,
+        };
+        let config = Config::from_kubeconfig(&options)
+            .await
+            .expect("Failed to load kubeconfig");
+        Client::try_from(config).expect("Failed to create Kubernetes client")
     });
 
-    println!("Client initatiet");
+    // Replace any existing runtime/client.
+    *rt_guard = Some(new_rt);
+    *client_guard = Some(new_client);
+
+    println!("Client initialized with context: {:?}", context_name);
     Ok(true)
 }
 
-/// Fetch K8s resources (LIST or GET) as a single-line JSON string.
-///
-/// ## Parameters (as a Lua tuple):
-/// - `resource`: String (e.g. "Pod", "Deployment")
-/// - `group`: Option<String> (e.g. "" for core resources; "apps" for Deployments)
-/// - `version`: Option<String> (default "v1")
-/// - `name`: Option<String> (if provided, a single GET; otherwise LIST)
-/// - `namespace`: Option<String> (if provided, queries that namespace; else all)
+// /// Initializes the Tokio runtime and Kubernetes client with an optional context name.
+// fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
+//     // Initialize the runtime if it hasn't been already.
+//     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+//
+//     // Initialize the Kubernetes client with a specific context.
+//     CLIENT_INSTANCE.get_or_init(|| {
+//         rt.block_on(async {
+//             let options = KubeConfigOptions {
+//                 context: context_name.clone(),
+//                 cluster: None,
+//                 user: None,
+//             };
+//
+//             let config = Config::from_kubeconfig(&options)
+//                 .await
+//                 .expect("Failed to load kubeconfig");
+//             Client::try_from(config).expect("Failed to create Kubernetes client")
+//         })
+//     });
+//
+//     println!("Client initialized with context: {:?}", context_name);
+//     Ok(true)
+// }
+
 fn get_resource(
     _lua: &Lua,
     (resource, group, version, name, namespace): (
@@ -49,12 +80,16 @@ fn get_resource(
     ),
 ) -> LuaResult<String> {
     // Grab our runtime and client.
-    let rt: &Runtime = RUNTIME
-        .get()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".to_string()))?;
-    let client: &Client = CLIENT_INSTANCE
-        .get()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".to_string()))?;
+    let rt_opt = RUNTIME.lock().expect("Failed to lock RUNTIME");
+    let client_opt = CLIENT_INSTANCE
+        .lock()
+        .expect("Failed to lock CLIENT_INSTANCE");
+    let rt = rt_opt
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Tokio Runtime not initialized".to_string()))?;
+    let client = client_opt.as_ref().ok_or_else(|| {
+        mlua::Error::RuntimeError("Kubernetes Client not initialized".to_string())
+    })?;
 
     // Build GroupVersionKind with defaults if not provided.
     let group_str: String = group.unwrap_or_default();

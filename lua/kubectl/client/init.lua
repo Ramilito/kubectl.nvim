@@ -5,8 +5,9 @@ local client = {
 }
 
 function client.set_implementation()
+  local state = require("kubectl.state")
   client.implementation = require("kubectl.client.rust")
-  client.implementation.init_runtime()
+  client.implementation.init_runtime(state.context["current-context"])
 end
 
 function client.get_resource(...)
