@@ -360,7 +360,7 @@ function ResourceBuilder:view_new(definition, cancellationToken)
     self = ResourceBuilder:new(definition.resource)
   end
 
-  self.data = client.get_resource("Pod", "", "v1", nil, nil, "json")
+  self.data = client.get_resource(definition.resource_name, definition.group, definition.version, nil, nil, "json")
 
   self:display(definition.ft, definition.resource, cancellationToken)
   self:decodeJson()
