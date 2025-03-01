@@ -1,4 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
+local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local informer = require("kubectl.actions.informer")
@@ -351,6 +352,32 @@ function ResourceBuilder:view_float(definition, opts)
   return self
 end
 
+function ResourceBuilder:view_new(definition, cancellationToken)
+  self.definition = definition
+  self = state.instance[definition.resource]
+
+  if not self or not self.resource or self.resource ~= definition.resource then
+    self = ResourceBuilder:new(definition.resource)
+  end
+
+  self.data = client.get_resource("Pod", "", "v1", nil, nil, "json")
+
+  self:display(definition.ft, definition.resource, cancellationToken)
+  self:decodeJson()
+  -- if opts.cmd == "curl" then
+  --   if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
+  --     informer.start(self)
+  --   end
+  -- end
+  vim.schedule(function()
+    self:draw(definition, cancellationToken)
+  end)
+
+  state.instance[definition.resource] = self
+  state.selections = {}
+
+  return self
+end
 function ResourceBuilder:view(definition, cancellationToken, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"

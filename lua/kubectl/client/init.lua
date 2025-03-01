@@ -7,10 +7,11 @@ local client = {
 
 function client.set_implementation()
   client.implementation = require("kubectl.client.rust")
+	client.implementation.init_client()
 end
 
-function client.test()
-  client.implementation.test("from lua called")
+function client.get_resource(...)
+  return client.implementation.get_resource(...)
 end
 
 return client

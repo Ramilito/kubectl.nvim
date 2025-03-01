@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.pods.definition")
@@ -20,16 +21,18 @@ local M = {
 function M.View(cancellationToken)
   M.pfs = {}
   root_definition.getPFData(M.pfs, true)
-  ResourceBuilder:view(definition, cancellationToken)
+  ResourceBuilder:view_new(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
-  root_definition.setPortForwards(
-    state.instance[definition.resource].extmarks,
-    state.instance[definition.resource].prettyData,
-    M.pfs
-  )
+	if state.instance[definition.resource] then
+		state.instance[definition.resource]:draw(definition, cancellationToken)
+		root_definition.setPortForwards(
+			state.instance[definition.resource].extmarks,
+			state.instance[definition.resource].prettyData,
+			M.pfs
+		)
+	end
 end
 
 function M.TailLogs(pod, ns, container)

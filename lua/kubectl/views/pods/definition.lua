@@ -190,17 +190,17 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
   local currentTime = time.currentTime()
-  if rows and rows.items then
-    for i = 1, #rows.items do
+  if rows then
+    for i = 1, #rows do
       -- Set managedFields to nil so the garbage collector can free up the memory
-      rows.items[i].metadata.managedFields = nil
+      rows[i].metadata.managedFields = nil
 
-      local row = rows.items[i]
+      local row = rows[i]
       data[i] = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
