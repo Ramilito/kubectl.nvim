@@ -1,3 +1,3 @@
 --- @class kubectl.ClientImplementation
---- @field init_client fun()
+--- @field init_runtime fun()
 --- @field get_resource fun()

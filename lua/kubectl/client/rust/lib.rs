@@ -13,7 +13,7 @@ static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: OnceLock<Client> = OnceLock::new();
 
 /// Initializes the Tokio runtime and Kubernetes client only once.
-fn init_client(_lua: &Lua, _: ()) -> LuaResult<bool> {
+fn init_runtime(_lua: &Lua, _: ()) -> LuaResult<bool> {
     // Initialize the runtime if it hasn't been already.
     RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
@@ -107,7 +107,7 @@ fn get_resource(
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
-    exports.set("init_client", lua.create_function(init_client)?)?;
+    exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("get_resource", lua.create_function(get_resource)?)?;
 
     Ok(exports)
