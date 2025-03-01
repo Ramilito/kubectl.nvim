@@ -360,21 +360,22 @@ function ResourceBuilder:view_new(definition, cancellationToken)
     self = ResourceBuilder:new(definition.resource)
   end
 
-  self.data = client.get_resource(definition.resource_name, definition.group, definition.version, nil, nil, "json")
+  commands.run_async("get_resource", { "Pod", "", "v1", nil, nil }, function(data)
+    self.data = data
+    self:decodeJson()
+    -- if opts.cmd == "curl" then
+    --   if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
+    --     informer.start(self)
+    --   end
+    -- end
+    vim.schedule(function()
+      self:display(definition.ft, definition.resource, cancellationToken)
+      self:draw(definition, cancellationToken)
+    end)
 
-  self:display(definition.ft, definition.resource, cancellationToken)
-  self:decodeJson()
-  -- if opts.cmd == "curl" then
-  --   if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
-  --     informer.start(self)
-  --   end
-  -- end
-  vim.schedule(function()
-    self:draw(definition, cancellationToken)
+    state.instance[definition.resource] = self
+    state.selections = {}
   end)
-
-  state.instance[definition.resource] = self
-  state.selections = {}
 
   return self
 end
