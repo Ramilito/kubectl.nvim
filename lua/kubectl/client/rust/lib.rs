@@ -14,3 +14,4 @@ fn kubectl_client(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("test", lua.create_function(test)?)?;
     Ok(exports)
 }
+

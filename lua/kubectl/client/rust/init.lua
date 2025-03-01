@@ -10,18 +10,11 @@ end
 package.cpath = package.cpath
   .. ';'
   .. debug.getinfo(1).source:match('@?(.*/)')
-  .. '../../../../../target/release/lib?'
+  .. '../../../../target/release/lib?'
   .. get_lib_extension()
   .. ';'
   .. debug.getinfo(1).source:match('@?(.*/)')
-  .. '../../../../../target/release/?'
+  .. '../../../../target/release/?'
   .. get_lib_extension()
-  .. ';'
-  .. debug.getinfo(1).source:match('@?(.*/)')
-  .. '/?'
-  .. get_lib_extension()
-  -- .. debug.getinfo(1).source:match('@?(.*/)')
-  -- .. '../../../../target/debug/?'
-  -- .. get_lib_extension()
 
 return require('kubectl_client')
