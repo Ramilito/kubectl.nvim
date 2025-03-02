@@ -14,4 +14,8 @@ function client.get_resource(...)
   return client.implementation.get_resource(...)
 end
 
+function client.get_store(resource_name)
+  return client.implementation.get_store(resource_name)
+end
+
 return client

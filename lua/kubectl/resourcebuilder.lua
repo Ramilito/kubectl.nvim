@@ -1,5 +1,4 @@
 local buffers = require("kubectl.actions.buffers")
-local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local informer = require("kubectl.actions.informer")
