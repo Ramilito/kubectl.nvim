@@ -20,6 +20,8 @@ function client.get_table(resource_name)
   if state.ns and state.ns ~= "All" then
     namespace = state.ns
   end
+  local sortby = state.sortby[resource_name]
+
   return client.implementation.get_table(resource_name, namespace)
 end
 
