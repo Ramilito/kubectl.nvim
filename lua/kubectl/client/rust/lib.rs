@@ -1,17 +1,27 @@
-use futures::StreamExt;
 use kube::config::KubeConfigOptions;
-use kube::runtime::watcher;
-use kube::runtime::watcher::Event;
 use kube::{Client, Config};
 use mlua::prelude::*;
-use std::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 use tokio::runtime::Runtime;
+use tokio::task::JoinHandle;
+use futures::StreamExt;
+use kube::runtime::watcher;
+use kube::runtime::watcher::Event;
 
+mod store;
 
 static RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 
-mod store;
+// Global watcher registry: one watcher per resource kind.
+static WATCHERS: LazyLock<Mutex<HashMap<String, JoinHandle<()>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn strip_managed_fields(obj: &mut kube::api::DynamicObject) {
+    obj.metadata.managed_fields = None;
+}
+
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let mut rt_guard = RUNTIME.lock().unwrap();
     let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
@@ -32,10 +42,6 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     *rt_guard = Some(new_rt);
     *client_guard = Some(new_client);
     Ok(true)
-}
-
-fn strip_managed_fields(obj: &mut kube::api::DynamicObject) {
-    obj.metadata.managed_fields = None;
 }
 
 fn get_resource(
@@ -66,15 +72,15 @@ fn get_resource(
         kind: resource.clone(),
     };
     let ar = kube::api::ApiResource::from_gvk(&gvk);
-    let api = if let Some(ns) = namespace.clone() {
-        kube::api::Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), &ns, &ar)
+
+    // Create the API handle for the initial fetch.
+    let api = if let Some(ref ns) = namespace {
+        kube::api::Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), ns, &ar)
     } else {
         kube::api::Api::<kube::api::DynamicObject>::all_with(client.clone(), &ar)
     };
 
-    // Use the correct watcher config instead of ListParams.
-    let watcher_config = kube::runtime::watcher::Config::default();
-
+    // Fetch resources.
     let mut items = rt
         .block_on(async {
             if let Some(n) = name {
@@ -85,34 +91,44 @@ fn get_resource(
         })
         .map_err(|e: kube::Error| mlua::Error::RuntimeError(e.to_string()))?;
 
-    // Strip managedFields before storing in the database.
+    // Remove managedFields before storing.
     for item in &mut items {
         strip_managed_fields(item);
     }
-    // Store the fetched items keyed by the resource kind.
     store::set(&resource, items.clone());
 
-    // Spawn a watcher to keep the store up-to-date.
-    let api_watcher = if let Some(ns) = namespace {
-        kube::api::Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), &ns, &ar)
-    } else {
-        kube::api::Api::<kube::api::DynamicObject>::all_with(client.clone(), &ar)
-    };
-    let kind_clone = resource.clone();
-    rt.spawn(async move {
-        let mut watcher_stream = watcher(api_watcher, watcher_config).boxed();
-        while let Some(event) = watcher_stream.next().await {
-            match event {
-                Ok(Event::Apply(obj)) => {
-                    store::update(&kind_clone, obj);
-                },
-                Ok(Event::Delete(obj)) => {
-                    store::delete(&kind_clone, &obj);
-                },
-                _ => {},
-            }
+    // Ensure a single watcher per resource kind.
+    {
+        let mut watchers = WATCHERS.lock().unwrap();
+        if !watchers.contains_key(&resource) {
+            // Create an API handle for the watcher.
+            let api_watcher = if let Some(ref ns) = namespace {
+                kube::api::Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), ns, &ar)
+            } else {
+                kube::api::Api::<kube::api::DynamicObject>::all_with(client.clone(), &ar)
+            };
+            let kind_clone = resource.clone();
+            // Spawn the watcher.
+            let handle = rt.spawn(async move {
+                let watcher_config = kube::runtime::watcher::Config::default();
+                let mut watcher_stream = watcher(api_watcher, watcher_config).boxed();
+                while let Some(event) = watcher_stream.next().await {
+                    match event {
+                        Ok(Event::Apply(mut obj)) => {
+                            strip_managed_fields(&mut obj);
+                            store::update(&kind_clone, obj);
+                        }
+                        Ok(Event::Delete(mut obj)) => {
+                            strip_managed_fields(&mut obj);
+                            store::delete(&kind_clone, &obj);
+                        }
+                        _ => {}
+                    }
+                }
+            });
+            watchers.insert(resource.clone(), handle);
         }
-    });
+    }
 
     let json_str = k8s_openapi::serde_json::to_string(&items)
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
