@@ -1,16 +1,14 @@
-use kube::{Client, api::{DynamicObject, Api, ListParams, ApiResource}};
-use kube::core::GroupVersionKind;
+use kube::{
+    api::{Api, ApiResource, DynamicObject, ListParams},
+    core::GroupVersionKind,
+    Client,
+};
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::{watcher, store};
+use crate::store;
 
-/// Remove managedFields from the object.
-pub fn strip_managed_fields(obj: &mut DynamicObject) {
-    obj.metadata.managed_fields = None;
-}
-
-/// Fetch the requested resource(s) from the Kubernetes API.
+/// Fetch the resource(s) from Kubernetes.
 pub fn fetch_resource(
     rt: &Runtime,
     client: &Client,
@@ -43,8 +41,7 @@ pub fn fetch_resource(
     Ok(items)
 }
 
-/// Main function to get a resource. It fetches the resources,
-/// strips managedFields, stores them, and ensures a watcher is running.
+/// Retrieves the resource(s), strips managedFields, and stores the result.
 pub fn get_resource(
     rt: &Runtime,
     client: &Client,
@@ -54,17 +51,12 @@ pub fn get_resource(
     name: Option<String>,
     namespace: Option<String>,
 ) -> LuaResult<String> {
-    let mut items = fetch_resource(rt, client, &resource, group.clone(), version.clone(), name, namespace.clone())
+    let mut items = fetch_resource(rt, client, &resource, group, version, name, namespace)
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    
     for item in &mut items {
-        strip_managed_fields(item);
+        crate::utils::strip_managed_fields(item);
     }
-    
     store::set(&resource, items.clone());
-    // Ensure the watcher is started for this resource kind.
-    watcher::ensure_watcher(rt, client, resource.clone(), group, version, namespace)?;
-    
     let json_str = k8s_openapi::serde_json::to_string(&items)
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
     Ok(json_str)

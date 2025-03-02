@@ -18,4 +18,8 @@ function client.get_store(resource_name)
   return client.implementation.get_store(resource_name)
 end
 
+function client.start_watcher(...)
+  return client.implementation.start_watcher(...)
+end
+
 return client

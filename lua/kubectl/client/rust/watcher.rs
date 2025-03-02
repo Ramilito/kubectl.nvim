@@ -12,7 +12,6 @@ use tokio::task::JoinHandle;
 
 use futures::StreamExt;
 
-use crate::resource::strip_managed_fields;
 use crate::store;
 
 static WATCHERS: LazyLock<Mutex<HashMap<String, JoinHandle<()>>>> =
@@ -20,7 +19,7 @@ static WATCHERS: LazyLock<Mutex<HashMap<String, JoinHandle<()>>>> =
 
 /// Ensures that a watcher is running for the given resource kind.
 /// If not already running, spawns a new watcher task that updates the store.
-pub fn ensure_watcher(
+pub fn start(
     rt: &Runtime,
     client: &Client,
     resource: String,
@@ -54,11 +53,11 @@ pub fn ensure_watcher(
         while let Some(event) = stream.next().await {
             match event {
                 Ok(Event::Apply(mut obj)) => {
-                    strip_managed_fields(&mut obj);
+                    crate::utils::strip_managed_fields(&mut obj);
                     store::update(&resource_clone, obj);
                 }
                 Ok(Event::Delete(mut obj)) => {
-                    strip_managed_fields(&mut obj);
+                    crate::utils::strip_managed_fields(&mut obj);
                     store::delete(&resource_clone, &obj);
                 }
                 _ => {}

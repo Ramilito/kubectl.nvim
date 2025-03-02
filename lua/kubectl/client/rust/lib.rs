@@ -1,11 +1,13 @@
+// lib.rs
 use kube::config::KubeConfigOptions;
 use kube::{Client, Config};
 use mlua::prelude::*;
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-mod store;
 mod resource;
+mod store;
+mod utils;
 mod watcher;
 
 static RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);
@@ -14,7 +16,6 @@ static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let mut rt_guard = RUNTIME.lock().unwrap();
     let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
-
     let new_rt = Runtime::new().expect("Failed to create Tokio runtime");
     let new_client = new_rt.block_on(async {
         let options = KubeConfigOptions {
@@ -27,17 +28,24 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
             .expect("Failed to load kubeconfig");
         Client::try_from(config).expect("Failed to create Kubernetes client")
     });
-
     *rt_guard = Some(new_rt);
     *client_guard = Some(new_client);
     Ok(true)
 }
 
+/// Lua-callable function to fetch a resource.
+/// It does not start the watcher.
 fn get_resource(
     _lua: &Lua,
-    args: (String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>),
+    args: (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
 ) -> LuaResult<String> {
-    let (resource, group, version, name, namespace, _sortby) = args;
+    let (resource, group, version, name, namespace) = args;
     let rt_guard = RUNTIME.lock().unwrap();
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
     let rt = rt_guard
@@ -49,6 +57,25 @@ fn get_resource(
     resource::get_resource(rt, client, resource, group, version, name, namespace)
 }
 
+/// Lua-callable function to manually start the watcher for a resource.
+/// Arguments: resource, group, version, namespace.
+fn start_watcher(
+    _lua: &Lua,
+    args: (String, Option<String>, Option<String>, Option<String>),
+) -> LuaResult<()> {
+    let (resource, group, version, namespace) = args;
+    let rt_guard = RUNTIME.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let rt = rt_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+    watcher::start(rt, client, resource, group, version, namespace)
+}
+
+/// Lua-callable function to retrieve stored resource data.
 fn get_store(_lua: &Lua, key: String) -> LuaResult<String> {
     if let Some(json_str) = store::to_json(&key) {
         Ok(json_str)
@@ -62,6 +89,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("get_resource", lua.create_function(get_resource)?)?;
+    exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     Ok(exports)
 }

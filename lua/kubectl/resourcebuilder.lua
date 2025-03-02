@@ -1,4 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
+local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local informer = require("kubectl.actions.informer")
@@ -361,15 +362,13 @@ function ResourceBuilder:view_new(definition, cancellationToken)
 
   commands.run_async(
     "get_resource",
-    { definition.resource_name, definition.group, definition.version, nil, nil },
+    { definition.resource_name, definition.group, definition.version, nil },
     function(data)
       self.data = data
       self:decodeJson()
-      -- if opts.cmd == "curl" then
-      --   if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
-      --     informer.start(self)
-      --   end
-      -- end
+      if definition.informer and definition.informer.enabled then
+        client.start_watcher(definition.resource_name, definition.group, definition.version, nil)
+      end
       vim.schedule(function()
         self:display(definition.ft, definition.resource, cancellationToken)
         self:draw(definition, cancellationToken)

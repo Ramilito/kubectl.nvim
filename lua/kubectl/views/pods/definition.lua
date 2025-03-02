@@ -7,9 +7,12 @@ local M = {
   display_name = "Pods",
   ft = "k8s_pods",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" },
-	resource_name = "pod",
-	group = "",
-	version = "v1",
+  resource_name = "pod",
+  group = "",
+  version = "v1",
+  informer = {
+    enabled = true,
+  },
   hints = {
     { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
     { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
