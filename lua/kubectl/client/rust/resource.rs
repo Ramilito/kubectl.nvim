@@ -8,7 +8,6 @@ use tokio::runtime::Runtime;
 
 use crate::store;
 
-/// Fetch the resource(s) from Kubernetes.
 pub fn fetch_resource(
     rt: &Runtime,
     client: &Client,
@@ -31,6 +30,7 @@ pub fn fetch_resource(
     } else {
         Api::all_with(client.clone(), &ar)
     };
+
     let items = rt.block_on(async {
         if let Some(n) = name {
             Ok(vec![api.get(&n).await?])
@@ -38,6 +38,7 @@ pub fn fetch_resource(
             Ok(api.list(&ListParams::default()).await?.items)
         }
     })?;
+
     Ok(items)
 }
 

@@ -31,11 +31,21 @@ pub fn delete(kind: &str, item: &DynamicObject) {
     }
 }
 
-pub fn get(kind: &str) -> Option<Vec<DynamicObject>> {
+pub fn get(kind: &str, namespace: Option<String>) -> Option<Vec<DynamicObject>> {
     let store = STORE.lock().unwrap();
-    store.get(kind).cloned()
+    store.get(kind).map(|items| {
+        if let Some(ns) = namespace {
+            items
+                .iter()
+                .filter(|item| item.metadata.namespace.as_ref() == Some(&ns))
+                .cloned()
+                .collect()
+        } else {
+            items.clone()
+        }
+    })
 }
 
-pub fn to_json(kind: &str) -> Option<String> {
-    get(kind).and_then(|items| serde_json::to_string(&items).ok())
+pub fn to_json(kind: &str, namespace: Option<String>) -> Option<String> {
+    get(kind, namespace).and_then(|items| serde_json::to_string(&items).ok())
 }

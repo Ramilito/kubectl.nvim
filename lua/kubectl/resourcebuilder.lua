@@ -360,9 +360,14 @@ function ResourceBuilder:view_new(definition, cancellationToken)
     self = ResourceBuilder:new(definition.resource)
   end
 
+  local ns = nil
+  if state.ns and state.ns ~= "All" then
+    ns = state.ns
+  end
+
   commands.run_async(
     "get_resource",
-    { definition.resource_name, definition.group, definition.version, nil },
+    { definition.resource_name, definition.group, definition.version, nil, ns },
     function(data)
       self.data = data
       self:decodeJson()

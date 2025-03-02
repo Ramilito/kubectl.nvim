@@ -33,8 +33,6 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-/// Lua-callable function to fetch a resource.
-/// It does not start the watcher.
 fn get_resource(
     _lua: &Lua,
     args: (
@@ -57,8 +55,6 @@ fn get_resource(
     resource::get_resource(rt, client, resource, group, version, name, namespace)
 }
 
-/// Lua-callable function to manually start the watcher for a resource.
-/// Arguments: resource, group, version, namespace.
 fn start_watcher(
     _lua: &Lua,
     args: (String, Option<String>, Option<String>, Option<String>),
@@ -75,9 +71,9 @@ fn start_watcher(
     watcher::start(rt, client, resource, group, version, namespace)
 }
 
-/// Lua-callable function to retrieve stored resource data.
-fn get_store(_lua: &Lua, key: String) -> LuaResult<String> {
-    if let Some(json_str) = store::to_json(&key) {
+fn get_store(_lua: &Lua, args: (String, Option<String>)) -> LuaResult<String> {
+    let (key, namespace) = args;
+    if let Some(json_str) = store::to_json(&key, namespace) {
         Ok(json_str)
     } else {
         Err(mlua::Error::RuntimeError("No data for given key".into()))

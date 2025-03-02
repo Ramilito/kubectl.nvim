@@ -1,3 +1,5 @@
+local state = require("kubectl.state")
+
 --- @class kubectl.Client
 local client = {
   --- @type kubectl.ClientImplementation
@@ -5,7 +7,6 @@ local client = {
 }
 
 function client.set_implementation()
-  local state = require("kubectl.state")
   client.implementation = require("kubectl.client.rust")
   client.implementation.init_runtime(state.context["current-context"])
 end
@@ -15,7 +16,11 @@ function client.get_resource(...)
 end
 
 function client.get_store(resource_name)
-  return client.implementation.get_store(resource_name)
+  local namespace = nil
+  if state.ns and state.ns ~= "All" then
+    namespace = state.ns
+  end
+  return client.implementation.get_store(resource_name, namespace)
 end
 
 function client.start_watcher(...)

@@ -25,14 +25,17 @@ function M.View(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-	if state.instance[definition.resource] then
-		state.instance[definition.resource]:draw(definition, cancellationToken)
-		root_definition.setPortForwards(
-			state.instance[definition.resource].extmarks,
-			state.instance[definition.resource].prettyData,
-			M.pfs
-		)
-	end
+  if state.instance[definition.resource] then
+    local store = client.get_store(definition.resource_name)
+    state.instance[definition.resource].data = store
+    state.instance[definition.resource]:decodeJson():draw(definition, cancellationToken)
+
+    root_definition.setPortForwards(
+      state.instance[definition.resource].extmarks,
+      state.instance[definition.resource].prettyData,
+      M.pfs
+    )
+  end
 end
 
 function M.TailLogs(pod, ns, container)

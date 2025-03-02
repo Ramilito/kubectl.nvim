@@ -2,4 +2,4 @@
 --- @field init_runtime fun(context_name: string)
 --- @field get_resource fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?)
 --- @field start_watcher fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?)
---- @field get_store fun(resource_name: string)
+--- @field get_store fun(resource_name: string, namespace: string?)
