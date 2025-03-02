@@ -84,8 +84,24 @@ fn get_store(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
     }
 }
 
-fn get_table(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
-    let (kind, namespace) = args;
+fn get_table(lua: &Lua, args: (String, Option<String>, Option<mlua::Value>)) -> LuaResult<Value> {
+    let (kind, namespace, sortby_val) = args;
+    let sortby: Option<(String, String)> = if let Some(val) = sortby_val {
+        match val {
+            Value::Table(table) => {
+                let word: Option<String> = table.get("current_word").ok();
+                let order: Option<String> = table.get("order").ok();
+                if let (Some(word), Some(order)) = (word, order) {
+                    Some((word, order))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
     let items = store::get(&kind, namespace)
         .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
 
@@ -93,7 +109,7 @@ fn get_table(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
     let processor = processors
         .get(kind.as_str())
         .unwrap_or_else(|| processors.get("default").unwrap());
-    let processed = processor.process(&lua, &items);
+    let processed = processor.process(&lua, &items, sortby);
 
     Ok(processed?)
 }

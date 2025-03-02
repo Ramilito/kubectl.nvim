@@ -37,7 +37,12 @@ struct ProcessedRestarts {
 pub struct PodProcessor;
 
 impl Processor for PodProcessor {
-    fn process(&self, lua: &Lua, items: &[DynamicObject]) -> LuaResult<mlua::Value> {
+    fn process(
+        &self,
+        lua: &Lua,
+        items: &[DynamicObject],
+        sortby: Option<(String, String)>,
+    ) -> LuaResult<mlua::Value> {
         let now = Utc::now();
         let mut data = Vec::new();
 
@@ -85,7 +90,37 @@ impl Processor for PodProcessor {
             });
         }
 
+        if let Some((word, order)) = sortby {
+            let word = word.to_lowercase(); // convert to lowercase
+            if !data.is_empty() && get_field_value(&data[0], &word).is_some() {
+                let order = order.to_lowercase();
+                data.sort_by(|a, b| {
+                    let a_val = get_field_value(a, &word).unwrap_or_default();
+                    let b_val = get_field_value(b, &word).unwrap_or_default();
+                    if order == "desc" {
+                        b_val.cmp(&a_val)
+                    } else {
+                        a_val.cmp(&b_val)
+                    }
+                });
+            }
+        }
+
         Ok(lua.to_value(&data)?)
+    }
+}
+
+fn get_field_value(pod: &PodProcessed, field: &str) -> Option<String> {
+    match field {
+        "namespace" => Some(pod.namespace.clone()),
+        "name" => Some(pod.name.clone()),
+        "ready" => Some(pod.ready.value.clone()),
+        "status" => Some(pod.status.value.clone()),
+        "restarts" => Some(pod.restarts.sort_by.to_string()),
+        "ip" => Some(pod.ip.clone()),
+        "node" => Some(pod.node.clone()),
+        "age" => Some(pod.age.clone()),
+        _ => None,
     }
 }
 

@@ -6,7 +6,7 @@ use mlua::Lua;
 pub struct DefaultProcessor;
 
 impl Processor for DefaultProcessor {
-    fn process(&self, lua: &Lua, items: &[DynamicObject]) -> LuaResult<mlua::Value> {
+    fn process(&self, lua: &Lua, items: &[DynamicObject], sortby: Option<(String, String)>) -> LuaResult<mlua::Value> {
         Ok(lua.to_value(&items)?)
     }
 }

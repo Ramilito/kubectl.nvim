@@ -26,7 +26,7 @@ end
 
 function M.Draw(cancellationToken)
   if state.instance[definition.resource] then
-    local table = client.get_table(definition.resource_name)
+    local table = client.get_table(definition.resource_name, state.sortby[definition.resource])
     state.instance[definition.resource].processedData = table
     state.instance[definition.resource]:draw(definition, cancellationToken)
 
