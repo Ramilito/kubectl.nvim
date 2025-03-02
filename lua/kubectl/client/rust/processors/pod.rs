@@ -1,9 +1,13 @@
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::{self, Value};
 use kube::api::DynamicObject;
+use mlua::prelude::*;
+use mlua::Lua;
 use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
+
+use super::processor::Processor;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PodProcessed {
@@ -30,55 +34,59 @@ struct ProcessedRestarts {
     sort_by: i64,
 }
 
-pub fn process_items(items: &[DynamicObject]) -> Vec<PodProcessed> {
-    let now = Utc::now();
-    let mut data = Vec::new();
+pub struct PodProcessor;
 
-    for obj in items {
-        let raw_json = serde_json::to_value(obj).unwrap_or(Value::Null);
+impl Processor for PodProcessor {
+    fn process(&self, lua: &Lua, items: &[DynamicObject]) -> LuaResult<mlua::Value> {
+        let now = Utc::now();
+        let mut data = Vec::new();
 
-        let namespace = obj.metadata.namespace.clone().unwrap_or_default();
-        let name = obj.metadata.name.clone().unwrap_or_default();
-        let ip = raw_json
-            .pointer("/status/podIP")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_string();
-        let node = raw_json
-            .pointer("/spec/nodeName")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_string();
+        for obj in items {
+            let raw_json = serde_json::to_value(obj).unwrap_or(Value::Null);
 
-        let creation_ts = obj
-            .metadata
-            .creation_timestamp
-            .as_ref()
-            .map(|t| t.0.to_rfc3339())
-            .unwrap_or_default();
-        let age = if !creation_ts.is_empty() {
-            format!("{}", time_since(&creation_ts))
-        } else {
-            "".to_string()
-        };
+            let namespace = obj.metadata.namespace.clone().unwrap_or_default();
+            let name = obj.metadata.name.clone().unwrap_or_default();
+            let ip = raw_json
+                .pointer("/status/podIP")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let node = raw_json
+                .pointer("/spec/nodeName")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
 
-        let ready = get_ready(&raw_json);
-        let status = get_pod_status(&raw_json);
-        let restarts = get_restarts(&raw_json, &now);
+            let creation_ts = obj
+                .metadata
+                .creation_timestamp
+                .as_ref()
+                .map(|t| t.0.to_rfc3339())
+                .unwrap_or_default();
+            let age = if !creation_ts.is_empty() {
+                format!("{}", time_since(&creation_ts))
+            } else {
+                "".to_string()
+            };
 
-        data.push(PodProcessed {
-            namespace,
-            name,
-            ready,
-            status,
-            restarts,
-            ip,
-            node,
-            age,
-        });
+            let ready = get_ready(&raw_json);
+            let status = get_pod_status(&raw_json);
+            let restarts = get_restarts(&raw_json, &now);
+
+            data.push(PodProcessed {
+                namespace,
+                name,
+                ready,
+                status,
+                restarts,
+                ip,
+                node,
+                age,
+            });
+        }
+
+        Ok(lua.to_value(&data)?)
     }
-
-    data
 }
 
 pub fn time_since(ts_str: &str) -> String {

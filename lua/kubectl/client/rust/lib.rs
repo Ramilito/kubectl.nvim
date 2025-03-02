@@ -2,15 +2,16 @@
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
+use processors::get_processors;
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-mod processor;
+mod events;
+mod processors;
 mod resource;
 mod store;
 mod utils;
 mod watcher;
-mod events;
 
 static RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
@@ -87,8 +88,14 @@ fn get_table(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
     let (kind, namespace) = args;
     let items = store::get(&kind, namespace)
         .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
-    let processed = processor::process_items(&items);
-    Ok(lua.to_value(&processed)?)
+
+    let processors = get_processors();
+    let processor = processors
+        .get(kind.as_str())
+        .unwrap_or_else(|| processors.get("default").unwrap());
+    let processed = processor.process(&lua, &items);
+
+    Ok(processed?)
 }
 
 #[mlua::lua_module(skip_memory_check)]
