@@ -203,20 +203,19 @@ function M.processRow(rows)
   local currentTime = time.currentTime()
   if rows then
     for i = 1, #rows do
-      -- Set managedFields to nil so the garbage collector can free up the memory
-      rows[i].metadata.managedFields = nil
-
       local row = rows[i]
-      data[i] = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        ready = getReady(row),
-        status = getPodStatus(row),
-        restarts = getRestarts(row, currentTime),
-        ip = row.status and row.status.podIP or "",
-        node = row.spec and row.spec.nodeName or "",
-        age = time.since(row.metadata.creationTimestamp, true, currentTime),
-      }
+      if row then
+        data[i] = {
+          namespace = row.metadata.namespace,
+          name = row.metadata.name,
+          ready = getReady(row),
+          status = getPodStatus(row),
+          restarts = getRestarts(row, currentTime),
+          ip = row.status and row.status.podIP or "",
+          node = row.spec and row.spec.nodeName or "",
+          age = time.since(row.metadata.creationTimestamp, true, currentTime),
+        }
+      end
     end
   end
   return data
