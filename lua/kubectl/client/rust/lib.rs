@@ -10,6 +10,7 @@ mod resource;
 mod store;
 mod utils;
 mod watcher;
+mod events;
 
 static RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);

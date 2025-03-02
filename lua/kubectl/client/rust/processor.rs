@@ -1,11 +1,11 @@
-// src/processor.rs
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::{self, Value};
 use kube::api::DynamicObject;
-use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize)]
+use crate::events::{color_status, symbols};
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PodProcessed {
     namespace: String,
     name: String,
@@ -17,13 +17,13 @@ pub struct PodProcessed {
     age: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 struct ProcessedStatus {
     value: String,
     symbol: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 struct ProcessedRestarts {
     symbol: String,
     value: String,
@@ -35,12 +35,10 @@ pub fn process_items(items: &[DynamicObject]) -> Vec<PodProcessed> {
     let mut data = Vec::new();
 
     for obj in items {
-        // Convert to generic JSON for pointer-based extraction
         let raw_json = serde_json::to_value(obj).unwrap_or(Value::Null);
 
         let namespace = obj.metadata.namespace.clone().unwrap_or_default();
         let name = obj.metadata.name.clone().unwrap_or_default();
-
         let ip = raw_json
             .pointer("/status/podIP")
             .and_then(Value::as_str)
@@ -83,18 +81,7 @@ pub fn process_items(items: &[DynamicObject]) -> Vec<PodProcessed> {
     data
 }
 
-fn color_status(status: &str) -> String {
-    status.to_string()
-}
-
-fn symbols_note() -> String {
-    "✓".to_string()
-}
-
-fn symbols_deprecated() -> String {
-    "✗".to_string()
-}
-
+// Simplified time since
 fn time_since(ts_str: &str, short: bool) -> String {
     if let Ok(ts) = ts_str.parse::<DateTime<Utc>>() {
         let now = Utc::now();
@@ -104,7 +91,7 @@ fn time_since(ts_str: &str, short: bool) -> String {
         if short {
             format!("{}h{}m", hrs, mins)
         } else {
-            format!("{}h{}m", hrs, mins)
+            format!("{} hours {} minutes", hrs, mins)
         }
     } else {
         "".to_string()
@@ -247,7 +234,7 @@ fn get_init_container_status(pod_val: &Value, status: &str) -> (String, bool) {
 
 fn get_container_status(pod_val: &Value, status: &str) -> (String, bool) {
     let mut running = false;
-    let mut status = status;
+    let mut s = status.to_string();
     let cont_statuses = pod_val.pointer("/containerStatuses");
 
     if let Some(Value::Array(sts)) = cont_statuses {
@@ -266,7 +253,7 @@ fn get_container_status(pod_val: &Value, status: &str) -> (String, bool) {
                     .and_then(Value::as_str)
                     .unwrap_or("");
                 if !reason.is_empty() {
-                    status = reason;
+                    s = reason.to_string();
                 }
             } else if let Some(term) = state_terminated {
                 let reason = term
@@ -279,18 +266,18 @@ fn get_container_status(pod_val: &Value, status: &str) -> (String, bool) {
                     .and_then(Value::as_i64)
                     .unwrap_or(0);
                 if !reason.is_empty() {
-                    status = reason;
+                    s = reason.to_string();
                 } else if signal != 0 {
-                    // status = &format!("Signal:{}", signal);
+                    s = format!("Signal:{}", signal).to_string();
                 } else {
-                    // status = &format!("ExitCode:{}", exit_code);
+                    s = format!("ExitCode:{}", exit_code).to_string();
                 }
             } else if cs_ready && cs_running {
                 running = true;
             }
         }
     }
-    (status.to_string(), running)
+    (s.to_string(), running)
 }
 
 fn get_pod_status(pod_val: &Value) -> ProcessedStatus {
@@ -305,10 +292,10 @@ fn get_pod_status(pod_val: &Value) -> ProcessedStatus {
         .pointer("/status/phase")
         .and_then(Value::as_str)
         .unwrap_or("Unknown");
-
     let deletion_ts = pod_val
         .pointer("/metadata/deletionTimestamp")
         .and_then(Value::as_str);
+
     if let Some(reason) = pod_val.pointer("/status/reason").and_then(Value::as_str) {
         if deletion_ts.is_some() && reason == "NodeLost" {
             return ProcessedStatus {
@@ -361,29 +348,30 @@ fn get_ready(pod_val: &Value) -> ProcessedStatus {
     let mut ready_count = 0;
     if let Some(Value::Array(sts)) = pod_val.pointer("/status/containerStatuses") {
         for cs in sts {
-            let r = cs
+            if cs
                 .pointer("/ready")
                 .and_then(Value::as_bool)
-                .unwrap_or(false);
-            if r {
+                .unwrap_or(false)
+            {
                 ready_count += 1;
             }
         }
     }
 
+    // For "full" readiness we display a note symbol, else "deprecated"
     let mut symbol = if ready_count == containers {
-        symbols_note()
+        &symbols().note
     } else {
-        symbols_deprecated()
+        &symbols().deprecated
     };
 
     let pod_status = get_pod_status(pod_val);
     if pod_status.value == "Completed" {
-        symbol = symbols_note();
+        symbol = &symbols().note;
     }
 
     ProcessedStatus {
         value: format!("{}/{}", ready_count, containers),
-        symbol,
+        symbol: symbol.to_string(),
     }
 }
