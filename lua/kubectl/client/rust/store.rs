@@ -1,3 +1,4 @@
+use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
