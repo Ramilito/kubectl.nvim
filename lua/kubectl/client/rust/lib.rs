@@ -1,11 +1,11 @@
 // lib.rs
-use kube::config::KubeConfigOptions;
-use kube::{Client, Config};
+use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
+mod processor;
 mod resource;
 mod store;
 mod utils;
@@ -82,6 +82,14 @@ fn get_store(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
     }
 }
 
+fn get_table(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
+    let (kind, namespace) = args;
+    let items = store::get(&kind, namespace)
+        .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
+    let processed = processor::process_items(&items);
+    Ok(lua.to_value(&processed)?)
+}
+
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
@@ -89,5 +97,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("get_resource", lua.create_function(get_resource)?)?;
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
+    exports.set("get_table", lua.create_function(get_table)?)?;
     Ok(exports)
 }

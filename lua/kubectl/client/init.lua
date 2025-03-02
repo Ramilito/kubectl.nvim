@@ -15,6 +15,14 @@ function client.get_resource(...)
   return client.implementation.get_resource(...)
 end
 
+function client.get_table(resource_name)
+  local namespace = nil
+  if state.ns and state.ns ~= "All" then
+    namespace = state.ns
+  end
+  return client.implementation.get_table(resource_name, namespace)
+end
+
 function client.get_store(resource_name)
   local namespace = nil
   if state.ns and state.ns ~= "All" then

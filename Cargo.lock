@@ -908,6 +908,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "mlua",
+ "serde",
  "tokio",
 ]
 
