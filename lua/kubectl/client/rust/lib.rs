@@ -2,10 +2,10 @@
 use kube::config::KubeConfigOptions;
 use kube::{Client, Config};
 use mlua::prelude::*;
+use mlua::{Lua, Value};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-use mlua::{Lua, Value};
 mod resource;
 mod store;
 mod utils;

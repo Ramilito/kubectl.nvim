@@ -47,3 +47,7 @@ pub fn get(kind: &str, namespace: Option<String>) -> Option<Vec<DynamicObject>> 
         }
     })
 }
+
+pub fn to_json(kind: &str, namespace: Option<String>) -> Option<String> {
+    get(kind, namespace).and_then(|items| serde_json::to_string(&items).ok())
+}

@@ -28,7 +28,7 @@ function M.Draw(cancellationToken)
   if state.instance[definition.resource] then
     local store = client.get_store(definition.resource_name)
     state.instance[definition.resource].data = store
-    state.instance[definition.resource]:decodeJson():draw(definition, cancellationToken)
+    state.instance[definition.resource]:draw(definition, cancellationToken)
 
     root_definition.setPortForwards(
       state.instance[definition.resource].extmarks,
