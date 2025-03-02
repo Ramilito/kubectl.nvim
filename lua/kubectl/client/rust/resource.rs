@@ -42,7 +42,6 @@ pub fn fetch_resource(
     Ok(items)
 }
 
-/// Retrieves the resource(s), strips managedFields, and stores the result.
 pub fn get_resource(
     rt: &Runtime,
     client: &Client,

@@ -5,6 +5,7 @@ use mlua::prelude::*;
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
+use mlua::{Lua, Value};
 mod resource;
 mod store;
 mod utils;
@@ -71,10 +72,11 @@ fn start_watcher(
     watcher::start(rt, client, resource, group, version, namespace)
 }
 
-fn get_store(_lua: &Lua, args: (String, Option<String>)) -> LuaResult<String> {
+fn get_store(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
     let (key, namespace) = args;
-    if let Some(json_str) = store::to_json(&key, namespace) {
-        Ok(json_str)
+
+    if let Some(json_str) = store::get(&key, namespace) {
+        Ok(lua.to_value(&json_str)?)
     } else {
         Err(mlua::Error::RuntimeError("No data for given key".into()))
     }

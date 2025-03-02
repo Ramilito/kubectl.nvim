@@ -1,7 +1,6 @@
+use kube::api::DynamicObject;
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
-use k8s_openapi::serde_json;
-use kube::api::DynamicObject;
 
 static STORE: LazyLock<Mutex<HashMap<String, Vec<DynamicObject>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -15,7 +14,10 @@ pub fn update(kind: &str, item: DynamicObject) {
     let mut store = STORE.lock().unwrap();
     if let Some(items) = store.get_mut(kind) {
         let name = item.metadata.name.clone().unwrap_or_default();
-        if let Some(pos) = items.iter().position(|obj| obj.metadata.name.as_ref() == Some(&name)) {
+        if let Some(pos) = items
+            .iter()
+            .position(|obj| obj.metadata.name.as_ref() == Some(&name))
+        {
             items[pos] = item;
         } else {
             items.push(item);
@@ -44,8 +46,4 @@ pub fn get(kind: &str, namespace: Option<String>) -> Option<Vec<DynamicObject>> 
             items.clone()
         }
     })
-}
-
-pub fn to_json(kind: &str, namespace: Option<String>) -> Option<String> {
-    get(kind, namespace).and_then(|items| serde_json::to_string(&items).ok())
 }
