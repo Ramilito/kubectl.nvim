@@ -418,8 +418,11 @@ end
 
 function ResourceBuilder:draw(definition, cancellationToken)
   self.display_name = definition.display_name
+  if not definition.resource_name then
+    self:process(definition.processRow):sort()
+  end
+	self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
   vim.schedule(function()
-    self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
     self:setContent(cancellationToken)
     self:draw_header(cancellationToken)
   end)
