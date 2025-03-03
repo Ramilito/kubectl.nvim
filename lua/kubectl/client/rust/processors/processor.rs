@@ -7,6 +7,7 @@ pub trait Processor: Send + Sync {
         &self,
         lua: &Lua,
         items: &[DynamicObject],
-        sortby: Option<(String, String)>,
+        sort_by: Option<String>,
+        sort_order: Option<String>,
     ) -> LuaResult<mlua::Value>;
 }

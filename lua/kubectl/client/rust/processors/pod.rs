@@ -41,7 +41,8 @@ impl Processor for PodProcessor {
         &self,
         lua: &Lua,
         items: &[DynamicObject],
-        sortby: Option<(String, String)>,
+        sort_by: Option<String>,
+        sort_order: Option<String>,
     ) -> LuaResult<mlua::Value> {
         let now = Utc::now();
         let mut data = Vec::new();
@@ -90,8 +91,8 @@ impl Processor for PodProcessor {
             });
         }
 
-        if let Some((word, order)) = sortby {
-            let word = word.to_lowercase(); // convert to lowercase
+        if let (Some(word), Some(order)) = (sort_by.as_ref(), sort_order.as_ref()) {
+            let word = word.to_lowercase();
             if !data.is_empty() && get_field_value(&data[0], &word).is_some() {
                 let order = order.to_lowercase();
                 data.sort_by(|a, b| {
