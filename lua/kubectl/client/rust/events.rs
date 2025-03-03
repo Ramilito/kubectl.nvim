@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
-/// This struct is analogous to the Lua `M.symbols` table.
-/// Each field is a highlight group name (e.g. "KubectlError").
 #[derive(Debug)]
 pub struct Symbols {
     pub header: String,
@@ -20,19 +18,15 @@ pub struct Symbols {
     pub clear: String,
     pub tab: String,
     pub underline: String,
-    /// "match" is reserved in Rust, rename to `match_`.
-    pub match_: String,
+    pub plmatch: String,
 }
 
-/// We store a OnceLock that holds our global `Symbols` instance.
 static SYMBOLS: OnceLock<Symbols> = OnceLock::new();
 
-/// Three OnceLock<HashSet<String>> for error, warning, success statuses.
 static ERROR_STATUSES: OnceLock<HashSet<String>> = OnceLock::new();
 static WARNING_STATUSES: OnceLock<HashSet<String>> = OnceLock::new();
 static SUCCESS_STATUSES: OnceLock<HashSet<String>> = OnceLock::new();
 
-/// Provide a function to access the global `Symbols`, initializing it if needed.
 pub fn symbols() -> &'static Symbols {
     SYMBOLS.get_or_init(|| Symbols {
         header:       "KubectlHeader".to_string(),
@@ -50,15 +44,13 @@ pub fn symbols() -> &'static Symbols {
         clear:        "KubectlClear".to_string(),
         tab:          "KubectlTab".to_string(),
         underline:    "KubectlUnderline".to_string(),
-        match_:       "KubectlPmatch".to_string(),
+        plmatch:       "KubectlPmatch".to_string(),
     })
 }
 
-/// Return a reference to the error status set.
 fn error_statuses() -> &'static HashSet<String> {
     ERROR_STATUSES.get_or_init(|| {
         let mut set = HashSet::new();
-        // Fill in from your `errorStatuses` table:
         set.insert("Red".into());
         set.insert("Error".into());
         set.insert("Backoff".into());
@@ -114,11 +106,9 @@ fn error_statuses() -> &'static HashSet<String> {
     })
 }
 
-/// Return a reference to the warning status set.
 fn warning_statuses() -> &'static HashSet<String> {
     WARNING_STATUSES.get_or_init(|| {
         let mut set = HashSet::new();
-        // fill in from your `warningStatuses`
         set.insert("Yellow".into());
         set.insert("Warning".into());
         set.insert("Alreadymountedvolume".into());
@@ -152,11 +142,9 @@ fn warning_statuses() -> &'static HashSet<String> {
     })
 }
 
-/// Return a reference to the success status set.
 fn success_statuses() -> &'static HashSet<String> {
     SUCCESS_STATUSES.get_or_init(|| {
         let mut set = HashSet::new();
-        // fill in from your `successStatuses`
         set.insert("Green".into());
         set.insert("Success".into());
         set.insert("Active".into());
@@ -197,8 +185,6 @@ fn success_statuses() -> &'static HashSet<String> {
     })
 }
 
-/// Capitalize the first letter and lowercase the rest.
-/// Replicates the `string_utils.capitalize(...)` logic from Lua.
 fn capitalize(s: &str) -> String {
     if s.is_empty() {
         return "".to_string();
@@ -212,15 +198,12 @@ fn capitalize(s: &str) -> String {
     )
 }
 
-/// Return the appropriate highlight group name for a given `status`.
-/// Replicates `M.ColorStatus(status)` in your Lua code.
 pub fn color_status(status: &str) -> String {
     if status.is_empty() {
         return "".to_string();
     }
     let capitalized = capitalize(status);
 
-    // Check our sets in order: error, warning, success.
     if error_statuses().contains(&capitalized) {
         symbols().error.clone()
     } else if warning_statuses().contains(&capitalized) {
