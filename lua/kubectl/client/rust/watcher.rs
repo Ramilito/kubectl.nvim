@@ -60,6 +60,11 @@ pub fn start(
                     crate::utils::strip_managed_fields(&mut obj);
                     store::delete(&resource_clone, &obj);
                 }
+                Ok(Event::InitApply(mut obj)) => {
+                    crate::utils::strip_managed_fields(&mut obj);
+                    store::update(&resource_clone, obj);
+                }
+
                 _ => {}
             }
         }

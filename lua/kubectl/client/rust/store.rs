@@ -2,8 +2,9 @@ use kube::api::DynamicObject;
 use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
 
-static STORE: LazyLock<RwLock<HashMap<String, HashMap<Option<String>, HashMap<String, DynamicObject>>>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
+static STORE: LazyLock<
+    RwLock<HashMap<String, HashMap<Option<String>, HashMap<String, DynamicObject>>>>,
+> = LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub fn set(kind: &str, items: Vec<DynamicObject>) {
     let mut store = STORE.write().unwrap();
@@ -11,7 +12,8 @@ pub fn set(kind: &str, items: Vec<DynamicObject>) {
     for item in items {
         let ns = item.metadata.namespace.clone();
         let name = item.metadata.name.clone().unwrap_or_default();
-        ns_map.entry(ns)
+        ns_map
+            .entry(ns)
             .or_insert_with(HashMap::new)
             .insert(name, item);
     }
@@ -23,7 +25,8 @@ pub fn update(kind: &str, item: DynamicObject) {
     let ns_map = store.entry(kind.to_string()).or_insert_with(HashMap::new);
     let ns = item.metadata.namespace.clone();
     let name = item.metadata.name.clone().unwrap_or_default();
-    ns_map.entry(ns)
+    ns_map
+        .entry(ns)
         .or_insert_with(HashMap::new)
         .insert(name, item);
 }
@@ -43,11 +46,13 @@ pub fn get(kind: &str, namespace: Option<String>) -> Option<Vec<DynamicObject>> 
     let store = STORE.read().unwrap();
     store.get(kind).map(|ns_map| {
         if let Some(ns) = namespace {
-            ns_map.get(&Some(ns))
+            ns_map
+                .get(&Some(ns))
                 .map(|name_map| name_map.values().cloned().collect())
                 .unwrap_or_default()
         } else {
-            ns_map.values()
+            ns_map
+                .values()
                 .flat_map(|name_map| name_map.values().cloned())
                 .collect()
         }
