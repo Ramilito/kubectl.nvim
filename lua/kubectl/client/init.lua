@@ -15,13 +15,16 @@ function client.get_resource(...)
   return client.implementation.get_resource(...)
 end
 
-function client.get_table(resource_name, sort_by, sort_order)
+function client.get_table(definition)
   local namespace = nil
   if state.ns and state.ns ~= "All" then
     namespace = state.ns
   end
 
-  return client.implementation.get_table(resource_name, namespace, sort_by, sort_order)
+  local sort_by = state.sortby[definition.resource].current_word
+  local sort_order = state.sortby[definition.resource].order
+
+  return client.implementation.get_table(definition.resource_name, namespace, sort_by, sort_order)
 end
 
 function client.get_store(resource_name)

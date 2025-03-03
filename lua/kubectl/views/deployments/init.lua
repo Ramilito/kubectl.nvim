@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local client = require("kubectl.client")
 local definition = require("kubectl.views.deployments.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -6,11 +7,15 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+  ResourceBuilder:view_new(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  if state.instance[definition.resource] then
+    local table = client.get_table(definition)
+    state.instance[definition.resource].processedData = table
+    state.instance[definition.resource]:draw(definition, cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)

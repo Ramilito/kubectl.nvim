@@ -3,6 +3,12 @@ local M = {
   display_name = "Deployments",
   ft = "k8s_deployments",
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" },
+  resource_name = "deployment",
+  group = "apps",
+  version = "v1",
+  informer = {
+    enabled = true,
+  },
   hints = {
     { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change deployment image" },
     { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },

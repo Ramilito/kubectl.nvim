@@ -26,11 +26,7 @@ end
 
 function M.Draw(cancellationToken)
   if state.instance[definition.resource] then
-    local table = client.get_table(
-      definition.resource_name,
-      state.sortby[definition.resource].current_word,
-      state.sortby[definition.resource].order
-    )
+    local table = client.get_table(definition)
     state.instance[definition.resource].processedData = table
     state.instance[definition.resource]:draw(definition, cancellationToken)
     root_definition.setPortForwards(
