@@ -1,4 +1,1 @@
 /target
-!/target/release
-!/target/release/libkubectl_client.so
-!/target/release/libkubectl_client.dylib
