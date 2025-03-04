@@ -976,6 +976,7 @@ dependencies = [
  "bstr",
  "either",
  "erased-serde",
+ "futures-util",
  "mlua-sys",
  "mlua_derive",
  "num-traits",

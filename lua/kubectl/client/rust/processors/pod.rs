@@ -35,6 +35,7 @@ struct ProcessedRestarts {
     sort_by: i64,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PodProcessor;
 
 impl Processor for PodProcessor {
@@ -117,11 +118,6 @@ impl Processor for PodProcessor {
         }
 
         lua.to_value(&data)
-            .map_err(|_| mlua::Error::FromLuaConversionError {
-                from: "PodProcessed",
-                to: "LuaValue".to_string(),
-                message: None,
-            })
     }
 }
 

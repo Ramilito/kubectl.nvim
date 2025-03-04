@@ -1,6 +1,5 @@
 use crate::processors::processor::Processor;
 use crate::utils::time_since;
-use k8s_openapi::chrono::Utc;
 use k8s_openapi::serde_json::{self, Value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
@@ -24,6 +23,7 @@ pub struct DeploymentProcessed {
     age: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct DeploymentProcessor;
 
 impl Processor for DeploymentProcessor {
@@ -77,11 +77,6 @@ impl Processor for DeploymentProcessor {
         }
 
         lua.to_value(&data)
-            .map_err(|_| mlua::Error::FromLuaConversionError {
-                from: "DeploymentProcessed",
-                to: "LuaValue".to_string(),
-                message: None,
-            })
     }
 }
 
