@@ -116,7 +116,12 @@ impl Processor for PodProcessor {
             });
         }
 
-        Ok(lua.to_value(&data)?)
+        lua.to_value(&data)
+            .map_err(|_| mlua::Error::FromLuaConversionError {
+                from: "PodProcessed",
+                to: "LuaValue".to_string(),
+                message: None,
+            })
     }
 }
 

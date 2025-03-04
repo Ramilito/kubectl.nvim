@@ -34,7 +34,6 @@ impl Processor for DeploymentProcessor {
         _sort_by: Option<String>,
         _sort_order: Option<String>,
     ) -> LuaResult<mlua::Value> {
-        let now = Utc::now();
         let mut data = Vec::new();
 
         for obj in items {
@@ -77,7 +76,12 @@ impl Processor for DeploymentProcessor {
             });
         }
 
-        Ok(lua.to_value(&data)?)
+        lua.to_value(&data)
+            .map_err(|_| mlua::Error::FromLuaConversionError {
+                from: "DeploymentProcessed",
+                to: "LuaValue".to_string(),
+                message: None,
+            })
     }
 }
 

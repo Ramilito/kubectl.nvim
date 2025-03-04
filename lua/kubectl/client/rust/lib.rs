@@ -92,7 +92,6 @@ fn get_table(
 
     let items = store::get(&kind, namespace)
         .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
-
     let processors = get_processors();
     let processor = processors
         .get(kind.as_str())
