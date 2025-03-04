@@ -434,14 +434,16 @@ function ResourceBuilder:draw(definition, cancellationToken)
     end
     local sort_by = state.sortby[definition.resource].current_word
     local sort_order = state.sortby[definition.resource].order
-    commands.run_async("get_table", { definition.resource_name, namespace, sort_by, sort_order }, function(data)
-      state.instance[definition.resource].data = data
-      vim.schedule(function()
-        state.instance[definition.resource]:decodeJson()
-        state.instance[definition.resource].processedData = state.instance[definition.resource].data
+    commands.run_async("get_table_async", { definition.resource_name, namespace, sort_by, sort_order }, function(data)
+      if data then
+        state.instance[definition.resource].data = data
+        vim.schedule(function()
+          state.instance[definition.resource]:decodeJson()
+          state.instance[definition.resource].processedData = state.instance[definition.resource].data
 
-        draw()
-      end)
+          draw()
+        end)
+      end
     end)
   else
     self:process(definition.processRow):sort()
