@@ -12,6 +12,7 @@ impl Processor for DefaultProcessor {
         items: &[DynamicObject],
         _sort_by: Option<String>,
         _sort_order: Option<String>,
+        _filter: Option<String>,
     ) -> LuaResult<mlua::Value> {
         Ok(lua.to_value(&items)?)
     }

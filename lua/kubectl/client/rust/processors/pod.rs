@@ -6,7 +6,7 @@ use mlua::Lua;
 use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
-use crate::utils::{self, time_since};
+use crate::utils::{filter_dynamic, sort_dynamic, time_since};
 
 use super::processor::Processor;
 
@@ -45,6 +45,7 @@ impl Processor for PodProcessor {
         items: &[DynamicObject],
         sort_by: Option<String>,
         sort_order: Option<String>,
+        filter: Option<String>,
     ) -> LuaResult<mlua::Value> {
         let now = Utc::now();
         let mut data = Vec::new();
@@ -94,11 +95,26 @@ impl Processor for PodProcessor {
         }
 
         let accessor = field_accessor();
-        utils::sort_dynamic(&mut data, sort_by, sort_order, &accessor);
+        sort_dynamic(&mut data, sort_by, sort_order, &accessor);
+
+        let data = if let Some(ref filter_value) = filter {
+            filter_dynamic(
+                &data,
+                filter_value,
+                &["namespace", "name", "ready", "status", "ip", "node"],
+                &accessor,
+            )
+            .into_iter()
+            .cloned()
+            .collect()
+        } else {
+            data
+        };
 
         lua.to_value(&data)
     }
 }
+
 fn field_accessor() -> impl Fn(&PodProcessed, &str) -> Option<String> {
     |pod, field| match field {
         "namespace" => Some(pod.namespace.clone()),

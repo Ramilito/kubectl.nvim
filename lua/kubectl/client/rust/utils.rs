@@ -50,7 +50,7 @@ pub fn sort_dynamic<T, F>(
         .and_then(|s| {
             let trimmed = s.trim();
             if trimmed.is_empty() {
-                None
+                Some("namespace".to_owned())
             } else {
                 Some(trimmed.to_lowercase())
             }
@@ -61,7 +61,7 @@ pub fn sort_dynamic<T, F>(
         .and_then(|s| {
             let trimmed = s.trim();
             if trimmed.is_empty() {
-                None
+                Some("asc".to_owned())
             } else {
                 Some(trimmed.to_lowercase())
             }
@@ -79,10 +79,10 @@ pub fn sort_dynamic<T, F>(
     });
 }
 
-fn filter_dynamic<'a, T, F>(
+pub fn filter_dynamic<'a, T, F>(
     data: &'a [T],
-    field: &str,
-    predicate: impl Fn(&str) -> bool,
+    filter_value: &str,
+    fields: &[&str],
     get_field_value: F,
 ) -> Vec<&'a T>
 where
@@ -90,11 +90,9 @@ where
 {
     data.iter()
         .filter(|item| {
-            if let Some(val) = get_field_value(item, field) {
-                predicate(&val)
-            } else {
-                false
-            }
+            fields.iter().any(|field| {
+                get_field_value(item, field).map_or(false, |val| val.contains(filter_value))
+            })
         })
         .collect()
 }

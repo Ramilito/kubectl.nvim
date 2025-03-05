@@ -1,6 +1,5 @@
 use crate::processors::processor::Processor;
-use crate::utils;
-use crate::utils::time_since;
+use crate::utils::{filter_dynamic, sort_dynamic, time_since};
 use k8s_openapi::serde_json::{self, Value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
@@ -19,8 +18,8 @@ pub struct DeploymentProcessed {
     name: String,
     ready: ProcessedStatus,
     #[serde(rename = "up-to-date")]
-    up_to_date: String,
-    available: String,
+    up_to_date: i64,
+    available: i64,
     age: String,
 }
 
@@ -34,6 +33,7 @@ impl Processor for DeploymentProcessor {
         items: &[DynamicObject],
         sort_by: Option<String>,
         sort_order: Option<String>,
+        filter: Option<String>,
     ) -> LuaResult<mlua::Value> {
         let mut data = Vec::new();
 
@@ -52,15 +52,13 @@ impl Processor for DeploymentProcessor {
 
             let up_to_date = raw_json
                 .pointer("/status/updatedReplicas")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
 
             let available = raw_json
                 .pointer("/status/availableReplicas")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
 
             let age = if !creation_ts.is_empty() {
                 format!("{}", time_since(&creation_ts))
@@ -80,8 +78,21 @@ impl Processor for DeploymentProcessor {
         }
 
         let accessor = field_accessor();
-        utils::sort_dynamic(&mut data, sort_by, sort_order, &accessor);
+        sort_dynamic(&mut data, sort_by, sort_order, &accessor);
 
+        let data = if let Some(ref filter_value) = filter {
+            filter_dynamic(
+                &data,
+                filter_value,
+                &["namespace", "name", "ready"],
+                &accessor,
+            )
+            .into_iter()
+            .cloned()
+            .collect()
+        } else {
+            data
+        };
 
         lua.to_value(&data)
     }
@@ -92,7 +103,7 @@ fn field_accessor() -> impl Fn(&DeploymentProcessed, &str) -> Option<String> {
         "namespace" => Some(pod.namespace.clone()),
         "name" => Some(pod.name.clone()),
         "ready" => Some(pod.ready.value.clone()),
-        "up_to_date" => Some(pod.up_to_date.clone()),
+        "up_to_date" => Some(pod.up_to_date.to_string()),
         "available" => Some(pod.available.to_string()),
         "age" => Some(pod.age.clone()),
         _ => None,

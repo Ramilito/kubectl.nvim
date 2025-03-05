@@ -1,4 +1,3 @@
-use k8s_openapi::serde_json::{self, Serializer};
 // lib.rs
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
@@ -87,9 +86,15 @@ fn get_store(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
 
 fn get_table(
     lua: &Lua,
-    args: (String, Option<String>, Option<String>, Option<String>),
+    args: (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
 ) -> LuaResult<Value> {
-    let (kind, namespace, sort_by, sort_order) = args;
+    let (kind, namespace, sort_by, sort_order, filter) = args;
 
     let items = store::get(&kind, namespace)
         .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
@@ -97,16 +102,22 @@ fn get_table(
     let processor = processors
         .get(kind.as_str())
         .unwrap_or_else(|| processors.get("default").unwrap());
-    let processed = processor.process(&lua, &items, sort_by, sort_order);
+    let processed = processor.process(&lua, &items, sort_by, sort_order, filter);
 
     Ok(processed?)
 }
 
 async fn get_table_async(
     lua: Lua,
-    args: (String, Option<String>, Option<String>, Option<String>),
+    args: (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
 ) -> LuaResult<String> {
-    let (kind, namespace, sort_by, sort_order) = args;
+    let (kind, namespace, sort_by, sort_order, filter) = args;
 
     let items = store::get(&kind, namespace)
         .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
@@ -115,7 +126,7 @@ async fn get_table_async(
         .get(kind.as_str())
         .unwrap_or_else(|| processors.get("default").unwrap());
     let processed = processor
-        .process(&lua, &items, sort_by, sort_order)
+        .process(&lua, &items, sort_by, sort_order, filter)
         .map_err(|e| mlua::Error::external(e))?;
 
     let json_str = k8s_openapi::serde_json::to_string(&processed)

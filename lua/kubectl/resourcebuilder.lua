@@ -424,23 +424,31 @@ function ResourceBuilder:draw(definition, cancellationToken)
     self:draw_header(cancellationToken)
     state.instance[definition.resource] = self
   end
+
   if definition.resource_name then
     local namespace = nil
     if state.ns and state.ns ~= "All" then
       namespace = state.ns
     end
+
+    local filter = state.getFilter()
     local sort_by = state.sortby[definition.resource].current_word
     local sort_order = state.sortby[definition.resource].order
-    commands.run_async("get_table_async", { definition.resource_name, namespace, sort_by, sort_order }, function(data)
-      if data then
-        state.instance[definition.resource].data = data
-        state.instance[definition.resource]:decodeJson()
-        state.instance[definition.resource].processedData = state.instance[definition.resource].data
-        vim.schedule(function()
-          draw()
-        end)
+
+    commands.run_async(
+      "get_table_async",
+      { definition.resource_name, namespace, sort_by, sort_order, filter },
+      function(data)
+        if data then
+          state.instance[definition.resource].data = data
+          state.instance[definition.resource]:decodeJson()
+          state.instance[definition.resource].processedData = state.instance[definition.resource].data
+          vim.schedule(function()
+            draw()
+          end)
+        end
       end
-    end)
+    )
   else
     self:process(definition.processRow):sort()
     draw()
