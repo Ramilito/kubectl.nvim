@@ -420,11 +420,8 @@ function ResourceBuilder:draw(definition, cancellationToken)
   self.display_name = definition.display_name
   local draw = function()
     self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
-    vim.schedule(function()
-      self:setContent(cancellationToken)
-      self:draw_header(cancellationToken)
-    end)
-
+    self:setContent(cancellationToken)
+    self:draw_header(cancellationToken)
     state.instance[definition.resource] = self
   end
   if definition.resource_name then
@@ -437,10 +434,9 @@ function ResourceBuilder:draw(definition, cancellationToken)
     commands.run_async("get_table_async", { definition.resource_name, namespace, sort_by, sort_order }, function(data)
       if data then
         state.instance[definition.resource].data = data
+        state.instance[definition.resource]:decodeJson()
+        state.instance[definition.resource].processedData = state.instance[definition.resource].data
         vim.schedule(function()
-          state.instance[definition.resource]:decodeJson()
-          state.instance[definition.resource].processedData = state.instance[definition.resource].data
-
           draw()
         end)
       end

@@ -37,3 +37,64 @@ pub fn time_since(ts_str: &str) -> String {
         "".to_string()
     }
 }
+
+pub fn sort_dynamic<T, F>(
+    data: &mut [T],
+    sort_by: Option<String>,
+    sort_order: Option<String>,
+    get_field_value: F,
+) where
+    F: Fn(&T, &str) -> Option<String>,
+{
+    let field = sort_by
+        .and_then(|s| {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_lowercase())
+            }
+        })
+        .unwrap_or_else(|| "namespace".to_owned());
+
+    let order = sort_order
+        .and_then(|s| {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_lowercase())
+            }
+        })
+        .unwrap_or_else(|| "asc".to_owned());
+
+    data.sort_by(|a, b| {
+        let a_val = get_field_value(a, &field).unwrap_or_default();
+        let b_val = get_field_value(b, &field).unwrap_or_default();
+        if order == "desc" {
+            b_val.cmp(&a_val)
+        } else {
+            a_val.cmp(&b_val)
+        }
+    });
+}
+
+fn filter_dynamic<'a, T, F>(
+    data: &'a [T],
+    field: &str,
+    predicate: impl Fn(&str) -> bool,
+    get_field_value: F,
+) -> Vec<&'a T>
+where
+    F: Fn(&T, &str) -> Option<String>,
+{
+    data.iter()
+        .filter(|item| {
+            if let Some(val) = get_field_value(item, field) {
+                predicate(&val)
+            } else {
+                false
+            }
+        })
+        .collect()
+}

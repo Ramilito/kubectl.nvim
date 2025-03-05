@@ -6,7 +6,7 @@ use mlua::Lua;
 use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
-use crate::utils::time_since;
+use crate::utils::{self, time_since};
 
 use super::processor::Processor;
 
@@ -93,36 +93,14 @@ impl Processor for PodProcessor {
             });
         }
 
-        let sort_field = sort_by
-            .as_ref()
-            .filter(|s| !s.trim().is_empty())
-            .map(|s| s.to_lowercase())
-            .unwrap_or_else(|| "namespace".to_owned());
-
-        let order = sort_order
-            .as_ref()
-            .filter(|s| !s.trim().is_empty())
-            .map(|s| s.to_lowercase())
-            .unwrap_or_else(|| "asc".to_owned());
-
-        if !data.is_empty() && get_field_value(&data[0], &sort_field).is_some() {
-            data.sort_by(|a, b| {
-                let a_val = get_field_value(a, &sort_field).unwrap_or_default();
-                let b_val = get_field_value(b, &sort_field).unwrap_or_default();
-                if order == "desc" {
-                    b_val.cmp(&a_val)
-                } else {
-                    a_val.cmp(&b_val)
-                }
-            });
-        }
+        let accessor = field_accessor();
+        utils::sort_dynamic(&mut data, sort_by, sort_order, &accessor);
 
         lua.to_value(&data)
     }
 }
-
-fn get_field_value(pod: &PodProcessed, field: &str) -> Option<String> {
-    match field {
+fn field_accessor() -> impl Fn(&PodProcessed, &str) -> Option<String> {
+    |pod, field| match field {
         "namespace" => Some(pod.namespace.clone()),
         "name" => Some(pod.name.clone()),
         "ready" => Some(pod.ready.value.clone()),
