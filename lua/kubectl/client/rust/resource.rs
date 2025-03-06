@@ -27,7 +27,7 @@ fn resolve_api_resource(
         .map(|(_, res)| res)
 }
 
-pub fn get_resource(
+pub fn describe_resource(
     rt: &Runtime,
     client: &Client,
     resource: String,

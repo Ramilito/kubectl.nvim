@@ -410,7 +410,7 @@ function ResourceBuilder:view_new(definition, cancellationToken)
   end
 
   commands.run_async(
-    "get_resource",
+    "get_resources",
     { definition.resource_name, definition.group, definition.version, nil, ns },
     function(data)
       self.data = data

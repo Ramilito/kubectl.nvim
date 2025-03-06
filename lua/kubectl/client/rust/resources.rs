@@ -42,7 +42,7 @@ pub fn fetch_resource(
     Ok(items)
 }
 
-pub fn get_resource(
+pub fn get_resources(
     rt: &Runtime,
     client: &Client,
     resource: String,

@@ -37,7 +37,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-fn get_resource(
+fn get_resources(
     _lua: &Lua,
     args: (
         String,
@@ -56,7 +56,7 @@ fn get_resource(
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-    resources::get_resource(rt, client, resource, group, version, name, namespace)
+    resources::get_resources(rt, client, resource, group, version, name, namespace)
 }
 
 fn start_watcher(
@@ -156,7 +156,7 @@ async fn describe_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let result = resource::get_resource(rt, client, kind, group, version, Some(name), namespace);
+    let result = resource::describe_resource(rt, client, kind, group, version, Some(name), namespace);
     Ok(result?)
 }
 
@@ -164,7 +164,7 @@ async fn describe_async(
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
-    exports.set("get_resource", lua.create_function(get_resource)?)?;
+    exports.set("get_resources", lua.create_function(get_resources)?)?;
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
