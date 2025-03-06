@@ -9,17 +9,17 @@ pub enum AccessorMode {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FieldValue {
-    pub symbol: String,
     pub value: String,
+    pub symbol: Option<String>,
     pub sort_by: Option<usize>,
 }
 // Implement Default
 impl Default for FieldValue {
     fn default() -> Self {
         Self {
-            symbol: "".to_string(),
             value: "".to_string(),
-            sort_by: None, // Default is None
+            symbol: None,
+            sort_by: None,
         }
     }
 }
@@ -122,9 +122,8 @@ where
 
 pub fn get_age(pod_val: &DynamicObject) -> FieldValue {
     let mut age = FieldValue {
-        symbol: "".to_string(),
         value: "".to_string(),
-        sort_by: Some(0),
+        ..Default::default()
     };
     let creation_ts = pod_val
         .metadata
@@ -149,4 +148,17 @@ pub fn get_age(pod_val: &DynamicObject) -> FieldValue {
             .max(0) as usize,
     );
     return age;
+}
+
+pub fn ip_to_u32(ip: &str) -> Option<usize> {
+    let octets: Vec<&str> = ip.split('.').collect();
+    if octets.len() != 4 {
+        return None;
+    }
+    let mut num = 0;
+    for octet in octets {
+        let val: usize = octet.parse().ok()?;
+        num = (num << 8) | val;
+    }
+    Some(num)
 }

@@ -132,7 +132,7 @@ fn get_ready(row: &Value) -> FieldValue {
     let sort_by = (available * 1001) + replicas;
 
     FieldValue {
-        symbol,
+        symbol: Some(symbol),
         value,
         sort_by: Some(sort_by.try_into().unwrap_or(0)),
     }

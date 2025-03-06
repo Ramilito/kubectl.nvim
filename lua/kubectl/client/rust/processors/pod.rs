@@ -7,7 +7,9 @@ use mlua::Lua;
 use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
-use crate::utils::{filter_dynamic, get_age, sort_dynamic, time_since, AccessorMode, FieldValue};
+use crate::utils::{
+    filter_dynamic, get_age, ip_to_u32, sort_dynamic, time_since, AccessorMode, FieldValue,
+};
 
 use super::processor::Processor;
 
@@ -18,7 +20,7 @@ pub struct PodProcessed {
     ready: FieldValue,
     status: FieldValue,
     restarts: Restarts,
-    ip: String,
+    ip: FieldValue,
     node: String,
     age: FieldValue,
 }
@@ -53,11 +55,20 @@ impl Processor for PodProcessor {
                 ready: get_ready(&pod),
                 status: get_pod_status(&pod),
                 restarts: get_restarts(&pod, &now),
-                ip: pod
-                    .status
-                    .as_ref()
-                    .and_then(|s| s.pod_ip.clone())
-                    .unwrap_or_default(),
+                ip: FieldValue {
+                    value: pod
+                        .status
+                        .as_ref()
+                        .and_then(|s| s.pod_ip.clone())
+                        .unwrap_or_default(),
+                    sort_by: ip_to_u32(
+                        &pod.status
+                            .as_ref()
+                            .and_then(|s| s.pod_ip.clone())
+                            .unwrap_or_default(),
+                    ),
+                    ..Default::default()
+                },
                 node: pod
                     .spec
                     .as_ref()
@@ -104,7 +115,11 @@ fn field_accessor(mode: AccessorMode) -> impl Fn(&PodProcessed, &str) -> Option<
             AccessorMode::Sort => Some(pod.restarts.sort_by.to_string()),
             AccessorMode::Filter => Some(pod.restarts.value.clone()),
         },
-        "ip" => Some(pod.ip.clone()),
+        "ip" => match mode {
+            AccessorMode::Sort => Some(pod.ip.sort_by?.to_string()),
+            AccessorMode::Filter => Some(pod.ip.value.clone()),
+        },
+        // "ip" => Some(pod.ip.clone()),
         "node" => Some(pod.node.clone()),
         "age" => match mode {
             AccessorMode::Sort => Some(pod.age.sort_by?.to_string()),
@@ -287,7 +302,7 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
     if status.is_none() {
         return FieldValue {
             value: "Unknown".to_string(),
-            symbol: color_status("Unknown"),
+            symbol: Some(color_status("Unknown")),
             ..Default::default()
         };
     }
@@ -304,7 +319,7 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
         if deletion_ts.is_some() && reason == "NodeLost" {
             return FieldValue {
                 value: "Unknown".to_string(),
-                symbol: color_status("Unknown"),
+                symbol: Some(color_status("Unknown")),
                 ..Default::default()
             };
         }
@@ -316,7 +331,7 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
     if init_done {
         return FieldValue {
             value: status_after_init.clone(),
-            symbol: color_status(&status_after_init),
+            symbol: Some(color_status(&status_after_init)),
             ..Default::default()
         };
     }
@@ -339,14 +354,14 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
     if deletion_ts.is_some() {
         return FieldValue {
             value: "Terminating".to_string(),
-            symbol: color_status("Terminating"),
+            symbol: Some(color_status("Terminating")),
             ..Default::default()
         };
     }
 
     FieldValue {
         value: final_status.clone(),
-        symbol: color_status(&final_status),
+        symbol: Some(color_status(&final_status)),
         ..Default::default()
     }
 }
@@ -382,7 +397,7 @@ fn get_ready(pod: &Pod) -> FieldValue {
 
     FieldValue {
         value: format!("{}/{}", ready_count, containers),
-        symbol: symbol.to_string(),
+        symbol: Some(symbol.to_string()),
         sort_by: Some(ready_count),
     }
 }
