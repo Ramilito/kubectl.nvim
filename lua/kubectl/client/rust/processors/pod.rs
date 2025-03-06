@@ -1,5 +1,6 @@
+use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
 use k8s_openapi::chrono::{DateTime, Utc};
-use k8s_openapi::serde_json::{self, Value};
+use k8s_openapi::serde_json::{self};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use mlua::Lua;
@@ -14,18 +15,12 @@ use super::processor::Processor;
 pub struct PodProcessed {
     namespace: String,
     name: String,
-    ready: Status,
-    status: Status,
+    ready: FieldValue,
+    status: FieldValue,
     restarts: Restarts,
     ip: String,
     node: String,
     age: FieldValue,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-struct Status {
-    value: String,
-    symbol: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -51,35 +46,26 @@ impl Processor for PodProcessor {
         let mut data = Vec::new();
 
         for obj in items {
-            let raw_json = serde_json::to_value(obj).unwrap_or(Value::Null);
-
-            let namespace = obj.metadata.namespace.clone().unwrap_or_default();
-            let name = obj.metadata.name.clone().unwrap_or_default();
-            let ip = raw_json
-                .pointer("/status/podIP")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
-            let node = raw_json
-                .pointer("/spec/nodeName")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
-
-            let age = get_age(&obj);
-            let ready = get_ready(&raw_json);
-            let status = get_pod_status(&raw_json);
-            let restarts = get_restarts(&raw_json, &now);
+            let pod: Pod = serde_json::from_str(&serde_json::to_string(obj).unwrap())
+                .expect("Failed to deserialize Pod");
 
             data.push(PodProcessed {
-                namespace,
-                name,
-                ready,
-                status,
-                restarts,
-                ip,
-                node,
-                age,
+                ready: get_ready(&pod),
+                status: get_pod_status(&pod),
+                restarts: get_restarts(&pod, &now),
+                ip: pod
+                    .status
+                    .as_ref()
+                    .and_then(|s| s.pod_ip.clone())
+                    .unwrap_or_default(),
+                node: pod
+                    .spec
+                    .as_ref()
+                    .and_then(|s| s.node_name.clone())
+                    .unwrap_or_default(),
+                age: get_age(&obj),
+                namespace: pod.metadata.namespace.unwrap_or_default(),
+                name: pod.metadata.name.unwrap_or_default(),
             });
         }
 
@@ -121,46 +107,49 @@ fn field_accessor(mode: AccessorMode) -> impl Fn(&PodProcessed, &str) -> Option<
         "ip" => Some(pod.ip.clone()),
         "node" => Some(pod.node.clone()),
         "age" => match mode {
-            AccessorMode::Sort => Some(pod.age.sort_by.to_string()),
+            AccessorMode::Sort => Some(pod.age.sort_by?.to_string()),
             AccessorMode::Filter => Some(pod.age.value.clone()),
         },
         _ => None,
     }
 }
 
-fn get_restarts(pod_val: &Value, _current_time: &DateTime<Utc>) -> Restarts {
+fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> Restarts {
     let mut restarts = Restarts {
-        symbol: "".to_string(),
+        symbol: String::new(),
         value: "0".to_string(),
         sort_by: 0,
     };
 
-    let container_statuses = pod_val.pointer("/status/containerStatuses");
-    if let Some(Value::Array(statuses)) = container_statuses {
-        let mut total_restarts = 0;
-        let mut last_finished = None;
-        for st in statuses {
-            let rc = st
-                .pointer("/restartCount")
-                .and_then(Value::as_i64)
-                .unwrap_or(0);
-            total_restarts += rc;
+    if let Some(status) = &pod.status {
+        if let Some(container_statuses) = &status.container_statuses {
+            // Sum restart counts from all container statuses.
+            let total_restarts: i64 = container_statuses
+                .iter()
+                .map(|cs| cs.restart_count as i64)
+                .sum();
 
-            if let Some(ts) = st
-                .pointer("/lastState/terminated/finishedAt")
-                .and_then(Value::as_str)
-            {
-                last_finished = Some(time_since(ts));
+            // Find the last finished timestamp among container statuses.
+            let last_finished = container_statuses
+                .iter()
+                .filter_map(|cs| {
+                    cs.last_state
+                        .as_ref()
+                        .and_then(|ls| ls.terminated.as_ref())
+                        .and_then(|t| t.finished_at.as_ref())
+                })
+                .last()
+                .map(|time| time_since(&time.0.to_rfc3339()));
+
+            if let Some(lf) = last_finished {
+                restarts.value = format!("{} ({} ago)", total_restarts, lf);
+                restarts.sort_by = total_restarts;
+                if total_restarts > 0 {
+                    restarts.symbol = color_status("Yellow");
+                }
+            } else {
+                restarts.value = total_restarts.to_string();
             }
-        }
-        if let Some(lf) = last_finished {
-            restarts.value = format!("{} ({} ago)", total_restarts, lf);
-            restarts.sort_by = total_restarts;
-            if total_restarts > 0 {
-                restarts.symbol = color_status("Yellow");
-            }
-        } else {
-            restarts.value = total_restarts.to_string();
         }
     }
 
@@ -168,65 +157,54 @@ fn get_restarts(pod_val: &Value, _current_time: &DateTime<Utc>) -> Restarts {
 }
 
 fn check_init_container_status(
-    cs: &Value,
+    cs: &ContainerStatus,
     count: i64,
     init_count: i64,
     restartable: bool,
 ) -> String {
-    let state_terminated = cs.pointer("/state/terminated");
-    let state_waiting = cs.pointer("/state/waiting");
-    let ready = cs
-        .pointer("/ready")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let started = cs
-        .pointer("/started")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let ready = cs.ready;
+    let started = cs.started.unwrap_or(false);
 
-    if let Some(term) = state_terminated {
-        let exit_code = term
-            .pointer("/exitCode")
-            .and_then(Value::as_i64)
-            .unwrap_or(0);
-        let signal = term.pointer("/signal").and_then(Value::as_i64).unwrap_or(0);
-        let reason = term
-            .pointer("/reason")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        if exit_code == 0 {
-            return "".to_string();
-        }
-        if !reason.is_empty() {
-            return format!("Init:{}", reason);
-        }
-        if signal != 0 {
-            return format!("Init:Signal:{}", signal);
-        }
-        return format!("Init:ExitCode:{}", exit_code);
-    } else if restartable && started {
-        if ready {
-            return "".to_string();
-        }
-    } else if let Some(wait) = state_waiting {
-        let reason = wait
-            .pointer("/reason")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        if !reason.is_empty() && reason != "PodInitializing" {
-            return format!("Init:{}", reason);
+    if let Some(state) = &cs.state {
+        if let Some(term) = &state.terminated {
+            let exit_code = term.exit_code as i64;
+            let signal = term.signal.unwrap_or(0) as i64;
+            let reason = term.reason.as_deref().unwrap_or("");
+            if exit_code == 0 {
+                return "".to_string();
+            }
+            if !reason.is_empty() {
+                return format!("Init:{}", reason);
+            }
+            if signal != 0 {
+                return format!("Init:Signal:{}", signal);
+            }
+            return format!("Init:ExitCode:{}", exit_code);
+        } else if restartable && started {
+            if ready {
+                return "".to_string();
+            }
+        } else if let Some(wait) = &state.waiting {
+            let reason = wait.reason.as_deref().unwrap_or("");
+            if !reason.is_empty() && reason != "PodInitializing" {
+                return format!("Init:{}", reason);
+            }
         }
     }
 
     format!("Init:{}/{}", count, init_count)
 }
 
-fn get_init_container_status(pod_val: &Value, status: &str) -> (String, bool) {
-    let init_containers = pod_val.pointer("/spec/initContainers");
-    if !matches!(init_containers, Some(Value::Array(_))) {
+fn get_init_container_status(pod: &Pod, status: &str) -> (String, bool) {
+    let init_containers = pod
+        .spec
+        .as_ref()
+        .and_then(|spec| spec.init_containers.as_ref());
+    if init_containers.is_none() {
         return (status.to_string(), false);
     }
-    let arr = init_containers.unwrap().as_array().unwrap();
+
+    let arr = init_containers.unwrap();
     let count = arr.len() as i64;
     if count == 0 {
         return (status.to_string(), false);
@@ -234,19 +212,22 @@ fn get_init_container_status(pod_val: &Value, status: &str) -> (String, bool) {
 
     let mut restart_policies = HashMap::new();
     for c in arr {
-        let name = c.pointer("/name").and_then(Value::as_str).unwrap_or("");
+        let name = c.name.as_str();
         let pol = c
-            .pointer("/restartPolicy")
-            .and_then(Value::as_str)
+            .restart_policy
+            .as_deref()
             .map(|x| x == "Always")
             .unwrap_or(false);
         restart_policies.insert(name.to_string(), pol);
     }
 
-    let statuses_val = pod_val.pointer("/status/initContainerStatuses");
-    if let Some(Value::Array(sts)) = statuses_val {
-        for (i, cs) in sts.iter().enumerate() {
-            let name = cs.pointer("/name").and_then(Value::as_str).unwrap_or("");
+    if let Some(init_statuses) = pod
+        .status
+        .as_ref()
+        .and_then(|s| s.init_container_statuses.as_ref())
+    {
+        for (i, cs) in init_statuses.iter().enumerate() {
+            let name = cs.name.as_str();
             let s = check_init_container_status(
                 cs,
                 (i + 1) as i64,
@@ -262,146 +243,146 @@ fn get_init_container_status(pod_val: &Value, status: &str) -> (String, bool) {
     (status.to_string(), false)
 }
 
-fn get_container_status(pod_val: &Value, status: &str) -> (String, bool) {
+fn get_container_status(pod_statuses: &[ContainerStatus], default_status: &str) -> (String, bool) {
+    let mut final_status = default_status.to_owned();
     let mut running = false;
-    let mut s = status.to_string();
-    let cont_statuses = pod_val.pointer("/containerStatuses");
 
-    if let Some(Value::Array(sts)) = cont_statuses {
-        for cs in sts.iter().rev() {
-            let state_waiting = cs.pointer("/state/waiting");
-            let state_terminated = cs.pointer("/state/terminated");
-            let cs_ready = cs
-                .pointer("/ready")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let cs_running = cs.pointer("/state/running").is_some();
+    for cs in pod_statuses.iter().rev() {
+        if let Some(state) = &cs.state {
+            if let Some(waiting) = &state.waiting {
+                if let Some(reason) = waiting.reason.as_deref() {
+                    if !reason.is_empty() {
+                        final_status = reason.to_string();
+                        continue;
+                    }
+                }
+            } else if let Some(terminated) = &state.terminated {
+                if let Some(reason) = terminated.reason.as_deref() {
+                    if !reason.is_empty() {
+                        final_status = reason.to_string();
+                        continue;
+                    }
+                } else if let Some(signal) = terminated.signal {
+                    if signal != 0 {
+                        final_status = format!("Signal:{}", signal);
+                        continue;
+                    }
+                }
+                final_status = format!("ExitCode:{}", terminated.exit_code);
+                continue;
+            }
 
-            if let Some(wait) = state_waiting {
-                let reason = wait
-                    .pointer("/reason")
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                if !reason.is_empty() {
-                    s = reason.to_string();
-                }
-            } else if let Some(term) = state_terminated {
-                let reason = term
-                    .pointer("/reason")
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                let signal = term.pointer("/signal").and_then(Value::as_i64).unwrap_or(0);
-                let exit_code = term
-                    .pointer("/exitCode")
-                    .and_then(Value::as_i64)
-                    .unwrap_or(0);
-                if !reason.is_empty() {
-                    s = reason.to_string();
-                } else if signal != 0 {
-                    s = format!("Signal:{}", signal).to_string();
-                } else {
-                    s = format!("ExitCode:{}", exit_code).to_string();
-                }
-            } else if cs_ready && cs_running {
+            if cs.ready && state.running.is_some() {
                 running = true;
             }
         }
     }
-    (s.to_string(), running)
+
+    (final_status, running)
 }
 
-fn get_pod_status(pod_val: &Value) -> Status {
-    if pod_val.pointer("/status").is_none() {
-        return Status {
+fn get_pod_status(pod: &Pod) -> FieldValue {
+    // If status is missing, return "Unknown"
+    let status = pod.status.as_ref();
+    if status.is_none() {
+        return FieldValue {
             value: "Unknown".to_string(),
             symbol: color_status("Unknown"),
+            ..Default::default()
         };
     }
+    let status = status.unwrap();
 
-    let mut status = pod_val
-        .pointer("/status/phase")
-        .and_then(Value::as_str)
-        .unwrap_or("Unknown");
-    let deletion_ts = pod_val
-        .pointer("/metadata/deletionTimestamp")
-        .and_then(Value::as_str);
+    // Get pod phase
+    let mut phase = status.phase.as_deref().unwrap_or("Unknown");
 
-    if let Some(reason) = pod_val.pointer("/status/reason").and_then(Value::as_str) {
+    // Check for deletion timestamp
+    let deletion_ts = pod.metadata.deletion_timestamp.as_ref();
+
+    // Check for reason field
+    if let Some(reason) = status.reason.as_deref() {
         if deletion_ts.is_some() && reason == "NodeLost" {
-            return Status {
+            return FieldValue {
                 value: "Unknown".to_string(),
                 symbol: color_status("Unknown"),
+                ..Default::default()
             };
         }
-        status = reason;
+        phase = reason; // Override phase if a reason is provided
     }
 
-    let (status_after_init, init_done) = get_init_container_status(pod_val, status);
+    // Process init container status
+    let (status_after_init, init_done) = get_init_container_status(pod, phase);
     if init_done {
-        return Status {
+        return FieldValue {
             value: status_after_init.clone(),
             symbol: color_status(&status_after_init),
+            ..Default::default()
         };
     }
 
-    let pod_status = pod_val.pointer("/status");
+    // Process regular container statuses
     let mut final_status = status_after_init.clone();
     let mut is_running = false;
-    if let Some(ps) = pod_status {
-        let (s, r) = get_container_status(ps, &final_status);
+    if let Some(container_statuses) = &status.container_statuses {
+        let (s, r) = get_container_status(container_statuses, &final_status);
         final_status = s;
         is_running = r;
     }
 
+    // Adjust final status if necessary
     if is_running && final_status == "Completed" {
         final_status = "Running".to_string();
     }
 
+    // If the pod is terminating
     if deletion_ts.is_some() {
-        return Status {
+        return FieldValue {
             value: "Terminating".to_string(),
             symbol: color_status("Terminating"),
+            ..Default::default()
         };
     }
 
-    Status {
+    FieldValue {
         value: final_status.clone(),
         symbol: color_status(&final_status),
+        ..Default::default()
     }
 }
 
-fn get_ready(pod_val: &Value) -> Status {
-    let mut containers = 0;
-    if let Some(Value::Array(spec_cs)) = pod_val.pointer("/spec/containers") {
-        containers = spec_cs.len();
-    }
+fn get_ready(pod: &Pod) -> FieldValue {
+    let containers = pod
+        .spec
+        .as_ref()
+        .map(|spec| spec.containers.len()) // Directly access containers field
+        .unwrap_or(0);
+
     let mut ready_count = 0;
-    if let Some(Value::Array(sts)) = pod_val.pointer("/status/containerStatuses") {
-        for cs in sts {
-            if cs
-                .pointer("/ready")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-            {
-                ready_count += 1;
+    if let Some(status) = &pod.status {
+        if let Some(container_statuses) = &status.container_statuses {
+            for cs in container_statuses {
+                if cs.ready {
+                    ready_count += 1;
+                }
             }
         }
     }
 
-    // For "full" readiness we display a note symbol, else "deprecated"
     let mut symbol = if ready_count == containers {
         &symbols().note
     } else {
         &symbols().deprecated
     };
 
-    let pod_status = get_pod_status(pod_val);
+    let pod_status = get_pod_status(pod);
     if pod_status.value == "Completed" {
         symbol = &symbols().note;
     }
 
-    Status {
+    FieldValue {
         value: format!("{}/{}", ready_count, containers),
         symbol: symbol.to_string(),
+        sort_by: Some(ready_count),
     }
 }

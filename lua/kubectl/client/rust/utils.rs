@@ -11,7 +11,17 @@ pub enum AccessorMode {
 pub struct FieldValue {
     pub symbol: String,
     pub value: String,
-    pub sort_by: i64,
+    pub sort_by: Option<usize>,
+}
+// Implement Default
+impl Default for FieldValue {
+    fn default() -> Self {
+        Self {
+            symbol: "".to_string(),
+            value: "".to_string(),
+            sort_by: None, // Default is None
+        }
+    }
 }
 
 pub fn strip_managed_fields(obj: &mut DynamicObject) {
@@ -114,7 +124,7 @@ pub fn get_age(pod_val: &DynamicObject) -> FieldValue {
     let mut age = FieldValue {
         symbol: "".to_string(),
         value: "".to_string(),
-        sort_by: 0,
+        sort_by: Some(0),
     };
     let creation_ts = pod_val
         .metadata
@@ -129,11 +139,14 @@ pub fn get_age(pod_val: &DynamicObject) -> FieldValue {
         "".to_string()
     };
 
-    age.sort_by = pod_val
-        .metadata
-        .creation_timestamp
-        .as_ref()
-        .map(|time| time.0.timestamp())
-        .expect("TImes");
+    age.sort_by = Some(
+        pod_val
+            .metadata
+            .creation_timestamp
+            .as_ref()
+            .map(|time| time.0.timestamp())
+            .expect("Times")
+            .max(0) as usize,
+    );
     return age;
 }
