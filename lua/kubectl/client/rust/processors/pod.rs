@@ -6,7 +6,7 @@ use mlua::Lua;
 use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
-use crate::utils::{filter_dynamic, sort_dynamic, time_since};
+use crate::utils::{filter_dynamic, get_age, sort_dynamic, time_since, AccessorMode, FieldValue};
 
 use super::processor::Processor;
 
@@ -14,22 +14,22 @@ use super::processor::Processor;
 pub struct PodProcessed {
     namespace: String,
     name: String,
-    ready: ProcessedStatus,
-    status: ProcessedStatus,
-    restarts: ProcessedRestarts,
+    ready: Status,
+    status: Status,
+    restarts: Restarts,
     ip: String,
     node: String,
-    age: String,
+    age: FieldValue,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-struct ProcessedStatus {
+struct Status {
     value: String,
     symbol: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-struct ProcessedRestarts {
+struct Restarts {
     symbol: String,
     value: String,
     sort_by: i64,
@@ -66,18 +66,7 @@ impl Processor for PodProcessor {
                 .unwrap_or("")
                 .to_string();
 
-            let creation_ts = obj
-                .metadata
-                .creation_timestamp
-                .as_ref()
-                .map(|t| t.0.to_rfc3339())
-                .unwrap_or_default();
-            let age = if !creation_ts.is_empty() {
-                format!("{}", time_since(&creation_ts))
-            } else {
-                "".to_string()
-            };
-
+            let age = get_age(&obj);
             let ready = get_ready(&raw_json);
             let status = get_pod_status(&raw_json);
             let restarts = get_restarts(&raw_json, &now);
@@ -94,15 +83,19 @@ impl Processor for PodProcessor {
             });
         }
 
-        let accessor = field_accessor();
-        sort_dynamic(&mut data, sort_by, sort_order, &accessor);
+        sort_dynamic(
+            &mut data,
+            sort_by,
+            sort_order,
+            field_accessor(AccessorMode::Sort),
+        );
 
         let data = if let Some(ref filter_value) = filter {
             filter_dynamic(
                 &data,
                 filter_value,
                 &["namespace", "name", "ready", "status", "ip", "node"],
-                &accessor,
+                field_accessor(AccessorMode::Filter),
             )
             .into_iter()
             .cloned()
@@ -115,22 +108,28 @@ impl Processor for PodProcessor {
     }
 }
 
-fn field_accessor() -> impl Fn(&PodProcessed, &str) -> Option<String> {
-    |pod, field| match field {
+fn field_accessor(mode: AccessorMode) -> impl Fn(&PodProcessed, &str) -> Option<String> {
+    move |pod, field| match field {
         "namespace" => Some(pod.namespace.clone()),
         "name" => Some(pod.name.clone()),
         "ready" => Some(pod.ready.value.clone()),
         "status" => Some(pod.status.value.clone()),
-        "restarts" => Some(pod.restarts.sort_by.to_string()),
+        "restarts" => match mode {
+            AccessorMode::Sort => Some(pod.restarts.sort_by.to_string()),
+            AccessorMode::Filter => Some(pod.restarts.value.clone()),
+        },
         "ip" => Some(pod.ip.clone()),
         "node" => Some(pod.node.clone()),
-        "age" => Some(pod.age.clone()),
+        "age" => match mode {
+            AccessorMode::Sort => Some(pod.age.sort_by.to_string()),
+            AccessorMode::Filter => Some(pod.age.value.clone()),
+        },
         _ => None,
     }
 }
 
-fn get_restarts(pod_val: &Value, _current_time: &DateTime<Utc>) -> ProcessedRestarts {
-    let mut restarts = ProcessedRestarts {
+fn get_restarts(pod_val: &Value, _current_time: &DateTime<Utc>) -> Restarts {
+    let mut restarts = Restarts {
         symbol: "".to_string(),
         value: "0".to_string(),
         sort_by: 0,
@@ -311,9 +310,9 @@ fn get_container_status(pod_val: &Value, status: &str) -> (String, bool) {
     (s.to_string(), running)
 }
 
-fn get_pod_status(pod_val: &Value) -> ProcessedStatus {
+fn get_pod_status(pod_val: &Value) -> Status {
     if pod_val.pointer("/status").is_none() {
-        return ProcessedStatus {
+        return Status {
             value: "Unknown".to_string(),
             symbol: color_status("Unknown"),
         };
@@ -329,7 +328,7 @@ fn get_pod_status(pod_val: &Value) -> ProcessedStatus {
 
     if let Some(reason) = pod_val.pointer("/status/reason").and_then(Value::as_str) {
         if deletion_ts.is_some() && reason == "NodeLost" {
-            return ProcessedStatus {
+            return Status {
                 value: "Unknown".to_string(),
                 symbol: color_status("Unknown"),
             };
@@ -339,7 +338,7 @@ fn get_pod_status(pod_val: &Value) -> ProcessedStatus {
 
     let (status_after_init, init_done) = get_init_container_status(pod_val, status);
     if init_done {
-        return ProcessedStatus {
+        return Status {
             value: status_after_init.clone(),
             symbol: color_status(&status_after_init),
         };
@@ -359,19 +358,19 @@ fn get_pod_status(pod_val: &Value) -> ProcessedStatus {
     }
 
     if deletion_ts.is_some() {
-        return ProcessedStatus {
+        return Status {
             value: "Terminating".to_string(),
             symbol: color_status("Terminating"),
         };
     }
 
-    ProcessedStatus {
+    Status {
         value: final_status.clone(),
         symbol: color_status(&final_status),
     }
 }
 
-fn get_ready(pod_val: &Value) -> ProcessedStatus {
+fn get_ready(pod_val: &Value) -> Status {
     let mut containers = 0;
     if let Some(Value::Array(spec_cs)) = pod_val.pointer("/spec/containers") {
         containers = spec_cs.len();
@@ -401,7 +400,7 @@ fn get_ready(pod_val: &Value) -> ProcessedStatus {
         symbol = &symbols().note;
     }
 
-    ProcessedStatus {
+    Status {
         value: format!("{}/{}", ready_count, containers),
         symbol: symbol.to_string(),
     }

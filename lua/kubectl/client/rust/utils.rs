@@ -1,6 +1,19 @@
 use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 
+#[derive(Clone, Copy)]
+pub enum AccessorMode {
+    Sort,
+    Filter,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FieldValue {
+    pub symbol: String,
+    pub value: String,
+    pub sort_by: i64,
+}
+
 pub fn strip_managed_fields(obj: &mut DynamicObject) {
     obj.metadata.managed_fields = None;
 }
@@ -95,4 +108,32 @@ where
             })
         })
         .collect()
+}
+
+pub fn get_age(pod_val: &DynamicObject) -> FieldValue {
+    let mut age = FieldValue {
+        symbol: "".to_string(),
+        value: "".to_string(),
+        sort_by: 0,
+    };
+    let creation_ts = pod_val
+        .metadata
+        .creation_timestamp
+        .as_ref()
+        .map(|t| t.0.to_rfc3339())
+        .unwrap_or_default();
+
+    age.value = if !creation_ts.is_empty() {
+        format!("{}", time_since(&creation_ts))
+    } else {
+        "".to_string()
+    };
+
+    age.sort_by = pod_val
+        .metadata
+        .creation_timestamp
+        .as_ref()
+        .map(|time| time.0.timestamp())
+        .expect("TImes");
+    return age;
 }

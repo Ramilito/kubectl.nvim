@@ -1,26 +1,33 @@
 use crate::processors::processor::Processor;
-use crate::utils::{filter_dynamic, sort_dynamic, time_since};
+use crate::utils::{filter_dynamic, get_age, sort_dynamic, time_since, AccessorMode, FieldValue};
 use k8s_openapi::serde_json::{self, Value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use mlua::Lua;
 
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct ProcessedStatus {
+pub struct Status {
     pub symbol: String,
     pub value: String,
     pub sort_by: i64,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+struct Age {
+    symbol: String,
+    value: String,
+    sort_by: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct DeploymentProcessed {
     namespace: String,
     name: String,
-    ready: ProcessedStatus,
+    ready: Status,
     #[serde(rename = "up-to-date")]
     up_to_date: i64,
     available: i64,
-    age: String,
+    age: FieldValue,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -60,13 +67,9 @@ impl Processor for DeploymentProcessor {
                 .and_then(Value::as_i64)
                 .unwrap_or(0);
 
-            let age = if !creation_ts.is_empty() {
-                format!("{}", time_since(&creation_ts))
-            } else {
-                "".to_string()
-            };
-
+            let age = get_age(&obj);
             let ready = get_ready(&raw_json);
+
             data.push(DeploymentProcessed {
                 namespace,
                 name,
@@ -77,15 +80,19 @@ impl Processor for DeploymentProcessor {
             });
         }
 
-        let accessor = field_accessor();
-        sort_dynamic(&mut data, sort_by, sort_order, &accessor);
+        sort_dynamic(
+            &mut data,
+            sort_by,
+            sort_order,
+            field_accessor(AccessorMode::Sort),
+        );
 
         let data = if let Some(ref filter_value) = filter {
             filter_dynamic(
                 &data,
                 filter_value,
                 &["namespace", "name", "ready"],
-                &accessor,
+                field_accessor(AccessorMode::Filter),
             )
             .into_iter()
             .cloned()
@@ -98,19 +105,22 @@ impl Processor for DeploymentProcessor {
     }
 }
 
-fn field_accessor() -> impl Fn(&DeploymentProcessed, &str) -> Option<String> {
-    |pod, field| match field {
-        "namespace" => Some(pod.namespace.clone()),
-        "name" => Some(pod.name.clone()),
-        "ready" => Some(pod.ready.value.clone()),
-        "up_to_date" => Some(pod.up_to_date.to_string()),
-        "available" => Some(pod.available.to_string()),
-        "age" => Some(pod.age.clone()),
+fn field_accessor(mode: AccessorMode) -> impl Fn(&DeploymentProcessed, &str) -> Option<String> {
+    move |resource, field| match field {
+        "namespace" => Some(resource.namespace.clone()),
+        "name" => Some(resource.name.clone()),
+        "ready" => Some(resource.ready.value.clone()),
+        "up_to_date" => Some(resource.up_to_date.to_string()),
+        "available" => Some(resource.available.to_string()),
+        "age" => match mode {
+            AccessorMode::Sort => Some(resource.age.sort_by.to_string()),
+            AccessorMode::Filter => Some(resource.age.value.clone()),
+        },
         _ => None,
     }
 }
 
-fn get_ready(row: &Value) -> ProcessedStatus {
+fn get_ready(row: &Value) -> Status {
     let available = row
         .get("status")
         .and_then(|s| {
@@ -142,7 +152,7 @@ fn get_ready(row: &Value) -> ProcessedStatus {
     let value = format!("{}/{}", available, replicas);
     let sort_by = (available * 1000) + replicas;
 
-    ProcessedStatus {
+    Status {
         symbol,
         value,
         sort_by,
