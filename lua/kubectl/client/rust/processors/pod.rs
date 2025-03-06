@@ -19,17 +19,10 @@ pub struct PodProcessed {
     name: String,
     ready: FieldValue,
     status: FieldValue,
-    restarts: Restarts,
+    restarts: FieldValue,
     ip: FieldValue,
     node: String,
     age: FieldValue,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-struct Restarts {
-    symbol: String,
-    value: String,
-    sort_by: i64,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -112,14 +105,13 @@ fn field_accessor(mode: AccessorMode) -> impl Fn(&PodProcessed, &str) -> Option<
         "ready" => Some(pod.ready.value.clone()),
         "status" => Some(pod.status.value.clone()),
         "restarts" => match mode {
-            AccessorMode::Sort => Some(pod.restarts.sort_by.to_string()),
+            AccessorMode::Sort => Some(pod.restarts.sort_by?.to_string()),
             AccessorMode::Filter => Some(pod.restarts.value.clone()),
         },
         "ip" => match mode {
             AccessorMode::Sort => Some(pod.ip.sort_by?.to_string()),
             AccessorMode::Filter => Some(pod.ip.value.clone()),
         },
-        // "ip" => Some(pod.ip.clone()),
         "node" => Some(pod.node.clone()),
         "age" => match mode {
             AccessorMode::Sort => Some(pod.age.sort_by?.to_string()),
@@ -129,19 +121,18 @@ fn field_accessor(mode: AccessorMode) -> impl Fn(&PodProcessed, &str) -> Option<
     }
 }
 
-fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> Restarts {
-    let mut restarts = Restarts {
-        symbol: String::new(),
+fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> FieldValue {
+    let mut restarts = FieldValue {
         value: "0".to_string(),
-        sort_by: 0,
+        ..Default::default()
     };
 
     if let Some(status) = &pod.status {
         if let Some(container_statuses) = &status.container_statuses {
             // Sum restart counts from all container statuses.
-            let total_restarts: i64 = container_statuses
+            let total_restarts: usize = container_statuses
                 .iter()
-                .map(|cs| cs.restart_count as i64)
+                .map(|cs| cs.restart_count as usize)
                 .sum();
 
             // Find the last finished timestamp among container statuses.
@@ -158,9 +149,9 @@ fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> Restarts {
 
             if let Some(lf) = last_finished {
                 restarts.value = format!("{} ({} ago)", total_restarts, lf);
-                restarts.sort_by = total_restarts;
+                restarts.sort_by = Some(total_restarts);
                 if total_restarts > 0 {
-                    restarts.symbol = color_status("Yellow");
+                    restarts.symbol = Some(color_status("Yellow"));
                 }
             } else {
                 restarts.value = total_restarts.to_string();
