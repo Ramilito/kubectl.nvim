@@ -1,6 +1,7 @@
 use crate::processors::processor::Processor;
 use crate::utils::{filter_dynamic, sort_dynamic, AccessorMode, FieldValue};
-use k8s_openapi::serde_json::{self, Value};
+use k8s_openapi::api::apps::v1::Deployment;
+use k8s_openapi::serde_json::{self};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use mlua::Lua;
@@ -31,23 +32,26 @@ impl Processor for DeploymentProcessor {
         let mut data = Vec::new();
 
         for obj in items {
-            let raw_json = serde_json::to_value(obj).unwrap_or(Value::Null);
+            let deployment: Deployment = serde_json::from_str(&serde_json::to_string(obj).unwrap())
+                .expect("Failed to deserialize Deployment");
 
-            let namespace = obj.metadata.namespace.clone().unwrap_or_default();
-            let name = obj.metadata.name.clone().unwrap_or_default();
+            let namespace = deployment.metadata.namespace.clone().unwrap_or_default();
+            let name = deployment.metadata.name.clone().unwrap_or_default();
 
-            let up_to_date = raw_json
-                .pointer("/status/updatedReplicas")
-                .and_then(Value::as_i64)
-                .unwrap_or(0);
+            let up_to_date = deployment
+                .status
+                .as_ref()
+                .and_then(|s| s.updated_replicas)
+                .unwrap_or(0) as i64;
 
-            let available = raw_json
-                .pointer("/status/availableReplicas")
-                .and_then(Value::as_i64)
-                .unwrap_or(0);
+            let available = deployment
+                .status
+                .as_ref()
+                .and_then(|s| s.available_replicas)
+                .unwrap_or(0) as i64;
 
             let age = self.get_age(&obj);
-            let ready = get_ready(&raw_json);
+            let ready = get_ready_from_deployment(&deployment);
 
             data.push(DeploymentProcessed {
                 namespace,
@@ -58,7 +62,6 @@ impl Processor for DeploymentProcessor {
                 age,
             });
         }
-
         sort_dynamic(
             &mut data,
             sort_by,
@@ -98,30 +101,24 @@ fn field_accessor(mode: AccessorMode) -> impl Fn(&DeploymentProcessed, &str) -> 
         _ => None,
     }
 }
+fn get_ready_from_deployment(deployment: &Deployment) -> FieldValue {
+    let available = deployment
+        .status
+        .as_ref()
+        .and_then(|s| s.available_replicas)
+        .unwrap_or(0) as u64;
+    let unavailable = deployment
+        .status
+        .as_ref()
+        .and_then(|s| s.unavailable_replicas)
+        .unwrap_or(0) as u64;
+    let replicas = deployment
+        .spec
+        .as_ref()
+        .and_then(|s| s.replicas)
+        .or_else(|| deployment.status.as_ref().and_then(|s| s.replicas))
+        .unwrap_or(0) as u64;
 
-fn get_ready(row: &Value) -> FieldValue {
-    let available = row
-        .get("status")
-        .and_then(|s| {
-            s.get("availableReplicas")
-                .or_else(|| s.get("readyReplicas"))
-        })
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-    let unavailable = row
-        .get("status")
-        .and_then(|s| s.get("unavailableReplicas"))
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-    let replicas = row
-        .get("spec")
-        .and_then(|s| s.get("replicas"))
-        .or_else(|| row.get("status").and_then(|s| s.get("replicas")))
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-
-    // For simplicity, we use fixed strings for symbols.
-    // In your full application, these might come from your highlight/event module.
     let symbol = if available == replicas && unavailable == 0 {
         "KubectlNote".to_string()
     } else {
@@ -134,6 +131,6 @@ fn get_ready(row: &Value) -> FieldValue {
     FieldValue {
         symbol: Some(symbol),
         value,
-        sort_by: Some(sort_by.try_into().unwrap_or(0)),
+        sort_by: Some(sort_by as usize),
     }
 }
