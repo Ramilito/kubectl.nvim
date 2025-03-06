@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
 use crate::utils::{
-    filter_dynamic, get_age, ip_to_u32, sort_dynamic, time_since, AccessorMode, FieldValue,
+    filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue,
 };
 
 use super::processor::Processor;
@@ -54,7 +54,7 @@ impl Processor for PodProcessor {
                         .as_ref()
                         .and_then(|s| s.pod_ip.clone())
                         .unwrap_or_default(),
-                    sort_by: ip_to_u32(
+                    sort_by: self.ip_to_u32(
                         &pod.status
                             .as_ref()
                             .and_then(|s| s.pod_ip.clone())
@@ -67,7 +67,7 @@ impl Processor for PodProcessor {
                     .as_ref()
                     .and_then(|s| s.node_name.clone())
                     .unwrap_or_default(),
-                age: get_age(&obj),
+                age: self.get_age(&obj),
                 namespace: pod.metadata.namespace.unwrap_or_default(),
                 name: pod.metadata.name.unwrap_or_default(),
             });

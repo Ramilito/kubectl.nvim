@@ -1,5 +1,5 @@
 use crate::processors::processor::Processor;
-use crate::utils::{filter_dynamic, get_age, sort_dynamic, AccessorMode, FieldValue};
+use crate::utils::{filter_dynamic, sort_dynamic, AccessorMode, FieldValue};
 use k8s_openapi::serde_json::{self, Value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
@@ -46,7 +46,7 @@ impl Processor for DeploymentProcessor {
                 .and_then(Value::as_i64)
                 .unwrap_or(0);
 
-            let age = get_age(&obj);
+            let age = self.get_age(&obj);
             let ready = get_ready(&raw_json);
 
             data.push(DeploymentProcessed {
