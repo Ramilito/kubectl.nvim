@@ -32,8 +32,10 @@ impl Processor for DeploymentProcessor {
         let mut data = Vec::new();
 
         for obj in items {
-            let deployment: Deployment = serde_json::from_str(&serde_json::to_string(obj).unwrap())
-                .expect("Failed to deserialize Deployment");
+            let deployment: Deployment = serde_json::from_value(
+                serde_json::to_value(obj).expect("Failed to convert DynamicObject to JSON Value"),
+            )
+            .expect("Failed to convert JSON Value into Deployment");
 
             let namespace = deployment.metadata.namespace.clone().unwrap_or_default();
             let name = deployment.metadata.name.clone().unwrap_or_default();

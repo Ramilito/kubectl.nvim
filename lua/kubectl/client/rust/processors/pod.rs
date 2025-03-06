@@ -7,9 +7,7 @@ use mlua::Lua;
 use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
-use crate::utils::{
-    filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue,
-};
+use crate::utils::{filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue};
 
 use super::processor::Processor;
 
@@ -41,8 +39,10 @@ impl Processor for PodProcessor {
         let mut data = Vec::new();
 
         for obj in items {
-            let pod: Pod = serde_json::from_str(&serde_json::to_string(obj).unwrap())
-                .expect("Failed to deserialize Pod");
+            let pod: Pod = serde_json::from_value(
+                serde_json::to_value(obj).expect("Failed to convert DynamicObject to JSON Value"),
+            )
+            .expect("Failed to convert JSON Value into Pod");
 
             data.push(PodProcessed {
                 ready: get_ready(&pod),
