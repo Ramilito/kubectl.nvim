@@ -16,12 +16,17 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
+  ResourceBuilder:view_float_new({
     resource = "deployments| " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "deployment", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+    resource_name = "Deployment",
+    ns = ns,
+    name = name,
+    group = definition.group,
+    version = definition.version,
+  }, { reload = reload })
 end
 
 --- Get current seletion for view

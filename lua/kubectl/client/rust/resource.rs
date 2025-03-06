@@ -1,45 +1,30 @@
+// resource.rs
 use kube::{
-    api::{Api, ApiResource, DynamicObject, ListParams},
+    api::{Api, DynamicObject, ResourceExt},
     core::GroupVersionKind,
+    discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
     Client,
 };
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::store;
-
-pub fn fetch_resource(
-    rt: &Runtime,
-    client: &Client,
-    resource: &str,
-    group: Option<String>,
-    version: Option<String>,
-    name: Option<String>,
-    namespace: Option<String>,
-) -> Result<Vec<DynamicObject>, kube::Error> {
-    let group_str = group.unwrap_or_default();
-    let version_str = version.unwrap_or_else(|| "v1".to_string());
-    let gvk = GroupVersionKind {
-        group: group_str,
-        version: version_str,
-        kind: resource.to_string(),
-    };
-    let ar = ApiResource::from_gvk(&gvk);
-    let api: Api<DynamicObject> = if let Some(ns) = namespace.clone() {
-        Api::namespaced_with(client.clone(), &ns, &ar)
-    } else {
-        Api::all_with(client.clone(), &ar)
-    };
-
-    let items = rt.block_on(async {
-        if let Some(n) = name {
-            Ok(vec![api.get(&n).await?])
-        } else {
-            Ok(api.list(&ListParams::default()).await?.items)
-        }
-    })?;
-
-    Ok(items)
+fn resolve_api_resource(
+    discovery: &Discovery,
+    name: &str,
+) -> Option<(ApiResource, ApiCapabilities)> {
+    discovery
+        .groups()
+        .flat_map(|group| {
+            group
+                .resources_by_stability()
+                .into_iter()
+                .map(move |res| (group, res))
+        })
+        .filter(|(_, (res, _))| {
+            name.eq_ignore_ascii_case(&res.kind) || name.eq_ignore_ascii_case(&res.plural)
+        })
+        .min_by_key(|(group, _)| group.name())
+        .map(|(_, res)| res)
 }
 
 pub fn get_resource(
@@ -51,13 +36,53 @@ pub fn get_resource(
     name: Option<String>,
     namespace: Option<String>,
 ) -> LuaResult<String> {
-    let mut items = fetch_resource(rt, client, &resource, group, version, name, namespace)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    for item in &mut items {
-        crate::utils::strip_managed_fields(item);
-    }
-    store::set(&resource, items.clone());
-    let json_str = k8s_openapi::serde_json::to_string(&items)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    Ok(json_str)
+    let fut = async move {
+        let discovery = Discovery::new(client.clone())
+            .run()
+            .await
+            .map_err(|e| mlua::Error::external(e))?;
+
+        let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
+            let gvk = GroupVersionKind {
+                group: g,
+                version: v,
+                kind: resource.to_string(),
+            };
+            if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
+                (ar, caps)
+            } else {
+                return Err(mlua::Error::external(format!(
+                    "Unable to discover resource by GVK: {:?}",
+                    gvk
+                )));
+            }
+        } else {
+            if let Some((ar, caps)) = resolve_api_resource(&discovery, &resource) {
+                (ar, caps)
+            } else {
+                return Err(mlua::Error::external(format!(
+                    "Resource not found in cluster: {}",
+                    resource
+                )));
+            }
+        };
+
+        let api = if caps.scope == Scope::Cluster {
+            Api::<DynamicObject>::all_with(client.clone(), &ar)
+        } else if let Some(ns) = &namespace {
+            Api::<DynamicObject>::namespaced_with(client.clone(), ns, &ar)
+        } else {
+            Api::<DynamicObject>::default_namespaced_with(client.clone(), &ar)
+        };
+
+        if let Some(ref n) = name {
+            let mut obj = api.get(n).await.map_err(|e| mlua::Error::external(e))?;
+            obj.managed_fields_mut().clear();
+            serde_yaml::to_string(&obj).map_err(|e| mlua::Error::external(e))
+        } else {
+            serde_yaml::to_string("").map_err(|e| mlua::Error::external(e))
+        }
+    };
+
+    rt.block_on(fut)
 }

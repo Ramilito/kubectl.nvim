@@ -313,6 +313,50 @@ end
 
 -- We ignore the override of self in luacheck
 --luacheck: ignore
+function ResourceBuilder:view_float_new(definition, opts)
+  opts = opts or {}
+  self = state.instance_float
+
+  if opts.reload == nil or opts.reload or self == nil then
+    self = ResourceBuilder:new(definition.resource)
+    self.definition = definition
+    self:displayFloat(self.definition.ft, self.definition.resource, self.definition.syntax)
+  else
+    self.definition = definition
+  end
+
+  commands.run_async(
+    definition.cmd,
+    { definition.resource_name, definition.ns, definition.name, definition.group, definition.version },
+    function(data)
+      self.data = data
+      self:decodeJson()
+
+      vim.schedule(function()
+        if self.definition.processRow then
+          self
+            :process(self.definition.processRow, true)
+            :sort()
+            :prettyPrint(self.definition.getHeaders)
+            :addHints(self.definition.hints, false, false, false)
+            :setContent()
+        else
+          self:splitData()
+          if self.definition.hints then
+            self:addHints(self.definition.hints, false, false, false)
+          end
+          self:setContentRaw()
+        end
+      end)
+    end
+  )
+
+  state.instance_float = self
+  return self
+end
+
+-- We ignore the override of self in luacheck
+--luacheck: ignore
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
   opts.cmd = opts.cmd or "curl"

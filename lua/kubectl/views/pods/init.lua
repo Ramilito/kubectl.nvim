@@ -193,10 +193,16 @@ function M.Desc(name, ns, reload)
   local def = {
     resource = "pods | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "pod", name, "-n", ns },
+    cmd = "describe_async",
     syntax = "yaml",
+		resource_name = "Pod",
+		name = name,
+		ns = ns,
+		group = definition.group,
+		version = definition.version,
+
   }
-  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+  ResourceBuilder:view_float_new(def, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view

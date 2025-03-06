@@ -9,6 +9,7 @@ use tokio::runtime::Runtime;
 mod events;
 mod processors;
 mod resource;
+mod resources;
 mod store;
 mod utils;
 mod watcher;
@@ -55,7 +56,7 @@ fn get_resource(
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-    resource::get_resource(rt, client, resource, group, version, name, namespace)
+    resources::get_resource(rt, client, resource, group, version, name, namespace)
 }
 
 fn start_watcher(
@@ -134,6 +135,31 @@ async fn get_table_async(
     Ok(json_str)
 }
 
+async fn describe_async(
+    _lua: Lua,
+    args: (
+        String,
+        Option<String>,
+        String,
+        Option<String>,
+        Option<String>,
+    ),
+) -> LuaResult<String> {
+    let (kind, namespace, name, group, version) = args;
+
+    let rt_guard = RUNTIME.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let rt = rt_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let result = resource::get_resource(rt, client, kind, group, version, Some(name), namespace);
+    Ok(result?)
+}
+
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
@@ -142,6 +168,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
+    exports.set("describe_async", lua.create_async_function(describe_async)?)?;
     exports.set(
         "get_table_async",
         lua.create_async_function(get_table_async)?,
