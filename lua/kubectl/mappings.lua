@@ -272,69 +272,12 @@ function M.get_mappings()
           syntax = "yaml",
           resource_name = string_utils.capitalize(instance.definition.resource_name),
           name = name,
-          cmd = "edit_async",
+          cmd = "open_resource_editor",
           ns = ns,
           group = instance.definition.group,
           version = instance.definition.version,
         }
-
-        client.edit_resource(def.resource_name, def.ns, def.name, def.group, def.version, def.syntax)
-        -- commands.run_async(def.cmd, {
-        --   def.resource_name,
-        --   def.ns,
-        --   def.name,
-        --   def.group,
-        --   def.version,
-        --   def.syntax,
-        -- }, function(data)
-        --   -- vim.cmd("tabnew | edit " .. tmpfilename)
-        -- end)
-
-        -- local args = { "get", resource .. "/" .. name, "-o", "yaml" }
-        -- if ns and ns ~= "nil" then
-        --   table.insert(args, "-n")
-        --   table.insert(args, ns)
-        -- end
-        --
-        -- local self = ResourceBuilder:new("edit_resource"):setCmd(args, "kubectl"):fetch()
-        --
-        -- local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
-        -- vim.print("editing " .. tmpfilename)
-        --
-        -- local tmpfile = assert(io.open(tmpfilename, "w+"), "Failed to open temp file")
-        -- tmpfile:write(self.data)
-        -- tmpfile:close()
-        --
-        -- local original_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
-        -- vim.api.nvim_buf_set_var(0, "original_mtime", original_mtime)
-        --
-        -- vim.cmd("tabnew | edit " .. tmpfilename)
-        --
-        -- vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = 0 })
-        -- local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
-        --
-        -- vim.api.nvim_create_autocmd("QuitPre", {
-        --   buffer = 0,
-        --   group = group,
-        --   callback = function()
-        --     vim.defer_fn(function()
-        --       local ok
-        --       ok, original_mtime = pcall(vim.api.nvim_buf_get_var, 0, "original_mtime")
-        --       local current_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
-        --
-        --       if ok and current_mtime ~= original_mtime then
-        --         vim.notify("Edited. Applying changes")
-        --         commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
-        --           vim.schedule(function()
-        --             vim.notify(apply_data, vim.log.levels.INFO)
-        --           end)
-        --         end)
-        --       else
-        --         vim.notify("Not Edited", vim.log.levels.INFO)
-        --       end
-        --     end, 100)
-        --   end,
-        -- })
+        client.open_resource_editor(def.resource_name, def.ns, def.name, def.group, def.version, def.syntax)
       end,
     },
     ["<Plug>(kubectl.toggle_headers)"] = {

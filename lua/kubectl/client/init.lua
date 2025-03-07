@@ -11,8 +11,8 @@ function client.set_implementation()
   client.implementation.init_runtime(state.context["current-context"])
 end
 
-function client.edit_resource(...)
-  return client.implementation.edit_resource(...)
+function client.open_resource_editor(...)
+  return client.implementation.open_resource_editor(...)
 end
 
 function client.get_resource(...)

@@ -177,7 +177,7 @@ async fn get_async(
     Ok(result?)
 }
 
-fn edit_resource(
+fn open_resource_editor(
     lua: &Lua,
     args: (
         String,
@@ -201,11 +201,11 @@ fn edit_resource(
     let orig = cmd::get::get_resource(
         rt,
         client,
-        kind.clone(),
-        group.clone(),
-        version.clone(),
-        Some(name.clone()),
-        namespace.clone(),
+        kind,
+        group,
+        version,
+        Some(name),
+        namespace,
         OutputMode::Yaml,
     );
 
@@ -218,12 +218,19 @@ fn edit_resource(
     let setup_cmd = format!(
         r#"
         vim.cmd('tabedit {}')
+        local buf = vim.api.nvim_get_current_buf()
+        vim.api.nvim_create_autocmd('QuitPre', {{
+            buffer = buf,
+            callback = function()
+                print("apply: {}")
+            end,
+        }})
         "#,
-        tmp_path
+        tmp_path, tmp_path
     );
     lua.load(&setup_cmd).exec()?;
 
-    Ok("".to_string())
+    Ok(tmp_path)
 }
 
 #[mlua::lua_module(skip_memory_check)]
@@ -231,7 +238,14 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
-    exports.set("edit_resource", lua.create_function(edit_resource)?)?;
+    exports.set(
+        "open_resource_editor",
+        lua.create_function(open_resource_editor)?,
+    )?;
+    // exports.set(
+    //     "patch_resource_edit",
+    //     lua.create_async_function(patch_resource_edit_async)?,
+    // )?;
     exports.set("get_resources", lua.create_function(get_resources)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
