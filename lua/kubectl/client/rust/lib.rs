@@ -198,38 +198,34 @@ fn edit_resource(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let mut orig = cmd::get::get_resource(
+    let orig = cmd::get::get_resource(
         rt,
         client,
-        kind,
-        group,
-        version,
-        Some(name),
-        namespace,
+        kind.clone(),
+        group.clone(),
+        version.clone(),
+        Some(name.clone()),
+        namespace.clone(),
         OutputMode::Yaml,
     );
 
     let mut tmpfile = tempfile::Builder::new().suffix(".yaml").tempfile()?;
-    write!(tmpfile, "{}", orig?)?;
+    write!(tmpfile, "{}", orig.clone()?)?;
     tmpfile.flush()?;
 
     let tmp_path = tmpfile.path().to_string_lossy().to_string();
-    let rust_callback = lua.create_function(|_lua, content: String| {
-        // if orig.unwrap() != content {
+    let rust_callback = lua.create_function(move |_lua, content: String| {
+        if orig.as_ref().unwrap() != &content {
+            println!("Changes detectd");
             // let test = Some(cmd::edit::edit_resource(rt, client, kind, group, version, Some(name), namespace, content));
             // NB: simplified kubectl constructs a merge-patch of differences
             // api.replace(name, &Default::default(), &data);
-        // }
-
-        // Process the edited content here.
-        // For example, update your resource or notify your application.
-        // println!("Edited content:\n{}", content);
+        }
         Ok(())
     })?;
+
     lua.globals().set("rust_callback", rust_callback)?;
 
-    // Set up an autocmd for the QuitPre event on the new buffer.
-    // When the buffer is closed, it will read the file and call rust_callback(content)
     let setup_cmd = format!(
         r#"
         vim.cmd('tabedit {}')
@@ -252,19 +248,6 @@ fn edit_resource(
     );
     lua.load(&setup_cmd).exec()?;
 
-    println!("edit complete");
-    // let cmd = format!("vim.cmd('tabedit {}')", tmp_path);
-    // let _ = lua.load(&cmd).exec();
-
-    // edit::get_editor();
-    // let edited = edit::edit(&input)?;
-    // if edited != input {
-    //     info!("updating changed object {}", orig.name_any());
-    //     let data: DynamicObject = serde_yaml::from_str(&edited)?;
-    //     // NB: simplified kubectl constructs a merge-patch of differences
-    //     api.replace(n, &Default::default(), &data).await?;
-    // }
-    //
     Ok("".to_string())
 }
 
