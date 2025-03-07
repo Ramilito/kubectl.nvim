@@ -1,3 +1,4 @@
+use cmd::get::OutputMode;
 // lib.rs
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
@@ -6,8 +7,8 @@ use processors::get_processors;
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-mod events;
 mod cmd;
+mod events;
 mod processors;
 mod resources;
 mod store;
@@ -143,9 +144,10 @@ async fn get_async(
         String,
         Option<String>,
         Option<String>,
+        Option<String>,
     ),
 ) -> LuaResult<String> {
-    let (kind, namespace, name, group, version) = args;
+    let (kind, namespace, name, group, version, output) = args;
 
     let rt_guard = RUNTIME.lock().unwrap();
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
@@ -156,7 +158,21 @@ async fn get_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let result = cmd::get::get_resource(rt, client, kind, group, version, Some(name), namespace);
+    let output_mode = output
+        .as_deref()
+        .map(OutputMode::from_str)
+        .unwrap_or_default();
+
+    let result = cmd::get::get_resource(
+        rt,
+        client,
+        kind,
+        group,
+        version,
+        Some(name),
+        namespace,
+        output_mode,
+    );
     Ok(result?)
 }
 
