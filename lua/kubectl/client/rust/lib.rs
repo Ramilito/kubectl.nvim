@@ -7,8 +7,8 @@ use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
 mod events;
+mod cmd;
 mod processors;
-mod resource;
 mod resources;
 mod store;
 mod utils;
@@ -135,7 +135,7 @@ async fn get_table_async(
     Ok(json_str)
 }
 
-async fn describe_async(
+async fn get_async(
     _lua: Lua,
     args: (
         String,
@@ -156,7 +156,7 @@ async fn describe_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let result = resource::describe_resource(rt, client, kind, group, version, Some(name), namespace);
+    let result = cmd::get::get_resource(rt, client, kind, group, version, Some(name), namespace);
     Ok(result?)
 }
 
@@ -168,7 +168,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
-    exports.set("describe_async", lua.create_async_function(describe_async)?)?;
+    exports.set("get_async", lua.create_async_function(get_async)?)?;
     exports.set(
         "get_table_async",
         lua.create_async_function(get_table_async)?,

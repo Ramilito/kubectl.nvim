@@ -3,7 +3,9 @@ local definition = require("kubectl.views.deployments.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local M = {
+  definition = definition,
+}
 
 function M.View(cancellationToken)
   ResourceBuilder:view_new(definition, cancellationToken)
@@ -16,17 +18,12 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float_new({
+  ResourceBuilder:view_float({
     resource = "deployments| " .. name .. " | " .. ns,
     ft = "k8s_desc",
+    url = { "describe", "deployment", name, "-n", ns },
     syntax = "yaml",
-    cmd = "describe_async",
-    resource_name = "Deployment",
-    ns = ns,
-    name = name,
-    group = definition.group,
-    version = definition.version,
-  }, { reload = reload })
+  }, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view

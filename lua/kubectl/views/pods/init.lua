@@ -8,6 +8,7 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {
+	definition = definition,
   selection = {},
   pfs = {},
   tail_handle = nil,
@@ -193,16 +194,10 @@ function M.Desc(name, ns, reload)
   local def = {
     resource = "pods | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    cmd = "describe_async",
+    url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
-		resource_name = "Pod",
-		name = name,
-		ns = ns,
-		group = definition.group,
-		version = definition.version,
-
   }
-  ResourceBuilder:view_float_new(def, { cmd = "kubectl", reload = reload })
+  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view

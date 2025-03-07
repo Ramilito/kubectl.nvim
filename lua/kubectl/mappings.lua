@@ -141,6 +141,7 @@ function M.get_mappings()
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+
         if not view_ok then
           view = require("kubectl.views.fallback")
         end
@@ -154,16 +155,19 @@ function M.get_mappings()
             local def = {
               resource = buf_name .. " | " .. name,
               ft = "k8s_yaml",
-              url = { "get", buf_name, name, "-o", "yaml" },
               syntax = "yaml",
+              resource_name = string_utils.capitalize(view.definition.resource_name),
+              name = name,
+              cmd = "get_async",
+              ns = ns,
+              group = view.definition.group,
+              version = view.definition.version,
             }
             if ns then
-              table.insert(def.url, "-n")
-              table.insert(def.url, ns)
               def.resource = def.resource .. " | " .. ns
             end
 
-            ResourceBuilder:view_float(def, { cmd = "kubectl" })
+            ResourceBuilder:view_float_new(def)
           end
         end
       end,

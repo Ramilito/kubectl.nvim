@@ -1,4 +1,3 @@
-// resource.rs
 use kube::{
     api::{Api, DynamicObject, ResourceExt},
     core::GroupVersionKind,
