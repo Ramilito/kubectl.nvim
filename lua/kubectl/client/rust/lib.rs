@@ -214,37 +214,12 @@ fn edit_resource(
     tmpfile.flush()?;
 
     let tmp_path = tmpfile.path().to_string_lossy().to_string();
-    let rust_callback = lua.create_function(move |_lua, content: String| {
-        if orig.as_ref().unwrap() != &content {
-            println!("Changes detectd");
-            // let test = Some(cmd::edit::edit_resource(rt, client, kind, group, version, Some(name), namespace, content));
-            // NB: simplified kubectl constructs a merge-patch of differences
-            // api.replace(name, &Default::default(), &data);
-        }
-        Ok(())
-    })?;
-
-    lua.globals().set("rust_callback", rust_callback)?;
 
     let setup_cmd = format!(
         r#"
         vim.cmd('tabedit {}')
-        local buf = vim.api.nvim_get_current_buf()
-        vim.api.nvim_create_autocmd('QuitPre', {{
-            buffer = buf,
-            callback = function()
-                local f = io.open("{}", "r")
-                if f then
-                    local content = f:read("*a")
-                    f:close()
-                    vim.schedule(function()
-                        rust_callback(content)
-                    end)
-                end
-            end,
-        }})
         "#,
-        tmp_path, tmp_path
+        tmp_path
     );
     lua.load(&setup_cmd).exec()?;
 
