@@ -1,9 +1,10 @@
-use cmd::get::OutputMode;
 // lib.rs
+use cmd::get::OutputMode;
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
 use processors::get_processors;
+use std::io::Write;
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
@@ -176,12 +177,104 @@ async fn get_async(
     Ok(result?)
 }
 
+fn edit_resource(
+    lua: &Lua,
+    args: (
+        String,
+        Option<String>,
+        String,
+        Option<String>,
+        Option<String>,
+    ),
+) -> LuaResult<String> {
+    let (kind, namespace, name, group, version) = args;
+
+    let rt_guard = RUNTIME.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let rt = rt_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let mut orig = cmd::get::get_resource(
+        rt,
+        client,
+        kind,
+        group,
+        version,
+        Some(name),
+        namespace,
+        OutputMode::Yaml,
+    );
+
+    let mut tmpfile = tempfile::Builder::new().suffix(".yaml").tempfile()?;
+    write!(tmpfile, "{}", orig?)?;
+    tmpfile.flush()?;
+
+    let tmp_path = tmpfile.path().to_string_lossy().to_string();
+    let rust_callback = lua.create_function(|_lua, content: String| {
+        // if orig.unwrap() != content {
+            // let test = Some(cmd::edit::edit_resource(rt, client, kind, group, version, Some(name), namespace, content));
+            // NB: simplified kubectl constructs a merge-patch of differences
+            // api.replace(name, &Default::default(), &data);
+        // }
+
+        // Process the edited content here.
+        // For example, update your resource or notify your application.
+        // println!("Edited content:\n{}", content);
+        Ok(())
+    })?;
+    lua.globals().set("rust_callback", rust_callback)?;
+
+    // Set up an autocmd for the QuitPre event on the new buffer.
+    // When the buffer is closed, it will read the file and call rust_callback(content)
+    let setup_cmd = format!(
+        r#"
+        vim.cmd('tabedit {}')
+        local buf = vim.api.nvim_get_current_buf()
+        vim.api.nvim_create_autocmd('QuitPre', {{
+            buffer = buf,
+            callback = function()
+                local f = io.open("{}", "r")
+                if f then
+                    local content = f:read("*a")
+                    f:close()
+                    vim.schedule(function()
+                        rust_callback(content)
+                    end)
+                end
+            end,
+        }})
+        "#,
+        tmp_path, tmp_path
+    );
+    lua.load(&setup_cmd).exec()?;
+
+    println!("edit complete");
+    // let cmd = format!("vim.cmd('tabedit {}')", tmp_path);
+    // let _ = lua.load(&cmd).exec();
+
+    // edit::get_editor();
+    // let edited = edit::edit(&input)?;
+    // if edited != input {
+    //     info!("updating changed object {}", orig.name_any());
+    //     let data: DynamicObject = serde_yaml::from_str(&edited)?;
+    //     // NB: simplified kubectl constructs a merge-patch of differences
+    //     api.replace(n, &Default::default(), &data).await?;
+    // }
+    //
+    Ok("".to_string())
+}
+
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
-    exports.set("get_resources", lua.create_function(get_resources)?)?;
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
+    exports.set("edit_resource", lua.create_function(edit_resource)?)?;
+    exports.set("get_resources", lua.create_function(get_resources)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
     exports.set("get_async", lua.create_async_function(get_async)?)?;

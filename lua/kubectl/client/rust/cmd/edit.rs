@@ -9,30 +9,7 @@ use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
 use super::utils::resolve_api_resource;
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum OutputMode {
-    Pretty,
-    Yaml,
-}
-
-impl OutputMode {
-    pub fn from_str(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "yaml" => OutputMode::Yaml,
-            _ => OutputMode::Pretty, // Default fallback
-        }
-    }
-}
-
-// Implement Default trait to allow `unwrap_or_default()`
-impl Default for OutputMode {
-    fn default() -> Self {
-        Self::Pretty
-    }
-}
-
-pub fn get_resource(
+pub fn edit_resource(
     rt: &Runtime,
     client: &Client,
     resource: String,
@@ -40,9 +17,10 @@ pub fn get_resource(
     version: Option<String>,
     name: Option<String>,
     namespace: Option<String>,
-    output: OutputMode,
+    content: String,
 ) -> LuaResult<String> {
     let fut = async move {
+        let data: DynamicObject = serde_yaml::from_str(&content).expect("Not valid yaml");
         let discovery = Discovery::new(client.clone())
             .run()
             .await
@@ -82,19 +60,14 @@ pub fn get_resource(
         };
 
         if let Some(ref n) = name {
-            let mut obj = api.get(n).await.map_err(|e| mlua::Error::external(e))?;
-            obj.managed_fields_mut().clear();
+            let _obj = api
+                .replace(n, &Default::default(), &data)
+                .await
+                .map_err(|e| mlua::Error::external(e));
 
-            match output {
-                OutputMode::Yaml => {
-                    serde_yaml::to_string(&obj).map_err(|e| mlua::Error::external(e))
-                }
-                OutputMode::Pretty => {
-                    serde_json::to_string(&obj).map_err(|e| mlua::Error::external(e))
-                }
-            }
-        } else {
             serde_json::to_string("").map_err(|e| mlua::Error::external(e))
+        } else {
+            Err(mlua::Error::external("NO"))
         }
     };
 

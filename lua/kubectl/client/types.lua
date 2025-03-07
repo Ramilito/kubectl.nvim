@@ -4,3 +4,4 @@
 --- @field start_watcher fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?)
 --- @field get_store fun(resource_name: string, namespace: string?)
 --- @field get_table fun(resource_name: string, namespace: string?, sort_by: string?, sort_order: string? )
+--- @field edit_resource fun(resource_name: string, namespace: string?, name: string, group: string?, version: string? )
