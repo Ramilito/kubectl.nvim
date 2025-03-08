@@ -5,10 +5,11 @@ local definition = require("kubectl.views.pods.definition")
 local hl = require("kubectl.actions.highlight")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
+local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 
 local M = {
-	definition = definition,
+  definition = definition,
   selection = {},
   pfs = {},
   tail_handle = nil,
@@ -131,61 +132,77 @@ function M.Logs(reload)
 end
 
 function M.PortForward(pod, ns)
-  local builder = ResourceBuilder:new("kubectl_pf")
-  local pf_def = {
+  local def = {
     ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
     resource = pod,
     cmd = { "port-forward", "pods/" .. pod, "-n", ns },
+    resource_name = string_utils.capitalize(definition.resource_name),
+    name = pod,
+    ns = ns,
+    group = definition.group,
+    version = definition.version,
   }
 
-  local resource = tables.find_resource(state.instance[definition.resource].data, pod, ns)
-  if not resource then
-    return
-  end
-  local containers = {}
-  for _, container in ipairs(resource.spec.containers) do
-    if container.ports then
-      for _, port in ipairs(container.ports) do
-        local name
-        if port.name and container.name then
-          name = container.name .. "::(" .. port.name .. ")"
-        elseif container.name then
-          name = container.name
-        else
-          name = nil
-        end
+  commands.run_async("get_async", {
+    def.resource_name,
+    def.ns,
+    def.name,
+    def.group,
+    def.version,
+    def.syntax,
+  }, function(data)
+    local containers = {}
+    local builder = ResourceBuilder:new("kubectl_pf")
+    builder.data = data
+    builder:decodeJson()
+    for _, container in ipairs(builder.data.spec.containers) do
+      if container.ports then
+        for _, port in ipairs(container.ports) do
+          local name
+          if port.name and container.name then
+            name = container.name .. "::(" .. port.name .. ")"
+          elseif container.name then
+            name = container.name
+          else
+            name = nil
+          end
 
-        table.insert(containers, {
-          name = { value = name, symbol = hl.symbols.pending },
-          port = { value = port.containerPort, symbol = hl.symbols.success },
-          protocol = port.protocol,
-        })
+          table.insert(containers, {
+            name = { value = name, symbol = hl.symbols.pending },
+            port = { value = port.containerPort, symbol = hl.symbols.success },
+            protocol = port.protocol,
+          })
+        end
       end
     end
-  end
-  if next(containers) == nil then
-    containers[1] = { port = { value = "" }, name = { value = "" } }
-  end
-  builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
-  table.insert(builder.data, " ")
 
-  local data = {
-    {
-      text = "address:",
-      value = "localhost",
-      options = { "localhost", "0.0.0.0" },
-      cmd = "--address",
-      type = "option",
-    },
-    { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
-    { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
-  }
+    if next(containers) == nil then
+      containers[1] = { port = { value = "" }, name = { value = "" } }
+    end
 
-  builder:action_view(pf_def, data, function(args)
-    commands.shell_command_async("kubectl", args)
     vim.schedule(function()
-      M.View()
+      builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
+      table.insert(builder.data, " ")
+
+      local data = {
+        {
+          text = "address:",
+          value = "localhost",
+          options = { "localhost", "0.0.0.0" },
+          cmd = "--address",
+          type = "option",
+        },
+        { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
+        { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
+      }
+
+      builder:action_view(def, data, function(args)
+        commands.shell_command_async("kubectl", args)
+        vim.schedule(function()
+          M.View()
+        end)
+      end)
     end)
   end)
 end
