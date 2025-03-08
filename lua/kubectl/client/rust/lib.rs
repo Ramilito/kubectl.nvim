@@ -41,8 +41,8 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-fn get_resources(
-    _lua: &Lua,
+async fn get_resources_async(
+    _lua: Lua,
     args: (
         String,
         Option<String>,
@@ -147,7 +147,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set("edit_async", lua.create_async_function(edit_async)?)?;
     exports.set("get_async", lua.create_async_function(get_async)?)?;
-    exports.set("get_resources", lua.create_function(get_resources)?)?;
+    exports.set(
+        "get_resources_async",
+        lua.create_async_function(get_resources_async)?,
+    )?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
     exports.set(

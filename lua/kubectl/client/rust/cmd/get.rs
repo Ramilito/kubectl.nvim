@@ -8,10 +8,7 @@ use kube::{
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::{
-    store::{debug_print_store, get_single},
-    CLIENT_INSTANCE, RUNTIME,
-};
+use crate::{store::get_single, CLIENT_INSTANCE, RUNTIME};
 
 use super::utils::{dynamic_api, resolve_api_resource};
 
@@ -25,7 +22,7 @@ impl OutputMode {
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "yaml" => OutputMode::Yaml,
-            _ => OutputMode::Pretty, // Default fallback
+            _ => OutputMode::Pretty,
         }
     }
     pub fn format(&self, obj: DynamicObject) -> String {
@@ -38,7 +35,6 @@ impl OutputMode {
     }
 }
 
-// Implement Default trait to allow `unwrap_or_default()`
 impl Default for OutputMode {
     fn default() -> Self {
         Self::Pretty

@@ -58,3 +58,22 @@ pub fn get(kind: &str, namespace: Option<String>) -> Option<Vec<DynamicObject>> 
         }
     })
 }
+
+pub fn get_single(kind: &str, namespace: Option<String>, name: &str) -> Option<DynamicObject> {
+    let store = STORE.read().unwrap();
+
+    let kind_lower = kind.to_lowercase();
+    store.get(&kind_lower).and_then(|ns_map| {
+        if let Some(ns) = namespace {
+            ns_map
+                .get(&Some(ns.to_string()))
+                .and_then(|name_map| name_map.get(name))
+                .cloned()
+        } else {
+            ns_map
+                .values()
+                .find_map(|name_map| name_map.get(name))
+                .cloned()
+        }
+    })
+}
