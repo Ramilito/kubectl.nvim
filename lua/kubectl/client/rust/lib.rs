@@ -1,4 +1,3 @@
-use kube::api::PatchParams;
 // lib.rs
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;

@@ -1,11 +1,12 @@
 use kube::{
-    api::{ApiResource, DynamicObject, GroupVersionKind},
-    discovery::{ApiCapabilities, Scope},
-    Api, Client, Discovery, ResourceExt,
+    api::{DynamicObject, GroupVersionKind},
+    Discovery, ResourceExt,
 };
 use mlua::prelude::*;
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
+
+use super::utils::dynamic_api;
 
 pub async fn edit_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
     let path = args;
@@ -72,21 +73,5 @@ pub async fn edit_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
         Err(mlua::Error::RuntimeError(
             "Cannot edit document for unknown resource".to_string(),
         ))
-    }
-}
-
-fn dynamic_api(
-    ar: ApiResource,
-    caps: ApiCapabilities,
-    client: Client,
-    ns: Option<&str>,
-    all: bool,
-) -> Api<DynamicObject> {
-    if caps.scope == Scope::Cluster || all {
-        Api::all_with(client, &ar)
-    } else if let Some(namespace) = ns {
-        Api::namespaced_with(client, namespace, &ar)
-    } else {
-        Api::default_namespaced_with(client, &ar)
     }
 }
