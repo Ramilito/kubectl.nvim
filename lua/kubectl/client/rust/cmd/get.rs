@@ -1,16 +1,19 @@
 use k8s_openapi::serde_json;
 use kube::{
-    api::{Api, DynamicObject, ResourceExt},
+    api::{DynamicObject, ResourceExt},
     core::GroupVersionKind,
-    discovery::{Discovery, Scope},
+    discovery::Discovery,
     Client,
 };
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::{CLIENT_INSTANCE, RUNTIME};
+use crate::{
+    store::{debug_print_store, get_single},
+    CLIENT_INSTANCE, RUNTIME,
+};
 
-use super::utils::resolve_api_resource;
+use super::utils::{dynamic_api, resolve_api_resource};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OutputMode {
@@ -25,6 +28,14 @@ impl OutputMode {
             _ => OutputMode::Pretty, // Default fallback
         }
     }
+    pub fn format(&self, obj: DynamicObject) -> String {
+        match self {
+            OutputMode::Yaml => serde_yaml::to_string(&obj)
+                .unwrap_or_else(|e| format!("YAML formatting error: {}", e)),
+            OutputMode::Pretty => serde_json::to_string_pretty(&obj)
+                .unwrap_or_else(|e| format!("Pretty formatting error: {}", e)),
+        }
+    }
 }
 
 // Implement Default trait to allow `unwrap_or_default()`
@@ -34,7 +45,7 @@ impl Default for OutputMode {
     }
 }
 
-pub fn get_resource(
+fn get_resource(
     rt: &Runtime,
     client: &Client,
     resource: String,
@@ -42,8 +53,7 @@ pub fn get_resource(
     version: Option<String>,
     name: Option<String>,
     namespace: Option<String>,
-    output: OutputMode,
-) -> LuaResult<String> {
+) -> LuaResult<DynamicObject> {
     let fut = async move {
         let discovery = Discovery::new(client.clone())
             .run()
@@ -75,28 +85,15 @@ pub fn get_resource(
             }
         };
 
-        let api = if caps.scope == Scope::Cluster {
-            Api::<DynamicObject>::all_with(client.clone(), &ar)
-        } else if let Some(ns) = &namespace {
-            Api::<DynamicObject>::namespaced_with(client.clone(), ns, &ar)
-        } else {
-            Api::<DynamicObject>::default_namespaced_with(client.clone(), &ar)
-        };
+        let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
 
         if let Some(ref n) = name {
             let mut obj = api.get(n).await.map_err(|e| mlua::Error::external(e))?;
             obj.managed_fields_mut().clear();
 
-            match output {
-                OutputMode::Yaml => {
-                    serde_yaml::to_string(&obj).map_err(|e| mlua::Error::external(e))
-                }
-                OutputMode::Pretty => {
-                    serde_json::to_string(&obj).map_err(|e| mlua::Error::external(e))
-                }
-            }
+            Ok(obj)
         } else {
-            serde_json::to_string("").map_err(|e| mlua::Error::external(e))
+            Err(mlua::Error::external("test"))
         }
     };
 
@@ -116,6 +113,14 @@ pub async fn get_async(
 ) -> LuaResult<String> {
     let (kind, namespace, name, group, version, output) = args;
 
+    let output_mode = output
+        .as_deref()
+        .map(OutputMode::from_str)
+        .unwrap_or_default();
+
+    if let Some(found) = get_single(&kind, namespace.clone(), &name) {
+        return Ok(output_mode.format(found));
+    }
     let rt_guard = RUNTIME.lock().unwrap();
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
     let rt = rt_guard
@@ -125,20 +130,7 @@ pub async fn get_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let output_mode = output
-        .as_deref()
-        .map(OutputMode::from_str)
-        .unwrap_or_default();
+    let result = get_resource(rt, client, kind, group, version, Some(name), namespace);
 
-    let result = get_resource(
-        rt,
-        client,
-        kind,
-        group,
-        version,
-        Some(name),
-        namespace,
-        output_mode,
-    );
-    Ok(result?)
+    Ok(output_mode.format(result?))
 }
