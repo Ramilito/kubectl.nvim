@@ -8,6 +8,8 @@ use kube::{
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
+use crate::{CLIENT_INSTANCE, RUNTIME};
+
 use super::utils::resolve_api_resource;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -99,4 +101,44 @@ pub fn get_resource(
     };
 
     rt.block_on(fut)
+}
+
+pub async fn get_async(
+    _lua: Lua,
+    args: (
+        String,
+        Option<String>,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
+) -> LuaResult<String> {
+    let (kind, namespace, name, group, version, output) = args;
+
+    let rt_guard = RUNTIME.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let rt = rt_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let output_mode = output
+        .as_deref()
+        .map(OutputMode::from_str)
+        .unwrap_or_default();
+
+    let result = get_resource(
+        rt,
+        client,
+        kind,
+        group,
+        version,
+        Some(name),
+        namespace,
+        output_mode,
+    );
+    Ok(result?)
 }

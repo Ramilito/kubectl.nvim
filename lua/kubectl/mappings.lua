@@ -3,7 +3,6 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local event_handler = require("kubectl.actions.eventhandler").handler
-local client = require("kubectl.client")
 local string_utils = require("kubectl.utils.string")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
@@ -272,12 +271,44 @@ function M.get_mappings()
           syntax = "yaml",
           resource_name = string_utils.capitalize(instance.definition.resource_name),
           name = name,
-          cmd = "open_resource_editor",
           ns = ns,
           group = instance.definition.group,
           version = instance.definition.version,
         }
-        client.open_resource_editor(def.resource_name, def.ns, def.name, def.group, def.version, def.syntax)
+
+        commands.run_async("get_async", {
+          def.resource_name,
+          def.ns,
+          def.name,
+          def.group,
+          def.version,
+          def.syntax,
+        }, function(data)
+          vim.schedule(function()
+            local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
+
+            local tmpfile = assert(io.open(tmpfilename, "w+"), "Failed to open temp file")
+            tmpfile:write(data)
+            tmpfile:close()
+
+            vim.cmd("tabnew | edit " .. tmpfilename)
+
+            vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = 0 })
+            local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
+
+            vim.api.nvim_create_autocmd("QuitPre", {
+              buffer = 0,
+              group = group,
+              callback = function()
+                commands.run_async("edit_async", {
+                  tmpfilename,
+                }, function(resutl)
+                  print("resutl:", resutl)
+                end)
+              end,
+            })
+          end)
+        end)
       end,
     },
     ["<Plug>(kubectl.toggle_headers)"] = {

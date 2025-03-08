@@ -1,12 +1,15 @@
+use kube::api::PatchParams;
 // lib.rs
-use cmd::get::OutputMode;
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
-use processors::get_processors;
-use std::io::Write;
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
+
+use crate::cmd::apply::apply_async;
+use crate::cmd::edit::edit_async;
+use crate::cmd::get::get_async;
+use crate::processors::get_processors;
 
 mod cmd;
 mod events;
@@ -137,119 +140,17 @@ async fn get_table_async(
     Ok(json_str)
 }
 
-async fn get_async(
-    _lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
-) -> LuaResult<String> {
-    let (kind, namespace, name, group, version, output) = args;
-
-    let rt_guard = RUNTIME.lock().unwrap();
-    let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let output_mode = output
-        .as_deref()
-        .map(OutputMode::from_str)
-        .unwrap_or_default();
-
-    let result = cmd::get::get_resource(
-        rt,
-        client,
-        kind,
-        group,
-        version,
-        Some(name),
-        namespace,
-        output_mode,
-    );
-    Ok(result?)
-}
-
-fn open_resource_editor(
-    lua: &Lua,
-    args: (
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-    ),
-) -> LuaResult<String> {
-    let (kind, namespace, name, group, version) = args;
-
-    let rt_guard = RUNTIME.lock().unwrap();
-    let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let orig = cmd::get::get_resource(
-        rt,
-        client,
-        kind,
-        group,
-        version,
-        Some(name),
-        namespace,
-        OutputMode::Yaml,
-    );
-
-    let mut tmpfile = tempfile::Builder::new().suffix(".yaml").tempfile()?;
-    write!(tmpfile, "{}", orig.clone()?)?;
-    tmpfile.flush()?;
-
-    let tmp_path = tmpfile.path().to_string_lossy().to_string();
-
-    let setup_cmd = format!(
-        r#"
-        vim.cmd('tabedit {}')
-        local buf = vim.api.nvim_get_current_buf()
-        vim.api.nvim_create_autocmd('QuitPre', {{
-            buffer = buf,
-            callback = function()
-                print("apply: {}")
-            end,
-        }})
-        "#,
-        tmp_path, tmp_path
-    );
-    lua.load(&setup_cmd).exec()?;
-
-    Ok(tmp_path)
-}
-
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
-    exports.set(
-        "open_resource_editor",
-        lua.create_function(open_resource_editor)?,
-    )?;
-    // exports.set(
-    //     "patch_resource_edit",
-    //     lua.create_async_function(patch_resource_edit_async)?,
-    // )?;
+    exports.set("apply_async", lua.create_async_function(apply_async)?)?;
+    exports.set("edit_async", lua.create_async_function(edit_async)?)?;
+    exports.set("get_async", lua.create_async_function(get_async)?)?;
     exports.set("get_resources", lua.create_function(get_resources)?)?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
-    exports.set("get_async", lua.create_async_function(get_async)?)?;
     exports.set(
         "get_table_async",
         lua.create_async_function(get_table_async)?,
