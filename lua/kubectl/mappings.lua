@@ -167,7 +167,16 @@ function M.get_mappings()
               def.resource = def.resource .. " | " .. ns
             end
 
-            ResourceBuilder:view_float_new(def)
+            ResourceBuilder:view_float_new(def, {
+              args = {
+                def.resource_name,
+                def.ns,
+                def.name,
+                def.group,
+                def.version,
+                def.syntax,
+              },
+            })
           end
         end
       end,

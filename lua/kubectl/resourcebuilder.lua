@@ -326,15 +326,7 @@ function ResourceBuilder:view_float_new(definition, opts)
   end
 
   commands.run_async(
-    definition.cmd,
-    {
-      definition.resource_name,
-      definition.ns,
-      definition.name,
-      definition.group,
-      definition.version,
-      definition.syntax,
-    },
+    definition.cmd, opts.args,
     function(data)
       self.data = data
       self:decodeJson()
