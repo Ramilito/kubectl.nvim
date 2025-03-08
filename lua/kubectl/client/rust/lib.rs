@@ -1,3 +1,8 @@
+use futures::{AsyncBufReadExt, TryStreamExt};
+use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::chrono::{Duration, Utc};
+use kube::api::LogParams;
+use kube::Api;
 // lib.rs
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
@@ -139,6 +144,88 @@ async fn get_table_async(
     Ok(json_str)
 }
 
+fn parse_duration(s: &str) -> Option<Duration> {
+    if s == "0" || s.is_empty() {
+        return None;
+    }
+    if s.len() < 2 {
+        return None;
+    }
+    let (num_str, unit) = s.split_at(s.len() - 1);
+    let num: i64 = num_str.parse().ok()?;
+    match unit {
+        "s" => Some(Duration::seconds(num)),
+        "m" => Some(Duration::minutes(num)),
+        "h" => Some(Duration::hours(num)),
+        _ => None,
+    }
+}
+
+async fn log_stream_async(
+    _lua: Lua,
+    args: (
+        String,
+        String,
+        Option<String>,
+        Option<bool>,
+        // Option<String>,
+        // Option<String>,
+        // Option<String>,
+        // Option<String>,
+    ),
+) -> LuaResult<String> {
+    let (
+        name,
+        namespace,
+        // since_seconds,
+        since_time_input,
+        follow, // follow, container, tail, since, timestamps
+    ) = args;
+
+    let since_time = since_time_input
+        .as_deref()
+        .and_then(parse_duration)
+        .map(|d| Utc::now() - d);
+
+    let rt_guard = RUNTIME.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let rt = rt_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let fut = async {
+        let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace.clone());
+        let mut logs = pods
+            .log_stream(
+                &name,
+                &LogParams {
+                    follow: true,
+                    // container: app.container,
+                    // tail_lines: app.tail,
+                    // since_seconds: since_seconds,
+                    since_time: since_time,
+                    // timestamps: app.timestamps,
+                    ..LogParams::default()
+                },
+            )
+            .await
+            .map_err(|e| mlua::Error::external(e))?
+            .lines();
+
+        let mut collected_lines = String::new();
+        while let Some(line) = logs.try_next().await? {
+            collected_lines.push_str(&line);
+            collected_lines.push('\n');
+        }
+        Ok(collected_lines)
+    };
+
+    rt.block_on(fut)
+}
+
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
@@ -146,6 +233,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set("edit_async", lua.create_async_function(edit_async)?)?;
+    exports.set(
+        "log_stream_async",
+        lua.create_async_function(log_stream_async)?,
+    )?;
     exports.set("get_async", lua.create_async_function(get_async)?)?;
     exports.set(
         "get_resources_async",
