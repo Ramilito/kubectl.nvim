@@ -99,18 +99,23 @@ function M.Logs(reload)
   local def = {
     resource = "logs",
     ft = "k8s_pod_logs",
-    url = {
-      "logs",
-      "-p=" .. M.show_previous,
-      "--all-containers=true",
-      "--since=" .. M.log_since,
-      "--prefix=" .. M.show_log_prefix,
-      "--timestamps=" .. M.show_timestamps,
-      M.selection.pod,
-      "-n",
-      M.selection.ns,
-    },
+    -- url = {
+    --   "logs",
+    --   "-p=" .. M.show_previous,
+    --   "--all-containers=true",
+    --   "--since=" .. M.log_since,
+    --   "--prefix=" .. M.show_log_prefix,
+    --   "--timestamps=" .. M.show_timestamps,
+    --   M.selection.pod,
+    --   "-n",
+    --   M.selection.ns,
+    -- },
     syntax = "less",
+    name = M.selection.pod,
+    namespace = M.selection.ns,
+    since = M.log_since,
+    follow = false,
+    cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
@@ -121,14 +126,15 @@ function M.Logs(reload)
     },
   }
 
-  if reload == false and M.tail_handle then
-    M.tail_handle:kill(2)
-    M.tail_handle = nil
-    vim.schedule(function()
-      M.TailLogs(M.selection.pod, M.selection.ns)
-    end)
-  end
-  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+  -- if reload == false and M.tail_handle then
+  --   M.tail_handle:kill(2)
+  --   M.tail_handle = nil
+  --   vim.schedule(function()
+  --     M.TailLogs(M.selection.pod, M.selection.ns)
+  --   end)
+  -- end
+
+  ResourceBuilder:view_float_new(def, { reload = reload, args = { def.name, def.namespace, def.since, def.follow } })
 end
 
 function M.PortForward(pod, ns)

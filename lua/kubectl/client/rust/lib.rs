@@ -162,7 +162,7 @@ fn parse_duration(s: &str) -> Option<Duration> {
 }
 
 async fn log_stream_async(
-    _lua: Lua,
+    lua: Lua,
     args: (
         String,
         String,
@@ -196,31 +196,59 @@ async fn log_stream_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
+    let key = lua.create_registry_value(true)?;
     let fut = async {
         let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace.clone());
         let mut logs = pods
             .log_stream(
                 &name,
                 &LogParams {
-                    follow: true,
-                    // container: app.container,
+                    follow: follow.unwrap_or(false),
+                    container: pods.containr,
                     // tail_lines: app.tail,
                     // since_seconds: since_seconds,
-                    since_time: since_time,
+                    since_time,
                     // timestamps: app.timestamps,
                     ..LogParams::default()
                 },
             )
             .await
-            .map_err(|e| mlua::Error::external(e))?
+            .expect("tstin")
+            // .map_err(|e| mlua::Error::external(e))?
             .lines();
 
-        let mut collected_lines = String::new();
-        while let Some(line) = logs.try_next().await? {
-            collected_lines.push_str(&line);
-            collected_lines.push('\n');
-        }
-        Ok(collected_lines)
+        return Ok(format!("{}, {}", name, namespace));
+        //
+        //     let mut collected_lines = String::new();
+        //     // loop {
+        //     //     // Wrap the log future in a timeout.
+        //     //     match timeout(time::Duration::from_millis(1000), logs.try_next()).await {
+        //     //         // The log future completed in time.
+        //     //         Ok(line_result) => match line_result? {
+        //     //             Some(line) => {
+        //     //                 collected_lines.push_str(&line);
+        //     //                 collected_lines.push('\n');
+        //     //             }
+        //     //             None => break, // End of stream.
+        //     //         },
+        //     //         // The timeout expired—check the exit flag.
+        //     //         Err(_) => {
+        //     //             let should_exit: bool = lua.registry_value(&key).unwrap_or(false);
+        //     //
+        //     //             if should_exit {
+        //     //                 println!("SHOULD exit called?");
+        //     //                 break;
+        //     //             }
+        //     //         }
+        //     //     }
+        //     // }
+        //
+        //     // while let Some(line) = logs.try_next().await? {
+        //     //     let should_exit: bool = lua.registry_value("exit_loop").unwrap_or(false);
+        //     //     collected_lines.push_str(&line);
+        //     //     collected_lines.push('\n');
+        //     // }
+        //     Ok(collected_lines)
     };
 
     rt.block_on(fut)
