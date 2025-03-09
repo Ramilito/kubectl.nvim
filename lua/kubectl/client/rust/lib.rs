@@ -1,14 +1,16 @@
+// lib.rs
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::chrono::{Duration, Utc};
 use kube::api::LogParams;
 use kube::Api;
-// lib.rs
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
 use std::sync::Mutex;
+use std::time;
 use tokio::runtime::Runtime;
+use tokio::time::timeout;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
@@ -161,26 +163,17 @@ fn parse_duration(s: &str) -> Option<Duration> {
     }
 }
 
-async fn log_stream_async(
-    lua: Lua,
+pub async fn log_stream_async(
+    lua: mlua::Lua,
     args: (
-        String,
-        String,
-        Option<String>,
-        Option<bool>,
-        // Option<String>,
-        // Option<String>,
-        // Option<String>,
-        // Option<String>,
+        String,         // Pod name
+        String,         // Namespace
+        Option<String>, // since_time_input
+        Option<bool>,   // follow
     ),
-) -> LuaResult<String> {
-    let (
-        name,
-        namespace,
-        // since_seconds,
-        since_time_input,
-        follow, // follow, container, tail, since, timestamps
-    ) = args;
+) -> mlua::Result<String> {
+    let (name, namespace, since_time_input, follow_opt) = args;
+    let follow = follow_opt.unwrap_or(false);
 
     let since_time = since_time_input
         .as_deref()
@@ -196,59 +189,57 @@ async fn log_stream_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let key = lua.create_registry_value(true)?;
+    let exit_key = lua.create_registry_value(true)?;
+
     let fut = async {
-        let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace.clone());
-        let mut logs = pods
-            .log_stream(
-                &name,
-                &LogParams {
-                    follow: follow.unwrap_or(false),
-                    container: pods.containr,
-                    // tail_lines: app.tail,
-                    // since_seconds: since_seconds,
-                    since_time,
-                    // timestamps: app.timestamps,
-                    ..LogParams::default()
-                },
-            )
+        let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace);
+        let pod = pods
+            .get(&name)
             .await
-            .expect("tstin")
+            .map_err(|e| mlua::Error::external(e))?;
+        let spec = pod
+            .spec
+            .ok_or_else(|| mlua::Error::external("No pod spec found"))?;
+
+        // For a single container, pick the first one:
+        let container_name = match spec.containers.into_iter().next() {
+            Some(c) => c.name,
+            None => return Err(mlua::Error::external("No containers in this Pod")),
+        };
+
+        let lp = LogParams {
+            follow,
+            container: Some(container_name.clone()),
+            since_time,
+            ..LogParams::default()
+        };
+
+        let mut log_stream = pods
+            .log_stream(&name, &lp)
+            .await
+            .expect("Failed to start stream")
             // .map_err(|e| mlua::Error::external(e))?
             .lines();
 
-        return Ok(format!("{}, {}", name, namespace));
-        //
-        //     let mut collected_lines = String::new();
-        //     // loop {
-        //     //     // Wrap the log future in a timeout.
-        //     //     match timeout(time::Duration::from_millis(1000), logs.try_next()).await {
-        //     //         // The log future completed in time.
-        //     //         Ok(line_result) => match line_result? {
-        //     //             Some(line) => {
-        //     //                 collected_lines.push_str(&line);
-        //     //                 collected_lines.push('\n');
-        //     //             }
-        //     //             None => break, // End of stream.
-        //     //         },
-        //     //         // The timeout expired—check the exit flag.
-        //     //         Err(_) => {
-        //     //             let should_exit: bool = lua.registry_value(&key).unwrap_or(false);
-        //     //
-        //     //             if should_exit {
-        //     //                 println!("SHOULD exit called?");
-        //     //                 break;
-        //     //             }
-        //     //         }
-        //     //     }
-        //     // }
-        //
-        //     // while let Some(line) = logs.try_next().await? {
-        //     //     let should_exit: bool = lua.registry_value("exit_loop").unwrap_or(false);
-        //     //     collected_lines.push_str(&line);
-        //     //     collected_lines.push('\n');
-        //     // }
-        //     Ok(collected_lines)
+        let mut collected_logs = String::new();
+        loop {
+            match timeout(time::Duration::from_millis(100), log_stream.try_next()).await {
+                Ok(line_result) => match line_result? {
+                    Some(line) => {
+                        collected_logs.push_str(&format!("[{}] {}\n", container_name, line));
+                    }
+                    None => break,
+                },
+                Err(_) => {
+                    let should_exit: bool = lua.registry_value(&exit_key).unwrap_or(false);
+                    if should_exit {
+                        break;
+                    }
+                }
+            }
+        }
+
+        Ok(collected_logs)
     };
 
     rt.block_on(fut)
