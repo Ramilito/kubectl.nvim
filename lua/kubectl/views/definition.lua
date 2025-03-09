@@ -69,13 +69,15 @@ function M.getPFRows(pfs)
 end
 
 function M.setPortForwards(marks, data, port_forwards)
-  if not port_forwards then
+  if not port_forwards or not data then
     return
   end
+
   for _, pf in ipairs(port_forwards) do
     if not pf.resource or not pf.ns then
       return
     end
+
     for row, line in ipairs(data) do
       local col = line:find(pf.resource, 1, true)
       local ns = line:find(pf.ns, 1, true)
