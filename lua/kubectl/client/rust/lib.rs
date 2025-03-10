@@ -8,9 +8,7 @@ use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
 use std::sync::Mutex;
-use std::time;
 use tokio::runtime::Runtime;
-use tokio::time::timeout;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
