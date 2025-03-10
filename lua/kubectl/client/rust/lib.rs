@@ -164,16 +164,10 @@ fn parse_duration(s: &str) -> Option<Duration> {
 }
 
 pub async fn log_stream_async(
-    lua: mlua::Lua,
-    args: (
-        String,         // Pod name
-        String,         // Namespace
-        Option<String>, // since_time_input
-        Option<bool>,   // follow
-    ),
+    _lua: mlua::Lua,
+    args: (String, String, Option<String>),
 ) -> mlua::Result<String> {
-    let (name, namespace, since_time_input, follow_opt) = args;
-    let follow = follow_opt.unwrap_or(false);
+    let (name, namespace, since_time_input) = args;
 
     let since_time = since_time_input
         .as_deref()
@@ -189,54 +183,48 @@ pub async fn log_stream_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let exit_key = lua.create_registry_value(true)?;
-
     let fut = async {
         let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace);
         let pod = pods
             .get(&name)
             .await
             .map_err(|e| mlua::Error::external(e))?;
+
         let spec = pod
             .spec
             .ok_or_else(|| mlua::Error::external("No pod spec found"))?;
 
-        // For a single container, pick the first one:
-        let container_name = match spec.containers.into_iter().next() {
-            Some(c) => c.name,
-            None => return Err(mlua::Error::external("No containers in this Pod")),
-        };
+        let containers = spec.containers;
+        if containers.is_empty() {
+            return Err(mlua::Error::external("No containers in this Pod"));
+        }
 
-        let lp = LogParams {
-            follow,
-            container: Some(container_name.clone()),
-            since_time,
-            ..LogParams::default()
-        };
+        let mut streams = Vec::new();
+        for container in containers {
+            let container_name = container.name;
+            let lp = LogParams {
+                follow: false,
+                container: Some(container_name.clone()),
+                since_time,
+                ..LogParams::default()
+            };
 
-        let mut log_stream = pods
-            .log_stream(&name, &lp)
-            .await
-            .expect("Failed to start stream")
-            // .map_err(|e| mlua::Error::external(e))?
-            .lines();
+            let s = pods
+                .log_stream(&name, &lp)
+                .await
+                .map_err(|e| mlua::Error::external(e))?
+                .lines()
+                .map_ok(move |line| format!("[{}] {}", container_name, line));
 
+            streams.push(s);
+        }
+
+        let mut combined = futures::stream::select_all(streams);
         let mut collected_logs = String::new();
-        loop {
-            match timeout(time::Duration::from_millis(100), log_stream.try_next()).await {
-                Ok(line_result) => match line_result? {
-                    Some(line) => {
-                        collected_logs.push_str(&format!("[{}] {}\n", container_name, line));
-                    }
-                    None => break,
-                },
-                Err(_) => {
-                    let should_exit: bool = lua.registry_value(&exit_key).unwrap_or(false);
-                    if should_exit {
-                        break;
-                    }
-                }
-            }
+
+        while let Some(line) = combined.try_next().await? {
+            collected_logs.push_str(&line);
+            collected_logs.push('\n');
         }
 
         Ok(collected_logs)
