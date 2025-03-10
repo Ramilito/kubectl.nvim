@@ -183,10 +183,15 @@ pub async fn log_stream_async(
 
     let fut = async {
         let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace);
-        let pod = pods
-            .get(&name)
-            .await
-            .map_err(|e| mlua::Error::external(e))?;
+        let pod = match pods.get(&name).await {
+            Ok(pod) => pod,
+            Err(e) => {
+                return Ok(format!(
+                    "No pod named {} in {} found: {}",
+                    name, namespace, e
+                ))
+            }
+        };
 
         let spec = pod
             .spec
