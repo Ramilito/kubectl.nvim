@@ -1,9 +1,4 @@
 // lib.rs
-use futures::{AsyncBufReadExt, TryStreamExt};
-use k8s_openapi::api::core::v1::Pod;
-use k8s_openapi::chrono::{Duration, Utc};
-use kube::api::LogParams;
-use kube::Api;
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
@@ -144,118 +139,6 @@ async fn get_table_async(
     Ok(json_str)
 }
 
-fn parse_duration(s: &str) -> Option<Duration> {
-    if s == "0" || s.is_empty() {
-        return None;
-    }
-    if s.len() < 2 {
-        return None;
-    }
-    let (num_str, unit) = s.split_at(s.len() - 1);
-    let num: i64 = num_str.parse().ok()?;
-    match unit {
-        "s" => Some(Duration::seconds(num)),
-        "m" => Some(Duration::minutes(num)),
-        "h" => Some(Duration::hours(num)),
-        _ => None,
-    }
-}
-
-pub async fn log_stream_async(
-    _lua: mlua::Lua,
-    args: (
-        String,
-        String,
-        Option<String>,
-        Option<bool>,
-        Option<bool>,
-        Option<bool>,
-    ),
-) -> mlua::Result<String> {
-    let (name, namespace, since_time_input, previous, timestamps, prefix) = args;
-
-    let since_time = since_time_input
-        .as_deref()
-        .and_then(parse_duration)
-        .map(|d| Utc::now() - d);
-
-    let rt_guard = RUNTIME.lock().unwrap();
-    let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async {
-        let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace);
-        let pod = match pods.get(&name).await {
-            Ok(pod) => pod,
-            Err(e) => {
-                return Ok(format!(
-                    "No pod named {} in {} found: {}",
-                    name, namespace, e
-                ))
-            }
-        };
-
-        let spec = pod
-            .spec
-            .ok_or_else(|| mlua::Error::external("No pod spec found"))?;
-
-        let containers = spec.containers;
-        if containers.is_empty() {
-            return Err(mlua::Error::external("No containers in this Pod"));
-        }
-
-        let mut streams = Vec::new();
-        for container in containers {
-            let container_name = container.name;
-            let lp = LogParams {
-                follow: false,
-                container: Some(container_name.clone()),
-                since_time,
-                pretty: true,
-                timestamps: timestamps.unwrap_or_default(),
-                previous: previous.unwrap_or_default(),
-                ..LogParams::default()
-            };
-
-            let s = match pods.log_stream(&name, &lp).await {
-                Ok(s) => s,
-                Err(e) => {
-                    return Ok(format!(
-                        "No log stream for pod {} in {} found: {}",
-                        name, namespace, e
-                    ))
-                }
-            };
-
-            let stream = s.lines().map_ok(move |line| {
-                if prefix.unwrap_or_default() {
-                    format!("[{}] {}", container_name, line)
-                } else {
-                    format!("{}", line)
-                }
-            });
-            streams.push(stream);
-        }
-
-        let mut combined = futures::stream::select_all(streams);
-        let mut collected_logs = String::new();
-
-        while let Some(line) = combined.try_next().await? {
-            collected_logs.push_str(&line);
-            collected_logs.push('\n');
-        }
-
-        Ok(collected_logs)
-    };
-
-    rt.block_on(fut)
-}
-
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
@@ -265,7 +148,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("edit_async", lua.create_async_function(edit_async)?)?;
     exports.set(
         "log_stream_async",
-        lua.create_async_function(log_stream_async)?,
+        lua.create_async_function(processors::pod::log_stream_async)?,
     )?;
     exports.set("get_async", lua.create_async_function(get_async)?)?;
     exports.set(
