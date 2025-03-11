@@ -212,8 +212,10 @@ function M.Desc(name, ns, reload)
     ft = "k8s_desc",
     url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
+    kind = "pod",
+    cmd = "describe_async",
   }
-  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+  ResourceBuilder:view_float(def, { args = { def.kind, ns, name, definition.group, true }, reload = reload })
 end
 
 --- Get current seletion for view
