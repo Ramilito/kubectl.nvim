@@ -313,55 +313,10 @@ end
 
 -- We ignore the override of self in luacheck
 --luacheck: ignore
-function ResourceBuilder:view_float_new(definition, opts)
-  opts = opts or {}
-  self = state.instance_float
-
-  if opts.reload == nil or opts.reload or self == nil then
-    self = ResourceBuilder:new(definition.resource)
-    self.definition = definition
-    self:displayFloat(self.definition.ft, self.definition.resource, self.definition.syntax)
-  else
-    self.definition = definition
-  end
-
-  commands.run_async(
-    definition.cmd, opts.args,
-    function(data)
-      self.data = data
-      self:decodeJson()
-
-      vim.schedule(function()
-        if self.definition.processRow then
-          self
-            :process(self.definition.processRow, true)
-            :sort()
-            :prettyPrint(self.definition.getHeaders)
-            :addHints(self.definition.hints, false, false, false)
-            :setContent()
-        else
-          self:splitData()
-          if self.definition.hints then
-            self:addHints(self.definition.hints, false, false, false)
-          end
-          self:setContentRaw()
-        end
-      end)
-    end
-  )
-
-  state.instance_float = self
-  return self
-end
-
--- We ignore the override of self in luacheck
---luacheck: ignore
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
-  opts.cmd = opts.cmd or "curl"
   self = state.instance_float
 
-  -- Explicitly check for false
   if opts.reload == nil or opts.reload or self == nil then
     self = ResourceBuilder:new(definition.resource)
     self.definition = definition
@@ -370,23 +325,24 @@ function ResourceBuilder:view_float(definition, opts)
     self.definition = definition
   end
 
-  self:setCmd(self.definition.url, opts.cmd, opts.contentType):fetchAsync(function(builder)
-    builder:decodeJson()
+  commands.run_async(definition.cmd, opts.args, function(data)
+    self.data = data
+    self:decodeJson()
 
     vim.schedule(function()
       if self.definition.processRow then
-        builder
+        self
           :process(self.definition.processRow, true)
           :sort()
           :prettyPrint(self.definition.getHeaders)
           :addHints(self.definition.hints, false, false, false)
           :setContent()
       else
-        builder:splitData()
+        self:splitData()
         if self.definition.hints then
-          builder:addHints(self.definition.hints, false, false, false)
+          self:addHints(self.definition.hints, false, false, false)
         end
-        builder:setContentRaw()
+        self:setContentRaw()
       end
     end)
   end)
@@ -395,7 +351,7 @@ function ResourceBuilder:view_float(definition, opts)
   return self
 end
 
-function ResourceBuilder:view_new(definition, cancellationToken)
+function ResourceBuilder:view(definition, cancellationToken)
   self.definition = definition
   self = state.instance[definition.resource]
 
@@ -429,73 +385,36 @@ function ResourceBuilder:view_new(definition, cancellationToken)
 
   return self
 end
-function ResourceBuilder:view(definition, cancellationToken, opts)
-  opts = opts or {}
-  opts.cmd = opts.cmd or "curl"
-  self.definition = definition
-
-  self = state.instance[definition.resource]
-  if not self or not self.resource or self.resource ~= definition.resource then
-    self = ResourceBuilder:new(definition.resource)
-  end
-
-  self
-    :display(definition.ft, definition.resource, cancellationToken)
-    :setCmd(definition.url, opts.cmd)
-    :fetchAsync(function(builder)
-      builder:decodeJson()
-      if opts.cmd == "curl" then
-        if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
-          informer.start(builder)
-        end
-      end
-      vim.schedule(function()
-        builder:draw(definition, cancellationToken)
-      end)
-    end)
-
-  state.instance[definition.resource] = self
-  state.selections = {}
-  return self
-end
 
 function ResourceBuilder:draw(definition, cancellationToken)
   self.display_name = definition.display_name
-  local draw = function()
-    self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
-    self:setContent(cancellationToken)
-    self:draw_header(cancellationToken)
-    state.instance[definition.resource] = self
+
+  local namespace = nil
+  if state.ns and state.ns ~= "All" then
+    namespace = state.ns
   end
 
-  if definition.resource_name then
-    local namespace = nil
-    if state.ns and state.ns ~= "All" then
-      namespace = state.ns
-    end
+  local filter = state.getFilter()
+  local sort_by = state.sortby[definition.resource].current_word
+  local sort_order = state.sortby[definition.resource].order
 
-    local filter = state.getFilter()
-    local sort_by = state.sortby[definition.resource].current_word
-    local sort_order = state.sortby[definition.resource].order
-
-    commands.run_async(
-      "get_table_async",
-      { definition.resource_name, namespace, sort_by, sort_order, filter },
-      function(data)
-        if data then
-          state.instance[definition.resource].data = data
-          state.instance[definition.resource]:decodeJson()
-          state.instance[definition.resource].processedData = state.instance[definition.resource].data
-          vim.schedule(function()
-            draw()
-          end)
-        end
+  commands.run_async(
+    "get_table_async",
+    { definition.resource_name, namespace, sort_by, sort_order, filter },
+    function(data)
+      if data then
+        state.instance[definition.resource].data = data
+        state.instance[definition.resource]:decodeJson()
+        state.instance[definition.resource].processedData = state.instance[definition.resource].data
+        vim.schedule(function()
+          self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
+          self:setContent(cancellationToken)
+          self:draw_header(cancellationToken)
+          state.instance[definition.resource] = self
+        end)
       end
-    )
-  else
-    self:process(definition.processRow):sort()
-    draw()
-  end
+    end
+  )
 
   return self
 end

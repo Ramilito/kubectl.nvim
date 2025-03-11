@@ -22,7 +22,7 @@ local M = {
 function M.View(cancellationToken)
   M.pfs = {}
   root_definition.getPFData(M.pfs, true)
-  ResourceBuilder:view_new(definition, cancellationToken)
+  ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
@@ -57,7 +57,7 @@ function M.TailLogs(pod, ns, container)
           vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
           vim.api.nvim_set_option_value("modified", false, { buf = buf })
           if logs_win == vim.api.nvim_get_current_win() then
-            vim.api.nvim_win_set_cursor(0, { line_count , 0 })
+            vim.api.nvim_win_set_cursor(0, { line_count, 0 })
           end
         end
       end)
@@ -67,7 +67,7 @@ function M.TailLogs(pod, ns, container)
   local timer = vim.uv.new_timer()
   timer:start(0, 1000, function()
     fetch_logs()
-		print("fetching logs")
+    print("fetching logs")
   end)
 
   local function stop_tailing()
@@ -108,7 +108,7 @@ function M.Logs(reload)
     },
   }
 
-  ResourceBuilder:view_float_new(def, { reload = reload, args = { def.name, def.namespace, def.since } })
+  ResourceBuilder:view_float(def, { reload = reload, args = { def.name, def.namespace, def.since } })
 end
 
 function M.PortForward(pod, ns)

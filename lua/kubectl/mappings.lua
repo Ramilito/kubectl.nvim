@@ -156,7 +156,6 @@ function M.get_mappings()
               resource = buf_name .. " | " .. name,
               ft = "k8s_yaml",
               syntax = "yaml",
-              url = { "get", buf_name, name, "-o", "yaml" },
               name = name,
               cmd = "get_async",
               ns = ns,
@@ -164,29 +163,20 @@ function M.get_mappings()
             if ns then
               def.resource = def.resource .. " | " .. ns
             end
-            if view.definition and view.definition.resource_name then
-              def.resource_name = string_utils.capitalize(view.definition.resource_name)
-              def.group = view.definition.group
-              def.version = view.definition.version
+            def.resource_name = string_utils.capitalize(view.definition.resource_name)
+            def.group = view.definition.group
+            def.version = view.definition.version
 
-              ResourceBuilder:view_float_new(def, {
-                args = {
-                  def.resource_name,
-                  def.ns,
-                  def.name,
-                  def.group,
-                  def.version,
-                  def.syntax,
-                },
-              })
-            else
-              if ns then
-                table.insert(def.url, "-n")
-                table.insert(def.url, ns)
-                def.resource = def.resource .. " | " .. ns
-              end
-              ResourceBuilder:view_float(def, { cmd = "kubectl" })
-            end
+            ResourceBuilder:view_float(def, {
+              args = {
+                def.resource_name,
+                def.ns,
+                def.name,
+                def.group,
+                def.version,
+                def.syntax,
+              },
+            })
           end
         end
       end,

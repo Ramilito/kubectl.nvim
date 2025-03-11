@@ -8,7 +8,7 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  ResourceBuilder:view_new(definition, cancellationToken)
+  ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
