@@ -13,10 +13,10 @@ local M = {
   selection = {},
   pfs = {},
   tail_handle = nil,
-  show_log_prefix = tostring(config.options.logs.prefix),
+  show_log_prefix = config.options.logs.prefix,
   log_since = config.options.logs.since,
-  show_timestamps = tostring(config.options.logs.timestamps),
-  show_previous = "false",
+  show_timestamps = config.options.logs.timestamps,
+  show_previous = false,
 }
 
 function M.View(cancellationToken)
@@ -42,14 +42,31 @@ function M.TailLogs(pod, ns, container)
   container = container or M.selection.container
   local ntfy = " tailing: " .. pod
 
+  local function stop_tailing()
+    if M.tail_handle and not M.tail_handle:is_closing() then
+      M.tail_handle:stop()
+      M.tail_handle:close()
+      vim.notify("Stopped" .. ntfy)
+    end
+  end
+  if M.tail_handle and not M.tail_handle:is_closing() then
+    stop_tailing()
+    return
+  end
+
   local logs_win = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_get_current_buf()
+
+  vim.api.nvim_win_set_cursor(logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
 
   local function fetch_logs()
     commands.run_async("log_stream_async", {
       pod,
       ns,
       "1s",
+      M.show_previous,
+      M.show_timestamps,
+      M.show_log_prefix,
     }, function(data)
       vim.schedule(function()
         if vim.api.nvim_buf_is_valid(buf) then
@@ -64,15 +81,14 @@ function M.TailLogs(pod, ns, container)
     end)
   end
 
-  local timer = vim.uv.new_timer()
-  timer:start(0, 1000, function()
+  M.tail_handle = vim.uv.new_timer()
+  M.tail_handle:start(0, 1000, function()
     fetch_logs()
-    print("fetching logs")
   end)
 
-  local function stop_tailing()
-    timer:stop()
-  end
+  vim.schedule(function()
+    vim.notify(ntfy)
+  end)
 
   local group = vim.api.nvim_create_augroup("__kubectl_tailing", { clear = false })
   vim.api.nvim_create_autocmd("BufWinLeave", {
@@ -101,14 +117,17 @@ function M.Logs(reload)
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
-      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. M.show_log_prefix .. "]" },
-      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. M.show_timestamps .. "]" },
+      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. tostring(M.show_log_prefix) .. "]" },
+      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. tostring(M.show_timestamps) .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
-      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. M.show_previous .. "]" },
+      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. tostring(M.show_previous) .. "]" },
     },
   }
 
-  ResourceBuilder:view_float(def, { reload = reload, args = { def.name, def.namespace, def.since } })
+  ResourceBuilder:view_float(def, {
+    reload = reload,
+    args = { def.name, def.namespace, def.since, M.show_previous, M.show_timestamps, M.show_log_prefix },
+  })
 end
 
 function M.PortForward(pod, ns)

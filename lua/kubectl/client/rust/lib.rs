@@ -163,9 +163,16 @@ fn parse_duration(s: &str) -> Option<Duration> {
 
 pub async fn log_stream_async(
     _lua: mlua::Lua,
-    args: (String, String, Option<String>),
+    args: (
+        String,
+        String,
+        Option<String>,
+        Option<bool>,
+        Option<bool>,
+        Option<bool>,
+    ),
 ) -> mlua::Result<String> {
-    let (name, namespace, since_time_input) = args;
+    let (name, namespace, since_time_input, previous, timestamps, prefix) = args;
 
     let since_time = since_time_input
         .as_deref()
@@ -209,17 +216,30 @@ pub async fn log_stream_async(
                 follow: false,
                 container: Some(container_name.clone()),
                 since_time,
+                pretty: true,
+                timestamps: timestamps.unwrap_or_default(),
+                previous: previous.unwrap_or_default(),
                 ..LogParams::default()
             };
 
-            let s = pods
-                .log_stream(&name, &lp)
-                .await
-                .map_err(|e| mlua::Error::external(e))?
-                .lines()
-                .map_ok(move |line| format!("[{}] {}", container_name, line));
+            let s = match pods.log_stream(&name, &lp).await {
+                Ok(s) => s,
+                Err(e) => {
+                    return Ok(format!(
+                        "No log stream for pod {} in {} found: {}",
+                        name, namespace, e
+                    ))
+                }
+            };
 
-            streams.push(s);
+            let stream = s.lines().map_ok(move |line| {
+                if prefix.unwrap_or_default() {
+                    format!("[{}] {}", container_name, line)
+                } else {
+                    format!("{}", line)
+                }
+            });
+            streams.push(stream);
         }
 
         let mut combined = futures::stream::select_all(streams);
