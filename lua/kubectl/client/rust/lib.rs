@@ -149,7 +149,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("edit_async", lua.create_async_function(edit_async)?)?;
     exports.set(
         "describe_async",
-        lua.create_async_function(describe::describe_sync)?,
+        lua.create_async_function(describe::describe_async)?,
     )?;
     exports.set(
         "log_stream_async",
