@@ -325,6 +325,26 @@ fn describe_containers(
             details.insert("host_port".to_string(), string_or_none(&host_port_str));
         }
 
+        // TODO: Not finding this prop in kubectl describe output
+        //
+        // {%- if seccomp_profile is defined %}
+        // 	SeccompProfile:    {{ seccomp_profile }}
+        // 	{%- if seccomp_profile == "Localhost" and localhost_profile is defined %}
+        // 		LocalhostProfile:  {{ localhost_profile }}
+        // 	{% endif %}
+        // {% endif %}
+        //
+        // if let Some(sec_ctx) = &container.security_context {
+        //     if let Some(seccomp_profile) = &sec_ctx.seccomp_profile {
+        //         context.insert("seccomp_profile", &seccomp_profile.r#type_);
+        //         if seccomp_profile.r#type_ == "Localhost" {
+        //             if let Some(local_profile) = &seccomp_profile.localhost_profile {
+        //                 context.insert("localhost_profile", local_profile);
+        //             }
+        //         }
+        //     }
+        // }
+
         let command = describe_container_command(container);
         details.insert("command".to_string(), command);
 
