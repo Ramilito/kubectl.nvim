@@ -7,7 +7,9 @@ Priority:         {{ priority }} {% endif -%}
 {% if service_account_name is defined -%} 
 	Service Account:  {{ service_account_name }} {% endif -%}
 {% if node_name is defined %}
-Node:             {{ node_name }}{% endif %}
+Node:             {{ node_name }}{% endif -%}
+{% if start_time is defined %}
+Start time:       {{ start_time }}{% endif %}
 Labels: {% for key, value in labels %}
   {%- if loop.first %}          {{ key }}={{ value }}{%- else %}
                   {{ key }}={{ value }}{%- endif -%}{% endfor %}

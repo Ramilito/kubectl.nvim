@@ -172,6 +172,9 @@ pub async fn describe_pod(
         if let Some(reason) = &status.reason {
             context.insert("reason", reason);
         }
+        if let Some(start_time) = &status.start_time {
+            context.insert("start_time", &start_time.0.to_rfc2822());
+        }
     }
 
     let labels: BTreeMap<String, String> = pod.metadata.labels.unwrap_or_default();
