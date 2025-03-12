@@ -1,12 +1,13 @@
+use k8s_openapi::api::core::v1::Container;
 use k8s_openapi::chrono::Utc;
 use k8s_openapi::serde_json::json;
 use mlua::{Error as LuaError, Lua, Result as LuaResult};
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::{self, Write as FmtWrite};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tera::{Context, Tera};
+use tera::{from_value, to_value, Context, Error, Tera, Value};
 
 use k8s_openapi::{
     api::{
@@ -90,6 +91,33 @@ pub async fn describe_async(
     rt.block_on(fut)
 }
 
+fn pad(args: &HashMap<String, Value>) -> Result<Value, Error> {
+    let desired_val = args
+        .get("desired")
+        .ok_or_else(|| Error::msg("Missing 'desired'"))?;
+    let desired: usize = from_value(desired_val.clone()).map_err(|e| Error::msg(e.to_string()))?;
+
+    let subtract_val = args
+        .get("subtract")
+        .ok_or_else(|| Error::msg("Missing 'subtract'"))?;
+    let subtract: String =
+        from_value(subtract_val.clone()).map_err(|e| Error::msg(e.to_string()))?;
+
+    let text_val = args
+        .get("text")
+        .ok_or_else(|| Error::msg("Missing 'text'"))?;
+    let text: String = from_value(text_val.clone()).map_err(|e| Error::msg(e.to_string()))?;
+
+    let padding = if desired > subtract.len() {
+        desired - subtract.len()
+    } else {
+        0
+    };
+
+    let result = format!("{}{}", " ".repeat(padding), text);
+    Ok(to_value(result)?)
+}
+
 pub async fn describe_pod(
     client: &Client,
     namespace: &str,
@@ -108,13 +136,13 @@ pub async fn describe_pod(
         }
     };
 
-    let tera = match Tera::new("lua/kubectl/client/rust/templates/*.tpl") {
+    let mut tera = match Tera::new("lua/kubectl/client/rust/templates/*.tpl") {
         Ok(t) => t,
         Err(e) => panic!("Template parsing error: {}", e),
     };
 
     let mut context = Context::new();
-
+    tera.register_function("pad", pad);
     context.insert("name", &pod.metadata.name);
     context.insert(
         "namespace",
@@ -217,11 +245,26 @@ pub async fn describe_pod(
         if let Some(nominated_node_name) = &status.nominated_node_name {
             context.insert("nominated_node_name", nominated_node_name)
         }
+    }
+    // if let Some(spec) = &pod.spec {
+    //     describe_resources(spec.resources.as_ref(), &mut context);
+    // }
 
-        if let Some(spec) = &pod.spec {
-            if let Some(container) = spec.containers.first() {
-                describe_resources(container.resources.as_ref(), &mut context);
-            }
+    if let Some(spec) = &pod.spec {
+        if let Some(init_containers) = &spec.init_containers {
+            let container_statuses = pod
+                .status
+                .as_ref()
+                .and_then(|s| s.init_container_statuses.as_ref())
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
+
+            describe_containers(
+                "init_containers",
+                init_containers,
+                Some(container_statuses),
+                &mut context,
+            );
         }
     }
 
@@ -236,7 +279,58 @@ fn translate_timestamp_since(ts: &meta_v1::Time) -> String {
     format!("{}s", delta.num_seconds())
 }
 
+fn describe_containers(
+    label: &str,
+    containers: &[core_v1::Container],
+    container_statuses: Option<&[core_v1::ContainerStatus]>,
+    context: &mut Context,
+) {
+    let mut statuses: HashMap<String, &core_v1::ContainerStatus> = HashMap::new();
+    if let Some(statuses_slice) = container_statuses {
+        for status in statuses_slice {
+            println!("{:?}",status.name);
+            statuses.insert(status.name.to_lowercase(), status);
+        }
+    }
+
+    let mut container_details = Vec::new();
+    for container in containers {
+        let mut details = BTreeMap::new();
+
+        details.insert("name".to_string(), Some(container.name.clone()));
+        if let Some(status) = statuses.get(&container.name) {
+            details.insert("container_id".to_string(), status.container_id.clone());
+        }
+
+        details.insert("image".to_string(), container.image.clone());
+        if let Some(status) = statuses.get(&container.name) {
+            details.insert("image_id".to_string(), Some(status.image_id.clone()));
+        }
+
+        let port_str = describe_container_ports(container.ports.as_ref());
+        if port_str.contains(',') {
+            details.insert("ports".to_string(), Some(port_str.clone()));
+        } else {
+            details.insert("port".to_string(), Some(string_or_none(&port_str)));
+        }
+        let host_port_str = describe_container_host_ports(container.ports.as_ref());
+        if host_port_str.contains(',') {
+            details.insert("host_ports".to_string(), Some(host_port_str.clone()));
+        } else {
+            details.insert(
+                "host_port".to_string(),
+                Some(string_or_none(&host_port_str)),
+            );
+        }
+
+        container_details.push(details);
+    }
+
+    context.insert(label, &container_details);
+}
+
 fn describe_resources(resources: Option<&core_v1::ResourceRequirements>, context: &mut Context) {
+    println!("{:?}", resources);
     if let Some(resources) = resources {
         if let Some(limits) = &resources.limits {
             let limits_map: BTreeMap<String, String> = limits
@@ -252,5 +346,37 @@ fn describe_resources(resources: Option<&core_v1::ResourceRequirements>, context
                 .collect();
             context.insert("requests", &requests_map);
         }
+    }
+}
+
+fn describe_container_ports(c_ports: Option<&Vec<core_v1::ContainerPort>>) -> String {
+    if let Some(ports_vec) = c_ports {
+        let ports: Vec<String> = ports_vec
+            .iter()
+            .map(|c_port| format!("{:?}/{:?}", c_port.container_port, c_port.protocol))
+            .collect();
+        ports.join(", ")
+    } else {
+        "".to_string()
+    }
+}
+
+fn describe_container_host_ports(c_ports: Option<&Vec<core_v1::ContainerPort>>) -> String {
+    if let Some(ports_vec) = c_ports {
+        let ports: Vec<String> = ports_vec
+            .iter()
+            .map(|c_port| format!("{:?}/{:?}", c_port.host_port, c_port.protocol))
+            .collect();
+        ports.join(", ")
+    } else {
+        "".to_string()
+    }
+}
+
+fn string_or_none(s: &str) -> String {
+    if s.is_empty() {
+        "<none>".to_string()
+    } else {
+        s.to_string()
     }
 }
