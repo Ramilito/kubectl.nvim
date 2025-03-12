@@ -143,7 +143,6 @@ pub async fn describe_pod(
 
     let mut context = Context::new();
 
-    // Extract and insert fields. You may need to handle Option types appropriately.
     context.insert("name", &pod.metadata.name);
     context.insert(
         "namespace",
@@ -176,12 +175,8 @@ pub async fn describe_pod(
     }
 
     let labels: BTreeMap<String, String> = pod.metadata.labels.unwrap_or_default();
-    // For labels and annotations, we can build maps.
-
     context.insert("labels", &labels);
-    // let labels = pod.metadata.labels.clone().unwrap_or_default();
-    // context.insert("labels", &labels);
-    let mut annotations = labels.clone(); // Just for example; in real usage, extract annotations.
+    let annotations: BTreeMap<String, String> = pod.metadata.annotations.unwrap_or_default();
     context.insert("annotations", &annotations);
 
     // Render the template.
