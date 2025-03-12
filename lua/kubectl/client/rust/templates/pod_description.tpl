@@ -16,7 +16,6 @@ Labels: {% for key, value in labels %}
 Annotations: {% for key, value in annotations %}
   {%- if loop.first %}     {{ key }}={{ value }}{%- else %}
                   {{ key }}={{ value }}{%- endif -%}{% endfor %}
-Status:
-    Phase:      {{ phase }}
-    {% if message is defined %}Message:    {{ message }}{% endif %}
-    {% if reason is defined %}Reason:     {{ reason }}{% endif %}
+Status: 					{{ status }}
+{% if reason is defined %}Reason:     {{ reason }}{% endif %}
+{% if message is defined %}Message:    {{ message }}{% endif %}

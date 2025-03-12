@@ -165,7 +165,6 @@ pub async fn describe_pod(
         }
     }
     if let Some(status) = &pod.status {
-        context.insert("phase", &status.phase.clone().unwrap_or_default());
         if let Some(msg) = &status.message {
             context.insert("message", msg);
         }
@@ -174,6 +173,30 @@ pub async fn describe_pod(
         }
         if let Some(start_time) = &status.start_time {
             context.insert("start_time", &start_time.0.to_rfc2822());
+        }
+
+        let mut status_value = status.phase.clone().unwrap_or("Unknown".to_string());
+        if let Some(ts) = &pod.metadata.deletion_timestamp {
+            if status_value != "Failed" && status_value != "Succeeded" {
+                let seconds = Utc::now().signed_duration_since(ts.0).num_seconds();
+                status_value = if let Some(grace) = pod.metadata.deletion_grace_period_seconds {
+                    format!(
+                        "Terminating (lasts {}s)\nTermination Grace Period:\t{}s",
+                        seconds, grace
+                    )
+                } else {
+                    format!("Terminating (lasts {}s)", seconds)
+                };
+            }
+        }
+
+        context.insert("status", &status_value);
+        if let Some(reason) = &status.reason {
+            context.insert("reason", &reason);
+        }
+
+        if let Some(message) = &status.message {
+            context.insert("reason", &message);
         }
     }
 
