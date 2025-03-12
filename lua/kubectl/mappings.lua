@@ -192,19 +192,7 @@ function M.get_mappings()
         end
         local name, ns = view.getCurrentSelection()
         if name then
-          local ok = pcall(view.Desc, name, ns, true)
-          if ok then
-            local state = require("kubectl.state")
-            event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
-              if event.object.metadata.name == name and event.object.metadata.namespace == ns then
-                vim.schedule(function()
-                  pcall(view.Desc, name, ns, false)
-                end)
-              end
-            end)
-          else
-            vim.api.nvim_err_writeln("Failed to describe " .. buf_name .. ".")
-          end
+          view.Desc(name, ns, true)
         end
       end,
     },
