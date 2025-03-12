@@ -17,5 +17,17 @@ Annotations: {% for key, value in annotations %}
   {%- if loop.first %}     {{ key }}={{ value }}{%- else %}
                   {{ key }}={{ value }}{%- endif -%}{% endfor %}
 Status: 					{{ status }}
-{% if reason is defined %}Reason:     {{ reason }}{% endif %}
-{% if message is defined %}Message:    {{ message }}{% endif %}
+{% if reason is defined %}Reason:     {{ reason }}{% endif -%}
+{% if message is defined %}Message:    {{ message }}{% endif -%}
+{% if seccomp_profile is defined %}SeccompProfile:   {{ seccomp_profile }}{% endif -%}
+{% if localhost_profile is defined %}LocalhostProfile: {{ localhost_profile }}{% endif -%}
+IP: 					    {{ ip }}
+{% if pod_ips is defined -%}
+IPs:
+{%- for ip in pod_ips %}
+  IP:           {{ ip }}
+{% endfor %}
+{% else %}
+IPs: <none>
+{% endif %}
+Controlled By: 		{{ controlled_by }}

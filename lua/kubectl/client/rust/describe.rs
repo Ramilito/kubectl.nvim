@@ -52,12 +52,6 @@ fn skip_annotations() -> &'static BTreeSet<String> {
     })
 }
 
-fn translate_timestamp_since(ts: &meta_v1::Time) -> String {
-    let now = Utc::now();
-    let delta = now.signed_duration_since(ts.0);
-    format!("{}s", delta.num_seconds())
-}
-
 pub async fn describe_async(
     lua: Lua,
     args: (String, String, String, String, bool),
@@ -94,28 +88,6 @@ pub async fn describe_async(
     };
 
     rt.block_on(fut)
-}
-
-// The snippet's logic for describing events
-// We'll do a function "search_events" that tries to fetch events from the cluster
-async fn search_events<T: Resource<Scope = k8s_openapi::NamespaceResourceScope>>(
-    client: &Client,
-    resource: &T,
-    limit: u32,
-) -> LuaResult<Vec<core_v1::Event>> {
-    // In the snippet, it constructs a fieldSelector for e.g. "involvedObject.kind=<KIND>, involvedObject.name=<NAME>" etc.
-    // We'll do a simplified approach: "involvedObject.name={resource.name()}" only
-    let name = resource.name_any();
-    let ns = resource.namespace().unwrap_or_default();
-    let events_api: Api<core_v1::Event> = Api::namespaced(client.clone(), &ns);
-    let lp = ListParams::default()
-        .fields(&format!("involvedObject.name={}", name))
-        .limit(limit);
-    let ev_list = events_api
-        .list(&lp)
-        .await
-        .map_err(|e| LuaError::RuntimeError(format!("Error listing events: {}", e)))?;
-    Ok(ev_list.items)
 }
 
 pub async fn describe_pod(
@@ -200,13 +172,56 @@ pub async fn describe_pod(
         }
     }
 
-    let labels: BTreeMap<String, String> = pod.metadata.labels.unwrap_or_default();
+    let labels: BTreeMap<String, String> = pod.metadata.labels.clone().unwrap_or_default();
     context.insert("labels", &labels);
-    let annotations: BTreeMap<String, String> = pod.metadata.annotations.unwrap_or_default();
+    let annotations: BTreeMap<String, String> =
+        pod.metadata.annotations.clone().unwrap_or_default();
     context.insert("annotations", &annotations);
 
-    // Render the template.
+    if let Some(spec) = &pod.spec {
+        if let Some(security_context) = &spec.security_context {
+            if let Some(seccomp_profile) = &security_context.seccomp_profile {
+                if let Some(seccomp_type) = Some(&seccomp_profile.r#type_) {
+                    context.insert("seccomp_profile", seccomp_type);
+                    if seccomp_type == "Localhost" {
+                        if let Some(localhost_profile) = &seccomp_profile.localhost_profile {
+                            context.insert("localhost_profile", localhost_profile);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(status) = &pod.status {
+        if let Some(pod_ip) = &status.pod_ip {
+            context.insert("ip", pod_ip);
+        }
+        let pod_ips: Vec<String> = status
+            .pod_ips
+            .as_ref()
+            .map(|ips| ips.iter().map(|ip_info| ip_info.ip.clone()).collect())
+            .unwrap_or_default();
+        context.insert("pod_ips", &pod_ips);
+
+        if let Some(owner_refs) = &pod.metadata.owner_references {
+            if let Some(controller_ref) = owner_refs.iter().find(|r| r.controller.unwrap_or(false))
+            {
+                context.insert(
+                    "controlled_by",
+                    &format!("{}/{}", controller_ref.kind, controller_ref.name),
+                );
+            }
+        }
+    }
+
     Ok(tera
         .render("pod_description.tpl", &context)
         .unwrap_or_else(|e| format!("Error rendering template: {}", e)))
+}
+
+fn translate_timestamp_since(ts: &meta_v1::Time) -> String {
+    let now = Utc::now();
+    let delta = now.signed_duration_since(ts.0);
+    format!("{}s", delta.num_seconds())
 }
