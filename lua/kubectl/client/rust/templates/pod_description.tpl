@@ -17,22 +17,22 @@ Annotations: {% for key, value in annotations %}
   {%- if loop.first %}     {{ key }}={{ value }}{%- else %}
                   {{ key }}={{ value }}{%- endif -%}{% endfor %}
 Status: 					{{ status }}
-{% if reason is defined %}Reason:     {{ reason }}{% endif -%}
-{% if message is defined %}Message:    {{ message }}{% endif -%}
-{% if seccomp_profile is defined %}SeccompProfile:   {{ seccomp_profile }}{% endif -%}
-{% if localhost_profile is defined %}LocalhostProfile: {{ localhost_profile }}{% endif -%}
+{% if reason is defined %}Reason:     {{ reason }}{% endif %}
+{%- if message is defined %}Message:    {{ message }}{% endif %}
+{%- if seccomp_profile is defined %}SeccompProfile:   {{ seccomp_profile }}{% endif %}
+{%- if localhost_profile is defined %}LocalhostProfile: {{ localhost_profile }}{% endif %}
 IP: 					    {{ ip }}
-{% if pod_ips is defined -%}
+{%- if pod_ips is defined %}
 IPs:
 {%- for ip in pod_ips %}
-  IP:           {{ ip }}
+  IP:             {{ ip }}
 {% endfor %}
-{% else %}
+{%- else %}
 IPs: <none>
-{% endif %}
+{%- endif -%}
 Controlled By: 		{{ controlled_by }}
-{% if reason is defined %}NomintatedNodeName:     {{ nominated_node_name }}{% endif -%}
-{% if init_containers is defined %}
+{%- if reason is defined %}NomintatedNodeName:     {{ nominated_node_name }}{% endif -%}
+{%- if init_containers is defined %}
 Init Containers:
 	{% for container in init_containers -%}
   {{ container.name -}}:
@@ -44,12 +44,15 @@ Init Containers:
     Image ID:       {{ container.image_id -}}
 	{% endif %}
   {%- if container.port is defined %}
-    Port:           {{ container.port }}
-	{% endif %}
+    Port:           {{ container.port -}}
+	{% endif -%}
   {%- if container.host_port is defined %}
     Host Port:      {{ container.host_port }}
   {%- elif container.host_ports is defined %}
     Host Ports:     {{ container.host_ports }}
+	{% endif %}
+  {%- if container.command is defined %}
+		{{ container.command }}
 	{% endif %}
 	{% endfor %}
 {% endif -%}

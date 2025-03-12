@@ -325,6 +325,9 @@ fn describe_containers(
             details.insert("host_port".to_string(), string_or_none(&host_port_str));
         }
 
+        let command = describe_container_command(container);
+        details.insert("command".to_string(), command);
+
         container_details.push(details);
     }
 
@@ -379,6 +382,38 @@ fn describe_container_host_ports(c_ports: Option<&Vec<core_v1::ContainerPort>>) 
     } else {
         "".to_string()
     }
+}
+
+fn describe_container_command(container: &core_v1::Container) -> String {
+    let mut output = String::new();
+
+    if let Some(commands) = &container.command {
+        if !commands.is_empty() {
+            output.push_str("Command:\n");
+            for cmd in commands {
+                for line in cmd.split('\n') {
+                    output.push_str("      ");
+                    output.push_str(line);
+                    output.push('\n');
+                }
+            }
+        }
+    }
+
+    if let Some(args) = &container.args {
+        if !args.is_empty() {
+            output.push_str("\t\tArgs:\n");
+            for arg in args {
+                for line in arg.split('\n') {
+                    output.push_str("      ");
+                    output.push_str(line);
+                    output.push('\n');
+                }
+            }
+        }
+    }
+
+    output
 }
 
 fn string_or_none(s: &str) -> String {
