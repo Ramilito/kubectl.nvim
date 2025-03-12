@@ -1,5 +1,5 @@
-Name:             {{ name }}
-Namespace:        {{ namespace -}}
+Name:{{ pad(desired=18, subtract='Name:', text=name) }}
+Namespace:{{ pad(desired=18, subtract='Namespace:', text=namespace) -}}
 {% if priority is defined %}
 Priority:         {{ priority }} {% endif -%}
 {% if runtime_class_name is defined -%} 
@@ -32,17 +32,17 @@ IPs: <none>
 {% endif %}
 Controlled By: 		{{ controlled_by }}
 {% if reason is defined %}NomintatedNodeName:     {{ nominated_node_name }}{% endif -%}
+{% if init_containers is defined %}
+Init Containers:
+	{% for container in init_containers -%}
+  {{ container.name -}}:
+	{%- if container.container_id is defined %}
+		Container ID:   {{ container.container_id -}}
+	{% endif %}
+    Image:          {{ container.image -}}
+	{% if container.image_id is defined %}
+    Image ID:       {{ container.image_id -}}
+	{% endif %}
+	{% endfor %}
+{% endif -%}
 
-{% if limits is defined %}
-Limits:
-{%- for name, value in limits %}
-    {{ name }}:{{ value | indent(prefix="    ") }}
-{%- endfor -%}
-{% endif %}
-
-{% if requests is defined and requests | length > 0 %}
-Requests:
-{% for name, value in requests %}
-    {{ name }}: {{ value }}
-{% endfor %}
-{% endif %}
