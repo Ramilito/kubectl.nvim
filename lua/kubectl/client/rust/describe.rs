@@ -288,39 +288,41 @@ fn describe_containers(
     let mut statuses: HashMap<String, &core_v1::ContainerStatus> = HashMap::new();
     if let Some(statuses_slice) = container_statuses {
         for status in statuses_slice {
-            println!("{:?}",status.name);
             statuses.insert(status.name.to_lowercase(), status);
         }
     }
 
     let mut container_details = Vec::new();
     for container in containers {
-        let mut details = BTreeMap::new();
+        let mut details: BTreeMap<String, String> = BTreeMap::new();
 
-        details.insert("name".to_string(), Some(container.name.clone()));
+        details.insert("name".to_string(), container.name.clone());
         if let Some(status) = statuses.get(&container.name) {
-            details.insert("container_id".to_string(), status.container_id.clone());
+            details.insert(
+                "container_id".to_string(),
+                status.container_id.clone().unwrap_or_default(),
+            );
         }
 
-        details.insert("image".to_string(), container.image.clone());
+        details.insert(
+            "image".to_string(),
+            container.image.clone().unwrap_or_default(),
+        );
         if let Some(status) = statuses.get(&container.name) {
-            details.insert("image_id".to_string(), Some(status.image_id.clone()));
+            details.insert("image_id".to_string(), status.image_id.clone());
         }
 
         let port_str = describe_container_ports(container.ports.as_ref());
         if port_str.contains(',') {
-            details.insert("ports".to_string(), Some(port_str.clone()));
+            details.insert("ports".to_string(), port_str.clone());
         } else {
-            details.insert("port".to_string(), Some(string_or_none(&port_str)));
+            details.insert("port".to_string(), string_or_none(&port_str));
         }
         let host_port_str = describe_container_host_ports(container.ports.as_ref());
         if host_port_str.contains(',') {
-            details.insert("host_ports".to_string(), Some(host_port_str.clone()));
+            details.insert("host_ports".to_string(), host_port_str.clone());
         } else {
-            details.insert(
-                "host_port".to_string(),
-                Some(string_or_none(&host_port_str)),
-            );
+            details.insert("host_port".to_string(), string_or_none(&host_port_str));
         }
 
         container_details.push(details);
@@ -330,7 +332,6 @@ fn describe_containers(
 }
 
 fn describe_resources(resources: Option<&core_v1::ResourceRequirements>, context: &mut Context) {
-    println!("{:?}", resources);
     if let Some(resources) = resources {
         if let Some(limits) = &resources.limits {
             let limits_map: BTreeMap<String, String> = limits
@@ -353,7 +354,10 @@ fn describe_container_ports(c_ports: Option<&Vec<core_v1::ContainerPort>>) -> St
     if let Some(ports_vec) = c_ports {
         let ports: Vec<String> = ports_vec
             .iter()
-            .map(|c_port| format!("{:?}/{:?}", c_port.container_port, c_port.protocol))
+            .map(|c_port| {
+                let protocol = c_port.protocol.as_deref().unwrap_or("TCP");
+                format!("{}/{}", c_port.container_port, protocol)
+            })
             .collect();
         ports.join(", ")
     } else {
@@ -365,7 +369,11 @@ fn describe_container_host_ports(c_ports: Option<&Vec<core_v1::ContainerPort>>) 
     if let Some(ports_vec) = c_ports {
         let ports: Vec<String> = ports_vec
             .iter()
-            .map(|c_port| format!("{:?}/{:?}", c_port.host_port, c_port.protocol))
+            .map(|c_port| {
+                let protocol = c_port.protocol.as_deref().unwrap_or("TCP");
+                let host_port = c_port.host_port.map(|hp| hp).unwrap_or_else(|| 0);
+                format!("{}/{}", host_port, protocol)
+            })
             .collect();
         ports.join(", ")
     } else {

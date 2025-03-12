@@ -40,8 +40,16 @@ Init Containers:
 		Container ID:   {{ container.container_id -}}
 	{% endif %}
     Image:          {{ container.image -}}
-	{% if container.image_id is defined %}
+	{%- if container.image_id is defined %}
     Image ID:       {{ container.image_id -}}
+	{% endif %}
+  {%- if container.port is defined %}
+    Port:           {{ container.port }}
+	{% endif %}
+  {%- if container.host_port is defined %}
+    Host Port:      {{ container.host_port }}
+  {%- elif container.host_ports is defined %}
+    Host Ports:     {{ container.host_ports }}
 	{% endif %}
 	{% endfor %}
 {% endif -%}
