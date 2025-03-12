@@ -213,6 +213,16 @@ pub async fn describe_pod(
                 );
             }
         }
+
+        if let Some(nominated_node_name) = &status.nominated_node_name {
+            context.insert("nominated_node_name", nominated_node_name)
+        }
+
+        if let Some(spec) = &pod.spec {
+            if let Some(container) = spec.containers.first() {
+                describe_resources(container.resources.as_ref(), &mut context);
+            }
+        }
     }
 
     Ok(tera
@@ -224,4 +234,23 @@ fn translate_timestamp_since(ts: &meta_v1::Time) -> String {
     let now = Utc::now();
     let delta = now.signed_duration_since(ts.0);
     format!("{}s", delta.num_seconds())
+}
+
+fn describe_resources(resources: Option<&core_v1::ResourceRequirements>, context: &mut Context) {
+    if let Some(resources) = resources {
+        if let Some(limits) = &resources.limits {
+            let limits_map: BTreeMap<String, String> = limits
+                .iter()
+                .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
+                .collect();
+            context.insert("limits", &limits_map);
+        }
+        if let Some(requests) = &resources.requests {
+            let requests_map: BTreeMap<String, String> = requests
+                .iter()
+                .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
+                .collect();
+            context.insert("requests", &requests_map);
+        }
+    }
 }
