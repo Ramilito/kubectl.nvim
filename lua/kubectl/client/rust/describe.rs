@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::OnceLock;
 use tera::{from_value, to_value, Context, Error, Tera, Value};
 
-use k8s_openapi::{api::core::v1 as core_v1};
+use k8s_openapi::api::core::v1 as core_v1;
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
@@ -125,7 +125,10 @@ pub async fn describe_pod(
             context.insert("service_account_name", sa);
         }
         if let Some(node) = &spec.node_name {
-            context.insert("node_name", node);
+            context.insert(
+                "node_name",
+                &format!("{}/{}", node, &pod.status.clone().unwrap().host_ip.unwrap()).to_string(),
+            );
         } else {
             context.insert("node_name", "<none>");
         }
@@ -168,6 +171,7 @@ pub async fn describe_pod(
 
     let labels: BTreeMap<String, String> = pod.metadata.labels.clone().unwrap_or_default();
     context.insert("labels", &labels);
+
     let annotations: BTreeMap<String, String> =
         pod.metadata.annotations.clone().unwrap_or_default();
     context.insert("annotations", &annotations);
@@ -291,29 +295,24 @@ fn describe_containers(
             details.insert("host_port".to_string(), string_or_none(&host_port_str));
         }
 
-        // TODO: Not finding this prop in kubectl describe output
-        //
-        // {%- if seccomp_profile is defined %}
-        // 	SeccompProfile:    {{ seccomp_profile }}
-        // 	{%- if seccomp_profile == "Localhost" and localhost_profile is defined %}
-        // 		LocalhostProfile:  {{ localhost_profile }}
-        // 	{% endif %}
-        // {% endif %}
-        //
-        // if let Some(sec_ctx) = &container.security_context {
-        //     if let Some(seccomp_profile) = &sec_ctx.seccomp_profile {
-        //         context.insert("seccomp_profile", &seccomp_profile.r#type_);
-        //         if seccomp_profile.r#type_ == "Localhost" {
-        //             if let Some(local_profile) = &seccomp_profile.localhost_profile {
-        //                 context.insert("localhost_profile", local_profile);
-        //             }
-        //         }
-        //     }
-        // }
+        if let Some(sec_ctx) = &container.security_context {
+            if let Some(seccomp_profile) = &sec_ctx.seccomp_profile {
+                context.insert("seccomp_profile", &seccomp_profile.r#type_);
+                if seccomp_profile.r#type_ == "Localhost" {
+                    if let Some(local_profile) = &seccomp_profile.localhost_profile {
+                        context.insert("localhost_profile", local_profile);
+                    }
+                }
+            }
+        }
 
         let command = describe_container_command(container);
         details.insert("command".to_string(), command);
 
+        if let Some(status) = statuses.get(&container.name.to_lowercase()) {
+            let state_output = describe_container_state(status);
+            details.insert("state".to_string(), state_output);
+        }
         container_details.push(details);
     }
 
@@ -398,6 +397,90 @@ fn describe_container_command(container: &core_v1::Container) -> String {
             }
         }
     }
+
+    output
+}
+
+fn describe_container_state(status: &core_v1::ContainerStatus) -> String {
+    let mut output = String::new();
+
+    // Describe current state
+    if let Some(state) = &status.state {
+        if let Some(running) = &state.running {
+            output.push_str("State:\t\tRunning\n");
+            if let Some(started_at) = &running.started_at {
+                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+            }
+        } else if let Some(waiting) = &state.waiting {
+            output.push_str("State:\t\tWaiting\n");
+            if let Some(reason) = &waiting.reason {
+                output.push_str(&format!("      Reason:\t{}\n", reason));
+            }
+        } else if let Some(terminated) = &state.terminated {
+            output.push_str("State:\t\tTerminated\n");
+            if let Some(reason) = &terminated.reason {
+                output.push_str(&format!("      Reason:\t{}\n", reason));
+            }
+            if let Some(message) = &terminated.message {
+                output.push_str(&format!("      Message:\t{}\n", message));
+            }
+            output.push_str(&format!("      Exit Code:\t{}\n", terminated.exit_code));
+            if let Some(signal) = terminated.signal {
+                output.push_str(&format!("      Signal:\t{}\n", signal));
+            }
+            if let Some(started_at) = &terminated.started_at {
+                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+            }
+            if let Some(finished_at) = &terminated.finished_at {
+                output.push_str(&format!(
+                    "      Finished:\t{}\n",
+                    finished_at.0.to_rfc2822()
+                ));
+            }
+        } else {
+            output.push_str("State:\t\tWaiting\n");
+        }
+    }
+
+    // Describe last state if available
+    if let Some(last_state) = &status.last_state {
+        if let Some(terminated) = &last_state.terminated {
+            output.push_str("Last State:\tTerminated\n");
+            if let Some(reason) = &terminated.reason {
+                output.push_str(&format!("      Reason:\t{}\n", reason));
+            }
+            if let Some(message) = &terminated.message {
+                output.push_str(&format!("      Message:\t{}\n", message));
+            }
+            output.push_str(&format!("      Exit Code:\t{}\n", terminated.exit_code));
+            if let Some(signal) = terminated.signal {
+                output.push_str(&format!("      Signal:\t{}\n", signal));
+            }
+            if let Some(started_at) = &terminated.started_at {
+                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+            }
+            if let Some(finished_at) = &terminated.finished_at {
+                output.push_str(&format!(
+                    "      Finished:\t{}\n",
+                    finished_at.0.to_rfc2822()
+                ));
+            }
+        } else if let Some(running) = &last_state.running {
+            output.push_str("Last State:\tRunning\n");
+            if let Some(started_at) = &running.started_at {
+                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+            }
+        } else if let Some(waiting) = &last_state.waiting {
+            output.push_str("Last State:\tWaiting\n");
+            if let Some(reason) = &waiting.reason {
+                output.push_str(&format!("      Reason:\t{}\n", reason));
+            }
+        }
+    }
+
+    // Append Ready and Restart Count details
+    output.push_str(&format!("Ready:\t{}\n", status.ready));
+    output.push_str(&format!("Restart Count:\t{}\n", status.restart_count));
 
     output
 }

@@ -34,26 +34,37 @@ Controlled By: 		{{ controlled_by }}
 {%- if reason is defined %}NomintatedNodeName:     {{ nominated_node_name }}{% endif -%}
 {%- if init_containers is defined %}
 Init Containers:
-	{% for container in init_containers -%}
-  {{ container.name -}}:
-	{%- if container.container_id is defined %}
-		Container ID:   {{ container.container_id -}}
+{% for container in init_containers %}
+{{ container.name }}:
+{% if container.container_id is defined %}
+	Container ID:   {{ container.container_id }}
+{% endif %}
+  Image:          {{ container.image }}
+{% if container.image_id is defined %}
+  Image ID:       {{ container.image_id }}
+{% endif %}
+{% if container.port is defined %}
+  Port:           {{ container.port }}
+{% endif %}
+{% if container.host_port is defined %}
+  Host Port:      {{ container.host_port }}
+{% elif container.host_ports is defined %}
+  Host Ports:     {{ container.host_ports }}
+{% endif %}
+{% if seccomp_profile is defined %}
+	SeccompProfile:    {{ seccomp_profile }}
+	{% if seccomp_profile == "Localhost" and localhost_profile is defined %}
+		LocalhostProfile:  {{ localhost_profile }}
 	{% endif %}
-    Image:          {{ container.image -}}
-	{%- if container.image_id is defined %}
-    Image ID:       {{ container.image_id -}}
-	{% endif %}
-  {%- if container.port is defined %}
-    Port:           {{ container.port -}}
-	{% endif -%}
-  {%- if container.host_port is defined %}
-    Host Port:      {{ container.host_port }}
-  {%- elif container.host_ports is defined %}
-    Host Ports:     {{ container.host_ports }}
-	{% endif %}
-  {%- if container.command is defined %}
-		{{ container.command }}
-	{% endif %}
-	{% endfor %}
-{% endif -%}
+{% endif %}
+{% if container.command is defined-%}
+	{{ container.command }}
+{% endif %}
+{% if container.state is defined %}
+	{{ container.state }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+
 
