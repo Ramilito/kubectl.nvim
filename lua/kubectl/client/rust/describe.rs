@@ -479,8 +479,8 @@ fn describe_container_state(status: &core_v1::ContainerStatus) -> String {
     }
 
     // Append Ready and Restart Count details
-    output.push_str(&format!("Ready:\t{}\n", status.ready));
-    output.push_str(&format!("Restart Count:\t{}\n", status.restart_count));
+    output.push_str(&format!("\t\tReady:\t{}\n", status.ready));
+    output.push_str(&format!("\t\tRestart Count:\t{}\n", status.restart_count));
 
     output
 }

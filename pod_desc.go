@@ -225,3 +225,75 @@ func describePod(pod *corev1.Pod, events *corev1.EventList) (string, error) {
 		return nil
 	})
 }
+
+func describeContainerBasicInfo(container corev1.Container, status corev1.ContainerStatus, ok bool, space string, w PrefixWriter) {
+	nameIndent := ""
+	if len(space) > 0 {
+		nameIndent = " "
+	}
+	w.Write(LEVEL_1, "%s%v:\n", nameIndent, container.Name)
+	if ok {
+		w.Write(LEVEL_2, "Container ID:\t%s\n", status.ContainerID)
+	}
+	w.Write(LEVEL_2, "Image:\t%s\n", container.Image)
+	if ok {
+		w.Write(LEVEL_2, "Image ID:\t%s\n", status.ImageID)
+	}
+	portString := describeContainerPorts(container.Ports)
+	if strings.Contains(portString, ",") {
+		w.Write(LEVEL_2, "Ports:\t%s\n", portString)
+	} else {
+		w.Write(LEVEL_2, "Port:\t%s\n", stringOrNone(portString))
+	}
+	hostPortString := describeContainerHostPorts(container.Ports)
+	if strings.Contains(hostPortString, ",") {
+		w.Write(LEVEL_2, "Host Ports:\t%s\n", hostPortString)
+	} else {
+		w.Write(LEVEL_2, "Host Port:\t%s\n", stringOrNone(hostPortString))
+	}
+	if container.SecurityContext != nil && container.SecurityContext.SeccompProfile != nil {
+		w.Write(LEVEL_2, "SeccompProfile:\t%s\n", container.SecurityContext.SeccompProfile.Type)
+		if container.SecurityContext.SeccompProfile.Type == corev1.SeccompProfileTypeLocalhost {
+			w.Write(LEVEL_3, "LocalhostProfile:\t%s\n", *container.SecurityContext.SeccompProfile.LocalhostProfile)
+		}
+	}
+}
+
+func describeContainerState(status corev1.ContainerStatus, w PrefixWriter) {
+	describeStatus("State", status.State, w)
+	if status.LastTerminationState.Terminated != nil {
+		describeStatus("Last State", status.LastTerminationState, w)
+	}
+	w.Write(LEVEL_2, "Ready:\t%v\n", printBool(status.Ready))
+	w.Write(LEVEL_2, "Restart Count:\t%d\n", status.RestartCount)
+}
+
+func describeStatus(stateName string, state corev1.ContainerState, w PrefixWriter) {
+	switch {
+	case state.Running != nil:
+		w.Write(LEVEL_2, "%s:\tRunning\n", stateName)
+		w.Write(LEVEL_3, "Started:\t%v\n", state.Running.StartedAt.Time.Format(time.RFC1123Z))
+	case state.Waiting != nil:
+		w.Write(LEVEL_2, "%s:\tWaiting\n", stateName)
+		if state.Waiting.Reason != "" {
+			w.Write(LEVEL_3, "Reason:\t%s\n", state.Waiting.Reason)
+		}
+	case state.Terminated != nil:
+		w.Write(LEVEL_2, "%s:\tTerminated\n", stateName)
+		if state.Terminated.Reason != "" {
+			w.Write(LEVEL_3, "Reason:\t%s\n", state.Terminated.Reason)
+		}
+		if state.Terminated.Message != "" {
+			w.Write(LEVEL_3, "Message:\t%s\n", state.Terminated.Message)
+		}
+		w.Write(LEVEL_3, "Exit Code:\t%d\n", state.Terminated.ExitCode)
+		if state.Terminated.Signal > 0 {
+			w.Write(LEVEL_3, "Signal:\t%d\n", state.Terminated.Signal)
+		}
+		w.Write(LEVEL_3, "Started:\t%s\n", state.Terminated.StartedAt.Time.Format(time.RFC1123Z))
+		w.Write(LEVEL_3, "Finished:\t%s\n", state.Terminated.FinishedAt.Time.Format(time.RFC1123Z))
+	default:
+		w.Write(LEVEL_2, "%s:\tWaiting\n", stateName)
+	}
+}
+
