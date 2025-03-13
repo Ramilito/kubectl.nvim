@@ -77,11 +77,14 @@ function M.user_command_completion(_, cmd)
 end
 
 function M.diff(path)
+  if path == "." then
+    path = vim.fn.expand("%:p")
+  end
   local buf = buffers.floating_buffer("k8s_diff", "diff")
 
   if config.options.diff.bin == "kubediff" then
     local column_size = vim.api.nvim_win_get_width(0)
-    local args = { "-t", column_size }
+    local args = { "-t", tostring(column_size) }
     if path then
       table.insert(args, "-p")
       table.insert(args, path)
