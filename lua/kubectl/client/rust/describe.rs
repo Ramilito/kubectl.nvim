@@ -1,45 +1,11 @@
-use k8s_openapi::api::core::v1::Container;
 use k8s_openapi::chrono::Utc;
-use k8s_openapi::serde_json::json;
+use kube::{api::Api, Client};
 use mlua::{Error as LuaError, Lua, Result as LuaResult};
-use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::fmt::{self, Write as FmtWrite};
 use std::sync::OnceLock;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tera::{from_value, to_value, Context, Error, Tera, Value};
 
-use k8s_openapi::{
-    api::{
-        apps::v1 as apps_v1,
-        autoscaling::v1 as autoscaling_v1,
-        autoscaling::v2 as autoscaling_v2,
-        batch::v1 as batch_v1,
-        // batch::v1beta1 as batch_v1beta1,
-        // certificates::v1beta1 as cert_v1beta1,
-        coordination::v1 as coord_v1,
-        core::v1 as core_v1,
-        discovery::v1 as discovery_v1,
-        // discovery::v1beta1 as discovery_v1beta1,
-        // extensions::v1beta1 as ext_v1beta1,
-        networking::v1 as net_v1,
-        networking::v1beta1 as net_v1beta1,
-        policy::v1 as policy_v1,
-        // policy::v1beta1 as policy_v1beta1,
-        rbac::v1 as rbac_v1,
-        scheduling::v1 as sched_v1,
-        storage::v1 as storage_v1,
-        storage::v1beta1 as storage_v1beta1,
-    },
-    apimachinery::pkg::{
-        apis::meta::v1 as meta_v1,
-        // runtime::RawExtension, // if needed
-    },
-};
-use kube::{
-    api::{Api, ListParams, Resource, ResourceExt},
-    Client,
-};
+use k8s_openapi::{api::core::v1 as core_v1};
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
@@ -54,7 +20,7 @@ fn skip_annotations() -> &'static BTreeSet<String> {
 }
 
 pub async fn describe_async(
-    lua: Lua,
+    _lua: Lua,
     args: (String, String, String, String, bool),
 ) -> LuaResult<String> {
     let (kind, namespace, name, group, show_events) = args;
@@ -122,7 +88,7 @@ pub async fn describe_pod(
     client: &Client,
     namespace: &str,
     name: &str,
-    show_events: bool,
+    _show_events: bool,
 ) -> LuaResult<String> {
     let pods: Api<core_v1::Pod> = Api::namespaced(client.clone(), namespace);
 
@@ -273,11 +239,11 @@ pub async fn describe_pod(
         .unwrap_or_else(|e| format!("Error rendering template: {}", e)))
 }
 
-fn translate_timestamp_since(ts: &meta_v1::Time) -> String {
-    let now = Utc::now();
-    let delta = now.signed_duration_since(ts.0);
-    format!("{}s", delta.num_seconds())
-}
+// fn translate_timestamp_since(ts: &meta_v1::Time) -> String {
+//     let now = Utc::now();
+//     let delta = now.signed_duration_since(ts.0);
+//     format!("{}s", delta.num_seconds())
+// }
 
 fn describe_containers(
     label: &str,
@@ -354,24 +320,24 @@ fn describe_containers(
     context.insert(label, &container_details);
 }
 
-fn describe_resources(resources: Option<&core_v1::ResourceRequirements>, context: &mut Context) {
-    if let Some(resources) = resources {
-        if let Some(limits) = &resources.limits {
-            let limits_map: BTreeMap<String, String> = limits
-                .iter()
-                .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
-                .collect();
-            context.insert("limits", &limits_map);
-        }
-        if let Some(requests) = &resources.requests {
-            let requests_map: BTreeMap<String, String> = requests
-                .iter()
-                .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
-                .collect();
-            context.insert("requests", &requests_map);
-        }
-    }
-}
+// fn describe_resources(resources: Option<&core_v1::ResourceRequirements>, context: &mut Context) {
+//     if let Some(resources) = resources {
+//         if let Some(limits) = &resources.limits {
+//             let limits_map: BTreeMap<String, String> = limits
+//                 .iter()
+//                 .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
+//                 .collect();
+//             context.insert("limits", &limits_map);
+//         }
+//         if let Some(requests) = &resources.requests {
+//             let requests_map: BTreeMap<String, String> = requests
+//                 .iter()
+//                 .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
+//                 .collect();
+//             context.insert("requests", &requests_map);
+//         }
+//     }
+// }
 
 fn describe_container_ports(c_ports: Option<&Vec<core_v1::ContainerPort>>) -> String {
     if let Some(ports_vec) = c_ports {
