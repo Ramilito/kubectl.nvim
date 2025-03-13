@@ -60,11 +60,19 @@ Init Containers:
         LocalhostProfile:  {{ localhost_profile }}
         {%- endif %}
     {%- endif %}
-    {%- if container.command is defined %}
-    {{ container.command }}
-    {%- endif %}
-    {%- if container.state is defined %}
-    {{ container.state }}
-    {%- endif %}
+		{%- if container.command is defined %}
+		{{ container.command | trim }}
+		{%- endif -%}
+		{{ "\n" }}
+		{% if container.state is defined %}
+		{{ container.state | trim }}
+		{%- endif %}
+		{%- if resources is defined  %}
+		{{ resources }}
+		{%- endif %}
+		{%- if probes is defined and probes != "" %}
+		Probes:
+		{{ probes }}
+		{%- endif %}
 {%- endfor %}
 {%- endif %}

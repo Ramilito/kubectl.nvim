@@ -1,3 +1,4 @@
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use k8s_openapi::chrono::Utc;
 use kube::{api::Api, Client};
 use mlua::{Error as LuaError, Lua, Result as LuaResult};
@@ -55,6 +56,17 @@ pub async fn describe_async(
     };
 
     rt.block_on(fut)
+}
+
+fn format_line(label: &str, value: &str, indent: usize, label_width: usize) -> String {
+    format!(
+        "{:indent$}{:<label_width$}{}\n",
+        "",
+        label,
+        value,
+        indent = indent,
+        label_width = label_width
+    )
 }
 
 fn pad(args: &HashMap<String, Value>) -> Result<Value, Error> {
@@ -313,30 +325,165 @@ fn describe_containers(
             let state_output = describe_container_state(status);
             details.insert("state".to_string(), state_output);
         }
-        container_details.push(details);
+
+        if let Some(resources) = container.resources.as_ref() {
+            let resources_output = describe_resources(Some(resources));
+            context.insert("resources", &resources_output);
+        }
+
+        let probes = describe_container_probe(&container, 4, 15);
+        details.insert("probes".to_string(), probes);
+
+        let env_from = container_details.push(details);
     }
 
     context.insert(label, &container_details);
 }
 
-// fn describe_resources(resources: Option<&core_v1::ResourceRequirements>, context: &mut Context) {
-//     if let Some(resources) = resources {
-//         if let Some(limits) = &resources.limits {
-//             let limits_map: BTreeMap<String, String> = limits
-//                 .iter()
-//                 .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
-//                 .collect();
-//             context.insert("limits", &limits_map);
-//         }
-//         if let Some(requests) = &resources.requests {
-//             let requests_map: BTreeMap<String, String> = requests
-//                 .iter()
-//                 .map(|(name, quantity)| (name.clone(), quantity.0.to_string()))
-//                 .collect();
-//             context.insert("requests", &requests_map);
-//         }
-//     }
-// }
+fn describe_probe(probe: &core_v1::Probe) -> String {
+    // Extract probe attributes with default values if absent.
+    let initial_delay = probe.initial_delay_seconds.unwrap_or(0);
+    let timeout = probe.timeout_seconds.unwrap_or(0);
+    let period = probe.period_seconds.unwrap_or(0);
+    let success_threshold = probe.success_threshold.unwrap_or(0);
+    let failure_threshold = probe.failure_threshold.unwrap_or(0);
+
+    let attrs = format!(
+        "delay={}s timeout={}s period={}s #success={} #failure={}",
+        initial_delay, timeout, period, success_threshold, failure_threshold
+    );
+
+    // Check for Exec probe.
+    if let Some(exec) = &probe.exec {
+        // exec.command is Option<Vec<String>>
+        let command = if let Some(commands) = &exec.command {
+            commands.join(" ")
+        } else {
+            "<none>".to_string()
+        };
+        return format!("exec {} {}", command, attrs);
+    }
+
+    // Check for HTTPGet probe.
+    if let Some(http_get) = &probe.http_get {
+        let scheme = http_get
+            .scheme
+            .clone()
+            .unwrap_or_else(|| "http".to_string())
+            .to_lowercase();
+        let host = http_get.host.clone().unwrap_or_default();
+        let port_str = match &http_get.port {
+            IntOrString::Int(i) => i.to_string(),
+            IntOrString::String(s) => s.clone(),
+        };
+        let host_port = if !port_str.is_empty() {
+            format!("{}:{}", host, port_str)
+        } else {
+            host
+        };
+        let path = http_get.path.clone().unwrap_or_default();
+        let url = format!("{}://{}{}", scheme, host_port, path);
+        return format!("http-get {} {}", url, attrs);
+    }
+
+    // Check for TCPSocket probe.
+    if let Some(tcp_socket) = &probe.tcp_socket {
+        let host = tcp_socket.host.clone().unwrap_or_default();
+        let port_str = match &tcp_socket.port {
+            IntOrString::Int(i) => i.to_string(),
+            IntOrString::String(s) => s.clone(),
+        };
+        return format!("tcp-socket {}:{} {}", host, port_str, attrs);
+    }
+
+    // Check for GRPC probe.
+    if let Some(grpc) = &probe.grpc {
+        let service = grpc.service.clone().unwrap_or_default();
+        return format!("grpc <pod>:{} {} {}", grpc.port, service, attrs);
+    }
+
+    // Fallback for unknown probe types.
+    format!("unknown {}", attrs)
+}
+
+fn describe_container_probe(
+    container: &core_v1::Container,
+    indent: usize,
+    label_width: usize,
+) -> String {
+    let mut output = String::new();
+
+    if let Some(liveness) = &container.liveness_probe {
+        let probe_str = describe_probe(liveness);
+        output.push_str(&format_line("Liveness:", &probe_str, indent, label_width));
+    }
+    if let Some(readiness) = &container.readiness_probe {
+        let probe_str = describe_probe(readiness);
+        output.push_str(&format_line("Readiness:", &probe_str, indent, label_width));
+    }
+    if let Some(startup) = &container.startup_probe {
+        let probe_str = describe_probe(startup);
+        output.push_str(&format_line("Startup:", &probe_str, indent, label_width));
+    }
+
+    output
+}
+
+fn describe_resources(resources: Option<&core_v1::ResourceRequirements>) -> String {
+    let mut output = String::new();
+    // Total padding length between the name and the quantity.
+    const TOTAL_PADDING: usize = 5;
+
+    if let Some(resources) = resources {
+        // Process Limits
+        if let Some(limits) = &resources.limits {
+            if !limits.is_empty() {
+                output.push_str("Limits:\n");
+                let mut names: Vec<&String> = limits.keys().collect();
+                names.sort();
+                for name in names {
+                    let quantity = &limits[name];
+                    let pad = if name.len() < TOTAL_PADDING {
+                        TOTAL_PADDING - name.len()
+                    } else {
+                        0
+                    };
+                    output.push_str(&format!(
+                        "      {}:{}\t{}\n",
+                        name,
+                        " ".repeat(pad),
+                        quantity.0.to_string()
+                    ));
+                }
+            }
+        }
+
+        // Process Requests
+        if let Some(requests) = &resources.requests {
+            if !requests.is_empty() {
+                output.push_str("Requests:\n");
+                let mut names: Vec<&String> = requests.keys().collect();
+                names.sort();
+                for name in names {
+                    let quantity = &requests[name];
+                    let pad = if name.len() < TOTAL_PADDING {
+                        TOTAL_PADDING - name.len()
+                    } else {
+                        0
+                    };
+                    output.push_str(&format!(
+                        "      {}:{}\t{}\n",
+                        name,
+                        " ".repeat(pad),
+                        quantity.0.to_string()
+                    ));
+                }
+            }
+        }
+    }
+
+    output
+}
 
 fn describe_container_ports(c_ports: Option<&Vec<core_v1::ContainerPort>>) -> String {
     if let Some(ports_vec) = c_ports {
@@ -403,84 +550,144 @@ fn describe_container_command(container: &core_v1::Container) -> String {
 
 fn describe_container_state(status: &core_v1::ContainerStatus) -> String {
     let mut output = String::new();
+    let indent = 8;
+    let label_width = 15;
 
-    // Describe current state
     if let Some(state) = &status.state {
         if let Some(running) = &state.running {
-            output.push_str("State:\t\tRunning\n");
+            output.push_str(&format_line("State:", "Running", 4, label_width));
             if let Some(started_at) = &running.started_at {
-                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+                output.push_str(&format_line(
+                    "Started:",
+                    &started_at.0.to_rfc2822(),
+                    indent,
+                    label_width,
+                ));
             }
         } else if let Some(waiting) = &state.waiting {
-            output.push_str("State:\t\tWaiting\n");
+            output.push_str(&format_line("State:", "Waiting", 4, label_width));
             if let Some(reason) = &waiting.reason {
-                output.push_str(&format!("      Reason:\t{}\n", reason));
+                output.push_str(&format_line("Reason:", reason, indent, label_width));
             }
         } else if let Some(terminated) = &state.terminated {
-            output.push_str("State:\t\tTerminated\n");
+            output.push_str(&format_line("State:", "Terminated", 4, label_width));
             if let Some(reason) = &terminated.reason {
-                output.push_str(&format!("      Reason:\t{}\n", reason));
+                output.push_str(&format_line("Reason:", reason, indent, label_width));
             }
             if let Some(message) = &terminated.message {
-                output.push_str(&format!("      Message:\t{}\n", message));
+                output.push_str(&format_line("Message:", message, indent, label_width));
             }
-            output.push_str(&format!("      Exit Code:\t{}\n", terminated.exit_code));
+            output.push_str(&format_line(
+                "Exit Code:",
+                &terminated.exit_code.to_string(),
+                indent,
+                label_width,
+            ));
             if let Some(signal) = terminated.signal {
-                output.push_str(&format!("      Signal:\t{}\n", signal));
+                output.push_str(&format_line(
+                    "Signal:",
+                    &signal.to_string(),
+                    indent,
+                    label_width,
+                ));
             }
             if let Some(started_at) = &terminated.started_at {
-                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+                output.push_str(&format_line(
+                    "Started:",
+                    &started_at.0.to_rfc2822(),
+                    indent,
+                    label_width,
+                ));
             }
             if let Some(finished_at) = &terminated.finished_at {
-                output.push_str(&format!(
-                    "      Finished:\t{}\n",
-                    finished_at.0.to_rfc2822()
+                output.push_str(&format_line(
+                    "Finished:",
+                    &finished_at.0.to_rfc2822(),
+                    indent,
+                    label_width,
                 ));
             }
         } else {
-            output.push_str("State:\t\tWaiting\n");
+            output.push_str(&format_line("State:", "Waiting", 4, label_width));
         }
     }
 
     // Describe last state if available
     if let Some(last_state) = &status.last_state {
         if let Some(terminated) = &last_state.terminated {
-            output.push_str("Last State:\tTerminated\n");
+            output.push_str(&format_line(
+                "Last State:",
+                "Terminated",
+                indent,
+                label_width,
+            ));
             if let Some(reason) = &terminated.reason {
-                output.push_str(&format!("      Reason:\t{}\n", reason));
+                output.push_str(&format_line("Last Reason:", reason, indent, label_width));
             }
             if let Some(message) = &terminated.message {
-                output.push_str(&format!("      Message:\t{}\n", message));
+                output.push_str(&format_line("Last Message:", message, indent, label_width));
             }
-            output.push_str(&format!("      Exit Code:\t{}\n", terminated.exit_code));
+            output.push_str(&format_line(
+                "Last Exit Code:",
+                &terminated.exit_code.to_string(),
+                indent,
+                label_width,
+            ));
             if let Some(signal) = terminated.signal {
-                output.push_str(&format!("      Signal:\t{}\n", signal));
+                output.push_str(&format_line(
+                    "Last Signal:",
+                    &signal.to_string(),
+                    indent,
+                    label_width,
+                ));
             }
             if let Some(started_at) = &terminated.started_at {
-                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+                output.push_str(&format_line(
+                    "Last Started:",
+                    &started_at.0.to_rfc2822(),
+                    indent,
+                    label_width,
+                ));
             }
             if let Some(finished_at) = &terminated.finished_at {
-                output.push_str(&format!(
-                    "      Finished:\t{}\n",
-                    finished_at.0.to_rfc2822()
+                output.push_str(&format_line(
+                    "Last Finished:",
+                    &finished_at.0.to_rfc2822(),
+                    indent,
+                    label_width,
                 ));
             }
         } else if let Some(running) = &last_state.running {
-            output.push_str("Last State:\tRunning\n");
+            output.push_str(&format_line("Last State:", "Running", indent, label_width));
             if let Some(started_at) = &running.started_at {
-                output.push_str(&format!("      Started:\t{}\n", started_at.0.to_rfc2822()));
+                output.push_str(&format_line(
+                    "Last Started:",
+                    &started_at.0.to_rfc2822(),
+                    indent,
+                    label_width,
+                ));
             }
         } else if let Some(waiting) = &last_state.waiting {
-            output.push_str("Last State:\tWaiting\n");
+            output.push_str(&format_line("Last State:", "Waiting", indent, label_width));
             if let Some(reason) = &waiting.reason {
-                output.push_str(&format!("      Reason:\t{}\n", reason));
+                output.push_str(&format_line("Last Reason:", reason, indent, label_width));
             }
         }
     }
 
     // Append Ready and Restart Count details
-    output.push_str(&format!("\t\tReady:\t{}\n", status.ready));
-    output.push_str(&format!("\t\tRestart Count:\t{}\n", status.restart_count));
+    output.push_str(&format_line(
+        "Ready:",
+        &status.ready.to_string(),
+        4,
+        label_width,
+    ));
+    output.push_str(&format_line(
+        "Restart Count:",
+        &status.restart_count.to_string(),
+        4,
+        label_width,
+    ));
 
     output
 }
