@@ -20,31 +20,47 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: target/x86_64-unknown-linux-gnu/release/libkubectl_client.so
+            go_os: linux
+            go_arch: amd64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: target/aarch64-unknown-linux-gnu/release/libkubectl_client.so
+            go_os: linux
+            go_arch: arm64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             artifact_name: target/x86_64-unknown-linux-musl/release/libkubectl_client.so
+            go_os: linux
+            go_arch: amd64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
             artifact_name: target/aarch64-unknown-linux-musl/release/libkubectl_client.so
+            go_os: linux
+            go_arch: arm64
           - os: ubuntu-latest
             target: aarch64-linux-android
             artifact_name: target/aarch64-linux-android/release/libkubectl_client.so
+            go_os: android
+            go_arch: arm64
 
           ## macOS builds
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: target/x86_64-apple-darwin/release/libkubectl_client.dylib
+            go_os: darwin
+            go_arch: amd64
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: target/aarch64-apple-darwin/release/libkubectl_client.dylib
+            go_os: darwin
+            go_arch: arm64
 
           ## Windows builds
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: target/x86_64-pc-windows-msvc/release/libkubectl_client.dll
+            go_os: windows
+            go_arch: amd64
 
     steps:
       - uses: actions/checkout@v4
@@ -58,12 +74,12 @@ jobs:
 
       - name: Build Go Library
         run: |
-          echo "Building Go static library..."
+          echo "Building Go static library for target ${{ matrix.target }}..."
           cd go
-          # Build the Go static library in c-archive mode.
-          go build -trimpath -ldflags "-s -w" -o libkubedescribe.a -buildmode=c-archive .
+          # Set GOOS/GOARCH based on matrix variables.
+          env GOOS=${{ matrix.go_os }} GOARCH=${{ matrix.go_arch }} CGO_ENABLED=1 \
+            go build -trimpath -ldflags "-s -w" -o libkubedescribe.a -buildmode=c-archive .
           cd ..
-          # Place the prebuilt library into a directory that build.rs will use.
           mkdir -p prebuilt_go_lib
           cp go/libkubedescribe.a prebuilt_go_lib/
         shell: bash
@@ -78,7 +94,7 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: |
           cargo install cross --git https://github.com/cross-rs/cross
-          # Set PREBUILT_GO_LIB so that build.rs links against the prebuilt Go library.
+          # Set PREBUILT_GO_LIB so build.rs uses our prebuilt Go library.
           PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cross build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.so"
         shell: bash
@@ -86,14 +102,14 @@ jobs:
       - name: Build for macOS
         if: contains(matrix.os, 'macos')
         run: |
-          MACOSX_DEPLOYMENT_TARGET="13" cargo build --release --target ${{ matrix.target }}
+          MACOSX_DEPLOYMENT_TARGET="13" PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cargo build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dylib"
         shell: bash
 
       - name: Build for Windows
         if: contains(matrix.os, 'windows')
         run: |
-          cargo build --release --target ${{ matrix.target }}
+          PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cargo build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dll"
         shell: bash
 
