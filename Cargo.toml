@@ -17,3 +17,9 @@ serde = "1.0.218"
 serde_yaml = "0.9.34"
 tera = "1.20.0"
 
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
+    let _ = std::fs::remove_file("target/release/version");
     let status = Command::new("go")
         .args(&[
             "build",
@@ -12,8 +13,8 @@ fn main() {
             "-ldflags",
             "-s -w", // strip debug info and symbol tables
             "-o",
-            "libkubedescribe.a",
-            "-buildmode=c-archive",
+            "libkubedescribe.so",
+            "-buildmode=c-shared",
         ])
         .status()
         .expect("Failed to execute Go build");
@@ -26,5 +27,8 @@ fn main() {
     let lib_path = PathBuf::from(format!("{}/{}", &manifest_dir, "go"));
 
     println!("cargo:rustc-link-search=native={}", lib_path.display());
-    println!("cargo:rustc-link-lib=static=kubedescribe");
+    // println!("cargo:rustc-link-lib=static=kubedescribe");
+    println!("cargo:rustc-link-lib=dylib=kubedescribe");
+
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_path.display());
 }
