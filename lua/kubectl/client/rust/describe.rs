@@ -17,9 +17,9 @@ extern "C" {
 
 pub async fn describe_async(
     _lua: Lua,
-    args: (String, String, String, String, bool),
+    args: (String, String, String, String),
 ) -> LuaResult<String> {
-    let (kind, namespace, name, group, show_events) = args;
+    let (kind, namespace, name, group) = args;
 
     let rt_guard = RUNTIME.lock().unwrap();
     let rt = rt_guard

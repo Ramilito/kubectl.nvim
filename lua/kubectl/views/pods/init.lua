@@ -215,7 +215,7 @@ function M.Desc(name, ns, reload)
     kind = "pods",
     cmd = "describe_async",
   }
-  ResourceBuilder:view_float(def, { args = { def.kind, ns, name, definition.group, true }, reload = reload })
+  ResourceBuilder:view_float(def, { args = { def.kind, ns, name, definition.group }, reload = reload })
 end
 
 --- Get current seletion for view
