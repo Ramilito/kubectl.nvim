@@ -1,1 +1,3 @@
 /target
+./go/libkubedescribe.h
+./go/libkubedescribe.so
