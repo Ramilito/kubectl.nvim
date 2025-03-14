@@ -51,11 +51,11 @@ jobs:
             go_arch: arm64
 
           ## Windows builds
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: target/x86_64-pc-windows-msvc/release/libkubectl_client.dll
-            go_os: windows
-            go_arch: amd64
+          # - os: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   artifact_name: target/x86_64-pc-windows-msvc/release/libkubectl_client.dll
+          #   go_os: windows
+          #   go_arch: amd64
 
     steps:
       - uses: actions/checkout@v4

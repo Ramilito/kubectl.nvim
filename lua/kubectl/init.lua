@@ -13,8 +13,8 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   local kube = require("kubectl.actions.kube")
-  -- local client = require("kubectl.client")
-  -- client.set_implementation()
+  local client = require("kubectl.client")
+  client.set_implementation()
 
   hl.setup()
   kube.start_kubectl_proxy(function()
@@ -160,7 +160,7 @@ function M.download_if_available(callback)
       vim.notify("[Kubectl.nvim] Downloading prebuilt binary...", vim.log.levels.INFO, { title = "kubectl.nvim" })
     end,
 
-    root_dir,
+    root_dir = root_dir,
     output_dir = "/target/release",
     binary_name = "kubectl_client.so", -- excluding `lib` prefix
   }, callback)
