@@ -136,4 +136,31 @@ function M.setup(options)
   })
 end
 
+function M.download_if_available(callback)
+  local success, downloader = pcall(require, 'blink.download')
+  if not success then return callback() end
+
+  -- See https://github.com/Saghen/blink.download for more info
+  local root_dir = vim.fn.resolve(debug.getinfo(1).source:match('@?(.*/)') .. '../../')
+
+  downloader.ensure_downloaded({
+    -- omit this property to disable downloading
+    -- i.e. https://github.com/Saghen/blink.delimiters/releases/download/v0.1.0/x86_64-unknown-linux-gnu.so
+    download_url = function(version, system_triple, extension)
+      return 'https://github.com/ramilito/kubectl.nvim/releases/download/'
+        .. version
+        .. '/'
+        .. system_triple
+        .. extension
+    end,
+    on_download = function()
+      vim.notify('[Kubectl.nvim] Downloading prebuilt binary...', vim.log.levels.INFO, { title = 'kubectl.nvim' })
+    end,
+
+    root_dir,
+    output_dir = '/target/release',
+    binary_name = 'your_plugin', -- excluding `lib` prefix
+  }, callback)
+end
+
 return M
