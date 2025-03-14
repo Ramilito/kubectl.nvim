@@ -37,11 +37,6 @@ jobs:
             artifact_name: target/aarch64-unknown-linux-musl/release/libkubectl_client.so
             go_os: linux
             go_arch: arm64
-          - os: ubuntu-latest
-            target: aarch64-linux-android
-            artifact_name: target/aarch64-linux-android/release/libkubectl_client.so
-            go_os: android
-            go_arch: arm64
 
           ## macOS builds
           - os: macos-latest
@@ -86,8 +81,8 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install nightly
-          rustup default nightly
+          rustup toolchain install stable
+          rustup default stable
           rustup target add ${{ matrix.target }}
 
       - name: Build for Linux
