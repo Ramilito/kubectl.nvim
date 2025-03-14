@@ -19,32 +19,32 @@ jobs:
           ## Linux builds
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: target/x86_64-unknown-linux-gnu/release/libyour_plugin.so
+            artifact_name: target/x86_64-unknown-linux-gnu/release/libkubectl_client.so
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: target/aarch64-unknown-linux-gnu/release/libyour_plugin.so
+            artifact_name: target/aarch64-unknown-linux-gnu/release/libkubectl_client.so
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            artifact_name: target/x86_64-unknown-linux-musl/release/libyour_plugin.so
+            artifact_name: target/x86_64-unknown-linux-musl/release/libkubectl_client.so
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            artifact_name: target/aarch64-unknown-linux-musl/release/libyour_plugin.so
+            artifact_name: target/aarch64-unknown-linux-musl/release/libkubectl_client.so
           - os: ubuntu-latest
             target: aarch64-linux-android
-            artifact_name: target/aarch64-linux-android/release/libyour_plugin.so
+            artifact_name: target/aarch64-linux-android/release/libkubectl_client.so
 
           ## macOS builds
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: target/x86_64-apple-darwin/release/libyour_plugin.dylib
+            artifact_name: target/x86_64-apple-darwin/release/libkubectl_client.dylib
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: target/aarch64-apple-darwin/release/libyour_plugin.dylib
+            artifact_name: target/aarch64-apple-darwin/release/libkubectl_client.dylib
 
           ## Windows builds
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: target/x86_64-pc-windows-msvc/release/your_plugin.dll
+            artifact_name: target/x86_64-pc-windows-msvc/release/libkubectl_client.dll
 
     steps:
       - uses: actions/checkout@v4
