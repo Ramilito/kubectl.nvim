@@ -67,11 +67,22 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Install ARM64 cross-compiler (Linux)
+        if: ${{ matrix.go_os == 'linux' && matrix.go_arch == 'arm64' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        shell: bash
+
       - name: Build Go Library
         run: |
           echo "Building Go static library for target ${{ matrix.target }}..."
           cd go
-          # Set GOOS/GOARCH based on matrix variables.
+          # Set GOOS, GOARCH, and enable CGO.
+          # If building for Linux/ARM64, set CC to the cross compiler.
+          if [ "${{ matrix.go_os }}" = "linux" ] && [ "${{ matrix.go_arch }}" = "arm64" ]; then
+            export CC=aarch64-linux-gnu-gcc
+          fi
           env GOOS=${{ matrix.go_os }} GOARCH=${{ matrix.go_arch }} CGO_ENABLED=1 \
             go build -trimpath -ldflags "-s -w" -o libkubedescribe.a -buildmode=c-archive .
           cd ..
@@ -89,7 +100,7 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: |
           cargo install cross --git https://github.com/cross-rs/cross
-          # Set PREBUILT_GO_LIB so build.rs uses our prebuilt Go library.
+          # Pass PREBUILT_GO_LIB so that build.rs links against our prebuilt Go library.
           PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cross build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.so"
         shell: bash
