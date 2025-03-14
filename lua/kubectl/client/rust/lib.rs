@@ -11,7 +11,7 @@ use crate::cmd::get::get_async;
 use crate::processors::get_processors;
 
 mod cmd;
-mod describenew;
+mod describe;
 mod events;
 mod processors;
 mod resources;
@@ -149,7 +149,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("edit_async", lua.create_async_function(edit_async)?)?;
     exports.set(
         "describe_async",
-        lua.create_async_function(describenew::describe_async)?,
+        lua.create_async_function(describe::describe_async)?,
     )?;
     exports.set(
         "log_stream_async",
