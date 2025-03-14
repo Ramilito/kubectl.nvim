@@ -13,6 +13,8 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   local kube = require("kubectl.actions.kube")
+  -- local client = require("kubectl.client")
+  -- client.set_implementation()
 
   hl.setup()
   kube.start_kubectl_proxy(function()
@@ -57,31 +59,28 @@ function M.setup(options)
   local config = require("kubectl.config")
   local loop = require("kubectl.utils.loop")
   M.download_if_available(function(err)
-    local client = require("kubectl.client")
-    client.set_implementation()
     config.setup(options)
     state.setNS(config.options.namespace)
-  end)
+    local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
+    vim.api.nvim_create_autocmd("FileType", {
+      group = group,
+      pattern = "k8s_*",
+      callback = function(ev)
+        mappings.setup(ev)
+        state.set_session(ev)
 
-  local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
-  vim.api.nvim_create_autocmd("FileType", {
-    group = group,
-    pattern = "k8s_*",
-    callback = function(ev)
-      mappings.setup(ev)
-      state.set_session(ev)
+        local win_config = vim.api.nvim_win_get_config(0)
 
-      local win_config = vim.api.nvim_win_get_config(0)
-
-      if win_config.relative == "" then
-        if not loop.is_running(ev.buf) then
-          local current_view = require("kubectl.views").view_and_definition(ev.file)
-          loop.start_loop(current_view.Draw, { buf = ev.buf })
-          vim.opt_local.foldmethod = "indent"
+        if win_config.relative == "" then
+          if not loop.is_running(ev.buf) then
+            local current_view = require("kubectl.views").view_and_definition(ev.file)
+            loop.start_loop(current_view.Draw, { buf = ev.buf })
+            vim.opt_local.foldmethod = "indent"
+          end
         end
-      end
-    end,
-  })
+      end,
+    })
+  end)
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local action = opts.fargs[1]
