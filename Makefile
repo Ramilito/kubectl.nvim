@@ -9,3 +9,6 @@ luacheck:
 stylua:
 	stylua lua
 
+.PHONY: build
+build:
+	cargo build --release
