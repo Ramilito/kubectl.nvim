@@ -212,7 +212,7 @@ function M.Desc(name, ns, reload)
     ft = "k8s_desc",
     url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
-    kind = "pod",
+    kind = "pods",
     cmd = "describe_async",
   }
   ResourceBuilder:view_float(def, { args = { def.kind, ns, name, definition.group, true }, reload = reload })

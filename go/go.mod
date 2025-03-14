@@ -1,6 +1,6 @@
 module github.com/ramilito/kube-describe-shim
 
-go 1.24.0
+go 1.24
 
 require (
 	k8s.io/apimachinery v0.26.3
