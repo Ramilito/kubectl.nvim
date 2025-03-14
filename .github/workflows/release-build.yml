@@ -1,6 +1,7 @@
 name: Release-build
 
 on:
+
   pull_request: ~
   workflow_dispatch:
   push:
@@ -54,11 +55,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'  # adjust to your preferred Go version
-
       - name: Install Rust
         run: |
           rustup toolchain install nightly
@@ -71,38 +67,26 @@ jobs:
           cargo install cross --git https://github.com/cross-rs/cross
           cross build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.so"
-          # Create a folder for the Go library artifacts.
-          mkdir -p go_artifacts
-          # Copy all generated Go library files into the artifacts folder.
-          cp go/libkubedescribe.* go_artifacts/
-      
+
       - name: Build for macOS
         if: contains(matrix.os, 'macos')
         run: |
+          # Ventura (https://en.wikipedia.org/wiki/MacOS_version_history#Releases)
           MACOSX_DEPLOYMENT_TARGET="13" cargo build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dylib"
-          # If your build.rs produces Go artifacts on macOS, copy them similarly.
-          mkdir -p go_artifacts
-          cp go/libkubedescribe.* go_artifacts/
-      
+
       - name: Build for Windows
         if: contains(matrix.os, 'windows')
         run: |
           cargo build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dll"
-          # If your Go library is built for Windows, copy its artifacts as well.
-          mkdir -p go_artifacts
-          copy go\libkubedescribe.* go_artifacts\
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          # Upload both the plugin and the Go library artifacts.
-          path: |
-            ${{ matrix.target }}.*
-            go_artifacts/
-  
+          path: ${{ matrix.target }}.*
+
   release:
     name: Release
     needs: build

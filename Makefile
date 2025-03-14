@@ -11,4 +11,5 @@ stylua:
 
 .PHONY: build
 build:
+	go build -trimpath -ldflags="-s -w" -buildmode=c-archive -o libkubedescribe.a
 	cargo build --release
