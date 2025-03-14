@@ -1,7 +1,6 @@
 name: Release-build
 
 on:
-
   pull_request: ~
   workflow_dispatch:
   push:
@@ -18,21 +17,18 @@ jobs:
       matrix:
         include:
           ## Linux builds
-          # Glibc 2.21
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: target/x86_64-unknown-linux-gnu/release/libyour_plugin.so
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: target/aarch64-unknown-linux-gnu/release/libyour_plugin.so
-          # Musl 1.2.3
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             artifact_name: target/x86_64-unknown-linux-musl/release/libyour_plugin.so
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
             artifact_name: target/aarch64-unknown-linux-musl/release/libyour_plugin.so
-          # Android (Termux)
           - os: ubuntu-latest
             target: aarch64-linux-android
             artifact_name: target/aarch64-linux-android/release/libyour_plugin.so
@@ -55,6 +51,23 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build Go Library
+        run: |
+          echo "Building Go static library..."
+          cd go
+          # Build the Go static library in c-archive mode.
+          go build -trimpath -ldflags "-s -w" -o libkubedescribe.a -buildmode=c-archive .
+          cd ..
+          # Place the prebuilt library into a directory that build.rs will use.
+          mkdir -p prebuilt_go_lib
+          cp go/libkubedescribe.a prebuilt_go_lib/
+        shell: bash
+
       - name: Install Rust
         run: |
           rustup toolchain install nightly
@@ -65,21 +78,24 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: |
           cargo install cross --git https://github.com/cross-rs/cross
-          cross build --release --target ${{ matrix.target }}
+          # Set PREBUILT_GO_LIB so that build.rs links against the prebuilt Go library.
+          PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cross build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.so"
+        shell: bash
 
       - name: Build for macOS
         if: contains(matrix.os, 'macos')
         run: |
-          # Ventura (https://en.wikipedia.org/wiki/MacOS_version_history#Releases)
           MACOSX_DEPLOYMENT_TARGET="13" cargo build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dylib"
+        shell: bash
 
       - name: Build for Windows
         if: contains(matrix.os, 'windows')
         run: |
           cargo build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dll"
+        shell: bash
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
