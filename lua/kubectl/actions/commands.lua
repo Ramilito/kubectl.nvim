@@ -202,6 +202,18 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   return handle
 end
 
+function M.run_async(method_name, args, callback)
+  vim.uv
+    .new_work(function(cpath, method, ...)
+      package.cpath = cpath
+      local mod = require("kubectl_client")
+      return mod[method](...)
+    end, function(data)
+      callback(data)
+    end)
+    :queue(package.cpath, method_name, unpack(args))
+end
+
 --- Execute a shell command using io.popen
 --- @param cmd string The command to execute
 --- @param args string|string[] The arguments for the command

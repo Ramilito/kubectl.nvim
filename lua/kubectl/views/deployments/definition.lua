@@ -3,6 +3,12 @@ local M = {
   display_name = "Deployments",
   ft = "k8s_deployments",
   url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}deployments?pretty=false" },
+  resource_name = "deployment",
+  group = "apps",
+  version = "v1",
+  informer = {
+    enabled = true,
+  },
   hints = {
     { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change deployment image" },
     { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },
@@ -12,6 +18,23 @@ local M = {
 }
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+function M.getReady(row)
+  local status = { symbol = "", value = "", sort_by = 0 }
+  local available = tonumber(row.status and (row.status.availableReplicas or row.status.readyReplicas) or "0")
+  local unavailable = tonumber(row.status and row.status.unavailableReplicas or "0")
+  local replicas = tonumber(row.spec.replicas or (row.status and row.status.replicas) or "0")
+
+  if available == replicas and unavailable == 0 then
+    status.symbol = hl.symbols.note
+  else
+    status.symbol = hl.symbols.deprecated
+  end
+
+  status.value = available .. "/" .. replicas
+  status.sort_by = (available * 1000) + replicas
+  return status
+end
 
 function M.processRow(rows)
   local data = {}
@@ -48,23 +71,6 @@ function M.getHeaders()
   }
 
   return headers
-end
-
-function M.getReady(row)
-  local status = { symbol = "", value = "", sort_by = 0 }
-  local available = tonumber(row.status and (row.status.availableReplicas or row.status.readyReplicas) or "0")
-  local unavailable = tonumber(row.status and row.status.unavailableReplicas or "0")
-  local replicas = tonumber(row.spec.replicas or (row.status and row.status.replicas) or "0")
-
-  if available == replicas and unavailable == 0 then
-    status.symbol = hl.symbols.note
-  else
-    status.symbol = hl.symbols.deprecated
-  end
-
-  status.value = available .. "/" .. replicas
-  status.sort_by = (available * 1000) + replicas
-  return status
 end
 
 return M

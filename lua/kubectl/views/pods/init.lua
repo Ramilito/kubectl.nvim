@@ -5,16 +5,18 @@ local definition = require("kubectl.views.pods.definition")
 local hl = require("kubectl.actions.highlight")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
+local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 
 local M = {
+  definition = definition,
   selection = {},
   pfs = {},
   tail_handle = nil,
-  show_log_prefix = tostring(config.options.logs.prefix),
+  show_log_prefix = config.options.logs.prefix,
   log_since = config.options.logs.since,
-  show_timestamps = tostring(config.options.logs.timestamps),
-  show_previous = "false",
+  show_timestamps = config.options.logs.timestamps,
+  show_previous = false,
 }
 
 function M.View(cancellationToken)
@@ -24,12 +26,14 @@ function M.View(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
-  root_definition.setPortForwards(
-    state.instance[definition.resource].extmarks,
-    state.instance[definition.resource].prettyData,
-    M.pfs
-  )
+  if state.instance[definition.resource] then
+    state.instance[definition.resource]:draw(definition, cancellationToken)
+    root_definition.setPortForwards(
+      state.instance[definition.resource].extmarks,
+      state.instance[definition.resource].prettyData,
+      M.pfs
+    )
+  end
 end
 
 function M.TailLogs(pod, ns, container)
@@ -37,54 +41,64 @@ function M.TailLogs(pod, ns, container)
   ns = ns or M.selection.ns
   container = container or M.selection.container
   local ntfy = " tailing: " .. pod
-  local args = { "logs", "--follow", "--since=1s", pod, "-n", ns }
-  if container then
-    ntfy = ntfy .. " container: " .. container
-    table.insert(args, "-c")
-    table.insert(args, container)
-  else
-    table.insert(args, "--all-containers=true")
-    table.insert(args, "--prefix=" .. M.show_log_prefix)
-    table.insert(args, "--timestamps=" .. M.show_timestamps)
+
+  local function stop_tailing()
+    if M.tail_handle and not M.tail_handle:is_closing() then
+      M.tail_handle:stop()
+      M.tail_handle:close()
+      vim.notify("Stopped" .. ntfy)
+    end
   end
-  local buf = vim.api.nvim_get_current_buf()
+  if M.tail_handle and not M.tail_handle:is_closing() then
+    stop_tailing()
+    return
+  end
+
   local logs_win = vim.api.nvim_get_current_win()
+  local buf = vim.api.nvim_get_current_buf()
+
   vim.api.nvim_win_set_cursor(logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
 
-  local function handle_output(data)
-    vim.schedule(function()
-      if vim.api.nvim_buf_is_valid(buf) then
-        local line_count = vim.api.nvim_buf_line_count(buf)
-        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
-        vim.api.nvim_set_option_value("modified", false, { buf = buf })
-        if logs_win == vim.api.nvim_get_current_win() then
-          vim.api.nvim_win_set_cursor(0, { line_count + 1, 0 })
+  local function fetch_logs()
+    commands.run_async("log_stream_async", {
+      pod,
+      ns,
+      "1s",
+      M.show_previous,
+      M.show_timestamps,
+      M.show_log_prefix,
+    }, function(data)
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(buf) then
+          local line_count = vim.api.nvim_buf_line_count(buf)
+          vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
+          vim.api.nvim_set_option_value("modified", false, { buf = buf })
+          if logs_win == vim.api.nvim_get_current_win() then
+            vim.api.nvim_win_set_cursor(0, { line_count, 0 })
+          end
         end
-      end
+      end)
     end)
   end
 
-  local function stop_tailing(handle)
-    handle:kill(2)
-    vim.notify("Stopped" .. ntfy, vim.log.levels.INFO)
-  end
+  M.tail_handle = vim.uv.new_timer()
+  M.tail_handle:start(0, 1000, function()
+    fetch_logs()
+  end)
+
+  vim.schedule(function()
+    vim.notify(ntfy)
+  end)
 
   local group = vim.api.nvim_create_augroup("__kubectl_tailing", { clear = false })
-  if M.tail_handle and not M.tail_handle:is_closing() then
-    vim.api.nvim_clear_autocmds({ group = group })
-    stop_tailing(M.tail_handle)
-  else
-    M.tail_handle = commands.shell_command_async("kubectl", args, nil, handle_output)
-
-    vim.notify("Started " .. ntfy, vim.log.levels.INFO)
-    vim.api.nvim_create_autocmd("BufWinLeave", {
-      group = group,
-      buffer = buf,
-      callback = function()
-        stop_tailing(M.tail_handle)
-      end,
-    })
-  end
+  vim.api.nvim_create_autocmd("BufWinLeave", {
+    group = group,
+    buffer = buf,
+    callback = function()
+      stop_tailing()
+    end,
+  })
+  -- end
 end
 
 function M.selectPod(pod, ns)
@@ -95,94 +109,104 @@ function M.Logs(reload)
   local def = {
     resource = "logs",
     ft = "k8s_pod_logs",
-    url = {
-      "logs",
-      "-p=" .. M.show_previous,
-      "--all-containers=true",
-      "--since=" .. M.log_since,
-      "--prefix=" .. M.show_log_prefix,
-      "--timestamps=" .. M.show_timestamps,
-      M.selection.pod,
-      "-n",
-      M.selection.ns,
-    },
     syntax = "less",
+    name = M.selection.pod,
+    namespace = M.selection.ns,
+    since = M.log_since,
+    cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
-      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. M.show_log_prefix .. "]" },
-      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. M.show_timestamps .. "]" },
+      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. tostring(M.show_log_prefix) .. "]" },
+      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. tostring(M.show_timestamps) .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
-      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. M.show_previous .. "]" },
+      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. tostring(M.show_previous) .. "]" },
     },
   }
 
-  if reload == false and M.tail_handle then
-    M.tail_handle:kill(2)
-    M.tail_handle = nil
-    vim.schedule(function()
-      M.TailLogs(M.selection.pod, M.selection.ns)
-    end)
-  end
-  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+  ResourceBuilder:view_float(def, {
+    reload = reload,
+    args = { def.name, def.namespace, def.since, M.show_previous, M.show_timestamps, M.show_log_prefix },
+  })
 end
 
 function M.PortForward(pod, ns)
-  local builder = ResourceBuilder:new("kubectl_pf")
-  local pf_def = {
+  local def = {
     ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
     resource = pod,
-    cmd = { "port-forward", "pods/" .. pod, "-n", ns },
+    cmd = { "port-forward", pod, "-n", ns },
+    resource_name = string_utils.capitalize(definition.resource_name),
+    name = pod,
+    ns = ns,
+    group = definition.group,
+    version = definition.version,
   }
 
-  local resource = tables.find_resource(state.instance[definition.resource].data, pod, ns)
-  if not resource then
-    return
-  end
-  local containers = {}
-  for _, container in ipairs(resource.spec.containers) do
-    if container.ports then
-      for _, port in ipairs(container.ports) do
-        local name
-        if port.name and container.name then
-          name = container.name .. "::(" .. port.name .. ")"
-        elseif container.name then
-          name = container.name
-        else
-          name = nil
-        end
+  commands.run_async("get_async", {
+    def.resource_name,
+    def.ns,
+    def.name,
+    def.group,
+    def.version,
+    def.syntax,
+  }, function(data)
+    local containers = {}
+    local builder = ResourceBuilder:new("kubectl_pf")
+    builder.data = data
+    builder:decodeJson()
+    for _, container in ipairs(builder.data.spec.containers) do
+      if container.ports then
+        for _, port in ipairs(container.ports) do
+          local name
+          if port.name and container.name then
+            name = container.name .. "::(" .. port.name .. ")"
+          elseif container.name then
+            name = container.name
+          else
+            name = nil
+          end
 
-        table.insert(containers, {
-          name = { value = name, symbol = hl.symbols.pending },
-          port = { value = port.containerPort, symbol = hl.symbols.success },
-          protocol = port.protocol,
-        })
+          table.insert(containers, {
+            name = { value = name, symbol = hl.symbols.pending },
+            port = { value = port.containerPort, symbol = hl.symbols.success },
+            protocol = port.protocol,
+          })
+        end
       end
     end
-  end
-  if next(containers) == nil then
-    containers[1] = { port = { value = "" }, name = { value = "" } }
-  end
-  builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
-  table.insert(builder.data, " ")
 
-  local data = {
-    {
-      text = "address:",
-      value = "localhost",
-      options = { "localhost", "0.0.0.0" },
-      cmd = "--address",
-      type = "option",
-    },
-    { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
-    { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
-  }
+    if next(containers) == nil then
+      containers[1] = { port = { value = "" }, name = { value = "" } }
+    end
 
-  builder:action_view(pf_def, data, function(args)
-    commands.shell_command_async("kubectl", args)
     vim.schedule(function()
-      M.View()
+      builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
+      table.insert(builder.data, " ")
+
+      local data = {
+        {
+          text = "address:",
+          value = "localhost",
+          options = { "localhost", "0.0.0.0" },
+          cmd = "--address",
+          type = "option",
+        },
+        { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
+        { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
+      }
+
+      builder:action_view(def, data, function(args)
+        local name, ns = args
+        vim.print(args)
+        commands.run_async("port_forward_async", { args[2], args[4] }, function(err)
+          print(err)
+          -- vim.schedule(function()
+          --   M.View()
+          -- end)
+        end)
+        -- commands.shell_command_async("kubectl", args)
+      end)
     end)
   end)
 end
@@ -193,8 +217,10 @@ function M.Desc(name, ns, reload)
     ft = "k8s_desc",
     url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
+    kind = "pods",
+    cmd = "describe_async",
   }
-  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+  ResourceBuilder:view_float(def, { args = { def.kind, ns, name, definition.group }, reload = reload })
 end
 
 --- Get current seletion for view

@@ -482,7 +482,10 @@ function M.pretty_print(data, headers, sort_by, win)
   local selections = state.selections
   -- Create table rows
   for row_index, row in ipairs(data) do
-    local is_selected = M.is_selected(row, selections)
+    local is_selected = false
+    if #selections > 0 then
+      is_selected = M.is_selected(row, selections)
+    end
     local row_line = {}
     local current_col_position = 0
     if is_selected then
@@ -594,6 +597,11 @@ function M.find_resource(data, name, namespace)
     return vim.iter(data.rows):find(function(row)
       return row.object.metadata.name == name and (namespace and row.object.metadata.namespace == namespace or true)
     end).object
+  end
+  if data then
+    return vim.iter(data):find(function(row)
+      return row.name == name and (row.namespace == namespace or true)
+    end)
   end
   return nil
 end

@@ -56,27 +56,32 @@ function M.setup(options)
   local mappings = require("kubectl.mappings")
   local config = require("kubectl.config")
   local loop = require("kubectl.utils.loop")
-  config.setup(options)
-  state.setNS(config.options.namespace)
+  M.download_if_available(function(err)
+    local client = require("kubectl.client")
+    client.set_implementation()
 
-  local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
-  vim.api.nvim_create_autocmd("FileType", {
-    group = group,
-    pattern = "k8s_*",
-    callback = function(ev)
-      mappings.setup(ev)
-      state.set_session(ev)
+    config.setup(options)
+    state.setNS(config.options.namespace)
+    local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
+    vim.api.nvim_create_autocmd("FileType", {
+      group = group,
+      pattern = "k8s_*",
+      callback = function(ev)
+        mappings.setup(ev)
+        state.set_session(ev)
 
-      local win_config = vim.api.nvim_win_get_config(0)
+        local win_config = vim.api.nvim_win_get_config(0)
 
-      if win_config.relative == "" then
-        if not loop.is_running(ev.buf) then
-          local current_view = require("kubectl.views").view_and_definition(ev.file)
-          loop.start_loop(current_view.Draw, { buf = ev.buf })
+        if win_config.relative == "" then
+          if not loop.is_running(ev.buf) then
+            local current_view = require("kubectl.views").view_and_definition(ev.file)
+            loop.start_loop(current_view.Draw, { buf = ev.buf })
+            vim.opt_local.foldmethod = "indent"
+          end
         end
-      end
-    end,
-  })
+      end,
+    })
+  end)
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
     local action = opts.fargs[1]
@@ -131,6 +136,35 @@ function M.setup(options)
     nargs = "*",
     complete = ctx_view.list_contexts,
   })
+end
+
+function M.download_if_available(callback)
+  local success, downloader = pcall(require, "blink.download")
+  if not success then
+    return callback()
+  end
+
+  -- See https://github.com/Saghen/blink.download for more info
+  local root_dir = vim.fn.resolve(debug.getinfo(1).source:match("@?(.*/)") .. "../../")
+
+  downloader.ensure_downloaded({
+    -- omit this property to disable downloading
+    -- i.e. https://github.com/Saghen/blink.delimiters/releases/download/v0.1.0/x86_64-unknown-linux-gnu.so
+    download_url = function(version, system_triple, extension)
+      return "https://github.com/ramilito/kubectl.nvim/releases/download/"
+        .. version
+        .. "/"
+        .. system_triple
+        .. extension
+    end,
+    on_download = function()
+      vim.notify("[Kubectl.nvim] Downloading prebuilt binary...", vim.log.levels.INFO, { title = "kubectl.nvim" })
+    end,
+
+    root_dir = root_dir,
+    output_dir = "/target/release",
+    binary_name = "kubectl_client", -- excluding `lib` prefix
+  }, callback)
 end
 
 return M

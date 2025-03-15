@@ -3,14 +3,18 @@ local definition = require("kubectl.views.deployments.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local M = {
+  definition = definition,
+}
 
 function M.View(cancellationToken)
   ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  if state.instance[definition.resource] then
+    state.instance[definition.resource]:draw(definition, cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)

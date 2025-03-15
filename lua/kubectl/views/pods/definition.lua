@@ -7,6 +7,12 @@ local M = {
   display_name = "Pods",
   ft = "k8s_pods",
   url = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" },
+  resource_name = "pod",
+  group = "",
+  version = "v1",
+  informer = {
+    enabled = true,
+  },
   hints = {
     { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
     { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
@@ -190,27 +196,26 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
   local currentTime = time.currentTime()
-  if rows and rows.items then
-    for i = 1, #rows.items do
-      -- Set managedFields to nil so the garbage collector can free up the memory
-      rows.items[i].metadata.managedFields = nil
-
-      local row = rows.items[i]
-      data[i] = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        ready = getReady(row),
-        status = getPodStatus(row),
-        restarts = getRestarts(row, currentTime),
-        ip = row.status and row.status.podIP or "",
-        node = row.spec and row.spec.nodeName or "",
-        age = time.since(row.metadata.creationTimestamp, true, currentTime),
-      }
+  if rows then
+    for i = 1, #rows do
+      local row = rows[i]
+      if row then
+        data[i] = {
+          namespace = row.metadata.namespace,
+          name = row.metadata.name,
+          ready = getReady(row),
+          status = getPodStatus(row),
+          restarts = getRestarts(row, currentTime),
+          ip = row.status and row.status.podIP or "",
+          node = row.spec and row.spec.nodeName or "",
+          age = time.since(row.metadata.creationTimestamp, true, currentTime),
+        }
+      end
     end
   end
   return data
