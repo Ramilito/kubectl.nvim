@@ -13,8 +13,6 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   local kube = require("kubectl.actions.kube")
-  local client = require("kubectl.client")
-  client.set_implementation()
 
   hl.setup()
   kube.start_kubectl_proxy(function()
@@ -59,6 +57,9 @@ function M.setup(options)
   local config = require("kubectl.config")
   local loop = require("kubectl.utils.loop")
   M.download_if_available(function(err)
+    local client = require("kubectl.client")
+    client.set_implementation()
+
     config.setup(options)
     state.setNS(config.options.namespace)
     local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
