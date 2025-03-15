@@ -3,6 +3,7 @@ use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
 use k8s_openapi::chrono::{DateTime, Duration, Utc};
 use k8s_openapi::serde_json::{self};
 use kube::api::{DynamicObject, LogParams};
+
 use kube::Api;
 use mlua::prelude::*;
 use mlua::Lua;
@@ -508,3 +509,43 @@ pub async fn log_stream_async(
     rt.block_on(fut)
 }
 
+pub async fn port_forward_async(_lua: mlua::Lua, args: (String, String)) -> mlua::Result<String> {
+    let (name, namespace) = args;
+
+    let rt_guard = RUNTIME.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let rt = rt_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let fut = async {
+        let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace);
+        let mut pf = pods.portforward(&name, &[80]).await;
+
+        let pod = match pods.get(&name).await {
+            Ok(pod) => pod,
+            Err(e) => {
+                return Ok(format!(
+                    "No pod named {} in {} found: {}",
+                    name, namespace, e
+                ))
+            }
+        };
+
+        let spec = pod
+            .spec
+            .ok_or_else(|| mlua::Error::external("No pod spec found"))?;
+
+        let containers = spec.containers;
+        if containers.is_empty() {
+            return Err(mlua::Error::external("No containers in this Pod"));
+        }
+
+        Ok("".to_string())
+    };
+
+    rt.block_on(fut)
+}

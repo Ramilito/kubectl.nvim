@@ -1,4 +1,4 @@
-module github.com/ramilito/kube-describe-shim
+module github.com/ramilito/kubectl.nvim
 
 go 1.24
 

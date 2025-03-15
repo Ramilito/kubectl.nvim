@@ -135,7 +135,7 @@ function M.PortForward(pod, ns)
     ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
     resource = pod,
-    cmd = { "port-forward", "pods/" .. pod, "-n", ns },
+    cmd = { "port-forward", pod, "-n", ns },
     resource_name = string_utils.capitalize(definition.resource_name),
     name = pod,
     ns = ns,
@@ -197,10 +197,15 @@ function M.PortForward(pod, ns)
       }
 
       builder:action_view(def, data, function(args)
-        commands.shell_command_async("kubectl", args)
-        vim.schedule(function()
-          M.View()
+        local name, ns = args
+        vim.print(args)
+        commands.run_async("port_forward_async", { args[2], args[4] }, function(err)
+          print(err)
+          -- vim.schedule(function()
+          --   M.View()
+          -- end)
         end)
+        -- commands.shell_command_async("kubectl", args)
       end)
     end)
   end)
