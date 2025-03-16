@@ -18,6 +18,7 @@ pub enum PFType {
     Service,
 }
 
+#[allow(dead_code)]
 pub struct PFData {
     pub handle: tokio::task::JoinHandle<()>,
     pub cancel: Option<oneshot::Sender<()>>,
