@@ -7,8 +7,6 @@ use kube::Api;
 use mlua::prelude::*;
 use mlua::Lua;
 use std::collections::HashMap;
-use tokio::io::{copy, split};
-use tokio::net::TcpListener;
 
 use crate::events::{color_status, symbols};
 use crate::utils::{filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue};
