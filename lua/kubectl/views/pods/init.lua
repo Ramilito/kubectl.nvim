@@ -198,7 +198,6 @@ function M.PortForward(pod, ns)
 
       builder:action_view(def, data, function(args)
         local name, ns = args
-        vim.print(args)
         commands.run_async("port_forward_async", { args[2], args[4] }, function(err)
           print(err)
           -- vim.schedule(function()

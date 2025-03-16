@@ -1,4 +1,4 @@
-use futures::{AsyncBufReadExt, StreamExt, TryStreamExt};
+use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
 use k8s_openapi::chrono::{DateTime, Duration, Utc};
 use k8s_openapi::serde_json::{self};
@@ -7,10 +7,8 @@ use kube::Api;
 use mlua::prelude::*;
 use mlua::Lua;
 use std::collections::HashMap;
-use std::net::SocketAddr;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{copy, split};
 use tokio::net::TcpListener;
-use tokio_stream::wrappers::TcpListenerStream;
 
 use crate::events::{color_status, symbols};
 use crate::utils::{filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue};
@@ -513,9 +511,7 @@ pub async fn log_stream_async(
 }
 
 pub async fn port_forward_async(_lua: mlua::Lua, args: (String, String)) -> mlua::Result<String> {
-    // let (name, namespace) = args;
-    let name = "vger-client-5fcc68f589-h7vmj";
-    let namespace = "services";
+    let (name, namespace) = args;
 
     let rt_guard = RUNTIME.lock().unwrap();
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
@@ -526,67 +522,33 @@ pub async fn port_forward_async(_lua: mlua::Lua, args: (String, String)) -> mlua
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let fut = async {
+    let fut = async move {
         let pods: Api<Pod> = Api::namespaced(client.clone(), &namespace);
-        let mut pf = pods.portforward(&name, &[3000]).await;
+        let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
 
-        let pod = match pods.get(&name).await {
-            Ok(pod) => pod,
-            Err(e) => {
-                return Ok(format!(
-                    "No pod named {} in {} found: {}",
-                    name, namespace, e
-                ))
+        tokio::spawn(async move {
+            loop {
+                if let Ok((local_sock, _)) = listener.accept().await {
+                    let mut pf = pods.portforward(&name, &[3000]).await.unwrap();
+                    let remote_stream = pf.take_stream(3000).unwrap();
+
+                    let (mut remote_reader, mut remote_writer) = split(remote_stream);
+                    let (mut local_reader, mut local_writer) = split(local_sock);
+
+                    let forward_in = tokio::spawn(async move {
+                        copy(&mut local_reader, &mut remote_writer).await.ok();
+                    });
+                    let forward_out = tokio::spawn(async move {
+                        copy(&mut remote_reader, &mut local_writer).await.ok();
+                    });
+
+                    let _ = tokio::join!(forward_in, forward_out);
+                }
             }
-        };
+        });
 
-        let spec = pod
-            .spec
-            .ok_or_else(|| mlua::Error::external("No pod spec found"))?;
-
-        let containers = spec.containers;
-        if containers.is_empty() {
-            return Err(mlua::Error::external("No containers in this Pod"));
-        }
-
-        let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-        let pod_port = 3000;
-        let server = TcpListenerStream::new(TcpListener::bind(addr).await.unwrap())
-            .take_until(tokio::signal::ctrl_c())
-            .try_for_each(|client_conn| async {
-                if let Ok(peer_addr) = client_conn.peer_addr() {}
-                let pods = pods.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = forward_connection(&pods, name, 8080, client_conn).await {}
-                });
-                // keep the server running
-                Ok(())
-            });
-        if let Err(e) = server.await {}
-
-        Ok("".to_string())
+        Ok("Port-forwarding on localhost:3000".to_string())
     };
 
     rt.block_on(fut)
-}
-
-async fn forward_connection(
-    pods: &Api<Pod>,
-    pod_name: &str,
-    port: u16,
-    mut client_conn: impl AsyncRead + AsyncWrite + Unpin,
-) -> mlua::Result<String> {
-    let mut forwarder = pods
-        .portforward(pod_name, &[port])
-        .await
-        .map_err(|e| mlua::Error::external(e))?;
-    let mut upstream_conn = forwarder.take_stream(port).expect("test");
-    tokio::io::copy_bidirectional(&mut client_conn, &mut upstream_conn).await?;
-    drop(upstream_conn);
-    forwarder
-        .join()
-        .await
-        .map_err(|e| mlua::Error::external(e))?;
-
-    Ok("".to_string())
 }
