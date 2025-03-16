@@ -147,6 +147,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
+    exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set("edit_async", lua.create_async_function(edit_async)?)?;
     exports.set(

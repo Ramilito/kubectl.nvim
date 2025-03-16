@@ -155,3 +155,41 @@ where
 
     let _ = tokio::join!(forward_in, forward_out);
 }
+
+pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
+    let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
+    let table = lua.create_table()?;
+
+    let rt_handle = {
+        let rt_guard = RUNTIME.lock().unwrap();
+        rt_guard
+            .as_ref()
+            .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".to_string()))?
+            .handle()
+            .clone()
+    };
+
+    rt_handle.block_on(async {
+        let map = pf_map.lock().await;
+        for (id, pf_data) in map.iter() {
+            let entry = lua.create_table()?;
+            entry.set("id", *id)?;
+            entry.set(
+                "type",
+                match pf_data.pf_type {
+                    PFType::Pod => "pod",
+                    PFType::Service => "service",
+                },
+            )?;
+            entry.set("name", pf_data.name.clone())?;
+            entry.set("namespace", pf_data.namespace.clone())?;
+            entry.set("local_port", pf_data.local_port)?;
+            entry.set("remote_port", pf_data.remote_port)?;
+            table.set(*id, entry)?;
+        }
+
+        Ok::<(), mlua::Error>(())
+    })?;
+
+    Ok(table)
+}

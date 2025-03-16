@@ -58,11 +58,11 @@ function M.getPFRows(pfs)
   local data = {}
   for _, value in ipairs(pfs) do
     table.insert(data, {
-      pid = { value = value.pid, symbol = hl.symbols.gray },
+      id = { value = value.id, symbol = hl.symbols.gray },
       type = { value = value.type, symbol = hl.symbols.info },
-      resource = { value = value.resource, symbol = hl.symbols.success },
-      ns = { value.ns, symbol = hl.symbols.info },
-      port = { value = value.port, symbol = hl.symbols.pending },
+      name = { value = value.name, symbol = hl.symbols.success },
+      ns = { value.namespace, symbol = hl.symbols.info },
+      port = { value = value.local_port .. ":" .. value.remote_port, symbol = hl.symbols.pending },
     })
   end
   return data
