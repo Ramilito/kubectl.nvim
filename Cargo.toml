@@ -15,6 +15,12 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 futures = "0.3.31"
 serde = "1.0.218"
 serde_yaml = "0.9.34"
+tokio-stream = {version = "0.1.17", features = ["full"]}
+bytes = "1.10.1"
+hyper = "1.6.0"
+hyper-util = "0.1.10"
+http = "1.3.1"
+http-body-util = "0.1.3"
 
 # [profile.release]
 # opt-level = "z"

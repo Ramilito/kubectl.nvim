@@ -28,11 +28,8 @@ pub struct PFData {
     pub remote_port: u16,
 }
 
-pub fn portforward_start(
-    _lua: &Lua,
-    args: (String, String, String, u16, u16),
-) -> LuaResult<usize> {
-    let (pf_type, name, namespace, local_port, remote_port) = args;
+pub fn portforward_start(_lua: &Lua, args: (String, String, String, u16, u16)) -> LuaResult<usize> {
+    let (pf_type_str, name, namespace, local_port, remote_port) = args;
 
     let (client, rt_handle) = {
         let client = {
@@ -58,8 +55,10 @@ pub fn portforward_start(
     let id = PF_COUNTER.fetch_add(1, Ordering::SeqCst);
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
 
+    // Clone for use inside the async task
     let t_name = name.clone();
     let t_namespace = namespace.clone();
+    let t_pf_type_str = pf_type_str.clone();
 
     let forward_handle = rt_handle.spawn(async move {
         let pods: Api<Pod> = Api::namespaced(client.clone(), &t_namespace);
@@ -72,6 +71,7 @@ pub fn portforward_start(
             }
         };
 
+        // Pin the cancel receiver for use with tokio::select!
         tokio::pin!(cancel_rx);
 
         loop {
@@ -89,63 +89,54 @@ pub fn portforward_start(
                     };
                     let pf_api = pods.clone();
                     let t_name_inner = t_name.clone();
-                    let t_pf_type = pf_type;
-                    let t_remote_port = remote_port;
-
+                    let t_pf_type = t_pf_type_str.clone();
                     tokio::spawn(async move {
-                        match t_pf_type {
-                            PFType::Service => {
-                                let mut pf = pf_api.portforward(&t_name_inner, &[t_remote_port]).await.unwrap();
-                                let remote_stream = pf.take_stream(t_remote_port).unwrap();
+                        match t_pf_type.as_str() {
+                            "service" => {
+                                let mut pf = pf_api.portforward(&t_name_inner, &[remote_port]).await.unwrap();
+                                let remote_stream = pf.take_stream(remote_port).unwrap();
                                 proxy_conn(local_sock, remote_stream).await;
                             },
-                            PFType::Pod => {
-                                let mut pf = pf_api.portforward(&t_name_inner, &[t_remote_port]).await.unwrap();
-                                let remote_stream = pf.take_stream(t_remote_port).unwrap();
+                            "pod" => {
+                                let mut pf = pf_api.portforward(&t_name_inner, &[remote_port]).await.unwrap();
+                                let remote_stream = pf.take_stream(remote_port).unwrap();
                                 proxy_conn(local_sock, remote_stream).await;
                             },
-                        };
+                            other => {
+                                eprintln!("Unknown port forward type: {}", other);
+                            }
+                        }
                     });
                 }
             }
         }
     });
 
+    let pf_type_enum = match pf_type_str.as_str() {
+        "service" => PFType::Service,
+        "pod" => PFType::Pod,
+        _ => {
+            return Err(mlua::Error::RuntimeError(
+                "Invalid pf_type string".to_string(),
+            ))
+        }
+    };
     let pf_data = PFData {
         handle: forward_handle,
         cancel: Some(cancel_tx),
-        pf_type,
+        pf_type: pf_type_enum,
         name,
         namespace,
         local_port,
         remote_port,
     };
 
-    let pf_map = PF_MAP.get().unwrap();
+    let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
     rt_handle.block_on(async {
         pf_map.lock().await.insert(id, pf_data);
     });
     Ok(id)
 }
-
-// pub fn stop_port_forward_async(lua: &Lua, id: usize) -> LuaResult<()> {
-//     let rt_option = futures::executor::block_on(RUNTIME.lock()).clone();
-//     let rt = rt_option
-//         .ok_or_else(|| LuaError::RuntimeError("Runtime not initialized".into()))?;
-//
-//     rt.block_on(async move {
-//         let mut map = PF_MAP.lock().await;
-//         if let Some(mut pf_data) = map.remove(&id) {
-//             if let Some(tx) = pf_data.cancel.take() {
-//                 let _ = tx.send(());
-//             }
-//             // Optionally, you could await the handle here if you want to ensure it's cleaned up:
-//             let _ = pf_data.handle.await;
-//         }
-//     });
-//
-//     Ok(())
-// }
 
 async fn proxy_conn<S>(local_sock: tokio::net::TcpStream, remote_stream: S)
 where
