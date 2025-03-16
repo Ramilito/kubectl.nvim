@@ -3,7 +3,6 @@ use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
 use k8s_openapi::chrono::{DateTime, Duration, Utc};
 use k8s_openapi::serde_json::{self};
 use kube::api::{DynamicObject, LogParams};
-
 use kube::Api;
 use mlua::prelude::*;
 use mlua::Lua;
@@ -509,7 +508,7 @@ pub async fn log_stream_async(
     rt.block_on(fut)
 }
 
-pub async fn port_forward_async(_lua: mlua::Lua, args: (String, String)) -> mlua::Result<String> {
+pub async fn port_forward_async(_lua: &mlua::Lua, args: (String, String)) -> mlua::Result<String> {
     let (name, namespace) = args;
 
     let rt_guard = RUNTIME.lock().unwrap();
