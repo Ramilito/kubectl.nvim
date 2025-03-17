@@ -196,7 +196,7 @@ function M.PortForward(pod, ns)
       }
 
       builder:action_view(def, data, function(args)
-        local client = require("kubectl_client")
+        local client = require("kubectl.client")
         local local_port, remote_port = args[6]:match("(%d+):(%d+)")
         client.portforward_start("pod", args[2], args[4], local_port, remote_port)
       end)

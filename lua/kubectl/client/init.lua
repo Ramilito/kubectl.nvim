@@ -15,6 +15,18 @@ function client.get_resource(...)
   return client.implementation.get_resource(...)
 end
 
+function client.portforward_start(...)
+  return client.implementation.portforward_start(...)
+end
+
+function client.portforward_list()
+  return client.implementation.portforward_list()
+end
+
+function client.portforward_stop(id)
+  return client.implementation.portforward_stop(id)
+end
+
 function client.get_table(definition)
   local namespace = nil
   if state.ns and state.ns ~= "All" then

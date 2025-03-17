@@ -12,7 +12,7 @@ M.overrides = {
       local id, resource = tables.getCurrentSelection(1, 2)
       vim.notify("Deleting port forward for resource " .. resource .. " with id: " .. id)
 
-      local client = require("kubectl_client")
+      local client = require("kubectl.client")
       client.portforward_stop(id)
       vim.schedule(function()
         local line_number = vim.api.nvim_win_get_cursor(0)[1]

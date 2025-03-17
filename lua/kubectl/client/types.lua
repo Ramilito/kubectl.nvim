@@ -5,3 +5,6 @@
 --- @field get_store fun(resource_name: string, namespace: string?)
 --- @field get_table fun(resource_name: string, namespace: string?, sort_by: string?, sort_order: string? )
 --- @field edit_resource fun(resource_name: string, namespace: string?, name: string, group: string?, version: string? )
+--- @field portforward_start fun(kind: string, name: string, namespace: string, local_port: number, remote_port: number)
+--- @field portforward_list fun()
+--- @field portforward_stop fun(id: number)
