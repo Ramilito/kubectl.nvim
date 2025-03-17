@@ -193,3 +193,32 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
 
     Ok(table)
 }
+
+pub fn portforward_stop(_lua: &Lua, args: usize) -> LuaResult<()> {
+    let id = args;
+    let rt_handle = {
+        let rt_guard = RUNTIME.lock().unwrap();
+        rt_guard
+            .as_ref()
+            .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".to_string()))?
+            .handle()
+            .clone()
+    };
+
+    rt_handle.block_on(async move {
+        let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
+        let mut map = pf_map.lock().await;
+        if let Some(mut pf_data) = map.remove(&id) {
+            if let Some(cancel_tx) = pf_data.cancel.take() {
+                let _ = cancel_tx.send(());
+            }
+            let _ = pf_data.handle.await;
+            Ok::<(), mlua::Error>(())
+        } else {
+            Err(mlua::Error::RuntimeError(format!(
+                "No port forward found for id {}",
+                id
+            )))
+        }
+    })
+}

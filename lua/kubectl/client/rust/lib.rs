@@ -8,7 +8,7 @@ use tokio::runtime::Runtime;
 use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::get::get_async;
-use crate::cmd::portforward::portforward_start;
+use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::processors::get_processors;
 
 mod cmd;
@@ -148,6 +148,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("start_watcher", lua.create_function(start_watcher)?)?;
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
+    exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set("edit_async", lua.create_async_function(edit_async)?)?;
     exports.set(
