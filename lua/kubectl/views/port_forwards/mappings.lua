@@ -14,6 +14,10 @@ M.overrides = {
 
       local client = require("kubectl_client")
       client.portforward_stop(id)
+      vim.schedule(function()
+        local line_number = vim.api.nvim_win_get_cursor(0)[1]
+        vim.api.nvim_buf_set_lines(0, line_number - 1, line_number, false, {})
+      end)
     end,
   },
 }
