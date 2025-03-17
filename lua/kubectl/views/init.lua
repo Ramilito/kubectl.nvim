@@ -257,13 +257,8 @@ end
 -- @function PortForwards
 -- @return nil
 function M.PortForwards()
-  local pfs = {}
-  pfs = definition.getPFData(pfs, false)
-
-	local client = require("kubectl_client")
-	local pfs = client.portforward_list()
   local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
-  self.data = definition.getPFRows(pfs)
+  self.data = definition.getPFRows()
   self.extmarks = {}
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
   self:addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false):setContent()

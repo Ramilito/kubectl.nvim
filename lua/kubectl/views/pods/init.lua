@@ -11,7 +11,6 @@ local tables = require("kubectl.utils.tables")
 local M = {
   definition = definition,
   selection = {},
-  pfs = {},
   tail_handle = nil,
   show_log_prefix = config.options.logs.prefix,
   log_since = config.options.logs.since,
@@ -20,19 +19,19 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  M.pfs = {}
-  root_definition.getPFData(M.pfs, true)
   ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
   if state.instance[definition.resource] then
-    state.instance[definition.resource]:draw(definition, cancellationToken)
+    local pfs = root_definition.getPFRows()
+    state.instance[definition.resource].extmarks_extra = {}
     root_definition.setPortForwards(
-      state.instance[definition.resource].extmarks,
+      state.instance[definition.resource].extmarks_extra,
       state.instance[definition.resource].prettyData,
-      M.pfs
+      pfs
     )
+    state.instance[definition.resource]:draw(definition, cancellationToken)
   end
 end
 

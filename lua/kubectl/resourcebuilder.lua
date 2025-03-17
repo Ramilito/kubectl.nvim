@@ -15,6 +15,7 @@ local tables = require("kubectl.utils.tables")
 ---@field processedData any
 ---@field prettyData any
 ---@field extmarks table
+---@field extmarks_extra table|nil
 ---@field header table
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
@@ -293,6 +294,11 @@ function ResourceBuilder:setContent(cancellationToken)
 
   local ok, win_config = pcall(vim.api.nvim_win_get_config, self.win_nr or 0)
 
+  if self.extmarks_extra then
+    for _, mark in ipairs(self.extmarks_extra) do
+      table.insert(self.extmarks, mark)
+    end
+  end
   if ok and win_config.relative == "" then
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
 
