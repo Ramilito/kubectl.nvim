@@ -8,7 +8,7 @@ local M = {}
 function M.getPFRows()
   local pfs = client.portforward_list()
   local data = {}
-  for _, value in ipairs(pfs) do
+  for _, value in pairs(pfs) do
     table.insert(data, {
       id = { value = value.id, symbol = hl.symbols.gray },
       type = { value = value.type, symbol = hl.symbols.info },

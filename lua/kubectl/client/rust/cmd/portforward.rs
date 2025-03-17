@@ -205,7 +205,7 @@ pub fn portforward_stop(_lua: &Lua, args: usize) -> LuaResult<()> {
             .clone()
     };
 
-    rt_handle.block_on(async move {
+    rt_handle.block_on(async {
         let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
         let mut map = pf_map.lock().await;
         if let Some(mut pf_data) = map.remove(&id) {
