@@ -419,12 +419,13 @@ pub async fn log_stream_async(
         String,
         String,
         Option<String>,
+        Option<String>,
         Option<bool>,
         Option<bool>,
         Option<bool>,
     ),
 ) -> mlua::Result<String> {
-    let (name, namespace, since_time_input, previous, timestamps, prefix) = args;
+    let (name, namespace, container, since_time_input, previous, timestamps, prefix) = args;
 
     let since_time = since_time_input
         .as_deref()
@@ -456,7 +457,16 @@ pub async fn log_stream_async(
             .spec
             .ok_or_else(|| mlua::Error::external("No pod spec found"))?;
 
-        let containers = spec.containers;
+        let mut containers = spec.containers;
+        if let Some(ref container) = container {
+            containers.retain(|c| c.name == *container);
+            if containers.is_empty() {
+                return Ok(format!(
+                    "No container named {} found in pod {}",
+                    container, name
+                ));
+            }
+        }
         if containers.is_empty() {
             return Err(mlua::Error::external("No containers in this Pod"));
         }

@@ -91,6 +91,7 @@ function M.TailLogs(pod, ns, container)
     commands.run_async("log_stream_async", {
       pod,
       ns,
+			container,
       "1s",
       M.log.show_previous,
       M.log.show_timestamps,
@@ -154,7 +155,15 @@ function M.Logs(reload)
 
   ResourceBuilder:view_float(def, {
     reload = reload,
-    args = { def.name, def.namespace, def.since, M.log.show_previous, M.log.show_timestamps, M.log.show_log_prefix },
+    args = {
+      def.name,
+      def.namespace,
+      nil,
+      def.since,
+      M.log.show_previous,
+      M.log.show_timestamps,
+      M.log.show_log_prefix,
+    },
   })
 end
 
