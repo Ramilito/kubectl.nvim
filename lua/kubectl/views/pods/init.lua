@@ -1,37 +1,67 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local definition = require("kubectl.views.pods.definition")
 local hl = require("kubectl.actions.highlight")
 local root_definition = require("kubectl.views.definition")
 local state = require("kubectl.state")
-local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
 
+local resource = "pods"
+
+---@class M : Module
 local M = {
-  definition = definition,
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "", v = "v1", k = "pod" },
+    informer = { enabled = true },
+    hints = {
+      { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
+      { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
+      { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
+      { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },
+    },
+
+    headers = {
+      "NAMESPACE",
+      "NAME",
+      "READY",
+      "STATUS",
+      "RESTARTS",
+      "IP",
+      "NODE",
+      "AGE",
+    },
+  },
   selection = {},
-  tail_handle = nil,
-  show_log_prefix = config.options.logs.prefix,
-  log_since = config.options.logs.since,
-  show_timestamps = config.options.logs.timestamps,
-  show_previous = false,
+  log = {
+    log_since = config.options.logs.since,
+    show_log_prefix = config.options.logs.prefix,
+    show_previous = false,
+    show_timestamps = config.options.logs.timestamps,
+    tail_handle = nil,
+  },
 }
 
+--- View function
+---@param cancellationToken any
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+  ResourceBuilder:view(M.definition, cancellationToken)
 end
 
+--- Draw function
+---@param cancellationToken any
 function M.Draw(cancellationToken)
-  if state.instance[definition.resource] then
+  if state.instance[M.definition.resource] then
     local pfs = root_definition.getPFRows()
-    state.instance[definition.resource].extmarks_extra = {}
+    state.instance[M.definition.resource].extmarks_extra = {}
     root_definition.setPortForwards(
-      state.instance[definition.resource].extmarks_extra,
-      state.instance[definition.resource].prettyData,
+      state.instance[M.definition.resource].extmarks_extra,
+      state.instance[M.definition.resource].prettyData,
       pfs
     )
-    state.instance[definition.resource]:draw(definition, cancellationToken)
+    state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
   end
 end
 
@@ -42,13 +72,13 @@ function M.TailLogs(pod, ns, container)
   local ntfy = " tailing: " .. pod
 
   local function stop_tailing()
-    if M.tail_handle and not M.tail_handle:is_closing() then
-      M.tail_handle:stop()
-      M.tail_handle:close()
+    if M.log.tail_handle and not M.log.tail_handle:is_closing() then
+      M.log.tail_handle:stop()
+      M.log.tail_handle:close()
       vim.notify("Stopped" .. ntfy)
     end
   end
-  if M.tail_handle and not M.tail_handle:is_closing() then
+  if M.log.tail_handle and not M.log.tail_handle:is_closing() then
     stop_tailing()
     return
   end
@@ -63,9 +93,9 @@ function M.TailLogs(pod, ns, container)
       pod,
       ns,
       "1s",
-      M.show_previous,
-      M.show_timestamps,
-      M.show_log_prefix,
+      M.log.show_previous,
+      M.log.show_timestamps,
+      M.log.show_log_prefix,
     }, function(data)
       vim.schedule(function()
         if vim.api.nvim_buf_is_valid(buf) then
@@ -80,8 +110,8 @@ function M.TailLogs(pod, ns, container)
     end)
   end
 
-  M.tail_handle = vim.uv.new_timer()
-  M.tail_handle:start(0, 1000, function()
+  M.log.tail_handle = vim.uv.new_timer()
+  M.log.tail_handle:start(0, 1000, function()
     fetch_logs()
   end)
 
@@ -111,21 +141,21 @@ function M.Logs(reload)
     syntax = "less",
     name = M.selection.pod,
     namespace = M.selection.ns,
-    since = M.log_since,
+    since = M.log.log_since,
     cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
-      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
-      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. tostring(M.show_log_prefix) .. "]" },
-      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. tostring(M.show_timestamps) .. "]" },
+      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log.log_since .. "]" },
+      { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. tostring(M.log.show_log_prefix) .. "]" },
+      { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. tostring(M.log.show_timestamps) .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
-      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. tostring(M.show_previous) .. "]" },
+      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. tostring(M.log.show_previous) .. "]" },
     },
   }
 
   ResourceBuilder:view_float(def, {
     reload = reload,
-    args = { def.name, def.namespace, def.since, M.show_previous, M.show_timestamps, M.show_log_prefix },
+    args = { def.name, def.namespace, def.since, M.log.show_previous, M.log.show_timestamps, M.log.show_log_prefix },
   })
 end
 
@@ -135,19 +165,18 @@ function M.PortForward(pod, ns)
     display = "PF: " .. pod .. "-" .. "?",
     resource = pod,
     cmd = { "port-forward", pod, "-n", ns },
-    resource_name = string_utils.capitalize(definition.resource_name),
-    name = pod,
+    resource_name = M.definition.resource_name,
     ns = ns,
-    group = definition.group,
-    version = definition.version,
+    group = M.definition.group,
+    version = M.definition.version,
   }
 
   commands.run_async("get_async", {
-    def.resource_name,
-    def.ns,
-    def.name,
-    def.group,
-    def.version,
+    M.definition.gvk.k,
+    ns,
+    pod,
+    M.definition.gvk.g,
+    M.definition.gvk.v,
     def.syntax,
   }, function(data)
     local containers = {}
@@ -206,17 +235,15 @@ end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = "pods | " .. name .. " | " .. ns,
+    resource = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "pod", name, "-n", ns },
     syntax = "yaml",
-    kind = "pods",
     cmd = "describe_async",
   }
-  ResourceBuilder:view_float(def, { args = { def.kind, ns, name, definition.group }, reload = reload })
+  ResourceBuilder:view_float(def, { args = { M.definition.resource, ns, name, M.definition.gvk.g }, reload = reload })
 end
 
---- Get current seletion for view
+--- Get current selection for view
 ---@return string|nil
 function M.getCurrentSelection()
   return tables.getCurrentSelection(2, 1)

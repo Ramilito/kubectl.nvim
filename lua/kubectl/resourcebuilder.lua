@@ -2,7 +2,6 @@ local buffers = require("kubectl.actions.buffers")
 local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local informer = require("kubectl.actions.informer")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
@@ -230,11 +229,10 @@ function ResourceBuilder:splitData()
 end
 
 --- Pretty print the data
----@param headersFunc function The function to generate headers
 ---@return ResourceBuilder
-function ResourceBuilder:prettyPrint(headersFunc)
+function ResourceBuilder:prettyPrint()
   self.prettyData, self.extmarks =
-    tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource], self.win_nr)
+    tables.pretty_print(self.processedData, self.definition.headers, state.sortby[self.resource], self.win_nr)
   return self
 end
 
@@ -370,12 +368,12 @@ function ResourceBuilder:view(definition, cancellationToken)
 
   commands.run_async(
     "get_resources_async",
-    { definition.resource_name, definition.group, definition.version, nil, ns },
+    { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil, ns },
     function(data)
       self.data = data
       self:decodeJson()
       if definition.informer and definition.informer.enabled then
-        client.start_watcher(definition.resource_name, definition.group, definition.version, nil)
+        client.start_watcher(definition.gvk.k, definition.gvk.g, definition.gvk.v, nil)
       end
       vim.schedule(function()
         self:display(definition.ft, definition.resource, cancellationToken)
@@ -402,23 +400,19 @@ function ResourceBuilder:draw(definition, cancellationToken)
   local sort_by = state.sortby[definition.resource].current_word
   local sort_order = state.sortby[definition.resource].order
 
-  commands.run_async(
-    "get_table_async",
-    { definition.resource_name, namespace, sort_by, sort_order, filter },
-    function(data)
-      if data then
-        state.instance[definition.resource].data = data
-        state.instance[definition.resource]:decodeJson()
-        state.instance[definition.resource].processedData = state.instance[definition.resource].data
-        vim.schedule(function()
-          self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
-          self:setContent(cancellationToken)
-          self:draw_header(cancellationToken)
-          state.instance[definition.resource] = self
-        end)
-      end
+  commands.run_async("get_table_async", { definition.gvk.k, namespace, sort_by, sort_order, filter }, function(data)
+    if data then
+      state.instance[definition.resource].data = data
+      state.instance[definition.resource]:decodeJson()
+      state.instance[definition.resource].processedData = state.instance[definition.resource].data
+      vim.schedule(function()
+        self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
+        self:setContent(cancellationToken)
+        self:draw_header(cancellationToken)
+        state.instance[definition.resource] = self
+      end)
     end
-  )
+  end)
 
   return self
 end

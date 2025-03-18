@@ -2,7 +2,6 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local event_handler = require("kubectl.actions.eventhandler").handler
 local string_utils = require("kubectl.utils.string")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}

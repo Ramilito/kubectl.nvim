@@ -374,8 +374,7 @@ function M.view_and_definition(view_name)
     view_name = "fallback"
     view = require("kubectl.views.fallback")
   end
-  local view_definition = require("kubectl.views." .. view_name .. ".definition")
-  return view, view_definition
+  return view, view.definition
 end
 
 function M.view_or_fallback(view_name)

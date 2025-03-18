@@ -1,6 +1,5 @@
 local cache = require("kubectl.cache")
 local ctx_view = require("kubectl.views.contexts")
-local informer = require("kubectl.actions.informer")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
 local view = require("kubectl.views")
@@ -29,7 +28,6 @@ function M.close()
     local kube = require("kubectl.actions.kube")
     state.stop_livez()
     kube.stop_kubectl_proxy()()
-    informer.stop()
   end
   vim.api.nvim_buf_delete(0, { force = true })
 end
