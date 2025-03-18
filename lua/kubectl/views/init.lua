@@ -4,6 +4,7 @@ local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
+local pf_definition = require("kubectl.views.port_forwards.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local mappings = require("kubectl.mappings")
@@ -258,7 +259,7 @@ end
 -- @return nil
 function M.PortForwards()
   local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
-  self.data = definition.getPFRows()
+  self.data = pf_definition.getPFRows()
   self.extmarks = {}
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
   self:addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false):setContent()

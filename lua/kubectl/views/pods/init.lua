@@ -3,6 +3,7 @@ local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local root_definition = require("kubectl.views.definition")
+local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -22,7 +23,6 @@ local M = {
       { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
       { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },
     },
-
     headers = {
       "NAMESPACE",
       "NAME",
@@ -54,9 +54,9 @@ end
 ---@param cancellationToken any
 function M.Draw(cancellationToken)
   if state.instance[M.definition.resource] then
-    local pfs = root_definition.getPFRows()
+    local pfs = pf_definition.getPFRows()
     state.instance[M.definition.resource].extmarks_extra = {}
-    root_definition.setPortForwards(
+    pf_definition.setPortForwards(
       state.instance[M.definition.resource].extmarks_extra,
       state.instance[M.definition.resource].prettyData,
       pfs
