@@ -5,7 +5,7 @@
 ---@field show_timestamps boolean|nil
 ---@field tail_handle any|nil
 
----@class PodsModule
----@field definition Definition
+---@generic T
+---@class ModuleExt : Module
 ---@field selection table<string, any>
 ---@field log PodsLog

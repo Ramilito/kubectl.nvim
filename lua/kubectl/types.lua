@@ -20,3 +20,8 @@
 ---@field hints Hint[]
 ---@field headers string[]
 
+---@class Module
+---@field view fun(cancellationToken: any)
+---@field draw fun(cancellationToken: any)
+---@field desc fun(name: string, ns: string, reload: boolean)
+---@field definition Definition

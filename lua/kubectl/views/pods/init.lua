@@ -2,14 +2,13 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
-local root_definition = require("kubectl.views.definition")
 local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local resource = "pods"
 
----@class M : PodsModule
+---@class PodsModule : ModuleExt
 local M = {
   definition = {
     resource = resource,
