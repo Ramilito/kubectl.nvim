@@ -1,5 +1,6 @@
 use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
+use mlua::{Function, Lua, Result, Table};
 
 #[derive(Clone, Copy)]
 pub enum AccessorMode {
@@ -128,4 +129,12 @@ where
             })
         })
         .collect()
+}
+
+pub fn debug_print(lua: &Lua, msg: &str) -> Result<()> {
+    let globals = lua.globals();
+    let vim: Table = globals.get("vim")?;
+    let notify: Function = vim.get("notify")?;
+    notify.call(msg)?;
+    Ok(())
 }

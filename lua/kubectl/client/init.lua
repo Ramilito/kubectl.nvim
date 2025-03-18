@@ -11,6 +11,10 @@ function client.set_implementation()
   client.implementation.init_runtime(state.context["current-context"])
 end
 
+function client.exec(...)
+  return client.implementation.exec(...)
+end
+
 function client.get_resource(...)
   return client.implementation.get_resource(...)
 end
