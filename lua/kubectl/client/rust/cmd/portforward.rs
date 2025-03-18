@@ -29,8 +29,11 @@ pub struct PFData {
     pub remote_port: u16,
 }
 
-pub fn portforward_start(_lua: &Lua, args: (String, String, String, u16, u16)) -> LuaResult<usize> {
-    let (pf_type_str, name, namespace, local_port, remote_port) = args;
+pub fn portforward_start(
+    _lua: &Lua,
+    args: (String, String, String, String, u16, u16),
+) -> LuaResult<usize> {
+    let (pf_type_str, name, namespace, address, local_port, remote_port) = args;
 
     let (client, rt_handle) = {
         let client = {
@@ -63,7 +66,7 @@ pub fn portforward_start(_lua: &Lua, args: (String, String, String, u16, u16)) -
 
     let forward_handle = rt_handle.spawn(async move {
         let pods: Api<Pod> = Api::namespaced(client.clone(), &t_namespace);
-        let listener_addr = format!("127.0.0.1:{}", local_port);
+        let listener_addr = format!("{}:{}", address, local_port);
         let listener = match TcpListener::bind(&listener_addr).await {
             Ok(l) => l,
             Err(e) => {

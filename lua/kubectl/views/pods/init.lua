@@ -217,8 +217,8 @@ function M.PortForward(pod, ns)
           text = "address:",
           value = "localhost",
           options = { "localhost", "0.0.0.0" },
-          cmd = "--address",
-          type = "option",
+          cmd = "",
+          type = "positional",
         },
         { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
         { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
@@ -227,7 +227,7 @@ function M.PortForward(pod, ns)
       builder:action_view(def, data, function(args)
         local client = require("kubectl.client")
         local local_port, remote_port = args[6]:match("(%d+):(%d+)")
-        client.portforward_start("pod", args[2], args[4], local_port, remote_port)
+        client.portforward_start("pod", args[2], args[4], args[5], local_port, remote_port)
       end)
     end)
   end)
