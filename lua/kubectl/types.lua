@@ -19,3 +19,4 @@
 ---@field informer Informer
 ---@field hints Hint[]
 ---@field headers string[]
+

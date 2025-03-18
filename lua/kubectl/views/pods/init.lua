@@ -8,7 +8,7 @@ local tables = require("kubectl.utils.tables")
 
 local resource = "pods"
 
----@class M : Module
+---@class M : PodsModule
 local M = {
   definition = {
     resource = resource,
