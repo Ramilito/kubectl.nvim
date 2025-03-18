@@ -156,10 +156,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(describe::describe_async)?,
     )?;
     exports.set(
-        "port_forward_async",
-        lua.create_async_function(processors::pod::port_forward_async)?,
-    )?;
-    exports.set(
         "log_stream_async",
         lua.create_async_function(processors::pod::log_stream_async)?,
     )?;
