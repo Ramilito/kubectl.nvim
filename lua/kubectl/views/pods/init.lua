@@ -172,7 +172,6 @@ function M.PortForward(pod, ns)
     ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
     resource = pod,
-    cmd = { "port-forward", pod, "-n", ns },
     resource_name = M.definition.resource_name,
     ns = ns,
     group = M.definition.group,

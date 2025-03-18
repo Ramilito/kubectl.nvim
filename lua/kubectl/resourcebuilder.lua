@@ -336,7 +336,7 @@ function ResourceBuilder:view_float(definition, opts)
         self
           :process(self.definition.processRow, true)
           :sort()
-          :prettyPrint(self.definition.getHeaders)
+          :prettyPrint()
           :addHints(self.definition.hints, false, false, false)
           :setContent()
       else

@@ -16,12 +16,14 @@ use super::utils::{dynamic_api, resolve_api_resource};
 pub enum OutputMode {
     Pretty,
     Yaml,
+    Json,
 }
 
 impl OutputMode {
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "yaml" => OutputMode::Yaml,
+            "json" => OutputMode::Json,
             _ => OutputMode::Pretty,
         }
     }
@@ -31,6 +33,8 @@ impl OutputMode {
                 .unwrap_or_else(|e| format!("YAML formatting error: {}", e)),
             OutputMode::Pretty => serde_json::to_string_pretty(&obj)
                 .unwrap_or_else(|e| format!("Pretty formatting error: {}", e)),
+            OutputMode::Json => serde_json::to_string(&obj)
+                .unwrap_or_else(|e| format!("JSON formatting error: {}", e)),
         }
     }
 }
@@ -108,7 +112,6 @@ pub async fn get_async(
     ),
 ) -> LuaResult<String> {
     let (kind, namespace, name, group, version, output) = args;
-
     let output_mode = output
         .as_deref()
         .map(OutputMode::from_str)

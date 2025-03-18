@@ -3,9 +3,31 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.containers.definition")
+local pod_view = require("kubectl.views.pods")
 
 local M = {
   selection = {},
+  definition = {
+    ft = "k8s_" .. pod_view.definition.resource,
+    gvk = { g = pod_view.definition.gvk.g, v = pod_view.definition.gvk.v, k = pod_view.definition.gvk.k },
+    headers = {
+      "NAME",
+      "IMAGE",
+      "READY",
+      "STATE",
+      "TYPE",
+      "RESTARTS",
+      "PORTS",
+      "AGE",
+    },
+    processRow = definition.processRow,
+    cmd = "get_async",
+    hints = {
+      { key = "<Plug>(kubectl.logs)", desc = "logs" },
+      { key = "<Plug>(kubectl.debug)", desc = "debug" },
+      { key = "<Plug>(kubectl.select)", desc = "exec" },
+    },
+  },
   log_since = config.options.logs.since,
   show_previous = "false",
 }
@@ -15,11 +37,11 @@ function M.selectContainer(name)
 end
 
 function M.View(pod, ns)
-  definition.display_name = pod
-  definition.resource = "pods | " .. pod .. " | " .. ns
-  definition.url = { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }
+  M.definition.display_name = pod
+  M.definition.resource = "pods | " .. pod .. " | " .. ns
+  local gvk = M.definition.gvk
 
-  ResourceBuilder:view_float(definition)
+  ResourceBuilder:view_float(M.definition, { args = { gvk.k, ns, pod, gvk.g, gvk.v, "json" } })
 end
 
 function M.exec(pod, ns)
