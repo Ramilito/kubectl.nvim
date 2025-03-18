@@ -91,7 +91,7 @@ function M.TailLogs(pod, ns, container)
     commands.run_async("log_stream_async", {
       pod,
       ns,
-			container,
+      container,
       "1s",
       M.log.show_previous,
       M.log.show_timestamps,
@@ -130,8 +130,8 @@ function M.TailLogs(pod, ns, container)
   -- end
 end
 
-function M.selectPod(pod, ns)
-  M.selection = { pod = pod, ns = ns, container = nil }
+function M.selectPod(pod, ns, container)
+  M.selection = { pod = pod, ns = ns, container = container }
 end
 
 function M.Logs(reload)
@@ -139,9 +139,6 @@ function M.Logs(reload)
     resource = "logs",
     ft = "k8s_pod_logs",
     syntax = "less",
-    name = M.selection.pod,
-    namespace = M.selection.ns,
-    since = M.log.log_since,
     cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
@@ -156,10 +153,10 @@ function M.Logs(reload)
   ResourceBuilder:view_float(def, {
     reload = reload,
     args = {
-      def.name,
-      def.namespace,
-      nil,
-      def.since,
+      M.selection.pod,
+      M.selection.ns,
+      M.selection.container,
+      M.log.log_since,
       M.log.show_previous,
       M.log.show_timestamps,
       M.log.show_log_prefix,

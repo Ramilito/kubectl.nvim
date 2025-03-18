@@ -8,7 +8,7 @@ local pod_view = require("kubectl.views.pods")
 local M = {
   selection = {},
   definition = {
-    ft = "k8s_" .. pod_view.definition.resource,
+    ft = "k8s_" .. "containers",
     gvk = { g = pod_view.definition.gvk.g, v = pod_view.definition.gvk.v, k = pod_view.definition.gvk.k },
     headers = {
       "NAME",
@@ -80,41 +80,6 @@ function M.debug(pod, ns)
       commands.execute_terminal("kubectl", args)
     end)
   end)
-end
-
-function M.logs(pod, ns, reload)
-  local since_last_char = string.sub(M.log_since, -1)
-  if since_last_char == "s" then
-    M.log_since = string.sub(M.log_since, 1, -2)
-  elseif since_last_char == "m" then
-    M.log_since = tostring(tonumber(string.sub(M.log_since, 1, -2)) * 60)
-  elseif since_last_char == "h" then
-    M.log_since = tostring(tonumber(string.sub(M.log_since, 1, -2)) * 60 * 60)
-  end
-  ResourceBuilder:view_float({
-    resource = "containerLogs",
-    ft = "k8s_container_logs",
-    url = {
-      "{{BASE}}/api/v1/namespaces/"
-        .. ns
-        .. "/pods/"
-        .. pod
-        .. "/log/?container="
-        .. M.selection
-        .. "&pretty=true"
-        .. "&sinceSeconds="
-        .. M.log_since
-        .. "&previous="
-        .. M.show_previous,
-    },
-    syntax = "less",
-    hints = {
-      { key = "<Plug>(kubectl.follow)", desc = "Follow" },
-      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
-      { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
-      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. M.show_previous .. "]" },
-    },
-  }, { reload = reload })
 end
 
 return M
