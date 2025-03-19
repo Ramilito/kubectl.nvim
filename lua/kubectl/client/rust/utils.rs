@@ -135,6 +135,6 @@ pub fn debug_print(lua: &Lua, msg: &str) -> Result<()> {
     let globals = lua.globals();
     let vim: Table = globals.get("vim")?;
     let notify: Function = vim.get("notify")?;
-    notify.call(msg)?;
+    notify.call::<String>(msg)?;
     Ok(())
 }
