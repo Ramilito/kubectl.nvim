@@ -1,3 +1,4 @@
+use cmd::get::get_raw_async;
 // lib.rs
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
@@ -161,6 +162,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "log_stream_async",
         lua.create_async_function(processors::pod::log_stream_async)?,
     )?;
+    exports.set("get_raw_async", lua.create_async_function(get_raw_async)?)?;
     exports.set("get_async", lua.create_async_function(get_async)?)?;
     exports.set(
         "get_resources_async",

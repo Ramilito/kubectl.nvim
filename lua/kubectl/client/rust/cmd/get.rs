@@ -133,3 +133,33 @@ pub async fn get_async(
 
     Ok(output_mode.format(result?))
 }
+
+pub async fn get_raw_async(lua: Lua, args: (String, Option<String>)) -> LuaResult<LuaValue> {
+    let (url, _name) = args;
+
+    let rt_guard = RUNTIME.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let rt = rt_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let fut = async move {
+        let req = http::Request::get(url).body(Vec::new()).unwrap();
+
+        let resp = client
+            .request::<serde_json::Value>(req)
+            .await
+            .map_err(|e| mlua::Error::external(e))?;
+
+        let json = serde_json::to_string(&resp).map_err(|e| mlua::Error::external(e))?;
+
+        let lua_str = lua.create_string(&json)?;
+
+        Ok(LuaValue::String(lua_str))
+    };
+
+    rt.block_on(fut)
+}
