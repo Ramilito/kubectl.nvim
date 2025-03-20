@@ -35,7 +35,7 @@ function M.View()
         noremap = true,
         callback = function()
           local line = vim.api.nvim_get_current_line()
-          local current_word = vim.split(line, "%s%s+")[1]
+          local current_word = vim.split(line, "%s%s+")[2]
 
           vim.cmd("startinsert")
           vim.schedule(function()
