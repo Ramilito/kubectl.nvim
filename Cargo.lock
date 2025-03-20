@@ -948,6 +948,7 @@ name = "kubectl_client"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "http",
  "k8s-openapi",
  "kube",
  "mlua",
