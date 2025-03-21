@@ -27,8 +27,7 @@ local function process_apis(api_url, group_name, group_version, group_resources,
     if not string.find(resource.name, "/status") then
       local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
       local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
-      local resource_url =
-        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
+      local resource_url = string.format("/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
 
       cached_api_resources.values[resource_name] = {
         name = resource_name,
@@ -180,14 +179,11 @@ function M.load_cache(cached_api_resources, callback)
       local all_urls = {}
       for _, resource in pairs(cached_api_resources.values) do
         if resource.url then
-          table.insert(all_urls, { cmd = "curl", args = { resource.url } })
+          table.insert(all_urls, { cmd = "get_raw_async", args = { resource.url, nil } })
         end
       end
       for _, cmd in ipairs(all_urls) do
-        if cmd.cmd == "curl" then
-          cmd.args = url.build(cmd.args)
-          cmd.args = url.addHeaders(cmd.args, cmd.contentType)
-        end
+        cmd.args = url.build(cmd.args)
       end
 
       M.loading = false

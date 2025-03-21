@@ -6,11 +6,12 @@ use kube::{
     Client,
 };
 use mlua::prelude::*;
+use mlua::Either;
+use serde_json::{json, to_string};
 use tokio::runtime::Runtime;
 
-use crate::{store::get_single, CLIENT_INSTANCE, RUNTIME};
-
 use super::utils::{dynamic_api, resolve_api_resource};
+use crate::{store::get_single, CLIENT_INSTANCE, RUNTIME};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OutputMode {
@@ -134,31 +135,47 @@ pub async fn get_async(
     Ok(output_mode.format(result?))
 }
 
-pub async fn get_raw_async(lua: Lua, args: (String, Option<String>)) -> LuaResult<LuaValue> {
+pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
     let (url, _name) = args;
 
     let rt_guard = RUNTIME.lock().unwrap();
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
     let rt = rt_guard
         .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+        .ok_or_else(|| LuaError::RuntimeError("Runtime not initialized".into()))?;
     let client = client_guard
         .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let req = http::Request::get(url).body(Vec::new()).unwrap();
-
-        let resp = client
-            .request::<serde_json::Value>(req)
-            .await
-            .map_err(|e| mlua::Error::external(e))?;
-
-        let json = serde_json::to_string(&resp).map_err(|e| mlua::Error::external(e))?;
-
-        let lua_str = lua.create_string(&json)?;
-
-        Ok(LuaValue::String(lua_str))
+        let req = http::Request::get(url)
+            .body(Vec::new())
+            .map_err(|e| LuaError::external(e))?;
+        let res = client.request_status::<serde_json::Value>(req).await;
+        match res {
+            Ok(either) => match either {
+                Either::Left(resp) => {
+                    let json = to_string(&resp).map_err(|e| LuaError::external(e))?;
+                    Ok(json)
+                }
+                Either::Right(status) => {
+                    let err_json = to_string(&json!({
+                        "error": format!("HTTP error: {:?}", status),
+                        "status": status.code,
+                    }))
+                    .map_err(|e| LuaError::external(e))?;
+                    Ok(err_json)
+                }
+            },
+            Err(e) => {
+                let err_json = to_string(&json!({
+                    "error": e.to_string(),
+                    "status": null,
+                }))
+                .map_err(|e| LuaError::external(e))?;
+                Ok(err_json)
+            }
+        }
     };
 
     rt.block_on(fut)
