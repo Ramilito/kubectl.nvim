@@ -162,13 +162,13 @@ function M.get_mappings()
             if ns then
               def.resource = def.resource .. " | " .. ns
             end
-            def.resource_name = string_utils.capitalize(view.definition.resource_name)
-            def.group = view.definition.group
-            def.version = view.definition.version
+            def.kind = view.definition.gvk.k
+            def.group = view.definition.gvk.g
+            def.version = view.definition.gvk.v
 
             ResourceBuilder:view_float(def, {
               args = {
-                def.resource_name,
+                def.kind,
                 def.ns,
                 def.name,
                 def.group,
