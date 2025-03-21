@@ -2,24 +2,42 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
-local definition = require("kubectl.views.contexts.definition")
+local hl = require("kubectl.actions.highlight")
 local kube = require("kubectl.actions.kube")
 
+local resource = "contexts"
+
 local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    url = { "config", "view", "-ojson" },
+    headers = {
+      "NAME",
+      "NAMESPACE",
+      "CLUSTER",
+      "USER",
+    },
+  },
   contexts = {},
 }
 
 function M.View()
-  local buf = buffers.floating_dynamic_buffer(definition.ft, definition.display_name, function(input)
+  local buf = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
     M.change_context(input)
   end, { header = { data = {} }, prompt = true })
 
-  ResourceBuilder:new(definition.resource):setCmd(definition.url, "kubectl"):fetchAsync(function(self)
+  local self = ResourceBuilder:new(M.definition.resource)
+  self.definition = M.definition
+
+  commands.run_async("get_config_async", {}, function(data)
+    self.data = data
     self:decodeJson()
 
     vim.schedule(function()
       self.buf_nr = buf
-      self:process(definition.processRow, true):prettyPrint(definition.getHeaders):setContent()
+      self:process(M.processRow, true):prettyPrint():setContent()
 
       local list = {}
       M.contexts = {}
@@ -35,7 +53,7 @@ function M.View()
         noremap = true,
         callback = function()
           local line = vim.api.nvim_get_current_line()
-          local current_word = vim.split(line, "%s%s+")[2]
+          local current_word = vim.split(line, "%s%s+")[1]
 
           vim.cmd("startinsert")
           vim.schedule(function()
@@ -81,6 +99,23 @@ function M.change_context(cmd)
     cache.LoadFallbackData(true)
     state.setup()
   end)
+end
+
+function M.processRow(rows)
+  local data = {}
+  -- rows.contexts
+  for _, row in ipairs(rows.contexts) do
+    local context = {
+      name = { value = row.name, symbol = hl.symbols.success },
+      namespace = row.context.namespace or "",
+      cluster = row.context.cluster or "",
+      user = row.context.user or "",
+    }
+
+    table.insert(data, context)
+  end
+
+  return data
 end
 
 return M

@@ -1,6 +1,7 @@
 use k8s_openapi::serde_json;
 use kube::{
     api::{DynamicObject, ResourceExt},
+    config::Kubeconfig,
     core::GroupVersionKind,
     discovery::Discovery,
     Client,
@@ -133,6 +134,14 @@ pub async fn get_async(
     let result = get_resource(rt, client, kind, group, version, Some(name), namespace);
 
     Ok(output_mode.format(result?))
+}
+
+pub async fn get_config_async(_lua: Lua, _args: ()) -> LuaResult<String> {
+    let config = Kubeconfig::read().expect("Failed to load kubeconfig");
+    let json =
+        serde_json::to_string(&config).unwrap_or_else(|e| format!("JSON formatting error: {}", e));
+
+    Ok(json)
 }
 
 pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
