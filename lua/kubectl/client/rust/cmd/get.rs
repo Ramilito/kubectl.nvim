@@ -122,11 +122,8 @@ pub async fn get_async(
     if let Some(found) = get_single(&kind, namespace.clone(), &name) {
         return Ok(output_mode.format(found));
     }
-    let rt_guard = RUNTIME.lock().unwrap();
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
@@ -147,11 +144,8 @@ pub async fn get_config_async(_lua: Lua, _args: ()) -> LuaResult<String> {
 pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
     let (url, _name) = args;
 
-    let rt_guard = RUNTIME.lock().unwrap();
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Runtime not initialized".into()))?;
     let client = client_guard
         .as_ref()
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;

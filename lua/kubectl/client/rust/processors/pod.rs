@@ -6,6 +6,7 @@ use kube::api::{DynamicObject, LogParams};
 use kube::Api;
 use mlua::prelude::*;
 use mlua::Lua;
+use tokio::runtime::Runtime;
 use std::collections::HashMap;
 
 use crate::events::{color_status, symbols};
@@ -432,11 +433,8 @@ pub async fn log_stream_async(
         .and_then(parse_duration)
         .map(|d| Utc::now() - d);
 
-    let rt_guard = RUNTIME.lock().unwrap();
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;

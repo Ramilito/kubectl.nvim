@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 use tokio::net::TcpListener;
+use tokio::runtime::Runtime;
 use tokio::sync::{oneshot, Mutex};
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
@@ -44,14 +45,8 @@ pub fn portforward_start(
                 .clone()
         };
 
-        let rt_handle = {
-            let rt_guard = RUNTIME.lock().unwrap();
-            rt_guard
-                .as_ref()
-                .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".to_string()))?
-                .handle()
-                .clone()
-        };
+        let rt_handle =
+            { RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime")) };
 
         (client, rt_handle)
     };
@@ -163,14 +158,8 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
     let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
     let table = lua.create_table()?;
 
-    let rt_handle = {
-        let rt_guard = RUNTIME.lock().unwrap();
-        rt_guard
-            .as_ref()
-            .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".to_string()))?
-            .handle()
-            .clone()
-    };
+    let rt_handle =
+        { RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime")) };
 
     rt_handle.block_on(async {
         let map = pf_map.lock().await;
@@ -199,14 +188,8 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
 
 pub fn portforward_stop(_lua: &Lua, args: usize) -> LuaResult<()> {
     let id = args;
-    let rt_handle = {
-        let rt_guard = RUNTIME.lock().unwrap();
-        rt_guard
-            .as_ref()
-            .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".to_string()))?
-            .handle()
-            .clone()
-    };
+    let rt_handle =
+        { RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime")) };
 
     rt_handle.block_on(async {
         let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));

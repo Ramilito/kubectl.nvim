@@ -2,7 +2,7 @@
 use kube::{config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::{Lua, Value};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use tokio::runtime::Runtime;
 
 use crate::cmd::apply::apply_async;
@@ -21,14 +21,13 @@ mod store;
 mod utils;
 mod watcher;
 
-static RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);
+static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
-    let mut rt_guard = RUNTIME.lock().unwrap();
-    let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let new_rt = Runtime::new().expect("Failed to create Tokio runtime");
-    let new_client = new_rt.block_on(async {
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+
+    let new_client = rt.block_on(async {
         let options = KubeConfigOptions {
             context: context_name.clone(),
             cluster: None,
@@ -36,10 +35,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
         };
         let config = Config::from_kubeconfig(&options)
             .await
-            .expect("Failed to load kubeconfig");
-        Client::try_from(config).expect("Failed to create Kubernetes client")
-    });
-    *rt_guard = Some(new_rt);
+            .map_err(|e| LuaError::external(e))?;
+        let client = Client::try_from(config).map_err(|e| LuaError::external(e))?;
+        Ok::<Client, mlua::Error>(client)
+    })?;
+
+    let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
     *client_guard = Some(new_client);
     Ok(true)
 }
@@ -55,11 +56,8 @@ async fn get_resources_async(
     ),
 ) -> LuaResult<String> {
     let (resource, group, version, name, namespace) = args;
-    let rt_guard = RUNTIME.lock().unwrap();
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
@@ -71,11 +69,8 @@ fn start_watcher(
     args: (String, Option<String>, Option<String>, Option<String>),
 ) -> LuaResult<()> {
     let (resource, group, version, namespace) = args;
-    let rt_guard = RUNTIME.lock().unwrap();
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;

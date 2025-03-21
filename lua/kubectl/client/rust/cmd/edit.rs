@@ -3,6 +3,7 @@ use kube::{
     Discovery, ResourceExt,
 };
 use mlua::prelude::*;
+use tokio::runtime::Runtime;
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
@@ -20,14 +21,8 @@ pub async fn edit_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
                 .clone()
         };
 
-        let rt_handle = {
-            let rt_guard = RUNTIME.lock().unwrap();
-            rt_guard
-                .as_ref()
-                .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".to_string()))?
-                .handle()
-                .clone()
-        };
+        let rt_handle =
+            { RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime")) };
 
         (client, rt_handle)
     };

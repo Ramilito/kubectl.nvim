@@ -1,4 +1,5 @@
 use mlua::{Lua, Result as LuaResult};
+use tokio::runtime::Runtime;
 use std::ffi::{c_char, CStr, CString};
 
 use crate::RUNTIME;
@@ -21,10 +22,7 @@ pub async fn describe_async(
 ) -> LuaResult<String> {
     let (kind, namespace, name, group) = args;
 
-    let rt_guard = RUNTIME.lock().unwrap();
-    let rt = rt_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Runtime not initialized".into()))?;
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let fut = async {
         // Convert to lower case or do any other transforms you need.
