@@ -122,7 +122,7 @@ function M.await_shell_command_async(cmds, callback)
   start_command = function(i)
     local cmd = cmds[i]
     active_count = active_count + 1
-    handles[i] = M.shell_command_async(cmd.cmd, cmd.args, function(result)
+    handles[i] = M.run_async(cmd.cmd, cmd.args, function(result)
       on_command_done(i, result)
     end)
   end
@@ -203,7 +203,8 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
 end
 
 function M.run_async(method_name, args, callback)
-  vim.uv
+
+  return vim.uv
     .new_work(function(cpath, method, ...)
       package.cpath = cpath
       local mod = require("kubectl_client")
