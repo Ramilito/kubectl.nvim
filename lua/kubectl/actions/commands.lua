@@ -203,14 +203,17 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
 end
 
 function M.run_async(method_name, args, callback)
-
   return vim.uv
     .new_work(function(cpath, method, ...)
       package.cpath = cpath
       local mod = require("kubectl_client")
-      return mod[method](...)
-    end, function(data)
-      callback(data)
+      local ok, result = pcall(mod[method], ...)
+      if not ok then
+        return nil, result
+      end
+      return result, nil
+    end, function(data, err)
+      callback(data, err)
     end)
     :queue(package.cpath, method_name, unpack(args))
 end

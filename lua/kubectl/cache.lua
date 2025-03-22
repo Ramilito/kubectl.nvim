@@ -19,7 +19,7 @@ M.LoadFallbackData = function(force, callback)
 end
 
 local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
-  if not group_resources.resources then
+  if not group_resources or not group_resources.resources then
     return
   end
   for _, resource in ipairs(group_resources.resources) do
@@ -141,6 +141,9 @@ function M.load_cache(cached_api_resources, callback)
   ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
     self:decodeJson()
 
+    if not self.data[1] then
+      return
+    end
     process_apis("api", "", "v1", self.data[1], cached_api_resources)
 
     if self.data[2].groups == nil then
