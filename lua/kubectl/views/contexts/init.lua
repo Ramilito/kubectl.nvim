@@ -3,7 +3,6 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local hl = require("kubectl.actions.highlight")
-local kube = require("kubectl.actions.kube")
 
 local resource = "contexts"
 
@@ -81,24 +80,23 @@ end
 --- @param cmd string
 function M.change_context(cmd)
   local state = require("kubectl.state")
-  local config = require("kubectl.config")
-  if config.kubectl_cmd and config.kubectl_cmd.persist_context_change then
-    local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
 
-    if not results then
-      vim.notify(results, vim.log.levels.INFO)
-    end
-  end
+  -- TODO: keep persist functionality?
+  -- local config = require("kubectl.config")
+  -- if config.kubectl_cmd and config.kubectl_cmd.persist_context_change then
+  --   local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
+  --
+  --   if not results then
+  --     vim.notify(results, vim.log.levels.INFO)
+  --   end
+  -- end
   state.context["current-context"] = cmd
-  kube.stop_kubectl_proxy()
 
   local client = require("kubectl.client")
   client.set_implementation()
-  kube.start_kubectl_proxy(function()
-		state.setup()
-    local cache = require("kubectl.cache")
-    cache.LoadFallbackData(true)
-  end)
+  state.setup()
+  local cache = require("kubectl.cache")
+  cache.LoadFallbackData(true)
 end
 
 function M.processRow(rows)

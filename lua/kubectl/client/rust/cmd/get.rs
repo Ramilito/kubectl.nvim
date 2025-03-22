@@ -145,7 +145,9 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResu
     let (url, _name) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
     let client = client_guard
         .as_ref()
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;

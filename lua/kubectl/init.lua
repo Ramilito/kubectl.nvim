@@ -11,12 +11,11 @@ local M = {
 --- Open the kubectl view
 function M.open()
   local hl = require("kubectl.actions.highlight")
-  local kube = require("kubectl.actions.kube")
-
   hl.setup()
-  kube.start_kubectl_proxy(function()
+  state.setup()
+
+  vim.schedule(function()
     cache.LoadFallbackData()
-    state.setup()
   end)
 end
 
@@ -25,9 +24,7 @@ function M.close()
   local win_config = vim.api.nvim_win_get_config(0)
 
   if win_config.relative == "" then
-    local kube = require("kubectl.actions.kube")
     state.stop_livez()
-    kube.stop_kubectl_proxy()()
   end
   vim.api.nvim_buf_delete(0, { force = true })
 end
