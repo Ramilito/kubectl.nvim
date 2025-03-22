@@ -212,7 +212,6 @@ end
 
 function M.set_session(file)
   local session_name = M.context["current-context"]
-  print("setting session to: ", vim.inspect(file))
   M.session.contexts[session_name] = { view = file, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
