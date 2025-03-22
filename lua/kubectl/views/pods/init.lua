@@ -244,7 +244,10 @@ function M.Desc(name, ns, reload)
     syntax = "yaml",
     cmd = "describe_async",
   }
-  ResourceBuilder:view_float(def, { args = { M.definition.resource, ns, name, M.definition.gvk.g }, reload = reload })
+  ResourceBuilder:view_float(
+    def,
+    { args = { state.context["current-context"], M.definition.resource, ns, name, M.definition.gvk.g }, reload = reload }
+  )
 end
 
 --- Get current selection for view
