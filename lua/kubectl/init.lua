@@ -54,7 +54,7 @@ function M.setup(options)
   local mappings = require("kubectl.mappings")
   local config = require("kubectl.config")
   local loop = require("kubectl.utils.loop")
-  M.download_if_available(function(err)
+  M.download_if_available(function(_)
     local client = require("kubectl.client")
     client.set_implementation()
 
@@ -66,11 +66,11 @@ function M.setup(options)
       pattern = "k8s_*",
       callback = function(ev)
         mappings.setup(ev)
-        state.set_session(ev)
 
         local win_config = vim.api.nvim_win_get_config(0)
 
         if win_config.relative == "" then
+          state.set_session(ev.file)
           if not loop.is_running(ev.buf) then
             local current_view = require("kubectl.views").view_and_definition(ev.file)
             loop.start_loop(current_view.Draw, { buf = ev.buf })

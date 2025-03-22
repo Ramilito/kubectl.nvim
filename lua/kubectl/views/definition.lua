@@ -32,6 +32,7 @@ function M.on_prompt_input(input)
 
   local parsed_input = string.lower(vim.trim(input))
   local view = require("kubectl.views")
+  state.set_session(parsed_input)
   view.view_or_fallback(parsed_input)
 end
 
