@@ -373,7 +373,11 @@ function ResourceBuilder:view(definition, cancellationToken)
       self.data = data
       self:decodeJson()
       if definition.informer and definition.informer.enabled then
-        client.start_watcher(definition.gvk.k, definition.gvk.g, definition.gvk.v, nil)
+        commands.run_async(
+          "start_watcher_async",
+          { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
+          function() end
+        )
       end
       vim.schedule(function()
         self:display(definition.ft, definition.resource, cancellationToken)

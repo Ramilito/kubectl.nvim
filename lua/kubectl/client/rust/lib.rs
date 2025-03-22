@@ -64,8 +64,8 @@ async fn get_resources_async(
     resources::get_resources(rt, client, resource, group, version, name, namespace)
 }
 
-fn start_watcher(
-    _lua: &Lua,
+async fn start_watcher_async(
+    _lua: Lua,
     args: (String, Option<String>, Option<String>, Option<String>),
 ) -> LuaResult<()> {
     let (resource, group, version, namespace) = args;
@@ -141,7 +141,10 @@ async fn get_table_async(
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
-    exports.set("start_watcher", lua.create_function(start_watcher)?)?;
+    exports.set(
+        "start_watcher_async",
+        lua.create_async_function(start_watcher_async)?,
+    )?;
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;

@@ -11,10 +11,6 @@ function client.set_implementation()
   client.implementation.init_runtime(state.context["current-context"])
 end
 
-function client.exec(...)
-  return client.implementation.exec(...)
-end
-
 function client.get_resource(...)
   return client.implementation.get_resource(...)
 end
@@ -49,10 +45,6 @@ function client.get_store(resource_name)
     namespace = state.ns
   end
   return client.implementation.get_store(resource_name, namespace)
-end
-
-function client.start_watcher(...)
-  return client.implementation.start_watcher(...)
 end
 
 return client
