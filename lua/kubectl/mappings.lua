@@ -162,17 +162,14 @@ function M.get_mappings()
             if ns then
               def.resource = def.resource .. " | " .. ns
             end
-            def.kind = view.definition.gvk.k
-            def.group = view.definition.gvk.g
-            def.version = view.definition.gvk.v
 
             ResourceBuilder:view_float(def, {
               args = {
-                def.kind,
+                view.definition.gvk.k,
                 def.ns,
                 def.name,
-                def.group,
-                def.version,
+                view.definition.gvk.g,
+                view.definition.gvk.v,
                 def.syntax,
               },
             })
@@ -273,11 +270,11 @@ function M.get_mappings()
         }
 
         commands.run_async("get_async", {
-          def.resource_name,
+          instance.definition.gvk.k,
           def.ns,
           def.name,
-          def.group,
-          def.version,
+          instance.definition.gvk.g,
+          instance.definition.gvk.v,
           def.syntax,
         }, function(data)
           vim.schedule(function()
