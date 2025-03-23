@@ -11,9 +11,11 @@ use crate::cmd::exec;
 use crate::cmd::get::{get_async, get_config_async, get_raw_async};
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::processors::get_processors;
+use crate::errors::LogErrorExt;
 
 mod cmd;
 mod describe;
+mod errors;
 mod events;
 mod processors;
 mod resources;
@@ -21,10 +23,19 @@ mod store;
 mod utils;
 mod watcher;
 
+static LOG_PATH: OnceLock<Option<String>> = OnceLock::new();
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 
-fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
+fn init_runtime(lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
+    LOG_PATH.get_or_init(|| {
+        Some(
+            lua.load("return vim.fn.stdpath('log')")
+                .eval()
+                .unwrap_or_else(|_| "default_log".to_string()),
+        )
+    });
+
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let new_client = rt.block_on(async {
@@ -150,7 +161,12 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
     exports.set("exec", lua.create_function(exec::exec)?)?;
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
-    exports.set("edit_async", lua.create_async_function(edit_async)?)?;
+    exports.set(
+        "edit_async",
+        lua.create_async_function(
+            |lua, args| async move { edit_async(lua, args).await.log_err() },
+        )?,
+    )?;
     exports.set(
         "describe_async",
         lua.create_async_function(describe::describe_async)?,
