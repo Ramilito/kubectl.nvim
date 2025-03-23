@@ -14,7 +14,9 @@ pub async fn edit_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
 
     let (client, rt_handle) = {
         let client = {
-            let client_guard = CLIENT_INSTANCE.lock().unwrap();
+            let client_guard = CLIENT_INSTANCE.lock().map_err(|_| {
+                LuaError::RuntimeError("Failed to acquire lock on client instance".into())
+            })?;
             client_guard
                 .as_ref()
                 .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".to_string()))?
