@@ -203,19 +203,20 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
 end
 
 function M.run_async(method_name, args, callback)
-  return vim.uv
-    .new_work(function(cpath, method, ...)
-      package.cpath = cpath
-      local mod = require("kubectl_client")
-      local ok, result = pcall(mod[method], ...)
-      if not ok then
-        return nil, result
-      end
-      return result, nil
-    end, function(data, err)
-      callback(data, err)
-    end)
-    :queue(package.cpath, method_name, unpack(args))
+  local function after_work_callback(results, err)
+    callback(results, err)
+  end
+  local function work_callback(cpath, method, ...)
+    package.cpath = cpath
+    local mod = require("kubectl_client")
+    local ok, result = pcall(mod[method], ...)
+    if not ok then
+      return nil, result
+    end
+    return result, nil
+  end
+
+  return vim.uv.new_work(work_callback, after_work_callback):queue(package.cpath, method_name, unpack(args))
 end
 
 --- Execute a shell command using io.popen
