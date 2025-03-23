@@ -4,7 +4,6 @@ use kube::{
     config::Kubeconfig,
     core::GroupVersionKind,
     discovery::Discovery,
-    Client,
 };
 use mlua::prelude::*;
 use mlua::Either;
@@ -47,15 +46,26 @@ impl Default for OutputMode {
     }
 }
 
-fn get_resource(
-    rt: &Runtime,
-    client: &Client,
-    resource: String,
-    group: Option<String>,
-    version: Option<String>,
-    name: Option<String>,
-    namespace: Option<String>,
-) -> LuaResult<DynamicObject> {
+pub async fn get_resource_async(
+    _lua: Lua,
+    args: (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
+) -> LuaResult<String> {
+    let (kind, group, version, name, namespace) = args;
+
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
     let fut = async move {
         let discovery = Discovery::new(client.clone())
             .run()
@@ -66,7 +76,7 @@ fn get_resource(
             let gvk = GroupVersionKind {
                 group: g,
                 version: v,
-                kind: resource.to_string(),
+                kind: kind.to_string(),
             };
             if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
                 (ar, caps)
@@ -77,12 +87,12 @@ fn get_resource(
                 )));
             }
         } else {
-            if let Some((ar, caps)) = resolve_api_resource(&discovery, &resource) {
+            if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
                 (ar, caps)
             } else {
                 return Err(mlua::Error::external(format!(
                     "Resource not found in cluster: {}",
-                    resource
+                    kind
                 )));
             }
         };
@@ -93,7 +103,7 @@ fn get_resource(
             let mut obj = api.get(n).await.map_err(|e| mlua::Error::external(e))?;
             obj.managed_fields_mut().clear();
 
-            Ok(obj)
+            Ok(OutputMode::Yaml.format(obj))
         } else {
             Err(mlua::Error::external("test"))
         }
@@ -103,17 +113,10 @@ fn get_resource(
 }
 
 pub async fn get_async(
-    _lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
+    lua: Lua,
+    args: (String, Option<String>, String, Option<String>),
 ) -> LuaResult<String> {
-    let (kind, namespace, name, group, version, output) = args;
+    let (kind, namespace, name, output) = args;
     let output_mode = output
         .as_deref()
         .map(OutputMode::from_str)
@@ -122,17 +125,10 @@ pub async fn get_async(
     if let Some(found) = get_single(&kind, namespace.clone(), &name) {
         return Ok(output_mode.format(found));
     }
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let result = get_resource(rt, client, kind, group, version, Some(name), namespace);
+    let result = get_resource_async(lua, (kind, None, None, Some(name), namespace));
 
-    Ok(output_mode.format(result?))
+    Ok(result.await?)
 }
 
 pub async fn get_config_async(_lua: Lua, _args: ()) -> LuaResult<String> {

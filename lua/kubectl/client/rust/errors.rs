@@ -16,7 +16,7 @@ impl<T, E: std::fmt::Display> LogErrorExt<T, E> for Result<T, E> {
     }
 }
 
-fn log_error<E: std::fmt::Display>(err: E) {
+pub fn log_error<E: std::fmt::Display>(err: E) {
     let msg = err.to_string();
     if let Some(log_opt) = LOG_PATH.get() {
         if let Some(ref log_dir) = *log_opt {

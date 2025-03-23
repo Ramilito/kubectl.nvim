@@ -168,8 +168,6 @@ function M.get_mappings()
                 view.definition.gvk.k,
                 def.ns,
                 def.name,
-                view.definition.gvk.g,
-                view.definition.gvk.v,
                 def.syntax,
               },
             })
@@ -269,13 +267,12 @@ function M.get_mappings()
           version = instance.definition.version,
         }
 
-        commands.run_async("get_async", {
+        commands.run_async("get_resource_async", {
           instance.definition.gvk.k,
+					nil,
+					nil,
+					def.name,
           def.ns,
-          def.name,
-          instance.definition.gvk.g,
-          instance.definition.gvk.v,
-          def.syntax,
         }, function(data)
           vim.schedule(function()
             local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)

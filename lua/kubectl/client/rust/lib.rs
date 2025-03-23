@@ -8,7 +8,7 @@ use tokio::runtime::Runtime;
 use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
-use crate::cmd::get::{get_async, get_config_async, get_raw_async};
+use crate::cmd::get::{get_async, get_config_async, get_raw_async, get_resource_async};
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::processors::get_processors;
 use crate::errors::LogErrorExt;
@@ -181,6 +181,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(get_config_async)?,
     )?;
     exports.set("get_async", lua.create_async_function(get_async)?)?;
+    exports.set("get_resource_async", lua.create_async_function(get_resource_async)?)?;
     exports.set(
         "get_resources_async",
         lua.create_async_function(get_resources_async)?,
