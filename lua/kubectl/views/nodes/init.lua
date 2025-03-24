@@ -89,12 +89,20 @@ function M.Cordon(node)
 end
 
 function M.Desc(node, _, reload)
-  ResourceBuilder:view_float({
+  local def = {
     resource = "nodes |" .. node,
     ft = "k8s_node_desc",
-    url = { "describe", "node", node },
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+  }
+
+  ResourceBuilder:view_float(
+    def,
+    {
+      args = { state.context["current-context"], M.definition.resource, nil, node, M.definition.gvk.g },
+      reload = reload,
+    }
+  )
 end
 
 --- Get current seletion for view

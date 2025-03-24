@@ -18,7 +18,7 @@ extern "C" {
 
 pub async fn describe_async(
     _lua: Lua,
-    args: (String, String, String, String, String),
+    args: (String, String, Option<String>, String, String),
 ) -> LuaResult<String> {
     let (context, kind, namespace, name, group) = args;
 
@@ -28,16 +28,21 @@ pub async fn describe_async(
         let group = CString::new(group).expect("Failed to convert group to CString");
         let version = CString::new("v1").unwrap();
         let resource = CString::new(kind).expect("Failed to convert kind to CString");
-        let ns = CString::new(namespace).expect("Failed to convert namespace to CString");
         let name = CString::new(name).expect("Failed to convert name to CString");
         let context = CString::new(context).expect("Failed to convert kubeconfig to CString");
+
+        let ns_cstring = namespace
+            .map(|ns| CString::new(ns).expect("Failed to convert namespace to CString"));
+        let ns_ptr = ns_cstring
+            .as_ref()
+            .map_or(std::ptr::null(), |ns| ns.as_ptr());
 
         unsafe {
             let result_ptr = DescribeResource(
                 group.as_ptr(),
                 version.as_ptr(),
                 resource.as_ptr(),
-                ns.as_ptr(),
+                ns_ptr,
                 name.as_ptr(),
                 context.as_ptr(),
             );
