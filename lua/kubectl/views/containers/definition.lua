@@ -1,16 +1,6 @@
 local time = require("kubectl.utils.time")
 
-local M = {
-  resource = "containers",
-  display_name = "",
-  ft = "k8s_containers",
-  url = {},
-  hints = {
-    { key = "<Plug>(kubectl.logs)", desc = "logs" },
-    { key = "<Plug>(kubectl.debug)", desc = "debug" },
-    { key = "<Plug>(kubectl.select)", desc = "exec" },
-  },
-}
+local M = {}
 
 local function getPorts(ports)
   local string_ports = ""
@@ -105,21 +95,6 @@ function M.processRow(row)
   addInitContianers(row, data)
   addEphemeralContianers(row, data)
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAME",
-    "IMAGE",
-    "READY",
-    "STATE",
-    "TYPE",
-    "RESTARTS",
-    "PORTS",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M

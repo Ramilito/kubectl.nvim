@@ -37,7 +37,7 @@ function M.View(self, definition, data, callback)
             if string.find(text, "Args", 1, true) then
               vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, mark[2], 0, {
                 id = mark[1],
-                virt_text = { { "Args | kubectl " .. table.concat(args_tmp, " "), "KubectlWhite" } },
+                virt_text = { { "Params | " .. table.concat(args_tmp, " "), "KubectlWhite" } },
                 virt_text_pos = "inline",
                 right_gravity = false,
               })
@@ -103,7 +103,7 @@ function M.View(self, definition, data, callback)
   table.insert(self.extmarks, {
     row = #self.data - 1,
     start_col = 0,
-    virt_text = { { "Args | " .. " ", "KubectlWhite" } },
+    virt_text = { { "Params | " .. " ", "KubectlWhite" } },
     virt_text_pos = "inline",
     right_gravity = false,
   })

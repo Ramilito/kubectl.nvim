@@ -19,7 +19,7 @@ M.LoadFallbackData = function(force, callback)
 end
 
 local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
-  if not group_resources.resources then
+  if not group_resources or not group_resources.resources then
     return
   end
   for _, resource in ipairs(group_resources.resources) do
@@ -27,8 +27,7 @@ local function process_apis(api_url, group_name, group_version, group_resources,
     if not string.find(resource.name, "/status") then
       local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
       local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
-      local resource_url =
-        string.format("{{BASE}}/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
+      local resource_url = string.format("/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
 
       cached_api_resources.values[resource_name] = {
         name = resource_name,
@@ -133,12 +132,18 @@ end
 function M.load_cache(cached_api_resources, callback)
   M.loading = true
   timeme.start()
+
   local cmds = {
-    { cmd = "kubectl", args = { "get", "--raw", "/api/v1" } },
-    { cmd = "kubectl", args = { "get", "--raw", "/apis" } },
+    { cmd = "get_raw_async", args = { "/api/v1", nil } },
+    { cmd = "get_raw_async", args = { "/apis", nil } },
   }
+
   ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
     self:decodeJson()
+
+    if not self.data[1] then
+      return
+    end
     process_apis("api", "", "v1", self.data[1], cached_api_resources)
 
     if self.data[2].groups == nil then
@@ -154,8 +159,8 @@ function M.load_cache(cached_api_resources, callback)
         table.insert(group_cmds, {
           group_name = group_name,
           group_version = group_version,
-          cmd = "kubectl",
-          args = { "get", "--raw", "/apis/" .. group_version },
+          cmd = "get_raw_async",
+          args = { "/apis/" .. group_version, nil },
         })
       end
     end
@@ -177,14 +182,11 @@ function M.load_cache(cached_api_resources, callback)
       local all_urls = {}
       for _, resource in pairs(cached_api_resources.values) do
         if resource.url then
-          table.insert(all_urls, { cmd = "curl", args = { resource.url } })
+          table.insert(all_urls, { cmd = "get_raw_async", args = { resource.url, nil } })
         end
       end
       for _, cmd in ipairs(all_urls) do
-        if cmd.cmd == "curl" then
-          cmd.args = url.build(cmd.args)
-          cmd.args = url.addHeaders(cmd.args, cmd.contentType)
-        end
+        cmd.args = url.build(cmd.args)
       end
 
       M.loading = false

@@ -6,46 +6,65 @@ local config = require("kubectl.config")
 local definition = require("kubectl.views.namespace.definition")
 local state = require("kubectl.state")
 
+local resource = "namespaces"
+
 local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "", v = "v1", k = "namespace" },
+    headers = {
+      "NAME",
+      "STATUS",
+      "AGE",
+    },
+  },
   namespaces = { "All" },
 }
 
 function M.View()
-  local buf = buffers.floating_dynamic_buffer(definition.ft, definition.display_name, function(input)
+  local buf = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
     M.changeNamespace(input)
   end, { header = { data = {} }, prompt = true })
 
-  ResourceBuilder:new(definition.resource):setCmd(definition.url, "curl"):fetchAsync(function(self)
-    self:decodeJson()
+  local self = ResourceBuilder:new(M.definition.resource)
+  self.definition = M.definition
 
-    vim.schedule(function()
-      self.buf_nr = buf
-      self:process(definition.processRow, true):prettyPrint(definition.getHeaders):setContent()
-
-      local list = { { name = "All" } }
-      for _, value in ipairs(self.processedData) do
-        if value.name.value then
-          table.insert(M.namespaces, value.name.value)
-          table.insert(list, { name = value.name.value })
+  commands.run_async(
+    "get_resources_async",
+    { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil, nil },
+    function(data)
+      self.data = data
+      self:decodeJson()
+      vim.schedule(function()
+        self.buf_nr = buf
+        self:process(definition.processRow, true):prettyPrint():setContent()
+        local list = { { name = "All" } }
+        for _, value in ipairs(self.processedData) do
+          if value.name.value then
+            table.insert(M.namespaces, value.name.value)
+            table.insert(list, { name = value.name.value })
+          end
         end
-      end
-      completion.with_completion(buf, list)
+        completion.with_completion(buf, list)
 
-      vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
-        noremap = true,
-        callback = function()
-          local line = vim.api.nvim_get_current_line()
-          local current_word = vim.split(line, "%s%s+")[1]
+        vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
+          noremap = true,
+          callback = function()
+            local line = vim.api.nvim_get_current_line()
+            local current_word = vim.split(line, "%s%s+")[1]
 
-          vim.cmd("startinsert")
-          vim.schedule(function()
-            vim.api.nvim_put({ current_word }, "c", true, true)
-            vim.api.nvim_input("<cr>")
-          end)
-        end,
-      })
-    end)
-  end)
+            vim.cmd("startinsert")
+            vim.schedule(function()
+              vim.api.nvim_put({ current_word }, "c", true, true)
+              vim.api.nvim_input("<cr>")
+            end)
+          end,
+        })
+      end)
+    end
+  )
 end
 
 --- Returns a list of namespaces

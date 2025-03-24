@@ -2,7 +2,7 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
 local hl = require("kubectl.actions.highlight")
-local root_definition = require("kubectl.views.definition")
+local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -10,13 +10,13 @@ local M = { builder = nil, pfs = {} }
 
 function M.View(cancellationToken)
   M.pfs = {}
-  root_definition.getPFData(M.pfs, true)
+  pf_definition.getPFData(M.pfs, true)
   ResourceBuilder:view(definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
   state.instance[definition.resource]:draw(definition, cancellationToken)
-  root_definition.setPortForwards(
+  pf_definition.setPortForwards(
     state.instance[definition.resource].extmarks,
     state.instance[definition.resource].prettyData,
     M.pfs

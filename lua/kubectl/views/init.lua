@@ -4,6 +4,7 @@ local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
+local pf_definition = require("kubectl.views.port_forwards.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local mappings = require("kubectl.mappings")
@@ -257,14 +258,10 @@ end
 -- @function PortForwards
 -- @return nil
 function M.PortForwards()
-  local pfs = {}
-  pfs = definition.getPFData(pfs, false)
-
   local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
-  self.data = definition.getPFRows(pfs)
+  self.data = pf_definition.getPFRows()
   self.extmarks = {}
-
-  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "PID", "TYPE", "RESOURCE", "PORT" })
+  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
   self:addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false):setContent()
 
   vim.keymap.set("n", "q", function()
@@ -378,8 +375,7 @@ function M.view_and_definition(view_name)
     view_name = "fallback"
     view = require("kubectl.views.fallback")
   end
-  local view_definition = require("kubectl.views." .. view_name .. ".definition")
-  return view, view_definition
+  return view, view.definition
 end
 
 function M.view_or_fallback(view_name)

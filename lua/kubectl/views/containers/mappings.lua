@@ -27,8 +27,8 @@ M.overrides = {
     callback = function()
       local container_name = tables.getCurrentSelection(unpack({ 1 }))
       if container_name then
-        container_view.selectContainer(container_name)
-        container_view.logs(pod_view.selection.pod, pod_view.selection.ns)
+        pod_view.selectPod(pod_view.selection.pod, pod_view.selection.ns, container_name)
+        pod_view.Logs()
       else
         print("Failed to extract logs.")
       end

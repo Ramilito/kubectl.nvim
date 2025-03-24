@@ -1,7 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local informer = require("kubectl.actions.informer")
 local state = require("kubectl.state")
 local string_util = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
@@ -14,6 +13,7 @@ local tables = require("kubectl.utils.tables")
 ---@field processedData any
 ---@field prettyData any
 ---@field extmarks table
+---@field extmarks_extra table|nil
 ---@field header table
 local ResourceBuilder = {}
 ResourceBuilder.__index = ResourceBuilder
@@ -228,11 +228,10 @@ function ResourceBuilder:splitData()
 end
 
 --- Pretty print the data
----@param headersFunc function The function to generate headers
 ---@return ResourceBuilder
-function ResourceBuilder:prettyPrint(headersFunc)
+function ResourceBuilder:prettyPrint()
   self.prettyData, self.extmarks =
-    tables.pretty_print(self.processedData, headersFunc(self.data), state.sortby[self.resource], self.win_nr)
+    tables.pretty_print(self.processedData, self.definition.headers, state.sortby[self.resource], self.win_nr)
   return self
 end
 
@@ -292,6 +291,9 @@ function ResourceBuilder:setContent(cancellationToken)
 
   local ok, win_config = pcall(vim.api.nvim_win_get_config, self.win_nr or 0)
 
+  if self.extmarks_extra then
+    vim.list_extend(self.extmarks, self.extmarks_extra)
+  end
   if ok and win_config.relative == "" then
     buffers.set_content(self.buf_nr, { content = self.prettyData, marks = self.extmarks, header = {} })
 
@@ -314,10 +316,8 @@ end
 --luacheck: ignore
 function ResourceBuilder:view_float(definition, opts)
   opts = opts or {}
-  opts.cmd = opts.cmd or "curl"
   self = state.instance_float
 
-  -- Explicitly check for false
   if opts.reload == nil or opts.reload or self == nil then
     self = ResourceBuilder:new(definition.resource)
     self.definition = definition
@@ -326,23 +326,24 @@ function ResourceBuilder:view_float(definition, opts)
     self.definition = definition
   end
 
-  self:setCmd(self.definition.url, opts.cmd, opts.contentType):fetchAsync(function(builder)
-    builder:decodeJson()
+  commands.run_async(definition.cmd, opts.args, function(data)
+    self.data = data
+    self:decodeJson()
 
     vim.schedule(function()
       if self.definition.processRow then
-        builder
+        self
           :process(self.definition.processRow, true)
           :sort()
-          :prettyPrint(self.definition.getHeaders)
+          :prettyPrint()
           :addHints(self.definition.hints, false, false, false)
           :setContent()
       else
-        builder:splitData()
+        self:splitData()
         if self.definition.hints then
-          builder:addHints(self.definition.hints, false, false, false)
+          self:addHints(self.definition.hints, false, false, false)
         end
-        builder:setContentRaw()
+        self:setContentRaw()
       end
     end)
   end)
@@ -351,49 +352,77 @@ function ResourceBuilder:view_float(definition, opts)
   return self
 end
 
-function ResourceBuilder:view(definition, cancellationToken, opts)
-  opts = opts or {}
-  opts.cmd = opts.cmd or "curl"
+function ResourceBuilder:view(definition, cancellationToken)
   self.definition = definition
-
   self = state.instance[definition.resource]
+
   if not self or not self.resource or self.resource ~= definition.resource then
     self = ResourceBuilder:new(definition.resource)
   end
 
-  self
-    :display(definition.ft, definition.resource, cancellationToken)
-    :setCmd(definition.url, opts.cmd)
-    :fetchAsync(function(builder)
-      builder:decodeJson()
-      if opts.cmd == "curl" then
-        if not vim.tbl_contains(vim.tbl_keys(opts), "informer") or opts.informer then
-          informer.start(builder)
-        end
-      end
-      vim.schedule(function()
-        builder:draw(definition, cancellationToken)
-      end)
-    end)
+  local ns = nil
+  if state.ns and state.ns ~= "All" then
+    ns = state.ns
+  end
 
-  state.instance[definition.resource] = self
-  state.selections = {}
+  commands.run_async(
+    "get_resources_async",
+    { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil, ns },
+    function(data)
+      self.data = data
+      self:decodeJson()
+      if definition.informer and definition.informer.enabled then
+        commands.run_async(
+          "start_watcher_async",
+          { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
+          function() end
+        )
+      end
+
+      vim.schedule(function()
+        self:display(definition.ft, definition.resource, cancellationToken)
+        self:draw(definition, cancellationToken)
+      end)
+
+      state.instance[definition.resource] = self
+      state.selections = {}
+    end
+  )
+
   return self
 end
 
 function ResourceBuilder:draw(definition, cancellationToken)
   self.display_name = definition.display_name
-  self
-    :process(definition.processRow)
-    :sort()
-    :prettyPrint(definition.getHeaders)
-    :addHints(definition.hints, true, true, true)
-  vim.schedule(function()
-    self:setContent(cancellationToken)
-    self:draw_header(cancellationToken)
+
+  local namespace = nil
+  if state.ns and state.ns ~= "All" then
+    namespace = state.ns
+  end
+
+  local filter = state.getFilter()
+  local sort_by = state.sortby[definition.resource].current_word
+  local sort_order = state.sortby[definition.resource].order
+
+  commands.run_async("get_table_async", { definition.gvk.k, namespace, sort_by, sort_order, filter }, function(data)
+    if data then
+      state.instance[definition.resource].data = data
+      state.instance[definition.resource]:decodeJson()
+      state.instance[definition.resource].processedData = state.instance[definition.resource].data
+
+
+      vim.schedule(function()
+				if self.definition.processRow then
+					self:process(self.definition.processRow, true):sort()
+				end
+        self:prettyPrint():addHints(definition.hints, true, true, true)
+        self:setContent(cancellationToken)
+        self:draw_header(cancellationToken)
+        state.instance[definition.resource] = self
+      end)
+    end
   end)
 
-  state.instance[definition.resource] = self
   return self
 end
 

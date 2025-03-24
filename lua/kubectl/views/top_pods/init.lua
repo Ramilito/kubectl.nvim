@@ -8,6 +8,8 @@ function M.View(cancellationToken)
   ResourceBuilder:view(definition, cancellationToken, { informer = false })
 end
 
+function M.Draw(_) end
+
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
