@@ -4,14 +4,37 @@ local definition = require("kubectl.views.nodes.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local resource = "nodes"
+local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "", v = "v1", k = "node" },
+    informer = { enabled = true },
+    hints = {
+      { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
+      { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },
+      { key = "<Plug>(kubectl.drain)", desc = "drain", long_desc = "Drain selected node" },
+    },
+    headers = {
+      "NAME",
+      "STATUS",
+      "ROLES",
+      "AGE",
+      "VERSION",
+      "INTERNAL-IP",
+      "EXTERNAL-IP",
+    },
+  },
+}
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+  ResourceBuilder:view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
 end
 
 function M.Drain(node)

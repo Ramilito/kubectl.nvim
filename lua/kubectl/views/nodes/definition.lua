@@ -3,17 +3,7 @@ local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 local time = require("kubectl.utils.time")
-local M = {
-  resource = "nodes",
-  display_name = "Nodes",
-  ft = "k8s_nodes",
-  url = { "{{BASE}}/api/v1/nodes?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
-    { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },
-    { key = "<Plug>(kubectl.drain)", desc = "drain", long_desc = "Drain selected node" },
-  },
-}
+local M = {}
 
 -- Define the custom match function for prefix and suffix
 local function match_prefix_suffix(key, _, prefix, suffix)
@@ -118,20 +108,6 @@ function M.processRow(rows)
     table.insert(data, pod)
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAME",
-    "STATUS",
-    "ROLES",
-    "AGE",
-    "VERSION",
-    "INTERNAL-IP",
-    "EXTERNAL-IP",
-  }
-
-  return headers
 end
 
 return M

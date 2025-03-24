@@ -10,8 +10,8 @@ use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{get_async, get_config_async, get_raw_async, get_resource_async};
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
-use crate::processors::get_processors;
 use crate::errors::LogErrorExt;
+use crate::processors::get_processors;
 
 mod cmd;
 mod describe;
@@ -66,13 +66,14 @@ async fn get_resources_async(
         Option<String>,
     ),
 ) -> LuaResult<String> {
-    let (resource, group, version, name, namespace) = args;
+    let (kind, group, version, name, namespace) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-    resources::get_resources(rt, client, resource, group, version, name, namespace)
+
+    resources::get_resources(rt, client, kind, group, version, name, namespace)
 }
 
 async fn start_watcher_async(
@@ -181,7 +182,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(get_config_async)?,
     )?;
     exports.set("get_async", lua.create_async_function(get_async)?)?;
-    exports.set("get_resource_async", lua.create_async_function(get_resource_async)?)?;
+    exports.set(
+        "get_resource_async",
+        lua.create_async_function(get_resource_async)?,
+    )?;
     exports.set(
         "get_resources_async",
         lua.create_async_function(get_resources_async)?,
