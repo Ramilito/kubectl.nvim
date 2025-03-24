@@ -47,49 +47,6 @@ function M.Desc(name, ns, reload)
     cmd = "describe_async",
   }
   ResourceBuilder:view_float(def, { args = { M.definition.resource, ns, name, M.definition.gvk.g }, reload = reload })
-
-
-end
-
-function M.getReady(row)
-  local status = { symbol = "", value = "", sort_by = 0 }
-  local available = tonumber(row.status and (row.status.availableReplicas or row.status.readyReplicas) or "0")
-  local unavailable = tonumber(row.status and row.status.unavailableReplicas or "0")
-  local replicas = tonumber(row.spec.replicas or (row.status and row.status.replicas) or "0")
-
-  if available == replicas and unavailable == 0 then
-    status.symbol = hl.symbols.note
-  else
-    status.symbol = hl.symbols.deprecated
-  end
-
-  status.value = available .. "/" .. replicas
-  status.sort_by = (available * 1000) + replicas
-  return status
-end
-
-function M.processRow(rows)
-  local data = {}
-
-  if not rows or not rows.items then
-    return data
-  end
-
-  if rows and rows.items then
-    for _, row in pairs(rows.items) do
-      local pod = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        ready = M.getReady(row),
-        ["up-to-date"] = row.status and row.status.updatedReplicas or 0,
-        available = row.status and row.status.availableReplicas or 0,
-        age = time.since(row.metadata.creationTimestamp, true),
-      }
-
-      table.insert(data, pod)
-    end
-  end
-  return data
 end
 
 --- Get current seletion for view

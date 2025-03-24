@@ -89,11 +89,11 @@ end
 
 function M.processRow(rows)
   local data = {}
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  for _, row in pairs(rows.items) do
+  for _, row in pairs(rows) do
     local iIP, eIP = getIPs(row)
     local pod = {
       name = row.metadata.name,

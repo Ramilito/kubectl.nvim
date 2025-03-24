@@ -26,6 +26,7 @@ local M = {
       "INTERNAL-IP",
       "EXTERNAL-IP",
     },
+    processRow = definition.processRow,
   },
 }
 

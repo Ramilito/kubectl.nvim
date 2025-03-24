@@ -378,6 +378,7 @@ function ResourceBuilder:view(definition, cancellationToken)
           function() end
         )
       end
+
       vim.schedule(function()
         self:display(definition.ft, definition.resource, cancellationToken)
         self:draw(definition, cancellationToken)
@@ -408,8 +409,13 @@ function ResourceBuilder:draw(definition, cancellationToken)
       state.instance[definition.resource].data = data
       state.instance[definition.resource]:decodeJson()
       state.instance[definition.resource].processedData = state.instance[definition.resource].data
+
+
       vim.schedule(function()
-        self:prettyPrint(definition.getHeaders):addHints(definition.hints, true, true, true)
+				if self.definition.processRow then
+					self:process(self.definition.processRow, true):sort()
+				end
+        self:prettyPrint():addHints(definition.hints, true, true, true)
         self:setContent(cancellationToken)
         self:draw_header(cancellationToken)
         state.instance[definition.resource] = self
