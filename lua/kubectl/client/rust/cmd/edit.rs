@@ -9,7 +9,7 @@ use crate::{CLIENT_INSTANCE, RUNTIME};
 
 use super::utils::dynamic_api;
 
-pub async fn edit_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
+pub async fn edit_async(_lua: Lua, args: String) -> LuaResult<String> {
     let path = args;
 
     let (client, rt_handle) = {
@@ -36,7 +36,7 @@ pub async fn edit_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
     })?;
 
-    let pth = path.clone().expect("apply needs a -f file supplied");
+    let pth = path.clone();
     let yaml_raw =
         std::fs::read_to_string(&pth).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
     let yaml: serde_yaml::Value =
@@ -58,14 +58,29 @@ pub async fn edit_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
     let name = obj.name_any();
     if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
         let api = dynamic_api(ar.clone(), caps, client.clone(), namespace, false);
-
-        let _r = rt_handle.block_on(async {
-            api.replace(&name, &Default::default(), &obj)
+        let mut original_obj: DynamicObject = rt_handle.block_on(async {
+            api.get(&name)
                 .await
                 .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
         })?;
 
-        Ok(format!("{}/{} edited", ar.plural, name))
+        original_obj.managed_fields_mut().clear();
+
+        let orig_yaml = serde_yaml::to_string(&original_obj)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        let new_yaml =
+            serde_yaml::to_string(&obj).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        if orig_yaml == new_yaml {
+            Ok(format!("no changes detected for {}/{}", ar.plural, name))
+        } else {
+            rt_handle.block_on(async {
+                api.replace(&name, &Default::default(), &obj)
+                    .await
+                    .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
+            })?;
+            Ok(format!("{}/{} edited", ar.plural, name))
+        }
     } else {
         Err(mlua::Error::RuntimeError(
             "Cannot edit document for unknown resource".to_string(),
