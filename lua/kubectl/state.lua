@@ -127,7 +127,6 @@ function M.checkHealth(cb)
 
   M.livez.timer:start(0, 5000, function()
     commands.run_async("get_server_raw_async", { "/livez", nil }, function(data)
-			print(data)
       if data == "ok" then
         M.livez.ok = true
         M.livez.time_of_ok = os.time()
