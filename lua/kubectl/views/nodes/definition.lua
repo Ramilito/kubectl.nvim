@@ -94,18 +94,20 @@ function M.processRow(rows)
   end
 
   for _, row in pairs(rows) do
-    local iIP, eIP = getIPs(row)
-    local pod = {
-      name = row.metadata.name,
-      status = M.getStatus(row),
-      roles = getRole(row),
-      age = time.since(row.metadata.creationTimestamp, true),
-      version = row.status and row.status.nodeInfo and row.status.nodeInfo.kubeletVersion,
-      ["internal-ip"] = iIP,
-      ["external-ip"] = eIP,
-    }
+    if row.metadata.name then
+      local iIP, eIP = getIPs(row)
+      local pod = {
+        name = row.metadata.name,
+        status = M.getStatus(row),
+        roles = getRole(row),
+        age = time.since(row.metadata.creationTimestamp, true),
+        version = row.status and row.status.nodeInfo and row.status.nodeInfo.kubeletVersion,
+        ["internal-ip"] = iIP,
+        ["external-ip"] = eIP,
+      }
 
-    table.insert(data, pod)
+      table.insert(data, pod)
+    end
   end
   return data
 end
