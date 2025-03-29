@@ -1,9 +1,11 @@
+use http::Uri;
 use k8s_openapi::serde_json;
 use kube::{
     api::{DynamicObject, ResourceExt},
     config::Kubeconfig,
     core::GroupVersionKind,
     discovery::Discovery,
+    Config,
 };
 use mlua::prelude::*;
 use mlua::Either;
@@ -139,6 +141,39 @@ pub async fn get_config_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     Ok(json)
 }
 
+pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> {
+    let path = args;
+
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
+
+    let fut = async move {
+        let config = Config::infer().await.map_err(|e| LuaError::external(e))?;
+        let base = config.cluster_url.to_string();
+        let full_url_str = format!(
+            "{}/{}",
+            base.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        );
+        let full_url: Uri = full_url_str.parse().map_err(|e| LuaError::external(e))?;
+
+        let req = http::Request::get(full_url)
+            .body(Vec::new())
+            .map_err(|e| LuaError::external(e))?;
+
+        let text = client
+            .request_text(req)
+            .await
+            .map_err(|e| LuaError::external(e))?;
+        Ok(text)
+    };
+    rt.block_on(fut)
+}
 pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
     let (url, _name) = args;
 

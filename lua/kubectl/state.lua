@@ -124,28 +124,20 @@ end
 
 function M.checkHealth(cb)
   M.livez.timer = vim.uv.new_timer()
-  local ResourceBuilder = require("kubectl.resourcebuilder")
-  local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
 
   M.livez.timer:start(0, 5000, function()
-    builder:fetchAsync(
-      function(self)
-        if self.data == "ok" then
-          M.livez.ok = true
-          M.livez.time_of_ok = os.time()
-          if cb then
-            cb()
-          end
-        else
-          M.livez.ok = false
+    commands.run_async("get_server_raw_async", { "/livez", nil }, function(data)
+			print(data)
+      if data == "ok" then
+        M.livez.ok = true
+        M.livez.time_of_ok = os.time()
+        if cb then
+          cb()
         end
-      end,
-      nil,
-      function(_)
+      else
         M.livez.ok = false
-      end,
-      { timeout = 5000 }
-    )
+      end
+    end)
   end)
 end
 
