@@ -70,18 +70,9 @@ function M.setup()
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
+			M.checkHealth()
       if config.options.skew.enabled then
         M.checkVersions()
-        M.checkHealth(function()
-          if
-            M.versions.client.major == 0
-            or M.versions.server.major == 0
-            or M.versions.client.minor == 0
-            or M.versions.server.minor == 0
-          then
-            M.checkVersions()
-          end
-        end)
       end
     end)
   end)
@@ -122,7 +113,7 @@ function M.stop_livez()
   end
 end
 
-function M.checkHealth(cb)
+function M.checkHealth()
   M.livez.timer = vim.uv.new_timer()
 
   M.livez.timer:start(0, 5000, function()
@@ -130,9 +121,6 @@ function M.checkHealth(cb)
       if data == "ok" then
         M.livez.ok = true
         M.livez.time_of_ok = os.time()
-        if cb then
-          cb()
-        end
       else
         M.livez.ok = false
       end
