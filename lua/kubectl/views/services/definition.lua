@@ -86,7 +86,7 @@ function M.processRow(rows)
   end
 
   for _, row in pairs(rows) do
-    if row.metadata.name then
+    if row.metadata then
       local pod = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,

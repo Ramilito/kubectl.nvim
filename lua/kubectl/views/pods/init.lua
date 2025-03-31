@@ -173,6 +173,7 @@ function M.PortForward(pod, ns)
     ns = ns,
     group = M.definition.group,
     version = M.definition.version,
+    cmd = {},
   }
 
   commands.run_async("get_async", {
@@ -216,7 +217,7 @@ function M.PortForward(pod, ns)
       builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
       table.insert(builder.data, " ")
 
-      local data = {
+      local pf_data = {
         {
           text = "address:",
           value = "localhost",
@@ -228,10 +229,10 @@ function M.PortForward(pod, ns)
         { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
       }
 
-      builder:action_view(def, data, function(args)
+      builder:action_view(def, pf_data, function(args)
         local client = require("kubectl.client")
-        local local_port, remote_port = args[6]:match("(%d+):(%d+)")
-        client.portforward_start("pod", args[2], args[4], args[5], local_port, remote_port)
+        local local_port, remote_port = args[2]:match("(%d+):(%d+)")
+        client.portforward_start("pod", pod, ns, args[1], local_port, remote_port)
       end)
     end)
   end)
@@ -244,13 +245,10 @@ function M.Desc(name, ns, reload)
     syntax = "yaml",
     cmd = "describe_async",
   }
-  ResourceBuilder:view_float(
-    def,
-    {
-      args = { state.context["current-context"], M.definition.resource, ns, name, M.definition.gvk.g },
-      reload = reload,
-    }
-  )
+  ResourceBuilder:view_float(def, {
+    args = { state.context["current-context"], M.definition.resource, ns, name, M.definition.gvk.g },
+    reload = reload,
+  })
 end
 
 --- Get current selection for view

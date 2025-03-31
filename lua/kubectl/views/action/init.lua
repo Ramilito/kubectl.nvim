@@ -34,7 +34,7 @@ function M.View(self, definition, data, callback)
         for _, mark in ipairs(marks) do
           if mark then
             local text = mark[4].virt_text[1][1]
-            if string.find(text, "Args", 1, true) then
+            if string.find(text, "Params", 1, true) then
               vim.api.nvim_buf_set_extmark(buf_nr, state.marks.ns_id, mark[2], 0, {
                 id = mark[1],
                 virt_text = { { "Params | " .. table.concat(args_tmp, " "), "KubectlWhite" } },

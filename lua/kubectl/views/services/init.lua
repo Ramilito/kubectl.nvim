@@ -53,54 +53,69 @@ function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = "services | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "svc", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+  }, {
+    args = { state.context["current-context"], M.definition.resource, ns, name, M.definition.gvk.g },
+    reload = reload,
+  })
 end
 
 function M.PortForward(name, ns)
-  local builder = ResourceBuilder:new("kubectl_pf")
-  local pf_def = {
+  local def = {
     ft = "k8s_action",
     display = "PF: " .. name .. "-" .. "?",
     resource = name,
-    cmd = { "port-forward", "svc/" .. name, "-n", ns },
+    ns = ns,
+    resource_name = M.definition.resource_name,
+    group = M.definition.group,
+    version = M.definition.version,
+    cmd = {},
   }
 
-  local kind = tables.find_resource(state.instance[M.definition.resource].data, name, ns)
-  if not kind then
-    return
-  end
-  local ports = {}
-  for _, port in ipairs(kind.spec.ports) do
-    table.insert(ports, {
-      name = { value = port.name, symbol = hl.symbols.pending },
-      port = { value = port.port, symbol = hl.symbols.success },
-      protocol = port.protocol,
-    })
-  end
-  if next(ports) == nil then
-    ports[1] = { port = { value = "" }, name = { value = "" } }
-  end
-  builder.data, builder.extmarks = tables.pretty_print(ports, { "NAME", "PORT", "PROTOCOL" })
-  table.insert(builder.data, " ")
+  commands.run_async("get_async", {
+    M.definition.gvk.k,
+    ns,
+    name,
+    M.definition.gvk.g,
+    M.definition.gvk.v,
+    def.syntax,
+  }, function(data)
+    local builder = ResourceBuilder:new("kubectl_pf")
+    builder.data = data
+    builder:decodeJson()
+    local ports = {}
+    for _, port in ipairs(builder.data.spec.ports) do
+      table.insert(ports, {
+        name = { value = port.name, symbol = hl.symbols.pending },
+        port = { value = port.port, symbol = hl.symbols.success },
+        protocol = port.protocol,
+      })
+    end
+    if next(ports) == nil then
+      ports[1] = { port = { value = "" }, name = { value = "" } }
+    end
 
-  local data = {
-    {
-      text = "address:",
-      value = "localhost",
-      options = { "localhost", "0.0.0.0" },
-      cmd = "--address",
-      type = "option",
-    },
-    { text = "local:", value = tostring(ports[1].port.value), cmd = "", type = "positional" },
-    { text = "container port:", value = tostring(ports[1].port.value), cmd = ":", type = "merge_above" },
-  }
-
-  builder:action_view(pf_def, data, function(args)
-    commands.shell_command_async("kubectl", args)
     vim.schedule(function()
-      M.View()
+      builder.data, builder.extmarks = tables.pretty_print(ports, { "NAME", "PORT", "PROTOCOL" })
+      table.insert(builder.data, " ")
+      local pf_data = {
+        {
+          text = "address:",
+          value = "localhost",
+          options = { "localhost", "0.0.0.0" },
+          cmd = "",
+          type = "positional",
+        },
+        { text = "local:", value = tostring(ports[1].port.value), cmd = "", type = "positional" },
+        { text = "container port:", value = tostring(ports[1].port.value), cmd = ":", type = "merge_above" },
+      }
+
+      builder:action_view(def, pf_data, function(args)
+        local client = require("kubectl.client")
+        local local_port, remote_port = args[2]:match("(%d+):(%d+)")
+        client.portforward_start("service", name, ns, args[1], local_port, remote_port)
+      end)
     end)
   end)
 end
