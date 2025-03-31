@@ -21,7 +21,8 @@
 ---@field headers string[]
 
 ---@class Module
----@field view fun(cancellationToken: any)
----@field draw fun(cancellationToken: any)
----@field desc fun(name: string, ns: string, reload: boolean)
----@field definition Definition
+---@field View fun(cancellationToken: any)
+---@field Draw fun(cancellationToken: any)
+---@field Desc fun(name: string, ns: string, reload: boolean)
+---@field Definition Definition
+---@field getCurrentSelection function: string|nil

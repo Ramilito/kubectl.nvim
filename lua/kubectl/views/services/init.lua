@@ -6,21 +6,47 @@ local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = { builder = nil, pfs = {} }
+local resource = "services"
+---@class ServicesModule
+local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "", v = "v1", k = "service" },
+    informer = { enabled = true },
+    hints = {
+      { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
+      { key = "<Plug>(kubectl.portforward)", desc = "Port forward", long_desc = "Port forward" },
+    },
+    headers = {
+      "NAMESPACE",
+      "NAME",
+      "TYPE",
+      "CLUSTER-IP",
+      "EXTERNAL-IP",
+      "PORTS",
+      "AGE",
+    },
+    processRow = definition.processRow,
+  },
+}
 
 function M.View(cancellationToken)
-  M.pfs = {}
-  pf_definition.getPFData(M.pfs, true)
-  ResourceBuilder:view(definition, cancellationToken)
+  ResourceBuilder:view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
-  pf_definition.setPortForwards(
-    state.instance[definition.resource].extmarks,
-    state.instance[definition.resource].prettyData,
-    M.pfs
-  )
+  if state.instance[M.definition.resource] then
+    local pfs = pf_definition.getPFRows()
+    state.instance[M.definition.resource].extmarks_extra = {}
+    pf_definition.setPortForwards(
+      state.instance[M.definition.resource].extmarks_extra,
+      state.instance[M.definition.resource].prettyData,
+      pfs
+    )
+    state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)
@@ -41,12 +67,12 @@ function M.PortForward(name, ns)
     cmd = { "port-forward", "svc/" .. name, "-n", ns },
   }
 
-  local resource = tables.find_resource(state.instance[definition.resource].data, name, ns)
-  if not resource then
+  local kind = tables.find_resource(state.instance[M.definition.resource].data, name, ns)
+  if not kind then
     return
   end
   local ports = {}
-  for _, port in ipairs(resource.spec.ports) do
+  for _, port in ipairs(kind.spec.ports) do
     table.insert(ports, {
       name = { value = port.name, symbol = hl.symbols.pending },
       port = { value = port.port, symbol = hl.symbols.success },
@@ -79,8 +105,6 @@ function M.PortForward(name, ns)
   end)
 end
 
---- Get current seletion for view
----@return string|nil
 function M.getCurrentSelection()
   return tables.getCurrentSelection(2, 1)
 end

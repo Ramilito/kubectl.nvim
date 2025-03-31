@@ -1,0 +1,2 @@
+---@class ServicesModule : Module
+---@field PortForward fun(name: string, namespace: string)

@@ -1,8 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local time = require("kubectl.utils.time")
 
 local resource = "deployments"
 local M = {
