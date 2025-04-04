@@ -45,8 +45,8 @@ function M.View(pod, ns)
 end
 
 function M.exec(pod, ns)
-  -- local args = { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" }
-  -- local cmd = "kubectl"
+  local args = { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" }
+  local cmd = "kubectl"
 
   if config.options.terminal_cmd then
     local command = commands.configure_command(cmd, {}, args)
@@ -54,9 +54,9 @@ function M.exec(pod, ns)
   else
     buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
 
-    local client = require("kubectl.client")
-    client.exec(pod, { "sh", "-c", "echo echo Hello from Lua; exec /bin/sh" })
-    -- commands.execute_terminal(cmd, args)
+    -- local client = require("kubectl.client")
+    -- client.exec(pod, { "sh", "-c", "echo echo Hello from Lua; exec /bin/sh" })
+    commands.execute_terminal(cmd, args)
   end
 end
 

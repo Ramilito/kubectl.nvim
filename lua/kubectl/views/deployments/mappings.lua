@@ -1,6 +1,6 @@
+local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local deployment_definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
@@ -30,7 +30,7 @@ M.overrides = {
       local name, ns = deployment_view.getCurrentSelection()
       local container_images = {}
 
-      local resource = tables.find_resource(state.instance[deployment_definition.resource].data, name, ns)
+      local resource = tables.find_resource(state.instance[deployment_view.definition.resource].data, name, ns)
       if not resource then
         return
       end
@@ -63,40 +63,51 @@ M.overrides = {
       end
     end,
   },
+
   ["<Plug>(kubectl.scale)"] = {
     noremap = true,
     silent = true,
     desc = "Scale replicas",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      local resource = tables.find_resource(state.instance[deployment_definition.resource].data, name, ns)
-      if not resource then
-        return
-      end
-
-      local current_replicas = tostring(resource.spec.replicas)
-      vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
-        if not input then
+      local builder = ResourceBuilder:new("deployment_scale")
+      commands.run_async("get_async", { deployment_view.definition.gvk.k, ns, name, "Json" }, function(data)
+        if not data then
           return
         end
-        buffers.confirmation_buffer(
-          string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
-          "prompt",
-          function(confirm)
-            if not confirm then
+        builder.data = data
+        builder:decodeJson()
+        local current_replicas = tostring(builder.data.spec.replicas)
+
+        vim.schedule(function()
+          vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
+            if not input then
               return
             end
-            commands.shell_command_async(
-              "kubectl",
-              { "scale", "deployment/" .. name, "--replicas=" .. input, "-n", ns },
-              function(response)
-                vim.schedule(function()
-                  vim.notify(response)
+            buffers.confirmation_buffer(
+              string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
+              "prompt",
+              function(confirm)
+                if not confirm then
+                  return
+                end
+
+                commands.run_async("scale_async", {
+                  deployment_view.definition.gvk.k,
+                  deployment_view.definition.gvk.g,
+                  deployment_view.definition.gvk.v,
+                  name,
+                  ns,
+                  input,
+                }, function(response)
+                  vim.schedule(function()
+                    vim.notify(response)
+                  end)
                 end)
               end
             )
-          end
-        )
+          end)
+        end)
       end)
     end,
   },

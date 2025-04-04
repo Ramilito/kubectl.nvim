@@ -174,6 +174,7 @@ pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> 
     };
     rt.block_on(fut)
 }
+
 pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
     let (url, _name) = args;
 
