@@ -11,6 +11,7 @@ use crate::cmd::exec;
 use crate::cmd::get::{get_async, get_config_async, get_raw_async, get_server_raw_async, get_resource_async};
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::scale::scale_async;
+use crate::cmd::restart::restart_async;
 use crate::errors::LogErrorExt;
 use crate::processors::get_processors;
 
@@ -202,6 +203,11 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "scale_async",
         lua.create_async_function(scale_async)?,
+    )?;
+
+    exports.set(
+        "restart_async",
+        lua.create_async_function(restart_async)?,
     )?;
     Ok(exports)
 }

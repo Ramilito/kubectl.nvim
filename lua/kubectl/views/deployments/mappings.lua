@@ -122,15 +122,17 @@ M.overrides = {
         "prompt",
         function(confirm)
           if confirm then
-            commands.shell_command_async(
-              "kubectl",
-              { "rollout", "restart", "deployment/" .. name, "-n", ns },
-              function(response)
-                vim.schedule(function()
-                  vim.notify(response)
-                end)
-              end
-            )
+            commands.run_async("restart_async", {
+              deployment_view.definition.gvk.k,
+              deployment_view.definition.gvk.g,
+              deployment_view.definition.gvk.v,
+              name,
+              ns,
+            }, function(response)
+              vim.schedule(function()
+                vim.notify(response)
+              end)
+            end)
           end
         end
       )
