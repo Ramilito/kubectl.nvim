@@ -7,7 +7,6 @@ use kube::api::Patch;
 use kube::api::PatchParams;
 use kube::Api;
 use mlua::prelude::*;
-use serde_json::json;
 use tokio::runtime::Runtime;
 
 use crate::CLIENT_INSTANCE;

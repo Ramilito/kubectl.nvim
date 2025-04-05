@@ -23,6 +23,8 @@ pub async fn describe_async(
     let (context, kind, namespace, name, group) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let group = CString::new(group).expect("Failed to convert group to CString");
+    let name = CString::new(name).expect("Failed to convert name to CString");
 
     let fut = async {
         let group = CString::new(group).expect("Failed to convert group to CString");
@@ -31,8 +33,8 @@ pub async fn describe_async(
         let name = CString::new(name).expect("Failed to convert name to CString");
         let context = CString::new(context).expect("Failed to convert kubeconfig to CString");
 
-        let ns_cstring = namespace
-            .map(|ns| CString::new(ns).expect("Failed to convert namespace to CString"));
+        let ns_cstring =
+            namespace.map(|ns| CString::new(ns).expect("Failed to convert namespace to CString"));
         let ns_ptr = ns_cstring
             .as_ref()
             .map_or(std::ptr::null(), |ns| ns.as_ptr());

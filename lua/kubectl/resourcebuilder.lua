@@ -142,7 +142,7 @@ function ResourceBuilder:decodeJson()
     if success then
       self.data = decodedData
     end
-  elseif type(self.data == "table") then
+  elseif type(self.data == "table") and self.data then
     for index, data in ipairs(self.data) do
       local success, decodedData = pcall(vim.json.decode, data, { luanil = { object = true, array = true } })
 

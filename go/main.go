@@ -51,7 +51,7 @@ func DescribeResource(
 	gvk := schema.GroupVersionKind{
 		Group:   group,
 		Version: version,
-		Kind:    "Unknown",
+		Kind:    resource,
 	}
 	mapping := &meta.RESTMapping{
 		Resource:         gvr,
