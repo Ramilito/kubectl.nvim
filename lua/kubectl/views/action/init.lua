@@ -7,8 +7,10 @@ local get_values = function(definition, data)
   local marks =
     vim.api.nvim_buf_get_extmarks(0, state.marks.ns_id, 0, -1, { details = true, overlap = true, type = "virt_text" })
   local args_tmp = {}
-  for _, value in ipairs(definition.cmd) do
-    table.insert(args_tmp, value)
+  if definition.cmd then
+    for _, value in ipairs(definition.cmd) do
+      table.insert(args_tmp, value)
+    end
   end
 
   for _, mark in ipairs(marks) do
