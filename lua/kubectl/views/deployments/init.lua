@@ -77,8 +77,8 @@ function M.SetImage(name, ns)
         table.insert(params, {
           text = container.name,
           value = container.image,
+          init = container.init,
           options = {},
-          cmd = "",
           type = "positional",
         })
       end
@@ -86,22 +86,20 @@ function M.SetImage(name, ns)
       builder.data = {}
       table.insert(builder.data, " ")
       builder:action_view(def, params, function(args)
-        local images = {
-          { index = 0, name = "main", docker_image = "nginx:latest", init = false },
-          { index = 1, name = "sidecar", docker_image = "busybox:1.35", init = false },
-        }
+        local image_spec = {}
+        for _, container in ipairs(args) do
+          table.insert(image_spec, {
+            name = container.text,
+            image = container.value,
+            init = container.init,
+          })
+        end
 
         local client = require("kubectl.client")
-        local test = client.deployment_set_images(M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, ns, name, images)
-
-        print(test)
-        -- commands.run_async(
-        --   "pod_set_images_sync",
-        --   { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, ns, name, images },
-        --   function(result)
-        --     print("image set", result)
-        --   end
-        -- )
+        local status = client.deployment_set_images(name, ns, image_spec)
+        if status then
+          vim.notify(status)
+        end
       end)
     end)
   end)

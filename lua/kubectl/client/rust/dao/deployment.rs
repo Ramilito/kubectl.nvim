@@ -1,9 +1,9 @@
-use k8s_openapi::{api::apps::v1::Deployment, serde_json::json};
-use kube::{
-    api::{Api, Patch, PatchParams, ResourceExt},
-    Client,
+use k8s_openapi::{
+    api::apps::v1::Deployment,
+    serde_json::{json, Map, Value},
 };
-use mlua::{Error as LuaError, FromLua, Lua, Result as LuaResult, Value};
+use kube::api::{Api, Patch, PatchParams};
+use mlua::{Error as LuaError, FromLua, Lua, Result as LuaResult, Value as LuaValue};
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
@@ -11,24 +11,21 @@ use crate::{CLIENT_INSTANCE, RUNTIME};
 
 #[derive(Debug, Clone)]
 pub struct ImageSpec {
-    pub index: usize,
     pub name: String,
-    pub docker_image: String,
+    pub image: String,
     pub init: bool,
 }
 
 impl FromLua for ImageSpec {
-    fn from_lua(value: Value, lua: &Lua) -> LuaResult<Self> {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
         match value {
-            Value::Table(t) => {
-                let index: usize = t.get("index")?;
+            LuaValue::Table(t) => {
                 let name: String = t.get("name")?;
-                let docker_image: String = t.get("docker_image")?;
+                let image: String = t.get("image")?;
                 let init: bool = t.get("init")?;
                 Ok(ImageSpec {
-                    index,
                     name,
-                    docker_image,
+                    image,
                     init,
                 })
             }
@@ -43,16 +40,9 @@ impl FromLua for ImageSpec {
 
 pub fn set_images(
     _lua: &Lua,
-    args: (String, String, String, String, String, Vec<ImageSpec>),
+    args: (String, String, Vec<ImageSpec>),
 ) -> LuaResult<String> {
-    let (kind, group, version, deploy_name, namespace, images) = args;
-
-    // Validate that we received a Deployment.
-    if kind != "Deployment" || group != "apps" || version != "v1" {
-        return Err(LuaError::RuntimeError(
-            "Expected kind: Deployment, group: apps, version: v1".to_string(),
-        ));
-    }
+    let (deploy_name, namespace, images) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
@@ -72,9 +62,9 @@ pub fn set_images(
         let mut init_container_updates: HashMap<String, String> = HashMap::new();
         for spec in images {
             if spec.init {
-                init_container_updates.insert(spec.name.clone(), spec.docker_image);
+                init_container_updates.insert(spec.name.clone(), spec.image);
             } else {
-                container_updates.insert(spec.name.clone(), spec.docker_image);
+                container_updates.insert(spec.name.clone(), spec.image);
             }
         }
 
@@ -87,40 +77,23 @@ pub fn set_images(
             .map(|(cname, img)| json!({ "name": cname, "image": img }))
             .collect();
 
-        let patch_body = if !init_array.is_empty() && !containers_array.is_empty() {
-            json!({
-                "spec": {
-                    "template": {
-                        "spec": {
-                            "containers": containers_array,
-                            "initContainers": init_array
-                        }
-                    }
-                }
-            })
-        } else if !init_array.is_empty() {
-            json!({
-                "spec": {
-                    "template": {
-                        "spec": {
-                            "initContainers": init_array
-                        }
-                    }
-                }
-            })
-        } else {
-            json!({
-                "spec": {
-                    "template": {
-                        "spec": {
-                            "containers": containers_array
-                        }
-                    }
-                }
-            })
-        };
+        let mut spec_map = Map::new();
 
-        // Apply the strategic merge patch to update the Deployment.
+        if !containers_array.is_empty() {
+            spec_map.insert("containers".to_string(), json!(containers_array));
+        }
+        if !init_array.is_empty() {
+            spec_map.insert("initContainers".to_string(), json!(init_array));
+        }
+
+        let patch_body = json!({
+            "spec": {
+                "template": {
+                    "spec": Value::Object(spec_map)
+                }
+            }
+        });
+
         let pp = PatchParams::default();
         let patched = deployments
             .patch(&deploy_name, &pp, &Patch::Merge(&patch_body))
@@ -139,6 +112,5 @@ pub fn set_images(
         }
     };
 
-    // Run the async future and convert any error into a LuaError.
     rt.block_on(fut)
 }
