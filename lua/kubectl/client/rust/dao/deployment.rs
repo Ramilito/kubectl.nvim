@@ -41,16 +41,10 @@ impl FromLua for ImageSpec {
     }
 }
 
-// set_deployment_images mimics the Go SetImages method for a Deployment.
 pub fn set_images(
-    lua: &Lua,
+    _lua: &Lua,
     args: (String, String, String, String, String, Vec<ImageSpec>),
 ) -> LuaResult<String> {
-    // Unpack the tuple:
-    // - kind, group, version (for validation)
-    // - deploy_name: the name of the Deployment
-    // - namespace: the namespace of the Deployment
-    // - images: vector of image specs for containers / initContainers.
     let (kind, group, version, deploy_name, namespace, images) = args;
 
     // Validate that we received a Deployment.
@@ -70,13 +64,8 @@ pub fn set_images(
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
         .clone();
 
-    // Build an async future that creates a patch payload and applies it.
     let fut = async move {
-        // Create an API handle for Deployments in the provided namespace.
         let deployments: Api<Deployment> = Api::namespaced(client.clone(), &namespace);
-
-        // (Optional) Here you could perform an authorization check if your client supports it.
-        // In kube-rs, this is typically done via RBAC and is not exposed as a function.
 
         // Build maps for container updates.
         let mut container_updates: HashMap<String, String> = HashMap::new();
@@ -89,8 +78,6 @@ pub fn set_images(
             }
         }
 
-        // Convert these maps into arrays for a strategic merge patch.
-        // Each element is an object with a "name" and "image" field.
         let containers_array: Vec<_> = container_updates
             .into_iter()
             .map(|(cname, img)| json!({ "name": cname, "image": img }))
@@ -100,9 +87,6 @@ pub fn set_images(
             .map(|(cname, img)| json!({ "name": cname, "image": img }))
             .collect();
 
-        // Build the patch payload.
-        // For a Deployment, the container definitions are located at
-        // spec.template.spec.containers and spec.template.spec.initContainers.
         let patch_body = if !init_array.is_empty() && !containers_array.is_empty() {
             json!({
                 "spec": {
