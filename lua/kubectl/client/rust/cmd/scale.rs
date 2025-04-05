@@ -14,7 +14,7 @@ use crate::RUNTIME;
 
 pub async fn scale_async(
     _lua: Lua,
-    args: (String, Option<String>, String, String, String, usize),
+    args: (String, String, String, String, String, usize),
 ) -> LuaResult<String> {
     let (kind, group, version, name, ns, replicas) = args;
 
@@ -27,9 +27,8 @@ pub async fn scale_async(
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let group_str = group.unwrap_or_default();
         let gvk = GroupVersionKind {
-            group: group_str,
+            group,
             version,
             kind: kind.to_string(),
         };

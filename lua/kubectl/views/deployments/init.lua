@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -35,6 +36,75 @@ function M.Draw(cancellationToken)
   if state.instance[M.definition.resource] then
     state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
   end
+end
+
+function M.SetImage(name, ns)
+  local builder = ResourceBuilder:new("deployment_scale")
+
+  local def = {
+    ft = "k8s_action",
+    display = "Set image: " .. name .. "-" .. "?",
+    resource = name,
+    ns = ns,
+    group = M.definition.group,
+    version = M.definition.version,
+    cmd = {},
+  }
+
+  commands.run_async("get_async", { M.definition.gvk.k, ns, name, "Json" }, function(data)
+    if not data then
+      return
+    end
+    builder.data = data
+    builder:decodeJson()
+
+    local container_images = {}
+    if builder.data.spec.template.spec.containers then
+      for _, container in ipairs(builder.data.spec.template.spec.containers) do
+        table.insert(container_images, { name = container.name, image = container.image, init = false })
+      end
+    end
+
+    if builder.data.spec.template.spec.initContainers then
+      for _, container in ipairs(builder.data.spec.template.spec.initContainers) do
+        table.insert(container_images, { name = container.name, image = container.image, init = true })
+      end
+    end
+
+    vim.schedule(function()
+      local params = {}
+      for _, container in ipairs(container_images) do
+        table.insert(params, {
+          text = container.name,
+          value = container.image,
+          options = {},
+          cmd = "",
+          type = "positional",
+        })
+      end
+
+      builder.data = {}
+      table.insert(builder.data, " ")
+      builder:action_view(def, params, function(args)
+        local images = {
+          { index = 0, name = "main", docker_image = "nginx:latest", init = false },
+          { index = 1, name = "sidecar", docker_image = "busybox:1.35", init = false },
+        }
+
+        local client = require("kubectl.client")
+        local test = client.deployment_set_images(M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, ns, name, images)
+
+        print(test)
+        -- commands.run_async(
+        --   "pod_set_images_sync",
+        --   { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, ns, name, images },
+        --   function(result)
+        --     print("image set", result)
+        --   end
+        -- )
+      end)
+    end)
+  end)
 end
 
 function M.Desc(name, ns, reload)

@@ -169,7 +169,6 @@ function M.PortForward(pod, ns)
     ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
     resource = pod,
-    resource_name = M.definition.resource_name,
     ns = ns,
     group = M.definition.group,
     version = M.definition.version,
@@ -232,7 +231,7 @@ function M.PortForward(pod, ns)
       builder:action_view(def, pf_data, function(args)
         local client = require("kubectl.client")
         local local_port, remote_port = args[2]:match("(%d+):(%d+)")
-        client.portforward_start("pod", pod, ns, args[1], local_port, remote_port)
+        client.portforward_start(M.definition.gvk.k, pod, ns, args[1], local_port, remote_port)
       end)
     end)
   end)

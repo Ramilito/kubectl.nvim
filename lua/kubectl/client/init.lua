@@ -27,6 +27,14 @@ function client.portforward_stop(id)
   return client.implementation.portforward_stop(id)
 end
 
+function client.pod_set_images(...)
+  return client.implementation.pod_set_images(...)
+end
+
+function client.deployment_set_images(...)
+  return client.implementation.deployment_set_images(...)
+end
+
 function client.get_table(definition)
   local namespace = nil
   if state.ns and state.ns ~= "All" then

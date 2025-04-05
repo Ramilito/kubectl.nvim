@@ -4,10 +4,10 @@ local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 local M = {}
+local err_msg = "Failed to extract pod name or namespace."
 
 M.overrides = {
   ["<Plug>(kubectl.select)"] = {
@@ -21,46 +21,18 @@ M.overrides = {
     end,
   },
 
-  -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,
     desc = "Set image",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      local container_images = {}
 
-      local resource = tables.find_resource(state.instance[deployment_view.definition.resource].data, name, ns)
-      if not resource then
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
-
-      for _, container in ipairs(resource.spec.template.spec.containers) do
-        if container.image ~= container_images[1] then
-          table.insert(container_images, container.image)
-        end
-      end
-
-      if #container_images > 1 then
-        vim.notify("Setting new container image for multiple containers is NOT supported yet", vim.log.levels.WARN)
-      else
-        vim.ui.input({ prompt = "Update image ", default = container_images[1] }, function(input)
-          if not input then
-            return
-          end
-          buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
-            if not confirm then
-              return
-            end
-            local set_image = { "set", "image", "deployment/" .. name, name .. "=" .. input, "-n", ns }
-            commands.shell_command_async("kubectl", set_image, function(response)
-              vim.schedule(function()
-                vim.notify(response)
-              end)
-            end)
-          end)
-        end)
-      end
+      deployment_view.SetImage(name, ns)
     end,
   },
 

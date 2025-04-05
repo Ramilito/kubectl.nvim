@@ -8,14 +8,17 @@ use tokio::runtime::Runtime;
 use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
-use crate::cmd::get::{get_async, get_config_async, get_raw_async, get_server_raw_async, get_resource_async};
+use crate::cmd::get::{
+    get_async, get_config_async, get_raw_async, get_resource_async, get_server_raw_async,
+};
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
-use crate::cmd::scale::scale_async;
 use crate::cmd::restart::restart_async;
+use crate::cmd::scale::scale_async;
 use crate::errors::LogErrorExt;
 use crate::processors::get_processors;
 
 mod cmd;
+mod dao;
 mod describe;
 mod errors;
 mod events;
@@ -179,7 +182,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(processors::pod::log_stream_async)?,
     )?;
     exports.set("get_raw_async", lua.create_async_function(get_raw_async)?)?;
-    exports.set("get_server_raw_async", lua.create_async_function(get_server_raw_async)?)?;
+    exports.set(
+        "get_server_raw_async",
+        lua.create_async_function(get_server_raw_async)?,
+    )?;
     exports.set(
         "get_config_async",
         lua.create_async_function(get_config_async)?,
@@ -200,14 +206,15 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(get_table_async)?,
     )?;
 
+    exports.set("scale_async", lua.create_async_function(scale_async)?)?;
+
+    exports.set("restart_async", lua.create_async_function(restart_async)?)?;
+
+    exports.set("pod_set_images", lua.create_function(dao::pod::set_images)?)?;
     exports.set(
-        "scale_async",
-        lua.create_async_function(scale_async)?,
+        "deployment_set_images",
+        lua.create_function(dao::deployment::set_images)?,
     )?;
 
-    exports.set(
-        "restart_async",
-        lua.create_async_function(restart_async)?,
-    )?;
     Ok(exports)
 }
