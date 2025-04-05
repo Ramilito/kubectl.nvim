@@ -20,8 +20,33 @@ local get_values = function(definition, data)
           local line = vim.api.nvim_buf_get_lines(0, line_number, line_number + 1, false)[1] or ""
           local value = vim.trim(line)
 
-          item.value = value
-          table.insert(args_tmp, item)
+          if definition.cmd then
+            if item.type == "flag" then
+              if value == "true" then
+                table.insert(args_tmp, item.cmd)
+              end
+            elseif item.type == "option" then
+              if value ~= "" and value ~= "false" and value ~= nil then
+                table.insert(args_tmp, item.cmd .. "=" .. value)
+              end
+            elseif item.type == "positional" then
+              if value ~= "" and value ~= nil then
+                if item.cmd and item.cmd ~= "" then
+                  table.insert(args_tmp, item.cmd .. " " .. value)
+                else
+                  table.insert(args_tmp, value)
+                end
+              end
+            elseif item.type == "merge_above" then
+              if value ~= "" and value ~= nil then
+                args_tmp[#args_tmp] = args_tmp[#args_tmp] .. item.cmd .. value
+              end
+            end
+          else
+            item.value = value
+            table.insert(args_tmp, item)
+            break
+          end
         end
       end
     end

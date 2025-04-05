@@ -70,7 +70,6 @@ function M.PortForward(name, ns)
     resource_name = M.definition.resource_name,
     group = M.definition.group,
     version = M.definition.version,
-    cmd = {},
   }
 
   commands.run_async("get_async", {

@@ -172,7 +172,6 @@ function M.PortForward(pod, ns)
     ns = ns,
     group = M.definition.group,
     version = M.definition.version,
-    cmd = {},
   }
 
   commands.run_async("get_async", {
