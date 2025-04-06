@@ -1,11 +1,6 @@
-local time = require("kubectl.utils.time")
-local M = {
-  resource = "clusterrolebinding",
-  display_name = "clusterrolebinding",
-  ft = "k8s_clusterrolebinding",
-  url = { "{{BASE}}/apis/rbac.authorization.k8s.io/v1/clusterrolebindings?pretty=false" },
-}
 local hl = require("kubectl.actions.highlight")
+local time = require("kubectl.utils.time")
+local M = {}
 
 local function getSubjects(row)
   if not row or not row.subjects then
@@ -33,11 +28,11 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  for _, row in ipairs(rows.items) do
+  for _, row in ipairs(rows) do
     local kind, subjects = getSubjects(row)
     local role = {
       name = row.metadata.name,
@@ -49,18 +44,6 @@ function M.processRow(rows)
     table.insert(data, role)
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAME",
-    "ROLE",
-    "SUBJECT-KIND",
-    "SUBJECTS",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M

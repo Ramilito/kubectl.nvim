@@ -410,11 +410,10 @@ function ResourceBuilder:draw(definition, cancellationToken)
       state.instance[definition.resource]:decodeJson()
       state.instance[definition.resource].processedData = state.instance[definition.resource].data
 
-
       vim.schedule(function()
-				if self.definition.processRow then
-					self:process(self.definition.processRow, true):sort()
-				end
+        if self.definition.processRow then
+          self:process(self.definition.processRow, true):sort()
+        end
         self:prettyPrint():addHints(definition.hints, true, true, true)
         self:setContent(cancellationToken)
         self:draw_header(cancellationToken)

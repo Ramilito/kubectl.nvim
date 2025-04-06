@@ -83,6 +83,7 @@ M.overrides = {
       end)
     end,
   },
+
   ["<Plug>(kubectl.rollout_restart)"] = {
     noremap = true,
     silent = true,

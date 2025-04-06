@@ -43,7 +43,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_services)", desc = "Services" },
     { key = "<Plug>(kubectl.view_ingresses)", desc = "Ingresses" },
     { key = "<Plug>(kubectl.view_api_resources)", desc = "API-Resources" },
-    { key = "<Plug>(kubectl.view_clusterrolebinding)", desc = "ClusterRoleBindings" },
+    { key = "<Plug>(kubectl.view_clusterrolebindings)", desc = "ClusterRoleBindings" },
     { key = "<Plug>(kubectl.view_crds)", desc = "CRDs" },
     { key = "<Plug>(kubectl.view_cronjobs)", desc = "CronJobs" },
     { key = "<Plug>(kubectl.view_daemonsets)", desc = "DaemonSets" },
