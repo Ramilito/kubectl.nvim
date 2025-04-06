@@ -71,7 +71,7 @@ impl Processor for PodProcessor {
                     .as_ref()
                     .and_then(|s| s.node_name.clone())
                     .unwrap_or_default(),
-                age: self.get_age(&obj),
+                age: self.get_age(obj),
                 namespace: pod.metadata.namespace.unwrap_or_default(),
                 name: pod.metadata.name.unwrap_or_default(),
             });

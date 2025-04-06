@@ -4,6 +4,7 @@ use std::collections::HashMap;
 pub mod default;
 pub mod deployment;
 pub mod pod;
+pub mod clusterrolebinding;
 pub mod processor;
 
 pub fn get_processors() -> HashMap<&'static str, Box<dyn Processor>> {
@@ -11,5 +12,6 @@ pub fn get_processors() -> HashMap<&'static str, Box<dyn Processor>> {
     map.insert("default", Box::new(default::DefaultProcessor));
     map.insert("pod", Box::new(pod::PodProcessor));
     map.insert("deployment", Box::new(deployment::DeploymentProcessor));
+    map.insert("clusterrolebinding", Box::new(clusterrolebinding::ClusterRoleBindingProcessor));
     map
 }
