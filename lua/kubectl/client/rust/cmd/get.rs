@@ -133,6 +133,10 @@ pub async fn get_async(
     Ok(result.await?)
 }
 
+pub fn get_config(lua: &Lua, args: ()) -> LuaResult<String> {
+    futures::executor::block_on(get_config_async(lua.clone(), args))
+}
+
 pub async fn get_config_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     let config = Kubeconfig::read().expect("Failed to load kubeconfig");
     let json =

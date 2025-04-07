@@ -71,8 +71,19 @@ function M.list_contexts()
   if #M.contexts > 0 then
     return M.contexts
   end
-  local contexts = commands.shell_command("kubectl", { "config", "get-contexts", "-o", "name", "--no-headers" })
-  M.contexts = vim.split(contexts, "\n")
+
+  local client = require("kubectl.client")
+  local self = ResourceBuilder:new(M.definition.resource)
+  self.data = client.get_config()
+  self:decodeJson()
+
+  M.contexts = {}
+  for _, context in ipairs(self.data.contexts) do
+    if context.name then
+      table.insert(M.contexts, context.name)
+    end
+  end
+
   return M.contexts
 end
 
