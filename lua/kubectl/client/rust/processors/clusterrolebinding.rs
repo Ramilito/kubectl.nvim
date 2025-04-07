@@ -119,7 +119,11 @@ fn get_subject_kind(subjects: Option<Vec<Subject>>) -> FieldValue {
 fn get_subjects(subjects: Option<Vec<Subject>>) -> FieldValue {
     let mut field = FieldValue::default();
     if let Some(subjects) = subjects {
-        field.value = subjects.iter().map(|s| s.name.as_str()).join(", ");
+        field.value = subjects
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ");
     }
     field
 }
