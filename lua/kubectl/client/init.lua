@@ -44,7 +44,7 @@ function client.get_table(definition)
   local sort_by = state.sortby[definition.resource].current_word
   local sort_order = state.sortby[definition.resource].order
 
-  return client.implementation.get_table(definition.resource_name, namespace, sort_by, sort_order)
+  return client.implementation.get_table(definition.gvk.k, namespace, sort_by, sort_order, "")
 end
 
 function client.get_store(resource_name)

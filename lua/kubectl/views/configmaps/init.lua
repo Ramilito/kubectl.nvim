@@ -1,34 +1,58 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local definition = require("kubectl.views.configmaps.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local resource = "configmaps"
+
+---@class Module
+local M = {
+	definition = {
+		resource = resource,
+		display_name = string.upper(resource),
+		ft = "k8s_" .. resource,
+		gvk = { g = "", v = "v1", k = "configmap" },
+		informer = { enabled = true },
+		headers = {
+			"NAMESPACE",
+			"NAME",
+			"DATA",
+			"AGE",
+		}
+	}
+}
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+	ResourceBuilder:view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+	state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
 end
 
 --- Describe a configmap
 ---@param name string
 ---@param ns string
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
-    resource = "configmaps | " .. name .. " | " .. ns,
-    ft = "k8s_desc",
-    url = { "describe", "configmaps", name, "-n", ns },
-    syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+	ResourceBuilder:view_float({
+		resource = M.definition.resource .. " | " .. name,
+		ft = "k8s_desc",
+		syntax = "yaml",
+		cmd = "describe_async",
+	}, {
+		args = {
+
+			state.context["current-context"],
+			M.definition.resource,
+			ns, name, M.definition.gvk.g
+		},
+		reload = reload
+	})
 end
 
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  return tables.getCurrentSelection(2, 1)
+	return tables.getCurrentSelection(2, 1)
 end
 
 return M

@@ -147,7 +147,7 @@ async fn get_table_async(
         .unwrap_or_else(|| processors.get("default").unwrap());
     let processed = processor
         .process(&lua, &items, sort_by, sort_order, filter)
-        .map_err(|e| mlua::Error::external(e))?;
+        .map_err(mlua::Error::external)?;
 
     let json_str = k8s_openapi::serde_json::to_string(&processed)
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
