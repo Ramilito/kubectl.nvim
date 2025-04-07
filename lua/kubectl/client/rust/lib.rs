@@ -9,7 +9,8 @@ use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
-    get_async, get_config, get_config_async, get_raw_async, get_resource_async, get_server_raw_async,
+    get_async, get_config, get_config_async, get_raw_async, get_resource_async,
+    get_server_raw_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
@@ -51,8 +52,8 @@ fn init_runtime(lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
         };
         let config = Config::from_kubeconfig(&options)
             .await
-            .map_err(|e| LuaError::external(e))?;
-        let client = Client::try_from(config).map_err(|e| LuaError::external(e))?;
+            .map_err(LuaError::external)?;
+        let client = Client::try_from(config).map_err(LuaError::external)?;
         Ok::<Client, mlua::Error>(client)
     })?;
 
@@ -122,9 +123,7 @@ fn get_table(
     let processor = processors
         .get(kind.as_str())
         .unwrap_or_else(|| processors.get("default").unwrap());
-    let processed = processor.process(&lua, &items, sort_by, sort_order, filter);
-
-    Ok(processed?)
+    processor.process(lua, &items, sort_by, sort_order, filter)
 }
 
 async fn get_table_async(
@@ -186,10 +185,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "get_server_raw_async",
         lua.create_async_function(get_server_raw_async)?,
     )?;
-    exports.set(
-        "get_config",
-        lua.create_function(get_config)?,
-    )?;
+    exports.set("get_config", lua.create_function(get_config)?)?;
     exports.set(
         "get_config_async",
         lua.create_async_function(get_config_async)?,
