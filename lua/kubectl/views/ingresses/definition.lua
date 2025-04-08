@@ -77,14 +77,14 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
   local currentTime = time.currentTime()
-  if rows and rows.items then
-    for i = 1, #rows.items do
-      local row = rows.items[i]
+  if rows then
+    for i = 1, #rows do
+      local row = rows[i]
       data[i] = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
