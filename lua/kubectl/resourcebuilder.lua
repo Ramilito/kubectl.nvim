@@ -352,6 +352,48 @@ function ResourceBuilder:view_float(definition, opts)
   return self
 end
 
+function ResourceBuilder:view_fallback(definition, cancellationToken)
+  self.definition = definition
+  self = state.instance[definition.resource]
+
+  if not self or not self.resource or self.resource ~= definition.resource then
+    self = ResourceBuilder:new(definition.resource)
+  end
+
+  local ns = nil
+  if state.ns and state.ns ~= "All" then
+    ns = state.ns
+  end
+
+  commands.run_async("get_raw_async", { definition.url, nil, true }, function(data)
+    self.data = data
+    self:decodeJson()
+    self.definition.headers = definition.getHeaders(self.data)
+    if definition.informer and definition.informer.enabled then
+      commands.run_async(
+        "start_watcher_async",
+        { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
+        function() end
+      )
+    end
+
+    vim.schedule(function()
+      self:display(definition.ft, definition.resource, cancellationToken)
+
+      self:process(self.definition.processRow, true):sort()
+      self:prettyPrint():addHints(definition.hints, true, true, true)
+      self:setContent(cancellationToken)
+      self:draw_header(cancellationToken)
+      state.instance[definition.resource] = self
+    end)
+
+    state.instance[definition.resource] = self
+    state.selections = {}
+  end)
+
+  return self
+end
+
 function ResourceBuilder:view(definition, cancellationToken)
   self.definition = definition
   self = state.instance[definition.resource]

@@ -2,29 +2,18 @@ local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.fallback.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local utils = require("kubectl.utils.url")
 
 local M = {
-  resource = "",
-  configure_definition = true,
+  resource = "fallback",
+  definition = {
+    ft = "k8s_fallback",
+    gvk = { g = "", v = "v1", k = "pod" },
+    informer = { enabled = true },
+    processRow = definition.processRow,
+    getHeaders = definition.getHeaders,
+  },
 }
-
-local function add_namespace(args, ns)
-  if ns then
-    if ns == "All" then
-      table.insert(args, "--all-namespaces")
-    else
-      table.insert(args, "-n")
-      table.insert(args, ns)
-    end
-  end
-  return args
-end
-
-local function get_args()
-  local ns_filter = state.getNamespace()
-  local args = add_namespace({ "get", M.resource, "-o=json" }, ns_filter)
-  return args
-end
 
 function M.View(cancellationToken, resource)
   if resource then
@@ -33,46 +22,34 @@ function M.View(cancellationToken, resource)
     return
   end
 
-  -- default fallback values
-  if M.configure_definition then
-    definition.resource = M.resource
-    definition.display_name = M.resource
-    definition.url = get_args()
-    definition.ft = "k8s_fallback"
-    definition.headers = { "NAME" }
-    definition.hints = {
-      { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
-    }
-    definition.cmd = "kubectl"
+  M.definition.display_name = M.resource
+  M.definition.headers = { "NAME" }
+  M.definition.hints = {
+    { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
+  }
 
-    -- cached resources fallback values
-    local cached_resources = require("kubectl.cache").cached_api_resources
-    local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
-    if resource_name and not M.configured_curl then
-      definition.resource = resource_name
-      definition.display_name = resource_name
-      definition.url = {
-        "-H",
-        "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
-        cached_resources.values[resource_name].url,
-      }
-      definition.cmd = "curl"
-      definition.namespaced = cached_resources.values[resource_name].namespaced
-    end
+  local cached_resources = require("kubectl.cache").cached_api_resources
+  local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
+  if resource_name then
+    M.definition.resource = resource_name
+    M.definition.gvk = cached_resources.values[resource_name].gvk
+    M.definition.display_name = resource_name
+    M.definition.namespaced = cached_resources.values[resource_name].namespaced
+    M.definition.url = utils.replacePlaceholders(cached_resources.values[resource_name].url)
   end
 
-  ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd })
+  ResourceBuilder:view_fallback(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  -- state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
 end
 
 function M.Desc(name, ns, reload)
   ResourceBuilder:view_float({
     resource = M.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
+    -- url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
     syntax = "yaml",
   }, { cmd = "kubectl", reload = reload })
 end

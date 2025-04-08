@@ -140,8 +140,8 @@ function M.load_cache(cached_api_resources, callback)
   timeme.start()
 
   local cmds = {
-    { cmd = "get_raw_async", args = { "/api/v1", nil } },
-    { cmd = "get_raw_async", args = { "/apis", nil } },
+    { cmd = "get_raw_async", args = { "/api/v1", nil, false } },
+    { cmd = "get_raw_async", args = { "/apis", nil, false } },
   }
 
   ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
@@ -166,7 +166,7 @@ function M.load_cache(cached_api_resources, callback)
           group_name = group_name,
           group_version = group_version,
           cmd = "get_raw_async",
-          args = { "/apis/" .. group_version, nil },
+          args = { "/apis/" .. group_version, nil, false },
         })
       end
     end
@@ -188,7 +188,7 @@ function M.load_cache(cached_api_resources, callback)
       local all_urls = {}
       for _, resource in pairs(cached_api_resources.values) do
         if resource.url then
-          table.insert(all_urls, { cmd = "get_raw_async", args = { resource.url, nil } })
+          table.insert(all_urls, { cmd = "get_raw_async", args = { resource.url, nil, false } })
         end
       end
       for _, cmd in ipairs(all_urls) do

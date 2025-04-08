@@ -186,8 +186,8 @@ pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> 
     rt.block_on(fut)
 }
 
-pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
-    let (url, _name) = args;
+pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> LuaResult<String> {
+    let (url, _name, is_fallback) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
@@ -198,9 +198,17 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResu
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let req = http::Request::get(url)
+        let mut req = http::Request::get(url)
             .body(Vec::new())
-            .map_err(|e| LuaError::external(e))?;
+            .map_err(LuaError::external)?;
+        if is_fallback {
+            req.headers_mut().insert(
+                http::header::ACCEPT,
+                "application/json;as=Table;g=meta.k8s.io;v=v1"
+                    .parse()
+                    .unwrap(),
+            );
+        }
 
         let res = client.request_status::<serde_json::Value>(req).await;
         match res {
