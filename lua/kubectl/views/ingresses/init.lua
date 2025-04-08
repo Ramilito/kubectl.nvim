@@ -12,6 +12,7 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "networking.k8s.io", v = "v1", k = "ingress" },
+    informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.browse)", desc = "browse", long_desc = "Open host in browser" },
     },
@@ -87,13 +88,21 @@ end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = "ingresses | " .. name .. " | " .. ns,
+    resource = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "ingress", name, "-n", ns },
+    cmd = "describe_async",
     syntax = "yaml",
   }
-
-  ResourceBuilder:view_float(def, { cmd = "kubectl", reload = reload })
+  ResourceBuilder:view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      ns,
+      name,
+      M.definition.gvk.g,
+    },
+    reload = reload,
+  })
 end
 
 --- Get current seletion for view
