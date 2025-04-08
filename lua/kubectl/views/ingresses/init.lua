@@ -40,7 +40,7 @@ end
 function M.OpenBrowser(name, ns)
   commands.run_async(
     "get_async",
-    { M.definition.gvk.k, ns, name, M.definition.gvk.g, M.definition.gvk.v },
+    { M.definition.gvk.k, ns, name, M.definition.gvk.g, M.definition.gvk.v, nil },
     function(data)
       local builder = ResourceBuilder:new("ingress_browser")
       builder.data = data

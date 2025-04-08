@@ -168,6 +168,8 @@ function M.get_mappings()
                 view.definition.gvk.k,
                 def.ns,
                 def.name,
+								nil,
+								nil,
                 def.syntax,
               },
             })

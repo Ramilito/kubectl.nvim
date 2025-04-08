@@ -72,7 +72,7 @@ pub async fn get_resource_async(
         let discovery = Discovery::new(client.clone())
             .run()
             .await
-            .map_err(|e| mlua::Error::external(e))?;
+            .map_err(mlua::Error::external)?;
 
         let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
             let gvk = GroupVersionKind {
@@ -102,7 +102,7 @@ pub async fn get_resource_async(
         let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
 
         if let Some(ref n) = name {
-            let mut obj = api.get(n).await.map_err(|e| mlua::Error::external(e))?;
+            let mut obj = api.get(n).await.map_err(mlua::Error::external)?;
             obj.managed_fields_mut().clear();
 
             Ok(OutputMode::Yaml.format(obj))
@@ -116,9 +116,16 @@ pub async fn get_resource_async(
 
 pub async fn get_async(
     lua: Lua,
-    args: (String, Option<String>, String, Option<String>),
+    args: (
+        String,
+        Option<String>,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
 ) -> LuaResult<String> {
-    let (kind, namespace, name, output) = args;
+    let (kind, namespace, name, group, version, output) = args;
     let output_mode = output
         .as_deref()
         .map(OutputMode::from_str)
@@ -128,9 +135,9 @@ pub async fn get_async(
         return Ok(output_mode.format(found));
     }
 
-    let result = get_resource_async(lua, (kind, None, None, Some(name), namespace));
+    let result = get_resource_async(lua, (kind, group, version, Some(name), namespace));
 
-    Ok(result.await?)
+    result.await
 }
 
 pub fn get_config(lua: &Lua, args: ()) -> LuaResult<String> {
@@ -194,11 +201,12 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResu
         let req = http::Request::get(url)
             .body(Vec::new())
             .map_err(|e| LuaError::external(e))?;
+
         let res = client.request_status::<serde_json::Value>(req).await;
         match res {
             Ok(either) => match either {
                 Either::Left(resp) => {
-                    let json = to_string(&resp).map_err(|e| LuaError::external(e))?;
+                    let json = to_string(&resp).map_err(LuaError::external)?;
                     Ok(json)
                 }
                 Either::Right(status) => {
@@ -206,7 +214,7 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResu
                         "error": format!("HTTP error: {:?}", status),
                         "status": status.code,
                     }))
-                    .map_err(|e| LuaError::external(e))?;
+                    .map_err(LuaError::external)?;
                     Ok(err_json)
                 }
             },
@@ -215,7 +223,7 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>)) -> LuaResu
                     "error": e.to_string(),
                     "status": null,
                 }))
-                .map_err(|e| LuaError::external(e))?;
+                .map_err(LuaError::external)?;
                 Ok(err_json)
             }
         }

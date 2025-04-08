@@ -89,11 +89,9 @@ function M.filter_label()
     -- display view
     state.setFilter("")
     definition.url = new_args
-    view.configure_definition = false
     vim.schedule(function()
       view.View()
       definition.url = original_url
-      view.configure_definition = true
     end)
   end)
 

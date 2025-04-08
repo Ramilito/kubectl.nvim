@@ -22,17 +22,23 @@ local function process_apis(api_url, group_name, group_version, group_resources,
   if not group_resources or not group_resources.resources then
     return
   end
+
+  local version = group_version:match("([^/]+)$")
   for _, resource in ipairs(group_resources.resources) do
     -- Skip if resource name contains '/status'
     if not string.find(resource.name, "/status") then
       local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
       local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
       local resource_url = string.format("/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
-
       cached_api_resources.values[resource_name] = {
         name = resource_name,
         full_name = resource_name,
         url = resource_url,
+        gvk = {
+          g = group_name,
+          v = version,
+          k = resource.singularName,
+        },
         namespaced = resource.namespaced,
         kind = resource.kind,
         version = group_version,
