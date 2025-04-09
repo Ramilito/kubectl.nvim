@@ -49,31 +49,35 @@ function M.View(cancellationToken, resource)
   local sort_order = state.sortby[M.definition.resource].order
 
   builder.definition = M.definition
-  commands.run_async("get_fallback_table_async", { M.definition.resource, ns, sort_by, sort_order, filter }, function(result)
-    builder.data = result
-    builder:decodeJson()
-    builder.processedData = builder.data.rows
-    builder.definition.headers = builder.data.headers
+  commands.run_async(
+    "get_fallback_table_async",
+    { M.definition.resource, ns, sort_by, sort_order, filter },
+    function(result)
+      builder.data = result
+      builder:decodeJson()
+      builder.processedData = builder.data.rows
+      builder.definition.headers = builder.data.headers
 
-    if M.definition.informer and M.definition.informer.enabled then
-      commands.run_async(
-        "start_watcher_async",
-        { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
-        function() end
-      )
-    end
+      if M.definition.informer and M.definition.informer.enabled then
+        commands.run_async(
+          "start_watcher_async",
+          { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
+          function() end
+        )
+      end
 
-    vim.schedule(function()
-      builder:display(M.definition.ft, M.definition.resource, cancellationToken)
-      builder:prettyPrint():addHints(M.definition.hints, true, true, true)
-      builder:setContent(cancellationToken)
-      builder:draw_header(cancellationToken)
+      vim.schedule(function()
+        builder:display(M.definition.ft, M.definition.resource, cancellationToken)
+        builder:prettyPrint():addHints(M.definition.hints, true, true, true)
+        builder:setContent(cancellationToken)
+        builder:draw_header(cancellationToken)
+        state.instance[M.definition.resource] = builder
+      end)
+
       state.instance[M.definition.resource] = builder
-    end)
-
-    state.instance[M.definition.resource] = builder
-    state.selections = {}
-  end)
+      state.selections = {}
+    end
+  )
 end
 
 function M.Draw(cancellationToken)

@@ -1,5 +1,6 @@
 use super::processor::Processor;
 use crate::cmd::utils::dynamic_api;
+use crate::utils::{sort_dynamic, AccessorMode};
 use crate::{CLIENT_INSTANCE, RUNTIME};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use k8s_openapi::serde_json;
@@ -101,28 +102,56 @@ impl Processor for FallbackProcessor {
                 let item_json = serde_json::to_value(&item).map_err(LuaError::external)?;
 
                 item_data.insert("name".to_string(), Value::String(item.name_any()));
-                let value = &Value::String("<none>".into());
+                let default_value = Value::String("<none>".into());
                 for col in columns {
                     let path = fix_crd_path(&col.json_path);
-                    let value = JsonPath::parse(&path)
-                        .ok()
-                        .and_then(|p| p.query(&item_json).all().first().cloned())
-                        .unwrap_or(value);
-                    item_data.insert(col.name.to_lowercase(), value.clone());
+                    item_data.insert(
+                        col.name.to_lowercase(),
+                        JsonPath::parse(&path)
+                            .ok()
+                            .and_then(|p| p.query(&item_json).all().first().cloned())
+                            .unwrap_or(&default_value.clone())
+                            .clone(),
+                    );
                 }
 
                 rows.push(Value::Object(item_data));
             }
+
+            sort_dynamic(
+                &mut rows,
+                sort_by,
+                sort_order,
+                field_accessor(AccessorMode::Sort),
+            );
 
             let output = json!({
                 "headers": headers,
                 "rows": rows
             });
 
-            Ok(lua.to_value(&output)?)
+            lua.to_value(&output)
         };
 
         rt.block_on(fut)
+    }
+}
+
+fn field_accessor(_mode: AccessorMode) -> impl Fn(&Value, &str) -> Option<String> {
+    move |item: &Value, field: &str| {
+        if let Value::Object(map) = item {
+            map.get(field).and_then(|v| {
+                if v.is_string() {
+                    v.as_str().map(|s| s.to_string())
+                } else if v.is_number() {
+                    Some(v.to_string())
+                } else {
+                    Some(v.to_string())
+                }
+            })
+        } else {
+            None
+        }
     }
 }
 
