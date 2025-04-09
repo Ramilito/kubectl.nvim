@@ -6,6 +6,7 @@ pub mod deployment;
 pub mod pod;
 pub mod clusterrolebinding;
 pub mod configmap;
+pub mod fallback;
 pub mod processor;
 
 pub fn get_processors() -> HashMap<&'static str, Box<dyn Processor>> {
@@ -15,5 +16,6 @@ pub fn get_processors() -> HashMap<&'static str, Box<dyn Processor>> {
     map.insert("deployment", Box::new(deployment::DeploymentProcessor));
     map.insert("clusterrolebinding", Box::new(clusterrolebinding::ClusterRoleBindingProcessor));
     map.insert("configmap", Box::new(configmap::ConfigmapProcessor));
+    map.insert("fallback", Box::new(fallback::FallbackProcessor));
     map
 }

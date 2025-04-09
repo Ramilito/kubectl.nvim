@@ -1,5 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
-local definition = require("kubectl.views.fallback.definition")
+local commands = require("kubectl.actions.commands")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local utils = require("kubectl.utils.url")
 
@@ -9,8 +10,6 @@ local M = {
     ft = "k8s_fallback",
     gvk = { g = "", v = "v1", k = "pod" },
     informer = { enabled = true },
-    processRow = definition.processRow,
-    getHeaders = definition.getHeaders,
   },
 }
 
@@ -36,8 +35,41 @@ function M.View(cancellationToken, resource)
     M.definition.namespaced = cached_resources.values[resource_name].namespaced
     M.definition.url = utils.replacePlaceholders(cached_resources.values[resource_name].url)
   end
+  M.definition.cmd = "get_fallback_table_async"
+  local ns = nil
+  if state.ns and state.ns ~= "All" then
+    ns = state.ns
+  end
 
-  ResourceBuilder:view_fallback(M.definition, cancellationToken)
+  M.definition.args = { resource_name, ns }
+  local builder = ResourceBuilder:new(M.definition.resource)
+
+  builder.definition = M.definition
+  commands.run_async("get_fallback_table_async", { M.definition.resource, ns }, function(result)
+    builder.data = result
+    builder:decodeJson()
+    builder.processedData = builder.data.rows
+    builder.definition.headers = builder.data.headers
+
+    if M.definition.informer and M.definition.informer.enabled then
+      commands.run_async(
+        "start_watcher_async",
+        { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
+        function() end
+      )
+    end
+
+    vim.schedule(function()
+      builder:display(M.definition.ft, M.definition.resource, cancellationToken)
+      builder:prettyPrint():addHints(M.definition.hints, true, true, true)
+      builder:setContent(cancellationToken)
+      builder:draw_header(cancellationToken)
+      state.instance[M.definition.resource] = builder
+    end)
+
+    state.instance[M.definition.resource] = builder
+    state.selections = {}
+  end)
 end
 
 function M.Draw(cancellationToken)

@@ -15,6 +15,18 @@ pub trait Processor: Send + Sync {
         filter: Option<String>,
     ) -> LuaResult<mlua::Value>;
 
+    fn process_fallback(
+        &self,
+        _lua: &Lua,
+        _name: String,
+        _ns: Option<String>,
+        _sort_by: Option<String>,
+        _sort_order: Option<String>,
+        _filter: Option<String>,
+    ) -> LuaResult<mlua::Value> {
+        Err(LuaError::external("Not implemented for this processor"))
+    }
+
     fn get_age(&self, pod_val: &DynamicObject) -> FieldValue {
         let mut age = FieldValue {
             value: "".to_string(),

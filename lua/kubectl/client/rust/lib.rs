@@ -9,14 +9,14 @@ use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
-    get_async, get_config, get_config_async, get_fallback_resource_async, get_raw_async,
-    get_resource_async, get_server_raw_async,
+    get_async, get_config, get_config_async, get_raw_async, get_resource_async,
+    get_server_raw_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
 use crate::errors::LogErrorExt;
-use crate::processors::get_processors;
+use crate::processors::{fallback, get_processors};
 
 mod cmd;
 mod dao;
@@ -126,6 +126,31 @@ fn get_table(
     processor.process(lua, &items, sort_by, sort_order, filter)
 }
 
+pub async fn get_fallback_table_async(
+    lua: Lua,
+    args: (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
+) -> LuaResult<String> {
+    let (name, namespace, sort_by, sort_order, filter) = args;
+
+    let processors = get_processors();
+    let processor = processors
+        .get("fallback")
+        .unwrap_or_else(|| processors.get("default").unwrap());
+    let processed = processor
+        .process_fallback(&lua, name, namespace, sort_by, sort_order, filter)
+        .map_err(mlua::Error::external)?;
+
+    let json_str = k8s_openapi::serde_json::to_string(&processed)
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+    Ok(json_str)
+}
+
 async fn get_table_async(
     lua: Lua,
     args: (
@@ -199,15 +224,15 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "get_resources_async",
         lua.create_async_function(get_resources_async)?,
     )?;
-    exports.set(
-        "get_fallback_resource_async",
-        lua.create_async_function(get_fallback_resource_async)?,
-    )?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
     exports.set(
         "get_table_async",
         lua.create_async_function(get_table_async)?,
+    )?;
+    exports.set(
+        "get_fallback_table_async",
+        lua.create_async_function(get_fallback_table_async)?,
     )?;
 
     exports.set("scale_async", lua.create_async_function(scale_async)?)?;
