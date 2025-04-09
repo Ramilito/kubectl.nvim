@@ -365,10 +365,12 @@ function ResourceBuilder:view_fallback(definition, cancellationToken)
     ns = state.ns
   end
 
-  commands.run_async("get_raw_async", { definition.url, nil, true }, function(data)
-    self.data = data
+  commands.run_async("get_fallback_resource_async", { definition.resource, nil }, function(result, err)
+    self.data = result
     self:decodeJson()
-    self.definition.headers = definition.getHeaders(self.data)
+    self.processedData = self.data.rows
+    self.definition.headers = self.data.headers
+
     if definition.informer and definition.informer.enabled then
       commands.run_async(
         "start_watcher_async",
@@ -379,8 +381,6 @@ function ResourceBuilder:view_fallback(definition, cancellationToken)
 
     vim.schedule(function()
       self:display(definition.ft, definition.resource, cancellationToken)
-
-      self:process(self.definition.processRow, true):sort()
       self:prettyPrint():addHints(definition.hints, true, true, true)
       self:setContent(cancellationToken)
       self:draw_header(cancellationToken)

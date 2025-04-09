@@ -9,8 +9,8 @@ use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
-    get_async, get_config, get_config_async, get_raw_async, get_resource_async,
-    get_server_raw_async,
+    get_async, get_config, get_config_async, get_fallback_resource_async, get_raw_async,
+    get_resource_async, get_server_raw_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
@@ -198,6 +198,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "get_resources_async",
         lua.create_async_function(get_resources_async)?,
+    )?;
+    exports.set(
+        "get_fallback_resource_async",
+        lua.create_async_function(get_fallback_resource_async)?,
     )?;
     exports.set("get_store", lua.create_function(get_store)?)?;
     exports.set("get_table", lua.create_function(get_table)?)?;
