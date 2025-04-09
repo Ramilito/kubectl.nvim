@@ -32,21 +32,21 @@ pub async fn apply_async(_lua: Lua, args: Option<String>) -> LuaResult<()> {
         Discovery::new(client.clone())
             .run()
             .await
-            .map_err(|e| mlua::Error::external(e))
+            .map_err(mlua::Error::external)
     })?;
 
     let ssapply = PatchParams::apply("kubectl-light").force();
     let pth = path.clone().expect("apply needs a -f file supplied");
-    let yaml = std::fs::read_to_string(&pth).map_err(|e| mlua::Error::external(e))?;
+    let yaml = std::fs::read_to_string(&pth).map_err(mlua::Error::external)?;
 
     for doc in multidoc_deserialize(&yaml)? {
         let obj: DynamicObject =
-            serde_yaml::from_value(doc).map_err(|e| mlua::Error::external(e))?;
+            serde_yaml::from_value(doc).map_err(mlua::Error::external)?;
 
         let namespace = obj.metadata.namespace.as_deref();
 
         let gvk = if let Some(tm) = &obj.types {
-            GroupVersionKind::try_from(tm).map_err(|e| mlua::Error::external(e))?
+            GroupVersionKind::try_from(tm).map_err(mlua::Error::external)?
         } else {
             return Err(mlua::Error::RuntimeError("Missing object types".into()));
         };
@@ -56,12 +56,12 @@ pub async fn apply_async(_lua: Lua, args: Option<String>) -> LuaResult<()> {
             let api = dynamic_api(ar, caps, client.clone(), namespace, false);
 
             let data: serde_json::Value =
-                serde_json::to_value(&obj).map_err(|e| mlua::Error::external(e))?;
+                serde_json::to_value(&obj).map_err(mlua::Error::external)?;
 
             let _r = rt_handle.block_on(async {
                 api.patch(&name, &ssapply, &Patch::Apply(data))
                     .await
-                    .map_err(|e| mlua::Error::external(e))
+                    .map_err(mlua::Error::external)
             });
         } else {
             return Err(mlua::Error::RuntimeError(

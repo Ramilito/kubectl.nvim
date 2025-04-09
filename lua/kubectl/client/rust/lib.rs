@@ -16,7 +16,7 @@ use crate::cmd::portforward::{portforward_list, portforward_start, portforward_s
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
 use crate::errors::LogErrorExt;
-use crate::processors::{fallback, get_processors};
+use crate::processors::get_processors;
 
 mod cmd;
 mod dao;

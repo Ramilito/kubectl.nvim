@@ -14,6 +14,6 @@ impl Processor for DefaultProcessor {
         _sort_order: Option<String>,
         _filter: Option<String>,
     ) -> LuaResult<mlua::Value> {
-        Ok(lua.to_value(&items)?)
+        lua.to_value(&items)
     }
 }

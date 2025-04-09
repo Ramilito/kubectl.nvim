@@ -44,7 +44,7 @@ pub fn multidoc_deserialize(data: &str) -> LuaResult<Vec<serde_yaml::Value>> {
     use serde::Deserialize;
     let mut docs = vec![];
     for de in serde_yaml::Deserializer::from_str(data) {
-        docs.push(serde_yaml::Value::deserialize(de).map_err(|e| mlua::Error::external(e))?);
+        docs.push(serde_yaml::Value::deserialize(de).map_err(mlua::Error::external)?);
     }
     Ok(docs)
 }

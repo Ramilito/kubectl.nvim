@@ -23,11 +23,7 @@ impl FromLua for ImageSpec {
                 let name: String = t.get("name")?;
                 let image: String = t.get("image")?;
                 let init: bool = t.get("init")?;
-                Ok(ImageSpec {
-                    name,
-                    image,
-                    init,
-                })
+                Ok(ImageSpec { name, image, init })
             }
             _ => Err(mlua::Error::FromLuaConversionError {
                 from: value.type_name(),
@@ -38,10 +34,7 @@ impl FromLua for ImageSpec {
     }
 }
 
-pub fn set_images(
-    _lua: &Lua,
-    args: (String, String, Vec<ImageSpec>),
-) -> LuaResult<String> {
+pub fn set_images(_lua: &Lua, args: (String, String, Vec<ImageSpec>)) -> LuaResult<String> {
     let (deploy_name, namespace, images) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
@@ -100,15 +93,11 @@ pub fn set_images(
             .await;
 
         match patched {
-            Ok(..) => {
-                return Ok(format!(
-                    "Successfully updated images for deployment '{}'",
-                    deploy_name
-                ))
-            }
-            Err(err) => {
-                return Ok(format!("Failed to scale '{}': {:?}", deploy_name, err).to_string());
-            }
+            Ok(..) => Ok(format!(
+                "Successfully updated images for deployment '{}'",
+                deploy_name
+            )),
+            Err(err) => Ok(format!("Failed to scale '{}': {:?}", deploy_name, err).to_string()),
         }
     };
 

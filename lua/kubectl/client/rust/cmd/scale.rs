@@ -44,11 +44,9 @@ pub async fn scale_async(
             .await;
 
         match scaled {
-            Ok(..) => return Ok(format!("{}/{} scaled", kind, name,).to_string()),
-            Err(err) => {
-                return Ok(format!("Failed to scale '{}': {:?}", name, err).to_string());
-            }
-        };
+            Ok(..) => Ok(format!("{}/{} scaled", kind, name,).to_string()),
+            Err(err) => Ok(format!("Failed to scale '{}': {:?}", name, err).to_string()),
+        }
     };
 
     rt.block_on(fut)

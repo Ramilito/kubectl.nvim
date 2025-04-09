@@ -1,19 +1,15 @@
 use http::Uri;
-use k8s_openapi::{
-    apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
-    serde_json::{self, Value},
-};
+use k8s_openapi::serde_json::{self};
 use kube::{
-    api::{DynamicObject, ListParams, ResourceExt},
+    api::{DynamicObject, ResourceExt},
     config::Kubeconfig,
     core::GroupVersionKind,
     discovery::Discovery,
-    Api, Config,
+    Config,
 };
 use mlua::prelude::*;
 use mlua::Either;
 use serde_json::{json, to_string};
-use serde_json_path::JsonPath;
 use tokio::runtime::Runtime;
 
 use super::utils::{dynamic_api, resolve_api_resource};
@@ -92,15 +88,13 @@ pub async fn get_resource_async(
                     gvk
                 )));
             }
+        } else if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
+            (ar, caps)
         } else {
-            if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
-                (ar, caps)
-            } else {
-                return Err(mlua::Error::external(format!(
-                    "Resource not found in cluster: {}",
-                    kind
-                )));
-            }
+            return Err(mlua::Error::external(format!(
+                "Resource not found in cluster: {}",
+                kind
+            )));
         };
 
         let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
@@ -168,23 +162,23 @@ pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> 
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let config = Config::infer().await.map_err(|e| LuaError::external(e))?;
+        let config = Config::infer().await.map_err(LuaError::external)?;
         let base = config.cluster_url.to_string();
         let full_url_str = format!(
             "{}/{}",
             base.trim_end_matches('/'),
             path.trim_start_matches('/')
         );
-        let full_url: Uri = full_url_str.parse().map_err(|e| LuaError::external(e))?;
+        let full_url: Uri = full_url_str.parse().map_err(LuaError::external)?;
 
         let req = http::Request::get(full_url)
             .body(Vec::new())
-            .map_err(|e| LuaError::external(e))?;
+            .map_err(LuaError::external)?;
 
         let text = client
             .request_text(req)
             .await
-            .map_err(|e| LuaError::external(e))?;
+            .map_err(LuaError::external)?;
         Ok(text)
     };
     rt.block_on(fut)

@@ -36,7 +36,7 @@ impl Processor for StatefulsetProcessor {
 
             let namespace = statefulset.metadata.namespace.clone().unwrap_or_default();
             let name = statefulset.metadata.name.clone().unwrap_or_default();
-            let age = self.get_age(&obj);
+            let age = self.get_age(obj);
             let ready = get_ready_from_deployment(&statefulset);
 
             data.push(StatefulsetProcessed {

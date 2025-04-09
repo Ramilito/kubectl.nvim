@@ -14,7 +14,7 @@ pub fn set(kind: &str, items: Vec<DynamicObject>) {
         let name = item.metadata.name.clone().unwrap_or_default();
         ns_map
             .entry(ns)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(name, item);
     }
     store.insert(kind.to_string(), ns_map);
@@ -22,13 +22,10 @@ pub fn set(kind: &str, items: Vec<DynamicObject>) {
 
 pub fn update(kind: &str, item: DynamicObject) {
     let mut store = STORE.write().unwrap();
-    let ns_map = store.entry(kind.to_string()).or_insert_with(HashMap::new);
+    let ns_map = store.entry(kind.to_string()).or_default();
     let ns = item.metadata.namespace.clone();
     let name = item.metadata.name.clone().unwrap_or_default();
-    ns_map
-        .entry(ns)
-        .or_insert_with(HashMap::new)
-        .insert(name, item);
+    ns_map.entry(ns).or_default().insert(name, item);
 }
 
 pub fn delete(kind: &str, item: &DynamicObject) {

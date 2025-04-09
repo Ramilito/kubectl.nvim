@@ -52,7 +52,7 @@ impl Processor for DeploymentProcessor {
                 .and_then(|s| s.available_replicas)
                 .unwrap_or(0) as i64;
 
-            let age = self.get_age(&obj);
+            let age = self.get_age(obj);
             let ready = get_ready_from_deployment(&deployment);
 
             data.push(DeploymentProcessed {

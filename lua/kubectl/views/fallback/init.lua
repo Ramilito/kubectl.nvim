@@ -31,7 +31,9 @@ function M.View(cancellationToken, resource)
   local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
 
   if cache.loading then
+    require("kubectl.views").view_or_fallback("pods")
     vim.notify("Fallback cache is still loading try again soon")
+
     return
   end
 
@@ -57,10 +59,9 @@ function M.View(cancellationToken, resource)
   commands.run_async(
     "get_fallback_table_async",
     { M.definition.resource, ns, sort_by, sort_order, filter },
-    function(result, err)
+    function(result)
       builder.data = result
       builder:decodeJson()
-      vim.print(builder.data)
       builder.processedData = builder.data.rows
       builder.definition.headers = builder.data.headers
 

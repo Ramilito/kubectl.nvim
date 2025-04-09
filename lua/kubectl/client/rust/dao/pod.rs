@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use k8s_openapi::{api::core::v1::Pod, serde_json::json};
 use kube::{
-    api::{ApiResource, DynamicObject, GroupVersionKind, Patch, PatchParams},
-    Api, ResourceExt,
+    api::{Patch, PatchParams},
+    Api,
 };
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
@@ -14,22 +14,19 @@ use mlua::{FromLua, Lua, Result as LuaResult, Value};
 
 #[derive(Debug, Clone)]
 pub struct ImageSpec {
-    pub index: usize,
     pub name: String,
     pub docker_image: String,
     pub init: bool,
 }
 
 impl FromLua for ImageSpec {
-    fn from_lua(value: Value, lua: &Lua) -> LuaResult<Self> {
+    fn from_lua(value: Value, _lua: &Lua) -> LuaResult<Self> {
         match value {
             Value::Table(t) => {
-                let index: usize = t.get("index")?;
                 let name: String = t.get("name")?;
                 let docker_image: String = t.get("docker_image")?;
                 let init: bool = t.get("init")?;
                 Ok(ImageSpec {
-                    index,
                     name,
                     docker_image,
                     init,
@@ -45,7 +42,7 @@ impl FromLua for ImageSpec {
 }
 
 pub fn set_images(
-    lua: &Lua,
+    _lua: &Lua,
     args: (String, String, String, String, String, Vec<ImageSpec>),
 ) -> LuaResult<String> {
     // Unpack the tuple; the first three values (kind, group, version) are currently unused,
@@ -138,13 +135,13 @@ pub fn set_images(
 
         match patched {
             Ok(..) => {
-                return Ok(format!(
+                Ok(format!(
                     "Successfully updated images for pod '{}'",
                     pod_name,
                 ))
             }
             Err(err) => {
-                return Ok(format!("Failed to scale '{}': {:?}", pod_name, err).to_string());
+                Ok(format!("Failed to scale '{}': {:?}", pod_name, err).to_string())
             }
         }
     };
