@@ -44,8 +44,12 @@ function M.View(cancellationToken, resource)
   M.definition.args = { resource_name, ns }
   local builder = ResourceBuilder:new(M.definition.resource)
 
+  local filter = state.getFilter()
+  local sort_by = state.sortby[M.definition.resource].current_word
+  local sort_order = state.sortby[M.definition.resource].order
+
   builder.definition = M.definition
-  commands.run_async("get_fallback_table_async", { M.definition.resource, ns }, function(result)
+  commands.run_async("get_fallback_table_async", { M.definition.resource, ns, sort_by, sort_order, filter }, function(result)
     builder.data = result
     builder:decodeJson()
     builder.processedData = builder.data.rows
