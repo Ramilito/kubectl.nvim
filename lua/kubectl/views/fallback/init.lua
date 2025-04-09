@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local cache = require("kubectl.cache")
 local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -8,8 +9,8 @@ local M = {
   resource = "fallback",
   definition = {
     ft = "k8s_fallback",
-    gvk = { g = "", v = "v1", k = "pod" },
     informer = { enabled = true },
+    gvk = {},
   },
 }
 
@@ -26,15 +27,19 @@ function M.View(cancellationToken, resource)
     { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
   }
 
-  local cached_resources = require("kubectl.cache").cached_api_resources
+  local cached_resources = cache.cached_api_resources
   local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
-  if resource_name then
-    M.definition.resource = resource_name
-    M.definition.gvk = cached_resources.values[resource_name].gvk
-    M.definition.display_name = resource_name
-    M.definition.namespaced = cached_resources.values[resource_name].namespaced
-    M.definition.url = utils.replacePlaceholders(cached_resources.values[resource_name].url)
+
+  if cache.loading then
+    vim.notify("Fallback cache is still loading try again soon")
+    return
   end
+
+  M.definition.resource = resource_name
+  M.definition.gvk = cached_resources.values[resource_name].gvk
+  M.definition.display_name = resource_name
+  M.definition.namespaced = cached_resources.values[resource_name].namespaced
+  M.definition.url = utils.replacePlaceholders(cached_resources.values[resource_name].url)
   M.definition.cmd = "get_fallback_table_async"
   local ns = nil
   if state.ns and state.ns ~= "All" then
@@ -45,15 +50,14 @@ function M.View(cancellationToken, resource)
   local builder = ResourceBuilder:new(M.definition.resource)
 
   local filter = state.getFilter()
-  local sort_by = state.sortby[M.definition.resource].current_word
-  local sort_order = state.sortby[M.definition.resource].order
+  local sort_by = state.sortby[M.definition.resource] and state.sortby[M.definition.resource].current_word or nil
+  local sort_order = state.sortby[M.definition.resource] and state.sortby[M.definition.resource].order or nil
 
   builder.definition = M.definition
-	vim.print(M.definition)
   commands.run_async(
     "get_fallback_table_async",
     { M.definition.resource, ns, sort_by, sort_order, filter },
-    function(result)
+    function(result, err)
       builder.data = result
       builder:decodeJson()
       vim.print(builder.data)
