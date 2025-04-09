@@ -36,7 +36,7 @@ pub fn dynamic_api(
     } else if let Some(namespace) = ns {
         Api::namespaced_with(client, namespace, &ar)
     } else {
-        Api::default_namespaced_with(client, &ar)
+        Api::all_with(client, &ar)
     }
 }
 

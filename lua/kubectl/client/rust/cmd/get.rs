@@ -101,8 +101,13 @@ pub async fn get_fallback_resource_async(
             .resolve_gvk(&gvk)
             .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {:?}", gvk)))?;
 
-        let api: Api<DynamicObject> =
-            dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
+        let api: Api<DynamicObject> = dynamic_api(
+            ar.clone(),
+            caps,
+            client.clone(),
+            namespace.as_deref(),
+            false,
+        );
 
         let cr_list = api
             .list(&ListParams::default())
@@ -128,7 +133,7 @@ pub async fn get_fallback_resource_async(
             let mut obj_map = serde_json::Map::new();
             // Optionally store the resource's name in the output as well:
             if let Some(n) = cr_item.metadata.name {
-                obj_map.insert("NAME".into(), Value::String(n));
+                obj_map.insert("name".into(), Value::String(n));
             }
 
             for col in columns {
@@ -137,7 +142,7 @@ pub async fn get_fallback_resource_async(
                     Ok(path) => {
                         let matched = path.query(&cr_value).all();
                         if !matched.is_empty() {
-                            obj_map.insert(col.name.clone(), matched[0].clone());
+                            obj_map.insert(col.name.to_lowercase().clone(), matched[0].clone());
                         } else {
                             obj_map.insert(col.name.clone(), Value::String("<none>".into()));
                         }

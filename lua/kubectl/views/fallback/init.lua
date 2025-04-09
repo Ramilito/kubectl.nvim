@@ -1,6 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.fallback.definition")
-local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local utils = require("kubectl.utils.url")
 

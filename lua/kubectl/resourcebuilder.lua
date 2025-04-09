@@ -365,7 +365,7 @@ function ResourceBuilder:view_fallback(definition, cancellationToken)
     ns = state.ns
   end
 
-  commands.run_async("get_fallback_resource_async", { definition.resource, nil }, function(result, err)
+  commands.run_async("get_fallback_resource_async", { definition.resource, ns }, function(result, err)
     self.data = result
     self:decodeJson()
     self.processedData = self.data.rows
