@@ -9,6 +9,7 @@ local client = {
 function client.set_implementation()
   client.implementation = require("kubectl_client")
   client.implementation.init_runtime(state.context["current-context"])
+  client.implementation.init_logging(vim.fn.stdpath("log") .. "/" .. "kubectl.log")
 end
 
 function client.get_resource(...)

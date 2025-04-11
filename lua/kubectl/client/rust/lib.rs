@@ -15,14 +15,13 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::errors::LogErrorExt;
 use crate::processors::get_processors;
 
 mod cmd;
 mod dao;
 mod describe;
-mod errors;
 mod events;
+mod log;
 mod processors;
 mod resources;
 mod store;
@@ -181,6 +180,13 @@ async fn get_table_async(
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
+    exports.set(
+        "init_logging",
+        lua.create_function(|_, path: String| {
+            log::setup_logger(&path).map_err(|e| LuaError::external(format!("{:?}", e)))?;
+            Ok(())
+        })?,
+    )?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set(
         "start_watcher_async",
@@ -193,9 +199,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set(
         "edit_async",
-        lua.create_async_function(
-            |lua, args| async move { edit_async(lua, args).await.log_err() },
-        )?,
+        lua.create_async_function(|lua, args| async move { edit_async(lua, args).await })?,
     )?;
     exports.set(
         "describe_async",
