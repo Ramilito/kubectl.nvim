@@ -170,7 +170,6 @@ function M.get_mappings()
               def.syntax,
             }
 
-						vim.print(unpack(args))
             ResourceBuilder:view_float(def, { args = args })
           end
         end
