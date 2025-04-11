@@ -1,5 +1,6 @@
 // lib.rs
 use kube::{config::KubeConfigOptions, Client, Config};
+use ::log::error;
 use mlua::prelude::*;
 use mlua::{Lua, Value};
 use std::sync::{Mutex, OnceLock};
@@ -187,6 +188,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
             Ok(())
         })?,
     )?;
+    std::panic::set_hook(Box::new(|panic_info| {
+        error!("Panic occurred: {}", panic_info);
+    }));
+
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set(
         "start_watcher_async",

@@ -32,7 +32,14 @@ function M.View(cancellationToken, resource)
 
   if cache.loading then
     require("kubectl.views").view_or_fallback("pods")
-    vim.notify("Fallback cache is still loading try again soon")
+    vim.notify("Fallback cache for " .. resource .. " is still loading, try again soon")
+
+    return
+  end
+
+  if not cached_resources.values[resource_name] then
+    require("kubectl.views").view_or_fallback("pods")
+    vim.notify("View not found: " .. (resource or "<nil>"))
 
     return
   end
@@ -64,6 +71,7 @@ function M.View(cancellationToken, resource)
       builder:decodeJson()
       builder.processedData = builder.data.rows
       builder.definition.headers = builder.data.headers
+      M.definition.headers = builder.data.headers
 
       if M.definition.informer and M.definition.informer.enabled then
         commands.run_async(
@@ -92,19 +100,34 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
-    resource = M.resource .. " | " .. name .. " | " .. ns,
+  local def = {
+    resource = M.definition.resource .. " | " .. name,
     ft = "k8s_desc",
-    -- url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+  }
+
+  if ns then
+    def.resource = def.resource .. " | " .. ns
+  end
+
+  ResourceBuilder:view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      ns,
+      name,
+      M.definition.gvk.g,
+    },
+    reload = reload,
+  })
 end
 
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  local name_idx = tables.find_index(definition.headers, "NAME")
-  local ns_idx = tables.find_index(definition.headers, "NAMESPACE")
+  local name_idx = tables.find_index(M.definition.headers, "NAME")
+  local ns_idx = tables.find_index(M.definition.headers, "NAMESPACE")
   if ns_idx then
     return tables.getCurrentSelection(name_idx, ns_idx)
   end

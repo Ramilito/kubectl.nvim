@@ -175,10 +175,7 @@ pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> 
             .body(Vec::new())
             .map_err(LuaError::external)?;
 
-        let text = client
-            .request_text(req)
-            .await
-            .map_err(LuaError::external)?;
+        let text = client.request_text(req).await.map_err(LuaError::external)?;
         Ok(text)
     };
     rt.block_on(fut)
