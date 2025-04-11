@@ -12,10 +12,7 @@ pub fn set(kind: &str, items: Vec<DynamicObject>) {
     for item in items {
         let ns = item.metadata.namespace.clone();
         let name = item.metadata.name.clone().unwrap_or_default();
-        ns_map
-            .entry(ns)
-            .or_default()
-            .insert(name, item);
+        ns_map.entry(ns).or_default().insert(name, item);
     }
     store.insert(kind.to_string(), ns_map);
 }
