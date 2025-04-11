@@ -157,22 +157,21 @@ function M.get_mappings()
               syntax = "yaml",
               name = name,
               cmd = "get_async",
-              ns = ns,
             }
             if ns then
               def.resource = def.resource .. " | " .. ns
             end
+            local args = {
+              view.definition.gvk.k,
+              ns,
+              def.name,
+              nil,
+              nil,
+              def.syntax,
+            }
 
-            ResourceBuilder:view_float(def, {
-              args = {
-                view.definition.gvk.k,
-                def.ns,
-                def.name,
-								nil,
-								nil,
-                def.syntax,
-              },
-            })
+						vim.print(unpack(args))
+            ResourceBuilder:view_float(def, { args = args })
           end
         end
       end,
@@ -271,9 +270,9 @@ function M.get_mappings()
 
         commands.run_async("get_resource_async", {
           instance.definition.gvk.k,
-					nil,
-					nil,
-					def.name,
+          nil,
+          nil,
+          def.name,
           def.ns,
         }, function(data)
           vim.schedule(function()
