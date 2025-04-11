@@ -155,23 +155,21 @@ function M.get_mappings()
               resource = buf_name .. " | " .. name,
               ft = "k8s_yaml",
               syntax = "yaml",
-              name = name,
               cmd = "get_async",
-							ns = ns
+              args = {
+                view.definition.gvk.k,
+                ns,
+                name,
+                nil,
+                nil,
+                "yaml",
+              },
             }
             if ns then
               def.resource = def.resource .. " | " .. ns
             end
-            local args = {
-              view.definition.gvk.k,
-              ns,
-              def.name,
-              nil,
-              nil,
-              def.syntax,
-            }
 
-            ResourceBuilder:view_float(def, { args = args })
+            ResourceBuilder:view_float(def, { args = def.args })
           end
         end
       end,

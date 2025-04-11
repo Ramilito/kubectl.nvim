@@ -148,11 +148,13 @@ function M.load_cache(cached_api_resources, callback)
     self:decodeJson()
 
     if not self.data[1] then
+      M.loading = false
       return
     end
     process_apis("api", "", "v1", self.data[1], cached_api_resources)
 
     if self.data[2].groups == nil then
+      M.loading = false
       return
     end
     local group_cmds = {}

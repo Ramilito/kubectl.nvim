@@ -54,7 +54,7 @@ pub async fn get_resource_async(
         String,
         Option<String>,
         Option<String>,
-        Option<String>,
+        String,
         Option<String>,
     ),
 ) -> LuaResult<String> {
@@ -99,14 +99,10 @@ pub async fn get_resource_async(
 
         let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
 
-        if let Some(ref n) = name {
-            let mut obj = api.get(n).await.map_err(mlua::Error::external)?;
-            obj.managed_fields_mut().clear();
+        let mut obj = api.get(&name).await.map_err(mlua::Error::external)?;
+        obj.managed_fields_mut().clear();
 
-            Ok(OutputMode::Yaml.format(obj))
-        } else {
-            Err(mlua::Error::external("test"))
-        }
+        Ok(OutputMode::Yaml.format(obj))
     };
 
     rt.block_on(fut)
@@ -133,7 +129,7 @@ pub async fn get_async(
         return Ok(output_mode.format(found));
     }
 
-    let result = get_resource_async(lua, (kind, group, version, Some(name), namespace));
+    let result = get_resource_async(lua, (kind, group, version, name, namespace));
 
     result.await
 }

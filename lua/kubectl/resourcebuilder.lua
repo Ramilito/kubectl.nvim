@@ -106,7 +106,7 @@ end
 --- Fetch all data asynchronously
 ---@return ResourceBuilder
 function ResourceBuilder:fetchAllAsync(cmds, callback)
-  self.handles = commands.await_shell_command_async(cmds, function(data)
+  self.handles = commands.await_all(cmds, function(data)
     self.data = data
     callback(self)
   end)

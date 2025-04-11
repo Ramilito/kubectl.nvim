@@ -202,6 +202,24 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   return handle
 end
 
+function M.await_all(cmds, final_callback)
+  local results = {}
+  local errors = {}
+  local completed = 0
+  local total = #cmds
+  for idx, cmd in ipairs(cmds) do
+    M.run_async(cmd.cmd, cmd.args, function(res, err)
+      results[idx] = res
+      errors[idx] = err
+      completed = completed + 1
+      if completed == total then
+				print("calling final", results)
+        final_callback(results, errors)
+      end
+    end)
+  end
+end
+
 function M.run_async(method_name, args, callback)
   local function after_work_callback(results, err)
     callback(results, err)

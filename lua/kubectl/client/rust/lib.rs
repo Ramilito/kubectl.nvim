@@ -26,6 +26,7 @@ mod log;
 mod processors;
 mod resources;
 mod store;
+mod reflector;
 mod utils;
 mod watcher;
 
