@@ -213,7 +213,6 @@ function M.await_all(cmds, final_callback)
       errors[idx] = err
       completed = completed + 1
       if completed == total then
-				print("calling final", results)
         final_callback(results, errors)
       end
     end)
