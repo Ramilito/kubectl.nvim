@@ -40,7 +40,7 @@ pub trait Processor: Send + Sync {
             .unwrap_or_default();
 
         age.value = if !creation_ts.is_empty() {
-            format!("{}", time_since(&creation_ts))
+            time_since(&creation_ts).to_string()
         } else {
             "".to_string()
         };
@@ -54,7 +54,7 @@ pub trait Processor: Send + Sync {
                 .expect("Times")
                 .max(0) as usize,
         );
-        return age;
+        age
     }
 
     fn ip_to_u32(&self, ip: &str) -> Option<usize> {

@@ -32,7 +32,7 @@ function M.View()
   self.definition = M.definition
 
   commands.run_async(
-    "get_resources_async",
+    "get_all_async",
     { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil, nil },
     function(data)
       self.data = data

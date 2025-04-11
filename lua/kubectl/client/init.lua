@@ -39,24 +39,5 @@ end
 function client.get_config()
   return client.implementation.get_config()
 end
-function client.get_table(definition)
-  local namespace = nil
-  if state.ns and state.ns ~= "All" then
-    namespace = state.ns
-  end
-
-  local sort_by = state.sortby[definition.resource].current_word
-  local sort_order = state.sortby[definition.resource].order
-
-  return client.implementation.get_table(definition.gvk.k, namespace, sort_by, sort_order, "")
-end
-
-function client.get_store(resource_name)
-  local namespace = nil
-  if state.ns and state.ns ~= "All" then
-    namespace = state.ns
-  end
-  return client.implementation.get_store(resource_name, namespace)
-end
 
 return client

@@ -41,7 +41,7 @@ function M.View(pod, ns)
   M.definition.resource = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
 
-  ResourceBuilder:view_float(M.definition, { args = { gvk.k, ns, pod, gvk.g, gvk.v, "json" } })
+  ResourceBuilder:view_float(M.definition, { args = { gvk.k, ns, pod, "json" } })
 end
 
 function M.exec(pod, ns)

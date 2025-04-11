@@ -10,7 +10,6 @@ use kube::{
     api::{DynamicObject, ListParams, ResourceExt},
     Api,
 };
-use log::info;
 use mlua::prelude::*;
 use serde_json::{json, Value};
 use serde_json_path::JsonPath;

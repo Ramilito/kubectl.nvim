@@ -47,7 +47,7 @@ pub fn set_images(
 ) -> LuaResult<String> {
     // Unpack the tuple; the first three values (kind, group, version) are currently unused,
     // but they can be used later for validation.
-    let (kind, group, version, pod_name, namespace, images) = args;
+    let (_kind, _group, _version, pod_name, namespace, images) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 

@@ -160,8 +160,6 @@ function M.get_mappings()
                 view.definition.gvk.k,
                 ns,
                 name,
-                nil,
-                nil,
                 "yaml",
               },
             }

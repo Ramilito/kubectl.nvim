@@ -48,7 +48,7 @@ function M.SetImage(name, ns)
     version = M.definition.version,
   }
 
-  commands.run_async("get_async", { M.definition.gvk.k, ns, name, nil, nil, "Json" }, function(data)
+  commands.run_async("get_async", { M.definition.gvk.k, ns, name, "Json" }, function(data)
     if not data then
       return
     end

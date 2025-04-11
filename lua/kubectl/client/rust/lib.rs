@@ -1,8 +1,8 @@
 // lib.rs
-use kube::{config::KubeConfigOptions, Client, Config};
+use kube::{config::KubeConfigOptions, Client, Config, api::GroupVersionKind};
 use ::log::error;
 use mlua::prelude::*;
-use mlua::{Lua, Value};
+use mlua::Lua;
 use std::sync::{Mutex, OnceLock};
 use tokio::runtime::Runtime;
 
@@ -24,11 +24,8 @@ mod describe;
 mod events;
 mod log;
 mod processors;
-mod resources;
 mod store;
-mod reflector;
 mod utils;
-mod watcher;
 
 static LOG_PATH: OnceLock<Option<String>> = OnceLock::new();
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
@@ -63,68 +60,42 @@ fn init_runtime(lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-async fn get_resources_async(
+async fn get_all_async(
     _lua: Lua,
     args: (
         String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
         Option<String>,
     ),
 ) -> LuaResult<String> {
-    let (kind, group, version, name, namespace) = args;
+    let (kind, namespace) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    resources::get_resources(rt, client, kind, group, version, name, namespace)
+    let fut = async move {
+        let result = store::get(&kind, namespace).await?;
+        let json_str = k8s_openapi::serde_json::to_string(&result)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        Ok(json_str)
+    };
+    rt.block_on(fut)
 }
 
-async fn start_watcher_async(
+async fn start_reflector_async(
     _lua: Lua,
     args: (String, Option<String>, Option<String>, Option<String>),
 ) -> LuaResult<()> {
-    let (resource, group, version, namespace) = args;
+    let (kind, group, version, namespace) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().unwrap();
     let client = client_guard
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-    watcher::start(rt, client, resource, group, version, namespace)
-}
 
-fn get_store(lua: &Lua, args: (String, Option<String>)) -> LuaResult<Value> {
-    let (key, namespace) = args;
-
-    if let Some(json_str) = store::get(&key, namespace) {
-        Ok(lua.to_value(&json_str)?)
-    } else {
-        Err(mlua::Error::RuntimeError("No data for given key".into()))
-    }
-}
-
-fn get_table(
-    lua: &Lua,
-    args: (
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
-) -> LuaResult<Value> {
-    let (kind, namespace, sort_by, sort_order, filter) = args;
-
-    let items = store::get(&kind, namespace)
-        .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
-    let processors = get_processors();
-    let processor = processors
-        .get(kind.as_str())
-        .unwrap_or_else(|| processors.get("default").unwrap());
-    processor.process(lua, &items, sort_by, sort_order, filter)
+    let fut = async move {
+        let gvk = GroupVersionKind::gvk(&group.unwrap(), &version.unwrap(), &kind);
+        let _ = store::init_reflector_for_kind(client.clone(), gvk, namespace).await;
+        Ok(())
+    };
+    rt.block_on(fut)
 }
 
 pub async fn get_fallback_table_async(
@@ -164,8 +135,7 @@ async fn get_table_async(
 ) -> LuaResult<String> {
     let (kind, namespace, sort_by, sort_order, filter) = args;
 
-    let items = store::get(&kind, namespace)
-        .ok_or_else(|| mlua::Error::RuntimeError("No data for given key".into()))?;
+    let items = store::get(&kind, namespace).await?;
     let processors = get_processors();
     let processor = processors
         .get(kind.as_str())
@@ -195,8 +165,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
 
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set(
-        "start_watcher_async",
-        lua.create_async_function(start_watcher_async)?,
+        "start_reflector_async",
+        lua.create_async_function(start_reflector_async)?,
     )?;
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
@@ -230,12 +200,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "get_resource_async",
         lua.create_async_function(get_resource_async)?,
     )?;
-    exports.set(
-        "get_resources_async",
-        lua.create_async_function(get_resources_async)?,
-    )?;
-    exports.set("get_store", lua.create_function(get_store)?)?;
-    exports.set("get_table", lua.create_function(get_table)?)?;
+    exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(
         "get_table_async",
         lua.create_async_function(get_table_async)?,

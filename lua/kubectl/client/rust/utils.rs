@@ -125,7 +125,7 @@ where
     data.iter()
         .filter(|item| {
             fields.iter().any(|field| {
-                get_field_value(item, field).map_or(false, |val| val.contains(filter_value))
+                get_field_value(item, field).is_some_and(|val| val.contains(filter_value))
             })
         })
         .collect()

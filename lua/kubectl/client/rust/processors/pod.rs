@@ -496,7 +496,7 @@ pub async fn log_stream_async(
                 if prefix.unwrap_or_default() {
                     format!("[{}] {}", container_name, line)
                 } else {
-                    format!("{}", line)
+                    line.to_string()
                 }
             });
             streams.push(stream);

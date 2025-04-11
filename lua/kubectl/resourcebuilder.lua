@@ -365,29 +365,25 @@ function ResourceBuilder:view(definition, cancellationToken)
     ns = state.ns
   end
 
-  commands.run_async(
-    "get_resources_async",
-    { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil, ns },
-    function(data)
-      self.data = data
-      self:decodeJson()
-      if definition.informer and definition.informer.enabled then
-        commands.run_async(
-          "start_watcher_async",
-          { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
-          function() end
-        )
-      end
-
-      vim.schedule(function()
-        self:display(definition.ft, definition.resource, cancellationToken)
-        self:draw(definition, cancellationToken)
-      end)
-
-      state.instance[definition.resource] = self
-      state.selections = {}
+  commands.run_async("get_all_async", { definition.gvk.k, ns }, function(data)
+    self.data = data
+    self:decodeJson()
+    if definition.informer and definition.informer.enabled then
+      commands.run_async(
+        "start_reflector_async",
+        { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
+        function() end
+      )
     end
-  )
+
+    vim.schedule(function()
+      self:display(definition.ft, definition.resource, cancellationToken)
+      self:draw(definition, cancellationToken)
+    end)
+
+    state.instance[definition.resource] = self
+    state.selections = {}
+  end)
 
   return self
 end

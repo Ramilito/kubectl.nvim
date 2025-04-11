@@ -38,52 +38,48 @@ function M.Draw(cancellationToken)
 end
 
 function M.OpenBrowser(name, ns)
-  commands.run_async(
-    "get_async",
-    { M.definition.gvk.k, ns, name, M.definition.gvk.g, M.definition.gvk.v, nil },
-    function(data)
-      local builder = ResourceBuilder:new("ingress_browser")
-      builder.data = data
-      builder:decodeJson()
-      local port = ""
-      if
-        builder.data.spec.rules
-        and builder.data.spec.rules[1]
-        and builder.data.spec.rules[1].http
-        and builder.data.spec.rules[1].http.paths
-        and builder.data.spec.rules[1].http.paths[1]
-        and builder.data.spec.rules[1].http.paths[1].backend
-      then
-        local backend = builder.data.spec.rules[1].http.paths[1].backend
-        port = backend.service.port.number or backend.servicePort or "80"
-      end
-
-      -- determine host
-      local host = ""
-      if builder.data.spec.rules and builder.data.spec.rules[1] and builder.data.spec.rules[1].host then
-        host = builder.data.spec.rules[1].host
-      else
-        if builder.data.status and builder.data.status.loadBalancer and builder.data.status.loadBalancer.ingress then
-          local ingress = builder.data.status.loadBalancer.ingress[1]
-          if ingress.hostname then
-            host = ingress.hostname
-          elseif ingress.ip then
-            host = ingress.ip
-          end
-        else
-          return
-        end
-      end
-      local proto = port == "443" and "https" or "http"
-      local url
-      if port ~= "443" and port ~= "80" then
-        url = string.format("%s://%s:%s", proto, host, port)
-      else
-        url = string.format("%s://%s", proto, host)
-      end
-      vim.ui.open(url)
+  commands.run_async("get_async", { M.definition.gvk.k, ns, name, nil }, function(data)
+    local builder = ResourceBuilder:new("ingress_browser")
+    builder.data = data
+    builder:decodeJson()
+    local port = ""
+    if
+      builder.data.spec.rules
+      and builder.data.spec.rules[1]
+      and builder.data.spec.rules[1].http
+      and builder.data.spec.rules[1].http.paths
+      and builder.data.spec.rules[1].http.paths[1]
+      and builder.data.spec.rules[1].http.paths[1].backend
+    then
+      local backend = builder.data.spec.rules[1].http.paths[1].backend
+      port = backend.service.port.number or backend.servicePort or "80"
     end
-  )
+
+    -- determine host
+    local host = ""
+    if builder.data.spec.rules and builder.data.spec.rules[1] and builder.data.spec.rules[1].host then
+      host = builder.data.spec.rules[1].host
+    else
+      if builder.data.status and builder.data.status.loadBalancer and builder.data.status.loadBalancer.ingress then
+        local ingress = builder.data.status.loadBalancer.ingress[1]
+        if ingress.hostname then
+          host = ingress.hostname
+        elseif ingress.ip then
+          host = ingress.ip
+        end
+      else
+        return
+      end
+    end
+    local proto = port == "443" and "https" or "http"
+    local url
+    if port ~= "443" and port ~= "80" then
+      url = string.format("%s://%s:%s", proto, host, port)
+    else
+      url = string.format("%s://%s", proto, host)
+    end
+    vim.ui.open(url)
+  end)
 end
 
 function M.Desc(name, ns, reload)

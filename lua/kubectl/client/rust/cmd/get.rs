@@ -13,7 +13,7 @@ use serde_json::{json, to_string};
 use tokio::runtime::Runtime;
 
 use super::utils::{dynamic_api, resolve_api_resource};
-use crate::{store::get_single, CLIENT_INSTANCE, RUNTIME};
+use crate::{store, CLIENT_INSTANCE, RUNTIME};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OutputMode {
@@ -109,29 +109,23 @@ pub async fn get_resource_async(
 }
 
 pub async fn get_async(
-    lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
+    _lua: Lua,
+    args: (String, Option<String>, String, Option<String>),
 ) -> LuaResult<String> {
-    let (kind, namespace, name, group, version, output) = args;
+    let (kind, namespace, name, output) = args;
     let output_mode = output
         .as_deref()
         .map(OutputMode::from_str)
         .unwrap_or_default();
 
-    if let Some(found) = get_single(&kind, namespace.clone(), &name) {
-        return Ok(output_mode.format(found));
-    }
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
-    let result = get_resource_async(lua, (kind, group, version, name, namespace));
-
-    result.await
+    let fut = async move {
+        let obj = store::get_single(&kind, namespace, &name).await?;
+        // TODO: remove the unwrap()
+        Ok(output_mode.format(obj.unwrap()))
+    };
+    rt.block_on(fut)
 }
 
 pub fn get_config(lua: &Lua, args: ()) -> LuaResult<String> {

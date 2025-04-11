@@ -75,7 +75,7 @@ function M.View(cancellationToken, resource)
 
       if M.definition.informer and M.definition.informer.enabled then
         commands.run_async(
-          "start_watcher_async",
+          "start_reflector_async",
           { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
           function() end
         )

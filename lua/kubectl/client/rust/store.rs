@@ -1,73 +1,92 @@
-use kube::api::DynamicObject;
+use futures::StreamExt;
+use kube::runtime::reflector::store::Writer;
+use kube::runtime::watcher;
+use kube::{
+    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ResourceExt},
+    Client,
+};
+
+use kube::runtime::reflector::{reflector, Store};
 use std::collections::HashMap;
-use std::sync::{LazyLock, RwLock};
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
 
-static STORE: LazyLock<
-    RwLock<HashMap<String, HashMap<Option<String>, HashMap<String, DynamicObject>>>>,
-> = LazyLock::new(|| RwLock::new(HashMap::new()));
+static STORE_MAP: OnceLock<Arc<RwLock<HashMap<String, Store<DynamicObject>>>>> = OnceLock::new();
 
-pub fn set(kind: &str, items: Vec<DynamicObject>) {
-    let mut store = STORE.write().unwrap();
-    let mut ns_map: HashMap<Option<String>, HashMap<String, DynamicObject>> = HashMap::new();
-    for item in items {
-        let ns = item.metadata.namespace.clone();
-        let name = item.metadata.name.clone().unwrap_or_default();
-        ns_map.entry(ns).or_default().insert(name, item);
-    }
-    store.insert(kind.to_string(), ns_map);
+fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
+    STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
 
-pub fn update(kind: &str, item: DynamicObject) {
-    let mut store = STORE.write().unwrap();
-    let ns_map = store.entry(kind.to_string()).or_default();
-    let ns = item.metadata.namespace.clone();
-    let name = item.metadata.name.clone().unwrap_or_default();
-    ns_map.entry(ns).or_default().insert(name, item);
+pub async fn init_reflector_for_kind(
+    client: Client,
+    gvk: GroupVersionKind,
+    namespace: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ar = ApiResource::from_gvk(&gvk);
+    let api: Api<DynamicObject> = match namespace {
+        Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),
+        None => Api::all_with(client.clone(), &ar),
+    };
+
+    let config = watcher::Config::default();
+    let writer: Writer<DynamicObject> = Writer::new(ar.clone());
+    let reader: Store<DynamicObject> = writer.as_reader();
+    let rf = reflector(writer, watcher(api, config));
+
+    tokio::spawn(async move {
+        rf.for_each(|_| futures::future::ready(())).await;
+    });
+
+    let mut map = get_store_map().write().await;
+    map.insert(gvk.kind.to_string(), reader);
+
+    Ok(())
 }
 
-pub fn delete(kind: &str, item: &DynamicObject) {
-    let mut store = STORE.write().unwrap();
-    if let Some(ns_map) = store.get_mut(kind) {
-        let ns = item.metadata.namespace.clone();
-        let name = item.metadata.name.clone().unwrap_or_default();
-        if let Some(name_map) = ns_map.get_mut(&ns) {
-            name_map.remove(&name);
-        }
-    }
+pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
+    let map = get_store_map().read().await;
+    let store = map
+        .get(&kind.to_lowercase())
+        .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
+
+    let result = store
+        .state()
+        .iter()
+        .filter(|arc_obj| {
+            let obj = arc_obj.as_ref();
+            match &namespace {
+                Some(ns) => obj.namespace().as_deref() == Some(ns),
+                None => true,
+            }
+        })
+        .map(|arc_obj| arc_obj.as_ref().clone())
+        .collect();
+
+    Ok(result)
 }
 
-pub fn get(kind: &str, namespace: Option<String>) -> Option<Vec<DynamicObject>> {
-    let store = STORE.read().unwrap();
-    store.get(kind).map(|ns_map| {
-        if let Some(ns) = namespace {
-            ns_map
-                .get(&Some(ns))
-                .map(|name_map| name_map.values().cloned().collect())
-                .unwrap_or_default()
-        } else {
-            ns_map
-                .values()
-                .flat_map(|name_map| name_map.values().cloned())
-                .collect()
-        }
-    })
-}
+pub async fn get_single(
+    kind: &str,
+    namespace: Option<String>,
+    name: &str,
+) -> Result<Option<DynamicObject>, mlua::Error> {
+    let map = get_store_map().read().await;
 
-pub fn get_single(kind: &str, namespace: Option<String>, name: &str) -> Option<DynamicObject> {
-    let store = STORE.read().unwrap();
+    let store = map
+        .get(&kind.to_lowercase())
+        .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
 
-    let kind_lower = kind.to_lowercase();
-    store.get(&kind_lower).and_then(|ns_map| {
-        if let Some(ns) = namespace {
-            ns_map
-                .get(&Some(ns.to_string()))
-                .and_then(|name_map| name_map.get(name))
-                .cloned()
-        } else {
-            ns_map
-                .values()
-                .find_map(|name_map| name_map.get(name))
-                .cloned()
-        }
-    })
+    let result = store
+        .state()
+        .iter()
+        .find(|arc_obj| {
+            let obj = arc_obj.as_ref();
+            obj.name_any() == name
+                && match &namespace {
+                    Some(ns) => obj.namespace().as_deref() == Some(ns),
+                    None => true,
+                }
+        })
+        .map(|arc_obj| arc_obj.as_ref().clone());
+    Ok(result)
 }

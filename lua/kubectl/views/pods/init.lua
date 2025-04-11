@@ -178,8 +178,6 @@ function M.PortForward(pod, ns)
     M.definition.gvk.k,
     ns,
     pod,
-    M.definition.gvk.g,
-    M.definition.gvk.v,
     def.syntax,
   }, function(data)
     local containers = {}
@@ -229,7 +227,8 @@ function M.PortForward(pod, ns)
 
       builder:action_view(def, pf_data, function(args)
         local client = require("kubectl.client")
-        local local_port, remote_port = args[2]:match("(%d+):(%d+)")
+        local local_port = args[2].value
+        local remote_port = args[3].value
         client.portforward_start(M.definition.gvk.k, pod, ns, args[1], local_port, remote_port)
       end)
     end)
