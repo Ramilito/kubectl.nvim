@@ -5,11 +5,12 @@ use crate::{CLIENT_INSTANCE, RUNTIME};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use k8s_openapi::serde_json;
 use kube::api::GroupVersionKind;
-use kube::discovery::Discovery;
+use kube::discovery::{Discovery, Scope};
 use kube::{
     api::{DynamicObject, ListParams, ResourceExt},
     Api,
 };
+use log::info;
 use mlua::prelude::*;
 use serde_json::{json, Value};
 use serde_json_path::JsonPath;
@@ -80,6 +81,7 @@ impl Processor for FallbackProcessor {
                 .resolve_gvk(&gvk)
                 .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {:?}", gvk)))?;
 
+            let include_namespace = matches!(caps.scope.clone(), Scope::Namespaced);
             let api: Api<DynamicObject> = dynamic_api(ar, caps, client, ns.as_deref(), false);
 
             let cr_list = api
@@ -90,16 +92,28 @@ impl Processor for FallbackProcessor {
             let columns = version_info.additional_printer_columns.as_ref();
 
             let (headers, mut rows) = if let Some(cols) = columns {
-                let headers: Vec<String> = std::iter::once("NAME".to_string())
-                    .chain(cols.iter().map(|c| c.name.to_uppercase()))
-                    .collect();
+                let headers: Vec<String> = if include_namespace {
+                    std::iter::once("NAMESPACE".to_string())
+                        .chain(std::iter::once("NAME".to_string()))
+                        .chain(cols.iter().map(|c| c.name.to_uppercase()))
+                        .collect()
+                } else {
+                    std::iter::once("NAME".to_string())
+                        .chain(cols.iter().map(|c| c.name.to_uppercase()))
+                        .collect()
+                };
 
                 let default_value = Value::String("<none>".into());
                 let mut rows = Vec::new();
                 for item in cr_list.items {
                     let item_json = serde_json::to_value(&item).map_err(LuaError::external)?;
                     let mut map = serde_json::Map::new();
-
+                    if include_namespace {
+                        map.insert(
+                            "namespace".to_string(),
+                            Value::String(item.clone().metadata.namespace.unwrap()),
+                        );
+                    }
                     map.insert("name".to_string(), Value::String(item.name_any()));
 
                     for col in cols {

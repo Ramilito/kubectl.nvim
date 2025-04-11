@@ -157,6 +157,7 @@ function M.get_mappings()
               syntax = "yaml",
               name = name,
               cmd = "get_async",
+							ns = ns
             }
             if ns then
               def.resource = def.resource .. " | " .. ns
