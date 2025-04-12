@@ -14,7 +14,7 @@ function M.configure_command(cmd, envs, args)
     local options_args = config.options.kubectl_cmd.args or {}
     local options_env = config.options.kubectl_cmd.env or {}
     local mixer = function(key, value)
-      return type(key) == "number" and value or key .. "=" .. value
+      return type(key) == "number" and value or (value == nil and key or key .. "=" .. value)
     end
     vim.list_extend(result.args, vim.iter(options_args):map(mixer):totable())
     vim.list_extend(result.env, vim.iter(options_env):map(mixer):totable())
