@@ -6,13 +6,13 @@ use kube::{
     Client,
 };
 
-use kube::runtime::reflector::{reflector, Store};
+use kube::runtime::reflector::Store;
 use std::collections::HashMap;
-use std::pin::pin;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
-static STORE_MAP: OnceLock<Arc<RwLock<HashMap<String, Store<DynamicObject>>>>> = OnceLock::new();
+type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
+static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
 
 fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
