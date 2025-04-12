@@ -14,14 +14,13 @@ import (
 	"k8s.io/kubectl/pkg/describe"
 )
 
-//export DescribeResource
 func DescribeResource(
-	cGroup *C.char, // e.g. "apps"
-	cVersion *C.char, // e.g. "v1"
-	cResource *C.char, // e.g. "deployments"
-	cNamespace *C.char, // e.g. "default"
-	cName *C.char, // e.g. "my-deploy"
-	cContext *C.char, // kube context to use
+	cGroup *C.char,
+	cVersion *C.char,
+	cResource *C.char,
+	cNamespace *C.char, 
+	cName *C.char,
+	cContext *C.char,
 ) *C.char {
 	group := C.GoString(cGroup)
 	version := C.GoString(cVersion)
@@ -30,7 +29,6 @@ func DescribeResource(
 	name := C.GoString(cName)
 	contextName := C.GoString(cContext)
 
-	// Load the kubeconfig from default locations and override the current context.
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	configOverrides := &clientcmd.ConfigOverrides{
 		CurrentContext: contextName,
@@ -41,13 +39,11 @@ func DescribeResource(
 		return cString(fmt.Sprintf("Error building config: %v", err))
 	}
 
-	// Build a minimal RESTMapping manually.
 	gvr := schema.GroupVersionResource{
 		Group:    group,
 		Version:  version,
 		Resource: resource,
 	}
-	// Create a dummy GVK; ideally, pass the proper Kind if you have it.
 	gvk := schema.GroupVersionKind{
 		Group:   group,
 		Version: version,
@@ -59,7 +55,6 @@ func DescribeResource(
 		Scope:            meta.RESTScopeNamespace,
 	}
 
-	// Use the exported function to get a ResourceDescriber.
 	d, ok := describe.GenericDescriberFor(mapping, config)
 	if !ok || d == nil {
 		return cString("GenericDescriberFor returned false (not supported).")
@@ -74,7 +69,6 @@ func DescribeResource(
 
 func main() {}
 
-// Helper to wrap C.CString
 func cString(s string) *C.char {
 	return C.CString(s)
 }

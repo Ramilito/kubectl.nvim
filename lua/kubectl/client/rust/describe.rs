@@ -18,9 +18,9 @@ extern "C" {
 
 pub async fn describe_async(
     _lua: Lua,
-    args: (String, String, Option<String>, String, String),
+    args: (String, String, Option<String>, String, String, String),
 ) -> LuaResult<String> {
-    let (context, kind, namespace, name, group) = args;
+    let (context, kind, namespace, name, group, version) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let group = CString::new(group).expect("Failed to convert group to CString");
@@ -28,7 +28,7 @@ pub async fn describe_async(
 
     let fut = async {
         let group = CString::new(group).expect("Failed to convert group to CString");
-        let version = CString::new("v1").unwrap();
+        let version = CString::new(version).unwrap();
         let resource = CString::new(kind).expect("Failed to convert kind to CString");
         let name = CString::new(name).expect("Failed to convert name to CString");
         let context = CString::new(context).expect("Failed to convert kubeconfig to CString");
