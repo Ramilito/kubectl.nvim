@@ -53,51 +53,56 @@ function M.apply_marks(bufnr, marks, header)
   end
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
+  local local_marks = marks
+  local local_header = header
+
   state.marks.ns_id = ns_id
 
-  if header and header.marks then
-    for _, mark in ipairs(header.marks) do
-      api.nvim_buf_set_extmark(bufnr, ns_id, mark.row, mark.start_col, {
-        end_line = mark.row,
-        end_col = mark.end_col,
-        hl_group = mark.hl_group,
-        hl_eol = mark.hl_eol or nil,
-        virt_text = mark.virt_text or nil,
-        virt_text_pos = mark.virt_text_pos or nil,
-        virt_lines_above = mark.virt_lines_above or nil,
-        virt_text_win_col = mark.virt_text_win_col or nil,
-        ephemeral = mark.ephemeral,
-      })
-    end
-  end
-  if marks then
-    state.marks.header = {}
-    for _, mark in ipairs(marks) do
-      -- adjust for content not being at first row
-      local start_row = mark.row
-      if header and header.data then
-        start_row = start_row + #header.data
-      end
-      local ok, result = pcall(api.nvim_buf_set_extmark,bufnr, ns_id, start_row, mark.start_col, {
-        end_line = start_row,
-        end_col = mark.end_col or nil,
-        hl_eol = mark.hl_eol or nil,
-        hl_group = mark.hl_group or nil,
-        hl_mode = mark.hl_mode or nil,
-        line_hl_group = mark.line_hl_group or nil,
-        virt_text = mark.virt_text or nil,
-        virt_text_pos = mark.virt_text_pos or nil,
-        right_gravity = mark.right_gravity,
-        sign_text = mark.sign_text or nil,
-        sign_hl_group = mark.sign_hl_group or nil,
-      })
-      -- the first row is always column headers, we save that so other content can use it
-      if ok and mark.row == 0 then
-        state.content_row_start = start_row + 1
-        table.insert(state.marks.header, result)
+  vim.schedule(function()
+    if local_header and local_header.marks then
+      for _, mark in ipairs(local_header.marks) do
+        pcall(api.nvim_buf_set_extmark,bufnr, ns_id, mark.row, mark.start_col, {
+          end_line = mark.row,
+          end_col = mark.end_col,
+          hl_group = mark.hl_group,
+          hl_eol = mark.hl_eol or nil,
+          virt_text = mark.virt_text or nil,
+          virt_text_pos = mark.virt_text_pos or nil,
+          virt_lines_above = mark.virt_lines_above or nil,
+          virt_text_win_col = mark.virt_text_win_col or nil,
+          ephemeral = mark.ephemeral,
+        })
       end
     end
-  end
+    if local_marks then
+      state.marks.header = {}
+      for _, mark in ipairs(local_marks) do
+        -- adjust for content not being at first row
+        local start_row = mark.row
+        if local_header and local_header.data then
+          start_row = start_row + #local_header.data
+        end
+        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
+          end_line = start_row,
+          end_col = mark.end_col or nil,
+          hl_eol = mark.hl_eol or nil,
+          hl_group = mark.hl_group or nil,
+          hl_mode = mark.hl_mode or nil,
+          line_hl_group = mark.line_hl_group or nil,
+          virt_text = mark.virt_text or nil,
+          virt_text_pos = mark.virt_text_pos or nil,
+          right_gravity = mark.right_gravity,
+          sign_text = mark.sign_text or nil,
+          sign_hl_group = mark.sign_hl_group or nil,
+        })
+        -- the first row is always column headers, we save that so other content can use it
+        if ok and mark.row == 0 then
+          state.content_row_start = start_row + 1
+          table.insert(state.marks.header, result)
+        end
+      end
+    end
+  end)
 end
 
 function M.fit_to_content(buf, win, offset)

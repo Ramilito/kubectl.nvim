@@ -402,9 +402,10 @@ function ResourceBuilder:draw(definition, cancellationToken)
 
   commands.run_async("get_table_async", { definition.gvk.k, namespace, sort_by, sort_order, filter }, function(data)
     if data then
-      state.instance[definition.resource].data = data
-      state.instance[definition.resource]:decodeJson()
-      state.instance[definition.resource].processedData = state.instance[definition.resource].data
+      local instance = state.instance[definition.resource]
+      instance.data = data
+      instance:decodeJson()
+      instance.processedData = instance.data
 
       vim.schedule(function()
         if self.definition.processRow then
@@ -413,6 +414,8 @@ function ResourceBuilder:draw(definition, cancellationToken)
         self:prettyPrint():addHints(definition.hints, true, true, true)
         self:setContent(cancellationToken)
         self:draw_header(cancellationToken)
+
+        state.instance[definition.resource] = nil
         state.instance[definition.resource] = self
       end)
     end
