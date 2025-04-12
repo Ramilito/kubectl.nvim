@@ -1,6 +1,6 @@
 use futures::StreamExt;
 use kube::runtime::reflector::store::Writer;
-use kube::runtime::watcher;
+use kube::runtime::{watcher, WatchStreamExt};
 use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, ResourceExt},
     Client,
@@ -8,6 +8,7 @@ use kube::{
 
 use kube::runtime::reflector::{reflector, Store};
 use std::collections::HashMap;
+use std::pin::pin;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
@@ -31,10 +32,15 @@ pub async fn init_reflector_for_kind(
     let config = watcher::Config::default();
     let writer: Writer<DynamicObject> = Writer::new(ar.clone());
     let reader: Store<DynamicObject> = writer.as_reader();
-    let rf = reflector(writer, watcher(api, config));
+
+    let stream = watcher(api, config)
+        .modify(|resource| {
+            resource.managed_fields_mut().clear();
+        })
+        .reflect(writer);
 
     tokio::spawn(async move {
-        rf.for_each(|_| futures::future::ready(())).await;
+        stream.for_each(|_| futures::future::ready(())).await;
     });
 
     let mut map = get_store_map().write().await;
