@@ -46,6 +46,7 @@ function M.View(cancellationToken, kind)
   end
 
   local instance = ResourceBuilder:new(M.definition.resource)
+
   commands.run_async("get_all_async", { M.definition.gvk.k, ns }, function(data)
     instance.data = data
     instance:decodeJson()
@@ -69,8 +70,12 @@ end
 
 function M.Draw(cancellationToken)
   local def = M.definition
-  local instance = state.instance[def.resource]
 
+  if not state.instance[def.resource] then
+    return
+  end
+
+  local instance = state.instance[def.resource]
   local ns = nil
   if state.ns and state.ns ~= "All" then
     ns = state.ns
@@ -95,11 +100,9 @@ function M.Draw(cancellationToken)
         instance:prettyPrint():addHints(M.definition.hints, true, true, true)
         instance:setContent(cancellationToken)
         instance:draw_header(cancellationToken)
+        state.instance[M.definition.resource] = nil
         state.instance[M.definition.resource] = instance
       end)
-
-      state.instance[M.definition.resource] = instance
-      state.selections = {}
     end
   )
 end
