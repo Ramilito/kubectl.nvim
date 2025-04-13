@@ -1,14 +1,15 @@
 use crate::processors::processor::Processor;
 use std::collections::HashMap;
 
-pub mod default;
-pub mod deployment;
-pub mod statefulset;
-pub mod pod;
 pub mod clusterrolebinding;
 pub mod configmap;
+pub mod customresourcedefinition;
+pub mod default;
+pub mod deployment;
 pub mod fallback;
+pub mod pod;
 pub mod processor;
+pub mod statefulset;
 
 pub fn get_processors() -> HashMap<&'static str, Box<dyn Processor>> {
     let mut map: HashMap<&str, Box<dyn Processor>> = HashMap::new();

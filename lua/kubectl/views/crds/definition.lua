@@ -1,14 +1,6 @@
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
-local M = {
-  resource = "crds",
-  display_name = "CRDS",
-  ft = "k8s_crds",
-  url = { "{{BASE}}/apis/apiextensions.k8s.io/v1/customresourcedefinitions?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.select)", desc = "resource", long_desc = "Open resource view" },
-  },
-}
+local M = {}
 
 --- Get the count of items in the provided data table
 ---@param row table
@@ -37,15 +29,15 @@ local function getVersions(row)
 end
 
 --- Process rows and transform them into a structured table
----@param rows { items: table[] }
+---@param rows {  }
 ---@return table[]
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
-  for _, row in pairs(rows.items) do
+  for _, row in pairs(rows) do
     local crd = {
       name = row.metadata.name,
       group = row.spec and row.spec.group,
@@ -58,21 +50,6 @@ function M.processRow(rows)
     table.insert(data, crd)
   end
   return data
-end
-
---- Get the headers for the processed data table
----@return string[]
-function M.getHeaders()
-  local headers = {
-    "NAME",
-    "GROUP",
-    "KIND",
-    "VERSIONS",
-    "SCOPE",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M

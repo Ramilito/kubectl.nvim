@@ -165,6 +165,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
     exports.set("exec", lua.create_function(exec::exec)?)?;
+    exports.set(
+        "log_stream_async",
+        lua.create_async_function(processors::pod::log_stream_async)?,
+    )?;
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set(
         "edit_async",
@@ -174,19 +178,14 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "describe_async",
         lua.create_async_function(describe::describe_async)?,
     )?;
-    exports.set(
-        "log_stream_async",
-        lua.create_async_function(processors::pod::log_stream_async)?,
-    )?;
     exports.set("get_raw_async", lua.create_async_function(get_raw_async)?)?;
-
-    exports.set(
-        "get_api_resources_async",
-        lua.create_async_function(get_api_resources_async)?,
-    )?;
     exports.set(
         "get_server_raw_async",
         lua.create_async_function(get_server_raw_async)?,
+    )?;
+    exports.set(
+        "get_api_resources_async",
+        lua.create_async_function(get_api_resources_async)?,
     )?;
     exports.set("get_config", lua.create_function(get_config)?)?;
     exports.set(
@@ -207,12 +206,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "get_fallback_table_async",
         lua.create_async_function(get_fallback_table_async)?,
     )?;
-
     exports.set("scale_async", lua.create_async_function(scale_async)?)?;
-
     exports.set("restart_async", lua.create_async_function(restart_async)?)?;
-
-    exports.set("pod_set_images", lua.create_function(dao::pod::set_images)?)?;
     exports.set(
         "deployment_set_images",
         lua.create_function(dao::deployment::set_images)?,

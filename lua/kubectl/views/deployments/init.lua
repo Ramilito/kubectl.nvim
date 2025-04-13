@@ -10,7 +10,6 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "apps", v = "v1", k = "deployment" },
-    informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change deployment image" },
       { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },

@@ -368,7 +368,7 @@ function ResourceBuilder:view(definition, cancellationToken)
   commands.run_async(
     "start_reflector_async",
     { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
-    function(data, err)
+    function(_, err)
       if err then
         return
       end
