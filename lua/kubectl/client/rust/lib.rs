@@ -119,19 +119,25 @@ async fn get_table_async(
     ),
 ) -> LuaResult<String> {
     let (kind, namespace, sort_by, sort_order, filter) = args;
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    info!("get_table_called for kind: {}", kind);
 
-    let items = store::get(&kind, namespace).await?;
-    let processors = get_processors();
-    let processor = processors
-        .get(kind.as_str())
-        .unwrap_or_else(|| processors.get("default").unwrap());
-    let processed = processor
-        .process(&lua, &items, sort_by, sort_order, filter)
-        .map_err(mlua::Error::external)?;
+    let fut = async move {
+        let items = store::get(&kind, namespace).await?;
+        info!("items: {:?}", items.len());
+        let processors = get_processors();
+        let processor = processors
+            .get(kind.as_str())
+            .unwrap_or_else(|| processors.get("default").unwrap());
+        let processed = processor
+            .process(&lua, &items, sort_by, sort_order, filter)
+            .map_err(mlua::Error::external)?;
 
-    let json_str = k8s_openapi::serde_json::to_string(&processed)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    Ok(json_str)
+        let json_str = k8s_openapi::serde_json::to_string(&processed)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        Ok(json_str)
+    };
+    rt.block_on(fut)
 }
 
 #[mlua::lua_module(skip_memory_check)]
