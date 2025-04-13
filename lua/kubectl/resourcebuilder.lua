@@ -22,7 +22,16 @@ ResourceBuilder.__index = ResourceBuilder
 ---@param resource string The resource to build
 ---@return ResourceBuilder
 function ResourceBuilder:new(resource)
-  local instance = { resource = resource, header = { data = nil, marks = nil }, definition = nil }
+  local instance = {
+    resource = resource,
+    processedData = nil,
+    win_nr = nil,
+    data = nil,
+    buf_nr = nil,
+    header = { data = nil, marks = nil },
+    definition = nil,
+  }
+
   setmetatable(instance, ResourceBuilder)
 
   return instance
@@ -40,6 +49,7 @@ function ResourceBuilder:display(filetype, title, cancellationToken)
 
   self.buf_nr, self.win_nr = buffers.buffer(filetype, title)
   state.addToHistory(title)
+
   return self
 end
 
@@ -355,16 +365,23 @@ function ResourceBuilder:view(definition, cancellationToken)
     self = ResourceBuilder:new(definition.resource)
   end
 
-  commands.run_async("start_reflector_async", { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil }, function()
-    vim.schedule(function()
-      self:display(definition.ft, definition.resource, cancellationToken)
-      self:draw(definition, cancellationToken)
-    end)
+  commands.run_async(
+    "start_reflector_async",
+    { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
+    function(data, err)
+      if err then
+        return
+      end
+      vim.schedule(function()
+        self:display(definition.ft, definition.resource, cancellationToken)
+        self:draw(definition, cancellationToken)
+      end)
 
-    state.instance[definition.resource] = nil
-    state.instance[definition.resource] = self
-    state.selections = {}
-  end)
+      state.instance[definition.resource] = nil
+      state.instance[definition.resource] = self
+      state.selections = {}
+    end
+  )
 
   return self
 end
@@ -389,11 +406,9 @@ function ResourceBuilder:draw(definition, cancellationToken)
       end
 
       if data then
-        local instance = state.instance[definition.resource]
-        instance.data = data
-        instance:decodeJson()
-        instance.processedData = instance.data
-
+        self.data = data
+        self:decodeJson()
+        self.processedData = self.data
         vim.schedule(function()
           if self.definition and self.definition.processRow then
             self:process(self.definition.processRow, true):sort()

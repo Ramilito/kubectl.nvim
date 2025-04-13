@@ -70,10 +70,14 @@ async fn start_reflector_async(
 ) -> LuaResult<()> {
     let (kind, group, version, namespace) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE.lock().unwrap();
+
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
     let client = client_guard
         .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
+        .clone();
 
     let fut = async move {
         let gvk = GroupVersionKind::gvk(&group.unwrap(), &version.unwrap(), &kind);
@@ -120,11 +124,9 @@ async fn get_table_async(
 ) -> LuaResult<String> {
     let (kind, namespace, sort_by, sort_order, filter) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    info!("get_table_called for kind: {}", kind);
 
     let fut = async move {
         let items = store::get(&kind, namespace).await?;
-        info!("items: {:?}", items.len());
         let processors = get_processors();
         let processor = processors
             .get(kind.as_str())
