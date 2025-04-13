@@ -54,8 +54,9 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
     let store = map
         .get(&kind.to_lowercase())
         .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
+    let _ = store.wait_until_ready().await;
 
-    let result = store
+    let result: Vec<DynamicObject> = store
         .state()
         .iter()
         .filter(|arc_obj| {

@@ -22,15 +22,9 @@ ResourceBuilder.__index = ResourceBuilder
 ---@param resource string The resource to build
 ---@return ResourceBuilder
 function ResourceBuilder:new(resource)
-  local instance = setmetatable({}, { __index = ResourceBuilder })
-  instance.resource = resource
-  instance.display_name = nil
-  instance.processedData = nil
-  instance.data = nil
-  instance.buf_nr = nil
-  instance.win_nr = nil
-  instance.prettyData = nil
-  instance.header = { data = nil, marks = nil }
+  local instance = { resource = resource, header = { data = nil, marks = nil }, definition = nil }
+  setmetatable(instance, ResourceBuilder)
+
   return instance
 end
 
@@ -353,34 +347,21 @@ function ResourceBuilder:view_float(definition, opts)
 end
 
 function ResourceBuilder:view(definition, cancellationToken)
+  if state.instance[definition.resource] then
+    self = state.instance[definition.resource]
+  end
   self.definition = definition
-  self = state.instance[definition.resource]
-
   if not self or not self.resource or self.resource ~= definition.resource then
     self = ResourceBuilder:new(definition.resource)
   end
 
-  local ns = nil
-  if state.ns and state.ns ~= "All" then
-    ns = state.ns
-  end
-
-  commands.run_async("get_all_async", { definition.gvk.k, ns }, function(data)
-    self.data = data
-    self:decodeJson()
-    if definition.informer and definition.informer.enabled then
-      commands.run_async(
-        "start_reflector_async",
-        { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
-        function() end
-      )
-    end
-
+  commands.run_async("start_reflector_async", { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil }, function()
     vim.schedule(function()
       self:display(definition.ft, definition.resource, cancellationToken)
       self:draw(definition, cancellationToken)
     end)
 
+    state.instance[definition.resource] = nil
     state.instance[definition.resource] = self
     state.selections = {}
   end)
@@ -389,8 +370,7 @@ function ResourceBuilder:view(definition, cancellationToken)
 end
 
 function ResourceBuilder:draw(definition, cancellationToken)
-  self.display_name = definition.display_name
-
+  self = state.instance[definition.resource]
   local namespace = nil
   if state.ns and state.ns ~= "All" then
     namespace = state.ns
@@ -400,26 +380,34 @@ function ResourceBuilder:draw(definition, cancellationToken)
   local sort_by = state.sortby[definition.resource].current_word
   local sort_order = state.sortby[definition.resource].order
 
-  commands.run_async("get_table_async", { definition.gvk.k, namespace, sort_by, sort_order, filter }, function(data)
-    if data then
-      local instance = state.instance[definition.resource]
-      instance.data = data
-      instance:decodeJson()
-      instance.processedData = instance.data
+  commands.run_async(
+    "get_table_async",
+    { definition.gvk.k, namespace, sort_by, sort_order, filter },
+    function(data, err)
+      if err then
+        return self
+      end
 
-      vim.schedule(function()
-        if self.definition.processRow then
-          self:process(self.definition.processRow, true):sort()
-        end
-        self:prettyPrint():addHints(definition.hints, true, true, true)
-        self:setContent(cancellationToken)
-        self:draw_header(cancellationToken)
+      if data then
+        local instance = state.instance[definition.resource]
+        instance.data = data
+        instance:decodeJson()
+        instance.processedData = instance.data
 
-        state.instance[definition.resource] = nil
-        state.instance[definition.resource] = self
-      end)
+        vim.schedule(function()
+          if self.definition and self.definition.processRow then
+            self:process(self.definition.processRow, true):sort()
+          end
+          self:prettyPrint():addHints(definition.hints, true, true, true)
+          self:setContent(cancellationToken)
+          self:draw_header(cancellationToken)
+
+          state.instance[definition.resource] = nil
+          state.instance[definition.resource] = self
+        end)
+      end
     end
-  end)
+  )
 
   return self
 end

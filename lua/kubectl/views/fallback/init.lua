@@ -38,52 +38,43 @@ function M.View(cancellationToken, kind)
   M.definition.display_name = string.upper(resource.name)
   M.definition.gvk = resource.gvk
   M.definition.ft = "k8s_" .. resource.name
+  M.definition.plural = resource.plural
   M.definition.crd_name = resource.crd_name
 
-  local ns = nil
-  if state.ns and state.ns ~= "All" then
-    ns = state.ns
-  end
-
   local instance = ResourceBuilder:new(M.definition.resource)
+  instance.definition = M.definition
 
-  commands.run_async("get_all_async", { M.definition.gvk.k, ns }, function(data)
-    instance.data = data
-    instance:decodeJson()
-    if M.definition.informer and M.definition.informer.enabled then
-      commands.run_async(
-        "start_reflector_async",
-        { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
-        function() end
-      )
+  commands.run_async(
+    "start_reflector_async",
+    { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
+    function()
+      vim.schedule(function()
+        instance:display(M.definition.ft, M.definition.resource, cancellationToken)
+        M.Draw(cancellationToken)
+        state.selections = {}
+      end)
+      state.instance[M.definition.resource] = nil
+      state.instance[M.definition.resource] = instance
     end
-
-    vim.schedule(function()
-      instance:display(M.definition.ft, M.definition.resource, cancellationToken)
-      M.Draw(cancellationToken)
-    end)
-
-    state.instance[M.definition.resource] = instance
-    state.selections = {}
-  end)
+  )
 end
 
 function M.Draw(cancellationToken)
-  local def = M.definition
-
-  if not state.instance[def.resource] then
+  if not state.instance[M.definition.resource] then
     return
   end
 
-  local instance = state.instance[def.resource]
+  local instance = state.instance[M.definition.resource]
+  instance.definition = M.definition
+
   local ns = nil
   if state.ns and state.ns ~= "All" then
     ns = state.ns
   end
 
   local filter = state.getFilter()
-  local sort_by = state.sortby[def.resource].current_word
-  local sort_order = state.sortby[def.resource].order
+  local sort_by = state.sortby[instance.definition.resource].current_word
+  local sort_order = state.sortby[instance.definition.resource].order
 
   commands.run_async(
     "get_fallback_table_async",
@@ -122,7 +113,7 @@ function M.Desc(name, ns, reload)
   ResourceBuilder:view_float(def, {
     args = {
       state.context["current-context"],
-      M.definition.resource,
+      M.definition.plural,
       ns,
       name,
       M.definition.gvk.g,
