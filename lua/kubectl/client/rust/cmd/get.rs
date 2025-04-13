@@ -1,11 +1,16 @@
 use http::Uri;
-use k8s_openapi::serde_json::{self};
+use k8s_openapi::{
+    apiextensions_apiserver::pkg::apis::apiextensions::v1::{
+        CustomResourceDefinition, CustomResourceDefinitionVersion,
+    },
+    serde_json::{self},
+};
 use kube::{
     api::{DynamicObject, ResourceExt},
     config::Kubeconfig,
     core::GroupVersionKind,
-    discovery::{Discovery, Scope},
-    Config,
+    discovery::Discovery,
+    Api, Config,
 };
 use mlua::prelude::*;
 use mlua::Either;
@@ -225,16 +230,18 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> L
     rt.block_on(fut)
 }
 
-#[derive(serde::Serialize)]
-struct ApiResource {
+#[derive(serde::Serialize, Debug)]
+struct FallbackResource {
     gvk: GroupVersionKind,
     plural: String,
     namespaced: bool,
     crd_name: String,
+    short_names: Vec<String>,
 }
 
-pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> mlua::Result<String> {
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+pub async fn get_api_resources_async(_lua: mlua::Lua, _args: ()) -> mlua::Result<String> {
+    let rt = RUNTIME
+        .get_or_init(|| tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE.lock().map_err(|_| {
         mlua::Error::RuntimeError("Failed to acquire lock on client instance".into())
     })?;
@@ -243,42 +250,51 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> mlua::Result<Strin
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let discovery = Discovery::new(client.clone())
-            .run()
+        let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+
+        let crds = crd_api
+            .list(&Default::default())
             .await
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+            .map_err(|e| mlua::Error::RuntimeError(format!("Failed to list CRDs: {}", e)))?;
 
-        let mut resources = Vec::new();
-        for group in discovery.groups() {
-            let group_name = if group.name().is_empty() {
-                "core"
-            } else {
-                group.name()
-            };
-            for res in group.resources_by_stability() {
-                let crd_name = format!("{}.{}", res.0.plural, group_name);
-                let version = res.0.api_version;
-                let namespaced = match res.1.scope {
-                    Scope::Namespaced => true,
-                    Scope::Cluster => false,
-                };
-
+        let resources: Vec<FallbackResource> = crds
+            .into_iter()
+            .map(|crd| {
+                let plural = crd.spec.names.plural;
+                let namespaced = crd.spec.scope == "Namespaced";
+                let short_names = crd.spec.names.short_names.unwrap_or_default();
+                let preferred_version = crd
+                    .spec
+                    .versions
+                    .iter()
+                    .find(|v: &&CustomResourceDefinitionVersion| v.storage)
+                    .map(|v| v.name.clone())
+                    .unwrap_or_else(|| {
+                        crd.spec
+                            .versions
+                            .first()
+                            .map(|v| v.name.clone())
+                            .unwrap_or_default()
+                    });
+                let crd_name = crd.metadata.name.unwrap_or_default();
                 let gvk = GroupVersionKind {
-                    group: group_name.to_string(),
-                    version: version.clone(),
-                    kind: res.0.kind.to_string(),
+                    group: crd.spec.group,
+                    version: preferred_version,
+                    kind: crd.spec.names.kind,
                 };
-                resources.push(ApiResource {
+
+                FallbackResource {
                     gvk,
+                    plural,
                     namespaced,
                     crd_name,
-                    plural: res.0.plural,
-                });
-            }
-        }
-        let json = serde_json::to_string(&resources)
-            .unwrap_or_else(|e| format!("JSON formatting error: {}", e));
-        Ok(json)
+                    short_names,
+                }
+            })
+            .collect();
+
+        serde_json::to_string(&resources)
+            .map_err(|e| mlua::Error::RuntimeError(format!("JSON serialization error: {}", e)))
     };
 
     rt.block_on(fut)

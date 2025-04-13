@@ -56,7 +56,14 @@ function M.Desc(name, ns, reload)
     syntax = "yaml",
     cmd = "describe_async",
   }, {
-    args = { state.context["current-context"], M.definition.resource, ns, name, M.definition.gvk.g },
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      ns,
+      name,
+      M.definition.gvk.g,
+      M.definition.gvk.v,
+    },
     reload = reload,
   })
 end

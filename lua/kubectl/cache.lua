@@ -1,4 +1,5 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
+local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local timeme = require("kubectl.utils.timeme")
 local url = require("kubectl.utils.url")

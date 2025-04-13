@@ -3,7 +3,6 @@ local cache = require("kubectl.cache")
 local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local utils = require("kubectl.utils.url")
 
 local M = {
   resource = "fallback",
@@ -14,85 +13,72 @@ local M = {
   },
 }
 
-function M.View(cancellationToken, resource)
-  if resource then
-    M.resource = resource
-  elseif not M.resource then
-    return
-  end
-
-  M.definition.display_name = M.resource
-  M.definition.headers = { "NAME" }
-  M.definition.hints = {
-    { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
-  }
-
+function M.View(cancellationToken, kind)
   local cached_resources = cache.cached_api_resources
-  local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
+  local resource = cached_resources.values[string.lower(kind)]
 
   if cache.loading then
     require("kubectl.views").view_or_fallback("pods")
-    vim.notify("Fallback cache for " .. resource .. " is still loading, try again soon")
+    vim.notify("Fallback cache for " .. (kind or "<nil>") .. " is still loading, try again soon")
 
     return
   end
 
-  if not cached_resources.values[resource_name] then
+  if not resource then
     require("kubectl.views").view_or_fallback("pods")
-    vim.notify("View not found: " .. (resource or "<nil>"))
+    vim.notify("View not found: " .. (resource.name or "<nil>"))
 
     return
   end
 
-  M.definition.resource = resource_name
-  M.definition.gvk = cached_resources.values[resource_name].gvk
-  M.definition.display_name = resource_name
-  M.definition.namespaced = cached_resources.values[resource_name].namespaced
-  M.definition.url = utils.replacePlaceholders(cached_resources.values[resource_name].url)
-  M.definition.cmd = "get_fallback_table_async"
   local ns = nil
   if state.ns and state.ns ~= "All" then
     ns = state.ns
   end
 
-  M.definition.args = { resource_name, ns }
-  local builder = ResourceBuilder:new(M.definition.resource)
+  M.definition.resource = string.lower(resource.plural)
+  M.definition.display_name = string.upper(resource.name)
+  M.definition.gvk = resource.gvk
+  M.definition.ft = "k8s_" .. resource.name
+  M.definition.crd_name = resource.crd_name
 
+  local builder = ResourceBuilder:new(M.definition.resource)
   local filter = state.getFilter()
   local sort_by = state.sortby[M.definition.resource] and state.sortby[M.definition.resource].current_word or nil
   local sort_order = state.sortby[M.definition.resource] and state.sortby[M.definition.resource].order or nil
 
   builder.definition = M.definition
-  commands.run_async(
-    "get_fallback_table_async",
-    { M.definition.resource, ns, sort_by, sort_order, filter },
-    function(result)
-      builder.data = result
-      builder:decodeJson()
-      builder.processedData = builder.data.rows
-      builder.definition.headers = builder.data.headers
-      M.definition.headers = builder.data.headers
 
-      if M.definition.informer and M.definition.informer.enabled then
+  if M.definition.informer and M.definition.informer.enabled then
+    commands.run_async(
+      "start_reflector_async",
+      { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
+      function()
         commands.run_async(
-          "start_reflector_async",
-          { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
-          function() end
+          "get_fallback_table_async",
+          { M.definition.crd_name, ns, sort_by, sort_order, filter },
+          function(result)
+            builder.data = result
+            builder:decodeJson()
+            builder.processedData = builder.data.rows
+            builder.definition.headers = builder.data.headers
+            M.definition.headers = builder.data.headers
+
+            vim.schedule(function()
+              builder:display(M.definition.ft, M.definition.resource, cancellationToken)
+              builder:prettyPrint():addHints(M.definition.hints, true, true, true)
+              builder:setContent(cancellationToken)
+              builder:draw_header(cancellationToken)
+              state.instance[M.definition.resource] = builder
+            end)
+
+            state.instance[M.definition.resource] = builder
+            state.selections = {}
+          end
         )
       end
-
-      vim.schedule(function()
-        builder:display(M.definition.ft, M.definition.resource, cancellationToken)
-        builder:prettyPrint():addHints(M.definition.hints, true, true, true)
-        builder:setContent(cancellationToken)
-        builder:draw_header(cancellationToken)
-        state.instance[M.definition.resource] = builder
-      end)
-
-      state.instance[M.definition.resource] = builder
-      state.selections = {}
-    end
-  )
+    )
+  end
 end
 
 function M.Draw(cancellationToken)

@@ -96,13 +96,17 @@ function M.Desc(node, _, reload)
     cmd = "describe_async",
   }
 
-  ResourceBuilder:view_float(
-    def,
-    {
-      args = { state.context["current-context"], M.definition.resource, nil, node, M.definition.gvk.g },
-      reload = reload,
-    }
-  )
+  ResourceBuilder:view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      nil,
+      node,
+      M.definition.gvk.g,
+      M.definition.gvk.v,
+    },
+    reload = reload,
+  })
 end
 
 --- Get current seletion for view

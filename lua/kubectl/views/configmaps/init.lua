@@ -46,6 +46,7 @@ function M.Desc(name, ns, reload)
       ns,
       name,
       M.definition.gvk.g,
+      M.definition.gvk.v,
     },
     reload = reload,
   })

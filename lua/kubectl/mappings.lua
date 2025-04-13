@@ -152,22 +152,25 @@ function M.get_mappings()
             helm_view.Yaml(name, ns)
           else
             local def = {
-              resource = buf_name .. " | " .. name,
+              resource = view.definition.resource,
+              gvk = view.definition.gvk,
+              display_name = string.upper(view.definition.resource),
               ft = "k8s_yaml",
               syntax = "yaml",
               cmd = "get_async",
+            }
+            if ns then
+              def.display_name = def.display_name .. " | " .. ns
+            end
+
+            ResourceBuilder:view_float(def, {
               args = {
-                view.definition.gvk.k,
+                string.lower(def.gvk.k),
                 ns,
                 name,
                 "yaml",
               },
-            }
-            if ns then
-              def.resource = def.resource .. " | " .. ns
-            end
-
-            ResourceBuilder:view_float(def, { args = def.args })
+            })
           end
         end
       end,
