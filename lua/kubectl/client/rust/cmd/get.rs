@@ -4,7 +4,7 @@ use kube::{
     api::{DynamicObject, ResourceExt},
     config::Kubeconfig,
     core::GroupVersionKind,
-    discovery::Discovery,
+    discovery::{Discovery, Scope},
     Config,
 };
 use mlua::prelude::*;
@@ -220,6 +220,65 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> L
                 Ok(err_json)
             }
         }
+    };
+
+    rt.block_on(fut)
+}
+
+#[derive(serde::Serialize)]
+struct ApiResource {
+    gvk: GroupVersionKind,
+    plural: String,
+    namespaced: bool,
+    crd_name: String,
+}
+
+pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> mlua::Result<String> {
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE.lock().map_err(|_| {
+        mlua::Error::RuntimeError("Failed to acquire lock on client instance".into())
+    })?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let fut = async move {
+        let discovery = Discovery::new(client.clone())
+            .run()
+            .await
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        let mut resources = Vec::new();
+        for group in discovery.groups() {
+            let group_name = if group.name().is_empty() {
+                "core"
+            } else {
+                group.name()
+            };
+            for res in group.resources_by_stability() {
+                let crd_name = format!("{}.{}", res.0.plural, group_name);
+                let version = res.0.api_version;
+                let namespaced = match res.1.scope {
+                    Scope::Namespaced => true,
+                    Scope::Cluster => false,
+                };
+
+                let gvk = GroupVersionKind {
+                    group: group_name.to_string(),
+                    version: version.clone(),
+                    kind: res.0.kind.to_string(),
+                };
+                resources.push(ApiResource {
+                    gvk,
+                    namespaced,
+                    crd_name,
+                    plural: res.0.plural,
+                });
+            }
+        }
+        let json = serde_json::to_string(&resources)
+            .unwrap_or_else(|e| format!("JSON formatting error: {}", e));
+        Ok(json)
     };
 
     rt.block_on(fut)

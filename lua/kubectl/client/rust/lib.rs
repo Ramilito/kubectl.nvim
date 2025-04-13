@@ -1,6 +1,6 @@
 // lib.rs
-use kube::{config::KubeConfigOptions, Client, Config, api::GroupVersionKind};
 use ::log::error;
+use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::Lua;
 use std::sync::{Mutex, OnceLock};
@@ -10,8 +10,8 @@ use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
-    get_async, get_config, get_config_async, get_raw_async, get_resource_async,
-    get_server_raw_async,
+    get_api_resources_async, get_async, get_config, get_config_async, get_raw_async,
+    get_resource_async, get_server_raw_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
@@ -27,19 +27,10 @@ mod processors;
 mod store;
 mod utils;
 
-static LOG_PATH: OnceLock<Option<String>> = OnceLock::new();
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 
-fn init_runtime(lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
-    LOG_PATH.get_or_init(|| {
-        Some(
-            lua.load("return vim.fn.stdpath('log')")
-                .eval()
-                .unwrap_or_else(|_| "default_log".to_string()),
-        )
-    });
-
+fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let new_client = rt.block_on(async {
@@ -60,13 +51,7 @@ fn init_runtime(lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-async fn get_all_async(
-    _lua: Lua,
-    args: (
-        String,
-        Option<String>,
-    ),
-) -> LuaResult<String> {
+async fn get_all_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
     let (kind, namespace) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
@@ -186,6 +171,11 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(processors::pod::log_stream_async)?,
     )?;
     exports.set("get_raw_async", lua.create_async_function(get_raw_async)?)?;
+
+    exports.set(
+        "get_api_resources_async",
+        lua.create_async_function(get_api_resources_async)?,
+    )?;
     exports.set(
         "get_server_raw_async",
         lua.create_async_function(get_server_raw_async)?,
