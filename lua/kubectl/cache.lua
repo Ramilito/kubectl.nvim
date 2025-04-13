@@ -19,44 +19,31 @@ M.LoadFallbackData = function(force, callback)
   end
 end
 
-local function process_apis(api_url, group_name, group_version, group_resources, cached_api_resources)
-  if not group_resources or not group_resources.resources then
-    return
+local function process_apis(resource, cached_api_resources)
+  local version = resource.gvk.version:match("([^/]+)$")
+  local name = string.lower(resource.gvk.kind)
+  cached_api_resources.values[name] = {
+    name = name,
+    gvk = {
+      g = resource.gvk.group,
+      v = version,
+      k = string.lower(resource.gvk.kind),
+    },
+    plural = resource.plural,
+    crd_name = resource.crd_name,
+    namespaced = resource.namespaced,
+  }
+
+  require("kubectl.state").sortby[name] = { mark = {}, current_word = "", order = "asc" }
+  cached_api_resources.shortNames[name] = resource
+
+  if resource.singularName then
+    cached_api_resources.shortNames[resource.singularName] = name
   end
 
-  local version = group_version:match("([^/]+)$")
-  for _, resource in ipairs(group_resources.resources) do
-    -- Skip if resource name contains '/status'
-    if not string.find(resource.name, "/status") then
-      local resource_name = group_name ~= "" and (resource.name .. "." .. group_name) or resource.name
-      local namespaced = resource.namespaced and "{{NAMESPACE}}" or ""
-      local resource_url = string.format("/%s/%s/%s%s?pretty=false", api_url, group_version, namespaced, resource.name)
-      cached_api_resources.values[resource_name] = {
-        name = resource_name,
-        full_name = resource_name,
-        url = resource_url,
-        gvk = {
-          g = group_name,
-          v = version,
-          k = resource.singularName,
-        },
-        namespaced = resource.namespaced,
-        kind = resource.kind,
-        version = group_version,
-      }
-
-      require("kubectl.state").sortby[resource_name] = { mark = {}, current_word = "", order = "asc" }
-      cached_api_resources.shortNames[resource_name] = resource_name
-
-      if resource.singularName then
-        cached_api_resources.shortNames[resource.singularName] = resource_name
-      end
-
-      if resource.shortNames then
-        for _, shortName in ipairs(resource.shortNames) do
-          cached_api_resources.shortNames[shortName] = resource_name
-        end
-      end
+  if resource.shortNames then
+    for _, shortName in ipairs(resource.shortNames) do
+      cached_api_resources.shortNames[shortName] = name
     end
   end
 end
@@ -139,102 +126,73 @@ end
 function M.load_cache(cached_api_resources, callback)
   M.loading = true
   timeme.start()
-
-  local cmds = {
-    { cmd = "get_raw_async", args = { "/api/v1", nil, false } },
-    { cmd = "get_raw_async", args = { "/apis", nil, false } },
-  }
-
-  ResourceBuilder:new("api_resources"):fetchAllAsync(cmds, function(self)
-    self:decodeJson()
-
-    if not self.data[1] then
-      M.loading = false
+  local builder = ResourceBuilder:new("api_resources")
+  commands.run_async("get_api_resources_async", {}, function(data, err)
+    if err then
+      vim.print("errro: ", err)
       return
     end
-    process_apis("api", "", "v1", self.data[1], cached_api_resources)
+    builder.data = data
+    builder:decodeJson()
 
-    if self.data[2].groups == nil then
-      M.loading = false
-      return
-    end
-    local group_cmds = {}
-    for _, group in ipairs(self.data[2].groups) do
-      local group_name = group.name
-      local group_version = group.preferredVersion.groupVersion
-
-      -- Skip if name contains 'metrics.k8s.io'
-      if not string.find(group.name, "metrics.k8s.io") then
-        table.insert(group_cmds, {
-          group_name = group_name,
-          group_version = group_version,
-          cmd = "get_raw_async",
-          args = { "/apis/" .. group_version, nil, false },
-        })
-      end
+    for _, resource in ipairs(builder.data) do
+      process_apis(resource, cached_api_resources)
     end
 
-    self:fetchAllAsync(group_cmds, function(results)
-      for _, value in ipairs(results.data) do
-        self.data = value
-        self:decodeJson()
-
-        process_apis(
-          "apis",
-          self.data.groupVersion and self.data.groupVersion:gsub("/.*", "") or "",
-          self.data.groupVersion,
-          self.data,
-          cached_api_resources
-        )
-      end
-
-      local all_urls = {}
-      for _, resource in pairs(cached_api_resources.values) do
-        if resource.url then
-          table.insert(all_urls, { cmd = "get_raw_async", args = { resource.url, nil, false } })
-        end
-      end
-      for _, cmd in ipairs(all_urls) do
-        cmd.args = url.build(cmd.args)
-      end
-
-      M.loading = false
-      vim.schedule(function()
-        vim.cmd("doautocmd User KubectlCacheLoaded")
-      end)
-
-      if M.handles or not config.options.lineage.enabled then
-        return
-      end
-
-      collectgarbage("collect")
-
-      -- Memory usage before creating the table
-      local mem_before = collectgarbage("count")
-
-      local relationships = require("kubectl.utils.relationships")
-      M.handles = ResourceBuilder:new("all"):fetchAllAsync(all_urls, function(builder)
-        builder:splitData()
-        builder:decodeJson()
-        builder.processedData = {}
-
-        for _, values in ipairs(builder.data) do
-          processRow(values, cached_api_resources, relationships)
-        end
-
-        -- Memory usage after creating the table
-        collectgarbage("collect")
-        local mem_after = collectgarbage("count")
-        local mem_diff_mb = (mem_after - mem_before) / 1024
-        print("Memory used by the table (in MB):", mem_diff_mb)
-        timeme.stop()
-        M.handles = nil
-        if callback then
-          callback()
-        end
-      end)
+    timeme.stop()
+    M.loading = false
+    vim.schedule(function()
+      vim.cmd("doautocmd User KubectlCacheLoaded")
     end)
   end)
+
+  --     local all_urls = {}
+  --     for _, resource in pairs(cached_api_resources.values) do
+  --       if resource.url then
+  --         table.insert(all_urls, { cmd = "get_raw_async", args = { resource.url, nil, false } })
+  --       end
+  --     end
+  --     for _, cmd in ipairs(all_urls) do
+  --       cmd.args = url.build(cmd.args)
+  --     end
+  --
+  --     M.loading = false
+  --     vim.schedule(function()
+  --       vim.cmd("doautocmd User KubectlCacheLoaded")
+  --     end)
+  --
+  --     if M.handles or not config.options.lineage.enabled then
+  --       return
+  --     end
+  --
+  --     collectgarbage("collect")
+  --
+  --     -- Memory usage before creating the table
+  --     local mem_before = collectgarbage("count")
+  --
+  --     local relationships = require("kubectl.utils.relationships")
+  --     M.handles = ResourceBuilder:new("all"):fetchAllAsync(all_urls, function(builder)
+  --       builder:splitData()
+  --       builder:decodeJson()
+  --       builder.processedData = {}
+  --
+  --       for _, values in ipairs(builder.data) do
+  --         processRow(values, cached_api_resources, relationships)
+  --       end
+  --
+  --       -- Memory usage after creating the table
+  --       collectgarbage("collect")
+  --       local mem_after = collectgarbage("count")
+  --       local mem_diff_mb = (mem_after - mem_before) / 1024
+  --       print("Memory used by the table (in MB):", mem_diff_mb)
+  --       timeme.stop()
+  --       M.handles = nil
+  --       if callback then
+  --         callback()
+  --       end
+  --     end)
+  --   end)
+  -- end)
 end
 
 return M
