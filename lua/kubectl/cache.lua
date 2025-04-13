@@ -129,7 +129,7 @@ function M.load_cache(cached_api_resources, callback)
   local builder = ResourceBuilder:new("api_resources")
   commands.run_async("get_api_resources_async", {}, function(data, err)
     if err then
-      vim.print("errro: ", err)
+      vim.print("error: failed loading api_resources", err)
       return
     end
     builder.data = data
