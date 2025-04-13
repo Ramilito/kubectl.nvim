@@ -13,7 +13,6 @@ local M = {
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "resource", long_desc = "Open resource view" },
     },
-
     headers = {
       "NAME",
       "GROUP",
@@ -48,7 +47,7 @@ function M.Desc(name, _, reload)
   ResourceBuilder:view_float(def, {
     args = {
       state.context["current-context"],
-      M.definition.resource,
+      M.definition.plural,
       nil,
       name,
       M.definition.gvk.g,

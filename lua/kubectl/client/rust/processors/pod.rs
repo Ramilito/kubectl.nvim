@@ -6,8 +6,8 @@ use kube::api::{DynamicObject, LogParams};
 use kube::Api;
 use mlua::prelude::*;
 use mlua::Lua;
-use tokio::runtime::Runtime;
 use std::collections::HashMap;
+use tokio::runtime::Runtime;
 
 use crate::events::{color_status, symbols};
 use crate::utils::{filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue};

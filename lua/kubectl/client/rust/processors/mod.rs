@@ -18,6 +18,7 @@ pub fn get_processors() -> HashMap<&'static str, Box<dyn Processor>> {
     map.insert("deployment", Box::new(deployment::DeploymentProcessor));
     map.insert("statefulset", Box::new(statefulset::StatefulsetProcessor));
     map.insert("clusterrolebinding", Box::new(clusterrolebinding::ClusterRoleBindingProcessor));
+    map.insert("customresourcedefinition", Box::new(customresourcedefinition::ClusterResourceDefinitionProcessor));
     map.insert("configmap", Box::new(configmap::ConfigmapProcessor));
     map.insert("fallback", Box::new(fallback::FallbackProcessor));
     map
