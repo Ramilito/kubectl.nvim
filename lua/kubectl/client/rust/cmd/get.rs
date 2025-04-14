@@ -6,7 +6,7 @@ use k8s_openapi::{
     serde_json::{self},
 };
 use kube::{
-    api::{DynamicObject, ResourceExt},
+    api::{ApiResource, DynamicObject, ListParams, ResourceExt},
     config::Kubeconfig,
     core::GroupVersionKind,
     discovery::Discovery,
@@ -50,6 +50,37 @@ impl OutputMode {
 impl Default for OutputMode {
     fn default() -> Self {
         Self::Pretty
+    }
+}
+
+pub async fn get_resources_async(
+    client: &Client,
+    kind: String,
+    group: Option<String>,
+    version: Option<String>,
+    name: Option<String>,
+    namespace: Option<String>,
+) -> Result<Vec<DynamicObject>, kube::Error> {
+    let group_str = group.unwrap_or_default();
+    let version_str = version.unwrap_or_else(|| "v1".to_string());
+    let gvk = GroupVersionKind {
+        group: group_str,
+        version: version_str,
+        kind,
+    };
+    let ar = ApiResource::from_gvk(&gvk);
+    let api: Api<DynamicObject> = if let Some(ns) = namespace.clone() {
+        Api::namespaced_with(client.clone(), &ns, &ar)
+    } else {
+        Api::all_with(client.clone(), &ar)
+    };
+
+    if let Some(n) = name {
+        let single_item = api.get(&n).await?;
+        Ok(vec![single_item])
+    } else {
+        let list = api.list(&ListParams::default()).await?;
+        Ok(list.items)
     }
 }
 

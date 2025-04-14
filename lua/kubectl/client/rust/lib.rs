@@ -11,7 +11,7 @@ use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
     get_api_resources_async, get_config, get_config_async, get_raw_async, get_resource_async,
-    get_server_raw_async, get_single_async,
+    get_resources_async, get_server_raw_async, get_single_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
@@ -112,6 +112,43 @@ pub async fn get_fallback_table_async(
     Ok(json_str)
 }
 
+async fn fetch_all_async(
+    _lua: Lua,
+    args: (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
+) -> LuaResult<String> {
+    let (kind, group, version, name, namespace) = args;
+
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+
+    let fut = async move {
+        let mut items = get_resources_async(client, kind, group, version, name, namespace)
+            .await
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        for item in &mut items {
+            crate::utils::strip_managed_fields(item);
+        }
+        let json_str = k8s_openapi::serde_json::to_string(&items)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        Ok(json_str)
+    };
+
+    rt.block_on(fut)
+}
+
 async fn fetch_async(
     _lua: Lua,
     args: (
@@ -133,8 +170,9 @@ async fn fetch_async(
         .as_ref()
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
-    let fut =
-        async move { get_resource_async(client, kind, group, version, name, namespace, output).await };
+    let fut = async move {
+        get_resource_async(client, kind, group, version, name, namespace, output).await
+    };
 
     rt.block_on(fut)
 }
@@ -224,6 +262,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(get_single_async)?,
     )?;
     exports.set("fetch_async", lua.create_async_function(fetch_async)?)?;
+    exports.set(
+        "fetch_all_async",
+        lua.create_async_function(fetch_all_async)?,
+    )?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(
         "get_table_async",
