@@ -267,12 +267,13 @@ function M.get_mappings()
           version = instance.definition.version,
         }
 
-        commands.run_async("get_single_async", {
+        commands.run_async("get_resource_async", {
           instance.definition.gvk.k,
-          ns,
-          name,
-          "Yaml",
-        }, function(data, _)
+          nil,
+          nil,
+          def.name,
+          def.ns,
+        }, function(data)
           vim.schedule(function()
             local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
 
