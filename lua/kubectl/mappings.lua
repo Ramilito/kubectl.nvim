@@ -157,7 +157,7 @@ function M.get_mappings()
               display_name = string.upper(view.definition.resource),
               ft = "k8s_yaml",
               syntax = "yaml",
-              cmd = "get_async",
+              cmd = "get_single_async",
             }
             if ns then
               def.display_name = def.display_name .. " | " .. ns
@@ -267,13 +267,12 @@ function M.get_mappings()
           version = instance.definition.version,
         }
 
-        commands.run_async("get_resource_async", {
+        commands.run_async("get_single_async", {
           instance.definition.gvk.k,
-          nil,
-          nil,
-          def.name,
-          def.ns,
-        }, function(data)
+          ns,
+          name,
+          "Yaml",
+        }, function(data, _)
           vim.schedule(function()
             local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
 

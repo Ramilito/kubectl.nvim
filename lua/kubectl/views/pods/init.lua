@@ -174,7 +174,7 @@ function M.PortForward(pod, ns)
     version = M.definition.version,
   }
 
-  commands.run_async("get_async", {
+  commands.run_async("get_single_async", {
     M.definition.gvk.k,
     ns,
     pod,

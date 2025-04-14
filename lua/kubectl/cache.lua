@@ -125,7 +125,6 @@ end
 
 function M.load_cache(cached_api_resources, callback)
   M.loading = true
-  timeme.start()
   local builder = ResourceBuilder:new("api_resources")
   commands.run_async("get_api_resources_async", {}, function(data, err)
     if err then

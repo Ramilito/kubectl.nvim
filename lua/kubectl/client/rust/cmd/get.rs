@@ -113,7 +113,7 @@ pub async fn get_resource_async(
     rt.block_on(fut)
 }
 
-pub async fn get_async(
+pub async fn get_single_async(
     _lua: Lua,
     args: (String, Option<String>, String, Option<String>),
 ) -> LuaResult<String> {

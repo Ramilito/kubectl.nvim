@@ -43,7 +43,7 @@ M.overrides = {
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
       local builder = ResourceBuilder:new("deployment_scale")
-      commands.run_async("get_async", { deployment_view.definition.gvk.k, ns, name, "Json" }, function(data)
+      commands.run_async("get_single_async", { deployment_view.definition.gvk.k, ns, name, "Json" }, function(data)
         if not data then
           return
         end

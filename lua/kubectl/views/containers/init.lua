@@ -21,7 +21,7 @@ local M = {
       "AGE",
     },
     processRow = definition.processRow,
-    cmd = "get_async",
+    cmd = "get_single_async",
     hints = {
       { key = "<Plug>(kubectl.logs)", desc = "logs" },
       { key = "<Plug>(kubectl.debug)", desc = "debug" },

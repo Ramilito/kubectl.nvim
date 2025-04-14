@@ -43,7 +43,7 @@ M.overrides = {
     callback = function()
       local name, ns = statefulset_view.getCurrentSelection()
       local builder = ResourceBuilder:new("statefulset_scale")
-      commands.run_async("get_async", { statefulset_view.definition.gvk.k, ns, name, "Json" }, function(data)
+      commands.run_async("get_single_async", { statefulset_view.definition.gvk.k, ns, name, "Json" }, function(data)
         if not data then
           return
         end

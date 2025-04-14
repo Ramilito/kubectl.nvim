@@ -38,7 +38,7 @@ function M.Draw(cancellationToken)
 end
 
 function M.OpenBrowser(name, ns)
-  commands.run_async("get_async", { M.definition.gvk.k, ns, name, nil }, function(data)
+  commands.run_async("get_single_async", { M.definition.gvk.k, ns, name, nil }, function(data)
     local builder = ResourceBuilder:new("ingress_browser")
     builder.data = data
     builder:decodeJson()
