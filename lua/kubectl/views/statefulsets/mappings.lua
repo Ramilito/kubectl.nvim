@@ -1,9 +1,9 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local statefulset_view = require("kubectl.views.statefulsets")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
+local statefulset_view = require("kubectl.views.statefulsets")
 local view = require("kubectl.views")
 
 local M = {}

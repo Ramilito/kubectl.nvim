@@ -263,16 +263,17 @@ function M.get_mappings()
           resource_name = string_utils.capitalize(instance.definition.resource_name),
           name = name,
           ns = ns,
+          gvk = instance.definition.gvk,
           group = instance.definition.group,
           version = instance.definition.version,
         }
-
-        commands.run_async("get_resource_async", {
-          instance.definition.gvk.k,
-          nil,
-          nil,
-          def.name,
+        commands.run_async("fetch_async", {
+          def.gvk.k,
+					nil,
+					nil,
+					def.name,
           def.ns,
+          "Yaml",
         }, function(data)
           vim.schedule(function()
             local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)

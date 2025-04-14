@@ -10,7 +10,7 @@ use kube::{
     config::Kubeconfig,
     core::GroupVersionKind,
     discovery::Discovery,
-    Api, Config,
+    Api, Client, Config,
 };
 use mlua::prelude::*;
 use mlua::Either;
@@ -54,63 +54,52 @@ impl Default for OutputMode {
 }
 
 pub async fn get_resource_async(
-    _lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        Option<String>,
-        String,
-        Option<String>,
-    ),
+    client: &Client,
+    kind: String,
+    group: Option<String>,
+    version: Option<String>,
+    name: String,
+    namespace: Option<String>,
+    output: Option<String>,
 ) -> LuaResult<String> {
-    let (kind, group, version, name, namespace) = args;
+    let output_mode = output
+        .as_deref()
+        .map(OutputMode::from_str)
+        .unwrap_or_default();
+    let discovery = Discovery::new(client.clone())
+        .run()
+        .await
+        .map_err(mlua::Error::external)?;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
-        let discovery = Discovery::new(client.clone())
-            .run()
-            .await
-            .map_err(mlua::Error::external)?;
-
-        let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
-            let gvk = GroupVersionKind {
-                group: g,
-                version: v,
-                kind: kind.to_string(),
-            };
-            if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
-                (ar, caps)
-            } else {
-                return Err(mlua::Error::external(format!(
-                    "Unable to discover resource by GVK: {:?}",
-                    gvk
-                )));
-            }
-        } else if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
+    let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
+        let gvk = GroupVersionKind {
+            group: g,
+            version: v,
+            kind: kind.to_string(),
+        };
+        if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
             (ar, caps)
         } else {
             return Err(mlua::Error::external(format!(
-                "Resource not found in cluster: {}",
-                kind
+                "Unable to discover resource by GVK: {:?}",
+                gvk
             )));
-        };
-
-        let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
-
-        let mut obj = api.get(&name).await.map_err(mlua::Error::external)?;
-        obj.managed_fields_mut().clear();
-
-        Ok(OutputMode::Yaml.format(obj))
+        }
+    } else if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
+        (ar, caps)
+    } else {
+        return Err(mlua::Error::external(format!(
+            "Resource not found in cluster: {}",
+            kind
+        )));
     };
 
-    rt.block_on(fut)
+    let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
+
+    let mut obj = api.get(&name).await.map_err(mlua::Error::external)?;
+    obj.managed_fields_mut().clear();
+
+    Ok(output_mode.format(obj))
 }
 
 pub async fn get_single_async(
@@ -124,11 +113,21 @@ pub async fn get_single_async(
         .unwrap_or_default();
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let obj = store::get_single(&kind, namespace, &name).await?;
-        // TODO: remove the unwrap()
-        Ok(output_mode.format(obj.unwrap()))
+        if let Some(found) = store::get_single(&kind, namespace.clone(), &name).await? {
+            return Ok(output_mode.format(found));
+        }
+
+        let result = get_resource_async(client, kind, None, None, name, namespace, output);
+
+        result.await
     };
     rt.block_on(fut)
 }
