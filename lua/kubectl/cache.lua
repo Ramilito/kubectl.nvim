@@ -21,7 +21,7 @@ end
 local function process_apis(resource, cached_api_resources)
   local version = resource.gvk.version:match("([^/]+)$")
   local name = string.lower(resource.gvk.kind)
-  cached_api_resources.values[name] = {
+  cached_api_resources.values[resource.crd_name] = {
     name = name,
     gvk = {
       g = resource.gvk.group,
@@ -57,14 +57,13 @@ local function processRow(rows, cached_api_resources, relationships)
     local kind = string.lower(item.kind)
 
     local cache_key = nil
-    for key, value in pairs(cached_api_resources.values) do
+    for _, value in pairs(cached_api_resources.values) do
       local apiVersion = value.gvk.v
       if value.gvk.k then
         apiVersion = value.gvk.g .. "/" .. apiVersion
       end
       if apiVersion == string.lower(item.apiVersion) and value.gvk.k == kind then
-				vim.print(key)
-        cache_key = key
+        cache_key = value.crd_name
       end
     end
 

@@ -16,7 +16,7 @@ function M.collect_all_resources(data_sample)
   for kind_key, resource_group in pairs(data_sample) do
     if resource_group.data then
       for _, resource in ipairs(resource_group.data) do
-        resource.kind = get_kind(resource, resource_group.kind or kind_key)
+        resource.kind = get_kind(resource, resource_group.gvk.k or kind_key)
         table.insert(resources, resource)
       end
     end
