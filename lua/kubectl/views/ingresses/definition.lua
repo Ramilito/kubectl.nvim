@@ -77,15 +77,17 @@ function M.processRow(rows)
   if rows then
     for i = 1, #rows do
       local row = rows[i]
-      data[i] = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        class = get_class(row),
-        hosts = get_hosts(row),
-        address = get_address(row),
-        ports = get_ports(row),
-        age = time.since(row.metadata.creationTimestamp, true, currentTime),
-      }
+      if row.metadata then
+        data[i] = {
+          namespace = row.metadata.namespace,
+          name = row.metadata.name,
+          class = get_class(row),
+          hosts = get_hosts(row),
+          address = get_address(row),
+          ports = get_ports(row),
+          age = time.since(row.metadata.creationTimestamp, true, currentTime),
+        }
+      end
     end
   end
   return data
