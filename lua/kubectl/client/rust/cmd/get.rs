@@ -9,11 +9,13 @@ use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt},
     config::Kubeconfig,
     core::GroupVersionKind,
-    discovery::Discovery,
+    discovery::{ApiCapabilities, Discovery, Scope},
     Api, Client, Config,
 };
+use log::info;
 use mlua::prelude::*;
 use mlua::Either;
+use serde::Serialize;
 use serde_json::{json, to_string};
 use tokio::runtime::Runtime;
 
@@ -260,68 +262,57 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> L
     rt.block_on(fut)
 }
 
-#[derive(serde::Serialize, Debug)]
+#[derive(Serialize, Debug)]
 struct FallbackResource {
     gvk: GroupVersionKind,
     plural: String,
     namespaced: bool,
+    // short_names: Vec<String>,
     crd_name: String,
-    short_names: Vec<String>,
 }
 
-pub async fn get_api_resources_async(_lua: mlua::Lua, _args: ()) -> mlua::Result<String> {
-    let rt = RUNTIME
-        .get_or_init(|| tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE.lock().map_err(|_| {
-        mlua::Error::RuntimeError("Failed to acquire lock on client instance".into())
-    })?;
+impl FallbackResource {
+    fn from_ar_cap(ar: &ApiResource, cap: &ApiCapabilities) -> Self {
+        FallbackResource {
+            gvk: GroupVersionKind {
+                group: ar.group.clone(),
+                version: ar.version.clone(),
+                kind: ar.kind.clone(),
+            },
+            plural: ar.plural.clone(),
+            namespaced: cap.scope == Scope::Namespaced,
+            // short_names: ar.short_names.clone(),
+            crd_name: format!("{}.{}", ar.plural, ar.group),
+        }
+    }
+}
+
+pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
     let client = client_guard
         .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
-
-        let crds = crd_api
-            .list(&Default::default())
+        let discovery = Discovery::new(client.clone())
+            .run()
             .await
-            .map_err(|e| mlua::Error::RuntimeError(format!("Failed to list CRDs: {}", e)))?;
+            .map_err(|e| mlua::Error::RuntimeError(format!("Discovery error: {}", e)))?;
 
-        let resources: Vec<FallbackResource> = crds
-            .into_iter()
-            .map(|crd| {
-                let plural = crd.spec.names.plural;
-                let namespaced = crd.spec.scope == "Namespaced";
-                let short_names = crd.spec.names.short_names.unwrap_or_default();
-                let preferred_version = crd
-                    .spec
-                    .versions
-                    .iter()
-                    .find(|v: &&CustomResourceDefinitionVersion| v.storage)
-                    .map(|v| v.name.clone())
-                    .unwrap_or_else(|| {
-                        crd.spec
-                            .versions
-                            .first()
-                            .map(|v| v.name.clone())
-                            .unwrap_or_default()
-                    });
-                let crd_name = crd.metadata.name.unwrap_or_default();
-                let gvk = GroupVersionKind {
-                    group: crd.spec.group,
-                    version: preferred_version,
-                    kind: crd.spec.names.kind,
-                };
-
-                FallbackResource {
-                    gvk,
-                    plural,
-                    namespaced,
-                    crd_name,
-                    short_names,
+        let mut resources = Vec::new();
+        for group in discovery.groups() {
+            for (ar, cap) in &group.recommended_resources() {
+                if ar.group != "metrics.k8s.io"
+                    && ar.plural != "componentstatuses"
+                    && (cap.supports_operation("get") || cap.supports_operation("watch"))
+                {
+                    resources.push(FallbackResource::from_ar_cap(ar, cap));
                 }
-            })
-            .collect();
+            }
+        }
 
         serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(format!("JSON serialization error: {}", e)))

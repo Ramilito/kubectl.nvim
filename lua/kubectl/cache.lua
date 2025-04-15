@@ -19,32 +19,31 @@ M.LoadFallbackData = function(force, callback)
 end
 
 local function process_apis(resource, cached_api_resources)
-  local version = resource.gvk.version:match("([^/]+)$")
-  local name = string.lower(resource.gvk.kind)
-  cached_api_resources.values[resource.crd_name] = {
+  local name = string.lower(resource.crd_name)
+  cached_api_resources.values[name] = {
     name = name,
     gvk = {
       g = resource.gvk.group,
-      v = version,
+      v = resource.gvk.version,
       k = string.lower(resource.gvk.kind),
     },
     plural = resource.plural,
-    crd_name = resource.crd_name,
+    crd_name = name,
     namespaced = resource.namespaced,
   }
 
   require("kubectl.state").sortby[name] = { mark = {}, current_word = "", order = "asc" }
   cached_api_resources.shortNames[name] = resource
 
-  if resource.singularName then
-    cached_api_resources.shortNames[resource.singularName] = name
-  end
-
-  if resource.shortNames then
-    for _, shortName in ipairs(resource.shortNames) do
-      cached_api_resources.shortNames[shortName] = name
-    end
-  end
+  -- if resource.singularName then
+  --   cached_api_resources.shortNames[resource.singularName] = name
+  -- end
+  --
+  -- if resource.shortNames then
+  --   for _, shortName in ipairs(resource.shortNames) do
+  --     cached_api_resources.shortNames[shortName] = name
+  --   end
+  -- end
 end
 
 local function processRow(rows, cached_api_resources, relationships)
@@ -135,7 +134,9 @@ function M.load_cache(cached_api_resources, callback)
     builder:decodeJson()
 
     for _, resource in ipairs(builder.data) do
-      process_apis(resource, cached_api_resources)
+      if resource.gvk then
+        process_apis(resource, cached_api_resources)
+      end
     end
 
     M.loading = false
@@ -149,14 +150,12 @@ function M.load_cache(cached_api_resources, callback)
 
     local all_gvk = {}
     for _, resource in pairs(cached_api_resources.values) do
-      if resource.gvk then
-        commands.run_async(
-          "start_reflector_async",
-          { resource.gvk.k, resource.gvk.g, resource.gvk.v, nil, nil },
-          function() end
-        )
-        table.insert(all_gvk, { cmd = "get_all_async", args = { resource.gvk.k, nil } })
-      end
+      commands.run_async(
+        "start_reflector_async",
+        { resource.gvk.k, resource.gvk.g, resource.gvk.v, nil, nil },
+        function() end
+      )
+      table.insert(all_gvk, { cmd = "get_all_async", args = { resource.gvk.k, nil } })
     end
 
     collectgarbage("collect")
