@@ -57,7 +57,6 @@ impl Processor for FallbackProcessor {
 
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
             let crd = crd_api.get(&name).await.map_err(LuaError::external)?;
-
             let version_info = crd
                 .spec
                 .versions
@@ -66,10 +65,10 @@ impl Processor for FallbackProcessor {
                 .ok_or_else(|| LuaError::external("No served version found in CRD"))?;
 
             let discovery = Discovery::new(client.clone())
+                .filter(&[&crd.spec.group])
                 .run()
                 .await
                 .map_err(LuaError::external)?;
-
             let gvk = GroupVersionKind {
                 group: crd.spec.group.clone(),
                 version: version_info.name.clone(),

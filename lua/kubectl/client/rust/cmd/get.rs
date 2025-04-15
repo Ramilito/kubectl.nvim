@@ -1,10 +1,7 @@
 use http::Uri;
-use k8s_openapi::{
-    apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-        CustomResourceDefinition, CustomResourceDefinitionVersion,
-    },
-    serde_json::{self},
-};
+use k8s_openapi::
+    serde_json::{self}
+;
 use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt},
     config::Kubeconfig,
