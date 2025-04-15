@@ -477,7 +477,7 @@ function M.get_mappings()
         local name, ns = current_view.getCurrentSelection()
         local lineage_view = require("kubectl.views.lineage")
 
-        lineage_view.View(name, ns, buf_name)
+        lineage_view.View(name, ns, current_view.definition.gvk.k)
       end,
     },
   }

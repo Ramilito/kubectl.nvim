@@ -33,7 +33,7 @@ local function process_apis(resource, cached_api_resources)
   }
 
   require("kubectl.state").sortby[name] = { mark = {}, current_word = "", order = "asc" }
-  cached_api_resources.shortNames[name] = resource
+  -- cached_api_resources.shortNames[name] = resource
 
   -- if resource.singularName then
   --   cached_api_resources.shortNames[resource.singularName] = name
@@ -52,7 +52,10 @@ local function processRow(rows, cached_api_resources, relationships)
   end
 
   for _, item in ipairs(rows) do
-    item.metadata.managedFields = {}
+    if not item.kind then
+      return
+    end
+		item.metadata.managedFields = {}
     local kind = string.lower(item.kind)
 
     local cache_key = nil
@@ -84,7 +87,7 @@ local function processRow(rows, cached_api_resources, relationships)
       if item.metadata.ownerReferences then
         for _, owner in ipairs(item.metadata.ownerReferences) do
           table.insert(owners, {
-            kind = owner.kind,
+            kind = string.lower(owner.kind),
             apiVersion = owner.apiVersion,
             name = owner.name,
             uid = owner.uid,

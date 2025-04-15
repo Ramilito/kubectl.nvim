@@ -304,7 +304,7 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
 
         let mut resources = Vec::new();
         for group in discovery.groups() {
-            for (ar, cap) in &group.recommended_resources() {
+            for (ar, cap) in &group.resources_by_stability() {
                 if ar.group != "metrics.k8s.io"
                     && ar.plural != "componentstatuses"
                     && (cap.supports_operation("get") || cap.supports_operation("watch"))

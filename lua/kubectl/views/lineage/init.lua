@@ -26,7 +26,6 @@ function M.Draw()
     return
   end
 
-  local kind, ns, name = M.selection.kind, M.selection.ns, M.selection.name
   M.builder.data = { "Associated Resources: " }
   if cache.loading then
     table.insert(M.builder.data, "")
@@ -36,6 +35,7 @@ function M.Draw()
     local graph = definition.build_graph(data)
 
     -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
+    local kind, ns, name = M.selection.kind, M.selection.ns, M.selection.name
     if
       kind:sub(-1) == "s"
       and kind ~= "ingresses"
@@ -53,6 +53,7 @@ function M.Draw()
     elseif kind == "sa" then
       kind = "serviceaccount"
     end
+
     local selected_key = kind
     if ns then
       selected_key = selected_key .. "/" .. ns
