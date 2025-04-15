@@ -295,25 +295,23 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
     let client = client_guard
         .as_ref()
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
-
     let fut = async move {
         let discovery = Discovery::new(client.clone())
+            .exclude(&[r#"metrics.k8s.io"#])
             .run()
             .await
             .map_err(|e| mlua::Error::RuntimeError(format!("Discovery error: {}", e)))?;
 
         let mut resources = Vec::new();
         for group in discovery.groups() {
-            for (ar, cap) in &group.resources_by_stability() {
-                if ar.group != "metrics.k8s.io"
-                    && ar.plural != "componentstatuses"
+            group.resources_by_stability().iter().for_each(|(ar, cap)| {
+                if ar.plural != "componentstatuses"
                     && (cap.supports_operation("get") || cap.supports_operation("watch"))
                 {
                     resources.push(FallbackResource::from_ar_cap(ar, cap));
                 }
-            }
+            });
         }
-
         serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(format!("JSON serialization error: {}", e)))
     };
