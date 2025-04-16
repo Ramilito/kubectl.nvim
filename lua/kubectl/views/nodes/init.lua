@@ -10,7 +10,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "node" },
+    gvk = { g = "", v = "v1", k = "Node" },
     informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },

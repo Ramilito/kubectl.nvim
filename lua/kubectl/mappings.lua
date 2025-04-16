@@ -165,7 +165,7 @@ function M.get_mappings()
 
             ResourceBuilder:view_float(def, {
               args = {
-                string.lower(def.gvk.k),
+                def.gvk.k,
                 ns,
                 name,
                 "yaml",

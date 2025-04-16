@@ -13,7 +13,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "namespace" },
+    gvk = { g = "", v = "v1", k = "Namespace" },
     headers = {
       "NAME",
       "STATUS",

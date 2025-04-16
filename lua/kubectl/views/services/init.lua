@@ -13,7 +13,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "service" },
+    gvk = { g = "", v = "v1", k = "Service" },
     informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },

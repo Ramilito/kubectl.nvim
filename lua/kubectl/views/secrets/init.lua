@@ -9,7 +9,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "secret" },
+    gvk = { g = "", v = "v1", k = "Secret" },
     informer = { enabled = true },
     headers = {
       "NAMESPACE",

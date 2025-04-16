@@ -1,4 +1,5 @@
 use futures::StreamExt;
+use kube::api::TypeMeta;
 use kube::runtime::reflector::store::Writer;
 use kube::runtime::{watcher, WatchStreamExt};
 use kube::{
@@ -29,15 +30,26 @@ pub async fn init_reflector_for_kind(
         None => Api::all_with(client.clone(), &ar),
     };
 
-    let config = watcher::Config::default();
+    let config = watcher::Config::default().any_semantic();
     let writer: Writer<DynamicObject> = Writer::new(ar.clone());
     let reader: Store<DynamicObject> = writer.as_reader();
 
+    let ar_api_version = ar.api_version.clone();
+    let ar_kind = ar.kind.clone();
+
     let stream = watcher(api, config)
-        .modify(|resource| {
+        .default_backoff()
+        .modify(move |resource| {
             resource.managed_fields_mut().clear();
+            if resource.types.is_none() {
+                resource.types = Some(TypeMeta {
+                    kind: ar_kind.clone(),
+                    api_version: ar_api_version.clone(),
+                });
+            }
         })
-        .reflect(writer);
+        .reflect(writer)
+        .applied_objects();
 
     tokio::spawn(async move {
         stream.for_each(|_| futures::future::ready(())).await;
@@ -52,9 +64,7 @@ pub async fn init_reflector_for_kind(
 
 pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-    let store = map
-        .get(&kind.to_lowercase())
-        .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
+    let store = map.get(&kind.to_string()).unwrap();
     let _ = store.wait_until_ready().await;
 
     let result: Vec<DynamicObject> = store

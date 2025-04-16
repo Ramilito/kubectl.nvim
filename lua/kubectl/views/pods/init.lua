@@ -14,7 +14,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "pod" },
+    gvk = { g = "", v = "v1", k = "Pod" },
     informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },

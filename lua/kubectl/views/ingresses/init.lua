@@ -11,7 +11,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "networking.k8s.io", v = "v1", k = "ingress" },
+    gvk = { g = "networking.k8s.io", v = "v1", k = "Ingress" },
     informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.browse)", desc = "browse", long_desc = "Open host in browser" },

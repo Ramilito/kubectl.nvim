@@ -10,7 +10,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "rbac.authorization.k8s.io", v = "v1", k = "clusterrolebinding" },
+    gvk = { g = "rbac.authorization.k8s.io", v = "v1", k = "ClusterRoleBinding" },
     informer = { enabled = true },
     headers = {
       "NAME",

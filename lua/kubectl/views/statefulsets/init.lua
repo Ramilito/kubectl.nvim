@@ -9,7 +9,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "apps", v = "v1", k = "statefulset" },
+    gvk = { g = "apps", v = "v1", k = "Statefulset" },
     informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change statefulset image" },

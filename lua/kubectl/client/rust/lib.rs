@@ -64,14 +64,9 @@ async fn get_all_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<S
         .clone();
 
     let fut = async move {
-        let cached = match store::get(&kind, namespace.clone()).await {
-            Ok(data) => data,
-            Err(_err) => Vec::new(),
-        };
+        let cached = (store::get(&kind, namespace.clone()).await).unwrap_or_default();
 
-        info!("cached: {:?}", cached);
         let resources: Vec<DynamicObject> = if cached.is_empty() {
-            info!("not found in store.. {}", kind);
             get_resources_async(&client, kind, None, None, namespace)
                 .await
                 .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
@@ -210,7 +205,7 @@ async fn get_table_async(
         let items = store::get(&kind, namespace).await?;
         let processors = get_processors();
         let processor = processors
-            .get(kind.as_str())
+            .get(kind.to_lowercase().as_str())
             .unwrap_or_else(|| processors.get("default").unwrap());
         let processed = processor
             .process(&lua, &items, sort_by, sort_order, filter)

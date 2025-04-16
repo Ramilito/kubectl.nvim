@@ -1,7 +1,7 @@
 use http::Uri;
 use k8s_openapi::serde_json::{self};
 use kube::{
-    api::{ApiResource, DynamicObject, ListParams, ResourceExt},
+    api::{ApiResource, DynamicObject, ListParams, ResourceExt, TypeMeta},
     config::Kubeconfig,
     core::GroupVersionKind,
     discovery::{ApiCapabilities, Discovery, Scope},
@@ -81,11 +81,18 @@ pub async fn get_resources_async(
             "Resource not found in cluster: {kind}"
         ))));
     };
-
+    let ar_api_version = ar.version.clone();
+    let ar_kind = ar.kind.clone();
     let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), true);
     let mut list = api.list(&ListParams::default()).await?;
 
     for obj in &mut list.items {
+        if obj.types.is_none() {
+            obj.types = Some(TypeMeta {
+                kind: ar_kind.clone(),
+                api_version: ar_api_version.clone(),
+            });
+        }
         obj.managed_fields_mut().clear();
     }
 
@@ -308,7 +315,7 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
     let fut = async move {
         let discovery = Discovery::new(client.clone())
-            .exclude(&[r#"metrics.k8s.io"#])
+            .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
             .run()
             .await
             .map_err(|e| mlua::Error::RuntimeError(format!("Discovery error: {}", e)))?;
@@ -317,7 +324,7 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
         for group in discovery.groups() {
             group.resources_by_stability().iter().for_each(|(ar, cap)| {
                 if ar.plural != "componentstatuses"
-                    && (cap.supports_operation("get") || cap.supports_operation("watch"))
+                    && (cap.supports_operation("list"))
                 {
                     resources.push(FallbackResource::from_ar_cap(ar, cap));
                 }
