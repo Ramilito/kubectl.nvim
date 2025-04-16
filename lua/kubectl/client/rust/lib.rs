@@ -1,3 +1,4 @@
+use kube::api::DynamicObject;
 // lib.rs
 use ::log::error;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
@@ -54,11 +55,32 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
 async fn get_all_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
     let (kind, namespace) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
+        .clone();
 
     let fut = async move {
-        let result = store::get(&kind, namespace).await?;
-        let json_str = k8s_openapi::serde_json::to_string(&result)
+        let cached = match store::get(&kind, namespace.clone()).await {
+            Ok(data) => data,
+            Err(_err) => Vec::new(),
+        };
+
+        info!("cached: {:?}", cached);
+        let resources: Vec<DynamicObject> = if cached.is_empty() {
+            info!("not found in store.. {}", kind);
+            get_resources_async(&client, kind, None, None, namespace)
+                .await
+                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+        } else {
+            cached
+        };
+        let json_str = k8s_openapi::serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
         Ok(json_str)
     };
     rt.block_on(fut)
@@ -114,15 +136,9 @@ pub async fn get_fallback_table_async(
 
 async fn fetch_all_async(
     _lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
+    args: (String, Option<String>, Option<String>, Option<String>),
 ) -> LuaResult<String> {
-    let (kind, group, version, name, namespace) = args;
+    let (kind, group, version, namespace) = args;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
@@ -133,7 +149,7 @@ async fn fetch_all_async(
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let mut items = get_resources_async(client, kind, group, version, name, namespace)
+        let mut items = get_resources_async(client, kind, group, version, namespace)
             .await
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 

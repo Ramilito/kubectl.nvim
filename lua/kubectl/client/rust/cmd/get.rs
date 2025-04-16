@@ -1,13 +1,12 @@
 use http::Uri;
-use k8s_openapi::
-    serde_json::{self}
-;
+use k8s_openapi::serde_json::{self};
 use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt},
     config::Kubeconfig,
     core::GroupVersionKind,
     discovery::{ApiCapabilities, Discovery, Scope},
-    Api, Client, Config,
+    error::DiscoveryError,
+    Api, Client, Config, Error,
 };
 use log::info;
 use mlua::prelude::*;
@@ -57,30 +56,40 @@ pub async fn get_resources_async(
     kind: String,
     group: Option<String>,
     version: Option<String>,
-    name: Option<String>,
     namespace: Option<String>,
-) -> Result<Vec<DynamicObject>, kube::Error> {
-    let group_str = group.unwrap_or_default();
-    let version_str = version.unwrap_or_else(|| "v1".to_string());
-    let gvk = GroupVersionKind {
-        group: group_str,
-        version: version_str,
-        kind,
-    };
-    let ar = ApiResource::from_gvk(&gvk);
-    let api: Api<DynamicObject> = if let Some(ns) = namespace.clone() {
-        Api::namespaced_with(client.clone(), &ns, &ar)
+) -> Result<Vec<DynamicObject>, Error> {
+    let discovery = Discovery::new(client.clone()).run().await?;
+
+    let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
+        let gvk = GroupVersionKind {
+            group: g,
+            version: v,
+            kind: kind.clone(),
+        };
+        if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
+            (ar, caps)
+        } else {
+            return Err(Error::Discovery(DiscoveryError::MissingResource(format!(
+                "Unable to discover resource by GVK: {:?}",
+                gvk
+            ))));
+        }
+    } else if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
+        (ar, caps)
     } else {
-        Api::all_with(client.clone(), &ar)
+        return Err(Error::Discovery(DiscoveryError::MissingResource(format!(
+            "Resource not found in cluster: {kind}"
+        ))));
     };
 
-    if let Some(n) = name {
-        let single_item = api.get(&n).await?;
-        Ok(vec![single_item])
-    } else {
-        let list = api.list(&ListParams::default()).await?;
-        Ok(list.items)
+    let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), true);
+    let mut list = api.list(&ListParams::default()).await?;
+
+    for obj in &mut list.items {
+        obj.managed_fields_mut().clear();
     }
+
+    Ok(list.items)
 }
 
 pub async fn get_resource_async(
@@ -270,6 +279,11 @@ struct FallbackResource {
 
 impl FallbackResource {
     fn from_ar_cap(ar: &ApiResource, cap: &ApiCapabilities) -> Self {
+        let crd_name = if ar.group.is_empty() {
+            ar.plural.clone()
+        } else {
+            format!("{}.{}", ar.plural, ar.group)
+        };
         FallbackResource {
             gvk: GroupVersionKind {
                 group: ar.group.clone(),
@@ -279,7 +293,7 @@ impl FallbackResource {
             plural: ar.plural.clone(),
             namespaced: cap.scope == Scope::Namespaced,
             // short_names: ar.short_names.clone(),
-            crd_name: format!("{}.{}", ar.plural, ar.group),
+            crd_name,
         }
     }
 }

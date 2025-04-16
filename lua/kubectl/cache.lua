@@ -25,7 +25,7 @@ local function process_apis(resource, cached_api_resources)
     gvk = {
       g = resource.gvk.group,
       v = resource.gvk.version,
-      k = string.lower(resource.gvk.kind),
+      k = resource.gvk.kind,
     },
     plural = resource.plural,
     crd_name = name,
@@ -51,20 +51,28 @@ local function processRow(rows, cached_api_resources, relationships)
     return
   end
 
+  print(#rows)
   for _, item in ipairs(rows) do
+    vim.print(item.kind)
     if not item.kind then
+      vim.print(item)
       return
     end
-		item.metadata.managedFields = {}
+
+    -- print("apiVersin: ", item.kind)
+    item.metadata.managedFields = {}
     local kind = string.lower(item.kind)
 
     local cache_key = nil
     for _, value in pairs(cached_api_resources.values) do
-      local apiVersion = value.gvk.v
-      if value.gvk.k then
-        apiVersion = value.gvk.g .. "/" .. apiVersion
+      local apiVersion = ""
+      if value.gvk.g and value.gvk.g ~= "" then
+        apiVersion = value.gvk.g .. "/" .. value.gvk.v
+      else
+        apiVersion = value.gvk.v
       end
-      if apiVersion == string.lower(item.apiVersion) and value.gvk.k == kind then
+      -- print("apiVersin: ", apiVersion)
+      if string.lower(apiVersion) == string.lower(item.apiVersion) and value.gvk.k == kind then
         cache_key = value.crd_name
       end
     end
@@ -87,7 +95,7 @@ local function processRow(rows, cached_api_resources, relationships)
       if item.metadata.ownerReferences then
         for _, owner in ipairs(item.metadata.ownerReferences) do
           table.insert(owners, {
-            kind = string.lower(owner.kind),
+            kind = owner.kind,
             apiVersion = owner.apiVersion,
             name = owner.name,
             uid = owner.uid,
@@ -153,12 +161,9 @@ function M.load_cache(cached_api_resources, callback)
 
     local all_gvk = {}
     for _, resource in pairs(cached_api_resources.values) do
-      commands.run_async(
-        "start_reflector_async",
-        { resource.gvk.k, resource.gvk.g, resource.gvk.v, nil, nil },
-        function() end
-      )
-      table.insert(all_gvk, { cmd = "get_all_async", args = { resource.gvk.k, nil } })
+      local kind = string.lower(resource.gvk.k)
+      -- commands.run_async("start_reflector_async", { kind, resource.gvk.g, resource.gvk.v, nil }, function() end)
+      table.insert(all_gvk, { cmd = "fetch_all_async", args = { kind, nil } })
     end
 
     collectgarbage("collect")
@@ -167,12 +172,13 @@ function M.load_cache(cached_api_resources, callback)
     local mem_before = collectgarbage("count")
     local relationships = require("kubectl.utils.relationships")
 
-    M.handles = ResourceBuilder:new("all"):fetchAllAsync(all_gvk, function(self)
+    local lineage_builder = ResourceBuilder:new("all")
+    M.handles = lineage_builder:fetchAllAsync(all_gvk, function(self)
       self:splitData()
       self:decodeJson()
       self.processedData = {}
 
-      for _, values in ipairs(self.data) do
+      for _, values in pairs(self.data) do
         processRow(values, cached_api_resources, relationships)
       end
 
