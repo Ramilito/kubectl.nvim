@@ -35,36 +35,40 @@ function M.View()
     "start_reflector_async",
     { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
     function()
-      commands.run_async("get_all_async", { M.definition.gvk.k, nil }, function(data, _)
-        self.data = data
-        self:decodeJson()
-        vim.schedule(function()
-          self.buf_nr = buf
-          self:process(definition.processRow, true):prettyPrint():setContent()
-          local list = { { name = "All" } }
-          for _, value in ipairs(self.processedData) do
-            if value.name.value then
-              table.insert(M.namespaces, value.name.value)
-              table.insert(list, { name = value.name.value })
+      commands.run_async(
+        "get_all_async",
+        { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
+        function(data, _)
+          self.data = data
+          self:decodeJson()
+          vim.schedule(function()
+            self.buf_nr = buf
+            self:process(definition.processRow, true):prettyPrint():setContent()
+            local list = { { name = "All" } }
+            for _, value in ipairs(self.processedData) do
+              if value.name.value then
+                table.insert(M.namespaces, value.name.value)
+                table.insert(list, { name = value.name.value })
+              end
             end
-          end
-          completion.with_completion(buf, list)
+            completion.with_completion(buf, list)
 
-          vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
-            noremap = true,
-            callback = function()
-              local line = vim.api.nvim_get_current_line()
-              local current_word = vim.split(line, "%s%s+")[1]
+            vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
+              noremap = true,
+              callback = function()
+                local line = vim.api.nvim_get_current_line()
+                local current_word = vim.split(line, "%s%s+")[1]
 
-              vim.cmd("startinsert")
-              vim.schedule(function()
-                vim.api.nvim_put({ current_word }, "c", true, true)
-                vim.api.nvim_input("<cr>")
-              end)
-            end,
-          })
-        end)
-      end)
+                vim.cmd("startinsert")
+                vim.schedule(function()
+                  vim.api.nvim_put({ current_word }, "c", true, true)
+                  vim.api.nvim_input("<cr>")
+                end)
+              end,
+            })
+          end)
+        end
+      )
     end
   )
 end

@@ -64,7 +64,10 @@ pub async fn init_reflector_for_kind(
 
 pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-    let store = map.get(&kind.to_string()).unwrap();
+    let store = match map.get(&kind.to_string()) {
+        Some(store) => store,
+        None => return Ok(Vec::new()),
+    };
     let _ = store.wait_until_ready().await;
 
     let result: Vec<DynamicObject> = store

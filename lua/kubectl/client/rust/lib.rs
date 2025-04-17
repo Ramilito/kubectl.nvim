@@ -52,22 +52,25 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-async fn get_all_async(_lua: Lua, args: (String, Option<String>)) -> LuaResult<String> {
-    let (kind, namespace) = args;
+async fn get_all_async(
+    _lua: Lua,
+    args: (String, Option<String>, Option<String>, Option<String>),
+) -> LuaResult<String> {
+    let (kind, group, version, namespace) = args;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
     let fut = async move {
+        let client_guard = CLIENT_INSTANCE.lock().map_err(|_| {
+            LuaError::RuntimeError("Failed to acquire lock on client instance".into())
+        })?;
+        let client = client_guard
+            .as_ref()
+            .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
+            .clone();
+
         let cached = (store::get(&kind, namespace.clone()).await).unwrap_or_default();
 
         let resources: Vec<DynamicObject> = if cached.is_empty() {
-            get_resources_async(&client, kind, None, None, namespace)
+            get_resources_async(&client, kind, group, version, namespace)
                 .await
                 .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
