@@ -153,6 +153,7 @@ pub async fn get_single_async(
     args: (String, Option<String>, String, Option<String>),
 ) -> LuaResult<String> {
     let (kind, namespace, name, output) = args;
+
     let output_mode = output
         .as_deref()
         .map(OutputMode::from_str)
@@ -170,7 +171,6 @@ pub async fn get_single_async(
         if let Some(found) = store::get_single(&kind, namespace.clone(), &name).await? {
             return Ok(output_mode.format(found));
         }
-
         let result = get_resource_async(client, kind, None, None, name, namespace, output);
 
         result.await
@@ -323,9 +323,7 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
         let mut resources = Vec::new();
         for group in discovery.groups() {
             group.resources_by_stability().iter().for_each(|(ar, cap)| {
-                if ar.plural != "componentstatuses"
-                    && (cap.supports_operation("list"))
-                {
+                if ar.plural != "componentstatuses" && (cap.supports_operation("list")) {
                     resources.push(FallbackResource::from_ar_cap(ar, cap));
                 }
             });

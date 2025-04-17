@@ -91,7 +91,7 @@ pub async fn get_single(
     let map = get_store_map().read().await;
 
     let store = map
-        .get(&kind.to_lowercase())
+        .get(&kind.to_string())
         .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
 
     let result = store
