@@ -58,15 +58,10 @@ pub async fn get_resources_async(
     version: Option<String>,
     namespace: Option<String>,
 ) -> Result<Vec<DynamicObject>, Error> {
-    let discovery = Discovery::new(client.clone()).run().await?;
-
     let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
-        let gvk = GroupVersionKind {
-            group: g,
-            version: v,
-            kind: kind.clone(),
-        };
-        if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
+        let gvk = GroupVersionKind::gvk(g.as_str(), v.as_str(), kind.as_str());
+
+        if let (ar, caps) = kube::discovery::pinned_kind(client, &gvk).await? {
             (ar, caps)
         } else {
             return Err(Error::Discovery(DiscoveryError::MissingResource(format!(
@@ -74,7 +69,12 @@ pub async fn get_resources_async(
                 gvk
             ))));
         }
-    } else if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
+    } else if let Some((ar, caps)) = {
+        let discovery = kube::discovery::Discovery::new(client.clone())
+            .run()
+            .await?;
+        resolve_api_resource(&discovery, &kind)
+    } {
         (ar, caps)
     } else {
         return Err(Error::Discovery(DiscoveryError::MissingResource(format!(

@@ -51,15 +51,12 @@ local function processRow(rows, cached_api_resources, relationships)
     return
   end
 
-  print(#rows)
   for _, item in ipairs(rows) do
-    vim.print(item.kind)
     if not item.kind then
       vim.print(item)
       return
     end
 
-    -- print("apiVersin: ", item.kind)
     item.metadata.managedFields = {}
     local kind = string.lower(item.kind)
 
@@ -71,7 +68,6 @@ local function processRow(rows, cached_api_resources, relationships)
       else
         apiVersion = value.gvk.v
       end
-      -- print("apiVersin: ", apiVersion)
       if string.lower(apiVersion) == string.lower(item.apiVersion) and value.gvk.k == kind then
         cache_key = value.crd_name
       end
