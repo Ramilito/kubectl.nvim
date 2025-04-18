@@ -87,14 +87,14 @@ pub async fn get_resources_async(
     let mut list = api.list(&ListParams::default()).await?;
 
     for obj in &mut list.items {
+        obj.managed_fields_mut().clear();
+        obj.data["api_version"] = json!(ar_api_version.clone());
         if obj.types.is_none() {
             obj.types = Some(TypeMeta {
                 kind: ar_kind.clone(),
                 api_version: ar_api_version.clone(),
             });
         }
-        obj.data["api_version"] = json!(ar_api_version.clone());
-        obj.managed_fields_mut().clear();
     }
 
     Ok(list.items)

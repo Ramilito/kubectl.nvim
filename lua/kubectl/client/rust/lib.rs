@@ -68,7 +68,6 @@ async fn get_all_async(
 
     let fut = async move {
         let cached = (store::get(&kind, namespace.clone()).await).unwrap_or_default();
-
         let resources: Vec<DynamicObject> = if cached.is_empty() {
             get_resources_async(&client, kind, group, version, namespace)
                 .await

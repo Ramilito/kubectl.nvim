@@ -1,4 +1,5 @@
 use futures::StreamExt;
+use k8s_openapi::serde_json::json;
 use kube::api::TypeMeta;
 use kube::runtime::reflector::store::Writer;
 use kube::runtime::{watcher, WatchStreamExt};
@@ -41,6 +42,7 @@ pub async fn init_reflector_for_kind(
         .default_backoff()
         .modify(move |resource| {
             resource.managed_fields_mut().clear();
+            resource.data["api_version"] = json!(ar_api_version.clone());
             if resource.types.is_none() {
                 resource.types = Some(TypeMeta {
                     kind: ar_kind.clone(),
