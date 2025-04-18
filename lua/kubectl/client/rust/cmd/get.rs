@@ -6,9 +6,8 @@ use kube::{
     core::GroupVersionKind,
     discovery::{ApiCapabilities, Discovery, Scope},
     error::DiscoveryError,
-    Api, Client, Config, Error,
+    Client, Config, Error,
 };
-use log::info;
 use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
@@ -60,26 +59,16 @@ pub async fn get_resources_async(
 ) -> Result<Vec<DynamicObject>, Error> {
     let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
         let gvk = GroupVersionKind::gvk(g.as_str(), v.as_str(), kind.as_str());
-
-        if let (ar, caps) = kube::discovery::pinned_kind(client, &gvk).await? {
-            (ar, caps)
-        } else {
-            return Err(Error::Discovery(DiscoveryError::MissingResource(format!(
-                "Unable to discover resource by GVK: {:?}",
-                gvk
-            ))));
-        }
-    } else if let Some((ar, caps)) = {
+        kube::discovery::pinned_kind(client, &gvk).await?
+    } else {
         let discovery = kube::discovery::Discovery::new(client.clone())
             .run()
             .await?;
-        resolve_api_resource(&discovery, &kind)
-    } {
-        (ar, caps)
-    } else {
-        return Err(Error::Discovery(DiscoveryError::MissingResource(format!(
-            "Resource not found in cluster: {kind}"
-        ))));
+        resolve_api_resource(&discovery, &kind).ok_or_else(|| {
+            Error::Discovery(DiscoveryError::MissingResource(format!(
+                "Resource not found in cluster: {kind}"
+            )))
+        })?
     };
     let ar_api_version = ar.api_version.clone();
     let ar_kind = ar.kind.clone();
