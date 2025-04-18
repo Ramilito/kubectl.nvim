@@ -35,7 +35,7 @@ function M.Draw()
     local graph = definition.build_graph(data)
 
     -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
-    local kind, ns, name = M.selection.kind, M.selection.ns, M.selection.name
+    local kind, ns, name = string.lower(M.selection.kind), M.selection.ns, M.selection.name
     if
       kind:sub(-1) == "s"
       and kind ~= "ingresses"

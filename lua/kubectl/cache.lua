@@ -1,7 +1,6 @@
 local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local timeme = require("kubectl.utils.timeme")
 
 local M = { handles = nil, loading = false, timestamp = nil, cached_api_resources = { values = {}, shortNames = {} } }
 
@@ -30,6 +29,7 @@ local function process_apis(resource, cached_api_resources)
     plural = resource.plural,
     crd_name = name,
     namespaced = resource.namespaced,
+    api_version = resource.api_version,
   }
 
   require("kubectl.state").sortby[name] = { mark = {}, current_word = "", order = "asc" }
@@ -58,17 +58,10 @@ local function processRow(rows, cached_api_resources, relationships)
     end
 
     item.metadata.managedFields = {}
-    local kind = string.lower(item.kind)
 
     local cache_key = nil
     for _, value in pairs(cached_api_resources.values) do
-      local apiVersion = ""
-      if value.gvk.g and value.gvk.g ~= "" then
-        apiVersion = value.gvk.g .. "/" .. value.gvk.v
-      else
-        apiVersion = value.gvk.v
-      end
-      if string.lower(apiVersion) == string.lower(item.apiVersion) and value.gvk.k == kind then
+      if string.lower(value.api_version) == string.lower(item.api_version) and value.gvk.k == item.kind then
         cache_key = value.crd_name
       end
     end
@@ -79,7 +72,7 @@ local function processRow(rows, cached_api_resources, relationships)
       local owners = {}
       local relations = {}
 
-      for _, relation in ipairs(relationships.getRelationship(kind, item, rows)) do
+      for _, relation in ipairs(relationships.getRelationship(item.kind, item, rows)) do
         if relation.relationship_type == "owner" then
           table.insert(owners, relation)
         elseif relation.relationship_type == "dependency" then
@@ -157,9 +150,7 @@ function M.load_cache(cached_api_resources, callback)
 
     local all_gvk = {}
     for _, resource in pairs(cached_api_resources.values) do
-      local kind = string.lower(resource.gvk.k)
-      -- commands.run_async("start_reflector_async", { kind, resource.gvk.g, resource.gvk.v, nil }, function() end)
-      table.insert(all_gvk, { cmd = "fetch_all_async", args = { kind, nil } })
+      table.insert(all_gvk, { cmd = "get_all_async", args = { resource.gvk.k, resource.gvk.g, resource.gvk.v, nil } })
     end
 
     collectgarbage("collect")
@@ -168,8 +159,7 @@ function M.load_cache(cached_api_resources, callback)
     local mem_before = collectgarbage("count")
     local relationships = require("kubectl.utils.relationships")
 
-    local lineage_builder = ResourceBuilder:new("all")
-    M.handles = lineage_builder:fetchAllAsync(all_gvk, function(self)
+    M.handles = ResourceBuilder:new("lineage"):fetchAllAsync(all_gvk, function(self)
       self:splitData()
       self:decodeJson()
       self.processedData = {}
@@ -183,7 +173,6 @@ function M.load_cache(cached_api_resources, callback)
       local mem_after = collectgarbage("count")
       local mem_diff_mb = (mem_after - mem_before) / 1024
       print("Memory used by the table (in MB):", mem_diff_mb)
-      -- timeme.stop()
       M.handles = nil
       if callback then
         callback()

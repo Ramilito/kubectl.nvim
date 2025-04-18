@@ -1,6 +1,6 @@
 -- Function to generate a unique key for each resource
 local function get_resource_key(resource)
-  local kind = string.lower(resource.kind)
+  local kind = resource.kind
   if resource.ns and kind ~= "node" then
     return string.lower(string.format("%s/%s/%s", kind, resource.ns, resource.name))
   else

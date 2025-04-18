@@ -8,7 +8,7 @@ local M = {
 }
 
 local function get_kind(resource, default_kind)
-  return (resource.kind and resource.kind:lower()) or (default_kind and default_kind:lower()) or "unknownkind"
+  return (resource.kind and resource.kind) or (default_kind and default_kind) or "unknownkind"
 end
 
 function M.collect_all_resources(data_sample)

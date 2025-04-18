@@ -81,7 +81,7 @@ pub async fn get_resources_async(
             "Resource not found in cluster: {kind}"
         ))));
     };
-    let ar_api_version = ar.version.clone();
+    let ar_api_version = ar.api_version.clone();
     let ar_kind = ar.kind.clone();
     let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), true);
     let mut list = api.list(&ListParams::default()).await?;
@@ -93,6 +93,7 @@ pub async fn get_resources_async(
                 api_version: ar_api_version.clone(),
             });
         }
+        obj.data["api_version"] = json!(ar_api_version.clone());
         obj.managed_fields_mut().clear();
     }
 
@@ -281,6 +282,7 @@ struct FallbackResource {
     plural: String,
     namespaced: bool,
     // short_names: Vec<String>,
+    api_version: String,
     crd_name: String,
 }
 
@@ -298,6 +300,7 @@ impl FallbackResource {
                 kind: ar.kind.clone(),
             },
             plural: ar.plural.clone(),
+            api_version: ar.api_version.clone(),
             namespaced: cap.scope == Scope::Namespaced,
             // short_names: ar.short_names.clone(),
             crd_name,
