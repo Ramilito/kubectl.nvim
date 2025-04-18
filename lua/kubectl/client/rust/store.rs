@@ -70,7 +70,6 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
         Some(store) => store,
         None => return Ok(Vec::new()),
     };
-    let _ = store.wait_until_ready().await;
 
     let result: Vec<DynamicObject> = store
         .state()

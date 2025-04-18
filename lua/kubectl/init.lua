@@ -11,13 +11,11 @@ local M = {
 --- Open the kubectl view
 function M.open()
   local hl = require("kubectl.actions.highlight")
-  hl.setup()
-  state.setup()
   local client = require("kubectl.client")
   client.set_implementation()
-  vim.schedule(function()
-    cache.LoadFallbackData()
-  end)
+  hl.setup()
+  state.setup()
+  cache.LoadFallbackData()
 end
 
 function M.close()
