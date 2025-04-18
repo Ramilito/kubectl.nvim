@@ -1,6 +1,6 @@
-use kube::api::DynamicObject;
 // lib.rs
 use ::log::error;
+use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::Lua;
