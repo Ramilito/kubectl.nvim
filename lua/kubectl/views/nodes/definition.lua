@@ -94,7 +94,7 @@ function M.processRow(rows)
   end
 
   for _, row in pairs(rows) do
-    if row.metadata.name then
+    if row.metadata and row.metadata.name then
       local iIP, eIP = getIPs(row)
       local pod = {
         name = row.metadata.name,
