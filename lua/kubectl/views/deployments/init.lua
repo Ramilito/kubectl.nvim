@@ -57,7 +57,7 @@ function M.SetImage(name, ns)
       return
     end
     builder.data = data
-    builder:decodeJson()
+    builder.decodeJson()
 
     local container_images = {}
     if builder.data.spec.template.spec.containers then
@@ -86,7 +86,7 @@ function M.SetImage(name, ns)
 
       builder.data = {}
       table.insert(builder.data, " ")
-      builder:action_view(def, params, function(args)
+      builder.action_view(def, params, function(args)
         local image_spec = {}
         for _, container in ipairs(args) do
           table.insert(image_spec, {
