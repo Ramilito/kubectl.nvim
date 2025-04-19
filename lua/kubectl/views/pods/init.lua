@@ -1,7 +1,7 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -44,23 +44,19 @@ local M = {
 }
 
 --- View function
----@param cancellationToken any
 function M.View(cancellationToken)
-  ResourceBuilder:view(M.definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 --- Draw function
----@param cancellationToken any
 function M.Draw(cancellationToken)
-  if state.instance[M.definition.resource] then
+  local builder = manager.get(M.definition.resource)
+  if builder then
     local pfs = pf_definition.getPFRows()
-    state.instance[M.definition.resource].extmarks_extra = {}
-    pf_definition.setPortForwards(
-      state.instance[M.definition.resource].extmarks_extra,
-      state.instance[M.definition.resource].prettyData,
-      pfs
-    )
-    state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
+    builder.extmarks_extra = {}
+    pf_definition.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
+    builder.draw(cancellationToken)
   end
 end
 
@@ -136,7 +132,8 @@ end
 
 function M.Logs(reload)
   local def = {
-    resource = "logs",
+    resource = "pod_logs",
+    display_name = M.selection.pod .. " | " .. M.selection.ns,
     ft = "k8s_pod_logs",
     syntax = "less",
     cmd = "log_stream_async",
@@ -150,7 +147,9 @@ function M.Logs(reload)
     },
   }
 
-  ResourceBuilder:view_float(def, {
+  local logsBuilder = manager.get_or_create("pod_logs")
+
+  logsBuilder.view_float(def, {
     reload = reload,
     args = {
       M.selection.pod,
@@ -166,9 +165,9 @@ end
 
 function M.PortForward(pod, ns)
   local def = {
+    resource = "pod_pf",
     ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
-    resource = pod,
     ns = ns,
     group = M.definition.group,
     version = M.definition.version,
@@ -181,10 +180,10 @@ function M.PortForward(pod, ns)
     def.syntax,
   }, function(data)
     local containers = {}
-    local builder = ResourceBuilder:new("kubectl_pf")
-    builder.data = data
-    builder:decodeJson()
-    for _, container in ipairs(builder.data.spec.containers) do
+    local pfBuilder = manager.get_or_create("pod_pf")
+    pfBuilder.data = data
+    pfBuilder.decodeJson()
+    for _, container in ipairs(pfBuilder.data.spec.containers) do
       if container.ports then
         for _, port in ipairs(container.ports) do
           local name
@@ -210,8 +209,8 @@ function M.PortForward(pod, ns)
     end
 
     vim.schedule(function()
-      builder.data, builder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
-      table.insert(builder.data, " ")
+      pfBuilder.data, pfBuilder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
+      table.insert(pfBuilder.data, " ")
 
       local pf_data = {
         {
@@ -225,7 +224,7 @@ function M.PortForward(pod, ns)
         { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
       }
 
-      builder:action_view(def, pf_data, function(args)
+      pfBuilder.action_view(def, pf_data, function(args)
         local client = require("kubectl.client")
         local local_port = args[2].value
         local remote_port = args[3].value
@@ -237,12 +236,14 @@ end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = M.definition.resource .. " | " .. name .. " | " .. ns,
+    resource = "pod_desc",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     syntax = "yaml",
     cmd = "describe_async",
   }
-  ResourceBuilder:view_float(def, {
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
     args = {
       state.context["current-context"],
       M.definition.resource,

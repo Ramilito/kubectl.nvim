@@ -1,4 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local store = require("kubectl.store")
 local M = {}
@@ -56,9 +57,13 @@ local get_values = function(definition, data)
   return args_tmp
 end
 
-function M.View(self, definition, data, callback)
+function M.View(definition, data, callback)
   local win_config
-  self.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
+  local builder = manager.get(definition.resource)
+  if not builder then
+    return
+  end
+  builder.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     local args = get_values(definition, data)
     if confirm then
       callback(args)
@@ -66,9 +71,9 @@ function M.View(self, definition, data, callback)
   end)
 
   for _, item in ipairs(data) do
-    table.insert(self.data, item.value)
-    table.insert(self.extmarks, {
-      row = #self.data - 1,
+    table.insert(builder.data, item.value)
+    table.insert(builder.extmarks, {
+      row = #builder.data - 1,
       start_col = 0,
       virt_text = { { item.text .. " ", "KubectlHeader" } },
       virt_text_pos = "inline",
@@ -76,21 +81,21 @@ function M.View(self, definition, data, callback)
     })
   end
 
-  table.insert(self.data, "")
-  table.insert(self.data, "")
+  table.insert(builder.data, "")
+  table.insert(builder.data, "")
 
   local confirmation = "[y]es [n]o"
   local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
-  table.insert(self.extmarks, {
-    row = #self.data - 1,
+  table.insert(builder.extmarks, {
+    row = #builder.data - 1,
     start_col = 0,
     virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
     virt_text_pos = "inline",
   })
 
-  self:setContentRaw()
+  builder.displayContentRaw()
   vim.cmd([[syntax match KubectlPending /.*/]])
-  store.set("action", { self = self, data = data })
+  store.set("action", { self = builder, data = data })
 end
 
 return M

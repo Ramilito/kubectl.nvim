@@ -1,28 +1,37 @@
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
-local state = require("kubectl.state")
-local string_util = require("kubectl.utils.string")
-local tables = require("kubectl.utils.tables")
+local buffers     = require("kubectl.actions.buffers")
+local commands    = require("kubectl.actions.commands")
+local state       = require("kubectl.state")
+local tables      = require("kubectl.utils.tables")
 
 local M = {}
 
+--- Create a new ResourceBuilder for the given `resource`.
+---@param resource string  -- e.g., "pods", "deployments"
+---@return table builder   -- the new builder object
 function M.new(resource)
   local builder = {}
 
-  builder.resource = resource
-  builder.definition = nil
-  builder.cmd = nil
-  builder.args = nil
-  builder.data = nil
+  -- Basic fields
+  builder.resource      = resource
+  builder.definition    = nil
+  builder.cmd           = nil
+  builder.args          = nil
+  builder.data          = nil
   builder.processedData = nil
-  builder.prettyData = nil
-  builder.extmarks = nil
-  builder.extmarks_extra = nil
-  builder.header = { data = nil, marks = nil }
+  builder.prettyData    = nil
+  builder.extmarks      = nil
+  builder.extmarks_extra= nil
+  builder.header        = { data = nil, marks = nil }
+  builder.win_nr        = nil
+  builder.buf_nr        = nil
+
+  ---------------------------------------------------------------------------
+  -- LOW-LEVEL UTILITY METHODS
+  ---------------------------------------------------------------------------
 
   function builder.setCmd(args, cmd, contentType)
     local url = require("kubectl.utils.url")
-    builder.cmd = cmd or "kubectl"
+    builder.cmd  = cmd or "kubectl"
     builder.args = url.build(args)
     if builder.cmd == "curl" then
       builder.args = url.addHeaders(builder.args, contentType)
@@ -36,12 +45,17 @@ function M.new(resource)
   end
 
   function builder.fetchAsync(on_exit, on_stdout, on_stderr, opts)
-    commands.shell_command_async(builder.cmd, builder.args, function(result)
-      builder.data = result
-      if on_exit then
-        on_exit(builder)
-      end
-    end, on_stdout, on_stderr, opts)
+    commands.shell_command_async(
+      builder.cmd,
+      builder.args,
+      function(result)
+        builder.data = result
+        if on_exit then on_exit(builder) end
+      end,
+      on_stdout,
+      on_stderr,
+      opts
+    )
     return builder
   end
 
@@ -51,7 +65,7 @@ function M.new(resource)
       if ok then
         builder.data = decoded
       end
-    elseif type(builder.data) == "table" then
+    elseif type(builder.data) == "table" and builder.data then
       for i, chunk in ipairs(builder.data) do
         local ok, dec = pcall(vim.json.decode, chunk, { luanil = { object = true, array = true } })
         if ok then
@@ -78,34 +92,46 @@ function M.new(resource)
     return builder
   end
 
+  ---------------------------------------------------------------------------
+  -- PRETTY PRINT & DIVIDER
+  ---------------------------------------------------------------------------
+
   function builder.prettyPrint(win_nr)
     local sort_info = state.sortby[builder.resource]
-    local headers = (builder.definition and builder.definition.headers) or {}
-    builder.prettyData, builder.extmarks = tables.pretty_print(builder.processedData, headers, sort_info, win_nr)
+    local headers   = {}
+    if builder.definition and builder.definition.headers then
+      headers = builder.definition.headers
+    end
+    builder.prettyData, builder.extmarks =
+      tables.pretty_print(builder.processedData, headers, sort_info, win_nr)
     return builder
   end
 
   function builder.addDivider(include_filter)
     local count = ""
-    local filter_str = ""
-
     if builder.prettyData then
       count = tostring(#builder.prettyData - 1)
     elseif builder.data then
       count = tostring(#builder.data - 1)
     end
+
+    local filter_str = ""
     if include_filter and state.filter ~= "" then
       filter_str = state.filter
     end
 
     builder.header.divider_winbar = tables.generateDividerWinbar({
-      resource = string_util.capitalize(builder.display_name or builder.resource),
-      count = count,
-      filter = filter_str,
+      resource = builder.resource,
+      count    = count,
+      filter   = filter_str,
     }, builder.win_nr)
 
     return builder
   end
+
+  ---------------------------------------------------------------------------
+  -- BUFFER DISPLAY
+  ---------------------------------------------------------------------------
 
   function builder.displayContentRaw(cancellationToken)
     if cancellationToken and cancellationToken() then
@@ -116,8 +142,8 @@ function M.new(resource)
     end
     buffers.set_content(builder.buf_nr, {
       content = builder.data,
-      marks = builder.extmarks,
-      header = builder.header,
+      marks   = builder.extmarks,
+      header  = builder.header,
     })
     return builder
   end
@@ -132,24 +158,25 @@ function M.new(resource)
     end
 
     if ok and win_config.relative == "" then
-      -- normal window
+      -- Normal window
       buffers.set_content(builder.buf_nr, {
         content = builder.prettyData,
-        marks = builder.extmarks,
-        header = {},
+        marks   = builder.extmarks,
+        header  = {},
       })
       vim.defer_fn(function()
-        pcall(vim.api.nvim_set_option_value, "winbar", builder.header.divider_winbar, { scope = "local", win = win_nr })
+        pcall(vim.api.nvim_set_option_value, "winbar", builder.header.divider_winbar,
+              { scope = "local", win = win_nr })
       end, 10)
     elseif ok then
-      -- floating window
+      -- Floating window
       if builder.header.data then
         tables.generateDividerRow(builder.header.data, builder.header.marks)
       end
       buffers.set_content(builder.buf_nr, {
         content = builder.prettyData,
-        marks = builder.extmarks,
-        header = builder.header,
+        marks   = builder.extmarks,
+        header  = builder.header,
       })
     else
       return nil
@@ -157,10 +184,18 @@ function M.new(resource)
     return builder
   end
 
+  ---------------------------------------------------------------------------
+  -- “VIEW” AND “DRAW” METHODS
+  ---------------------------------------------------------------------------
+
   function builder.view(definition, cancellationToken)
-    builder.definition = definition
-    builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, definition.resource)
-    state.addToHistory(definition.resource)
+    builder.definition = definition or {}
+    if definition.resource and definition.resource ~= builder.resource then
+      builder.resource = definition.resource
+    end
+
+    builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, builder.resource)
+    state.addToHistory(builder.resource)
 
     commands.run_async(
       "start_reflector_async",
@@ -170,7 +205,7 @@ function M.new(resource)
           return
         end
         vim.schedule(function()
-          builder.draw(definition, cancellationToken)
+          builder.draw(cancellationToken)
         end)
       end
     )
@@ -178,15 +213,16 @@ function M.new(resource)
     return builder
   end
 
-  function builder.draw(definition, cancellationToken)
-    builder.definition = definition
-    local namespace = (state.ns and state.ns ~= "All") and state.ns or nil
-    local filter = state.getFilter()
-    local sort_by = state.sortby[definition.resource].current_word
-    local sort_order = state.sortby[definition.resource].order
-    commands.run_async(
-      "get_table_async",
-      { definition.gvk.k, namespace, sort_by, sort_order, filter },
+  function builder.draw(cancellationToken)
+    local definition = builder.definition or {}
+    local resource   = builder.resource
+    local namespace  = (state.ns and state.ns ~= "All") and state.ns or nil
+    local filter     = state.getFilter()
+    local sort_data  = state.sortby[resource]
+    local sort_by    = sort_data and sort_data.current_word or ""
+    local sort_order = sort_data and sort_data.order or ""
+
+    commands.run_async("get_table_async", { definition.gvk.k, namespace, sort_by, sort_order, filter },
       function(data, err)
         if err then
           return
@@ -195,14 +231,18 @@ function M.new(resource)
           builder.data = data
           builder.decodeJson()
           builder.processedData = builder.data
+
           vim.schedule(function()
             if definition.processRow then
-              builder.process(definition.processRow, true).sort()
+              builder.process(definition.processRow, true)
+              if sort_data then
+                builder.sort()
+              end
             end
-            local windows = buffers.get_windows_by_name(definition.resource)
-            for _, win_nr in ipairs(windows) do
-              builder.prettyPrint(win_nr).addDivider(true)
-              builder.displayContent(win_nr, cancellationToken)
+            local windows = buffers.get_windows_by_name(resource)
+            for _, win_id in ipairs(windows) do
+              builder.prettyPrint(win_id).addDivider(true)
+              builder.displayContent(win_id, cancellationToken)
             end
           end)
         end
@@ -212,25 +252,23 @@ function M.new(resource)
     return builder
   end
 
-  --- view_float: create or reuse a floating buffer for the resource
   function builder.view_float(definition, opts)
     opts = opts or {}
-    builder.definition = definition
+    builder.definition = definition or {}
 
     builder.buf_nr, builder.win_nr =
-      buffers.floating_buffer(definition.ft, definition.resource, definition.syntax, builder.win_nr)
+      buffers.floating_buffer(definition.ft, builder.resource, definition.syntax, builder.win_nr)
 
     commands.run_async(definition.cmd, opts.args, function(result)
       builder.data = result
       builder.decodeJson()
       vim.schedule(function()
         if definition.processRow then
-          builder.process(definition.processRow, true).sort().prettyPrint().addDivider(false).displayContent()
+          builder.process(definition.processRow, true).sort().prettyPrint().addDivider(false)
+          builder.displayContent(builder.win_nr)
         else
           builder.splitData()
-          if definition.hints then
-            builder.addDivider(false)
-          end
+          builder.addDivider(false)
           builder.displayContentRaw()
         end
       end)
@@ -241,19 +279,18 @@ function M.new(resource)
 
   function builder.draw_float(definition, opts)
     opts = opts or {}
-    builder.definition = definition
+    builder.definition = definition or {}
 
     commands.run_async(definition.cmd, opts.args, function(result)
       builder.data = result
       builder.decodeJson()
       vim.schedule(function()
         if definition.processRow then
-          builder.process(definition.processRow, true).sort().prettyPrint().addDivider(false).displayContent()
+          builder.process(definition.processRow, true).sort().prettyPrint().addDivider(false)
+          builder.displayContent(builder.win_nr)
         else
           builder.splitData()
-          if definition.hints then
-            builder.addDivider(false)
-          end
+          builder.addDivider(false)
           builder.displayContentRaw()
         end
       end)
@@ -270,7 +307,7 @@ function M.new(resource)
       builder.extmarks = {}
     end
     definition.ft = "k8s_action"
-    require("kubectl.views.action").View(builder, definition, data, callback)
+    require("kubectl.views.action").View(definition, data, callback)
     return builder
   end
 
