@@ -1,4 +1,4 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local manager = require("kubectl.resource_manager")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
@@ -23,20 +23,20 @@ local M = {
 }
 
 function M.View()
-  local buf = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
+  local buf, win = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
     M.change_context(input)
   end, { header = { data = {} }, prompt = true })
 
-  local self = ResourceBuilder:new(M.definition.resource)
+  local self = manager.get_or_create(M.definition.resource)
   self.definition = M.definition
 
   commands.run_async("get_config_async", {}, function(data)
     self.data = data
-    self:decodeJson()
+    self.decodeJson()
 
     vim.schedule(function()
       self.buf_nr = buf
-      self:process(M.processRow, true):prettyPrint():setContent()
+      self.process(M.processRow, true).prettyPrint().displayContent(win)
 
       local list = {}
       M.contexts = {}
@@ -73,9 +73,9 @@ function M.list_contexts()
   end
 
   local client = require("kubectl.client")
-  local self = ResourceBuilder:new(M.definition.resource)
+  local self = manager.get_or_create(M.definition.resource)
   self.data = client.get_config()
-  self:decodeJson()
+  self.decodeJson()
 
   M.contexts = {}
   for _, context in ipairs(self.data.contexts) do

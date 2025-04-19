@@ -1,4 +1,4 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local manager = require("kubectl.resource_manager")
 local commands = require("kubectl.actions.commands")
 
 local M = { handles = nil, loading = false, timestamp = nil, cached_api_resources = { values = {}, shortNames = {} } }
@@ -47,14 +47,15 @@ end
 
 function M.load_cache(cached_api_resources)
   M.loading = true
-  local builder = ResourceBuilder:new("api_resources")
+
+  local builder = manager.get_or_create("api_resources")
   commands.run_async("get_api_resources_async", {}, function(data, err)
     if err then
       vim.print("error: failed loading api_resources", err)
       return
     end
     builder.data = data
-    builder:decodeJson()
+    builder.decodeJson()
 
     for _, resource in ipairs(builder.data) do
       if resource.gvk then

@@ -201,7 +201,7 @@ end
 --- @param onConfirm function: The function to call on confirmation.
 -- luacheck: no max line length
 --- @param opts { syntax: string|nil, content: table|nil, marks: table|nil, width: number|nil }|nil: Options for the buffer.
---- @return integer, table: The buffer and window config.
+--- @return integer, table, integer: The buffer and window config.
 function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   opts = opts or {}
   local bufname = "kubectl_confirmation"
@@ -239,7 +239,7 @@ function M.confirmation_buffer(prompt, filetype, onConfirm, opts)
   local padding = string.rep(" ", win_config.width / 2)
   M.set_content(buf, { content = { padding .. "[y]es [n]o" } })
 
-  return buf, win_config
+  return buf, win_config, win
 end
 
 --- Creates a namespace buffer.
@@ -281,7 +281,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   M.fit_to_content(buf, win, 2)
 
   state.set_buffer_state(buf, filetype, "dynamic", M.floating_dynamic_buffer, { filetype, title, callback, opts })
-  return buf
+  return buf, win
 end
 
 --- Sets buffer content.

@@ -1,7 +1,7 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
+local manager = require("kubectl.resource_manager")
 local string_utils = require("kubectl.utils.string")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
@@ -83,12 +83,12 @@ function M.get_mappings()
           table.insert(data, { name = value.name, namespace = value.namespace })
         end
 
-        local self = ResourceBuilder:new("delete_resource")
+        local self = manager.get_or_create("delete_resource")
         self.data = data
         self.processedData = self.data
 
         local prompt = "Are you sure you want to delete the selected resource(s)?"
-        local buf_nr, win = buffers.confirmation_buffer(prompt, "prompt", function(confirm)
+        local buf_nr, win, win_nr = buffers.confirmation_buffer(prompt, "prompt", function(confirm)
           if confirm then
             local resource = string.lower(buf_name)
             for _, selection in ipairs(selections) do
@@ -131,7 +131,7 @@ function M.get_mappings()
           virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
           virt_text_pos = "inline",
         })
-        self:setContent()
+        self.displayContent(win_nr)
       end,
     },
     ["<Plug>(kubectl.yaml)"] = {
@@ -163,7 +163,8 @@ function M.get_mappings()
               def.display_name = def.display_name .. " | " .. ns
             end
 
-            ResourceBuilder:view_float(def, {
+            local builder = manager.get_or_create("yaml")
+            builder.view_float(def, {
               args = {
                 def.gvk.k,
                 ns,

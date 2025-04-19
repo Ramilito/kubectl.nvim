@@ -1,4 +1,4 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local manager = require("kubectl.resource_manager")
 local ansi = require("kubectl.utils.ansi")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
@@ -117,11 +117,11 @@ function M.apply()
   local file_name = vim.api.nvim_buf_get_name(0)
   local content = table.concat(lines, "\n")
 
-  local builder = ResourceBuilder:new("kubectl_apply")
+  local builder = manager.get_or_create("kubectl_apply")
 
   commands.shell_command_async("kubectl", { "diff", "-f", "-" }, function(data)
     builder.data = data
-    builder:splitData()
+    builder.splitData()
     vim.schedule(function()
       local win_config
       builder.buf_nr, win_config = buffers.confirmation_buffer("Apply " .. file_name .. "?", "diff", function(confirm)
@@ -137,7 +137,7 @@ function M.apply()
       local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
 
       table.insert(builder.data, padding .. confirmation)
-      builder:setContentRaw()
+      builder.displayContentRaw()
     end)
   end, nil, nil, { stdin = content })
 end
