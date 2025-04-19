@@ -16,6 +16,30 @@ local function create_buffer(bufname, buftype)
   return buf
 end
 
+--- Returns a list of window IDs that are currently showing a buffer
+--- with the given name. If no such buffer exists, returns an empty table.
+---@param bufname string
+---@return number[] window_ids
+function M.get_windows_by_name(bufname)
+  -- Step 1: Find the buffer number for the given name (if it exists).
+  local bufnr = vim.fn.bufnr(bufname, false)
+  if bufnr == -1 then
+    -- Buffer with that name does not exist, so no windows will have it.
+    return {}
+  end
+
+  -- Step 2: Iterate over all windows, collecting those that have bufnr loaded.
+  local matching_wins = {}
+  for _, winid in ipairs(vim.api.nvim_list_wins()) do
+    local win_bufnr = vim.api.nvim_win_get_buf(winid)
+    if win_bufnr == bufnr then
+      table.insert(matching_wins, winid)
+    end
+  end
+  return matching_wins
+end
+
+
 --- Gets buffer number by name
 --- @param bufname string: The name of the buffer
 --- @return integer|nil: The buffer number
