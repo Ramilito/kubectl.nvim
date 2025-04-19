@@ -4,10 +4,11 @@ local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
-local pf_definition = require("kubectl.views.port_forwards.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
+local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
@@ -269,6 +270,51 @@ function M.PortForwards()
     vim.cmd.fclose()
     vim.api.nvim_input("<Plug>(kubectl.refresh)")
   end, { buffer = self.buf_nr, silent = true })
+end
+
+function M.Header()
+  if not config.options.headers then
+    return
+  end
+
+  local function refresh_header()
+    local builder = manager.get_or_create("header")
+    builder.buf_nr, builder.win_nr = buffers.header_buffer()
+
+    local current_win = vim.api.nvim_get_current_win()
+    local ok, win_config = pcall(vim.api.nvim_win_get_config, current_win)
+
+    if ok and (win_config.relative == "") then
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+
+      if view_ok then
+        builder.addHints(view.definition.hints, true, true)
+        buffers.set_content(builder.buf_nr, { content = builder.header.data, marks = builder.header.marks })
+      end
+    end
+  end
+
+  refresh_header()
+
+  vim.api.nvim_create_autocmd("User", {
+    pattern = "K8sDataLoaded",
+    callback = function()
+      refresh_header()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("BufEnter", {
+    pattern = "*",
+    callback = function(_)
+      local ft = vim.bo.filetype
+      if ft:match("^k8s_") then
+        vim.schedule(function()
+          refresh_header()
+        end)
+      end
+    end,
+  })
 end
 
 --- Execute a user command and handle the response

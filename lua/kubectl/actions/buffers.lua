@@ -39,7 +39,6 @@ function M.get_windows_by_name(bufname)
   return matching_wins
 end
 
-
 --- Gets buffer number by name
 --- @param bufname string: The name of the buffer
 --- @return integer|nil: The buffer number
@@ -85,7 +84,7 @@ function M.apply_marks(bufnr, marks, header)
   vim.schedule(function()
     if local_header and local_header.marks then
       for _, mark in ipairs(local_header.marks) do
-        pcall(api.nvim_buf_set_extmark,bufnr, ns_id, mark.row, mark.start_col, {
+        pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
           end_line = mark.row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
@@ -324,50 +323,46 @@ function M.floating_buffer(filetype, title, syntax, win)
   return buf, win
 end
 
-function M.header_buffer(header_win)
+function M.header_buffer()
   local bufname = "kubectl_header"
   local buf = M.get_buffer_by_name(bufname)
-
-  -- luacheck: ignore win
-  local win = header_win or nil
 
   if not buf then
     buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_name(buf, bufname)
     M.set_content(buf, { content = { "Loading..." } })
   end
-  local win_list = vim.fn.win_findbuf(buf)
+  local width = 100
+  local height = 5
 
-  if #win_list == 0 then
-    win = vim.api.nvim_open_win(buf, false, {
-      focusable = false, --TODO: Not working on non-floating https://github.com/neovim/neovim/issues/29365
-      split = "above",
-      height = 5,
-      style = "minimal",
-    })
-
-    -- Connect the exit to the main window exit
-    vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
-      -- buffer = buf,
-      callback = function(args)
-        vim.schedule(function()
-          for _, winid in ipairs(vim.api.nvim_list_wins()) do
-            local bufnr = vim.api.nvim_win_get_buf(winid)
-            local ft = vim.bo[bufnr].filetype
-            if ft:match("^k8s_") then
-              return -- Still an active k8s buffer, don't close anything
-            end
-          end
-
-          pcall(vim.api.nvim_win_close, win, true)
-          pcall(vim.api.nvim_buf_delete, buf, { force = true })
-          pcall(vim.api.nvim_del_autocmd, args.id)
-        end)
-      end,
-    })
-  else
-    win = win_list[1]
+  local total_lines = vim.o.lines
+  local row = total_lines - height - 1
+  if row < 0 then
+    row = 0
   end
+
+  local total_cols = vim.o.columns
+  local col = math.floor((total_cols - width) / 2)
+  if col < 0 then
+    col = 0
+  end
+
+  local win_opts = {
+    relative = "editor",
+    anchor = "NW",
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = "minimal",
+    border = "rounded",
+    focusable = false,
+    zindex = 50,
+  }
+
+  local win = vim.api.nvim_open_win(buf, false, win_opts)
+  vim.api.nvim_set_option_value("winblend", 50, { win = win })
+  win = vim.api.nvim_open_win(buf, false, win_opts)
 
   return buf, win
 end

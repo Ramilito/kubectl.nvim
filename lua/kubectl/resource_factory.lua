@@ -1,7 +1,7 @@
-local buffers     = require("kubectl.actions.buffers")
-local commands    = require("kubectl.actions.commands")
-local state       = require("kubectl.state")
-local tables      = require("kubectl.utils.tables")
+local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
+local state = require("kubectl.state")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -12,18 +12,18 @@ function M.new(resource)
   local builder = {}
 
   -- Basic fields
-  builder.resource      = resource
-  builder.definition    = nil
-  builder.cmd           = nil
-  builder.args          = nil
-  builder.data          = nil
+  builder.resource = resource
+  builder.definition = nil
+  builder.cmd = nil
+  builder.args = nil
+  builder.data = nil
   builder.processedData = nil
-  builder.prettyData    = nil
-  builder.extmarks      = nil
-  builder.extmarks_extra= nil
-  builder.header        = { data = nil, marks = nil }
-  builder.win_nr        = nil
-  builder.buf_nr        = nil
+  builder.prettyData = nil
+  builder.extmarks = nil
+  builder.extmarks_extra = nil
+  builder.header = { data = nil, marks = nil }
+  builder.win_nr = nil
+  builder.buf_nr = nil
 
   ---------------------------------------------------------------------------
   -- LOW-LEVEL UTILITY METHODS
@@ -31,7 +31,7 @@ function M.new(resource)
 
   function builder.setCmd(args, cmd, contentType)
     local url = require("kubectl.utils.url")
-    builder.cmd  = cmd or "kubectl"
+    builder.cmd = cmd or "kubectl"
     builder.args = url.build(args)
     if builder.cmd == "curl" then
       builder.args = url.addHeaders(builder.args, contentType)
@@ -45,17 +45,12 @@ function M.new(resource)
   end
 
   function builder.fetchAsync(on_exit, on_stdout, on_stderr, opts)
-    commands.shell_command_async(
-      builder.cmd,
-      builder.args,
-      function(result)
-        builder.data = result
-        if on_exit then on_exit(builder) end
-      end,
-      on_stdout,
-      on_stderr,
-      opts
-    )
+    commands.shell_command_async(builder.cmd, builder.args, function(result)
+      builder.data = result
+      if on_exit then
+        on_exit(builder)
+      end
+    end, on_stdout, on_stderr, opts)
     return builder
   end
 
@@ -98,12 +93,24 @@ function M.new(resource)
 
   function builder.prettyPrint(win_nr)
     local sort_info = state.sortby[builder.resource]
-    local headers   = {}
+    local headers = {}
     if builder.definition and builder.definition.headers then
       headers = builder.definition.headers
     end
-    builder.prettyData, builder.extmarks =
-      tables.pretty_print(builder.processedData, headers, sort_info, win_nr)
+    builder.prettyData, builder.extmarks = tables.pretty_print(builder.processedData, headers, sort_info, win_nr)
+    return builder
+  end
+
+  function builder.addHints(hints, include_defaults, include_context)
+    local hints_copy = {}
+    if hints then
+      for index, value in ipairs(hints) do
+        hints_copy[index] = value
+      end
+    end
+
+    builder.header.data, builder.header.marks = tables.generateHeader(hints_copy, include_defaults, include_context)
+
     return builder
   end
 
@@ -122,8 +129,8 @@ function M.new(resource)
 
     builder.header.divider_winbar = tables.generateDividerWinbar({
       resource = builder.resource,
-      count    = count,
-      filter   = filter_str,
+      count = count,
+      filter = filter_str,
     }, builder.win_nr)
 
     return builder
@@ -142,8 +149,8 @@ function M.new(resource)
     end
     buffers.set_content(builder.buf_nr, {
       content = builder.data,
-      marks   = builder.extmarks,
-      header  = builder.header,
+      marks = builder.extmarks,
+      header = builder.header,
     })
     return builder
   end
@@ -161,12 +168,11 @@ function M.new(resource)
       -- Normal window
       buffers.set_content(builder.buf_nr, {
         content = builder.prettyData,
-        marks   = builder.extmarks,
-        header  = {},
+        marks = builder.extmarks,
+        header = {},
       })
       vim.defer_fn(function()
-        pcall(vim.api.nvim_set_option_value, "winbar", builder.header.divider_winbar,
-              { scope = "local", win = win_nr })
+        pcall(vim.api.nvim_set_option_value, "winbar", builder.header.divider_winbar, { scope = "local", win = win_nr })
       end, 10)
     elseif ok then
       -- Floating window
@@ -175,8 +181,8 @@ function M.new(resource)
       end
       buffers.set_content(builder.buf_nr, {
         content = builder.prettyData,
-        marks   = builder.extmarks,
-        header  = builder.header,
+        marks = builder.extmarks,
+        header = builder.header,
       })
     else
       return nil
@@ -215,14 +221,16 @@ function M.new(resource)
 
   function builder.draw(cancellationToken)
     local definition = builder.definition or {}
-    local resource   = builder.resource
-    local namespace  = (state.ns and state.ns ~= "All") and state.ns or nil
-    local filter     = state.getFilter()
-    local sort_data  = state.sortby[resource]
-    local sort_by    = sort_data and sort_data.current_word or ""
+    local resource = builder.resource
+    local namespace = (state.ns and state.ns ~= "All") and state.ns or nil
+    local filter = state.getFilter()
+    local sort_data = state.sortby[resource]
+    local sort_by = sort_data and sort_data.current_word or ""
     local sort_order = sort_data and sort_data.order or ""
 
-    commands.run_async("get_table_async", { definition.gvk.k, namespace, sort_by, sort_order, filter },
+    commands.run_async(
+      "get_table_async",
+      { definition.gvk.k, namespace, sort_by, sort_order, filter },
       function(data, err)
         if err then
           return
@@ -241,8 +249,11 @@ function M.new(resource)
             end
             local windows = buffers.get_windows_by_name(resource)
             for _, win_id in ipairs(windows) do
-              builder.prettyPrint(win_id).addDivider(true)
+              builder.prettyPrint(win_id).addDivider(true).addHints(definition.hints, true, true)
               builder.displayContent(win_id, cancellationToken)
+              vim.schedule(function()
+                vim.cmd("doautocmd User K8sDataLoaded")
+              end)
             end
           end)
         end

@@ -6,7 +6,7 @@ local M = {}
 ---@field terminal_cmd string?
 ---@field namespace string
 ---@field namespace_fallback string[]
----@field headers boolean
+---@field headers {enabled: boolean, hints: boolean, context: boolean, heartbeat: boolean}
 ---@field hints boolean
 ---@field context boolean
 ---@field heartbeat boolean
@@ -33,15 +33,14 @@ local defaults = {
   terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {},
-  headers = true,
-
-  -- only relevant if headers is true
-  hints = true,
-  context = true,
-  heartbeat = true,
-
+  headers = {
+    enabled = true,
+    hints = true,
+    context = true,
+    heartbeat = true,
+  },
   lineage = {
-    enabled = false,
+    enabled = true,
   },
   completion = {
     follow_cursor = false,

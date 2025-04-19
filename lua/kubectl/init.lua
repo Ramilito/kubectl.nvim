@@ -1,4 +1,5 @@
 local cache = require("kubectl.cache")
+local config = require("kubectl.config")
 local ctx_view = require("kubectl.views.contexts")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
@@ -11,9 +12,15 @@ local M = {
 --- Open the kubectl view
 function M.open()
   local hl = require("kubectl.actions.highlight")
+
   local client = require("kubectl.client")
   client.set_implementation()
+
   hl.setup()
+
+  if config.options.headers then
+    view.Header()
+  end
   state.setup()
   cache.LoadFallbackData()
 end
