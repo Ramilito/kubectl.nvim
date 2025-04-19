@@ -1,4 +1,3 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
@@ -97,7 +96,7 @@ end
 function M.Picker()
   vim.cmd("fclose!")
 
-  local self = ResourceBuilder:new("Picker")
+  local self = manager.get_or_create("Picker")
   local data = {}
 
   for id, value in pairs(state.buffers) do
@@ -123,11 +122,12 @@ function M.Picker()
   self.data = data
   self.processedData = self.data
 
-  self:addHints({
+  self.addHints({
     { key = "<Plug>(kubectl.kill)", desc = "kill" },
     { key = "<Plug>(kubectl.select)", desc = "select" },
   }, false, false, false)
-  self:displayFloatFit("k8s_picker", "Picker")
+
+  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_picker", "Picker", nil, nil)
   self.prettyData, self.extmarks = tables.pretty_print(
     self.processedData,
     { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" },
@@ -162,14 +162,14 @@ function M.Picker()
       end
     end,
   })
-  self:setContent()
+  self.displayContent(self.win_nr)
   vim.schedule(function()
     mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
   end)
 end
 
 function M.Aliases()
-  local self = ResourceBuilder:new("aliases")
+  local self = manager.get_or_create("aliases")
   local viewsTable = require("kubectl.utils.viewsTable")
   self.data = cache.cached_api_resources.values
   self:splitData():decodeJson()
@@ -259,7 +259,7 @@ end
 -- @function PortForwards
 -- @return nil
 function M.PortForwards()
-  local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
+  local self = manager.get_or_create("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
   self.data = pf_definition.getPFRows()
   self.extmarks = {}
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
@@ -320,15 +320,16 @@ end
 --- Execute a user command and handle the response
 ---@param args table
 function M.UserCmd(args)
-  ResourceBuilder:new("k8s_usercmd"):setCmd(args, "kubectl"):fetchAsync(function(self)
+  local builder = manager.get_or_create("k8s_usercmd")
+  builder.setCmd(args, "kubectl").fetchAsync(function(self)
     if self.data == "" then
       return
     end
-    self:splitData()
+    self.splitData()
     self.prettyData = self.data
 
     vim.schedule(function()
-      self:display("k8s_usercmd", "UserCmd"):setContent()
+      self.display("k8s_usercmd", "UserCmd").setContent()
     end)
   end)
 end

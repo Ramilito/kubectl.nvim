@@ -1,9 +1,9 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.namespace.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 
 local resource = "namespaces"
@@ -24,12 +24,14 @@ local M = {
 }
 
 function M.View()
-  local buf = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
+  local buf, win = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
     M.changeNamespace(input)
   end, { header = { data = {} }, prompt = true })
 
-  local self = ResourceBuilder:new(M.definition.resource)
-  self.definition = M.definition
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.definition = M.definition
+  builder.buf_nr = buf
+  builder.win_nr = win
 
   commands.run_async(
     "start_reflector_async",
@@ -39,13 +41,13 @@ function M.View()
         "get_all_async",
         { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
         function(data, _)
-          self.data = data
-          self:decodeJson()
+          builder.data = data
+          builder.decodeJson()
           vim.schedule(function()
-            self.buf_nr = buf
-            self:process(definition.processRow, true):prettyPrint():setContent()
+            builder.process(definition.processRow, true).prettyPrint()
+						builder.displayContent(builder.win_nr)
             local list = { { name = "All" } }
-            for _, value in ipairs(self.processedData) do
+            for _, value in ipairs(builder.processedData) do
               if value.name.value then
                 table.insert(M.namespaces, value.name.value)
                 table.insert(list, { name = value.name.value })
