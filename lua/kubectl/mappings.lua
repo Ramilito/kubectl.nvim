@@ -269,9 +269,9 @@ function M.get_mappings()
         }
         commands.run_async("fetch_async", {
           def.gvk.k,
-					nil,
-					nil,
-					def.name,
+          nil,
+          nil,
+          def.name,
           def.ns,
           "Yaml",
         }, function(data)
@@ -308,14 +308,15 @@ function M.get_mappings()
       mode = "n",
       desc = "Toggle headers",
       callback = function()
-        config.options.headers = not config.options.headers
-        if not config.options.headers then
+        config.options.headers.enabled = not config.options.headers.enabled
+        if not config.options.headers.enabled then
           local bufnr = buffers.get_buffer_by_name("kubectl_header")
           if bufnr then
-            vim.api.nvim_buf_delete(bufnr, { force = false })
+            vim.api.nvim_buf_delete(bufnr, { force = true })
           end
+        else
+          pcall(require("kubectl.views").Header)
         end
-        pcall(require("kubectl.views").Redraw)
       end,
     },
     ["<Plug>(kubectl.alias_view)"] = {

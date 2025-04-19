@@ -212,6 +212,7 @@ function M.new(resource)
         end
         vim.schedule(function()
           builder.draw(cancellationToken)
+          vim.cmd("doautocmd User K8sDataLoaded")
         end)
       end
     )
@@ -221,7 +222,6 @@ function M.new(resource)
 
   function builder.draw(cancellationToken)
     local definition = builder.definition or {}
-    local resource = builder.resource
     local namespace = (state.ns and state.ns ~= "All") and state.ns or nil
     local filter = state.getFilter()
     local sort_data = state.sortby[resource]
@@ -251,9 +251,6 @@ function M.new(resource)
             for _, win_id in ipairs(windows) do
               builder.prettyPrint(win_id).addDivider(true).addHints(definition.hints, true, true)
               builder.displayContent(win_id, cancellationToken)
-              vim.schedule(function()
-                vim.cmd("doautocmd User K8sDataLoaded")
-              end)
             end
           end)
         end
