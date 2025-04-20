@@ -1,6 +1,6 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.nodes.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -31,15 +31,19 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(M.definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+  if builder then
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.Drain(node)
-  local builder = ResourceBuilder:new("kubectl_drain")
+  local builder = manager.get(M.definition.resource)
   local node_def = {
     ft = "k8s_action",
     display = "Drain node: " .. node .. "?",
@@ -70,14 +74,15 @@ function M.Drain(node)
       type = "option",
     },
   }
-
-  builder:action_view(node_def, data, function(args)
-    commands.shell_command_async("kubectl", args, function(response)
-      vim.schedule(function()
-        vim.notify(response)
+  if builder then
+    builder.action_view(node_def, data, function(args)
+      commands.shell_command_async("kubectl", args, function(response)
+        vim.schedule(function()
+          vim.notify(response)
+        end)
       end)
     end)
-  end)
+  end
 end
 
 function M.UnCordon(node)
@@ -90,13 +95,15 @@ end
 
 function M.Desc(node, _, reload)
   local def = {
-    resource = "nodes |" .. node,
+    resource = M.definition.resource .. "_desc",
+    display_name = "nodes |" .. node,
     ft = "k8s_desc",
     syntax = "yaml",
     cmd = "describe_async",
   }
 
-  ResourceBuilder:view_float(def, {
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
     args = {
       state.context["current-context"],
       M.definition.resource,
