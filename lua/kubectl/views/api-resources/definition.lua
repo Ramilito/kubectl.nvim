@@ -9,8 +9,8 @@ function M.processRow(rows)
     table.insert(data, {
       name = v.plural,
       shortnames = "",
-			apiversion = v.api_version,
-      kind = v.gvk.k,
+      apiversion = v.api_version,
+      kind = v.gvk and v.gvk.k or "",
       namespaced = v.namespaced,
     })
   end

@@ -1,4 +1,4 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -23,20 +23,28 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(M.definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+
+  if builder then
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.Desc(name, _, reload)
-  ResourceBuilder:view_float({
-    resource = M.definition.resource .. " | " .. name,
+  local def = {
+    resource = M.definition.resource .. "_desc",
+    display_name = M.definition.resource .. " | " .. name,
     ft = "k8s_desc",
     syntax = "yaml",
     cmd = "describe_async",
-  }, {
+  }
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
     args = {
       state.context["current-context"],
       M.definition.resource,
