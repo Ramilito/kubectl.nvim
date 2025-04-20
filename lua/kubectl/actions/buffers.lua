@@ -362,7 +362,6 @@ function M.header_buffer()
 
   local win = vim.api.nvim_open_win(buf, false, win_opts)
   vim.api.nvim_set_option_value("winblend", 20, { win = win })
-  win = vim.api.nvim_open_win(buf, false, win_opts)
 
   return buf, win
 end

@@ -276,6 +276,12 @@ function M.Header()
   if not config.options.headers then
     return
   end
+  vim.api.nvim_create_augroup("kubectl_header", { clear = true })
+
+  local ui = vim.api.nvim_list_uis()[1] -- current UI size
+  local height = 10
+  local row = ui.height - height
+  local headerVisible = true
 
   local function refresh_header()
     local builder = manager.get_or_create("header")
@@ -291,6 +297,8 @@ function M.Header()
       if view_ok then
         builder.addHints(view.definition.hints, true, true)
         buffers.set_content(builder.buf_nr, { content = builder.header.data, marks = builder.header.marks })
+        height = #builder.header.data + 4
+        row = ui.height - height
       end
     end
   end
@@ -298,6 +306,7 @@ function M.Header()
   refresh_header()
 
   vim.api.nvim_create_autocmd("User", {
+    group = "kubectl_header",
     pattern = "K8sDataLoaded",
     callback = function()
       refresh_header()
@@ -305,6 +314,7 @@ function M.Header()
   })
 
   vim.api.nvim_create_autocmd("BufEnter", {
+    group = "kubectl_header",
     pattern = "*",
     callback = function(_)
       local ft = vim.bo.filetype
@@ -312,6 +322,35 @@ function M.Header()
         vim.schedule(function()
           refresh_header()
         end)
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+    group = "kubectl_header",
+    callback = function()
+      local curwin = vim.api.nvim_get_current_win()
+      local curpos = vim.api.nvim_win_get_cursor(curwin)
+      local screenpos = vim.fn.screenpos(curwin, curpos[1], curpos[2] + 1)
+      local cursor_row = screenpos.row
+
+      local float_top = row + 1
+      local float_bottom = float_top + height - 1
+      local overlapping = (cursor_row >= float_top and cursor_row <= float_bottom)
+
+      local builder = manager.get("header")
+      if not builder then
+        return
+      end
+
+      if overlapping and headerVisible then
+        vim.schedule(function()
+          pcall(vim.api.nvim_buf_delete, builder.buf_nr, { force = true })
+        end)
+        headerVisible = false
+      elseif (not overlapping) and not headerVisible then
+        refresh_header()
+        headerVisible = true
       end
     end,
   })

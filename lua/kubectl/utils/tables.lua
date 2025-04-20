@@ -344,6 +344,7 @@ function M.generateHeader(headers, include_defaults, include_context)
       { key = "<Plug>(kubectl.filter_view)", desc = "filter" },
       { key = "<Plug>(kubectl.namespace_view)", desc = "namespace" },
       { key = "<Plug>(kubectl.help)", desc = "help", sort_order = 100 },
+			{ key = "<Plug>(kubectl.toggle_headers)", desc = "toggle", sort_order = 200 },
     }
     for _, default in ipairs(defaults) do
       table.insert(headers, default)

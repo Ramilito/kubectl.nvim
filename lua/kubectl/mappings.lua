@@ -314,6 +314,7 @@ function M.get_mappings()
           local bufnr = buffers.get_buffer_by_name("kubectl_header")
           if bufnr then
             vim.api.nvim_buf_delete(bufnr, { force = true })
+            manager.remove("header")
           end
         else
           pcall(require("kubectl.views").Header)
