@@ -332,7 +332,7 @@ function M.header_buffer()
     vim.api.nvim_buf_set_name(buf, bufname)
     M.set_content(buf, { content = { "Loading..." } })
   end
-  local width = 100
+  local width = 50
   local height = 5
 
   local total_lines = vim.o.lines
@@ -342,7 +342,7 @@ function M.header_buffer()
   end
 
   local total_cols = vim.o.columns
-  local col = math.floor((total_cols - width) / 2)
+  local col = math.floor((total_cols - width))
   if col < 0 then
     col = 0
   end
@@ -350,10 +350,10 @@ function M.header_buffer()
   local win_opts = {
     relative = "editor",
     anchor = "NW",
-    width = width,
+    width = col,
     height = height,
     row = row,
-    col = col,
+    col = total_cols,
     style = "minimal",
     border = "rounded",
     focusable = false,
@@ -362,6 +362,7 @@ function M.header_buffer()
 
   local win = vim.api.nvim_open_win(buf, false, win_opts)
   vim.api.nvim_set_option_value("winblend", 20, { win = win })
+  vim.api.nvim_set_option_value("wrap", true, { win = win })
 
   return buf, win
 end
