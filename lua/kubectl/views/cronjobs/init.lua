@@ -1,26 +1,70 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.cronjobs.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local resource = "cronjobs"
+
+local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "batch", v = "v1", k = "CronJob" },
+    hints = {
+      { key = "<Plug>(kubectl.create_job)", desc = "create", long_desc = "Create job from cronjob" },
+      { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
+      { key = "<Plug>(kubectl.suspend_cronjob)", desc = "suspend", long_desc = "Suspend/Unsuspend cronjob" },
+    },
+    headers = {
+      "NAMESPACE",
+      "NAME",
+      "SCHEDULE",
+      "SUSPEND",
+      "ACTIVE",
+      "LAST SCHEDULE",
+      "AGE",
+      "CONTAINERS",
+      "IMAGES",
+      "SELECTOR",
+    },
+    processRow = definition.processRow,
+  },
+}
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+  if builder then
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
-    resource = "cronjobs | " .. name .. " | " .. ns,
+  local def = {
+    resource = M.definition.resource .. "_desc",
+    display_name = "cronjobs | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "cronjob", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+  }
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      ns,
+      name,
+      M.definition.gvk.g,
+      M.definition.gvk.v,
+    },
+    reload = reload,
+  })
 end
 
 function M.create_from_cronjob(name, ns)
@@ -48,7 +92,7 @@ function M.create_from_cronjob(name, ns)
     },
   }
 
-  builder:action_view(create_def, data, function(args)
+  builder.action_view(create_def, data, function(args)
     commands.shell_command_async("kubectl", args, function(response)
       vim.schedule(function()
         vim.notify(response)

@@ -1,14 +1,4 @@
-local M = {
-  resource = "cronjobs",
-  display_name = "CronJobs",
-  ft = "k8s_cronjobs",
-  url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}cronjobs?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.create_job)", desc = "create", long_desc = "Create job from cronjob" },
-    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
-    { key = "<Plug>(kubectl.suspend_cronjob)", desc = "suspend", long_desc = "Suspend/Unsuspend cronjob" },
-  },
-}
+local M = {}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 local function getActive(row)
@@ -50,12 +40,12 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  if rows and rows.items then
-    for _, row in pairs(rows.items) do
+  if rows then
+    for _, row in pairs(rows) do
       local cronjob = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
@@ -73,23 +63,6 @@ function M.processRow(rows)
     end
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "SCHEDULE",
-    "SUSPEND",
-    "ACTIVE",
-    "LAST SCHEDULE",
-    "AGE",
-    "CONTAINERS",
-    "IMAGES",
-    "SELECTOR",
-  }
-
-  return headers
 end
 
 return M
