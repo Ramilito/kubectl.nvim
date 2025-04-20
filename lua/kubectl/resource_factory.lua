@@ -86,6 +86,7 @@ function M.new(resource)
     end
     return builder
   end
+
   function builder.sort()
     local sortby = state.sortby[builder.resource]
     if sortby == nil then

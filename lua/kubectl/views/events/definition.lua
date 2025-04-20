@@ -1,14 +1,6 @@
 local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
-local M = {
-  resource = "events",
-  display_name = "Events",
-  ft = "k8s_events",
-  url = { "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.select)", desc = "message", long_desc = "Read message" },
-  },
-}
+local M = {}
 
 local function getLastSeen(row, currentTime)
   if row.lastTimestamp ~= vim.NIL then
@@ -35,13 +27,13 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
   local currentTime = time.currentTime()
 
-  for _, row in pairs(rows.items) do
+  for _, row in pairs(rows) do
     local pod = {
       namespace = row.metadata.namespace,
       ["last seen"] = getLastSeen(row, currentTime),
@@ -55,20 +47,6 @@ function M.processRow(rows)
     table.insert(data, pod)
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "LAST SEEN",
-    "TYPE",
-    "REASON",
-    "OBJECT",
-    "COUNT",
-    "MESSAGE",
-  }
-
-  return headers
 end
 
 return M
