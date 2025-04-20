@@ -1,14 +1,17 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.containers.definition")
+local manager = require("kubectl.resource_manager")
 local pod_view = require("kubectl.views.pods")
+
+local resource = "containers"
 
 local M = {
   selection = {},
   definition = {
-    ft = "k8s_" .. "containers",
+    resource = resource,
+    ft = "k8s_" .. resource,
     gvk = { g = pod_view.definition.gvk.g, v = pod_view.definition.gvk.v, k = pod_view.definition.gvk.k },
     headers = {
       "NAME",
@@ -37,11 +40,10 @@ function M.selectContainer(name)
 end
 
 function M.View(pod, ns)
-  M.definition.display_name = pod
-  M.definition.resource = "pods | " .. pod .. " | " .. ns
+  M.definition.display_name = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
-
-  ResourceBuilder:view_float(M.definition, { args = { gvk.k, ns, pod, "json" } })
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view_float(M.definition, { args = { gvk.k, ns, pod, "json" } })
 end
 
 function M.exec(pod, ns)
@@ -61,14 +63,15 @@ function M.exec(pod, ns)
 end
 
 function M.debug(pod, ns)
-  local builder = ResourceBuilder:new("kubectl_debug")
-
-  local debug_def = {
+  local def = {
+    resource = "kubectl_debug",
     ft = "k8s_action",
     display = "Debug: " .. pod .. "-" .. M.selection .. "?",
-    resource = pod,
     cmd = { "debug", pod, "-n", ns },
   }
+
+  local builder = manager.get_or_create(def.resource)
+
   local data = {
     { text = "name:", value = M.selection .. "-debug", cmd = "-c", type = "option" },
     { text = "image:", value = "busybox", cmd = "--image", type = "option" },
@@ -77,9 +80,9 @@ function M.debug(pod, ns)
     { text = "shell:", value = "/bin/sh", options = { "/bin/sh", "/bin/bash" }, cmd = "--", type = "positional" },
   }
 
-  builder:action_view(debug_def, data, function(args)
+  builder.action_view(def, data, function(args)
     vim.schedule(function()
-      buffers.floating_buffer(debug_def.ft, "debug " .. M.selection)
+      buffers.floating_buffer(def.ft, "debug " .. M.selection)
       commands.execute_terminal("kubectl", args)
     end)
   end)

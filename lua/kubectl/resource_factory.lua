@@ -86,6 +86,50 @@ function M.new(resource)
     end
     return builder
   end
+  function builder.sort()
+    local sortby = state.sortby[builder.resource]
+    if sortby == nil then
+      return builder
+    end
+    local word = string.lower(sortby.current_word)
+    if word == "" then
+      return builder
+    end
+
+    table.sort(builder.processedData, function(a, b)
+      if sortby then
+        local valueA = a[word]
+        local valueB = b[word]
+
+        if valueA and valueB then
+          local comp
+          if sortby.order == "asc" then
+            comp = function(x, y)
+              return x < y
+            end
+          else
+            comp = function(x, y)
+              return x > y
+            end
+          end
+          if type(valueA) == "table" and type(valueB) == "table" then
+            if valueA.sort_by and valueB.sort_by then
+              return comp(valueA.sort_by, valueB.sort_by)
+            else
+              return comp(tostring(valueA.value), tostring(valueB.value))
+            end
+          elseif tonumber(valueA) and tonumber(valueB) then
+            return comp(valueA, valueB)
+          else
+            return comp(tostring(valueA), tostring(valueB))
+          end
+        end
+      end
+      return false
+    end)
+
+    return builder
+  end
 
   ---------------------------------------------------------------------------
   -- PRETTY PRINT & DIVIDER
@@ -272,12 +316,14 @@ function M.new(resource)
       builder.decodeJson()
       vim.schedule(function()
         if definition.processRow then
-          builder.process(definition.processRow, true).sort().prettyPrint().addDivider(false)
-          builder.displayContent(builder.win_nr)
+          builder
+            .process(definition.processRow, true)
+            .sort()
+            .prettyPrint()
+            .addDivider(false)
+            .displayContent(builder.win_nr)
         else
-          builder.splitData()
-          builder.addDivider(false)
-          builder.displayContentRaw()
+          builder.splitData().addDivider(false).displayContentRaw()
         end
       end)
     end)
