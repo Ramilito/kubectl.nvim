@@ -273,7 +273,7 @@ function M.PortForwards()
 end
 
 function M.Header()
-  if not config.options.headers then
+  if not config.options.headers.enabled then
     return
   end
   vim.api.nvim_create_augroup("kubectl_header", { clear = true })
@@ -284,8 +284,11 @@ function M.Header()
   local headerVisible = true
 
   local function refresh_header()
+    if not config.options.headers.enabled then
+      return
+    end
     local builder = manager.get_or_create("header")
-    builder.buf_nr, builder.win_nr = buffers.header_buffer()
+    builder.buf_nr, builder.win_nr = buffers.header_buffer(builder.win_nr)
 
     local current_win = vim.api.nvim_get_current_win()
     local ok, win_config = pcall(vim.api.nvim_win_get_config, current_win)
@@ -301,6 +304,8 @@ function M.Header()
         row = ui.height - height
       end
     end
+
+    buffers.fit_to_content(builder.buf_nr, builder.win_nr, 2)
   end
 
   refresh_header()
@@ -342,7 +347,6 @@ function M.Header()
       if not builder then
         return
       end
-
       if overlapping and headerVisible then
         vim.schedule(function()
           pcall(vim.api.nvim_buf_delete, builder.buf_nr, { force = true })

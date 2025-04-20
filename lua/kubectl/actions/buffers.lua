@@ -323,7 +323,7 @@ function M.floating_buffer(filetype, title, syntax, win)
   return buf, win
 end
 
-function M.header_buffer()
+function M.header_buffer(win)
   local bufname = "kubectl_header"
   local buf = M.get_buffer_by_name(bufname)
 
@@ -360,7 +360,11 @@ function M.header_buffer()
     zindex = 50,
   }
 
-  local win = vim.api.nvim_open_win(buf, false, win_opts)
+  local _, is_valid = pcall(vim.api.nvim_win_is_valid, win)
+  if not win or not is_valid then
+    win = vim.api.nvim_open_win(buf, false, win_opts)
+  end
+
   vim.api.nvim_set_option_value("winblend", 20, { win = win })
   vim.api.nvim_set_option_value("wrap", true, { win = win })
 
