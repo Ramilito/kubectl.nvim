@@ -279,7 +279,7 @@ function M.Header()
   vim.api.nvim_create_augroup("kubectl_header", { clear = true })
 
   local ui = vim.api.nvim_list_uis()[1] -- current UI size
-  local height = 10
+  local height = 5
   local row = ui.height - height
   local headerVisible = true
 
@@ -301,12 +301,12 @@ function M.Header()
         local hints = view.definition and view.definition.hints or {}
         builder.addHints(hints, true, true)
         buffers.set_content(builder.buf_nr, { content = builder.header.data, marks = builder.header.marks })
-        height = #builder.header.data + 4
+        height = #builder.header.data + 1
         row = ui.height - height
       end
     end
 
-    buffers.fit_to_content(builder.buf_nr, builder.win_nr, 2)
+    buffers.fit_to_content(builder.buf_nr, builder.win_nr, 0)
   end
 
   refresh_header()
