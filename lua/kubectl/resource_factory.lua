@@ -5,7 +5,7 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
---- Create a new ResourceBuilder for the given `resource`.
+--- Create a new factory for the given `resource`.
 ---@param resource string  -- e.g., "pods", "deployments"
 ---@return table builder   -- the new builder object
 function M.new(resource)

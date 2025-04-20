@@ -298,7 +298,8 @@ function M.Header()
       local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
 
       if view_ok then
-        builder.addHints(view.definition.hints, true, true)
+        local hints = view.definition and view.definition.hints or {}
+        builder.addHints(hints, true, true)
         buffers.set_content(builder.buf_nr, { content = builder.header.data, marks = builder.header.marks })
         height = #builder.header.data + 4
         row = ui.height - height
