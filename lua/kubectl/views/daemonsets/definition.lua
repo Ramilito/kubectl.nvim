@@ -1,16 +1,7 @@
-local M = {
-  resource = "daemonsets",
-  display_name = "Daemonsets",
-  ft = "k8s_daemonsets",
-  url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}daemonsets?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected daemonset" },
-    { key = "<Plug>(kubectl.set_image)", desc = "image", long_desc = "Set image" },
-    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
-  },
-}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+local M = {}
 
 local function getNodeSelector(row)
   local ns = row.spec and row.spec.template and row.spec.template.spec.nodeSelector
@@ -30,11 +21,11 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
-  if rows and rows.items then
-    for _, row in pairs(rows.items) do
+  if rows then
+    for _, row in pairs(rows) do
       local status = row.status
 
       local pod = {
@@ -53,22 +44,6 @@ function M.processRow(rows)
     end
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "DESIRED",
-    "CURRENT",
-    "READY",
-    "UP-TO-DATE",
-    "AVAILABLE",
-    "NODE SELECTOR",
-    "AGE",
-  }
-
-  return headers
 end
 
 function M.getReady(row)
