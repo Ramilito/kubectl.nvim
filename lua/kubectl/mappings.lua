@@ -542,7 +542,7 @@ function M.register()
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
 
   if config.options.lineage.enabled then
-    M.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.lineage)")
+    M.map_if_plug_not_set("n", "gxx", "<Plug>(kubectl.lineage)")
   end
 end
 

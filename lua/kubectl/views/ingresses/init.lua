@@ -1,6 +1,6 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.ingresses.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -30,18 +30,26 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(M.definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+  if builder then
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.OpenBrowser(name, ns)
   commands.run_async("get_single_async", { M.definition.gvk.k, ns, name, nil }, function(data)
-    local builder = ResourceBuilder:new("ingress_browser")
+    local builder = manager.get_or_create(M.definition.resource .. "_browser")
+    if not builder then
+      return
+    end
+
     builder.data = data
-    builder:decodeJson()
+    builder.decodeJson()
     local port = ""
     if
       builder.data.spec.rules
@@ -84,12 +92,14 @@ end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = M.definition.resource .. " | " .. name .. " | " .. ns,
+    resource = M.definition.resource .. "_desc",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     cmd = "describe_async",
     syntax = "yaml",
   }
-  ResourceBuilder:view_float(def, {
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
     args = {
       state.context["current-context"],
       M.definition.resource,
