@@ -295,10 +295,10 @@ function M.Header()
 
     if ok and (win_config.relative == "") then
       local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-      local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+      local current_builder = manager.get(buf_name)
 
-      if view_ok then
-        local hints = view.definition and view.definition.hints or {}
+      if current_builder then
+        local hints = current_builder.definition and current_builder.definition.hints or {}
         builder.addHints(hints, true, true)
         buffers.set_content(builder.buf_nr, { content = builder.header.data, marks = builder.header.marks })
         height = #builder.header.data + 1

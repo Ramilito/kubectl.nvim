@@ -1,6 +1,7 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
 local commands = require("kubectl.actions.commands")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -41,31 +42,30 @@ function M.View(cancellationToken, kind)
   M.definition.plural = resource.plural
   M.definition.crd_name = resource.crd_name
 
-  local instance = ResourceBuilder:new(M.definition.resource)
-  instance.definition = M.definition
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.definition = M.definition
+
+  builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, builder.resource)
 
   commands.run_async(
     "start_reflector_async",
     { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
     function()
       vim.schedule(function()
-        instance:display(M.definition.ft, M.definition.resource, cancellationToken)
         M.Draw(cancellationToken)
+        vim.cmd("doautocmd User K8sDataLoaded")
         state.selections = {}
       end)
-      state.instance[M.definition.resource] = nil
-      state.instance[M.definition.resource] = instance
     end
   )
 end
 
 function M.Draw(cancellationToken)
-  if not state.instance[M.definition.resource] then
+  local builder = manager.get(M.definition.resource)
+
+  if not builder then
     return
   end
-
-  local instance = state.instance[M.definition.resource]
-  instance.definition = M.definition
 
   local ns = nil
   if state.ns and state.ns ~= "All" then
@@ -73,26 +73,24 @@ function M.Draw(cancellationToken)
   end
 
   local filter = state.getFilter()
-  local sort_by = state.sortby[instance.definition.resource].current_word
-  local sort_order = state.sortby[instance.definition.resource].order
+  local sort_by = state.sortby[builder.definition.resource].current_word
+  local sort_order = state.sortby[builder.definition.resource].order
 
   commands.run_async(
     "get_fallback_table_async",
-    { M.definition.crd_name, ns, sort_by, sort_order, filter },
+    { builder.definition.crd_name, ns, sort_by, sort_order, filter },
     function(result)
-      instance.data = result
-      instance:decodeJson()
-      instance.processedData = instance.data.rows
-      instance.definition.headers = instance.data.headers
-      M.definition.headers = instance.data.headers
+      builder.data = result
+      builder.decodeJson()
+      builder.processedData = builder.data.rows
+      builder.definition.headers = builder.data.headers
 
       vim.schedule(function()
-        instance:display(M.definition.ft, M.definition.resource, cancellationToken)
-        instance:prettyPrint():addHints(M.definition.hints, true, true, true)
-        instance:setContent(cancellationToken)
-        instance:draw_header(cancellationToken)
-        state.instance[M.definition.resource] = nil
-        state.instance[M.definition.resource] = instance
+        local windows = buffers.get_windows_by_name(builder.definition.resource)
+        for _, win_id in ipairs(windows) do
+          builder.prettyPrint(win_id).addDivider(true).addHints(builder.definition.hints, true, true)
+          builder.displayContent(win_id, cancellationToken)
+        end
       end)
     end
   )
@@ -110,7 +108,8 @@ function M.Desc(name, ns, reload)
     def.resource = def.resource .. " | " .. ns
   end
 
-  ResourceBuilder:view_float(def, {
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
     args = {
       state.context["current-context"],
       M.definition.plural,
