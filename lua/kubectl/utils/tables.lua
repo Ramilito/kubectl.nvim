@@ -589,13 +589,16 @@ function M.getCurrentSelection(...)
     table.insert(results, trimmed)
   end
 
+
   return unpack(results)
 end
 
 function M.find_index(haystack, needle)
-  for index, value in ipairs(haystack) do
-    if value == needle then
-      return index
+  if haystack then
+    for index, value in ipairs(haystack) do
+      if value == needle then
+        return index
+      end
     end
   end
   return nil -- Return nil if the needle is not found

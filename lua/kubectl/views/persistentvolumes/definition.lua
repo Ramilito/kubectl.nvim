@@ -1,11 +1,6 @@
 local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
-local M = {
-  resource = "pv",
-  display_name = "PersistentVolumes",
-  ft = "k8s_pv",
-  url = { "{{BASE}}/api/v1/persistentvolumes?pretty=false" },
-}
+local M = {}
 
 local function getAccessModes(data)
   local modes = {}
@@ -35,11 +30,11 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  for _, row in ipairs(rows.items) do
+  for _, row in ipairs(rows) do
     local pod = {
       name = row.metadata.name,
       capacity = row.spec.capacity.storage,
@@ -55,22 +50,6 @@ function M.processRow(rows)
     table.insert(data, pod)
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAME",
-    "CAPACITY",
-    "ACCESS MODES",
-    "RECLAIM POLICY",
-    "STATUS",
-    "CLAIM",
-    "STORAGE CLASS",
-    "REASON",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M

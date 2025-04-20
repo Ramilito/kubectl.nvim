@@ -236,7 +236,7 @@ end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = "pod_desc",
+    resource = M.definition.resource .. "_desc",
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     syntax = "yaml",

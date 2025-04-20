@@ -28,7 +28,7 @@ local M = {
 function M.View(cancellationToken)
   local builder = manager.get_or_create(M.definition.resource)
   builder.buf_nr, builder.win_nr = buffers.buffer(M.definition.ft, builder.resource)
-	builder.definition = M.definition
+  builder.definition = M.definition
   M.Draw(cancellationToken)
 end
 
@@ -46,6 +46,10 @@ function M.Draw(cancellationToken)
       builder.displayContent(win_id, cancellationToken)
     end
   end
+end
+
+function M.Desc(_, _, _)
+	return nil
 end
 
 --- Get current seletion for view
