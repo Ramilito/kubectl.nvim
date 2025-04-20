@@ -92,17 +92,21 @@ function M.get_plug_mappings(headers)
   local keymaps = vim.fn.maplist()
 
   for _, header in ipairs(headers) do
-    header_lookup[header.key] = { desc = header.desc, long_desc = header.long_desc, sort_order = header.sort_order }
+    header_lookup[header.key] =
+      { desc = header.desc, long_desc = header.long_desc, sort_order = header.sort_order, global = header.global }
   end
 
   -- Iterate over keymaps and check if they match any header key
   for _, keymap in ipairs(keymaps) do
     local header = header_lookup[keymap.rhs]
     if header then
-      table.insert(
-        keymaps_table,
-        { key = keymap.lhs, desc = header.desc, long_desc = header.long_desc, sort_order = header.sort_order }
-      )
+      table.insert(keymaps_table, {
+        key = keymap.lhs,
+        desc = header.desc,
+        long_desc = header.long_desc,
+        sort_order = header.sort_order,
+        global = header.global,
+      })
     end
   end
 
@@ -129,28 +133,37 @@ function M.add_mark(extmarks, row, start_col, end_col, hl_group)
   table.insert(extmarks, { row = row, start_col = start_col, end_col = end_col, hl_group = hl_group })
 end
 
---- Add a header row to the hints and marks tables
 ---@param headers table[]
 ---@param hints table[]
 ---@param marks table[]
 local function addHeaderRow(headers, hints, marks)
-  local hint_line = "Hints: "
-  local length = #hint_line
-  M.add_mark(marks, #hints, 0, length, hl.symbols.success)
+  local function appendMapToLine(line, map, hintIndex)
+    local lineStart = #line
+    line = line .. map.key .. " " .. map.desc
+    local DIVIDER = " | "
+    line = line .. DIVIDER
+    local lineEnd = #line
 
-  local keymaps = M.get_plug_mappings(headers)
-  for index, map in ipairs(keymaps) do
-    length = #hint_line
-    hint_line = hint_line .. map.key .. " " .. map.desc
-    if index < #keymaps then
-      local divider = " | "
-      hint_line = hint_line .. divider
-      M.add_mark(marks, #hints, #hint_line - #divider, #hint_line, hl.symbols.success)
-    end
-    M.add_mark(marks, #hints, length, length + #map.key, hl.symbols.pending)
+    M.add_mark(marks, hintIndex, lineEnd - #DIVIDER, lineEnd, hl.symbols.success)
+    M.add_mark(marks, hintIndex, lineStart, lineStart + #map.key, hl.symbols.pending)
+
+    return line
   end
 
-  table.insert(hints, hint_line .. "\n")
+  local localHintLine = "Hints: "
+  local globalHintLine = (" "):rep(#localHintLine)
+
+  M.add_mark(marks, #hints, 0, #localHintLine, hl.symbols.success)
+  local keymaps = M.get_plug_mappings(headers)
+  for _, map in ipairs(keymaps) do
+    if map.global then
+      globalHintLine = appendMapToLine(globalHintLine, map, #hints + 1)
+    else
+      localHintLine = appendMapToLine(localHintLine, map, #hints)
+    end
+  end
+  table.insert(hints, localHintLine .. "\n")
+  table.insert(hints, globalHintLine .. "\n")
 end
 
 --- Adds the heartbeat element
@@ -339,12 +352,12 @@ function M.generateHeader(headers, include_defaults, include_context)
 
   if include_defaults then
     local defaults = {
-      { key = "<Plug>(kubectl.refresh)", desc = "reload" },
-      { key = "<Plug>(kubectl.alias_view)", desc = "aliases" },
-      { key = "<Plug>(kubectl.filter_view)", desc = "filter" },
-      { key = "<Plug>(kubectl.namespace_view)", desc = "namespace" },
-      { key = "<Plug>(kubectl.help)", desc = "help", sort_order = 100 },
-			{ key = "<Plug>(kubectl.toggle_headers)", desc = "toggle", sort_order = 200 },
+      { key = "<Plug>(kubectl.refresh)", desc = "reload", global = true },
+      { key = "<Plug>(kubectl.alias_view)", desc = "aliases", global = true },
+      { key = "<Plug>(kubectl.filter_view)", desc = "filter", global = true },
+      { key = "<Plug>(kubectl.namespace_view)", desc = "namespace", global = true },
+      { key = "<Plug>(kubectl.help)", desc = "help", global = true, sort_order = 100 },
+      { key = "<Plug>(kubectl.toggle_headers)", desc = "toggle", global = true, sort_order = 200 },
     }
     for _, default in ipairs(defaults) do
       table.insert(headers, default)
