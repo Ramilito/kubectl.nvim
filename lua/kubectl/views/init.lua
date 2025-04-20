@@ -259,11 +259,14 @@ end
 -- @function PortForwards
 -- @return nil
 function M.PortForwards()
-  local self = manager.get_or_create("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
+  local resource = "port_forwards"
+  local self = manager.get_or_create(resource)
+
+  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
   self.data = pf_definition.getPFRows()
   self.extmarks = {}
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
-  self:addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false):setContent()
+  self.addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false).displayContent(self.win_nr)
 
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })

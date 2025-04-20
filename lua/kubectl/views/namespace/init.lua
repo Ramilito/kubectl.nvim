@@ -45,7 +45,7 @@ function M.View()
           builder.decodeJson()
           vim.schedule(function()
             builder.process(definition.processRow, true).prettyPrint()
-						builder.displayContent(builder.win_nr)
+            builder.displayContent(builder.win_nr)
             local list = { { name = "All" } }
             for _, value in ipairs(builder.processedData) do
               if value.name.value then
