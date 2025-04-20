@@ -68,7 +68,7 @@ function M.Desc(name, ns, reload)
 end
 
 function M.create_from_cronjob(name, ns)
-  local builder = ResourceBuilder:new("kubectl_create_job")
+  local builder = manager.get_or_create("kubectl_create_job")
 
   local create_def = {
     ft = "k8s_action",
