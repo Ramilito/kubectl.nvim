@@ -1,15 +1,7 @@
-local M = {
-  resource = "jobs",
-  display_name = "Jobs",
-  ft = "k8s_jobs",
-  url = { "{{BASE}}/apis/batch/v1/{{NAMESPACE}}jobs?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
-  },
-  owner = { name = nil, ns = nil },
-}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+local M = {}
 
 local function getDuration(row)
   local is_complete = row and row.status and row.status.completionTime
@@ -66,12 +58,12 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows  then
     return data
   end
 
-  if rows and rows.items then
-    for _, row in ipairs(rows.items) do
+  if rows  then
+    for _, row in ipairs(rows) do
       local job = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
@@ -95,21 +87,6 @@ function M.processRow(rows)
     end
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "COMPLETIONS",
-    "DURATION",
-    "AGE",
-    "CONTAINERS",
-    "IMAGES",
-    "SELECTOR",
-  }
-
-  return headers
 end
 
 return M

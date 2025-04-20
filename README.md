@@ -292,7 +292,7 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
   context = true,
   heartbeat = true,
   lineage = {
-    enabled = false, -- This feature is in beta at the moment
+    enabled = true, -- This feature is in beta at the moment
   },
   logs = {
     prefix = true,
