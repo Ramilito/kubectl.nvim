@@ -5,6 +5,8 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local resource = "nodes"
+
+---@class Module
 local M = {
   definition = {
     resource = resource,

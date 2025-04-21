@@ -1,5 +1,5 @@
-local pvc_definiton = require("kubectl.views.pvc.definition")
-local pvc_view = require("kubectl.views.pvc")
+local pvc_definiton = require("kubectl.views.persistentvolumeclaims.definition")
+local pvc_view = require("kubectl.views.persistentvolumeclaims")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
@@ -10,7 +10,7 @@ M.overrides = {
     silent = true,
     desc = "Go to PVs",
     callback = function()
-      local pv_view = require("kubectl.views.pv")
+      local pv_view = require("kubectl.views.persistentvolumes")
       local name, ns = pvc_view.getCurrentSelection()
       if not name or not ns then
         return pv_view.View()
