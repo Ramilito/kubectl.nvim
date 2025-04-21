@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local replicaset_definition = require("kubectl.views.replicasets.definition")
 local replicaset_view = require("kubectl.views.replicasets")
@@ -38,7 +39,7 @@ M.overrides = {
       end
       local container_images = {}
 
-      local resource = tables.find_resource(state.instance[replicaset_definition.resource].data, name, ns)
+      local resource = tables.find_resource(manager.get(replicaset_definition.resource).data, name, ns)
       if not resource then
         return
       end
@@ -78,11 +79,13 @@ M.overrides = {
     desc = "Scale replicas",
     callback = function()
       local name, ns = replicaset_view.getCurrentSelection()
-      if not name or not ns then
+      local builder = manager.get(replicaset_view.definition.resource)
+      if not name or not ns or not builder then
         vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
-      local resource = tables.find_resource(state.instance[replicaset_definition.resource].data, name, ns)
+
+      local resource = tables.find_resource(builder.data, name, ns)
       if not resource then
         return
       end
