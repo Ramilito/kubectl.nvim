@@ -1,5 +1,5 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -9,7 +9,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "apps", v = "v1", k = "Statefulset" },
+    gvk = { g = "apps", v = "v1", k = "StatefulSet" },
     informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change statefulset image" },
@@ -27,26 +27,27 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(M.definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  if state.instance[M.definition.resource] then
-    state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+  if builder then
+    builder.draw(cancellationToken)
   end
 end
 
 function M.SetImage(name, ns)
-  local builder = ResourceBuilder:new("statefulset_scale")
-
   local def = {
     ft = "k8s_action",
+    resource = "statefulset_set_image",
     display = "Set image: " .. name .. "-" .. "?",
-    resource = name,
     ns = ns,
     group = M.definition.group,
     version = M.definition.version,
   }
+  local builder = manager.get_or_create(def.resource)
 
   commands.run_async("get_single_async", { M.definition.gvk.k, ns, name, "Json" }, function(data)
     if not data then
@@ -104,12 +105,14 @@ end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = M.definition.resource .. " | " .. name .. " | " .. ns,
+    resource = M.definition.resource .. "_desc",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     syntax = "yaml",
     cmd = "describe_async",
   }
-  ResourceBuilder:view_float(def, {
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
     args = {
       state.context["current-context"],
       M.definition.resource,

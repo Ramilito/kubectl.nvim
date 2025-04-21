@@ -1,4 +1,4 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local manager = require("kubectl.resource_manager")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local mappings = require("kubectl.mappings")
@@ -42,13 +42,13 @@ M.overrides = {
     desc = "Scale replicas",
     callback = function()
       local name, ns = statefulset_view.getCurrentSelection()
-      local builder = ResourceBuilder:new("statefulset_scale")
+      local builder = manager.get_or_create("statefulset_scale")
       commands.run_async("get_single_async", { statefulset_view.definition.gvk.k, ns, name, "Json" }, function(data)
         if not data then
           return
         end
         builder.data = data
-        builder:decodeJson()
+        builder.decodeJson()
         local current_replicas = tostring(builder.data.spec.replicas)
 
         vim.schedule(function()

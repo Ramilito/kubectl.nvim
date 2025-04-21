@@ -1,4 +1,4 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local manager = require("kubectl.resource_manager")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
@@ -42,13 +42,13 @@ M.overrides = {
     desc = "Scale replicas",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      local builder = ResourceBuilder:new("deployment_scale")
+      local builder = manager.get_or_create("deployment_scale")
       commands.run_async("get_single_async", { deployment_view.definition.gvk.k, ns, name, "Json" }, function(data)
         if not data then
           return
         end
         builder.data = data
-        builder:decodeJson()
+        builder.decodeJson()
         local current_replicas = tostring(builder.data.spec.replicas)
 
         vim.schedule(function()

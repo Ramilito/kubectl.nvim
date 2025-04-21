@@ -266,7 +266,9 @@ function M.PortForwards()
   self.data = pf_definition.getPFRows()
   self.extmarks = {}
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
-  self.addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false).displayContent(self.win_nr)
+  self
+    .addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false)
+    .displayContent(self.win_nr)
 
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
