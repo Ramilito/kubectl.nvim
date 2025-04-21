@@ -346,7 +346,7 @@ function M.generateHeader(headers, include_defaults, include_context)
   local hints = {}
   local marks = {}
 
-  if not config.options.headers then
+  if not config.options.headers.enabled then
     return hints, marks
   end
 
@@ -365,15 +365,15 @@ function M.generateHeader(headers, include_defaults, include_context)
   end
 
   -- Add hints rows
-  if config.options.hints then
+  if config.options.headers.hints then
     addHeaderRow(headers, hints, marks)
   end
 
   local items = {}
 
   -- Add context rows
-  if include_context and config.options.context then
-    if config.options.hints then
+  if include_context and config.options.headers.context then
+    if config.options.headers.hints then
       table.insert(hints, "\n")
     end
     local context = state.getContext()
@@ -383,7 +383,7 @@ function M.generateHeader(headers, include_defaults, include_context)
   end
 
   -- Add versions
-  if include_context and config.options.skew.enabled then
+  if include_context and config.options.headers.skew.enabled then
     vim.list_extend(items, addVersionsRows(state.getVersions()))
   end
 
@@ -420,7 +420,7 @@ function M.generateHeader(headers, include_defaults, include_context)
 
   -- Add heartbeat
   -- TODO: heartbeat should have it's own config option
-  if include_context and config.options.heartbeat then
+  if include_context and config.options.headers.heartbeat then
     if #hints == 0 then
       hints = { "\n" }
     end

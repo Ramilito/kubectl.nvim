@@ -6,7 +6,7 @@ local M = {}
 ---@field terminal_cmd string?
 ---@field namespace string
 ---@field namespace_fallback string[]
----@field headers {enabled: boolean, hints: boolean, context: boolean, heartbeat: boolean}
+---@field headers {enabled: boolean, hints: boolean, context: boolean, heartbeat: boolean, skew: { enabled: boolean, log_level: number }}
 ---@field hints boolean
 ---@field context boolean
 ---@field heartbeat boolean
@@ -38,6 +38,10 @@ local defaults = {
     hints = true,
     context = true,
     heartbeat = true,
+    skew = {
+      enabled = true,
+      log_level = vim.log.levels.OFF,
+    },
   },
   lineage = {
     enabled = true,
@@ -70,10 +74,6 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 5, -- highghlight if age is less than minutes
-  skew = {
-    enabled = true,
-    log_level = vim.log.levels.OFF,
-  },
 }
 
 ---@type KubectlOptions

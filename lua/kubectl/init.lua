@@ -18,7 +18,7 @@ function M.open()
 
   hl.setup()
 
-  if config.options.headers then
+  if config.options.headers.enabled then
     view.Header()
   end
   state.setup()
