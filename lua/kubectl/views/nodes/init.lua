@@ -97,7 +97,7 @@ end
 function M.Desc(node, _, reload)
   local def = {
     resource = M.definition.resource .. "_desc",
-    display_name = "nodes |" .. node,
+    display_name = M.definition.resource .. " |" .. node,
     ft = "k8s_desc",
     syntax = "yaml",
     cmd = "describe_async",

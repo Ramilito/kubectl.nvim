@@ -13,7 +13,7 @@ return {
   cronjobs = { "cronjobs", "cronjob", "cj", "cronjobs.batch" },
   events = { "events", "event", "ev", "events.events.k8s.io" },
   nodes = { "nodes", "node", "no" },
-  sa = { "serviceaccounts", "serviceaccount", "sa" },
+  serviceaccounts = { "serviceaccounts", "serviceaccount", "sa" },
   secrets = { "secrets", "secret", "sec" },
   services = { "services", "service", "svc" },
   configmaps = { "configmaps", "configmap", "cm" },
