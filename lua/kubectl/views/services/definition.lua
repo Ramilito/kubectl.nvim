@@ -1,11 +1,7 @@
-local M = {
-  resource = "services",
-  display_name = "Services",
-  ft = "k8s_services",
-  url = { "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" },
-}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+local M = {}
 
 local function getPorts(row)
   if not row or not row.spec or not row.spec.ports then

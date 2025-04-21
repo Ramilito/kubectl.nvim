@@ -165,8 +165,8 @@ end
 function M.PortForward(pod, ns)
   local def = {
     resource = "pod_pf",
-    ft = "k8s_action",
     display = "PF: " .. pod .. "-" .. "?",
+    ft = "k8s_action",
     ns = ns,
     group = M.definition.group,
     version = M.definition.version,
@@ -179,7 +179,7 @@ function M.PortForward(pod, ns)
     def.syntax,
   }, function(data)
     local containers = {}
-    local pfBuilder = manager.get_or_create("pod_pf")
+    local pfBuilder = manager.get_or_create(def.resource)
     pfBuilder.data = data
     pfBuilder.decodeJson()
     for _, container in ipairs(pfBuilder.data.spec.containers) do
