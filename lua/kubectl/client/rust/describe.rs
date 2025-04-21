@@ -55,7 +55,7 @@ pub async fn describe_async(
                 return Ok(result_str.to_string());
             }
         }
-        Ok("test".to_string())
+        Ok("".to_string())
     };
 
     rt.block_on(fut)

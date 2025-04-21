@@ -42,13 +42,11 @@ local M = {
   },
 }
 
---- View function
 function M.View(cancellationToken)
   local builder = manager.get_or_create(M.definition.resource)
   builder.view(M.definition, cancellationToken)
 end
 
---- Draw function
 function M.Draw(cancellationToken)
   local builder = manager.get(M.definition.resource)
   if builder then

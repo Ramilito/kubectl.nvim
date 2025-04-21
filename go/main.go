@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/describe"
 )
 
+//export DescribeResource
 func DescribeResource(
 	cGroup *C.char,
 	cVersion *C.char,

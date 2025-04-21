@@ -1,5 +1,5 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.secrets.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -23,16 +23,21 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(M.definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[M.definition.resource]:draw(M.definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+  if builder then
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)
   local def = {
-    resource = M.definition.resource .. " | " .. name .. " | " .. ns,
+    resource = M.definition.resource .. "_desc",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_secret_desc",
     url = { "get", "secret", name, "-n", ns, "-o", "yaml" },
     syntax = "yaml",
@@ -42,7 +47,8 @@ function M.Desc(name, ns, reload)
     },
   }
 
-  ResourceBuilder:view_float(def, {
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
     args = {
       state.context["current-context"],
       M.definition.resource,
