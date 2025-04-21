@@ -1,11 +1,11 @@
 // lib.rs
-use ::log::error;
 use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::Lua;
 use std::sync::{Mutex, OnceLock};
 use tokio::runtime::Runtime;
+use tracing::{error, info};
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::edit::edit_async;
