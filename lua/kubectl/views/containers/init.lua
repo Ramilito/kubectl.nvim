@@ -1,11 +1,36 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.containers.definition")
+local manager = require("kubectl.resource_manager")
+local pod_view = require("kubectl.views.pods")
+
+local resource = "containers"
 
 local M = {
   selection = {},
+  definition = {
+    resource = resource,
+    ft = "k8s_" .. resource,
+    gvk = { g = pod_view.definition.gvk.g, v = pod_view.definition.gvk.v, k = pod_view.definition.gvk.k },
+    headers = {
+      "NAME",
+      "IMAGE",
+      "READY",
+      "STATE",
+      "TYPE",
+      "RESTARTS",
+      "PORTS",
+      "AGE",
+    },
+    processRow = definition.processRow,
+    cmd = "get_single_async",
+    hints = {
+      { key = "<Plug>(kubectl.logs)", desc = "logs" },
+      { key = "<Plug>(kubectl.debug)", desc = "debug" },
+      { key = "<Plug>(kubectl.select)", desc = "exec" },
+    },
+  },
   log_since = config.options.logs.since,
   show_previous = "false",
 }
@@ -15,11 +40,10 @@ function M.selectContainer(name)
 end
 
 function M.View(pod, ns)
-  definition.display_name = pod
-  definition.resource = "pods | " .. pod .. " | " .. ns
-  definition.url = { "{{BASE}}/api/v1/namespaces/" .. ns .. "/pods/" .. pod }
-
-  ResourceBuilder:view_float(definition)
+  M.definition.display_name = "pods | " .. pod .. " | " .. ns
+  local gvk = M.definition.gvk
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view_float(M.definition, { args = { gvk.k, ns, pod, "json" } })
 end
 
 function M.exec(pod, ns)
@@ -31,19 +55,23 @@ function M.exec(pod, ns)
     vim.fn.jobstart(config.options.terminal_cmd .. " " .. table.concat(command.args, " "))
   else
     buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
+
+    -- local client = require("kubectl.client")
+    -- client.exec(pod, { "sh", "-c", "echo echo Hello from Lua; exec /bin/sh" })
     commands.execute_terminal(cmd, args)
   end
 end
 
 function M.debug(pod, ns)
-  local builder = ResourceBuilder:new("kubectl_debug")
-
-  local debug_def = {
+  local def = {
+    resource = "kubectl_debug",
     ft = "k8s_action",
     display = "Debug: " .. pod .. "-" .. M.selection .. "?",
-    resource = pod,
     cmd = { "debug", pod, "-n", ns },
   }
+
+  local builder = manager.get_or_create(def.resource)
+
   local data = {
     { text = "name:", value = M.selection .. "-debug", cmd = "-c", type = "option" },
     { text = "image:", value = "busybox", cmd = "--image", type = "option" },
@@ -52,47 +80,12 @@ function M.debug(pod, ns)
     { text = "shell:", value = "/bin/sh", options = { "/bin/sh", "/bin/bash" }, cmd = "--", type = "positional" },
   }
 
-  builder:action_view(debug_def, data, function(args)
+  builder.action_view(def, data, function(args)
     vim.schedule(function()
-      buffers.floating_buffer(debug_def.ft, "debug " .. M.selection)
+      buffers.floating_buffer(def.ft, "debug " .. M.selection)
       commands.execute_terminal("kubectl", args)
     end)
   end)
-end
-
-function M.logs(pod, ns, reload)
-  local since_last_char = string.sub(M.log_since, -1)
-  if since_last_char == "s" then
-    M.log_since = string.sub(M.log_since, 1, -2)
-  elseif since_last_char == "m" then
-    M.log_since = tostring(tonumber(string.sub(M.log_since, 1, -2)) * 60)
-  elseif since_last_char == "h" then
-    M.log_since = tostring(tonumber(string.sub(M.log_since, 1, -2)) * 60 * 60)
-  end
-  ResourceBuilder:view_float({
-    resource = "containerLogs",
-    ft = "k8s_container_logs",
-    url = {
-      "{{BASE}}/api/v1/namespaces/"
-        .. ns
-        .. "/pods/"
-        .. pod
-        .. "/log/?container="
-        .. M.selection
-        .. "&pretty=true"
-        .. "&sinceSeconds="
-        .. M.log_since
-        .. "&previous="
-        .. M.show_previous,
-    },
-    syntax = "less",
-    hints = {
-      { key = "<Plug>(kubectl.follow)", desc = "Follow" },
-      { key = "<Plug>(kubectl.history)", desc = "History [" .. M.log_since .. "]" },
-      { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
-      { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. M.show_previous .. "]" },
-    },
-  }, { reload = reload })
 end
 
 return M

@@ -1,25 +1,70 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.replicasets.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local resource = "replicasets"
+
+local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "apps", v = "v1", k = "ReplicaSet" },
+    hints = {
+      { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change replicaset image" },
+      { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected replicaset" },
+      { key = "<Plug>(kubectl.scale)", desc = "scale", long_desc = "Scale replicas" },
+      { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
+    },
+    headers = {
+      "NAMESPACE",
+      "NAME",
+      "DESIRED",
+      "CURRENT",
+      "READY",
+      "AGE",
+      "CONTAINERS",
+      "IMAGES",
+      "SELECTOR",
+    },
+    processRow = definition.processRow,
+  },
+}
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+
+  if builder then
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
-    resource = "replicasets | " .. name .. " | " .. ns,
+  local def = {
+    resource = M.definition.resource .. "_desc",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "replicaset", name, "-n", ns },
+    cmd = "describe_async",
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+  }
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      ns,
+      name,
+      M.definition.gvk.g,
+      M.definition.gvk.v,
+    },
+    reload = reload,
+  })
 end
 
 --- Get current seletion for view

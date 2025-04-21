@@ -1,17 +1,7 @@
-local M = {
-  resource = "replicasets",
-  display_name = "Replicasets",
-  ft = "k8s_replicasets",
-  url = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}replicasets?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change replicaset image" },
-    { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected replicaset" },
-    { key = "<Plug>(kubectl.scale)", desc = "scale", long_desc = "Scale replicas" },
-    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
-  },
-}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+local M = {}
 
 local function verifyContainers(row)
   if
@@ -104,12 +94,12 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  if rows and rows.items then
-    for _, row in pairs(rows.items) do
+  if rows then
+    for _, row in pairs(rows) do
       local pod = {
         namespace = row.metadata.namespace,
         name = row.metadata.name,
@@ -126,22 +116,6 @@ function M.processRow(rows)
     end
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "DESIRED",
-    "CURRENT",
-    "READY",
-    "AGE",
-    "CONTAINERS",
-    "IMAGES",
-    "SELECTOR",
-  }
-
-  return headers
 end
 
 return M

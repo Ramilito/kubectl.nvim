@@ -1,13 +1,18 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 local views = require("kubectl.views")
 
-local M = {}
+local resource = "kubectl_filter_label"
+local M = {
+  definition = {
+    resource = resource,
+  },
+}
 
 --- Saves filter history
 --- @param input string: The input
@@ -55,8 +60,7 @@ function M.filter_label()
   table.sort(labels)
   local original_url = vim.deepcopy(definition.url)
 
-  -- Create ResourceBuilder and buffer
-  local builder = ResourceBuilder:new("kubectl_filter_label")
+  local builder = manager.get_or_create(M.definition.resource)
   local win_config
   builder.buf_nr, win_config = buffers.confirmation_buffer("Filter for labels", "label_filter", function(confirm)
     if not confirm then
@@ -89,11 +93,9 @@ function M.filter_label()
     -- display view
     state.setFilter("")
     definition.url = new_args
-    view.configure_definition = false
     vim.schedule(function()
       view.View()
       definition.url = original_url
-      view.configure_definition = true
     end)
   end)
 
@@ -106,8 +108,8 @@ function M.filter_label()
     table.insert(builder.data, k .. "=" .. v)
   end
   table.insert(builder.data, padding .. confirmation)
-  builder:splitData()
-  builder:setContentRaw()
+  builder.splitData()
+  builder.displayContentRaw()
   vim.cmd([[syntax match KubectlSuccess /.*=\@=/]])
   vim.cmd([[syntax match KubectlDebug /=\@<=.*/]])
 end

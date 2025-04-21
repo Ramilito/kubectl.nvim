@@ -1,86 +1,131 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.services.definition")
 local hl = require("kubectl.actions.highlight")
-local root_definition = require("kubectl.views.definition")
+local manager = require("kubectl.resource_manager")
+local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = { builder = nil, pfs = {} }
+local resource = "services"
+---@class ServicesModule
+local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "", v = "v1", k = "Service" },
+    informer = { enabled = true },
+    hints = {
+      { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
+      { key = "<Plug>(kubectl.portforward)", desc = "Port forward", long_desc = "Port forward" },
+    },
+    headers = {
+      "NAMESPACE",
+      "NAME",
+      "TYPE",
+      "CLUSTER-IP",
+      "EXTERNAL-IP",
+      "PORTS",
+      "AGE",
+    },
+    processRow = definition.processRow,
+  },
+}
 
 function M.View(cancellationToken)
-  M.pfs = {}
-  root_definition.getPFData(M.pfs, true)
-  ResourceBuilder:view(definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
-  root_definition.setPortForwards(
-    state.instance[definition.resource].extmarks,
-    state.instance[definition.resource].prettyData,
-    M.pfs
-  )
+  local builder = manager.get(M.definition.resource)
+  if builder then
+    local pfs = pf_definition.getPFRows()
+    builder.extmarks_extra = {}
+    pf_definition.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
-    resource = "services | " .. name .. " | " .. ns,
+  local def = {
+    resource = M.definition.resource .. "_desc",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
-    url = { "describe", "svc", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+  }
+
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      ns,
+      name,
+      M.definition.gvk.g,
+      M.definition.gvk.v,
+    },
+    reload = reload,
+  })
 end
 
 function M.PortForward(name, ns)
-  local builder = ResourceBuilder:new("kubectl_pf")
-  local pf_def = {
-    ft = "k8s_action",
+  local def = {
+    resource = "svc_pf",
     display = "PF: " .. name .. "-" .. "?",
-    resource = name,
-    cmd = { "port-forward", "svc/" .. name, "-n", ns },
+    ft = "k8s_action",
+    ns = ns,
+    group = M.definition.group,
+    version = M.definition.version,
   }
 
-  local resource = tables.find_resource(state.instance[definition.resource].data, name, ns)
-  if not resource then
-    return
-  end
-  local ports = {}
-  for _, port in ipairs(resource.spec.ports) do
-    table.insert(ports, {
-      name = { value = port.name, symbol = hl.symbols.pending },
-      port = { value = port.port, symbol = hl.symbols.success },
-      protocol = port.protocol,
-    })
-  end
-  if next(ports) == nil then
-    ports[1] = { port = { value = "" }, name = { value = "" } }
-  end
-  builder.data, builder.extmarks = tables.pretty_print(ports, { "NAME", "PORT", "PROTOCOL" })
-  table.insert(builder.data, " ")
+  commands.run_async("get_single_async", {
+    M.definition.gvk.k,
+    ns,
+    name,
+    def.syntax,
+  }, function(data)
+    local builder = manager.get_or_create(def.resource)
+    builder.data = data
+    builder.decodeJson()
+    local ports = {}
+    for _, port in ipairs(builder.data.spec.ports) do
+      table.insert(ports, {
+        name = { value = port.name, symbol = hl.symbols.pending },
+        port = { value = port.port, symbol = hl.symbols.success },
+        protocol = port.protocol,
+      })
+    end
+    if next(ports) == nil then
+      ports[1] = { port = { value = "" }, name = { value = "" } }
+    end
 
-  local data = {
-    {
-      text = "address:",
-      value = "localhost",
-      options = { "localhost", "0.0.0.0" },
-      cmd = "--address",
-      type = "option",
-    },
-    { text = "local:", value = tostring(ports[1].port.value), cmd = "", type = "positional" },
-    { text = "container port:", value = tostring(ports[1].port.value), cmd = ":", type = "merge_above" },
-  }
-
-  builder:action_view(pf_def, data, function(args)
-    commands.shell_command_async("kubectl", args)
     vim.schedule(function()
-      M.View()
+      builder.data, builder.extmarks = tables.pretty_print(ports, { "NAME", "PORT", "PROTOCOL" })
+      table.insert(builder.data, " ")
+      local pf_data = {
+        {
+          text = "address:",
+          value = "localhost",
+          options = { "localhost", "0.0.0.0" },
+          cmd = "",
+          type = "positional",
+        },
+        { text = "local:", value = tostring(ports[1].port.value), cmd = "", type = "positional" },
+        { text = "container port:", value = tostring(ports[1].port.value), cmd = ":", type = "merge_above" },
+      }
+
+      builder.action_view(def, pf_data, function(args)
+        local client = require("kubectl.client")
+        local local_port = args[2].value
+        local remote_port = args[3].value
+        client.portforward_start("service", name, ns, args[1], local_port, remote_port)
+      end)
     end)
   end)
 end
 
---- Get current seletion for view
----@return string|nil
 function M.getCurrentSelection()
   return tables.getCurrentSelection(2, 1)
 end

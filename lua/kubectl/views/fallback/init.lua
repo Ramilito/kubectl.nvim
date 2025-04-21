@@ -1,87 +1,132 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
-local definition = require("kubectl.views.fallback.definition")
+local buffers = require("kubectl.actions.buffers")
+local cache = require("kubectl.cache")
+local commands = require("kubectl.actions.commands")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local M = {
-  resource = "",
-  configure_definition = true,
+  resource = "fallback",
+  definition = {
+    ft = "k8s_fallback",
+    informer = { enabled = true },
+    gvk = {},
+  },
 }
 
-local function add_namespace(args, ns)
-  if ns then
-    if ns == "All" then
-      table.insert(args, "--all-namespaces")
-    else
-      table.insert(args, "-n")
-      table.insert(args, ns)
-    end
+function M.View(cancellationToken, kind)
+  local cached_resources = cache.cached_api_resources
+  if kind then
+    M.resource = kind
   end
-  return args
-end
+  local resource = cached_resources.values[string.lower(M.resource)]
 
-local function get_args()
-  local ns_filter = state.getNamespace()
-  local args = add_namespace({ "get", M.resource, "-o=json" }, ns_filter)
-  return args
-end
+  if cache.loading then
+    require("kubectl.views").view_or_fallback("pods")
+    vim.notify("Fallback cache for " .. (M.resource or "<nil>") .. " is still loading, try again soon")
 
-function M.View(cancellationToken, resource)
-  if resource then
-    M.resource = resource
-  elseif not M.resource then
     return
   end
 
-  -- default fallback values
-  if M.configure_definition then
-    definition.resource = M.resource
-    definition.display_name = M.resource
-    definition.url = get_args()
-    definition.ft = "k8s_fallback"
-    definition.headers = { "NAME" }
-    definition.hints = {
-      { key = "<gd>", desc = "describe", long_desc = "Describe selected " .. M.resource },
-    }
-    definition.cmd = "kubectl"
+  if not resource then
+    require("kubectl.views").view_or_fallback("pods")
+    vim.notify("View not found: " .. (resource.name or "<nil>"))
 
-    -- cached resources fallback values
-    local cached_resources = require("kubectl.cache").cached_api_resources
-    local resource_name = cached_resources.values[M.resource] and M.resource or cached_resources.shortNames[M.resource]
-    if resource_name and not M.configured_curl then
-      definition.resource = resource_name
-      definition.display_name = resource_name
-      definition.url = {
-        "-H",
-        "Accept: application/json;as=Table;g=meta.k8s.io;v=v1",
-        cached_resources.values[resource_name].url,
-      }
-      definition.cmd = "curl"
-      definition.namespaced = cached_resources.values[resource_name].namespaced
-    end
+    return
   end
 
-  ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd })
+  M.definition.resource = string.lower(resource.name)
+  M.definition.display_name = string.upper(resource.name)
+  M.definition.gvk = resource.gvk
+  M.definition.ft = "k8s_" .. resource.name
+  M.definition.plural = resource.plural
+  M.definition.crd_name = resource.crd_name
+
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.definition = M.definition
+
+  builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, builder.resource)
+
+  commands.run_async(
+    "start_reflector_async",
+    { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
+    function()
+      vim.schedule(function()
+        M.Draw(cancellationToken)
+        vim.cmd("doautocmd User K8sDataLoaded")
+        state.selections = {}
+      end)
+    end
+  )
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+
+  if not builder then
+    return
+  end
+
+  local ns = nil
+  if state.ns and state.ns ~= "All" then
+    ns = state.ns
+  end
+
+  local filter = state.getFilter()
+  local sort_by = state.sortby[builder.definition.resource].current_word
+  local sort_order = state.sortby[builder.definition.resource].order
+
+  commands.run_async(
+    "get_fallback_table_async",
+    { builder.definition.crd_name, ns, sort_by, sort_order, filter },
+    function(result)
+      builder.data = result
+      builder.decodeJson()
+      builder.processedData = builder.data.rows
+      builder.definition.headers = builder.data.headers
+
+      vim.schedule(function()
+        local windows = buffers.get_windows_by_name(builder.definition.resource)
+        for _, win_id in ipairs(windows) do
+          builder.prettyPrint(win_id).addDivider(true).addHints(builder.definition.hints, true, true)
+          builder.displayContent(win_id, cancellationToken)
+        end
+      end)
+    end
+  )
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
-    resource = M.resource .. " | " .. name .. " | " .. ns,
+  local def = {
+    resource = M.definition.resource .. " | " .. name,
     ft = "k8s_desc",
-    url = add_namespace({ "describe", M.resource .. "/" .. name }, ns),
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+  }
+
+  if ns then
+    def.resource = def.resource .. " | " .. ns
+  end
+
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.plural,
+      ns,
+      name,
+      M.definition.gvk.g,
+      M.definition.gvk.v,
+    },
+    reload = reload,
+  })
 end
 
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  local name_idx = tables.find_index(definition.headers, "NAME")
-  local ns_idx = tables.find_index(definition.headers, "NAMESPACE")
+  local name_idx = tables.find_index(M.definition.headers, "NAME")
+  local ns_idx = tables.find_index(M.definition.headers, "NAMESPACE")
   if ns_idx then
     return tables.getCurrentSelection(name_idx, ns_idx)
   end

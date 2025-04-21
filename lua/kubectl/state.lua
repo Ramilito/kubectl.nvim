@@ -70,18 +70,9 @@ function M.setup()
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
+			M.checkHealth()
       if config.options.skew.enabled then
         M.checkVersions()
-        M.checkHealth(function()
-          if
-            M.versions.client.major == 0
-            or M.versions.server.major == 0
-            or M.versions.client.minor == 0
-            or M.versions.server.minor == 0
-          then
-            M.checkVersions()
-          end
-        end)
       end
     end)
   end)
@@ -122,30 +113,18 @@ function M.stop_livez()
   end
 end
 
-function M.checkHealth(cb)
+function M.checkHealth()
   M.livez.timer = vim.uv.new_timer()
-  local ResourceBuilder = require("kubectl.resourcebuilder")
-  local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
 
   M.livez.timer:start(0, 5000, function()
-    builder:fetchAsync(
-      function(self)
-        if self.data == "ok" then
-          M.livez.ok = true
-          M.livez.time_of_ok = os.time()
-          if cb then
-            cb()
-          end
-        else
-          M.livez.ok = false
-        end
-      end,
-      nil,
-      function(_)
+    commands.run_async("get_server_raw_async", { "/livez", nil }, function(data)
+      if data == "ok" then
+        M.livez.ok = true
+        M.livez.time_of_ok = os.time()
+      else
         M.livez.ok = false
-      end,
-      { timeout = 5000 }
-    )
+      end
+    end)
   end)
 end
 
@@ -210,13 +189,9 @@ function M.addToHistory(new_view)
   table.insert(M.history, new_view)
 end
 
-function M.set_session(ev)
-  local win_config = vim.api.nvim_win_get_config(0)
-
-  if win_config.relative == "" then
-    local session_name = M.context["current-context"]
-    M.session.contexts[session_name] = { view = ev.file, namespace = M.ns }
-  end
+function M.set_session(file)
+  local session_name = M.context["current-context"]
+  M.session.contexts[session_name] = { view = file, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
   commands.save_config("kubectl.json", M.session)

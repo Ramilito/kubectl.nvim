@@ -1,9 +1,4 @@
-local M = {
-  resource = "secrets",
-  display_name = "Secrets",
-  ft = "k8s_secrets",
-  url = { "{{BASE}}/api/v1/{{NAMESPACE}}secrets?pretty=false" },
-}
+local M = {}
 local time = require("kubectl.utils.time")
 
 local function getData(data)
@@ -19,10 +14,10 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
-  for _, row in pairs(rows.items) do
+  for _, row in pairs(rows) do
     local pod = {
       namespace = row.metadata.namespace,
       name = row.metadata.name,
@@ -34,18 +29,6 @@ function M.processRow(rows)
     table.insert(data, pod)
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "TYPE",
-    "DATA",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M

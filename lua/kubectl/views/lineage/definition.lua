@@ -1,4 +1,5 @@
 local Tree = require("kubectl.views.lineage.tree")
+local cache = require("kubectl.cache")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local M = {
@@ -8,7 +9,83 @@ local M = {
 }
 
 local function get_kind(resource, default_kind)
-  return (resource.kind and resource.kind:lower()) or (default_kind and default_kind:lower()) or "unknownkind"
+  return (resource.kind and resource.kind) or (default_kind and default_kind) or "unknownkind"
+end
+
+function M.processRow(rows, cached_api_resources, relationships)
+  if not rows then
+    return
+  end
+
+  for _, item in ipairs(rows) do
+    if not item.kind then
+      vim.print(item)
+      return
+    end
+
+    item.metadata.managedFields = {}
+
+    local cache_key = nil
+    for _, value in pairs(cached_api_resources.values) do
+      if string.lower(value.api_version) == string.lower(item.api_version) and value.gvk.k == item.kind then
+        cache_key = value.crd_name
+      end
+    end
+
+    local row
+
+    if item.metadata.name then
+      local owners = {}
+      local relations = {}
+
+      for _, relation in ipairs(relationships.getRelationship(item.kind, item, rows)) do
+        if relation.relationship_type == "owner" then
+          table.insert(owners, relation)
+        elseif relation.relationship_type == "dependency" then
+          table.insert(relations, relation)
+        end
+      end
+
+      -- Add ownerReferences
+      if item.metadata.ownerReferences then
+        for _, owner in ipairs(item.metadata.ownerReferences) do
+          table.insert(owners, {
+            kind = owner.kind,
+            apiVersion = owner.apiVersion,
+            name = owner.name,
+            uid = owner.uid,
+            ns = owner.namespace or item.metadata.namespace,
+          })
+        end
+      end
+
+      -- Build the row data
+      row = {
+        name = item.metadata.name,
+        ns = item.metadata.namespace,
+        apiVersion = rows.apiVersion,
+        labels = item.metadata.labels,
+        owners = owners,
+        relations = relations,
+      }
+
+      -- Add selectors if available
+      if item.spec and item.spec.selector then
+        local label_selector = item.spec.selector.matchLabels or item.spec.selector
+        if label_selector then
+          row.selectors = label_selector
+        end
+      end
+
+      -- Add the row to the cache if cache_key is available
+      if cache_key then
+        if not cached_api_resources.values[cache_key].data then
+          cached_api_resources.values[cache_key].data = {}
+        end
+        table.insert(cached_api_resources.values[cache_key].data, row)
+      end
+    end
+  end
 end
 
 function M.collect_all_resources(data_sample)
@@ -16,7 +93,7 @@ function M.collect_all_resources(data_sample)
   for kind_key, resource_group in pairs(data_sample) do
     if resource_group.data then
       for _, resource in ipairs(resource_group.data) do
-        resource.kind = get_kind(resource, resource_group.kind or kind_key)
+        resource.kind = get_kind(resource, resource_group.gvk.k or kind_key)
         table.insert(resources, resource)
       end
     end

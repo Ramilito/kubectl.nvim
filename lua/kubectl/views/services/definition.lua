@@ -1,15 +1,7 @@
-local M = {
-  resource = "services",
-  display_name = "Services",
-  ft = "k8s_services",
-  url = { "{{BASE}}/api/v1/{{NAMESPACE}}services?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
-    { key = "<Plug>(kubectl.portforward)", desc = "Port forward", long_desc = "Port forward" },
-  },
-}
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
+
+local M = {}
 
 local function getPorts(row)
   if not row or not row.spec or not row.spec.ports then
@@ -85,38 +77,26 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  for _, row in pairs(rows.items) do
-    local pod = {
-      namespace = row.metadata.namespace,
-      name = row.metadata.name,
-      type = getType(row),
-      ["cluster-ip"] = getClusterIP(row),
-      ["external-ip"] = getExternalIP(row),
-      ports = getPorts(row),
-      age = time.since(row.metadata.creationTimestamp),
-    }
+  for _, row in pairs(rows) do
+    if row.metadata then
+      local pod = {
+        namespace = row.metadata.namespace,
+        name = row.metadata.name,
+        type = getType(row),
+        ["cluster-ip"] = getClusterIP(row),
+        ["external-ip"] = getExternalIP(row),
+        ports = getPorts(row),
+        age = time.since(row.metadata.creationTimestamp),
+      }
 
-    table.insert(data, pod)
+      table.insert(data, pod)
+    end
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "TYPE",
-    "CLUSTER-IP",
-    "EXTERNAL-IP",
-    "PORTS",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M

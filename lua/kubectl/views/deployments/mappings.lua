@@ -1,13 +1,13 @@
+local manager = require("kubectl.resource_manager")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local deployment_definition = require("kubectl.views.deployments.definition")
 local deployment_view = require("kubectl.views.deployments")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 local view = require("kubectl.views")
 
 local M = {}
+local err_msg = "Failed to extract pod name or namespace."
 
 M.overrides = {
   ["<Plug>(kubectl.select)"] = {
@@ -21,85 +21,69 @@ M.overrides = {
     end,
   },
 
-  -- Only works _if_ their is only _one_ container and that image is the _same_ as the deployment
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,
     desc = "Set image",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      local container_images = {}
 
-      local resource = tables.find_resource(state.instance[deployment_definition.resource].data, name, ns)
-      if not resource then
+      if not name or not ns then
+        vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
-
-      for _, container in ipairs(resource.spec.template.spec.containers) do
-        if container.image ~= container_images[1] then
-          table.insert(container_images, container.image)
-        end
-      end
-
-      if #container_images > 1 then
-        vim.notify("Setting new container image for multiple containers is NOT supported yet", vim.log.levels.WARN)
-      else
-        vim.ui.input({ prompt = "Update image ", default = container_images[1] }, function(input)
-          if not input then
-            return
-          end
-          buffers.confirmation_buffer("Are you sure that you want to update the image?", "prompt", function(confirm)
-            if not confirm then
-              return
-            end
-            local set_image = { "set", "image", "deployment/" .. name, name .. "=" .. input, "-n", ns }
-            commands.shell_command_async("kubectl", set_image, function(response)
-              vim.schedule(function()
-                vim.notify(response)
-              end)
-            end)
-          end)
-        end)
-      end
+      deployment_view.SetImage(name, ns)
     end,
   },
+
   ["<Plug>(kubectl.scale)"] = {
     noremap = true,
     silent = true,
     desc = "Scale replicas",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      local resource = tables.find_resource(state.instance[deployment_definition.resource].data, name, ns)
-      if not resource then
-        return
-      end
-
-      local current_replicas = tostring(resource.spec.replicas)
-      vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
-        if not input then
+      local builder = manager.get_or_create("deployment_scale")
+      commands.run_async("get_single_async", { deployment_view.definition.gvk.k, ns, name, "Json" }, function(data)
+        if not data then
           return
         end
-        buffers.confirmation_buffer(
-          string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
-          "prompt",
-          function(confirm)
-            if not confirm then
+        builder.data = data
+        builder.decodeJson()
+        local current_replicas = tostring(builder.data.spec.replicas)
+
+        vim.schedule(function()
+          vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
+            if not input then
               return
             end
-            commands.shell_command_async(
-              "kubectl",
-              { "scale", "deployment/" .. name, "--replicas=" .. input, "-n", ns },
-              function(response)
-                vim.schedule(function()
-                  vim.notify(response)
+            buffers.confirmation_buffer(
+              string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
+              "prompt",
+              function(confirm)
+                if not confirm then
+                  return
+                end
+
+                commands.run_async("scale_async", {
+                  deployment_view.definition.gvk.k,
+                  deployment_view.definition.gvk.g,
+                  deployment_view.definition.gvk.v,
+                  name,
+                  ns,
+                  input,
+                }, function(response)
+                  vim.schedule(function()
+                    vim.notify(response)
+                  end)
                 end)
               end
             )
-          end
-        )
+          end)
+        end)
       end)
     end,
   },
+
   ["<Plug>(kubectl.rollout_restart)"] = {
     noremap = true,
     silent = true,
@@ -111,15 +95,17 @@ M.overrides = {
         "prompt",
         function(confirm)
           if confirm then
-            commands.shell_command_async(
-              "kubectl",
-              { "rollout", "restart", "deployment/" .. name, "-n", ns },
-              function(response)
-                vim.schedule(function()
-                  vim.notify(response)
-                end)
-              end
-            )
+            commands.run_async("restart_async", {
+              deployment_view.definition.gvk.k,
+              deployment_view.definition.gvk.g,
+              deployment_view.definition.gvk.v,
+              name,
+              ns,
+            }, function(response)
+              vim.schedule(function()
+                vim.notify(response)
+              end)
+            end)
           end
         end
       )

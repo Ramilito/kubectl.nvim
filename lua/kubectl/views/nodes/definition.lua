@@ -3,17 +3,7 @@ local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local tables = require("kubectl.utils.tables")
 local time = require("kubectl.utils.time")
-local M = {
-  resource = "nodes",
-  display_name = "Nodes",
-  ft = "k8s_nodes",
-  url = { "{{BASE}}/api/v1/nodes?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
-    { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },
-    { key = "<Plug>(kubectl.drain)", desc = "drain", long_desc = "Drain selected node" },
-  },
-}
+local M = {}
 
 -- Define the custom match function for prefix and suffix
 local function match_prefix_suffix(key, _, prefix, suffix)
@@ -99,39 +89,27 @@ end
 
 function M.processRow(rows)
   local data = {}
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  for _, row in pairs(rows.items) do
-    local iIP, eIP = getIPs(row)
-    local pod = {
-      name = row.metadata.name,
-      status = M.getStatus(row),
-      roles = getRole(row),
-      age = time.since(row.metadata.creationTimestamp, true),
-      version = row.status and row.status.nodeInfo and row.status.nodeInfo.kubeletVersion,
-      ["internal-ip"] = iIP,
-      ["external-ip"] = eIP,
-    }
+  for _, row in pairs(rows) do
+    if row.metadata and row.metadata.name then
+      local iIP, eIP = getIPs(row)
+      local pod = {
+        name = row.metadata.name,
+        status = M.getStatus(row),
+        roles = getRole(row),
+        age = time.since(row.metadata.creationTimestamp, true),
+        version = row.status and row.status.nodeInfo and row.status.nodeInfo.kubeletVersion,
+        ["internal-ip"] = iIP,
+        ["external-ip"] = eIP,
+      }
 
-    table.insert(data, pod)
+      table.insert(data, pod)
+    end
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAME",
-    "STATUS",
-    "ROLES",
-    "AGE",
-    "VERSION",
-    "INTERNAL-IP",
-    "EXTERNAL-IP",
-  }
-
-  return headers
 end
 
 return M

@@ -1,36 +1,55 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
 local definition = require("kubectl.views.api-resources.definition")
-local state = require("kubectl.state")
+local manager = require("kubectl.resource_manager")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local resource = "api-resources"
+
+local M = {
+  definition = {
+    resource = resource,
+    display_name = "API Resources",
+    ft = "k8s_" .. resource,
+    hints = {
+      { key = "<Plug>(kubectl.select)", desc = "show resource" },
+    },
+    headers = {
+      "NAME",
+      "SHORTNAMES",
+      "APIVERSION",
+      "NAMESPACED",
+      "KIND",
+    },
+    processRow = definition.processRow,
+  },
+}
 
 function M.View(cancellationToken)
-  local self = state.instance[definition.resource]
-  if not self or not self.resource or self.resource ~= definition.resource then
-    self = ResourceBuilder:new(definition.resource)
-  end
-
-  self:display(definition.ft, definition.resource, cancellationToken)
-
-  state.instance[definition.resource] = self
-  local cached_resources = cache.cached_api_resources
-  self.data = cached_resources and cached_resources.values or {}
-
-  vim.schedule(function()
-    M.Draw(cancellationToken)
-  end)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.buf_nr, builder.win_nr = buffers.buffer(M.definition.ft, builder.resource)
+  builder.definition = M.definition
+  M.Draw(cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  if #state.instance[definition.resource].data == 0 then
+  local builder = manager.get(M.definition.resource)
+  if builder then
     local cached_resources = cache.cached_api_resources
-    if #vim.tbl_keys(cached_resources.values) > 0 then
-      state.instance[definition.resource].data = cached_resources.values
+    builder.data = cached_resources.values
+    builder.decodeJson()
+    builder.process(definition.processRow, true)
+
+    local windows = buffers.get_windows_by_name(M.definition.resource)
+    for _, win_id in ipairs(windows) do
+      builder.prettyPrint(win_id).addDivider(true).addHints(M.definition.hints, true, true)
+      builder.displayContent(win_id, cancellationToken)
     end
   end
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+end
+
+function M.Desc(_, _, _)
+	return nil
 end
 
 --- Get current seletion for view

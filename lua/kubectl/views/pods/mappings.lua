@@ -14,7 +14,7 @@ M.overrides = {
         vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
-      pod_view.selectPod(name, ns)
+      pod_view.selectPod(name, ns, nil)
       pod_view.Logs()
     end,
   },

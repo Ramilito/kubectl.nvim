@@ -8,6 +8,8 @@ local view = require("kubectl.views")
 local M = {
   selection = {},
   builder = nil,
+  loaded = false,
+  is_loading = false,
 }
 
 function M.View(name, ns, kind)
@@ -17,6 +19,10 @@ function M.View(name, ns, kind)
   M.selection.kind = kind
 
   M.builder = ResourceBuilder:new(definition.resource)
+  if not M.loaded then
+    M.is_loading = true
+    M.load_cache()
+  end
   M.builder:displayFloatFit(definition.ft, definition.resource, definition.syntax)
   M.Draw()
 end
@@ -26,9 +32,8 @@ function M.Draw()
     return
   end
 
-  local kind, ns, name = M.selection.kind, M.selection.ns, M.selection.name
   M.builder.data = { "Associated Resources: " }
-  if cache.loading then
+  if cache.loading or M.is_loading then
     table.insert(M.builder.data, "")
     table.insert(M.builder.data, "Cache still loading...")
   else
@@ -36,6 +41,7 @@ function M.Draw()
     local graph = definition.build_graph(data)
 
     -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
+    local kind, ns, name = string.lower(M.selection.kind), M.selection.ns, M.selection.name
     if
       kind:sub(-1) == "s"
       and kind ~= "ingresses"
@@ -53,6 +59,7 @@ function M.Draw()
     elseif kind == "sa" then
       kind = "serviceaccount"
     end
+
     local selected_key = kind
     if ns then
       selected_key = selected_key .. "/" .. ns
@@ -91,6 +98,43 @@ function M.Draw()
   end)
 end
 
+function M.load_cache(callback)
+  local cached_api_resources = cache.cached_api_resources
+  local all_gvk = {}
+  for _, resource in pairs(cached_api_resources.values) do
+    table.insert(all_gvk, { cmd = "get_all_async", args = { resource.gvk.k, resource.gvk.g, resource.gvk.v, nil } })
+  end
+
+  collectgarbage("collect")
+
+  -- Memory usage before creating the table
+  local mem_before = collectgarbage("count")
+  local relationships = require("kubectl.utils.relationships")
+
+  M.builder:fetchAllAsync(all_gvk, function(self)
+    self:splitData()
+    self:decodeJson()
+    self.processedData = {}
+
+    for _, values in pairs(self.data) do
+      definition.processRow(values, cached_api_resources, relationships)
+    end
+
+    -- Memory usage after creating the table
+    collectgarbage("collect")
+    local mem_after = collectgarbage("count")
+    local mem_diff_mb = (mem_after - mem_before) / 1024
+    print("Memory used by the table (in MB):", mem_diff_mb)
+
+    print("finished loading cache")
+    M.is_loading = false
+    M.loaded = true
+    if callback then
+      callback()
+    end
+  end)
+end
+
 function M.set_keymaps(bufnr)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
@@ -114,7 +158,7 @@ function M.set_keymaps(bufnr)
     silent = true,
     desc = "Refresh",
     callback = function()
-      cache.LoadFallbackData(true, function()
+      M.load_cache(function()
         vim.schedule(function()
           M.Draw()
         end)

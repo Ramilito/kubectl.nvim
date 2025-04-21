@@ -1,25 +1,69 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.daemonsets.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local M = {}
+local resource = "daemonsets"
+local M = {
+  definition = {
+    resource = resource,
+    display_name = string.upper(resource),
+    ft = "k8s_" .. resource,
+    gvk = { g = "apps", v = "v1", k = "DaemonSet" },
+    hints = {
+      { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected daemonset" },
+      { key = "<Plug>(kubectl.set_image)", desc = "image", long_desc = "Set image" },
+      { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
+    },
+    headers = {
+      "NAMESPACE",
+      "NAME",
+      "DESIRED",
+      "CURRENT",
+      "READY",
+      "UP-TO-DATE",
+      "AVAILABLE",
+      "NODE SELECTOR",
+      "AGE",
+    },
+    processRow = definition.processRow,
+  },
+}
 
 function M.View(cancellationToken)
-  ResourceBuilder:view(definition, cancellationToken)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
+  local builder = manager.get(M.definition.resource)
+  if builder then
+    builder.draw(cancellationToken)
+  end
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
-    resource = "daemonsets | " .. name .. " | " .. ns,
+  local def = {
+		resource = M.definition.resource .. "_desc",
+    display_name = "daemonsets | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "describe", "daemonset", name, "-n", ns },
     syntax = "yaml",
-  }, { cmd = "kubectl", reload = reload })
+    cmd = "describe_async",
+  }
+
+  local builder = manager.get_or_create(def.resource)
+  builder.view_float(def, {
+    args = {
+      state.context["current-context"],
+      M.definition.resource,
+      ns,
+      name,
+      M.definition.gvk.g,
+      M.definition.gvk.v,
+    },
+    reload = reload,
+  })
 end
 
 --- Get current seletion for view

@@ -122,7 +122,7 @@ function M.await_shell_command_async(cmds, callback)
   start_command = function(i)
     local cmd = cmds[i]
     active_count = active_count + 1
-    handles[i] = M.shell_command_async(cmd.cmd, cmd.args, function(result)
+    handles[i] = M.run_async(cmd.cmd, cmd.args, function(result)
       on_command_done(i, result)
     end)
   end
@@ -200,6 +200,40 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   end)
 
   return handle
+end
+
+function M.await_all(cmds, final_callback)
+  local results = {}
+  local errors = {}
+  local completed = 0
+  local total = #cmds
+  for idx, cmd in ipairs(cmds) do
+    M.run_async(cmd.cmd, cmd.args, function(res, err)
+      results[idx] = res
+      errors[idx] = err
+      completed = completed + 1
+      if completed == total then
+        final_callback(results, errors)
+      end
+    end)
+  end
+end
+
+function M.run_async(method_name, args, callback)
+  local function after_work_callback(results, err)
+    callback(results, err)
+  end
+  local function work_callback(cpath, method, ...)
+    package.cpath = cpath
+    local mod = require("kubectl_client")
+    local ok, result = pcall(mod[method], ...)
+    if not ok then
+      return nil, result
+    end
+    return result, nil
+  end
+
+  return vim.uv.new_work(work_callback, after_work_callback):queue(package.cpath, method_name, unpack(args))
 end
 
 --- Execute a shell command using io.popen

@@ -1,14 +1,6 @@
 local time = require("kubectl.utils.time")
 
-local M = {
-  resource = "ingresses",
-  display_name = "Ingresses",
-  ft = "k8s_ingresses",
-  url = { "{{BASE}}/apis/networking.k8s.io/v1/{{NAMESPACE}}ingresses?pretty=false" },
-  hints = {
-    { key = "<Plug>(kubectl.browse)", desc = "browse", long_desc = "Open host in browser" },
-  },
-}
+local M = {}
 
 local function get_ports(row)
   if not row or not row.spec or not row.spec.rules then
@@ -77,40 +69,28 @@ end
 function M.processRow(rows)
   local data = {}
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
   local currentTime = time.currentTime()
-  if rows and rows.items then
-    for i = 1, #rows.items do
-      local row = rows.items[i]
-      data[i] = {
-        namespace = row.metadata.namespace,
-        name = row.metadata.name,
-        class = get_class(row),
-        hosts = get_hosts(row),
-        address = get_address(row),
-        ports = get_ports(row),
-        age = time.since(row.metadata.creationTimestamp, true, currentTime),
-      }
+  if rows then
+    for i = 1, #rows do
+      local row = rows[i]
+      if row.metadata then
+        data[i] = {
+          namespace = row.metadata.namespace,
+          name = row.metadata.name,
+          class = get_class(row),
+          hosts = get_hosts(row),
+          address = get_address(row),
+          ports = get_ports(row),
+          age = time.since(row.metadata.creationTimestamp, true, currentTime),
+        }
+      end
     end
   end
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAMESPACE",
-    "NAME",
-    "CLASS",
-    "HOSTS",
-    "ADDRESS",
-    "PORTS",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M
