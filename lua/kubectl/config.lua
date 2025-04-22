@@ -15,7 +15,6 @@ local M = {}
 ---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
----@field skew { enabled: boolean, log_level: number }
 local defaults = {
   log_level = vim.log.levels.INFO,
   auto_refresh = {

@@ -71,7 +71,7 @@ function M.setup()
     vim.schedule(function()
       M.restore_session()
 			M.checkHealth()
-      if config.options.skew.enabled then
+      if config.options.headers.skew.enabled then
         M.checkVersions()
       end
     end)
@@ -99,7 +99,7 @@ function M.checkVersions()
     end,
     nil,
     function(_, data)
-      if data and config.options.skew.log_level < 5 then
+      if data and config.options.headers.skew.log_level < 5 then
         vim.notify(data, vim.log.levels.ERROR)
       end
     end,
