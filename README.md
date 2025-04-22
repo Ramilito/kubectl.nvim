@@ -288,9 +288,16 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
   terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
-  hints = true,
-  context = true,
-  heartbeat = true,
+  headers = {
+    enabled = true,
+    hints = true,
+    context = true,
+    heartbeat = true,
+    skew = {
+      enabled = true,
+      log_level = vim.log.levels.OFF,
+    },
+  },
   lineage = {
     enabled = true, -- This feature is in beta at the moment
   },
@@ -321,10 +328,6 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
     row = 5,
   },
   obj_fresh = 5, -- highlight if creation newer than number (in minutes)
-  skew = {
-    enabled = true
-    log_level = vim.log.levels.INFO,
-  }
 }
 ```
 
