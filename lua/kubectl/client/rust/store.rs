@@ -16,7 +16,7 @@ use tokio::sync::RwLock;
 type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
 static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
 
-fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
+pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
 
@@ -25,6 +25,12 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    {
+        let map = get_store_map().read().await;
+        if map.contains_key(&gvk.kind) {
+            return Ok(());
+        }
+    }
     let ar = ApiResource::from_gvk(&gvk);
     let api: Api<DynamicObject> = match namespace {
         Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),

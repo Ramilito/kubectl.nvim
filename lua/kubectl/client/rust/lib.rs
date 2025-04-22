@@ -4,6 +4,7 @@ use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::Lua;
 use std::sync::{Mutex, OnceLock};
+use store::get_store_map;
 use tokio::runtime::Runtime;
 use tracing::{error, info};
 
@@ -35,6 +36,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let new_client = rt.block_on(async {
+        {
+            let store_map = get_store_map();
+            let mut map_writer = store_map.write().await;
+            map_writer.clear();
+        }
+
         let options = KubeConfigOptions {
             context: context_name.clone(),
             cluster: None,
