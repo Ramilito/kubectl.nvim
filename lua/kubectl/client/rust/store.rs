@@ -58,7 +58,6 @@ pub async fn init_reflector_for_kind(
     });
 
     let mut map = get_store_map().write().await;
-    let _ = reader.wait_until_ready().await;
     map.insert(gvk.kind.to_string(), reader);
 
     Ok(())

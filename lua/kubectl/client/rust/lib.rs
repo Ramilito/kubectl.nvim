@@ -198,19 +198,37 @@ async fn get_table_async(
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
+        Option<String>,
     ),
 ) -> LuaResult<String> {
-    let (kind, namespace, sort_by, sort_order, filter) = args;
+    let (kind, group, version, namespace, sort_by, sort_order, filter) = args;
+
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
+        .clone();
 
     let fut = async move {
-        let items = store::get(&kind, namespace).await?;
+        let cached = (store::get(&kind, namespace.clone()).await).unwrap_or_default();
+        let resources: Vec<DynamicObject> = if cached.is_empty() {
+            get_resources_async(&client, kind.clone(), group, version, namespace)
+                .await
+                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+        } else {
+            cached
+        };
+
         let processors = get_processors();
         let processor = processors
             .get(kind.to_lowercase().as_str())
             .unwrap_or_else(|| processors.get("default").unwrap());
         let processed = processor
-            .process(&lua, &items, sort_by, sort_order, filter)
+            .process(&lua, &resources, sort_by, sort_order, filter)
             .map_err(mlua::Error::external)?;
 
         let json_str = k8s_openapi::serde_json::to_string(&processed)

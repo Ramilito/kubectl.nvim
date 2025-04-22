@@ -275,7 +275,7 @@ function M.new(resource)
 
     commands.run_async(
       "get_table_async",
-      { definition.gvk.k, namespace, sort_by, sort_order, filter },
+      { definition.gvk.k, definition.gvk.g, definition.gvk.v, namespace, sort_by, sort_order, filter },
       function(data, err)
         if err then
           return
