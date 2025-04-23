@@ -22,7 +22,9 @@ function M.open()
     view.Header()
   end
   state.setup()
-  cache.LoadFallbackData()
+  vim.defer_fn(function()
+    cache.LoadFallbackData()
+  end, 4000)
 end
 
 function M.close()
