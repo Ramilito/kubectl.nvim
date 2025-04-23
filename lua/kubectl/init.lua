@@ -55,7 +55,6 @@ end
 function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
-  local config = require("kubectl.config")
   local loop = require("kubectl.utils.loop")
   M.download_if_available(function(_)
     config.setup(options)
@@ -70,7 +69,6 @@ function M.setup(options)
         local win_config = vim.api.nvim_win_get_config(0)
 
         if win_config.relative == "" then
-          state.set_session(ev.file)
           if not loop.is_running(ev.buf) then
             local current_view = require("kubectl.views").view_and_definition(ev.file)
             loop.start_loop(current_view.Draw, { buf = ev.buf })

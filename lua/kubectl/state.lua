@@ -70,12 +70,26 @@ function M.setup()
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
-			M.checkHealth()
+      M.checkHealth()
       if config.options.headers.skew.enabled then
         M.checkVersions()
       end
     end)
   end)
+
+  vim.api.nvim_create_autocmd("BufEnter", {
+    group = "kubectl_header",
+    pattern = "*",
+    callback = function(_)
+      local ft = vim.bo.filetype
+      if ft:match("^k8s_") then
+        vim.schedule(function()
+          local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+          M.set_session(buf_name)
+        end)
+      end
+    end,
+  })
 end
 
 function M.checkVersions()
@@ -189,9 +203,9 @@ function M.addToHistory(new_view)
   table.insert(M.history, new_view)
 end
 
-function M.set_session(file)
+function M.set_session(view)
   local session_name = M.context["current-context"]
-  M.session.contexts[session_name] = { view = file, namespace = M.ns }
+  M.session.contexts[session_name] = { view = view, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
   commands.save_config("kubectl.json", M.session)
@@ -199,30 +213,38 @@ end
 
 function M.restore_session()
   local current_context = M.context["current-context"]
-  local config_file = commands.load_config("kubectl.json")
-  if config_file then
-    if config_file.contexts then
-      M.session.contexts = config_file.contexts
-    end
-    if config_file.filter_history then
-      M.session.filter_history = config_file.filter_history
-    end
-    if config_file.alias_history then
-      M.session.alias_history = config_file.alias_history
+  local session_view = "pods"
+
+  local ok, data_or_err = pcall(commands.load_config, "kubectl.json")
+  if ok and type(data_or_err) == "table" then
+    M.session = data_or_err
+    local ctx_session = M.session.contexts[current_context]
+    if ctx_session then
+      -- Found a saved context in the session file => restore from it
+      M.ns = ctx_session.namespace
+      M.filter_history = M.session.filter_history or {}
+      M.alias_history = M.session.alias_history or {}
+      session_view = ctx_session.view
     end
   end
 
-  if not M.session.contexts or not M.session.contexts[current_context] then
-    M.session.contexts[current_context] = { view = "pods", namespace = "All" }
+  if not M.ns and current_context and M.context then
+    local found_ns
+    for _, item in ipairs(M.context.contexts or {}) do
+      if item.name == current_context and item.context then
+        found_ns = item.context.namespace
+        break
+      end
+    end
+    if found_ns then
+      M.ns = found_ns
+    end
   end
 
-  -- Restore state
-  M.ns = M.session.contexts[current_context].namespace
-  M.filter_history = M.session.filter_history
-  M.alias_history = M.session.alias_history
+  if not M.ns then
+    M.ns = "All"
+  end
 
-  -- change view
-  local session_view = M.session.contexts[current_context].view
   require("kubectl.views").view_or_fallback(session_view)
 end
 
