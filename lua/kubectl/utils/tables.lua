@@ -305,7 +305,12 @@ function M.generateDividerWinbar(divider, win)
     "%#KubectlHeader#",
     " ",
     resource,
-    " [",
+    "(",
+    "%#KubectlPending#",
+    state.ns,
+    "%#KubectlHeader#",
+    ")",
+    "[",
     "%#KubectlWhite#",
     count,
     "%#KubectlHeader#",
@@ -588,7 +593,6 @@ function M.getCurrentSelection(...)
     local trimmed = vim.trim(columns[index])
     table.insert(results, trimmed)
   end
-
 
   return unpack(results)
 end

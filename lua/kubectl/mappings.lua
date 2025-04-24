@@ -242,8 +242,6 @@ function M.get_mappings()
       mode = "n",
       desc = "Edit resource",
       callback = function()
-        local state = require("kubectl.state")
-
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
         if not view_ok then
