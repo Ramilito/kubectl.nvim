@@ -35,7 +35,6 @@ pub fn portforward_start(
     args: (String, String, String, String, u16, u16),
 ) -> LuaResult<usize> {
     let (pf_type_str, name, namespace, bind_address, local_port, remote_port) = args;
-
     let (client, rt) = {
         let client = {
             let client_guard = CLIENT_INSTANCE.lock().unwrap();
@@ -49,8 +48,8 @@ pub fn portforward_start(
     };
 
     let forward_type = match pf_type_str.as_str() {
-        "pod" => PFType::Pod,
-        "service" => PFType::Service,
+        "Pod" => PFType::Pod,
+        "Service" => PFType::Service,
         _ => {
             return Err(mlua::Error::RuntimeError(
                 "Invalid pf_type string".to_owned(),
