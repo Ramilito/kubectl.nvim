@@ -250,7 +250,6 @@ function M.get_mappings()
           view = require("kubectl.views.fallback")
         end
 
-        local instance = state.instance[buf_name]
         local name, ns = view.getCurrentSelection()
 
         if not name then
@@ -258,6 +257,11 @@ function M.get_mappings()
           return
         end
 
+        local instance = manager.get(buf_name)
+        if not instance then
+          vim.notify("Resource not found", vim.log.levels.INFO)
+          return
+        end
         local def = {
           resource = buf_name .. " | " .. name,
           syntax = "yaml",

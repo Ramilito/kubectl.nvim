@@ -30,7 +30,7 @@ function M.View(cancellationToken, kind)
 
   if not resource then
     require("kubectl.views").view_or_fallback("pods")
-    vim.notify("View not found: " .. (resource.name or "<nil>"))
+    vim.notify("View not found: " .. (resource and resource.name or "<nil>"))
 
     return
   end
