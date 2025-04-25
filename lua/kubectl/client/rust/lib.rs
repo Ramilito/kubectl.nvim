@@ -36,26 +36,34 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let new_client = rt.block_on(async {
-        {
+        use futures::future::join;
+
+        let store_future = async {
             let store_map = get_store_map();
             let mut map_writer = store_map.write().await;
             map_writer.clear();
-        }
-
-        let options = KubeConfigOptions {
-            context: context_name.clone(),
-            cluster: None,
-            user: None,
         };
-        let config = Config::from_kubeconfig(&options)
-            .await
-            .map_err(LuaError::external)?;
-        let client = Client::try_from(config).map_err(LuaError::external)?;
-        Ok::<Client, mlua::Error>(client)
+
+        let config_future = async {
+            let options = KubeConfigOptions {
+                context: context_name.clone(),
+                cluster: None,
+                user: None,
+            };
+            let config = Config::from_kubeconfig(&options)
+                .await
+                .map_err(LuaError::external)?;
+            let client = Client::try_from(config).map_err(LuaError::external)?;
+            Ok::<Client, mlua::Error>(client)
+        };
+
+        let ((), client_result) = join(store_future, config_future).await;
+        client_result
     })?;
 
     let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
     *client_guard = Some(new_client);
+
     Ok(true)
 }
 
