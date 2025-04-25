@@ -118,9 +118,10 @@ function M.PortForward(name, ns)
 
       builder.action_view(def, pf_data, function(args)
         local client = require("kubectl.client")
+        local address = args[1].value
         local local_port = args[2].value
         local remote_port = args[3].value
-        client.portforward_start("service", name, ns, args[1], local_port, remote_port)
+        client.portforward_start(M.definition.gvk.k, name, ns, address, local_port, remote_port)
       end)
     end)
   end)
