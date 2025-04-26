@@ -155,15 +155,19 @@ local function addHeaderRow(headers, hints, marks)
 
   M.add_mark(marks, #hints, 0, #localHintLine, hl.symbols.success)
   local keymaps = M.get_plug_mappings(headers)
+  local hasGlobal = false
   for _, map in ipairs(keymaps) do
     if map.global then
+      hasGlobal = true
       globalHintLine = appendMapToLine(globalHintLine, map, #hints + 1)
     else
       localHintLine = appendMapToLine(localHintLine, map, #hints)
     end
   end
   table.insert(hints, localHintLine .. "\n")
-  table.insert(hints, globalHintLine .. "\n")
+  if hasGlobal then
+    table.insert(hints, globalHintLine .. "\n")
+  end
 end
 
 --- Adds the heartbeat element

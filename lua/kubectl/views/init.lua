@@ -172,7 +172,7 @@ function M.Aliases()
   local self = manager.get_or_create("aliases")
   local viewsTable = require("kubectl.utils.viewsTable")
   self.data = cache.cached_api_resources.values
-  self:splitData():decodeJson()
+  self.splitData().decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
   local buf, win = buffers.aliases_buffer(
     "k8s_aliases",
@@ -191,7 +191,7 @@ function M.Aliases()
       if is_valid_win and is_valid_buf then
         local new_cached = require("kubectl.cache").cached_api_resources.values
         self.data = new_cached
-        self:splitData():decodeJson()
+        self.splitData().decodeJson()
         self.data = definition.merge_views(self.data, viewsTable)
         vim.api.nvim_win_set_config(win, { title = "k8s_aliases - Aliases - " .. vim.tbl_count(self.data) })
       end
@@ -201,7 +201,7 @@ function M.Aliases()
   completion.with_completion(buf, self.data, function()
     -- We reassign the cache since it can be slow to load
     self.data = cache.cached_api_resources.values
-    self:splitData():decodeJson()
+    self.splitData().decodeJson()
     self.data = definition.merge_views(self.data, viewsTable)
   end)
 
