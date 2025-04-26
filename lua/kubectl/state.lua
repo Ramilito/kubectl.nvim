@@ -77,8 +77,9 @@ function M.setup()
     end)
   end)
 
+  vim.api.nvim_create_augroup("kubectl_session", { clear = true })
   vim.api.nvim_create_autocmd("BufEnter", {
-    group = "kubectl_header",
+    group = "kubectl_session",
     pattern = "*",
     callback = function(_)
       local ft = vim.bo.filetype

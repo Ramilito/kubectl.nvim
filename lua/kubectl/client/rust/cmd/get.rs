@@ -4,7 +4,7 @@ use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt, TypeMeta},
     config::Kubeconfig,
     core::GroupVersionKind,
-    discovery::{ApiCapabilities, Discovery, Scope},
+    discovery::{verbs, ApiCapabilities, Discovery, Scope},
     error::DiscoveryError,
     Client, Config, Error,
 };
@@ -312,14 +312,17 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
             .await
             .map_err(|e| mlua::Error::RuntimeError(format!("Discovery error: {}", e)))?;
 
-        let mut resources = Vec::new();
-        for group in discovery.groups() {
-            group.resources_by_stability().iter().for_each(|(ar, cap)| {
-                if ar.plural != "componentstatuses" && (cap.supports_operation("list")) {
-                    resources.push(FallbackResource::from_ar_cap(ar, cap));
-                }
-            });
-        }
+        let resources: Vec<_> = discovery
+            .groups()
+            .flat_map(|g| {
+                g.recommended_resources()
+                    .into_iter()
+                    .filter(|(ar, caps)| {
+                        caps.supports_operation(verbs::LIST) && ar.plural != "componentstatuses"
+                    })
+                    .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps))
+            })
+            .collect();
         serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(format!("JSON serialization error: {}", e)))
     };

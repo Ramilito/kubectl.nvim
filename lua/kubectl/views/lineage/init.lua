@@ -1,7 +1,9 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.lineage.definition")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local view = require("kubectl.views")
 
@@ -18,12 +20,15 @@ function M.View(name, ns, kind)
   M.selection.ns = ns
   M.selection.kind = kind
 
-  M.builder = ResourceBuilder:new(definition.resource)
   if not M.loaded then
     M.is_loading = true
     M.load_cache()
   end
-  M.builder:displayFloatFit(definition.ft, definition.resource, definition.syntax)
+
+  M.builder = manager.get_or_create(definition.resource)
+
+  M.builder.buf_nr, M.builder.win_nr =
+    buffers.floating_dynamic_buffer(definition.ft, definition.resource, definition.syntax)
   M.Draw()
 end
 
@@ -92,8 +97,8 @@ function M.Draw()
       table.insert(M.builder.header.data, line)
     end
 
-    M.builder:setContentRaw()
-    M.set_folding(M.builder.win_nr)
+    M.builder.displayContentRaw()
+    M.set_folding(M.builder.win_nr, M.builder.buf_nr)
     collectgarbage("collect")
   end)
 end
@@ -111,12 +116,13 @@ function M.load_cache(callback)
   local mem_before = collectgarbage("count")
   local relationships = require("kubectl.utils.relationships")
 
-  M.builder:fetchAllAsync(all_gvk, function(self)
-    self:splitData()
-    self:decodeJson()
-    self.processedData = {}
+  commands.await_all(all_gvk, function(data)
+    M.builder.data = data
+    M.builder.splitData()
+    M.builder.decodeJson()
+    M.builder.processedData = {}
 
-    for _, values in pairs(self.data) do
+    for _, values in pairs(M.builder.data) do
       definition.processRow(values, cached_api_resources, relationships)
     end
 
@@ -124,9 +130,10 @@ function M.load_cache(callback)
     collectgarbage("collect")
     local mem_after = collectgarbage("count")
     local mem_diff_mb = (mem_after - mem_before) / 1024
-    print("Memory used by the table (in MB):", mem_diff_mb)
 
+    print("Memory used by the table (in MB):", mem_diff_mb)
     print("finished loading cache")
+
     M.is_loading = false
     M.loaded = true
     if callback then
@@ -167,16 +174,16 @@ function M.set_keymaps(bufnr)
   })
 end
 
-function M.set_folding(win_nr)
+function M.set_folding(win_nr, buf_nr)
   -- Set fold options using nvim_set_option_value
   vim.api.nvim_set_option_value("foldmethod", "expr", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldexpr", "v:lua.kubectl_fold_expr(v:lnum)", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldenable", true, { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldtext", "", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldcolumn", "1", { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("shiftwidth", 4, { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("tabstop", 4, { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("expandtab", false, { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("shiftwidth", 4, { scope = "local", buf = buf_nr })
+  vim.api.nvim_set_option_value("tabstop", 4, { scope = "local", buf = buf_nr })
+  vim.api.nvim_set_option_value("expandtab", false, { scope = "local", buf = buf_nr })
 
   -- Corrected fold expression function
   _G.kubectl_fold_expr = function(lnum)
@@ -197,9 +204,8 @@ function M.set_folding(win_nr)
       return false
     end
 
-    local shiftwidth = vim.api.nvim_get_option_value("shiftwidth", { scope = "local", win = win_nr })
+    local shiftwidth = vim.api.nvim_get_option_value("shiftwidth", { scope = "local", buf = buf_nr })
     shiftwidth = shiftwidth > 0 and shiftwidth or 1
-
     local current_indent = vim.fn.indent(lnum)
     local prev_indent = vim.fn.indent(lnum - 1)
 
