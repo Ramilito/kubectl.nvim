@@ -68,53 +68,48 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
 }
 
 async fn get_minified_config_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
-    let context_name = args;
+    let ctx_override = args;
+
     let full = kube::config::Kubeconfig::read().map_err(LuaError::external)?;
 
-    let current_ctx = match context_name {
-        Some(user_ctx) => user_ctx,
-        None => full
-            .current_context
-            .clone()
-            .ok_or_else(|| LuaError::external("no current-context in kubeconfig"))?,
-    };
+    let ctx_name = ctx_override
+        .clone()
+        .or(full.current_context.clone())
+        .ok_or_else(|| {
+            LuaError::external("no context specified and no current-context in kubeconfig")
+        })?;
 
-    let named_ctx: &kube::config::NamedContext = full
+    let named_ctx = full
         .contexts
         .iter()
-        .find(|c| c.name == current_ctx)
-        .ok_or_else(|| LuaError::external(format!("context '{}' not found", current_ctx)))?;
+        .find(|c| c.name == ctx_name)
+        .ok_or_else(|| LuaError::external(format!("context '{ctx_name}' not found")))?;
 
-    let ctx_obj = named_ctx
+    let ctx = named_ctx
         .context
         .as_ref()
-        .ok_or_else(|| LuaError::external(format!("context '{}' is empty", current_ctx)))?;
+        .ok_or_else(|| LuaError::external(format!("context '{ctx_name}' has no data")))?;
 
     let cluster = full
         .clusters
         .iter()
-        .find(|c| c.name == ctx_obj.cluster)
-        .ok_or_else(|| LuaError::external(format!("cluster '{}' not found", &ctx_obj.cluster)))?;
+        .find(|c| c.name == ctx.cluster)
+        .ok_or_else(|| LuaError::external(format!("cluster '{}' not found", ctx.cluster)))?;
 
-    let user_name = ctx_obj
+    let user = ctx
         .user
         .as_ref()
-        .ok_or_else(|| LuaError::external(format!("no user set for context '{}'", current_ctx)))?;
-    let user = full
-        .auth_infos
-        .iter()
-        .find(|u| &u.name == user_name)
-        .ok_or_else(|| LuaError::external(format!("user '{}' not found", user_name)))?;
+        .and_then(|u| full.auth_infos.iter().find(|ai| ai.name == *u))
+        .ok_or_else(|| LuaError::external(format!("user '{:?}' not found", ctx.user)))?;
 
     let slim = kube::config::Kubeconfig {
         clusters: vec![cluster.clone()],
         contexts: vec![named_ctx.clone()],
         auth_infos: vec![user.clone()],
-        current_context: Some(current_ctx),
-        preferences: Default::default(),
-        extensions: Default::default(),
+        current_context: Some(ctx_name),
         ..Default::default()
     };
+
     k8s_openapi::serde_json::to_string_pretty(&slim).map_err(LuaError::external)
 }
 
