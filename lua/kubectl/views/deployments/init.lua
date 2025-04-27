@@ -85,7 +85,6 @@ function M.SetImage(name, ns)
       end
 
       builder.data = {}
-      table.insert(builder.data, " ")
       builder.action_view(def, params, function(args)
         local image_spec = {}
         for _, container in ipairs(args) do

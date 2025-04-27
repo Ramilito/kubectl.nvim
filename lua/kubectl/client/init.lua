@@ -36,6 +36,10 @@ function client.deployment_set_images(...)
   return client.implementation.deployment_set_images(...)
 end
 
+function client.daemonset_set_images(...)
+  return client.implementation.daemonset_set_images(...)
+end
+
 function client.get_config()
   return client.implementation.get_config()
 end
