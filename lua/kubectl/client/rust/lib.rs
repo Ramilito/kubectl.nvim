@@ -67,6 +67,57 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
+async fn get_minified_config_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
+    let context_name = args;
+    let full = kube::config::Kubeconfig::read().map_err(LuaError::external)?;
+
+    let current_ctx = match context_name {
+        Some(user_ctx) => user_ctx,
+        None => full
+            .current_context
+            .clone()
+            .ok_or_else(|| LuaError::external("no current-context in kubeconfig"))?,
+    };
+
+    let named_ctx: &kube::config::NamedContext = full
+        .contexts
+        .iter()
+        .find(|c| c.name == current_ctx)
+        .ok_or_else(|| LuaError::external(format!("context '{}' not found", current_ctx)))?;
+
+    let ctx_obj = named_ctx
+        .context
+        .as_ref()
+        .ok_or_else(|| LuaError::external(format!("context '{}' is empty", current_ctx)))?;
+
+    let cluster = full
+        .clusters
+        .iter()
+        .find(|c| c.name == ctx_obj.cluster)
+        .ok_or_else(|| LuaError::external(format!("cluster '{}' not found", &ctx_obj.cluster)))?;
+
+    let user_name = ctx_obj
+        .user
+        .as_ref()
+        .ok_or_else(|| LuaError::external(format!("no user set for context '{}'", current_ctx)))?;
+    let user = full
+        .auth_infos
+        .iter()
+        .find(|u| &u.name == user_name)
+        .ok_or_else(|| LuaError::external(format!("user '{}' not found", user_name)))?;
+
+    let slim = kube::config::Kubeconfig {
+        clusters: vec![cluster.clone()],
+        contexts: vec![named_ctx.clone()],
+        auth_infos: vec![user.clone()],
+        current_context: Some(current_ctx),
+        preferences: Default::default(),
+        extensions: Default::default(),
+        ..Default::default()
+    };
+    k8s_openapi::serde_json::to_string_pretty(&slim).map_err(LuaError::external)
+}
+
 async fn get_all_async(
     _lua: Lua,
     args: (String, Option<String>, Option<String>, Option<String>),
@@ -322,6 +373,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(get_fallback_table_async)?,
     )?;
     exports.set("scale_async", lua.create_async_function(scale_async)?)?;
+    exports.set(
+        "get_minified_config_async",
+        lua.create_async_function(get_minified_config_async)?,
+    )?;
     exports.set("restart_async", lua.create_async_function(restart_async)?)?;
     exports.set(
         "deployment_set_images",

@@ -59,7 +59,7 @@ function M.setup()
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
   end
 
-  commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
+  commands.run_async("get_minified_config_async", { M.context["current-context"] }, function(data)
     local result = decode(data)
     if result then
       M.context = result
