@@ -94,32 +94,20 @@ function M.setup()
 end
 
 function M.checkVersions()
-  -- get client and server version
-  commands.shell_command_async(
-    "kubectl",
-    { "version", "--output", "json" },
-    function(data)
-      local result = decode(data)
-      if result then
-        local clientVersion = result.clientVersion and result.clientVersion.gitVersion or "0.0"
-        local serverVersion = result.serverVersion and result.serverVersion.gitVersion or "0.0"
-        if not clientVersion or not serverVersion then
-          return
-        end
-        M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
-        M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
-        M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
-        M.versions.server.minor = tonumber(string.match(serverVersion, "%d+%.(%d+)%..*")) or 0
+  commands.run_async("get_version_async", {}, function(data)
+    local result = decode(data)
+    if result then
+      local clientVersion = result.clientVersion
+      local serverVersion = result.serverVersion
+      if not clientVersion or not serverVersion then
+        return
       end
-    end,
-    nil,
-    function(_, data)
-      if data and config.options.headers.skew.log_level < 5 then
-        vim.notify(data, vim.log.levels.ERROR)
-      end
-    end,
-    nil
-  )
+      M.versions.client.major = clientVersion.major
+      M.versions.client.minor = clientVersion.minor
+      M.versions.server.minor = serverVersion.minor
+      M.versions.server.major = serverVersion.major
+    end
+  end)
 end
 
 function M.stop_livez()

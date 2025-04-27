@@ -9,10 +9,11 @@ use tokio::runtime::Runtime;
 use tracing::error;
 
 use crate::cmd::apply::apply_async;
+use crate::cmd::config::{get_minified_config_async, get_version_async, get_config, get_config_async};
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
-    get_api_resources_async, get_config, get_config_async, get_raw_async, get_resource_async,
+    get_api_resources_async, get_raw_async, get_resource_async,
     get_resources_async, get_server_raw_async, get_single_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
@@ -65,52 +66,6 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     *client_guard = Some(new_client);
 
     Ok(true)
-}
-
-async fn get_minified_config_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
-    let ctx_override = args;
-
-    let full = kube::config::Kubeconfig::read().map_err(LuaError::external)?;
-
-    let ctx_name = ctx_override
-        .clone()
-        .or(full.current_context.clone())
-        .ok_or_else(|| {
-            LuaError::external("no context specified and no current-context in kubeconfig")
-        })?;
-
-    let named_ctx = full
-        .contexts
-        .iter()
-        .find(|c| c.name == ctx_name)
-        .ok_or_else(|| LuaError::external(format!("context '{ctx_name}' not found")))?;
-
-    let ctx = named_ctx
-        .context
-        .as_ref()
-        .ok_or_else(|| LuaError::external(format!("context '{ctx_name}' has no data")))?;
-
-    let cluster = full
-        .clusters
-        .iter()
-        .find(|c| c.name == ctx.cluster)
-        .ok_or_else(|| LuaError::external(format!("cluster '{}' not found", ctx.cluster)))?;
-
-    let user = ctx
-        .user
-        .as_ref()
-        .and_then(|u| full.auth_infos.iter().find(|ai| ai.name == *u))
-        .ok_or_else(|| LuaError::external(format!("user '{:?}' not found", ctx.user)))?;
-
-    let slim = kube::config::Kubeconfig {
-        clusters: vec![cluster.clone()],
-        contexts: vec![named_ctx.clone()],
-        auth_infos: vec![user.clone()],
-        current_context: Some(ctx_name),
-        ..Default::default()
-    };
-
-    k8s_openapi::serde_json::to_string_pretty(&slim).map_err(LuaError::external)
 }
 
 async fn get_all_async(
@@ -350,6 +305,14 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(get_config_async)?,
     )?;
     exports.set(
+        "get_minified_config_async",
+        lua.create_async_function(get_minified_config_async)?,
+    )?;
+    exports.set(
+        "get_version_async",
+        lua.create_async_function(get_version_async)?,
+    )?;
+    exports.set(
         "get_single_async",
         lua.create_async_function(get_single_async)?,
     )?;
@@ -368,10 +331,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(get_fallback_table_async)?,
     )?;
     exports.set("scale_async", lua.create_async_function(scale_async)?)?;
-    exports.set(
-        "get_minified_config_async",
-        lua.create_async_function(get_minified_config_async)?,
-    )?;
     exports.set("restart_async", lua.create_async_function(restart_async)?)?;
     exports.set(
         "deployment_set_images",

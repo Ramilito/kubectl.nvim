@@ -168,18 +168,6 @@ pub async fn get_single_async(
     rt.block_on(fut)
 }
 
-pub fn get_config(lua: &Lua, args: ()) -> LuaResult<String> {
-    futures::executor::block_on(get_config_async(lua.clone(), args))
-}
-
-pub async fn get_config_async(_lua: Lua, _args: ()) -> LuaResult<String> {
-    let config = Kubeconfig::read().expect("Failed to load kubeconfig");
-    let json =
-        serde_json::to_string(&config).unwrap_or_else(|e| format!("JSON formatting error: {}", e));
-
-    Ok(json)
-}
-
 pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> {
     let path = args;
 
