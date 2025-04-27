@@ -3,6 +3,8 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local resource = "crds"
+
+---@class Module
 local M = {
   definition = {
     resource = resource,
@@ -38,8 +40,6 @@ function M.Draw(cancellationToken)
   end
 end
 
---- Describe a configmap
----@param name string
 function M.Desc(name, _, reload)
   local def = {
     resource = M.definition.resource .. "_desc",
@@ -53,7 +53,7 @@ function M.Desc(name, _, reload)
   builder.view_float(def, {
     args = {
       state.context["current-context"],
-      M.definition.resource,
+      M.definition.plural,
       nil,
       name,
       M.definition.gvk.g,
