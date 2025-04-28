@@ -55,8 +55,8 @@ pub async fn restart_async(
             .await;
 
         match restarted {
-            Ok(restart) => Ok(format!("{}/{} restarted {:?}", kind, name, restart).to_string()),
-            Err(err) => Ok(format!("Failed to scale '{}': {:?}", name, err).to_string()),
+            Ok(..) => Ok(format!("{}/{} restarted", kind, name).to_string()),
+            Err(err) => Ok(format!("Failed to restart '{}': {:?}", name, err).to_string()),
         }
     };
 

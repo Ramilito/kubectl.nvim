@@ -19,7 +19,7 @@ M.overrides = {
       view.set_and_open_pod_selector(name, ns)
     end,
   },
-  -- Only works _if_ there is only _one_ container and that image is the _same_ as the daemonset
+
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,
@@ -33,6 +33,55 @@ M.overrides = {
       daemonset_view.SetImage(name, ns)
     end,
   },
+
+  ["<Plug>(kubectl.scale)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Scale replicas",
+    callback = function()
+      local name, ns = daemonset_view.getCurrentSelection()
+      local builder = manager.get_or_create("daemonset_scale")
+      commands.run_async("get_single_async", { daemonset_view.definition.gvk.k, ns, name, "Json" }, function(data)
+        if not data then
+          return
+        end
+        builder.data = data
+        builder.decodeJson()
+        local current_replicas = tostring(builder.data.spec.replicas)
+
+        vim.schedule(function()
+          vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
+            if not input then
+              return
+            end
+            buffers.confirmation_buffer(
+              string.format("Are you sure that you want to scale the daemonset to %s replicas?", input),
+              "prompt",
+              function(confirm)
+                if not confirm then
+                  return
+                end
+
+                commands.run_async("scale_async", {
+                  daemonset_view.definition.gvk.k,
+                  daemonset_view.definition.gvk.g,
+                  daemonset_view.definition.gvk.v,
+                  name,
+                  ns,
+                  input,
+                }, function(response)
+                  vim.schedule(function()
+                    vim.notify(response)
+                  end)
+                end)
+              end
+            )
+          end)
+        end)
+      end)
+    end,
+  },
+
   ["<Plug>(kubectl.rollout_restart)"] = {
     noremap = true,
     silent = true,
@@ -44,15 +93,17 @@ M.overrides = {
         "prompt",
         function(confirm)
           if confirm then
-            commands.shell_command_async(
-              "kubectl",
-              { "rollout", "restart", "daemonset/" .. name, "-n", ns },
-              function(response)
-                vim.schedule(function()
-                  vim.notify(response)
-                end)
-              end
-            )
+            commands.run_async("restart_async", {
+              daemonset_view.definition.gvk.k,
+              daemonset_view.definition.gvk.g,
+              daemonset_view.definition.gvk.v,
+              name,
+              ns,
+            }, function(response)
+              vim.schedule(function()
+                vim.notify(response)
+              end)
+            end)
           end
         end
       )
