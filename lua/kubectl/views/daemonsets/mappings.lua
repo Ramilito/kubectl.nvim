@@ -35,54 +35,6 @@ M.overrides = {
     end,
   },
 
-  ["<Plug>(kubectl.scale)"] = {
-    noremap = true,
-    silent = true,
-    desc = "Scale replicas",
-    callback = function()
-      local name, ns = daemonset_view.getCurrentSelection()
-      local builder = manager.get_or_create("daemonset_scale")
-      commands.run_async("get_single_async", { daemonset_view.definition.gvk.k, ns, name, "Json" }, function(data)
-        if not data then
-          return
-        end
-        builder.data = data
-        builder.decodeJson()
-        local current_replicas = tostring(builder.data.spec.replicas)
-
-        vim.schedule(function()
-          vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
-            if not input then
-              return
-            end
-            buffers.confirmation_buffer(
-              string.format("Are you sure that you want to scale the daemonset to %s replicas?", input),
-              "prompt",
-              function(confirm)
-                if not confirm then
-                  return
-                end
-
-                commands.run_async("scale_async", {
-                  daemonset_view.definition.gvk.k,
-                  daemonset_view.definition.gvk.g,
-                  daemonset_view.definition.gvk.v,
-                  name,
-                  ns,
-                  input,
-                }, function(response)
-                  vim.schedule(function()
-                    vim.notify(response)
-                  end)
-                end)
-              end
-            )
-          end)
-        end)
-      end)
-    end,
-  },
-
   ["<Plug>(kubectl.rollout_restart)"] = {
     noremap = true,
     silent = true,
@@ -115,7 +67,6 @@ M.overrides = {
 M.register = function()
   mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
   mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
-  mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
 end
 
 return M
