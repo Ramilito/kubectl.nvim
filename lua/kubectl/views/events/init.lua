@@ -49,6 +49,7 @@ function M.ShowMessage(ns, object, event)
     syntax = "less",
   }
   local builder = manager.get_or_create(def.resource)
+	builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer(def.ft, def.display_name, nil, { def.syntax })
 
   if builder then
     builder.addHints({ {
@@ -57,7 +58,6 @@ function M.ShowMessage(ns, object, event)
     } }, false, false, false)
     builder.data = vim.split(event, "\n")
 
-    builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer(def.ft, def.display_name, nil, { def.syntax })
     builder.displayContentRaw()
     vim.api.nvim_set_option_value("wrap", true, { win = builder.win_nr })
   end
