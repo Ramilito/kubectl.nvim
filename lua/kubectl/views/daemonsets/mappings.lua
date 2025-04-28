@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local view = require("kubectl.views")
@@ -114,6 +115,7 @@ M.overrides = {
 M.register = function()
   mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
   mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
+  mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
 end
 
 return M
