@@ -625,7 +625,11 @@ function M.find_resource(data, name, namespace)
   end
   if data then
     return vim.iter(data):find(function(row)
-      return row.metadata.name == name and (row.metadata.namespace == namespace or true)
+      if row.metadata then
+        return row.metadata.name == name and (row.metadata.namespace == namespace or true)
+      else
+        return row.name == name and (row.namespace == namespace or true)
+      end
     end)
   end
   return nil

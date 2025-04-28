@@ -1,7 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
-local store = require("kubectl.store")
 local M = {}
 
 local get_values = function(definition, data)
@@ -63,6 +62,8 @@ function M.View(definition, data, callback)
   if not builder then
     return
   end
+
+  builder.extmarks = {}
   builder.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     local args = get_values(definition, data)
     if confirm then
@@ -95,7 +96,8 @@ function M.View(definition, data, callback)
 
   builder.displayContentRaw()
   vim.cmd([[syntax match KubectlPending /.*/]])
-  store.set("action", { self = builder, data = data })
+  local self = manager.get_or_create("action_view")
+  self.data = data
 end
 
 return M

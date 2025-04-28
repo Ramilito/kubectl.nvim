@@ -1,6 +1,6 @@
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
-local store = require("kubectl.store")
 
 local M = {}
 
@@ -11,9 +11,12 @@ M.overrides = {
     silent = true,
     desc = "toggle options",
     callback = function()
-      local action_store = store.get("action")
+      local action_store = manager.get("action_view")
+      if not action_store then
+        return
+      end
       local data = action_store.data
-      local self = action_store.self
+      local self = action_store
       local current_line = vim.api.nvim_win_get_cursor(0)[1]
       local marks_ok, marks = pcall(
         vim.api.nvim_buf_get_extmarks,
@@ -45,7 +48,7 @@ M.overrides = {
             end
           end
           self.data[current_line] = item.options[current_enums[item.text]]
-          self:setContentRaw()
+          self.displayContentRaw()
         end
       end
     end,
