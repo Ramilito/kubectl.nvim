@@ -14,6 +14,8 @@ M.ns = ""
 ---@type string
 M.filter = ""
 ---@type string[]
+M.filter_label = {}
+---@type string[]
 M.filter_history = {}
 ---@type string[]
 M.alias_history = {}

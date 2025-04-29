@@ -1,10 +1,11 @@
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local url = require("kubectl.utils.url")
 local views = require("kubectl.views")
 
 local resource = "kubectl_filter_label"
@@ -17,7 +18,6 @@ local M = {
 --- Saves filter history
 --- @param input string: The input
 function M.save_history(input)
-  local state = require("kubectl.state")
   local history = state.filter_history
   local history_size = config.options.filter.max_history
 
@@ -44,78 +44,67 @@ end
 
 function M.filter_label()
   local buf_name = vim.api.nvim_buf_get_var(0, "buf_name")
-  local state = require("kubectl.state")
-  local instance = state.instance[buf_name]
+
+  local instance = manager.get(buf_name)
+  if not instance then
+    return
+  end
   local view, definition = views.view_and_definition(instance.resource)
   local name, ns = view.getCurrentSelection()
   if not name then
     return
   end
 
-  local resource = tables.find_resource(instance.data, name, ns)
-  if not resource then
-    return
-  end
-  local labels = resource.metadata and resource.metadata.labels or {}
-  table.sort(labels)
-  local original_url = vim.deepcopy(definition.url)
+  local def = {
+    resource = "filter_label",
+    display = "Filter on labels",
+    ft = "k8s_action",
+    ns = ns,
+    group = M.definition.group,
+    version = M.definition.version,
+  }
 
-  local builder = manager.get_or_create(M.definition.resource)
-  local win_config
-  builder.buf_nr, win_config = buffers.confirmation_buffer("Filter for labels", "label_filter", function(confirm)
-    if not confirm then
+  local builder = manager.get_or_create(def.resource)
+  commands.run_async("get_single_async", {
+    definition.gvk.k,
+    ns,
+    name,
+    "Json",
+  }, function(data)
+    if not data then
       return
     end
-    local lines = vim.api.nvim_buf_get_lines(builder.buf_nr, 0, -1, false)
-    local new_labels = {}
-    for _, line in ipairs(lines) do
-      local match = line:match("([^=]+=.+)")
-      table.insert(new_labels, match)
-    end
-    if #new_labels == 0 then
-      return
-    end
-    local new_args
-    if definition.cmd == "kubectl" then
-      new_args = { "get", definition.resource, "-o=json", "-l", table.concat(new_labels, ",") }
-      if ns then
-        table.insert(new_args, "-n")
-        table.insert(new_args, ns)
-      end
-    else
-      local url_str = original_url[#original_url]
-      local url_no_query_params, original_query_params = url.breakUrl(url_str, true, false)
-      local label_selector = "?labelSelector=" .. vim.uri_encode(table.concat(new_labels, ","), "rfc2396")
-      new_args = vim.deepcopy(original_url)
-      new_args[#new_args] = url_no_query_params .. label_selector .. "&" .. original_query_params
+
+    builder.data = data
+    builder.decodeJson()
+    local labels = builder.data.metadata.labels
+
+    local action_data = {}
+    for key, value in pairs(labels) do
+      table.insert(action_data, {
+        text = key .. "=" .. value,
+        value = "[ ]",
+        type = "positional",
+        options = { "[x]", "[ ]" },
+      })
     end
 
-    -- display view
-    state.setFilter("")
-    definition.url = new_args
+    builder.data = {}
     vim.schedule(function()
-      view.View()
-      definition.url = original_url
+      builder.action_view(def, action_data, function(args)
+        local selection = {}
+        for _, item in ipairs(args) do
+          if item.value == "[x]" then
+            table.insert(selection, item.text)
+          end
+        end
+        state.filter_label = selection
+      end)
     end)
   end)
-
-  local confirmation = "[y]es [n]o:"
-  local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
-
-  -- Add current label to buffer
-  builder.data = { "Current labels:" }
-  for k, v in pairs(labels) do
-    table.insert(builder.data, k .. "=" .. v)
-  end
-  table.insert(builder.data, padding .. confirmation)
-  builder.splitData()
-  builder.displayContentRaw()
-  vim.cmd([[syntax match KubectlSuccess /.*=\@=/]])
-  vim.cmd([[syntax match KubectlDebug /=\@<=.*/]])
 end
 
 function M.filter()
-  local state = require("kubectl.state")
   local buf, win = buffers.filter_buffer("k8s_filter", M.save_history, { title = "Filter", header = { data = {} } })
 
   local list = {}
