@@ -322,6 +322,7 @@ function M.new(resource)
             .sort()
             .prettyPrint()
             .addDivider(false)
+            .addHints(definition.hints, false, false)
             .displayContent(builder.win_nr)
         else
           builder.splitData().addDivider(false).displayContentRaw()

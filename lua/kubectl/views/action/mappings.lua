@@ -1,56 +1,68 @@
+local action_view = require("kubectl.views.action")
 local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 
 local M = {}
 
-local current_enums = {}
+local enum_state = {}
+
+---@param list string[]   the option list
+---@param idx  integer?   last index (or nil the first time)
+---@return integer        next index in [1..#list]
+local function next_idx(list, idx)
+  idx = (idx or 0) + 1
+  return ((idx - 1) % #list) + 1 -- simple modulo cycle
+end
+
 M.overrides = {
   ["<Plug>(kubectl.tab)"] = {
     noremap = true,
     silent = true,
     desc = "toggle options",
     callback = function()
-      local action_store = manager.get("action_view")
-      if not action_store then
+      local store = manager.get("action_view")
+      if not (store and store.data) then
         return
       end
-      local data = action_store.data
-      local self = action_store
-      local current_line = vim.api.nvim_win_get_cursor(0)[1]
-      local marks_ok, marks = pcall(
+
+      local row = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-based
+      local ns_id = state.marks.ns_id
+
+      local ok, ext = pcall(
         vim.api.nvim_buf_get_extmarks,
-        0,
-        state.marks.ns_id,
-        { current_line - 1, 0 },
-        { current_line - 1, 0 },
-        { details = true, overlap = true, type = "virt_text" }
+        store.buf_nr,
+        ns_id,
+        { row, 0 },
+        { row, 0 },
+        { details = true, type = "virt_text" }
       )
-      if not marks_ok or not marks[1] then
+      if not (ok and ext[1]) then
         return
       end
-      local mark = marks[1][4]
-      local key
-      if mark then
-        key = mark.virt_text[1][1]
+
+      local vt = ext[1][4].virt_text
+      local key = vt and vt[1] and vt[1][1] -- literal text token
+      if not key then
+        return
       end
-      for _, item in ipairs(data) do
+
+      for _, item in ipairs(store.origin_data) do
+        local opts = item.options
         if item.type == "flag" then
-          item.options = { "false", "true" }
+          opts = { "false", "true" }
         end
-        if string.match(key, item.text) and item.options then
-          if current_enums[item.text] == nil then
-            current_enums[item.text] = 2
-          else
-            current_enums[item.text] = current_enums[item.text] + 1
-            if current_enums[item.text] > #item.options then
-              current_enums[item.text] = 1
-            end
-          end
-          self.data[current_line] = item.options[current_enums[item.text]]
-          self.displayContentRaw()
+
+        if opts and key:find(item.text, 1, true) then
+          local idx = next_idx(opts, enum_state[item.text])
+          enum_state[item.text] = idx
+
+          store.data[row + 1] = opts[idx]
+          break
         end
       end
+
+      action_view.Draw()
     end,
   },
 }

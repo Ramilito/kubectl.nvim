@@ -58,12 +58,11 @@ end
 
 function M.View(definition, data, callback)
   local win_config
-  local builder = manager.get(definition.resource)
-  if not builder then
-    return
-  end
+  local builder = manager.get_or_create("action_view")
 
   builder.extmarks = {}
+  builder.data = {}
+  builder.origin_data = data
   builder.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     local args = get_values(definition, data)
     if confirm then
@@ -84,6 +83,7 @@ function M.View(definition, data, callback)
 
   table.insert(builder.data, "")
   table.insert(builder.data, "")
+  table.insert(builder.data, "")
 
   local confirmation = "[y]es [n]o"
   local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
@@ -93,11 +93,17 @@ function M.View(definition, data, callback)
     virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
     virt_text_pos = "inline",
   })
+  M.Draw()
+end
+
+function M.Draw()
+  local builder = manager.get("action_view")
+  if not builder then
+    return
+  end
 
   builder.displayContentRaw()
   vim.cmd([[syntax match KubectlPending /.*/]])
-  local self = manager.get_or_create("action_view")
-  self.data = data
 end
 
 return M
