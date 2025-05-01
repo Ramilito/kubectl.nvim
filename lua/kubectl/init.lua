@@ -18,13 +18,15 @@ function M.open()
 
   hl.setup()
 
+  state.setup()
   if config.options.headers.enabled then
     view.Header()
   end
-  state.setup()
   vim.defer_fn(function()
-    cache.LoadFallbackData()
-  end, 4000)
+    vim.schedule(function()
+      cache.LoadFallbackData()
+    end)
+  end, 2000)
 end
 
 function M.close()

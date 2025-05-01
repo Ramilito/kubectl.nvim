@@ -111,6 +111,7 @@ function M.get_mappings()
             local ns = value.cmd.namespace
             local name = value.cmd.name
 
+            vim.notify("Deleting " .. gvk.k .. ": " .. name, vim.log.levels.INFO)
             commands.run_async("delete_async", { gvk.k, gvk.g, gvk.v, ns, name }, function(_, err)
               vim.schedule(function()
                 if not err then
