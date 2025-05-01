@@ -96,8 +96,9 @@ function M.get_mappings()
 
         local action_data = {}
         for _, value in ipairs(selections) do
+          local ns_prefix = value.namespace and (value.namespace .. ": ") or ""
           table.insert(action_data, {
-            text = ">> " .. value.namespace .. ": " .. value.name,
+            text = ">> " .. ns_prefix .. value.name,
             value = "",
             cmd = { name = value.name, namespace = value.namespace },
             type = "positional",

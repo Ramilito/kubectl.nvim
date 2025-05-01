@@ -6,7 +6,6 @@ use kube::{
 };
 use mlua::{Either, Error as LuaError, Lua, Result as LuaResult};
 use tokio::runtime::Runtime;
-use tracing::info;
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
@@ -17,7 +16,6 @@ pub async fn delete_async(
     args: (String, String, String, Option<String>, String),
 ) -> LuaResult<String> {
     let (kind, group, version, namespace, name) = args;
-    info!("DElteing: {:?}", name);
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client = {
