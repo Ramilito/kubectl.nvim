@@ -65,12 +65,14 @@ function M.get_mappings()
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+
         if not view_ok then
           view = require("kubectl.views.fallback")
         end
-        local tables = require("kubectl.utils.tables")
+
         local state = require("kubectl.state")
         local selections = state.getSelections()
+
         if vim.tbl_count(selections) == 0 then
           local name, ns = view.getCurrentSelection()
           if name then
@@ -82,56 +84,44 @@ function M.get_mappings()
         for _, value in ipairs(selections) do
           table.insert(data, { name = value.name, namespace = value.namespace })
         end
+        local builder = manager.get_or_create("delete_view")
 
-        local self = manager.get_or_create("delete_resource")
-        self.data = data
-        self.processedData = self.data
+        local def = {
+          resource = "delete_resource",
+          display = "Delete resource",
+          ft = "k8s_action",
+          -- ns = ns,
+          group = view.definition.group,
+          version = view.definition.version,
+        }
 
-        local prompt = "Are you sure you want to delete the selected resource(s)?"
-        local buf_nr, win, win_nr = buffers.confirmation_buffer(prompt, "prompt", function(confirm)
-          if confirm then
-            local resource = string.lower(buf_name)
-            for _, selection in ipairs(selections) do
-              local name = selection.name
-              local ns = selection.namespace
-              vim.notify("deleting " .. name)
-              if name then
-                if buf_name == "fallback" then
-                  resource = view.resource
-                end
-                local args = { "delete", resource, name }
-                if ns and ns ~= "nil" then
-                  table.insert(args, "-n")
-                  table.insert(args, ns)
-                end
-                commands.shell_command_async("kubectl", args, function(delete_data)
-                  vim.schedule(function()
-                    vim.notify(delete_data, vim.log.levels.INFO)
-                  end)
-                end)
-              end
-            end
-            state.selections = {}
-            vim.schedule(function()
-              view.Draw()
-            end)
+        local action_data = {}
+        for _, value in ipairs(selections) do
+          table.insert(action_data, {
+            text = ">> " .. value.namespace .. ": " .. value.name,
+            value = "",
+            cmd = { name = value.name, namespace = value.namespace },
+            type = "positional",
+          })
+        end
+        builder.data = data
+        builder.action_view(def, action_data, function(args)
+          local gvk = view.definition.gvk
+          for _, value in ipairs(args) do
+            local ns = value.cmd.namespace
+            local name = value.cmd.name
+
+            print("deleting: ", ns, name)
+
+            -- commands.run_async("delete_async", { gvk.k, gvk.g, gvk.v, ns, name }, function(_, err)
+            --   vim.schedule(function()
+            --     if not err then
+            --       vim.notify(gvk.k .. " deleted: " .. name, vim.log.levels.INFO)
+            --     end
+            --   end)
+            -- end)
           end
         end)
-
-        self.buf_nr = buf_nr
-        self.prettyData, self.extmarks = tables.pretty_print(self.processedData, { "NAME", "NAMESPACE" })
-
-        table.insert(self.prettyData, "")
-        table.insert(self.prettyData, "")
-        local confirmation = "[y]es [n]o"
-        local padding = string.rep(" ", (win.width - #confirmation) / 2)
-        table.insert(self.extmarks, {
-          row = #self.prettyData - 1,
-          start_col = 0,
-          virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
-          virt_text_pos = "inline",
-        })
-        self.displayContent(win_nr)
       end,
     },
     ["<Plug>(kubectl.yaml)"] = {

@@ -1,70 +1,56 @@
-use k8s_openapi::serde_json;
 use kube::{
-    api::{DynamicObject, GroupVersionKind, ListParams, Patch, PatchParams},
-    Discovery, ResourceExt,
+    core::GroupVersionKind,
+    discovery,
+    runtime::{conditions::is_deleted, wait::await_condition},
+    ResourceExt,
 };
-use mlua::prelude::*;
+use mlua::{Either, Error as LuaError, Lua, Result as LuaResult};
 use tokio::runtime::Runtime;
+use tracing::info;
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
-use super::utils::{dynamic_api, multidoc_deserialize, resolve_api_resource};
+use super::utils::dynamic_api;
 
-pub async fn delete_async(_lua: Lua, args: (String, String, Option<String>)) -> LuaResult<String> {
-    let (kind, name, ns) = args;
+pub async fn delete_async(
+    _lua: Lua,
+    args: (String, String, String, Option<String>, String),
+) -> LuaResult<String> {
+    let (kind, group, version, namespace, name) = args;
+    info!("DElteing: {:?}", name);
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
+    let client = {
+        let guard = CLIENT_INSTANCE.lock().map_err(|_| {
+            LuaError::RuntimeError("Failed to acquire lock on client instance".into())
+        })?;
+        guard
+            .as_ref()
+            .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
+            .clone()
+    };
+
     let fut = async move {
-        let discovery = Discovery::new(client.clone()).run().await;
+        let gvk = GroupVersionKind::gvk(&group, &version, &kind);
+        let (ar, caps) = discovery::pinned_kind(&client, &gvk)
+            .await
+            .map_err(|e| LuaError::RuntimeError(format!("Failed to discover resource: {e}")))?;
 
-        let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
-            let gvk = GroupVersionKind {
-                group: g,
-                version: v,
-                kind: kind.to_string(),
-            };
-            if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
-                (ar, caps)
-            } else {
-                return Err(mlua::Error::external(format!(
-                    "Unable to discover resource by GVK: {:?}",
-                    gvk
-                )));
-            }
-        } else {
-            if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
-                (ar, caps)
-            } else {
-                return Err(mlua::Error::external(format!(
-                    "Resource not found in cluster: {}",
-                    kind
-                )));
-            }
-        };
+        let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
+        let deletion = api
+            .delete(&name, &Default::default())
+            .await
+            .map_err(|e| LuaError::RuntimeError(format!("Delete failed: {e}")))?;
 
-        let api = dynamic_api(ar, caps, client.clone(), ns.as_deref(), false);
+        if let Either::Left(pdel) = deletion {
+            await_condition(api.clone(), &name, is_deleted(&pdel.uid().unwrap()))
+                .await
+                .map_err(|e| {
+                    LuaError::RuntimeError(format!("Timed out waiting for deletion: {e}"))
+                })?;
+        }
 
-        // if let Some(n) = &self.name {
-        //     if let either::Either::Left(pdel) = api.delete(n, &Default::default()).await? {
-        //         // await delete before returning
-        //         await_condition(api, n, is_deleted(&pdel.uid().unwrap())).await?;
-        //     }
-        // } else {
-        //     api.delete_collection(&Default::default(), &lp).await?;
-        // }
-
-        // Discovery::new(client.clone())
-        //     .run()
-        //     .await
-        //     .map_err(|e| mlua::Error::external(e))
-
-        Ok("called".to_string())
+        Ok("".to_string())
     };
 
     rt.block_on(fut)

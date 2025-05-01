@@ -3,57 +3,67 @@ local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local M = {}
 
-local get_values = function(definition, data)
-  local marks =
-    vim.api.nvim_buf_get_extmarks(0, state.marks.ns_id, 0, -1, { details = true, overlap = true, type = "virt_text" })
-  local args_tmp = {}
+local function get_values(definition, data)
+  local bufnr = 0
+  local ns = state.marks.ns_id
+
+  local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {
+    details = true,
+    overlap = true,
+    type = "virt_text",
+  })
+
+  local results = {}
+
   if definition.cmd then
-    for _, value in ipairs(definition.cmd) do
-      table.insert(args_tmp, value)
+    for _, cmd in ipairs(definition.cmd) do
+      results[#results + 1] = cmd
     end
-  end
 
-  for _, mark in ipairs(marks) do
-    if mark then
-      local text = mark[4].virt_text[1][1]
+    for _, mark in ipairs(extmarks) do
+      local label = mark[4].virt_text[1][1]
+      local line_num = mark[2]
+      local raw_line = vim.api.nvim_buf_get_lines(bufnr, line_num, line_num + 1, false)[1] or ""
+      local value = vim.trim(raw_line)
+
       for _, item in ipairs(data) do
-        if string.find(text, item.text, 1, true) then
-          local line_number = mark[2]
-          local line = vim.api.nvim_buf_get_lines(0, line_number, line_number + 1, false)[1] or ""
-          local value = vim.trim(line)
-
-          if definition.cmd then
-            if item.type == "flag" then
-              if value == "true" then
-                table.insert(args_tmp, item.cmd)
-              end
-            elseif item.type == "option" then
-              if value ~= "" and value ~= "false" and value ~= nil then
-                table.insert(args_tmp, item.cmd .. "=" .. value)
-              end
-            elseif item.type == "positional" then
-              if value ~= "" and value ~= nil then
-                if item.cmd and item.cmd ~= "" then
-                  table.insert(args_tmp, item.cmd .. " " .. value)
-                else
-                  table.insert(args_tmp, value)
-                end
-              end
-            elseif item.type == "merge_above" then
-              if value ~= "" and value ~= nil then
-                args_tmp[#args_tmp] = args_tmp[#args_tmp] .. item.cmd .. value
-              end
+        if label:find(item.text, 1, true) then
+          if item.type == "flag" and value == "true" then
+            results[#results + 1] = item.cmd
+          elseif item.type == "option" and value ~= "" and value ~= "false" then
+            results[#results + 1] = item.cmd .. "=" .. value
+          elseif item.type == "positional" and value ~= "" then
+            if item.cmd ~= "" then
+              results[#results + 1] = item.cmd .. " " .. value
+            else
+              results[#results + 1] = value
             end
-          else
-            item.value = value
-            table.insert(args_tmp, item)
-            break
+          elseif item.type == "merge_above" and value ~= "" then
+            results[#results] = results[#results] .. item.cmd .. value
           end
+
+          break
+        end
+      end
+    end
+  else
+    for _, mark in ipairs(extmarks) do
+      local label = mark[4].virt_text[1][1]
+      local raw_line = vim.api.nvim_buf_get_lines(bufnr, mark[2], mark[2] + 1, false)[1] or ""
+      local value = vim.trim(raw_line)
+
+      for _, item in ipairs(data) do
+        if label:find(item.text, 1, true) then
+          local entry = vim.deepcopy(item)
+          entry.value = value
+          table.insert(results, entry)
+          break
         end
       end
     end
   end
-  return args_tmp
+
+  return results
 end
 
 function M.View(definition, data, callback)
@@ -64,7 +74,7 @@ function M.View(definition, data, callback)
   builder.data = {}
   builder.origin_data = data
   builder.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
-    local args = get_values(definition, data)
+    local args = get_values(definition, builder.origin_data)
     if confirm then
       callback(args)
     end

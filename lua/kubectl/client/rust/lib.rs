@@ -9,16 +9,19 @@ use tokio::runtime::Runtime;
 use tracing::error;
 
 use crate::cmd::apply::apply_async;
-use crate::cmd::config::{get_minified_config_async, get_version_async, get_config, get_config_async};
+use crate::cmd::config::{
+    get_config, get_config_async, get_minified_config_async, get_version_async,
+};
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
-    get_api_resources_async, get_raw_async, get_resource_async,
-    get_resources_async, get_server_raw_async, get_single_async,
+    get_api_resources_async, get_raw_async, get_resource_async, get_resources_async,
+    get_server_raw_async, get_single_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
+use crate::cmd::delete::delete_async;
 use crate::processors::get_processors;
 
 mod cmd;
@@ -330,6 +333,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "get_fallback_table_async",
         lua.create_async_function(get_fallback_table_async)?,
     )?;
+    exports.set("delete_async", lua.create_async_function(delete_async)?)?;
     exports.set("scale_async", lua.create_async_function(scale_async)?)?;
     exports.set("restart_async", lua.create_async_function(restart_async)?)?;
     exports.set(
