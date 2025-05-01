@@ -90,7 +90,6 @@ function M.get_mappings()
           resource = "delete_resource",
           display = "Delete resource",
           ft = "k8s_action",
-          -- ns = ns,
           group = view.definition.group,
           version = view.definition.version,
         }
@@ -111,16 +110,15 @@ function M.get_mappings()
             local ns = value.cmd.namespace
             local name = value.cmd.name
 
-            print("deleting: ", ns, name)
-
-            -- commands.run_async("delete_async", { gvk.k, gvk.g, gvk.v, ns, name }, function(_, err)
-            --   vim.schedule(function()
-            --     if not err then
-            --       vim.notify(gvk.k .. " deleted: " .. name, vim.log.levels.INFO)
-            --     end
-            --   end)
-            -- end)
+            commands.run_async("delete_async", { gvk.k, gvk.g, gvk.v, ns, name }, function(_, err)
+              vim.schedule(function()
+                if not err then
+                  vim.notify(gvk.k .. " deleted: " .. name, vim.log.levels.INFO)
+                end
+              end)
+            end)
           end
+          state.selections = {}
         end)
       end,
     },
