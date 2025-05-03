@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.services.definition")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local pf_definition = require("kubectl.views.port_forwards.definition")
@@ -28,7 +27,6 @@ local M = {
       "PORTS",
       "AGE",
     },
-    processRow = definition.processRow,
   },
 }
 

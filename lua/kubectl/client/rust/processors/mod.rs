@@ -7,9 +7,10 @@ pub mod customresourcedefinition;
 pub mod default;
 pub mod deployment;
 pub mod fallback;
+pub mod persistentvolumeclaim;
 pub mod pod;
 pub mod processor;
-pub mod persistentvolumeclaim;
+pub mod service;
 pub mod statefulset;
 pub mod storageclass;
 
@@ -23,6 +24,7 @@ pub fn get_processors() -> HashMap<&'static str, Box<dyn Processor>> {
     map.insert("fallback", Box::new(fallback::FallbackProcessor));
     map.insert("persistentvolumeclaim", Box::new(persistentvolumeclaim::PersistentVolumeClaimProcessor));
     map.insert("pod", Box::new(pod::PodProcessor));
+    map.insert("service", Box::new(service::ServiceProcessor));
     map.insert("statefulset", Box::new(statefulset::StatefulsetProcessor));
     map.insert("storageclass", Box::new(storageclass::StorageClassProcessor));
     map
