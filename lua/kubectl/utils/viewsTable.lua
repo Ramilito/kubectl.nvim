@@ -15,6 +15,7 @@ return {
   nodes = { "nodes", "node", "no" },
   serviceaccounts = { "serviceaccounts", "serviceaccount", "sa" },
   secrets = { "secrets", "secret", "sec" },
+  storageclasses = { "storageclasses", "storageclass", "sc" },
   services = { "services", "service", "svc" },
   configmaps = { "configmaps", "configmap", "cm" },
   crds = { "customresourcedefinitions", "crds", "crd", "customresourcedefinitions.apiextensions.k8s.io" },

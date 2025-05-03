@@ -9,7 +9,6 @@ local M = {
   resource = "fallback",
   definition = {
     ft = "k8s_fallback",
-    informer = { enabled = true },
     gvk = {},
   },
 }
@@ -80,6 +79,10 @@ function M.Draw(cancellationToken)
     "get_fallback_table_async",
     { builder.definition.crd_name, ns, sort_by, sort_order, filter },
     function(result)
+
+			if not result then
+				return
+			end
       builder.data = result
       builder.decodeJson()
       builder.processedData = builder.data.rows
