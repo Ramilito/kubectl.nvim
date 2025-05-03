@@ -25,7 +25,7 @@ local M = {
       "STORAGE CLASS",
       "AGE",
     },
-    processRow = definition.processRow,
+    -- processRow = definition.processRow,
   },
 }
 
