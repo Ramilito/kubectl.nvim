@@ -50,7 +50,7 @@ end
 function M.Draw(cancellationToken)
   local builder = manager.get(M.definition.resource)
   if builder then
-    local pfs = pf_definition.getPFRows()
+    local pfs = pf_definition.getPFRows(string.lower(M.definition.gvk.k))
     builder.extmarks_extra = {}
     pf_definition.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
     builder.draw(cancellationToken)
