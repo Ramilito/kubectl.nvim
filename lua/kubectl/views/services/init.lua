@@ -79,10 +79,10 @@ function M.PortForward(name, ns)
   }
 
   commands.run_async("get_single_async", {
-    M.definition.gvk.k,
-    ns,
-    name,
-    def.syntax,
+    kind = M.definition.gvk.k,
+    name = name,
+    namespace = ns,
+    output = def.syntax,
   }, function(data)
     local builder = manager.get_or_create(def.resource)
     builder.data = data

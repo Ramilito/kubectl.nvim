@@ -171,10 +171,10 @@ function M.PortForward(pod, ns)
   }
 
   commands.run_async("get_single_async", {
-    M.definition.gvk.k,
-    ns,
-    pod,
-    def.syntax,
+    kind = M.definition.gvk.k,
+    name = pod,
+    namespace = ns,
+    output = def.syntax,
   }, function(data)
     local containers = {}
     local pfBuilder = manager.get_or_create(def.resource)

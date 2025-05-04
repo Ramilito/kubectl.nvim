@@ -1,6 +1,6 @@
-local manager = require("kubectl.resource_manager")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local statefulset_view = require("kubectl.views.statefulsets")
@@ -43,44 +43,46 @@ M.overrides = {
     callback = function()
       local name, ns = statefulset_view.getCurrentSelection()
       local builder = manager.get_or_create("statefulset_scale")
-      commands.run_async("get_single_async", { statefulset_view.definition.gvk.k, ns, name, "Json" }, function(data)
-        if not data then
-          return
-        end
-        builder.data = data
-        builder.decodeJson()
-        local current_replicas = tostring(builder.data.spec.replicas)
+      commands.run_async(
+        "get_single_async",
+        { kind = statefulset_view.definition.gvk.k, namespace = ns, name = name, output = "Json" },
+        function(data)
+          if not data then
+            return
+          end
+          builder.data = data
+          builder.decodeJson()
+          local current_replicas = tostring(builder.data.spec.replicas)
 
-        vim.schedule(function()
-          vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
-            if not input then
-              return
-            end
-            buffers.confirmation_buffer(
-              string.format("Are you sure that you want to scale the statefulset to %s replicas?", input),
-              "prompt",
-              function(confirm)
-                if not confirm then
-                  return
-                end
-
-                commands.run_async("scale_async", {
-                  statefulset_view.definition.gvk.k,
-                  statefulset_view.definition.gvk.g,
-                  statefulset_view.definition.gvk.v,
-                  name,
-                  ns,
-                  input,
-                }, function(response)
-                  vim.schedule(function()
-                    vim.notify(response)
-                  end)
-                end)
+          vim.schedule(function()
+            vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
+              if not input then
+                return
               end
-            )
+              buffers.confirmation_buffer(
+                string.format("Are you sure that you want to scale the statefulset to %s replicas?", input),
+                "prompt",
+                function(confirm)
+                  if not confirm then
+                    return
+                  end
+
+                  commands.run_async("scale_async", {
+                    gvk = statefulset_view.definition.gvk,
+                    name = name,
+                    namespace = ns,
+                    replicas = tonumber(input),
+                  }, function(response)
+                    vim.schedule(function()
+                      vim.notify(response)
+                    end)
+                  end)
+                end
+              )
+            end)
           end)
-        end)
-      end)
+        end
+      )
     end,
   },
 
@@ -96,11 +98,9 @@ M.overrides = {
         function(confirm)
           if confirm then
             commands.run_async("restart_async", {
-              statefulset_view.definition.gvk.k,
-              statefulset_view.definition.gvk.g,
-              statefulset_view.definition.gvk.v,
-              name,
-              ns,
+              gvk = statefulset_view.definition.gvk,
+              name = name,
+              namespace = ns,
             }, function(response)
               vim.schedule(function()
                 vim.notify(response)
