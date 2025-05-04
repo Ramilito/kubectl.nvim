@@ -269,7 +269,7 @@ function M.new(resource)
     local sort_by = sort_data and sort_data.current_word or nil
     local sort_order = sort_data and sort_data.order or nil
     local filter = state.getFilter() or nil
-		local filter_label = state.getFilterLabel() or nil
+    local filter_label = state.getFilterLabel() or nil
 
     local args = {
       gvk = definition.gvk,

@@ -6,7 +6,7 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::sync::{Mutex, OnceLock};
 use store::get_store_map;
-use structs::{FetchArgs, GetTableArgs, StartReflectorArgs};
+use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 use tracing::{error, info};
 
@@ -74,11 +74,9 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     Ok(true)
 }
 
-async fn get_all_async(
-    _lua: Lua,
-    args: (String, Option<String>, Option<String>, Option<String>),
-) -> LuaResult<String> {
-    let (kind, group, version, namespace) = args;
+//TODO: Should be combined with get_table_async with a pretty output param
+async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: GetAllArgs = serde_json::from_str(&json).unwrap();
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
         .lock()
@@ -89,11 +87,17 @@ async fn get_all_async(
         .clone();
 
     let fut = async move {
-        let cached = (store::get(&kind, namespace.clone()).await).unwrap_or_default();
+        let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
-            get_resources_async(&client, kind, group, version, namespace)
-                .await
-                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+            get_resources_async(
+                &client,
+                args.gvk.k,
+                Some(args.gvk.g),
+                Some(args.gvk.v),
+                args.namespace,
+            )
+            .await
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
             cached
         };
@@ -125,24 +129,22 @@ async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
     rt.block_on(fut)
 }
 
-pub async fn get_fallback_table_async(
-    lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
-) -> LuaResult<String> {
-    let (name, namespace, sort_by, sort_order, filter) = args;
-
+pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
+    let args: GetFallbackTableArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
     let processors = get_processors();
     let processor = processors
         .get("fallback")
         .unwrap_or_else(|| processors.get("default").unwrap());
     let processed = processor
-        .process_fallback(&lua, name, namespace, sort_by, sort_order, filter)
+        .process_fallback(
+            &lua,
+            args.name,
+            args.namespace,
+            args.sort_by,
+            args.sort_order,
+            args.filter,
+        )
         .map_err(mlua::Error::external)?;
 
     let json_str = k8s_openapi::serde_json::to_string(&processed)
@@ -209,9 +211,8 @@ async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
 }
 
 async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
-    let args: GetTableArgs = k8s_openapi::serde_json::from_str(&json)
-        .map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-    info!("{:?}", args);
+    let args: GetTableArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
         .lock()
@@ -277,7 +278,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("exec", lua.create_function(exec::exec)?)?;
     exports.set(
         "log_stream_async",
-        lua.create_async_function(processors::pod::log_stream_async)?,
+        lua.create_async_function(cmd::stream::log_stream_async)?,
     )?;
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set(

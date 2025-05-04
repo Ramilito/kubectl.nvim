@@ -7,4 +7,5 @@ pub mod get;
 pub mod portforward;
 pub mod restart;
 pub mod scale;
+pub mod stream;
 pub mod utils;

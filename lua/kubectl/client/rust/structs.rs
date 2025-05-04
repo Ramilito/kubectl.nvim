@@ -8,6 +8,12 @@ pub struct Gvk {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct GetAllArgs {
+    pub gvk: Gvk,
+    pub namespace: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct GetTableArgs {
     pub gvk: Gvk,
     pub namespace: Option<String>,
@@ -57,8 +63,45 @@ pub struct CmdDeleteArgs {
     pub namespace: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct CmdRestartArgs {
+    pub gvk: Gvk,
+    pub name: String,
+    pub namespace: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CmdScaleArgs {
+    pub gvk: Gvk,
+    pub name: String,
+    pub namespace: String,
+    pub replicas: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GetFallbackTableArgs {
+    pub name: String,
+    pub namespace: Option<String>,
+    pub sort_by: Option<String>,
+    pub sort_order: Option<String>,
+    pub filter: Option<String>,
+    pub filter_label: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(default)]
 pub struct GetMinifiedConfig {
     pub ctx_override: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct CmdStreamArgs {
+    pub name: String,
+    pub namespace: String,
+    pub container: Option<String>,
+    pub since_time_input: Option<String>,
+    pub previous: Option<bool>,
+    pub timestamps: Option<bool>,
+    pub prefix: Option<bool>,
 }

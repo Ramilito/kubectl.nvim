@@ -9,14 +9,13 @@ use kube::Api;
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
+use crate::structs::CmdRestartArgs;
 use crate::CLIENT_INSTANCE;
 use crate::RUNTIME;
 
-pub async fn restart_async(
-    _lua: Lua,
-    args: (String, Option<String>, String, String, String),
-) -> LuaResult<String> {
-    let (kind, group, version, name, ns) = args;
+pub async fn restart_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: CmdRestartArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
@@ -27,15 +26,14 @@ pub async fn restart_async(
         .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        let group_str = group.unwrap_or_default();
-
         let gvk = GroupVersionKind {
-            group: group_str,
-            version,
-            kind: kind.to_string(),
+            group: args.gvk.g,
+            version: args.gvk.v,
+            kind: args.gvk.k,
         };
         let ar = ApiResource::from_gvk(&gvk);
-        let restart_api: Api<DynamicObject> = Api::namespaced_with(client.clone(), &ns, &ar);
+        let restart_api: Api<DynamicObject> =
+            Api::namespaced_with(client.clone(), &args.namespace, &ar);
 
         let patch_data = serde_json::json!({
           "spec": {
@@ -51,12 +49,12 @@ pub async fn restart_async(
 
         let patch = Patch::Merge(&patch_data);
         let restarted = restart_api
-            .patch(&name, &PatchParams::default(), &patch)
+            .patch(&args.name, &PatchParams::default(), &patch)
             .await;
 
         match restarted {
-            Ok(..) => Ok(format!("{}/{} restarted", kind, name).to_string()),
-            Err(err) => Ok(format!("Failed to restart '{}': {:?}", name, err).to_string()),
+            Ok(..) => Ok(format!("{}/{} restarted", gvk.kind, args.name).to_string()),
+            Err(err) => Ok(format!("Failed to restart '{}': {:?}", args.name, err).to_string()),
         }
     };
 

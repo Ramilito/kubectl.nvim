@@ -1,7 +1,7 @@
-local manager = require("kubectl.resource_manager")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local view = require("kubectl.views")
@@ -43,44 +43,50 @@ M.overrides = {
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
       local builder = manager.get_or_create("deployment_scale")
-      commands.run_async("get_single_async", { deployment_view.definition.gvk.k, ns, name, "Json" }, function(data)
-        if not data then
-          return
-        end
-        builder.data = data
-        builder.decodeJson()
-        local current_replicas = tostring(builder.data.spec.replicas)
+      commands.run_async(
+        "get_single_async",
+        { kind = deployment_view.definition.gvk.k, namespace = ns, name = name, output = "Json" },
+        function(data)
+          if not data then
+            return
+          end
+          builder.data = data
+          builder.decodeJson()
+          local current_replicas = tostring(builder.data.spec.replicas)
 
-        vim.schedule(function()
-          vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
-            if not input then
-              return
-            end
-            buffers.confirmation_buffer(
-              string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
-              "prompt",
-              function(confirm)
-                if not confirm then
-                  return
-                end
-
-                commands.run_async("scale_async", {
-                  deployment_view.definition.gvk.k,
-                  deployment_view.definition.gvk.g,
-                  deployment_view.definition.gvk.v,
-                  name,
-                  ns,
-                  input,
-                }, function(response)
-                  vim.schedule(function()
-                    vim.notify(response)
-                  end)
-                end)
+          vim.schedule(function()
+            vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
+              if not input then
+                return
               end
-            )
+              buffers.confirmation_buffer(
+                string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
+                "prompt",
+                function(confirm)
+                  if not confirm then
+                    return
+                  end
+
+                  commands.run_async("scale_async", {
+                    gvk = deployment_view.definition.gvk,
+                    name = name,
+                    namespace = ns,
+                    replicas = tonumber(input),
+                  }, function(result, err)
+                    vim.schedule(function()
+                      if err then
+                        vim.notify("could not scale resource: ", err)
+                      else
+                        vim.notify(result)
+                      end
+                    end)
+                  end)
+                end
+              )
+            end)
           end)
-        end)
-      end)
+        end
+      )
     end,
   },
 
@@ -96,11 +102,9 @@ M.overrides = {
         function(confirm)
           if confirm then
             commands.run_async("restart_async", {
-              deployment_view.definition.gvk.k,
-              deployment_view.definition.gvk.g,
-              deployment_view.definition.gvk.v,
-              name,
-              ns,
+              gvk = deployment_view.definition.gvk,
+              name = name,
+              namespace = ns,
             }, function(response)
               vim.schedule(function()
                 vim.notify(response)

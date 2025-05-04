@@ -9,14 +9,13 @@ use mlua::prelude::*;
 use serde_json::json;
 use tokio::runtime::Runtime;
 
+use crate::structs::CmdScaleArgs;
 use crate::CLIENT_INSTANCE;
 use crate::RUNTIME;
 
-pub async fn scale_async(
-    _lua: Lua,
-    args: (String, String, String, String, String, usize),
-) -> LuaResult<String> {
-    let (kind, group, version, name, ns, replicas) = args;
+pub async fn scale_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: CmdScaleArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
@@ -28,24 +27,25 @@ pub async fn scale_async(
 
     let fut = async move {
         let gvk = GroupVersionKind {
-            group,
-            version,
-            kind: kind.to_string(),
+            group: args.gvk.g,
+            version: args.gvk.v,
+            kind: args.gvk.k.to_string(),
         };
         let ar = ApiResource::from_gvk(&gvk);
 
-        let scale_api: Api<DynamicObject> = Api::namespaced_with(client.clone(), &ns, &ar);
+        let scale_api: Api<DynamicObject> =
+            Api::namespaced_with(client.clone(), &args.namespace, &ar);
 
-        let patch_data = json!({ "spec": { "replicas": replicas } });
+        let patch_data = json!({ "spec": { "replicas": args.replicas } });
         let patch = Patch::Merge(&patch_data);
 
         let scaled = scale_api
-            .patch_scale(&name, &PatchParams::default(), &patch)
+            .patch_scale(&args.name, &PatchParams::default(), &patch)
             .await;
 
         match scaled {
-            Ok(..) => Ok(format!("{}/{} scaled", kind, name,).to_string()),
-            Err(err) => Ok(format!("Failed to scale '{}': {:?}", name, err).to_string()),
+            Ok(..) => Ok(format!("{}/{} scaled", gvk.kind, args.name,).to_string()),
+            Err(err) => Ok(format!("Failed to scale '{}': {:?}", args.name, err).to_string()),
         }
     };
 

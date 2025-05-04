@@ -82,13 +82,13 @@ function M.TailLogs(pod, ns, container)
 
   local function fetch_logs()
     commands.run_async("log_stream_async", {
-      pod,
-      ns,
-      container,
-      "1s",
-      M.log.show_previous,
-      M.log.show_timestamps,
-      M.log.show_log_prefix,
+      name = pod,
+      namespace = ns,
+      container = container,
+      since_time_input = "1s",
+      previous = M.log.show_previous,
+      timestamps = M.log.show_timestamps,
+      prefix = M.log.show_log_prefix,
     }, function(data)
       vim.schedule(function()
         if vim.api.nvim_buf_is_valid(buf) then

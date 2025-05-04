@@ -52,57 +52,61 @@ function M.SetImage(name, ns)
   }
   local builder = manager.get_or_create(def.resource)
 
-  commands.run_async("get_single_async", { M.definition.gvk.k, ns, name, "Json" }, function(data)
-    if not data then
-      return
-    end
-    builder.data = data
-    builder.decodeJson()
-
-    local container_images = {}
-    if builder.data.spec.template.spec.containers then
-      for _, container in ipairs(builder.data.spec.template.spec.containers) do
-        table.insert(container_images, { name = container.name, image = container.image, init = false })
+  commands.run_async(
+    "get_single_async",
+    { kind = M.definition.gvk.k, namespace = ns, name = name, output = "Json" },
+    function(data)
+      if not data then
+        return
       end
-    end
+      builder.data = data
+      builder.decodeJson()
 
-    if builder.data.spec.template.spec.initContainers then
-      for _, container in ipairs(builder.data.spec.template.spec.initContainers) do
-        table.insert(container_images, { name = container.name, image = container.image, init = true })
-      end
-    end
-
-    vim.schedule(function()
-      local params = {}
-      for _, container in ipairs(container_images) do
-        table.insert(params, {
-          text = container.name,
-          value = container.image,
-          init = container.init,
-          options = {},
-          type = "positional",
-        })
+      local container_images = {}
+      if builder.data.spec.template.spec.containers then
+        for _, container in ipairs(builder.data.spec.template.spec.containers) do
+          table.insert(container_images, { name = container.name, image = container.image, init = false })
+        end
       end
 
-      builder.data = {}
-      builder.action_view(def, params, function(args)
-        local image_spec = {}
-        for _, container in ipairs(args) do
-          table.insert(image_spec, {
-            name = container.text,
-            image = container.value,
+      if builder.data.spec.template.spec.initContainers then
+        for _, container in ipairs(builder.data.spec.template.spec.initContainers) do
+          table.insert(container_images, { name = container.name, image = container.image, init = true })
+        end
+      end
+
+      vim.schedule(function()
+        local params = {}
+        for _, container in ipairs(container_images) do
+          table.insert(params, {
+            text = container.name,
+            value = container.image,
             init = container.init,
+            options = {},
+            type = "positional",
           })
         end
 
-        local client = require("kubectl.client")
-        local status = client.deployment_set_images(name, ns, image_spec)
-        if status then
-          vim.notify(status)
-        end
+        builder.data = {}
+        builder.action_view(def, params, function(args)
+          local image_spec = {}
+          for _, container in ipairs(args) do
+            table.insert(image_spec, {
+              name = container.text,
+              image = container.value,
+              init = container.init,
+            })
+          end
+
+          local client = require("kubectl.client")
+          local status = client.deployment_set_images(name, ns, image_spec)
+          if status then
+            vim.notify(status)
+          end
+        end)
       end)
-    end)
-  end)
+    end
+  )
 end
 
 function M.Desc(name, ns, reload)

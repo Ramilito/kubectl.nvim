@@ -1,7 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.views.daemonsets")
-local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local view = require("kubectl.views")

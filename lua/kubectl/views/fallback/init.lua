@@ -46,17 +46,13 @@ function M.View(cancellationToken, kind)
 
   builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, builder.resource)
 
-  commands.run_async(
-    "start_reflector_async",
-    { M.definition.gvk.k, M.definition.gvk.g, M.definition.gvk.v, nil },
-    function()
-      vim.schedule(function()
-        M.Draw(cancellationToken)
-        vim.cmd("doautocmd User K8sDataLoaded")
-        state.selections = {}
-      end)
-    end
-  )
+  commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = nil }, function()
+    vim.schedule(function()
+      M.Draw(cancellationToken)
+      vim.cmd("doautocmd User K8sDataLoaded")
+      state.selections = {}
+    end)
+  end)
 end
 
 function M.Draw(cancellationToken)
@@ -72,17 +68,24 @@ function M.Draw(cancellationToken)
   end
 
   local filter = state.getFilter()
+  local filter_label = state.getFilterLabel()
   local sort_by = state.sortby[builder.definition.resource].current_word
   local sort_order = state.sortby[builder.definition.resource].order
 
   commands.run_async(
     "get_fallback_table_async",
-    { builder.definition.crd_name, ns, sort_by, sort_order, filter },
+    {
+      name = builder.definition.crd_name,
+      namespace = ns,
+      sort_by = sort_by,
+      sort_order = sort_order,
+      filter = filter,
+      filter_label = filter_label,
+    },
     function(result)
-
-			if not result then
-				return
-			end
+      if not result then
+        return
+      end
       builder.data = result
       builder.decodeJson()
       builder.processedData = builder.data.rows
