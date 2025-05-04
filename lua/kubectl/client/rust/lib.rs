@@ -1,3 +1,4 @@
+use k8s_openapi::serde_json;
 // lib.rs
 use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
@@ -5,13 +6,15 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::sync::{Mutex, OnceLock};
 use store::get_store_map;
+use structs::{FetchArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
     get_config, get_config_async, get_minified_config_async, get_version_async,
 };
+use crate::cmd::delete::delete_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
@@ -21,7 +24,6 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::cmd::delete::delete_async;
 use crate::processors::get_processors;
 
 mod cmd;
@@ -31,6 +33,7 @@ mod events;
 mod log;
 mod processors;
 mod store;
+mod structs;
 mod utils;
 
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
@@ -102,13 +105,10 @@ async fn get_all_async(
     rt.block_on(fut)
 }
 
-async fn start_reflector_async(
-    _lua: Lua,
-    args: (String, Option<String>, Option<String>, Option<String>),
-) -> LuaResult<()> {
-    let (kind, group, version, namespace) = args;
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
+    let args: StartReflectorArgs = serde_json::from_str(&json).unwrap();
 
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
         .lock()
         .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
@@ -118,8 +118,8 @@ async fn start_reflector_async(
         .clone();
 
     let fut = async move {
-        let gvk = GroupVersionKind::gvk(&group.unwrap(), &version.unwrap(), &kind);
-        let _ = store::init_reflector_for_kind(client.clone(), gvk, namespace).await;
+        let gvk = GroupVersionKind::gvk(&args.gvk.g, &args.gvk.v, &args.gvk.k);
+        let _ = store::init_reflector_for_kind(client.clone(), gvk, args.namespace).await;
         Ok(())
     };
     rt.block_on(fut)
@@ -181,18 +181,8 @@ async fn fetch_all_async(
     rt.block_on(fut)
 }
 
-async fn fetch_async(
-    _lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-    ),
-) -> LuaResult<String> {
-    let (kind, group, version, name, namespace, output) = args;
+async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: FetchArgs = serde_json::from_str(&json).unwrap();
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
@@ -203,26 +193,25 @@ async fn fetch_async(
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        get_resource_async(client, kind, group, version, name, namespace, output).await
+        get_resource_async(
+            client,
+            args.gvk.k,
+            Some(args.gvk.g),
+            Some(args.gvk.v),
+            args.name,
+            args.namespace,
+            args.output,
+        )
+        .await
     };
 
     rt.block_on(fut)
 }
 
-async fn get_table_async(
-    lua: Lua,
-    args: (
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
-) -> LuaResult<String> {
-    let (kind, group, version, namespace, sort_by, sort_order, filter) = args;
-
+async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
+    let args: GetTableArgs = k8s_openapi::serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
+    info!("{:?}", args);
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
         .lock()
@@ -233,21 +222,27 @@ async fn get_table_async(
         .clone();
 
     let fut = async move {
-        let cached = (store::get(&kind, namespace.clone()).await).unwrap_or_default();
+        let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
-            get_resources_async(&client, kind.clone(), group, version, namespace)
-                .await
-                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+            get_resources_async(
+                &client,
+                args.gvk.k.clone(),
+                Some(args.gvk.g),
+                Some(args.gvk.v),
+                args.namespace,
+            )
+            .await
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
             cached
         };
 
         let processors = get_processors();
         let processor = processors
-            .get(kind.to_lowercase().as_str())
+            .get(args.gvk.k.to_lowercase().as_str())
             .unwrap_or_else(|| processors.get("default").unwrap());
         let processed = processor
-            .process(&lua, &resources, sort_by, sort_order, filter)
+            .process(&lua, &resources, args.sort_by, args.sort_order, args.filter)
             .map_err(mlua::Error::external)?;
 
         let json_str = k8s_openapi::serde_json::to_string(&processed)

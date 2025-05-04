@@ -220,20 +220,29 @@ function M.await_all(cmds, final_callback)
 end
 
 function M.run_async(method_name, args, callback)
+  for k, v in pairs(args) do
+    if v == nil then
+      args[k] = vim.NIL
+    end
+  end
+
+  local payload = vim.json.encode(args, { luanil = { object = true, array = true } })
+
   local function after_work_callback(results, err)
     callback(results, err)
   end
-  local function work_callback(cpath, method, ...)
+
+  local function work_callback(cpath, method, json_str)
     package.cpath = cpath
     local mod = require("kubectl_client")
-    local ok, result = pcall(mod[method], ...)
+    local ok, result = pcall(mod[method], json_str)
     if not ok then
       return nil, result
     end
     return result, nil
   end
 
-  return vim.uv.new_work(work_callback, after_work_callback):queue(package.cpath, method_name, unpack(args))
+  return vim.uv.new_work(work_callback, after_work_callback):queue(package.cpath, method_name, payload)
 end
 
 --- Execute a shell command using io.popen

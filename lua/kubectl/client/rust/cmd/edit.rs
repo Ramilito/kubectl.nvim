@@ -1,3 +1,4 @@
+use k8s_openapi::serde_json;
 use kube::{
     api::{DynamicObject, GroupVersionKind},
     Discovery, ResourceExt,
@@ -5,13 +6,12 @@ use kube::{
 use mlua::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::{CLIENT_INSTANCE, RUNTIME};
+use crate::{structs::CmdEditArgs, CLIENT_INSTANCE, RUNTIME};
 
 use super::utils::dynamic_api;
 
-pub async fn edit_async(_lua: Lua, args: String) -> LuaResult<String> {
-    let path = args;
-
+pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: CmdEditArgs = serde_json::from_str(&json).unwrap();
     let (client, rt_handle) = {
         let client = {
             let client_guard = CLIENT_INSTANCE.lock().map_err(|_| {
@@ -36,7 +36,7 @@ pub async fn edit_async(_lua: Lua, args: String) -> LuaResult<String> {
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
     })?;
 
-    let pth = path.clone();
+    let pth = args.path.clone();
     let yaml_raw =
         std::fs::read_to_string(&pth).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
     let yaml: serde_yaml::Value =

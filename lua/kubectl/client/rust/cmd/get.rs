@@ -2,7 +2,6 @@ use http::Uri;
 use k8s_openapi::serde_json::{self};
 use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt, TypeMeta},
-    config::Kubeconfig,
     core::GroupVersionKind,
     discovery::{verbs, ApiCapabilities, Discovery, Scope},
     error::DiscoveryError,
@@ -15,7 +14,11 @@ use serde_json::{json, to_string};
 use tokio::runtime::Runtime;
 
 use super::utils::{dynamic_api, resolve_api_resource};
-use crate::{store, CLIENT_INSTANCE, RUNTIME};
+use crate::{
+    store,
+    structs::{GetServerRawArgs, GetSingleArgs},
+    CLIENT_INSTANCE, RUNTIME,
+};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OutputMode {
@@ -138,13 +141,12 @@ pub async fn get_resource_async(
     Ok(output_mode.format(obj))
 }
 
-pub async fn get_single_async(
-    _lua: Lua,
-    args: (String, Option<String>, String, Option<String>),
-) -> LuaResult<String> {
-    let (kind, namespace, name, output) = args;
+pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: GetSingleArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
-    let output_mode = output
+    let output_mode = args
+        .output
         .as_deref()
         .map(OutputMode::from_str)
         .unwrap_or_default();
@@ -158,18 +160,28 @@ pub async fn get_single_async(
         .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
 
     let fut = async move {
-        if let Some(found) = store::get_single(&kind, namespace.clone(), &name).await? {
+        if let Some(found) =
+            store::get_single(&args.kind, args.namespace.clone(), &args.name).await?
+        {
             return Ok(output_mode.format(found));
         }
-        let result = get_resource_async(client, kind, None, None, name, namespace, output);
+        let result = get_resource_async(
+            client,
+            args.kind,
+            None,
+            None,
+            args.name,
+            args.namespace,
+            args.output,
+        );
 
         result.await
     };
     rt.block_on(fut)
 }
 
-pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> {
-    let path = args;
+pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: GetServerRawArgs = k8s_openapi::serde_json::from_str(&json).unwrap();
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
@@ -185,7 +197,7 @@ pub async fn get_server_raw_async(_lua: Lua, args: String) -> LuaResult<String> 
         let full_url_str = format!(
             "{}/{}",
             base.trim_end_matches('/'),
-            path.trim_start_matches('/')
+            args.path.trim_start_matches('/')
         );
         let full_url: Uri = full_url_str.parse().map_err(LuaError::external)?;
 

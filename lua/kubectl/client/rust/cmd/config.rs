@@ -4,6 +4,7 @@ use mlua::prelude::*;
 use serde::Serialize;
 use tokio::runtime::Runtime;
 
+use crate::structs::GetMinifiedConfig;
 use crate::{CLIENT_INSTANCE, RUNTIME};
 #[derive(Serialize)]
 struct VersionBlock {
@@ -13,7 +14,7 @@ struct VersionBlock {
     server_version: Info,
 }
 
-pub async fn get_version_async(_lua: Lua, _args: ()) -> LuaResult<String> {
+pub async fn get_version_async(_lua: Lua, _json: Option<String>) -> LuaResult<String> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client_guard = CLIENT_INSTANCE
         .lock()
@@ -51,12 +52,15 @@ pub async fn get_version_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     rt.block_on(fut)
 }
 
-pub async fn get_minified_config_async(_lua: Lua, args: Option<String>) -> LuaResult<String> {
-    let ctx_override = args;
+pub async fn get_minified_config_async(_lua: Lua, json: Option<String>) -> LuaResult<String> {
+    let json_str = json.as_deref().unwrap_or("{}");
+    let args: GetMinifiedConfig = k8s_openapi::serde_json::from_str(json_str)
+        .map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     let full = kube::config::Kubeconfig::read().map_err(LuaError::external)?;
 
-    let ctx_name = ctx_override
+    let ctx_name = args
+        .ctx_override
         .clone()
         .or(full.current_context.clone())
         .ok_or_else(|| {
@@ -93,7 +97,6 @@ pub async fn get_minified_config_async(_lua: Lua, args: Option<String>) -> LuaRe
         current_context: Some(ctx_name),
         ..Default::default()
     };
-
     serde_json::to_string(&slim).map_err(LuaError::external)
 }
 

@@ -248,59 +248,61 @@ function M.new(resource)
     builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, builder.resource)
     state.addToHistory(builder.resource)
 
-    commands.run_async(
-      "start_reflector_async",
-      { definition.gvk.k, definition.gvk.g, definition.gvk.v, nil },
-      function(_, err)
-        if err then
-          return
-        end
-        vim.schedule(function()
-          builder.draw(cancellationToken)
-          vim.cmd("doautocmd User K8sDataLoaded")
-        end)
+    commands.run_async("start_reflector_async", { gvk = definition.gvk, namespace = nil }, function(_, err)
+      if err then
+        return
       end
-    )
+      vim.schedule(function()
+        builder.draw(cancellationToken)
+        vim.cmd("doautocmd User K8sDataLoaded")
+      end)
+    end)
 
     return builder
   end
 
   function builder.draw(cancellationToken)
     local definition = builder.definition or {}
-    local namespace = (state.ns and state.ns ~= "All") and state.ns or nil
-    local filter = state.getFilter()
     local sort_data = state.sortby[resource]
-    local sort_by = sort_data and sort_data.current_word or ""
-    local sort_order = sort_data and sort_data.order or ""
 
-    commands.run_async(
-      "get_table_async",
-      { definition.gvk.k, definition.gvk.g, definition.gvk.v, namespace, sort_by, sort_order, filter },
-      function(data, err)
-        if err then
-          return
-        end
-        if data then
-          builder.data = data
-          builder.decodeJson()
-          builder.processedData = builder.data
+    local namespace = (state.ns and state.ns ~= "All") and state.ns or nil
+    local sort_by = sort_data and sort_data.current_word or nil
+    local sort_order = sort_data and sort_data.order or nil
+    local filter = state.getFilter() or nil
+		local filter_label = state.getFilterLabel() or nil
 
-          vim.schedule(function()
-            if definition.processRow then
-              builder.process(definition.processRow, true)
-              if sort_data then
-                builder.sort()
-              end
-            end
-            local windows = buffers.get_windows_by_name(resource)
-            for _, win_id in ipairs(windows) do
-              builder.prettyPrint(win_id).addDivider(true).addHints(definition.hints, true, true)
-              builder.displayContent(win_id, cancellationToken)
-            end
-          end)
-        end
+    local args = {
+      gvk = definition.gvk,
+      namespace = namespace,
+      sort_by = sort_by,
+      sort_order = sort_order,
+      filter = filter,
+      filter_label = filter_label,
+    }
+    commands.run_async("get_table_async", args, function(data, err)
+      if err then
+        return
       end
-    )
+      if data then
+        builder.data = data
+        builder.decodeJson()
+        builder.processedData = builder.data
+
+        vim.schedule(function()
+          if definition.processRow then
+            builder.process(definition.processRow, true)
+            if sort_data then
+              builder.sort()
+            end
+          end
+          local windows = buffers.get_windows_by_name(resource)
+          for _, win_id in ipairs(windows) do
+            builder.prettyPrint(win_id).addDivider(true).addHints(definition.hints, true, true)
+            builder.displayContent(win_id, cancellationToken)
+          end
+        end)
+      end
+    end)
 
     return builder
   end

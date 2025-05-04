@@ -61,7 +61,9 @@ function M.setup()
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
   end
 
-  commands.run_async("get_minified_config_async", { M.context["current-context"] }, function(data)
+  commands.run_async("get_minified_config_async", {
+    ctx_override = M.context["current-context"] or nil,
+  }, function(data)
     local result = decode(data)
     if result then
       M.context = result
@@ -122,7 +124,7 @@ function M.checkHealth()
   M.livez.timer = vim.uv.new_timer()
 
   M.livez.timer:start(0, 5000, function()
-    commands.run_async("get_server_raw_async", { "/livez", nil }, function(data)
+    commands.run_async("get_server_raw_async", { path = "/livez" }, function(data)
       if data == "ok" then
         M.livez.ok = true
         M.livez.time_of_ok = os.time()
@@ -149,6 +151,12 @@ end
 --- @return string filter The current filter
 function M.getFilter()
   return M.filter
+end
+
+--- Get the current filter_label
+--- @return string filter_label The current filter
+function M.getFilterLabel()
+  return table.concat(M.filter_label, ",")
 end
 
 --- Get the selections

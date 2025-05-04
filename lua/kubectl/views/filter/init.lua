@@ -66,10 +66,10 @@ function M.filter_label()
 
   local builder = manager.get_or_create(def.resource)
   commands.run_async("get_single_async", {
-    definition.gvk.k,
-    ns,
-    name,
-    "Json",
+    kind = definition.gvk.k,
+    namespace = ns,
+    name = name,
+    output = "Json",
   }, function(data)
     if not data then
       return

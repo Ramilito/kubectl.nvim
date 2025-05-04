@@ -112,7 +112,7 @@ function M.get_mappings()
             local name = value.cmd.name
 
             vim.notify("Deleting " .. gvk.k .. ": " .. name, vim.log.levels.INFO)
-            commands.run_async("delete_async", { gvk.k, gvk.g, gvk.v, ns, name }, function(_, err)
+            commands.run_async("delete_async", { gvk = gvk, namespace = ns, name = name }, function(_, err)
               vim.schedule(function()
                 if not err then
                   vim.notify(gvk.k .. " deleted: " .. name, vim.log.levels.INFO)
@@ -261,12 +261,10 @@ function M.get_mappings()
           version = instance.definition.version,
         }
         commands.run_async("fetch_async", {
-          def.gvk.k,
-          nil,
-          nil,
-          def.name,
-          def.ns,
-          "Yaml",
+          gvk = def.gvk,
+          name = def.name,
+          namespace = def.ns,
+          output = "Yaml",
         }, function(data)
           vim.schedule(function()
             local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)

@@ -1,3 +1,4 @@
+use k8s_openapi::serde_json;
 use kube::{
     core::GroupVersionKind,
     discovery,
@@ -7,15 +8,13 @@ use kube::{
 use mlua::{Either, Error as LuaError, Lua, Result as LuaResult};
 use tokio::runtime::Runtime;
 
+use crate::structs::CmdDeleteArgs;
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
 use super::utils::dynamic_api;
 
-pub async fn delete_async(
-    _lua: Lua,
-    args: (String, String, String, Option<String>, String),
-) -> LuaResult<String> {
-    let (kind, group, version, namespace, name) = args;
+pub async fn delete_async(_lua: Lua, json: String) -> LuaResult<String> {
+    let args: CmdDeleteArgs = serde_json::from_str(&json).unwrap();
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     let client = {
@@ -29,19 +28,19 @@ pub async fn delete_async(
     };
 
     let fut = async move {
-        let gvk = GroupVersionKind::gvk(&group, &version, &kind);
+        let gvk = GroupVersionKind::gvk(&args.gvk.g, &args.gvk.v, &args.gvk.k);
         let (ar, caps) = discovery::pinned_kind(&client, &gvk)
             .await
             .map_err(|e| LuaError::RuntimeError(format!("Failed to discover resource: {e}")))?;
 
-        let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
+        let api = dynamic_api(ar, caps, client.clone(), args.namespace.as_deref(), false);
         let deletion = api
-            .delete(&name, &Default::default())
+            .delete(&args.name, &Default::default())
             .await
             .map_err(|e| LuaError::RuntimeError(format!("Delete failed: {e}")))?;
 
         if let Either::Left(pdel) = deletion {
-            await_condition(api.clone(), &name, is_deleted(&pdel.uid().unwrap()))
+            await_condition(api.clone(), &args.name, is_deleted(&pdel.uid().unwrap()))
                 .await
                 .map_err(|e| {
                     LuaError::RuntimeError(format!("Timed out waiting for deletion: {e}"))
