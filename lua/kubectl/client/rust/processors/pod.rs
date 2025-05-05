@@ -1,13 +1,13 @@
-use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
-use k8s_openapi::chrono::{DateTime, Utc};
-use k8s_openapi::serde_json::{self};
-use kube::api::DynamicObject;
-use mlua::prelude::*;
-use mlua::Lua;
 use std::collections::HashMap;
 
-use crate::events::{color_status, symbols};
-use crate::utils::{filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue};
+use crate::{
+    events::{color_status, symbols},
+    utils::{time_since, AccessorMode, FieldValue},
+};
+use chrono::{DateTime, Utc};
+use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
+use kube::api::DynamicObject;
+use mlua::{prelude::*, Lua};
 
 use super::processor::Processor;
 
@@ -27,97 +27,73 @@ pub struct PodProcessed {
 pub struct PodProcessor;
 
 impl Processor for PodProcessor {
-    fn process(
-        &self,
-        lua: &Lua,
-        items: &[DynamicObject],
-        sort_by: Option<String>,
-        sort_order: Option<String>,
-        filter: Option<String>,
-    ) -> LuaResult<mlua::Value> {
+    type Row = PodProcessed;
+
+    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+        use k8s_openapi::api::core::v1::Pod;
+        use k8s_openapi::chrono::Utc;
+        use k8s_openapi::serde_json::{from_value, to_value};
+
+        let pod: Pod =
+            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+
         let now = Utc::now();
-        let mut data = Vec::new();
 
-        for obj in items {
-            let pod: Pod = serde_json::from_value(
-                serde_json::to_value(obj).expect("Failed to convert DynamicObject to JSON Value"),
-            )
-            .expect("Failed to convert JSON Value into Pod");
-
-            data.push(PodProcessed {
-                ready: get_ready(&pod),
-                status: get_pod_status(&pod),
-                restarts: get_restarts(&pod, &now),
-                ip: FieldValue {
-                    value: pod
-                        .status
-                        .as_ref()
-                        .and_then(|s| s.pod_ip.clone())
-                        .unwrap_or_default(),
-                    sort_by: self.ip_to_u32(
-                        &pod.status
-                            .as_ref()
-                            .and_then(|s| s.pod_ip.clone())
-                            .unwrap_or_default(),
-                    ),
-                    ..Default::default()
-                },
-                node: pod
-                    .spec
+        Ok(PodProcessed {
+            ready: get_ready(&pod),
+            status: get_pod_status(&pod),
+            restarts: get_restarts(&pod, &now),
+            ip: {
+                let raw_ip = pod
+                    .status
                     .as_ref()
-                    .and_then(|s| s.node_name.clone())
-                    .unwrap_or_default(),
-                age: self.get_age(obj),
-                namespace: pod.metadata.namespace.unwrap_or_default(),
-                name: pod.metadata.name.unwrap_or_default(),
-            });
-        }
-
-        sort_dynamic(
-            &mut data,
-            sort_by,
-            sort_order,
-            field_accessor(AccessorMode::Sort),
-        );
-
-        let data = if let Some(ref filter_value) = filter {
-            filter_dynamic(
-                &data,
-                filter_value,
-                &["namespace", "name", "ready", "status", "ip", "node"],
-                field_accessor(AccessorMode::Filter),
-            )
-            .into_iter()
-            .cloned()
-            .collect()
-        } else {
-            data
-        };
-
-        lua.to_value(&data)
+                    .and_then(|s| s.pod_ip.clone())
+                    .unwrap_or_default();
+                FieldValue {
+                    value: raw_ip.clone(),
+                    sort_by: self.ip_to_u32(&raw_ip),
+                    ..Default::default()
+                }
+            },
+            node: pod
+                .spec
+                .as_ref()
+                .and_then(|s| s.node_name.clone())
+                .unwrap_or_default(),
+            age: self.get_age(obj),
+            namespace: pod.metadata.namespace.unwrap_or_default(),
+            name: pod.metadata.name.unwrap_or_default(),
+        })
     }
-}
 
-fn field_accessor(mode: AccessorMode) -> impl Fn(&PodProcessed, &str) -> Option<String> {
-    move |pod, field| match field {
-        "namespace" => Some(pod.namespace.clone()),
-        "name" => Some(pod.name.clone()),
-        "ready" => Some(pod.ready.value.clone()),
-        "status" => Some(pod.status.value.clone()),
-        "restarts" => match mode {
-            AccessorMode::Sort => Some(pod.restarts.sort_by?.to_string()),
-            AccessorMode::Filter => Some(pod.restarts.value.clone()),
-        },
-        "ip" => match mode {
-            AccessorMode::Sort => Some(pod.ip.sort_by?.to_string()),
-            AccessorMode::Filter => Some(pod.ip.value.clone()),
-        },
-        "node" => Some(pod.node.clone()),
-        "age" => match mode {
-            AccessorMode::Sort => Some(pod.age.sort_by?.to_string()),
-            AccessorMode::Filter => Some(pod.age.value.clone()),
-        },
-        _ => None,
+    fn filterable_fields(&self) -> &'static [&'static str] {
+        &["namespace", "name", "ready", "status", "ip", "node"]
+    }
+
+    fn field_accessor(
+        &self,
+        mode: AccessorMode,
+    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
+        Box::new(move |pod, field| match field {
+            "namespace" => Some(pod.namespace.clone()),
+            "name" => Some(pod.name.clone()),
+            "ready" => Some(pod.ready.value.clone()),
+            "status" => Some(pod.status.value.clone()),
+            "restarts" => match mode {
+                AccessorMode::Sort => pod.restarts.sort_by.map(|v| v.to_string()),
+                AccessorMode::Filter => Some(pod.restarts.value.clone()),
+            },
+            "ip" => match mode {
+                AccessorMode::Sort => pod.ip.sort_by.map(|v| v.to_string()),
+                AccessorMode::Filter => Some(pod.ip.value.clone()),
+            },
+            "node" => Some(pod.node.clone()),
+            "age" => match mode {
+                AccessorMode::Sort => pod.age.sort_by.map(|v| v.to_string()),
+                AccessorMode::Filter => Some(pod.age.value.clone()),
+            },
+            _ => None,
+        })
     }
 }
 
@@ -392,4 +368,3 @@ fn get_ready(pod: &Pod) -> FieldValue {
         sort_by: Some(ready_count),
     }
 }
-

@@ -24,7 +24,7 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::processors::get_processors;
+use crate::processors::processor;
 
 mod cmd;
 mod dao;
@@ -132,24 +132,19 @@ async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
 pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetFallbackTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-    let processors = get_processors();
-    let processor = processors
-        .get("fallback")
-        .unwrap_or_else(|| processors.get("default").unwrap());
-    let processed = processor
-        .process_fallback(
-            &lua,
-            args.name,
-            args.namespace,
-            args.sort_by,
-            args.sort_order,
-            args.filter,
-        )
-        .map_err(mlua::Error::external)?;
 
-    let json_str = k8s_openapi::serde_json::to_string(&processed)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    Ok(json_str)
+    let proc = processor("fallback");
+    let processed = proc.process_fallback(
+        &lua,
+        args.name,
+        args.namespace,
+        args.sort_by,
+        args.sort_order,
+        args.filter,
+    )?;
+
+    serde_json::to_string(&processed)
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
 }
 
 async fn fetch_all_async(
@@ -238,10 +233,7 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
             cached
         };
 
-        let processors = get_processors();
-        let processor = processors
-            .get(args.gvk.k.to_lowercase().as_str())
-            .unwrap_or_else(|| processors.get("default").unwrap());
+        let processor = processor(args.gvk.k.to_lowercase().as_str());
         let processed = processor
             .process(&lua, &resources, args.sort_by, args.sort_order, args.filter)
             .map_err(mlua::Error::external)?;

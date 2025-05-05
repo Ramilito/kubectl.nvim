@@ -1,12 +1,11 @@
 use k8s_openapi::api::rbac::v1::{ClusterRoleBinding, Subject};
-use k8s_openapi::serde_json::{self};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use mlua::Lua;
 
 use crate::events::{color_status, symbols};
 use crate::processors::processor::Processor;
-use crate::utils::{filter_dynamic, sort_dynamic, AccessorMode, FieldValue};
+use crate::utils::{AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ClusterRoleBindingProcessed {
@@ -22,74 +21,42 @@ pub struct ClusterRoleBindingProcessed {
 pub struct ClusterRoleBindingProcessor;
 
 impl Processor for ClusterRoleBindingProcessor {
-    fn process(
-        &self,
-        lua: &Lua,
-        items: &[DynamicObject],
-        sort_by: Option<String>,
-        sort_order: Option<String>,
-        filter: Option<String>,
-    ) -> LuaResult<mlua::Value> {
-        let mut data = Vec::new();
+    type Row = ClusterRoleBindingProcessed;
 
-        for obj in items {
-            let crb: ClusterRoleBinding = serde_json::from_value(
-                serde_json::to_value(obj).expect("Failed to convert DynamicObject to JSON Value"),
-            )
-            .expect("Failed to convert JSON Value into ClusterRoleBinding");
+    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+        use k8s_openapi::serde_json::{from_value, to_value};
 
-            let name = crb.metadata.name.clone().unwrap_or_default();
-            let role = crb.role_ref.name.clone();
-            let subject_kind = get_subject_kind(crb.subjects.clone());
-            let subjects = get_subjects(crb.subjects);
-            let age = self.get_age(obj);
+        let crb: ClusterRoleBinding =
+            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
 
-            data.push(ClusterRoleBindingProcessed {
-                name,
-                role,
-                subject_kind,
-                subjects,
-                age,
-            });
-        }
-        sort_dynamic(
-            &mut data,
-            sort_by,
-            sort_order,
-            field_accessor(AccessorMode::Sort),
-        );
-
-        let data = if let Some(ref filter_value) = filter {
-            filter_dynamic(
-                &data,
-                filter_value,
-                &["name", "role", "subject_kind", "subjects"],
-                field_accessor(AccessorMode::Filter),
-            )
-            .into_iter()
-            .cloned()
-            .collect()
-        } else {
-            data
-        };
-
-        lua.to_value(&data)
+        Ok(ClusterRoleBindingProcessed {
+            name: crb.metadata.name.clone().unwrap_or_default(),
+            role: crb.role_ref.name.clone(),
+            subject_kind: get_subject_kind(crb.subjects.clone()),
+            subjects: get_subjects(crb.subjects),
+            age: self.get_age(obj),
+        })
     }
-}
 
-fn field_accessor(
-    mode: AccessorMode,
-) -> impl Fn(&ClusterRoleBindingProcessed, &str) -> Option<String> {
-    move |resource, field| match field {
-        "name" => Some(resource.name.clone()),
-        "role" => Some(resource.role.clone()),
-        "subject_kind" => Some(resource.subject_kind.value.clone()),
-        "subjects" => Some(resource.subjects.value.clone()),
-        "age" => match mode {
-            AccessorMode::Sort => Some(resource.age.sort_by?.to_string()),
-            AccessorMode::Filter => Some(resource.age.value.clone()),
-        },
-        _ => None,
+    fn filterable_fields(&self) -> &'static [&'static str] {
+        &["name", "role", "subject_kind", "subjects"]
+    }
+
+    fn field_accessor(
+        &self,
+        mode: AccessorMode,
+    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
+        Box::new(move |resource, field| match field {
+            "name" => Some(resource.name.clone()),
+            "role" => Some(resource.role.clone()),
+            "subject_kind" => Some(resource.subject_kind.value.clone()),
+            "subjects" => Some(resource.subjects.value.clone()),
+            "age" => match mode {
+                AccessorMode::Sort => Some(resource.age.sort_by?.to_string()),
+                AccessorMode::Filter => Some(resource.age.value.clone()),
+            },
+            _ => None,
+        })
     }
 }
 
