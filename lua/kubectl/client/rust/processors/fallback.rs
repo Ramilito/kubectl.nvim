@@ -7,29 +7,108 @@ use kube::{
     Api,
 };
 use mlua::prelude::*;
-use serde_json::{json, Value};
 use serde_json_path::JsonPath;
+use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 use super::processor::Processor;
 use crate::{
     cmd::utils::dynamic_api,
-    utils::{sort_dynamic, AccessorMode},
+    utils::{AccessorMode, FieldValue},
     CLIENT_INSTANCE, RUNTIME,
 };
 
-pub type FallbackRow = Value;
+#[derive(Debug, Clone)]
+struct PrinterCol {
+    name: String,
+    json_path: String,
+}
 
 #[derive(Debug, Clone)]
+struct RuntimeFallbackProcessor {
+    cols: Vec<PrinterCol>,
+    namespaced: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct FallbackRow {
+    namespace: Option<String>,
+    name: String,
+    age: FieldValue,
+    #[serde(flatten)]
+    extra: HashMap<String, FieldValue>,
+}
+
+impl Processor for RuntimeFallbackProcessor {
+    type Row = FallbackRow;
+
+    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+        let item_json = serde_json::to_value(obj).map_err(LuaError::external)?;
+
+        let mut extra = HashMap::<String, FieldValue>::new();
+        for col in &self.cols {
+            let raw_val = JsonPath::parse(&fix_crd_path(&col.json_path))
+                .ok()
+                .and_then(|p| p.query(&item_json).all().first().cloned());
+
+            let str_val = raw_val
+                .as_ref()
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_else(|| raw_val.map(|v| v.to_string()).unwrap_or_default());
+
+            extra.insert(
+                col.name.to_lowercase(),
+                FieldValue {
+                    value: str_val,
+                    symbol: None,
+                    sort_by: None,
+                },
+            );
+        }
+
+        Ok(FallbackRow {
+            namespace: if self.namespaced {
+                Some(obj.namespace().unwrap_or_default())
+            } else {
+                None
+            },
+            name: obj.name_any(),
+            age: self.get_age(obj),
+            extra,
+        })
+    }
+
+    fn filterable_fields(&self) -> &'static [&'static str] {
+        &["namespace", "name", "age"]
+    }
+
+    fn field_accessor(
+        &self,
+        mode: AccessorMode,
+    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
+        Box::new(move |row, field| match field {
+            "namespace" => row.namespace.clone(),
+            "name" => Some(row.name.clone()),
+            "age" => match mode {
+                AccessorMode::Sort => row.age.sort_by.map(|v| v.to_string()),
+                AccessorMode::Filter => Some(row.age.value.clone()),
+            },
+            other => row.extra.get(other).and_then(|f| match mode {
+                AccessorMode::Sort => f.sort_by.map(|v| v.to_string()),
+                AccessorMode::Filter => Some(f.value.clone()),
+            }),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct FallbackProcessor;
 
 impl Processor for FallbackProcessor {
-    type Row = FallbackRow;
+    type Row = (); // never used
 
-    fn build_row(&self, _lua: &Lua, _obj: &DynamicObject) -> LuaResult<Self::Row> {
-        Err(LuaError::external(
-            "FallbackProcessor does not implement `process`",
-        ))
+    fn build_row(&self, _: &Lua, _: &DynamicObject) -> LuaResult<Self::Row> {
+        Err(LuaError::external("use process_fallback"))
     }
     fn filterable_fields(&self) -> &'static [&'static str] {
         &[]
@@ -37,20 +116,18 @@ impl Processor for FallbackProcessor {
     fn field_accessor(
         &self,
         _mode: AccessorMode,
-    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
+    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String>> {
         Box::new(|_, _| None)
     }
     fn process(
         &self,
-        _lua: &Lua,
-        _items: &[DynamicObject],
-        _sort_by: Option<String>,
-        _sort_order: Option<String>,
-        _filter: Option<String>,
+        _: &Lua,
+        _: &[DynamicObject],
+        _: Option<String>,
+        _: Option<String>,
+        _: Option<String>,
     ) -> LuaResult<mlua::Value> {
-        Err(LuaError::external(
-            "FallbackProcessor does not implement `process`",
-        ))
+        Err(LuaError::external("use process_fallback"))
     }
 
     fn process_fallback(
@@ -62,8 +139,7 @@ impl Processor for FallbackProcessor {
         sort_order: Option<String>,
         filter: Option<String>,
     ) -> LuaResult<mlua::Value> {
-        let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
-
+        let rt = RUNTIME.get_or_init(|| Runtime::new().unwrap());
         rt.block_on(async move {
             let client = CLIENT_INSTANCE
                 .lock()
@@ -74,12 +150,12 @@ impl Processor for FallbackProcessor {
 
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
             let crd = crd_api.get(&name).await.map_err(LuaError::external)?;
-            let version_info = crd
+            let version = crd
                 .spec
                 .versions
                 .iter()
                 .find(|v| v.served)
-                .ok_or_else(|| LuaError::external("No served version found in CRD"))?;
+                .ok_or_else(|| LuaError::external("No served version"))?;
 
             let discovery = Discovery::new(client.clone())
                 .filter(&[&crd.spec.group])
@@ -89,10 +165,9 @@ impl Processor for FallbackProcessor {
 
             let gvk = GroupVersionKind {
                 group: crd.spec.group.clone(),
-                version: version_info.name.clone(),
+                version: version.name.clone(),
                 kind: crd.spec.names.kind.clone(),
             };
-
             let (ar, caps) = discovery
                 .resolve_gvk(&gvk)
                 .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {gvk:?}")))?;
@@ -100,126 +175,49 @@ impl Processor for FallbackProcessor {
             let namespaced = matches!(caps.scope, Scope::Namespaced);
             let api: Api<DynamicObject> = dynamic_api(ar, caps, client, ns.as_deref(), false);
 
-            let cr_list = api
+            let items = api
                 .list(&ListParams::default())
                 .await
-                .map_err(LuaError::external)?;
+                .map_err(LuaError::external)?
+                .items;
 
-            let (headers, mut rows) = build_table_rows(&cr_list.items, version_info, namespaced)?;
+            let cols: Vec<PrinterCol> = version
+                .additional_printer_columns
+                .as_ref()
+                .map(|v| {
+                    v.iter()
+                        .map(|c| PrinterCol {
+                            name: c.name.clone(),
+                            json_path: c.json_path.clone(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
 
-            sort_dynamic(
-                &mut rows,
-                sort_by,
-                sort_order,
-                field_accessor(AccessorMode::Sort),
-            );
+            let runtime = RuntimeFallbackProcessor {
+                cols: cols.clone(),
+                namespaced,
+            };
+            let rows_lua = runtime.process(lua, &items, sort_by, sort_order, filter)?;
 
-            let output = json!({
-                "headers": headers,
-                "rows": rows
-            });
-            lua.to_value(&output)
+            let mut headers: Vec<String> = if namespaced {
+                vec!["NAMESPACE".to_string(), "NAME".to_string()]
+            } else {
+                vec!["NAME".to_string()]
+            };
+            headers.push("AGE".into());
+            headers.extend(cols.iter().map(|c| c.name.to_uppercase()));
+
+            let headers_lua = lua.to_value(&headers)?;
+            let tbl = lua.create_table()?;
+            tbl.set("headers", headers_lua)?;
+            tbl.set("rows", rows_lua)?;
+
+            Ok(mlua::Value::Table(tbl))
         })
     }
 }
 
-fn build_table_rows(
-    items: &[DynamicObject],
-    version_info: &k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinitionVersion,
-    namespaced: bool,
-) -> LuaResult<(Vec<String>, Vec<Value>)> {
-    let columns = version_info.additional_printer_columns.as_ref();
-
-    if let Some(cols) = columns {
-        // ── CRD provides printer columns ──────────────────────────────
-        let headers: Vec<String> = {
-            let base = if namespaced {
-                vec!["NAMESPACE", "NAME"]
-            } else {
-                vec!["NAME"]
-            };
-            base.into_iter()
-                .map(str::to_string)
-                .chain(cols.iter().map(|c| c.name.to_uppercase()))
-                .collect()
-        };
-
-        let default_val = Value::String("<none>".into());
-        let mut rows = Vec::with_capacity(items.len());
-
-        for item in items {
-            let item_json = serde_json::to_value(item).map_err(LuaError::external)?;
-            let mut map = serde_json::Map::new();
-
-            if namespaced {
-                map.insert(
-                    "namespace".into(),
-                    Value::String(item.namespace().unwrap_or_default()),
-                );
-            }
-            map.insert("name".into(), Value::String(item.name_any()));
-
-            for col in cols {
-                let path = fix_crd_path(&col.json_path);
-                let val = JsonPath::parse(&path)
-                    .ok()
-                    .and_then(|p| p.query(&item_json).all().first().cloned())
-                    .unwrap_or(&default_val);
-                map.insert(col.name.to_lowercase(), val.clone());
-            }
-            rows.push(Value::Object(map));
-        }
-        Ok((headers, rows))
-    } else {
-        // ── fall-back: namespace, name, age ───────────────────────────
-        let headers = vec!["NAMESPACE", "NAME", "AGE"]
-            .into_iter()
-            .map(str::to_string)
-            .collect();
-        let mut rows = Vec::with_capacity(items.len());
-
-        for item in items {
-            let mut map = serde_json::Map::new();
-            map.insert(
-                "namespace".into(),
-                Value::String(item.namespace().unwrap_or_default()),
-            );
-            map.insert("name".into(), Value::String(item.name_any()));
-
-            let creation_ts = item
-                .metadata
-                .creation_timestamp
-                .as_ref()
-                .map(|t| t.0.to_rfc3339())
-                .unwrap_or_default();
-            let age = if creation_ts.is_empty() {
-                "".into()
-            } else {
-                crate::utils::time_since(&creation_ts)
-            };
-            map.insert("age".into(), Value::String(age));
-
-            rows.push(Value::Object(map));
-        }
-        Ok((headers, rows))
-    }
-}
-
-/// accessor used by `sort_dynamic`
-fn field_accessor(_mode: AccessorMode) -> impl Fn(&Value, &str) -> Option<String> {
-    |item, field| {
-        if let Value::Object(map) = item {
-            map.get(field).map(|v| match v {
-                Value::String(s) => s.clone(),
-                other => other.to_string(),
-            })
-        } else {
-            None
-        }
-    }
-}
-
-/// CRD JSONPaths sometimes start with '.' — `serde_json_path` expects '$'
 fn fix_crd_path(raw: &str) -> String {
     if raw.starts_with('.') {
         format!("${raw}")

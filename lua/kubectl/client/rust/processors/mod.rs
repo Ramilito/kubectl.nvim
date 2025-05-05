@@ -24,7 +24,7 @@ use crate::processors::{
     fallback::FallbackProcessor,
     // persistentvolumeclaim::PersistentVolumeClaimProcessor,
     pod::PodProcessor,
-    processor::DynProcessor, // the object-safe wrapper trait
+    processor::DynProcessor,
     // service::ServiceProcessor,
     // statefulset::StatefulsetProcessor,
     // storageclass::StorageClassProcessor,
