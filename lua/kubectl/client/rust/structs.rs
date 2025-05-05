@@ -94,6 +94,14 @@ pub struct GetMinifiedConfig {
     pub ctx_override: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct CmdDescribeArgs {
+    pub name: String,
+    pub namespace: Option<String>,
+    pub context: String,
+    pub gvk: Gvk,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(default)]
 pub struct CmdStreamArgs {

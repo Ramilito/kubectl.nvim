@@ -49,7 +49,7 @@ function M.ShowMessage(ns, object, event)
     syntax = "less",
   }
   local builder = manager.get_or_create(def.resource)
-	builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer(def.ft, def.display_name, nil, { def.syntax })
+  builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer(def.ft, def.display_name, nil, { def.syntax })
 
   if builder then
     builder.addHints({ {
@@ -74,12 +74,10 @@ function M.Desc(name, ns, reload)
   local builder = manager.get_or_create(def.resource)
   builder.view_float(def, {
     args = {
-      state.context["current-context"],
-      M.definition.resource,
-      ns,
-      name,
-      M.definition.gvk.g,
-      M.definition.gvk.v,
+      context = state.context["current-context"],
+      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
+      namespace = ns,
+      name = name,
     },
     reload = reload,
   })

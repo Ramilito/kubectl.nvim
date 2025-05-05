@@ -156,10 +156,10 @@ function M.get_mappings()
             local builder = manager.get_or_create("yaml")
             builder.view_float(def, {
               args = {
-                def.gvk.k,
-                ns,
-                name,
-                "yaml",
+                kind = def.gvk.k,
+                namespace = ns,
+                name = name,
+                output = "yaml",
               },
             })
           end

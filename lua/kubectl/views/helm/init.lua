@@ -1,5 +1,5 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local definition = require("kubectl.views.helm.definition")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -25,20 +25,25 @@ end
 
 function M.View(cancellationToken)
   definition.url = get_args()
-  ResourceBuilder:view(definition, cancellationToken, { cmd = definition.cmd, informer = false })
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view(definition, cancellationToken, { cmd = definition.cmd, informer = false })
+end
+
+function M.Draw(cancellationToken)
+  state.instance[definition.resource]:draw(definition, cancellationToken)
 end
 
 function M.Desc(name, ns, reload)
-  ResourceBuilder:view_float({
+  local builder = manager.get(definition.resource)
+  if not builder then
+    return
+  end
+  builder.view_float({
     resource = "helm | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     url = { "status", name, "-n", ns, "--show-resources" },
     syntax = "yaml",
   }, { cmd = definition.cmd, reload = reload })
-end
-
-function M.Draw(cancellationToken)
-  state.instance[definition.resource]:draw(definition, cancellationToken)
 end
 
 function M.Yaml(name, ns)
@@ -54,7 +59,12 @@ function M.Yaml(name, ns)
       table.insert(def.url, ns)
       def.resource = def.resource .. " | " .. ns
     end
-    ResourceBuilder:view_float(def, { cmd = "helm" })
+
+    local builder = manager.get(definition.resource)
+    if not builder then
+      return
+    end
+    builder.view_float(def, { cmd = "helm" })
   end
 end
 
@@ -71,7 +81,11 @@ function M.Values(name, ns)
       table.insert(def.url, ns)
       def.resource = def.resource .. " | " .. ns
     end
-    ResourceBuilder:view_float(def, { cmd = "helm" })
+    local builder = manager.get(definition.resource)
+    if not builder then
+      return
+    end
+    builder.view_float(def, { cmd = "helm" })
   end
 end
 

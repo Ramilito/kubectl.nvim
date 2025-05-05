@@ -17,8 +17,8 @@ function M.open()
   client.set_implementation()
 
   hl.setup()
-
   state.setup()
+
   if config.options.headers.enabled then
     view.Header()
   end

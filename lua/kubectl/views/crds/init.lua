@@ -52,12 +52,10 @@ function M.Desc(name, _, reload)
   local builder = manager.get_or_create(def.resource)
   builder.view_float(def, {
     args = {
-      state.context["current-context"],
-      M.definition.plural,
-      nil,
-      name,
-      M.definition.gvk.g,
-      M.definition.gvk.v,
+      context = state.context["current-context"],
+      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
+      namespace = nil,
+      name = name,
     },
     reload = reload,
   })

@@ -72,34 +72,30 @@ function M.Draw(cancellationToken)
   local sort_by = state.sortby[builder.definition.resource].current_word
   local sort_order = state.sortby[builder.definition.resource].order
 
-  commands.run_async(
-    "get_fallback_table_async",
-    {
-      name = builder.definition.crd_name,
-      namespace = ns,
-      sort_by = sort_by,
-      sort_order = sort_order,
-      filter = filter,
-      filter_label = filter_label,
-    },
-    function(result)
-      if not result then
-        return
-      end
-      builder.data = result
-      builder.decodeJson()
-      builder.processedData = builder.data.rows
-      builder.definition.headers = builder.data.headers
-
-      vim.schedule(function()
-        local windows = buffers.get_windows_by_name(builder.definition.resource)
-        for _, win_id in ipairs(windows) do
-          builder.prettyPrint(win_id).addDivider(true).addHints(builder.definition.hints, true, true)
-          builder.displayContent(win_id, cancellationToken)
-        end
-      end)
+  commands.run_async("get_fallback_table_async", {
+    name = builder.definition.crd_name,
+    namespace = ns,
+    sort_by = sort_by,
+    sort_order = sort_order,
+    filter = filter,
+    filter_label = filter_label,
+  }, function(result)
+    if not result then
+      return
     end
-  )
+    builder.data = result
+    builder.decodeJson()
+    builder.processedData = builder.data.rows
+    builder.definition.headers = builder.data.headers
+
+    vim.schedule(function()
+      local windows = buffers.get_windows_by_name(builder.definition.resource)
+      for _, win_id in ipairs(windows) do
+        builder.prettyPrint(win_id).addDivider(true).addHints(builder.definition.hints, true, true)
+        builder.displayContent(win_id, cancellationToken)
+      end
+    end)
+  end)
 end
 
 function M.Desc(name, ns, reload)
@@ -117,12 +113,10 @@ function M.Desc(name, ns, reload)
   local builder = manager.get_or_create(def.resource)
   builder.view_float(def, {
     args = {
-      state.context["current-context"],
-      M.definition.plural,
-      ns,
-      name,
-      M.definition.gvk.g,
-      M.definition.gvk.v,
+      context = state.context["current-context"],
+      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
+      namespace = ns,
+      name = name,
     },
     reload = reload,
   })
