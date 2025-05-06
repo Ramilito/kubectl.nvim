@@ -171,6 +171,12 @@ function M.new(resource)
     if include_filter and state.filter ~= "" then
       filter_str = state.filter
     end
+    if include_filter and #state.filter_label > 0 then
+      if filter_str ~= "" then
+        filter_str = filter_str .. ", "
+      end
+      filter_str = filter_str .. table.concat(state.filter_label, ", ")
+    end
 
     builder.header.divider_winbar = tables.generateDividerWinbar({
       resource = builder.resource,
