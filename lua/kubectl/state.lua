@@ -95,7 +95,6 @@ function M.setup()
       end
     end)
   end)
-
 end
 
 function M.checkVersions()
@@ -155,9 +154,9 @@ function M.getFilter()
 end
 
 --- Get the current filter_label
---- @return string filter_label The current filter
+--- @return string[] filter_label The current filter
 function M.getFilterLabel()
-  return table.concat(M.filter_label, ",")
+  return M.filter_label
 end
 
 --- Get the selections

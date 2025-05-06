@@ -129,23 +129,6 @@ async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
     rt.block_on(fut)
 }
 
-pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
-    let args: GetFallbackTableArgs =
-        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-
-    let proc = processor("fallback");
-    let processed = proc.process_fallback(
-        &lua,
-        args.name,
-        args.namespace,
-        args.sort_by,
-        args.sort_order,
-        args.filter,
-    )?;
-
-    serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
-}
-
 async fn fetch_all_async(
     _lua: Lua,
     args: (String, Option<String>, Option<String>, Option<String>),
@@ -204,6 +187,24 @@ async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
     rt.block_on(fut)
 }
 
+pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
+    let args: GetFallbackTableArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
+
+    let proc = processor("fallback");
+    let processed = proc.process_fallback(
+        &lua,
+        args.name,
+        args.namespace,
+        args.sort_by,
+        args.sort_order,
+        args.filter,
+        args.filter_label,
+    )?;
+
+    serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
+}
+
 async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
@@ -234,7 +235,14 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
 
         let processor = processor(args.gvk.k.to_lowercase().as_str());
         let processed = processor
-            .process(&lua, &resources, args.sort_by, args.sort_order, args.filter)
+            .process(
+                &lua,
+                &resources,
+                args.sort_by,
+                args.sort_order,
+                args.filter,
+                args.filter_label,
+            )
             .map_err(mlua::Error::external)?;
 
         let json_str = k8s_openapi::serde_json::to_string(&processed)

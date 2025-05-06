@@ -12,6 +12,7 @@ pub trait DynProcessor: Send + Sync {
         sort_by: Option<String>,
         sort_order: Option<String>,
         filter: Option<String>,
+        filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value>;
 
     fn process_fallback(
@@ -22,6 +23,7 @@ pub trait DynProcessor: Send + Sync {
         sort_by: Option<String>,
         sort_order: Option<String>,
         filter: Option<String>,
+        filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value>;
 }
 /* blanket-impl:  every real Processor automatically becomes a DynProcessor */
@@ -33,8 +35,9 @@ impl<T: Processor> DynProcessor for T {
         sort_by: Option<String>,
         sort_order: Option<String>,
         filter: Option<String>,
+        filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
-        Processor::process(self, lua, items, sort_by, sort_order, filter)
+        Processor::process(self, lua, items, sort_by, sort_order, filter, filter_label)
     }
 
     fn process_fallback(
@@ -45,8 +48,18 @@ impl<T: Processor> DynProcessor for T {
         sort_by: Option<String>,
         sort_order: Option<String>,
         filter: Option<String>,
+        filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
-        Processor::process_fallback(self, lua, name, ns, sort_by, sort_order, filter)
+        Processor::process_fallback(
+            self,
+            lua,
+            name,
+            ns,
+            sort_by,
+            sort_order,
+            filter,
+            filter_label,
+        )
     }
 }
 
@@ -60,6 +73,16 @@ pub trait Processor: Send + Sync {
         mode: AccessorMode,
     ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_>;
 
+    fn labels_match(obj: &DynamicObject, wanted: &[(&str, &str)]) -> bool {
+        let labels = match &obj.metadata.labels {
+            Some(map) => map,
+            None => return wanted.is_empty(),
+        };
+        wanted
+            .iter()
+            .all(|(k, v)| labels.get(*k).map(|vv| vv == v).unwrap_or(false))
+    }
+
     fn process(
         &self,
         lua: &Lua,
@@ -67,9 +90,17 @@ pub trait Processor: Send + Sync {
         sort_by: Option<String>,
         sort_order: Option<String>,
         filter: Option<String>,
+        filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
+        let parsed: Vec<(&str, &str)> = filter_label
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|s| s.split_once('='))
+            .collect();
         let mut rows: Vec<Self::Row> = items
             .iter()
+            .filter(|obj| Self::labels_match(obj, &parsed))
             .map(|obj| self.build_row(lua, obj))
             .collect::<LuaResult<_>>()?;
 
@@ -148,6 +179,7 @@ pub trait Processor: Send + Sync {
         _sort_by: Option<String>,
         _sort_order: Option<String>,
         _filter: Option<String>,
+        _filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
         Err(LuaError::external("Not implemented for this processor"))
     }

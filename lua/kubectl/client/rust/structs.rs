@@ -20,7 +20,7 @@ pub struct GetTableArgs {
     pub sort_by: Option<String>,
     pub sort_order: Option<String>,
     pub filter: Option<String>,
-    pub filter_label: Option<String>,
+    pub filter_label: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -85,7 +85,7 @@ pub struct GetFallbackTableArgs {
     pub sort_by: Option<String>,
     pub sort_order: Option<String>,
     pub filter: Option<String>,
-    pub filter_label: Option<String>,
+    pub filter_label: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

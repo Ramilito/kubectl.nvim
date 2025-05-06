@@ -31,6 +31,7 @@ impl Processor for DefaultProcessor {
         _sort_by: Option<String>,
         _sort_order: Option<String>,
         _filter: Option<String>,
+        _filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
         let json_vec: Vec<serde_json::Value> = items
             .iter()

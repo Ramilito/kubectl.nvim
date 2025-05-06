@@ -126,6 +126,7 @@ impl Processor for FallbackProcessor {
         _: Option<String>,
         _: Option<String>,
         _: Option<String>,
+        _: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
         Err(LuaError::external("use process_fallback"))
     }
@@ -138,6 +139,7 @@ impl Processor for FallbackProcessor {
         sort_by: Option<String>,
         sort_order: Option<String>,
         filter: Option<String>,
+        filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
         let rt = RUNTIME.get_or_init(|| Runtime::new().unwrap());
         rt.block_on(async move {
@@ -198,7 +200,8 @@ impl Processor for FallbackProcessor {
                 cols: cols.clone(),
                 namespaced,
             };
-            let rows_lua = runtime.process(lua, &items, sort_by, sort_order, filter)?;
+            let rows_lua =
+                runtime.process(lua, &items, sort_by, sort_order, filter, filter_label)?;
 
             let mut headers: Vec<String> = if namespaced {
                 vec!["NAMESPACE".to_string(), "NAME".to_string()]
