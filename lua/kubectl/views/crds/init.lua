@@ -53,7 +53,7 @@ function M.Desc(name, _, reload)
   builder.view_float(def, {
     args = {
       context = state.context["current-context"],
-      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
+      gvk = { k = M.definition.plural, g = M.definition.gvk.g, v = M.definition.gvk.v },
       namespace = nil,
       name = name,
     },

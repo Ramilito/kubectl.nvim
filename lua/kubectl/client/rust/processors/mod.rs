@@ -4,8 +4,8 @@ use std::sync::OnceLock;
 
 pub mod clusterrolebinding;
 pub mod configmap;
-// pub mod customresourcedefinition;
-// pub mod default;
+pub mod customresourcedefinition;
+pub mod default;
 // pub mod deployment;
 pub mod fallback;
 // pub mod persistentvolumeclaim;
@@ -18,8 +18,8 @@ pub mod processor;
 use crate::processors::{
     clusterrolebinding::ClusterRoleBindingProcessor,
     configmap::ConfigmapProcessor,
-    // customresourcedefinition::ClusterResourceDefinitionProcessor,
-    // default::DefaultProcessor,
+    customresourcedefinition::ClusterResourceDefinitionProcessor,
+    default::DefaultProcessor,
     // deployment::DeploymentProcessor,
     fallback::FallbackProcessor,
     // persistentvolumeclaim::PersistentVolumeClaimProcessor,
@@ -42,11 +42,11 @@ fn processors() -> &'static ProcessorMap {
         let mut m: ProcessorMap = HashMap::new();
         m.insert("clusterrolebinding", Box::new(ClusterRoleBindingProcessor));
         m.insert("configmap", Box::new(ConfigmapProcessor));
-        // m.insert(
-        //     "customresourcedefinition",
-        //     Box::new(ClusterResourceDefinitionProcessor),
-        // );
-        // m.insert("default", Box::new(DefaultProcessor));
+        m.insert(
+            "customresourcedefinition",
+            Box::new(ClusterResourceDefinitionProcessor),
+        );
+        m.insert("default", Box::new(DefaultProcessor));
         // m.insert("deployment", Box::new(DeploymentProcessor));
         m.insert("fallback", Box::new(FallbackProcessor));
         // m.insert(

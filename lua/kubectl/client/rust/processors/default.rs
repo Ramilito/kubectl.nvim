@@ -1,19 +1,25 @@
 use crate::processors::processor::Processor;
+use crate::utils::AccessorMode;
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use mlua::Lua;
 
 pub struct DefaultProcessor;
 
 impl Processor for DefaultProcessor {
-    fn process(
+    type Row = DynamicObject;
+
+    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+        Ok(obj.clone())
+    }
+
+    fn filterable_fields(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    fn field_accessor(
         &self,
-        lua: &Lua,
-        items: &[DynamicObject],
-        _sort_by: Option<String>,
-        _sort_order: Option<String>,
-        _filter: Option<String>,
-    ) -> LuaResult<mlua::Value> {
-        lua.to_value(&items)
+        _mode: AccessorMode,
+    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
+        Box::new(|_, _| None)
     }
 }
