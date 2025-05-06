@@ -143,8 +143,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
         args.filter,
     )?;
 
-    serde_json::to_string(&processed)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
+    serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
 }
 
 async fn fetch_all_async(

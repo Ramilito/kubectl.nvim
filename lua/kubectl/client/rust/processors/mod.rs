@@ -6,7 +6,7 @@ pub mod clusterrolebinding;
 pub mod configmap;
 pub mod customresourcedefinition;
 pub mod default;
-// pub mod deployment;
+pub mod deployment;
 pub mod fallback;
 // pub mod persistentvolumeclaim;
 pub mod pod;
@@ -20,7 +20,7 @@ use crate::processors::{
     configmap::ConfigmapProcessor,
     customresourcedefinition::ClusterResourceDefinitionProcessor,
     default::DefaultProcessor,
-    // deployment::DeploymentProcessor,
+    deployment::DeploymentProcessor,
     fallback::FallbackProcessor,
     // persistentvolumeclaim::PersistentVolumeClaimProcessor,
     pod::PodProcessor,
@@ -47,7 +47,7 @@ fn processors() -> &'static ProcessorMap {
             Box::new(ClusterResourceDefinitionProcessor),
         );
         m.insert("default", Box::new(DefaultProcessor));
-        // m.insert("deployment", Box::new(DeploymentProcessor));
+        m.insert("deployment", Box::new(DeploymentProcessor));
         m.insert("fallback", Box::new(FallbackProcessor));
         // m.insert(
         //     "persistentvolumeclaim",
