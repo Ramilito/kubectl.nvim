@@ -107,7 +107,7 @@ function M.load_cache(callback)
   local cached_api_resources = cache.cached_api_resources
   local all_gvk = {}
   for _, resource in pairs(cached_api_resources.values) do
-    table.insert(all_gvk, { cmd = "get_all_async", args = { resource.gvk.k, resource.gvk.g, resource.gvk.v, nil } })
+    table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk, nil } })
   end
 
   collectgarbage("collect")
