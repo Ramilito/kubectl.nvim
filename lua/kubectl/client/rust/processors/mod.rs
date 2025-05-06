@@ -8,10 +8,10 @@ pub mod customresourcedefinition;
 pub mod default;
 pub mod deployment;
 pub mod fallback;
-// pub mod persistentvolumeclaim;
+pub mod persistentvolumeclaim;
 pub mod pod;
 pub mod processor;
-// pub mod service;
+pub mod service;
 // pub mod statefulset;
 // pub mod storageclass;
 
@@ -22,10 +22,10 @@ use crate::processors::{
     default::DefaultProcessor,
     deployment::DeploymentProcessor,
     fallback::FallbackProcessor,
-    // persistentvolumeclaim::PersistentVolumeClaimProcessor,
+    persistentvolumeclaim::PersistentVolumeClaimProcessor,
     pod::PodProcessor,
     processor::DynProcessor,
-    // service::ServiceProcessor,
+    service::ServiceProcessor,
     // statefulset::StatefulsetProcessor,
     // storageclass::StorageClassProcessor,
 };
@@ -49,12 +49,12 @@ fn processors() -> &'static ProcessorMap {
         m.insert("default", Box::new(DefaultProcessor));
         m.insert("deployment", Box::new(DeploymentProcessor));
         m.insert("fallback", Box::new(FallbackProcessor));
-        // m.insert(
-        //     "persistentvolumeclaim",
-        //     Box::new(PersistentVolumeClaimProcessor),
-        // );
+        m.insert(
+            "persistentvolumeclaim",
+            Box::new(PersistentVolumeClaimProcessor),
+        );
         m.insert("pod", Box::new(PodProcessor));
-        // m.insert("service", Box::new(ServiceProcessor));
+        m.insert("service", Box::new(ServiceProcessor));
         // m.insert("statefulset", Box::new(StatefulsetProcessor));
         // m.insert("storageclass", Box::new(StorageClassProcessor));
         m
