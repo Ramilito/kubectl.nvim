@@ -17,7 +17,9 @@ function M.open()
   client.set_implementation()
 
   hl.setup()
-  state.setup()
+  vim.schedule(function()
+    state.setup()
+  end)
 
   if config.options.headers.enabled then
     view.Header()
