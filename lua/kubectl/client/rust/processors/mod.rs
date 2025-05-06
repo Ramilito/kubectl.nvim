@@ -8,12 +8,15 @@ pub mod default;
 pub mod deployment;
 pub mod fallback;
 pub mod ingress;
+pub mod node;
 pub mod persistentvolumeclaim;
 pub mod pod;
 pub mod processor;
 pub mod service;
 pub mod statefulset;
 pub mod storageclass;
+
+use node::NodeProcessor;
 
 use crate::processors::{
     clusterrolebinding::ClusterRoleBindingProcessor, configmap::ConfigmapProcessor,
@@ -40,6 +43,7 @@ fn processors() -> &'static ProcessorMap {
         m.insert("default", Box::new(DefaultProcessor));
         m.insert("deployment", Box::new(DeploymentProcessor));
         m.insert("ingress", Box::new(IngressProcessor));
+        m.insert("node", Box::new(NodeProcessor));
         m.insert("fallback", Box::new(FallbackProcessor));
         m.insert(
             "persistentvolumeclaim",

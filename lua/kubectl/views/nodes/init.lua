@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.nodes.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -26,8 +25,8 @@ local M = {
       "VERSION",
       "INTERNAL-IP",
       "EXTERNAL-IP",
+      "OS-IMAGE",
     },
-    processRow = definition.processRow,
   },
 }
 
