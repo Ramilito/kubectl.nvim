@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 pub mod clusterrolebinding;
-// pub mod configmap;
+pub mod configmap;
 // pub mod customresourcedefinition;
 // pub mod default;
 // pub mod deployment;
@@ -17,7 +17,7 @@ pub mod processor;
 
 use crate::processors::{
     clusterrolebinding::ClusterRoleBindingProcessor,
-    // configmap::ConfigmapProcessor,
+    configmap::ConfigmapProcessor,
     // customresourcedefinition::ClusterResourceDefinitionProcessor,
     // default::DefaultProcessor,
     // deployment::DeploymentProcessor,
@@ -41,7 +41,7 @@ fn processors() -> &'static ProcessorMap {
     PROCESSORS.get_or_init(|| {
         let mut m: ProcessorMap = HashMap::new();
         m.insert("clusterrolebinding", Box::new(ClusterRoleBindingProcessor));
-        // m.insert("configmap", Box::new(ConfigmapProcessor));
+        m.insert("configmap", Box::new(ConfigmapProcessor));
         // m.insert(
         //     "customresourcedefinition",
         //     Box::new(ClusterResourceDefinitionProcessor),
