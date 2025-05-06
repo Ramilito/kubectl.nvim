@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.ingresses.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -12,11 +11,9 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "networking.k8s.io", v = "v1", k = "Ingress" },
-    informer = { enabled = true },
     hints = {
       { key = "<Plug>(kubectl.browse)", desc = "browse", long_desc = "Open host in browser" },
     },
-    processRow = definition.processRow,
     headers = {
       "NAMESPACE",
       "NAME",
