@@ -1,4 +1,3 @@
-use crate::processors::processor::Processor;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -12,8 +11,8 @@ pub mod persistentvolumeclaim;
 pub mod pod;
 pub mod processor;
 pub mod service;
-// pub mod statefulset;
-// pub mod storageclass;
+pub mod statefulset;
+pub mod storageclass;
 
 use crate::processors::{
     clusterrolebinding::ClusterRoleBindingProcessor,
@@ -26,17 +25,14 @@ use crate::processors::{
     pod::PodProcessor,
     processor::DynProcessor,
     service::ServiceProcessor,
-    // statefulset::StatefulsetProcessor,
-    // storageclass::StorageClassProcessor,
+    statefulset::StatefulsetProcessor,
+    storageclass::StorageClassProcessor,
 };
 
 type ProcessorMap = HashMap<&'static str, Box<dyn DynProcessor>>;
 
-/// One global, lazily-initialised map.
-/// `OnceLock` guarantees that initialisation is thread-safe and happens only once.
 static PROCESSORS: OnceLock<ProcessorMap> = OnceLock::new();
 
-/// Build the map exactly once and return a reference to it.
 fn processors() -> &'static ProcessorMap {
     PROCESSORS.get_or_init(|| {
         let mut m: ProcessorMap = HashMap::new();
@@ -55,8 +51,8 @@ fn processors() -> &'static ProcessorMap {
         );
         m.insert("pod", Box::new(PodProcessor));
         m.insert("service", Box::new(ServiceProcessor));
-        // m.insert("statefulset", Box::new(StatefulsetProcessor));
-        // m.insert("storageclass", Box::new(StorageClassProcessor));
+        m.insert("statefulset", Box::new(StatefulsetProcessor));
+        m.insert("storageclass", Box::new(StorageClassProcessor));
         m
     })
 }

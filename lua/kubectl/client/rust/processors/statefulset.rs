@@ -1,10 +1,9 @@
 use crate::processors::processor::Processor;
-use crate::utils::{filter_dynamic, sort_dynamic, AccessorMode, FieldValue};
+use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::StatefulSet;
-use k8s_openapi::serde_json::{self};
+use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use mlua::Lua;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct StatefulsetProcessed {
@@ -14,96 +13,67 @@ pub struct StatefulsetProcessed {
     age: FieldValue,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone)]
 pub struct StatefulsetProcessor;
 
 impl Processor for StatefulsetProcessor {
-    fn process(
+    type Row = StatefulsetProcessed;
+
+    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+        let statefulset: StatefulSet =
+            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let namespace = statefulset.metadata.namespace.clone().unwrap_or_default();
+        let name = statefulset.metadata.name.clone().unwrap_or_default();
+        let age = self.get_age(obj);
+        let ready = get_ready_from_statefulset(&statefulset);
+        Ok(StatefulsetProcessed {
+            namespace,
+            name,
+            ready,
+            age,
+        })
+    }
+
+    fn filterable_fields(&self) -> &'static [&'static str] {
+        &["namespace", "name", "ready"]
+    }
+
+    fn field_accessor(
         &self,
-        lua: &Lua,
-        items: &[DynamicObject],
-        sort_by: Option<String>,
-        sort_order: Option<String>,
-        filter: Option<String>,
-    ) -> LuaResult<mlua::Value> {
-        let mut data = Vec::new();
-
-        for obj in items {
-            let statefulset: StatefulSet = serde_json::from_value(
-                serde_json::to_value(obj).expect("Failed to convert DynamicObject to JSON Value"),
-            )
-            .expect("Failed to convert JSON Value into Statefulset");
-
-            let namespace = statefulset.metadata.namespace.clone().unwrap_or_default();
-            let name = statefulset.metadata.name.clone().unwrap_or_default();
-            let age = self.get_age(obj);
-            let ready = get_ready_from_deployment(&statefulset);
-
-            data.push(StatefulsetProcessed {
-                namespace,
-                name,
-                ready,
-                age,
-            });
-        }
-        sort_dynamic(
-            &mut data,
-            sort_by,
-            sort_order,
-            field_accessor(AccessorMode::Sort),
-        );
-
-        let data = if let Some(ref filter_value) = filter {
-            filter_dynamic(
-                &data,
-                filter_value,
-                &["namespace", "name", "ready"],
-                field_accessor(AccessorMode::Filter),
-            )
-            .into_iter()
-            .cloned()
-            .collect()
-        } else {
-            data
-        };
-
-        lua.to_value(&data)
+        mode: AccessorMode,
+    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
+        Box::new(move |r, field| match field {
+            "namespace" => Some(r.namespace.clone()),
+            "name" => Some(r.name.clone()),
+            "ready" => Some(r.ready.value.clone()),
+            "age" => match mode {
+                AccessorMode::Sort => r.age.sort_by.map(|v| v.to_string()),
+                AccessorMode::Filter => Some(r.age.value.clone()),
+            },
+            _ => None,
+        })
     }
 }
 
-fn field_accessor(mode: AccessorMode) -> impl Fn(&StatefulsetProcessed, &str) -> Option<String> {
-    move |resource, field| match field {
-        "namespace" => Some(resource.namespace.clone()),
-        "name" => Some(resource.name.clone()),
-        "ready" => Some(resource.ready.value.clone()),
-        "age" => match mode {
-            AccessorMode::Sort => Some(resource.age.sort_by?.to_string()),
-            AccessorMode::Filter => Some(resource.age.value.clone()),
-        },
-        _ => None,
-    }
-}
-fn get_ready_from_deployment(statefulset: &StatefulSet) -> FieldValue {
-    let available = statefulset
+fn get_ready_from_statefulset(ss: &StatefulSet) -> FieldValue {
+    let available = ss
         .status
         .as_ref()
         .and_then(|s| s.available_replicas)
         .unwrap_or(0) as u64;
-    let ready = statefulset
+    let ready_replicas = ss
         .status
         .as_ref()
         .and_then(|s| s.ready_replicas)
         .unwrap_or(0) as u64;
-
-    let symbol = if available == ready {
-        "KubectlNote".to_string()
+    let symbol = if available == ready_replicas {
+        "KubectlNote"
     } else {
-        "KubectlDeprecated".to_string()
-    };
-
-    let value = format!("{}/{}", available, ready);
-    let sort_by = (available * 1001) + ready;
-
+        "KubectlDeprecated"
+    }
+    .to_string();
+    let value = format!("{}/{}", available, ready_replicas);
+    let sort_by = (available * 1001) + ready_replicas;
     FieldValue {
         symbol: Some(symbol),
         value,
