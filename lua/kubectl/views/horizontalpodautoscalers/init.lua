@@ -11,7 +11,7 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "autoscaling", v = "v2", k = "HorizontalPodAutoScaler" },
+    gvk = { g = "autoscaling", v = "v2", k = "HorizontalPodAutoscaler" },
     -- hints = {
     --   { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change deployment image" },
     --   { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },
