@@ -97,8 +97,6 @@ impl Processor for HorizontalPodAutoscalerProcessor {
     }
 }
 
-/* ───────────────────── helpers ───────────────────────── */
-
 fn summarize_metrics(hpa: &HorizontalPodAutoscaler) -> String {
     let mut parts = Vec::new();
 
