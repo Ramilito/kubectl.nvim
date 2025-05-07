@@ -220,6 +220,7 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let fut = async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
+            info!("fetching from live data");
             get_resources_async(
                 &client,
                 args.gvk.k.clone(),
@@ -230,6 +231,7 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
             .await
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
+            info!("fetching from cached data");
             cached
         };
 
