@@ -19,7 +19,7 @@ local defaults = {
   log_level = vim.log.levels.INFO,
   auto_refresh = {
     enabled = true,
-    interval = 300, -- milliseconds
+    interval = 2000, -- milliseconds
   },
   diff = {
     bin = "kubediff",
