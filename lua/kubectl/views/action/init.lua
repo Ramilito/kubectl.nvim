@@ -1,6 +1,8 @@
 local buffers = require("kubectl.actions.buffers")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
+local tables = require("kubectl.utils.tables")
 local M = {}
 
 local function get_values(definition, data)
@@ -72,13 +74,37 @@ function M.View(definition, data, callback)
 
   builder.extmarks = {}
   builder.data = {}
+  builder.header = {}
   builder.origin_data = data
+
   builder.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
     local args = get_values(definition, builder.origin_data)
     if confirm then
       callback(args)
     end
   end)
+
+  local add_divider = false
+
+  if definition.hints then
+    add_divider = true
+    builder.addHints(definition.hints, false, false)
+  end
+
+  if definition.notes then
+    add_divider = true
+    table.insert(builder.header.data, definition.notes)
+    table.insert(builder.header.marks, {
+      row = #builder.header.data - 1,
+      start_col = 0,
+      end_col = #builder.header.data[#builder.header.data],
+      hl_group = hl.symbols.gray,
+    })
+  end
+
+  if add_divider then
+    tables.generateDividerRow(builder.header.data, builder.header.marks)
+  end
 
   for _, item in ipairs(data) do
     table.insert(builder.data, item.value)

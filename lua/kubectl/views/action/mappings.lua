@@ -57,7 +57,7 @@ M.overrides = {
           local idx = next_idx(opts, enum_state[item.text])
           enum_state[item.text] = idx
 
-          store.data[row + 1] = opts[idx]
+          store.data[row + 1 - #store.header.data ] = opts[idx]
           break
         end
       end

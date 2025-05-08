@@ -62,6 +62,15 @@ function M.filter_label()
     ns = ns,
     group = M.definition.group,
     version = M.definition.version,
+    hints = {
+      { key = "<Plug>(kubectl.select)", desc = "apply" },
+      { key = "<Plug>(kubectl.tab)", desc = "next" },
+      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+      { key = "<Plug>(kubectl.clear)", desc = "close" },
+      -- TODO: Definition should be moved to mappings.lua
+      { key = "<Plug>(kubectl.quit)", desc = "close" },
+    },
+    notes = "Select none to clear existing filters.",
   }
 
   local builder = manager.get_or_create(def.resource)

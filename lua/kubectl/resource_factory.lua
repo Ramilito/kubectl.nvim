@@ -195,9 +195,6 @@ function M.new(resource)
     if cancellationToken and cancellationToken() then
       return nil
     end
-    if builder.header.data then
-      tables.generateDividerRow(builder.header.data, builder.header.marks)
-    end
     buffers.set_content(builder.buf_nr, {
       content = builder.data,
       marks = builder.extmarks,
