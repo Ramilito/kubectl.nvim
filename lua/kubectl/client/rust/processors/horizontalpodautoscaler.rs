@@ -1,5 +1,3 @@
-use crate::processors::processor::Processor;
-use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::autoscaling::v2::{
     ContainerResourceMetricStatus, HorizontalPodAutoscaler, MetricStatus, ResourceMetricStatus,
 };
@@ -7,7 +5,10 @@ use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use tracing::info;
+use std::collections::BTreeMap;
+
+use crate::processors::processor::Processor;
+use crate::utils::{AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct HorizontalPodAutoscalerProcessed {
@@ -50,7 +51,6 @@ impl Processor for HorizontalPodAutoscalerProcessor {
             })
             .unwrap_or_else(|| ("<none>".into(), "<none>".into(), "<none>".into()));
 
-        info!("{:?}", hpa.status);
         let replicas = hpa
             .status
             .as_ref()
@@ -98,21 +98,48 @@ impl Processor for HorizontalPodAutoscalerProcessor {
 }
 
 fn summarize_metrics(hpa: &HorizontalPodAutoscaler) -> String {
-    let mut parts = Vec::new();
-
-    if let Some(status) = &hpa.status {
-        if let Some(metrics) = &status.current_metrics {
-            for m in metrics {
-                if let Some(s) = metric_status_value(m) {
-                    parts.push(s);
+    let mut targets: BTreeMap<String, String> = BTreeMap::new();
+    if let Some(spec) = &hpa.spec {
+        if let Some(ms) = &spec.metrics {
+            for m in ms {
+                if let Some(r) = &m.resource {
+                    let tgt = r
+                        .target
+                        .average_utilization
+                        .map(|u| format!("{u}%"))
+                        .or_else(|| r.target.average_value.as_ref().map(|q| q.0.clone()))
+                        .or_else(|| r.target.value.as_ref().map(|q| q.0.clone()))
+                        .unwrap_or_else(|| "<none>".into());
+                    targets.insert(r.name.clone(), tgt);
                 }
             }
         }
     }
-    if parts.is_empty() {
+
+    let mut out = Vec::new();
+    if let Some(status) = &hpa.status {
+        if let Some(ms) = &status.current_metrics {
+            for m in ms {
+                if let Some(r) = &m.resource {
+                    let cur = r
+                        .current
+                        .average_utilization
+                        .map(|u| format!("{u}%"))
+                        .or_else(|| r.current.average_value.as_ref().map(|q| q.0.clone()))
+                        .or_else(|| r.current.value.as_ref().map(|q| q.0.clone()))
+                        .unwrap_or_else(|| "<none>".into());
+
+                    let name = r.name.clone(); // e.g. "cpu" or "memory"
+                    let tgt = targets.remove(&name).unwrap_or_else(|| "<none>".into());
+                    out.push(format!("{name}: {cur}/{tgt}"));
+                }
+            }
+        }
+    }
+    if out.is_empty() {
         "<none>".into()
     } else {
-        parts.join(", ")
+        out.join(", ")
     }
 }
 
