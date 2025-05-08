@@ -37,7 +37,7 @@ pub async fn init_reflector_for_kind(
         None => Api::all_with(client.clone(), &ar),
     };
 
-    let config = watcher::Config::default().any_semantic();
+    let config = watcher::Config::default();
     let writer: Writer<DynamicObject> = Writer::new(ar.clone());
     let reader: Store<DynamicObject> = writer.as_reader();
 

@@ -1,7 +1,4 @@
-use k8s_openapi::api::autoscaling::v2::{
-    ContainerResourceMetricStatus, HorizontalPodAutoscaler, MetricStatus, ResourceMetricStatus,
-};
-use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
+use k8s_openapi::api::autoscaling::v2::HorizontalPodAutoscaler;
 use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
@@ -15,7 +12,7 @@ pub struct HorizontalPodAutoscalerProcessed {
     namespace: String,
     name: String,
     reference: String,
-    targets: String,
+    targets: FieldValue,
     minpods: String,
     maxpods: String,
     replicas: String,
@@ -64,7 +61,10 @@ impl Processor for HorizontalPodAutoscalerProcessor {
             namespace,
             name,
             reference,
-            targets,
+            targets: FieldValue {
+                value: targets,
+                ..Default::default()
+            },
             minpods,
             maxpods,
             replicas,
@@ -84,10 +84,13 @@ impl Processor for HorizontalPodAutoscalerProcessor {
             "namespace" => Some(row.namespace.clone()),
             "name" => Some(row.name.clone()),
             "reference" => Some(row.reference.clone()),
-            "targets" => Some(row.targets.clone()),
             "minpods" => Some(row.minpods.clone()),
             "maxpods" => Some(row.maxpods.clone()),
             "replicas" => Some(row.replicas.clone()),
+            "targets" => match mode {
+                AccessorMode::Sort => row.targets.sort_by.map(|v| v.to_string()),
+                AccessorMode::Filter => Some(row.targets.value.clone()),
+            },
             "age" => match mode {
                 AccessorMode::Sort => row.age.sort_by.map(|v| v.to_string()),
                 AccessorMode::Filter => Some(row.age.value.clone()),
@@ -141,66 +144,4 @@ fn summarize_metrics(hpa: &HorizontalPodAutoscaler) -> String {
     } else {
         out.join(", ")
     }
-}
-
-fn metric_status_value(ms: &MetricStatus) -> Option<String> {
-    if let Some(r) = &ms.resource {
-        return value_from_resource(r);
-    }
-    if let Some(p) = &ms.pods {
-        return quantity_to_string(p.current.average_value.as_ref());
-    }
-    if let Some(o) = &ms.object {
-        return quantity_to_string(o.current.value.as_ref());
-    }
-    if let Some(e) = &ms.external {
-        return quantity_to_string(e.current.value.as_ref());
-    }
-    if let Some(c) = &ms.container_resource {
-        return value_from_resource(c);
-    }
-    None
-}
-
-fn value_from_resource<R>(res: &R) -> Option<String>
-where
-    R: ResourceMetricLike,
-{
-    quantity_to_string(res.current_average_value())
-        .or_else(|| res.current_average_utilization().map(|u| format!("{u}%")))
-        .or_else(|| quantity_to_string(res.current_value()))
-}
-
-trait ResourceMetricLike {
-    fn current_average_value(&self) -> Option<&Quantity>;
-    fn current_average_utilization(&self) -> Option<i32>;
-    fn current_value(&self) -> Option<&Quantity>;
-}
-
-impl ResourceMetricLike for ResourceMetricStatus {
-    fn current_average_value(&self) -> Option<&Quantity> {
-        self.current.average_value.as_ref()
-    }
-    fn current_average_utilization(&self) -> Option<i32> {
-        self.current.average_utilization
-    }
-    fn current_value(&self) -> Option<&Quantity> {
-        self.current.value.as_ref()
-    }
-}
-
-impl ResourceMetricLike for ContainerResourceMetricStatus {
-    fn current_average_value(&self) -> Option<&Quantity> {
-        self.current.average_value.as_ref()
-    }
-    fn current_average_utilization(&self) -> Option<i32> {
-        self.current.average_utilization
-    }
-    fn current_value(&self) -> Option<&Quantity> {
-        self.current.value.as_ref()
-    }
-}
-
-fn quantity_to_string(q: Option<&Quantity>) -> Option<String> {
-    q.map(|q| q.0.clone())
 }
