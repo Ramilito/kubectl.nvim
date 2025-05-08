@@ -1,5 +1,4 @@
 local Tree = require("kubectl.views.lineage.tree")
-local cache = require("kubectl.cache")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local M = {
