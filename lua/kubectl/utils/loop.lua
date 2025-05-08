@@ -59,11 +59,13 @@ end
 --- Stop the loop for a specific buffer
 ---@param buf number: The buffer number.
 function M.stop_loop(buf)
-  local timer = timers[buf].timer
-  if timer then
-    timer:stop()
-    timer:close()
-    timers[buf] = nil
+  if timers[buf] then
+    local timer = timers[buf].timer
+    if timer then
+      timer:stop()
+      timer:close()
+      timers[buf] = nil
+    end
   end
 end
 
