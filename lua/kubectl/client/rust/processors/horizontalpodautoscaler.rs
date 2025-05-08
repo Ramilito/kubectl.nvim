@@ -61,10 +61,7 @@ impl Processor for HorizontalPodAutoscalerProcessor {
             namespace,
             name,
             reference,
-            targets: FieldValue {
-                value: targets,
-                ..Default::default()
-            },
+            targets,
             minpods,
             maxpods,
             replicas,
@@ -100,48 +97,100 @@ impl Processor for HorizontalPodAutoscalerProcessor {
     }
 }
 
-fn summarize_metrics(hpa: &HorizontalPodAutoscaler) -> String {
-    let mut targets: BTreeMap<String, String> = BTreeMap::new();
+use crate::events::{color_status, symbols};
+use k8s_openapi::api::autoscaling::v2::{MetricTarget, MetricValueStatus};
+use std::collections::HashMap;
+
+fn summarize_metrics(hpa: &HorizontalPodAutoscaler) -> FieldValue {
+    let mut target_map: HashMap<String, String> = HashMap::new();
     if let Some(spec) = &hpa.spec {
-        if let Some(ms) = &spec.metrics {
-            for m in ms {
-                if let Some(r) = &m.resource {
-                    let tgt = r
-                        .target
-                        .average_utilization
-                        .map(|u| format!("{u}%"))
-                        .or_else(|| r.target.average_value.as_ref().map(|q| q.0.clone()))
-                        .or_else(|| r.target.value.as_ref().map(|q| q.0.clone()))
-                        .unwrap_or_else(|| "<none>".into());
-                    targets.insert(r.name.clone(), tgt);
+        if let Some(mets) = &spec.metrics {
+            for m in mets {
+                if let Some(res) = &m.resource {
+                    if let Some(t) = metric_target_to_string(&res.target) {
+                        target_map.insert(res.name.clone(), t);
+                    }
                 }
             }
         }
     }
 
-    let mut out = Vec::new();
+    let mut entries: BTreeMap<String, (String, String)> = BTreeMap::new();
     if let Some(status) = &hpa.status {
-        if let Some(ms) = &status.current_metrics {
-            for m in ms {
-                if let Some(r) = &m.resource {
-                    let cur = r
-                        .current
-                        .average_utilization
-                        .map(|u| format!("{u}%"))
-                        .or_else(|| r.current.average_value.as_ref().map(|q| q.0.clone()))
-                        .or_else(|| r.current.value.as_ref().map(|q| q.0.clone()))
+        if let Some(mets) = &status.current_metrics {
+            for m in mets {
+                if let Some(res) = &m.resource {
+                    let cur =
+                        metric_value_to_string(&res.current).unwrap_or_else(|| "<none>".into());
+                    let tgt = target_map
+                        .remove(&res.name)
                         .unwrap_or_else(|| "<none>".into());
-
-                    let name = r.name.clone(); // e.g. "cpu" or "memory"
-                    let tgt = targets.remove(&name).unwrap_or_else(|| "<none>".into());
-                    out.push(format!("{name}: {cur}/{tgt}"));
+                    entries.insert(res.name.clone(), (cur, tgt));
                 }
             }
         }
     }
-    if out.is_empty() {
-        "<none>".into()
+
+    let mut ordered = vec!["cpu".to_string(), "memory".to_string()];
+    ordered.extend(
+        entries
+            .keys()
+            .filter(|k| *k != "cpu" && *k != "memory")
+            .cloned(),
+    );
+
+    let mut pieces = Vec::new();
+    let mut worst = 0_u8;
+
+    for key in ordered {
+        if let Some((cur, tgt)) = entries.get(&key) {
+            pieces.push(format!("{key}: {cur}/{tgt}"));
+            if let (Some(c), Some(t)) = (percent(cur), percent(tgt)) {
+                let ratio = c / t.max(1.0);
+                if ratio >= 1.0 {
+                    worst = worst.max(2);
+                } else if ratio >= 0.8 {
+                    worst = worst.max(1);
+                }
+            }
+        }
+    }
+
+    let symbol = match worst {
+        2 => Some(color_status("Error")),
+        1 => Some(color_status("Warning")),
+        _ => Some(symbols().note.clone()),
+    };
+
+    FieldValue {
+        value: if pieces.is_empty() {
+            "<none>".into()
+        } else {
+            pieces.join(", ")
+        },
+        symbol,
+        ..Default::default()
+    }
+}
+
+fn metric_target_to_string(t: &MetricTarget) -> Option<String> {
+    t.average_utilization
+        .map(|u| format!("{u}%"))
+        .or_else(|| t.average_value.as_ref().map(|q| q.0.clone()))
+        .or_else(|| t.value.as_ref().map(|q| q.0.clone()))
+}
+
+fn metric_value_to_string(v: &MetricValueStatus) -> Option<String> {
+    v.average_utilization
+        .map(|u| format!("{u}%"))
+        .or_else(|| v.average_value.as_ref().map(|q| q.0.clone()))
+        .or_else(|| v.value.as_ref().map(|q| q.0.clone()))
+}
+
+fn percent(s: &str) -> Option<f64> {
+    if let Some(stripped) = s.strip_suffix('%') {
+        stripped.trim().parse::<f64>().ok()
     } else {
-        out.join(", ")
+        None
     }
 }
