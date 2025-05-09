@@ -12,7 +12,7 @@ local function get_kind(resource, default_kind)
 end
 
 function M.processRow(rows, cached_api_resources, relationships)
-  if not rows then
+  if not rows or type(rows) == "string"  then
     return
   end
 
@@ -26,8 +26,10 @@ function M.processRow(rows, cached_api_resources, relationships)
 
     local cache_key = nil
     for _, value in pairs(cached_api_resources.values) do
-      if string.lower(value.api_version) == string.lower(item.api_version) and value.gvk.k == item.kind then
-        cache_key = value.crd_name
+      if value.api_version and item.api_version then
+        if string.lower(value.api_version) == string.lower(item.api_version) and value.gvk.k == item.kind then
+          cache_key = value.crd_name
+        end
       end
     end
 

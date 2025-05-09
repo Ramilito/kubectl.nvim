@@ -56,8 +56,11 @@ M.overrides = {
         if opts and key:find(item.text, 1, true) then
           local idx = next_idx(opts, enum_state[item.text])
           enum_state[item.text] = idx
-
-          store.data[row + 1 - #store.header.data ] = opts[idx]
+          local offset = 0
+          if store.header.data then
+            offset = #store.header.data
+          end
+          store.data[row + 1 - offset] = opts[idx]
           break
         end
       end
