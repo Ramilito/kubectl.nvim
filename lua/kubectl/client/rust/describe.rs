@@ -17,12 +17,7 @@ extern "C" {
     ) -> *mut c_char;
 }
 
-pub async fn describe_async(
-    _lua: Lua,
-    json: String, // args: (String, String, Option<String>, String, String, String),
-) -> LuaResult<String> {
-    // let (context, kind, namespace, name, group, version) = args;
-
+pub async fn describe_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdDescribeArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
