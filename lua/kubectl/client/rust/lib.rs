@@ -8,7 +8,7 @@ use std::sync::{Mutex, OnceLock};
 use store::get_store_map;
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::{error, info};
+use tracing::error;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
