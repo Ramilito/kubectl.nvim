@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.cronjobs.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -29,7 +28,6 @@ local M = {
       "IMAGES",
       "SELECTOR",
     },
-    processRow = definition.processRow,
   },
 }
 

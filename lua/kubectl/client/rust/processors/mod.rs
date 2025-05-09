@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 
 pub mod clusterrolebinding;
 pub mod configmap;
+pub mod cronjob;
 pub mod customresourcedefinition;
 pub mod default;
 pub mod deployment;
@@ -22,8 +23,8 @@ use node::NodeProcessor;
 
 use crate::processors::{
     clusterrolebinding::ClusterRoleBindingProcessor, configmap::ConfigmapProcessor,
-    customresourcedefinition::ClusterResourceDefinitionProcessor, default::DefaultProcessor,
-    deployment::DeploymentProcessor, fallback::FallbackProcessor,
+    cronjob::CronJobProcessor, customresourcedefinition::ClusterResourceDefinitionProcessor,
+    default::DefaultProcessor, deployment::DeploymentProcessor, fallback::FallbackProcessor,
     horizontalpodautoscaler::HorizontalPodAutoscalerProcessor, ingress::IngressProcessor,
     persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
     processor::DynProcessor, replicaset::ReplicaSetProcessor, service::ServiceProcessor,
@@ -39,6 +40,7 @@ fn processors() -> &'static ProcessorMap {
         let mut m: ProcessorMap = HashMap::new();
         m.insert("clusterrolebinding", Box::new(ClusterRoleBindingProcessor));
         m.insert("configmap", Box::new(ConfigmapProcessor));
+        m.insert("cronjob", Box::new(CronJobProcessor));
         m.insert(
             "customresourcedefinition",
             Box::new(ClusterResourceDefinitionProcessor),
