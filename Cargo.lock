@@ -1032,6 +1032,7 @@ dependencies = [
  "http",
  "k8s-openapi",
  "kube",
+ "libc",
  "mlua",
  "serde",
  "serde_json_path",

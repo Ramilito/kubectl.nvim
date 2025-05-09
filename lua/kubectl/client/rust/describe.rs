@@ -1,4 +1,5 @@
 use k8s_openapi::serde_json;
+use libc::free;
 use mlua::{Lua, Result as LuaResult};
 use std::ffi::{c_char, CStr, CString};
 use tokio::runtime::Runtime;
@@ -52,6 +53,8 @@ pub async fn describe_async(_lua: Lua, json: String) -> LuaResult<String> {
                 eprintln!("Error: received null pointer from DescribeResource");
             } else {
                 let result_str = CStr::from_ptr(result_ptr).to_string_lossy().into_owned();
+
+                free(result_ptr.cast());
                 return Ok(result_str.to_string());
             }
         }
