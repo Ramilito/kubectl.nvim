@@ -13,6 +13,7 @@ pub mod node;
 pub mod persistentvolumeclaim;
 pub mod pod;
 pub mod processor;
+pub mod replicaset;
 pub mod service;
 pub mod statefulset;
 pub mod storageclass;
@@ -25,8 +26,8 @@ use crate::processors::{
     deployment::DeploymentProcessor, fallback::FallbackProcessor,
     horizontalpodautoscaler::HorizontalPodAutoscalerProcessor, ingress::IngressProcessor,
     persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
-    processor::DynProcessor, service::ServiceProcessor, statefulset::StatefulsetProcessor,
-    storageclass::StorageClassProcessor,
+    processor::DynProcessor, replicaset::ReplicaSetProcessor, service::ServiceProcessor,
+    statefulset::StatefulsetProcessor, storageclass::StorageClassProcessor,
 };
 
 type ProcessorMap = HashMap<&'static str, Box<dyn DynProcessor>>;
@@ -56,6 +57,7 @@ fn processors() -> &'static ProcessorMap {
             Box::new(PersistentVolumeClaimProcessor),
         );
         m.insert("pod", Box::new(PodProcessor));
+        m.insert("replicaset", Box::new(ReplicaSetProcessor));
         m.insert("service", Box::new(ServiceProcessor));
         m.insert("statefulset", Box::new(StatefulsetProcessor));
         m.insert("storageclass", Box::new(StorageClassProcessor));
