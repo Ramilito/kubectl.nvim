@@ -40,6 +40,10 @@ function client.daemonset_set_images(...)
   return client.implementation.daemonset_set_images(...)
 end
 
+function client.create_job_from_cronjob(...)
+  return client.implementation.create_job_from_cronjob(...)
+end
+
 function client.get_config()
   return client.implementation.get_config()
 end

@@ -70,7 +70,6 @@ function M.create_from_cronjob(name, ns)
     ft = "k8s_action",
     display = string.format("create job from cronjob: %s/%s?", ns, name),
     resource = name,
-    cmd = { "create", "job", "--from", "cronjobs/" .. name, "-n", ns },
   }
   local unix_time = os.time()
   local data = {
@@ -81,19 +80,21 @@ function M.create_from_cronjob(name, ns)
     },
     {
       text = "dry run:",
-      value = "none",
-      options = { "none", "server", "client" },
-      cmd = "--dry-run",
-      type = "option",
+      value = "false",
+      type = "flag",
     },
   }
 
   builder.action_view(create_def, data, function(args)
-    commands.shell_command_async("kubectl", args, function(response)
-      vim.schedule(function()
-        vim.notify(response)
-      end)
-    end)
+    local job_name = args[1].value
+    local dry_run = args[2].value == "true" and true or false
+
+    vim.print(dry_run)
+    local client = require("kubectl.client")
+    local status = client.create_job_from_cronjob(job_name, ns, name, dry_run)
+    if status then
+      vim.notify(status)
+    end
   end)
 end
 
