@@ -1,9 +1,9 @@
 use k8s_openapi::{
     api::batch::v1::{CronJob, Job},
-    apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference},
+    apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference}, serde_json::json,
 };
 use kube::{
-    api::{Api, PostParams},
+    api::{Api, Patch, PatchParams, PostParams},
     Resource, ResourceExt,
 };
 use mlua::{Error as LuaError, Lua, Result as LuaResult};
@@ -89,5 +89,37 @@ pub fn create_job_from_cronjob(
             .await
             .map(|_| format!("Job '{job_name}' created from CronJob '{cronjob_name}'"))
             .map_err(|e| LuaError::RuntimeError(format!("failed to create Job: {e:?}")))
+    })
+}
+
+pub fn suspend_cronjob(_lua: &Lua, args: (String, String, bool)) -> LuaResult<String> {
+    let (cronjob_name, namespace, suspend) = args;
+
+    let rt = RUNTIME
+        .get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+
+    let client_guard = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
+    let client = client_guard
+        .as_ref()
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
+        .clone();
+
+    rt.block_on(async move {
+        let cj_api: Api<CronJob> = Api::namespaced(client, &namespace);
+
+        let patch = json!({ "spec": { "suspend": suspend } });
+        let pp = PatchParams::default();
+
+        match cj_api.patch(&cronjob_name, &pp, &Patch::Merge(&patch)).await {
+            Ok(_) => Ok(format!(
+                "CronJob '{cronjob_name}' is now {}",
+                if suspend { "SUSPENDED" } else { "RESUMED" }
+            )),
+            Err(e) => Err(LuaError::RuntimeError(format!(
+                "failed to update CronJob: {e:?}"
+            ))),
+        }
     })
 }

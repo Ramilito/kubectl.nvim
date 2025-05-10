@@ -56,18 +56,11 @@ M.overrides = {
         "prompt",
         function(confirm)
           if confirm then
-            commands.shell_command_async("kubectl", {
-              "patch",
-              "cronjob/" .. name,
-              "-n",
-              ns,
-              "-p",
-              '{"spec" : {"suspend" : ' .. tostring(not current) .. "}}",
-            }, function(response)
-              vim.schedule(function()
-                vim.notify(response)
-              end)
-            end)
+            local client = require("kubectl.client")
+            local status = client.suspend_cronjob(name, ns, not current)
+            if status then
+              vim.notify(status)
+            end
           end
         end
       )

@@ -344,5 +344,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_function(dao::cronjob::create_job_from_cronjob)?,
     )?;
 
+    exports.set(
+        "suspend_cronjob",
+        lua.create_function(dao::cronjob::suspend_cronjob)?,
+    )?;
+
     Ok(exports)
 }
