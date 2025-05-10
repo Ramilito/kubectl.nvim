@@ -1,4 +1,3 @@
-local definition = require("kubectl.views.jobs.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -27,18 +26,11 @@ local M = {
 }
 
 function M.View(cancellationToken)
-  definition.owner = {}
-  M.definition.display_name = "Jobs"
-
   local builder = manager.get_or_create(M.definition.resource)
   builder.view(M.definition, cancellationToken)
 end
 
 function M.Draw(cancellationToken)
-  if definition.owner.name then
-    M.definition.display_name = "Jobs" .. "(" .. definition.owner.ns .. "/" .. definition.owner.name .. ")"
-  end
-
   local builder = manager.get(M.definition.resource)
   if builder then
     builder.draw(cancellationToken)
@@ -64,7 +56,6 @@ function M.Desc(name, ns, reload)
     },
     reload = reload,
   })
-  -- ResourceBuilder:view_float(, { cmd = "kubectl", reload = reload })
 end
 
 --- Get current seletion for view

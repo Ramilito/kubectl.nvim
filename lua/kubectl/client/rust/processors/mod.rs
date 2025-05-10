@@ -12,6 +12,7 @@ pub mod horizontalpodautoscaler;
 pub mod ingress;
 pub mod job;
 pub mod node;
+pub mod persistentvolume;
 pub mod persistentvolumeclaim;
 pub mod pod;
 pub mod processor;
@@ -27,7 +28,8 @@ use crate::processors::{
     cronjob::CronJobProcessor, customresourcedefinition::ClusterResourceDefinitionProcessor,
     default::DefaultProcessor, deployment::DeploymentProcessor, fallback::FallbackProcessor,
     horizontalpodautoscaler::HorizontalPodAutoscalerProcessor, ingress::IngressProcessor,
-    job::JobProcessor, persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
+    job::JobProcessor, persistentvolume::PersistentVolumeProcessor,
+    persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
     processor::DynProcessor, replicaset::ReplicaSetProcessor, service::ServiceProcessor,
     statefulset::StatefulsetProcessor, storageclass::StorageClassProcessor,
 };
@@ -56,6 +58,10 @@ fn processors() -> &'static ProcessorMap {
         m.insert("ingress", Box::new(IngressProcessor));
         m.insert("node", Box::new(NodeProcessor));
         m.insert("fallback", Box::new(FallbackProcessor));
+        m.insert(
+            "persistentvolume",
+            Box::new(PersistentVolumeProcessor),
+        );
         m.insert(
             "persistentvolumeclaim",
             Box::new(PersistentVolumeClaimProcessor),
