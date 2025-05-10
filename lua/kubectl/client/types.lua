@@ -7,3 +7,4 @@
 --- @field portforward_start fun(kind: string, name: string, namespace: string, local_port: number, remote_port: number)
 --- @field portforward_list fun()
 --- @field portforward_stop fun(id: number)
+--- @field deployment_set_images fun(name: string, ns: string, image_spec: {} )

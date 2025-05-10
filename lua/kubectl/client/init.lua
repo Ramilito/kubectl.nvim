@@ -28,12 +28,8 @@ function client.portforward_stop(id)
   return client.implementation.portforward_stop(id)
 end
 
-function client.pod_set_images(...)
-  return client.implementation.pod_set_images(...)
-end
-
-function client.deployment_set_images(...)
-  return client.implementation.deployment_set_images(...)
+function client.deployment_set_images(name, ns, image_spec)
+  return client.implementation.deployment_set_images(name, ns, image_spec)
 end
 
 function client.daemonset_set_images(...)
