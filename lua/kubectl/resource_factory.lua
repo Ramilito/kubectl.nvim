@@ -332,7 +332,7 @@ function M.new(resource)
             .addHints(definition.hints, false, false)
             .displayContent(builder.win_nr)
         else
-          builder.splitData().addDivider(false).displayContentRaw()
+          builder.splitData().addHints(definition.hints, false,false).addDivider(false).displayContentRaw()
         end
       end)
     end)

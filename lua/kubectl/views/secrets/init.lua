@@ -37,9 +37,8 @@ function M.Desc(name, ns, reload)
     resource = M.definition.resource .. "_desc",
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_secret_desc",
-    url = { "get", "secret", name, "-n", ns, "-o", "yaml" },
     syntax = "yaml",
-    cmd = "describe_async",
+    cmd = "get_single_async",
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "base64decode" },
     },
@@ -48,10 +47,10 @@ function M.Desc(name, ns, reload)
   local builder = manager.get_or_create(def.resource)
   builder.view_float(def, {
     args = {
-      context = state.context["current-context"],
-      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
+      kind = M.definition.gvk.k,
       namespace = ns,
       name = name,
+      output = def.syntax,
     },
     reload = reload,
   })
