@@ -152,9 +152,8 @@ function M.new(resource)
       for index, value in ipairs(hints) do
         hints_copy[index] = value
       end
+      builder.header.data, builder.header.marks = tables.generateHeader(hints_copy, include_defaults, include_context)
     end
-
-    builder.header.data, builder.header.marks = tables.generateHeader(hints_copy, include_defaults, include_context)
 
     return builder
   end
@@ -332,7 +331,7 @@ function M.new(resource)
             .addHints(definition.hints, false, false)
             .displayContent(builder.win_nr)
         else
-          builder.splitData().addHints(definition.hints, false,false).addDivider(false).displayContentRaw()
+          builder.splitData().addHints(definition.hints, false, false).addDivider(false).displayContentRaw()
         end
       end)
     end)
