@@ -10,6 +10,7 @@ pub mod deployment;
 pub mod fallback;
 pub mod horizontalpodautoscaler;
 pub mod ingress;
+pub mod job;
 pub mod node;
 pub mod persistentvolumeclaim;
 pub mod pod;
@@ -26,7 +27,7 @@ use crate::processors::{
     cronjob::CronJobProcessor, customresourcedefinition::ClusterResourceDefinitionProcessor,
     default::DefaultProcessor, deployment::DeploymentProcessor, fallback::FallbackProcessor,
     horizontalpodautoscaler::HorizontalPodAutoscalerProcessor, ingress::IngressProcessor,
-    persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
+    job::JobProcessor, persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
     processor::DynProcessor, replicaset::ReplicaSetProcessor, service::ServiceProcessor,
     statefulset::StatefulsetProcessor, storageclass::StorageClassProcessor,
 };
@@ -40,6 +41,7 @@ fn processors() -> &'static ProcessorMap {
         let mut m: ProcessorMap = HashMap::new();
         m.insert("clusterrolebinding", Box::new(ClusterRoleBindingProcessor));
         m.insert("configmap", Box::new(ConfigmapProcessor));
+        m.insert("job", Box::new(JobProcessor));
         m.insert("cronjob", Box::new(CronJobProcessor));
         m.insert(
             "customresourcedefinition",

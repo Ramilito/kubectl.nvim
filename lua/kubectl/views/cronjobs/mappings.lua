@@ -17,12 +17,6 @@ M.overrides = {
         vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
-      local job_view = require("kubectl.views.jobs")
-      local job_def = require("kubectl.views.jobs.definition")
-
-      job_view.View()
-      -- Order is important since .View() will reset this selection
-      job_def.owner = { name = name, ns = ns }
     end,
   },
   ["<Plug>(kubectl.create_job)"] = {

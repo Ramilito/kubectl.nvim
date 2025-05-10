@@ -22,9 +22,7 @@ local M = {
       "AGE",
       "CONTAINERS",
       "IMAGES",
-      "SELECTOR",
     },
-		processRow = definition.processRow,
   },
 }
 
