@@ -7,8 +7,8 @@ use crate::with_client;
 pub fn uncordon(_lua: &Lua, args: String) -> LuaResult<String> {
     let name = args;
     with_client(move |client| async move {
-        let node: Api<Node> = Api::all(client.clone());
-        let result = node.uncordon(&name).await;
+        let nodes: Api<Node> = Api::all(client.clone());
+        let result = nodes.uncordon(&name).await;
 
         match result {
             Ok(..) => Ok(format!("Successfully uncordoned node '{}'", name)),
@@ -20,8 +20,8 @@ pub fn uncordon(_lua: &Lua, args: String) -> LuaResult<String> {
 pub fn cordon(_lua: &Lua, args: String) -> LuaResult<String> {
     let name = args;
     with_client(move |client| async move {
-        let node: Api<Node> = Api::all(client.clone());
-        let result = node.cordon(&name).await;
+        let nodes: Api<Node> = Api::all(client.clone());
+        let result = nodes.cordon(&name).await;
 
         match result {
             Ok(..) => Ok(format!("Successfully cordoned node '{}'", name)),
