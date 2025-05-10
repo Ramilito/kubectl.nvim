@@ -17,7 +17,7 @@ M.overrides = {
         end
         line = line:gsub(code, decoded)
 
-        local decoded_lines = vim.split(line, "\n", true)
+        local decoded_lines = vim.split(line, "\n", { plain = true })
         local current_line_number = vim.api.nvim_win_get_cursor(0)[1]
         vim.api.nvim_buf_set_lines(0, current_line_number - 1, current_line_number, false, decoded_lines)
       else

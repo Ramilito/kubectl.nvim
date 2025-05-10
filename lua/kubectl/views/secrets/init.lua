@@ -1,4 +1,3 @@
-local definition = require("kubectl.views.secrets.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -18,7 +17,6 @@ local M = {
       "DATA",
       "AGE",
     },
-    processRow = definition.processRow,
   },
 }
 
