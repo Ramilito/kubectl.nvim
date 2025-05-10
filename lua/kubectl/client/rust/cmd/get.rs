@@ -11,13 +11,12 @@ use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
-use tokio::runtime::Runtime;
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
     store,
     structs::{GetServerRawArgs, GetSingleArgs},
-    CLIENT_INSTANCE, RUNTIME,
+    with_client,
 };
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -151,22 +150,14 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
         .map(OutputMode::from_str)
         .unwrap_or_default();
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
+    with_client(move |client| async move {
         if let Some(found) =
             store::get_single(&args.kind, args.namespace.clone(), &args.name).await?
         {
             return Ok(output_mode.format(found));
         }
         let result = get_resource_async(
-            client,
+            &client,
             args.kind,
             None,
             None,
@@ -176,22 +167,13 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
         );
 
         result.await
-    };
-    rt.block_on(fut)
+    })
 }
 
 pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: GetServerRawArgs = k8s_openapi::serde_json::from_str(&json).unwrap();
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
+    with_client(move |client| async move {
         let config = Config::infer().await.map_err(LuaError::external)?;
         let base = config.cluster_url.to_string();
         let full_url_str = format!(
@@ -207,22 +189,13 @@ pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> 
 
         let text = client.request_text(req).await.map_err(LuaError::external)?;
         Ok(text)
-    };
-    rt.block_on(fut)
+    })
 }
 
 pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> LuaResult<String> {
     let (url, _name, is_fallback) = args;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
+    with_client(move |client| async move {
         let mut req = http::Request::get(url)
             .body(Vec::new())
             .map_err(LuaError::external)?;
@@ -260,9 +233,7 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> L
                 Ok(err_json)
             }
         }
-    };
-
-    rt.block_on(fut)
+    })
 }
 
 #[derive(Serialize, Debug)]
@@ -298,14 +269,7 @@ impl FallbackResource {
 }
 
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
-    let fut = async move {
+    with_client(move |client| async move {
         let discovery = Discovery::new(client.clone())
             .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
             .run()
@@ -325,7 +289,5 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
             .collect();
         serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(format!("JSON serialization error: {}", e)))
-    };
-
-    rt.block_on(fut)
+    })
 }

@@ -3,10 +3,9 @@ use kube::api::AttachParams;
 use kube::{Api, Client};
 use mlua::{Lua, Result as LuaResult, Table as LuaTable};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::runtime::Runtime;
 
 use crate::utils::debug_print;
-use crate::{CLIENT_INSTANCE, RUNTIME};
+use crate::with_client;
 
 async fn exec_async(
     lua: &Lua,
@@ -71,17 +70,9 @@ async fn exec_async(
 pub fn exec(lua: &Lua, (pod_name, cmd_table): (String, LuaTable)) -> LuaResult<String> {
     let cmd: Vec<String> = cmd_table.sequence_values().collect::<Result<_, _>>()?;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE.lock().unwrap();
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
-        exec_async(lua, client, pod_name, cmd)
+    with_client(move |client| async move {
+        exec_async(lua, &client, pod_name, cmd)
             .await
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
-    };
-
-    rt.block_on(fut)
+    })
 }

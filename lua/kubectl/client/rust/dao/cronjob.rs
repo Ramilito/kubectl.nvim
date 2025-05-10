@@ -9,9 +9,8 @@ use kube::{
 };
 use mlua::{Error as LuaError, Lua, Result as LuaResult};
 use std::collections::BTreeMap;
-use tokio::runtime::Runtime;
 
-use crate::{CLIENT_INSTANCE, RUNTIME};
+use crate::with_client;
 
 pub fn create_job_from_cronjob(
     _lua: &Lua,
@@ -19,17 +18,7 @@ pub fn create_job_from_cronjob(
 ) -> LuaResult<String> {
     let (job_name, namespace, cronjob_name, dry_run) = args;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
-    rt.block_on(async move {
+    with_client(move |client| async move {
         let cj_api: Api<CronJob> = Api::namespaced(client.clone(), &namespace);
         let cronjob = cj_api.get(&cronjob_name).await.unwrap();
 
@@ -93,17 +82,7 @@ pub fn create_job_from_cronjob(
 pub fn suspend_cronjob(_lua: &Lua, args: (String, String, bool)) -> LuaResult<String> {
     let (cronjob_name, namespace, suspend) = args;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
-    rt.block_on(async move {
+    with_client(move |client| async move {
         let cj_api: Api<CronJob> = Api::namespaced(client, &namespace);
 
         let patch = json!({ "spec": { "suspend": suspend } });

@@ -2,10 +2,9 @@ use k8s_openapi::{apimachinery::pkg::version::Info, serde_json};
 use kube::config::Kubeconfig;
 use mlua::prelude::*;
 use serde::Serialize;
-use tokio::runtime::Runtime;
 
 use crate::structs::GetMinifiedConfig;
-use crate::{CLIENT_INSTANCE, RUNTIME};
+use crate::with_client;
 #[derive(Serialize)]
 struct VersionBlock {
     #[serde(rename = "clientVersion")]
@@ -15,16 +14,7 @@ struct VersionBlock {
 }
 
 pub async fn get_version_async(_lua: Lua, _json: Option<String>) -> LuaResult<String> {
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
-    let fut = async move {
+    with_client(move |client| async move {
         let info = client
             .clone()
             .apiserver_version()
@@ -47,9 +37,7 @@ pub async fn get_version_async(_lua: Lua, _json: Option<String>) -> LuaResult<St
         let json_str = k8s_openapi::serde_json::to_string(&payload)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
         Ok(json_str)
-    };
-
-    rt.block_on(fut)
+    })
 }
 
 pub async fn get_minified_config_async(_lua: Lua, json: Option<String>) -> LuaResult<String> {

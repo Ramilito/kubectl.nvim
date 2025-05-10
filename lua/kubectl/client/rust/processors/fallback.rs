@@ -9,13 +9,12 @@ use kube::{
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::HashMap;
-use tokio::runtime::Runtime;
 
 use super::processor::Processor;
 use crate::{
     cmd::utils::dynamic_api,
     utils::{AccessorMode, FieldValue},
-    CLIENT_INSTANCE, RUNTIME,
+    with_client,
 };
 
 #[derive(Debug, Clone)]
@@ -141,15 +140,7 @@ impl Processor for FallbackProcessor {
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
-        let rt = RUNTIME.get_or_init(|| Runtime::new().unwrap());
-        rt.block_on(async move {
-            let client = CLIENT_INSTANCE
-                .lock()
-                .map_err(|_| LuaError::RuntimeError("client lock poisoned".into()))?
-                .as_ref()
-                .ok_or_else(|| LuaError::RuntimeError("client not initialised".into()))?
-                .clone();
-
+        with_client(move |client| async move {
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
             let crd = crd_api.get(&name).await.map_err(LuaError::external)?;
             let version = crd

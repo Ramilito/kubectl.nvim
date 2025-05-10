@@ -3,11 +3,10 @@ use k8s_openapi::{
     serde_json::{json, Map, Value},
 };
 use kube::api::{Api, Patch, PatchParams};
-use mlua::{Error as LuaError, FromLua, Lua, Result as LuaResult, Value as LuaValue};
+use mlua::{FromLua, Lua, Result as LuaResult, Value as LuaValue};
 use std::collections::HashMap;
-use tokio::runtime::Runtime;
 
-use crate::{CLIENT_INSTANCE, RUNTIME};
+use crate::with_client;
 
 #[derive(Debug, Clone)]
 pub struct ImageSpec {
@@ -37,17 +36,7 @@ impl FromLua for ImageSpec {
 pub fn set_images(_lua: &Lua, args: (String, String, Vec<ImageSpec>)) -> LuaResult<String> {
     let (deploy_name, namespace, images) = args;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
-    let fut = async move {
+    with_client(move |client| async move {
         let deployment: Api<Deployment> = Api::namespaced(client.clone(), &namespace);
 
         // Build maps for container updates.
@@ -99,7 +88,5 @@ pub fn set_images(_lua: &Lua, args: (String, String, Vec<ImageSpec>)) -> LuaResu
             )),
             Err(err) => Ok(format!("Failed to scale '{}': {:?}", deploy_name, err).to_string()),
         }
-    };
-
-    rt.block_on(fut)
+    })
 }

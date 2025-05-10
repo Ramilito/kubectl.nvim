@@ -1,12 +1,11 @@
-use k8s_openapi::serde_json;
 // lib.rs
+use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Mutex, OnceLock};
-use store::get_store_map;
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 use tracing::error;
@@ -26,6 +25,7 @@ use crate::cmd::portforward::{portforward_list, portforward_start, portforward_s
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
 use crate::processors::processor;
+use crate::store::get_store_map;
 
 mod cmd;
 mod dao;
@@ -97,16 +97,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
 //TODO: Should be combined with get_table_async with a pretty output param
 async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: GetAllArgs = serde_json::from_str(&json).unwrap();
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
-    let fut = async move {
+    with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
             get_resources_async(
@@ -125,28 +116,17 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
         Ok(json_str)
-    };
-    rt.block_on(fut)
+    })
 }
 
 async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
     let args: StartReflectorArgs = serde_json::from_str(&json).unwrap();
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
-    let fut = async move {
+    with_client(move |client| async move {
         let gvk = GroupVersionKind::gvk(&args.gvk.g, &args.gvk.v, &args.gvk.k);
         let _ = store::init_reflector_for_kind(client.clone(), gvk, args.namespace).await;
         Ok(())
-    };
-    rt.block_on(fut)
+    })
 }
 
 async fn fetch_all_async(
@@ -155,16 +135,8 @@ async fn fetch_all_async(
 ) -> LuaResult<String> {
     let (kind, group, version, namespace) = args;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
-        let mut items = get_resources_async(client, kind, group, version, namespace)
+    with_client(move |client| async move {
+        let mut items = get_resources_async(&client, kind, group, version, namespace)
             .await
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
@@ -175,25 +147,15 @@ async fn fetch_all_async(
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
         Ok(json_str)
-    };
-
-    rt.block_on(fut)
+    })
 }
 
 async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: FetchArgs = serde_json::from_str(&json).unwrap();
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
+    with_client(move |client| async move {
         get_resource_async(
-            client,
+            &client,
             args.gvk.k,
             Some(args.gvk.g),
             Some(args.gvk.v),
@@ -202,9 +164,7 @@ async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
             args.output,
         )
         .await
-    };
-
-    rt.block_on(fut)
+    })
 }
 
 pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
@@ -228,16 +188,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
 async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?
-        .clone();
-
-    let fut = async move {
+    with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
             get_resources_async(
@@ -268,8 +219,7 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
         let json_str = k8s_openapi::serde_json::to_string(&processed)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
         Ok(json_str)
-    };
-    rt.block_on(fut)
+    })
 }
 
 #[mlua::lua_module(skip_memory_check)]

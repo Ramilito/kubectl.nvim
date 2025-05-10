@@ -7,25 +7,15 @@ use kube::api::PatchParams;
 use kube::Api;
 use mlua::prelude::*;
 use serde_json::json;
-use tokio::runtime::Runtime;
 
 use crate::structs::CmdScaleArgs;
-use crate::CLIENT_INSTANCE;
-use crate::RUNTIME;
+use crate::with_client;
 
 pub async fn scale_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdScaleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    let client_guard = CLIENT_INSTANCE
-        .lock()
-        .map_err(|_| LuaError::RuntimeError("Failed to acquire lock on client instance".into()))?;
-    let client = client_guard
-        .as_ref()
-        .ok_or_else(|| LuaError::RuntimeError("Client not initialized".into()))?;
-
-    let fut = async move {
+    with_client(move |client| async move {
         let gvk = GroupVersionKind {
             group: args.gvk.g,
             version: args.gvk.v,
@@ -47,7 +37,5 @@ pub async fn scale_async(_lua: Lua, json: String) -> LuaResult<String> {
             Ok(..) => Ok(format!("{}/{} scaled", gvk.kind, args.name,).to_string()),
             Err(err) => Ok(format!("Failed to scale '{}': {:?}", args.name, err).to_string()),
         }
-    };
-
-    rt.block_on(fut)
+    })
 }
