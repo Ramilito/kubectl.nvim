@@ -165,7 +165,7 @@ function M.download_if_available(callback)
 
     root_dir = root_dir,
     output_dir = "/target/release",
-    binary_name = "kubectl_client", -- excluding `lib` prefix
+    binary_name = "libkubectl_client", -- excluding `lib` prefix
   }, callback)
 end
 
