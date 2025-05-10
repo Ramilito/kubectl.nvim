@@ -1,7 +1,11 @@
 use kube::api::DynamicObject;
 use mlua::{prelude::*, Lua};
 
-use crate::utils::{filter_dynamic, sort_dynamic, time_since, AccessorMode, FieldValue};
+use crate::{
+    filter::filter_dynamic,
+    sort::sort_dynamic,
+    utils::{time_since, AccessorMode, FieldValue},
+};
 
 /// Object-safe facade that hides the `Row` type.
 pub trait DynProcessor: Send + Sync {
