@@ -18,6 +18,7 @@ pub mod pod;
 pub mod processor;
 pub mod replicaset;
 pub mod service;
+pub mod serviceaccount;
 pub mod statefulset;
 pub mod storageclass;
 
@@ -31,7 +32,8 @@ use crate::processors::{
     job::JobProcessor, persistentvolume::PersistentVolumeProcessor,
     persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
     processor::DynProcessor, replicaset::ReplicaSetProcessor, service::ServiceProcessor,
-    statefulset::StatefulsetProcessor, storageclass::StorageClassProcessor,
+    serviceaccount::ServiceAccountProcessor, statefulset::StatefulsetProcessor,
+    storageclass::StorageClassProcessor,
 };
 
 type ProcessorMap = HashMap<&'static str, Box<dyn DynProcessor>>;
@@ -58,10 +60,7 @@ fn processors() -> &'static ProcessorMap {
         m.insert("ingress", Box::new(IngressProcessor));
         m.insert("node", Box::new(NodeProcessor));
         m.insert("fallback", Box::new(FallbackProcessor));
-        m.insert(
-            "persistentvolume",
-            Box::new(PersistentVolumeProcessor),
-        );
+        m.insert("persistentvolume", Box::new(PersistentVolumeProcessor));
         m.insert(
             "persistentvolumeclaim",
             Box::new(PersistentVolumeClaimProcessor),
@@ -69,6 +68,7 @@ fn processors() -> &'static ProcessorMap {
         m.insert("pod", Box::new(PodProcessor));
         m.insert("replicaset", Box::new(ReplicaSetProcessor));
         m.insert("service", Box::new(ServiceProcessor));
+        m.insert("serviceaccount", Box::new(ServiceAccountProcessor));
         m.insert("statefulset", Box::new(StatefulsetProcessor));
         m.insert("storageclass", Box::new(StorageClassProcessor));
         m
