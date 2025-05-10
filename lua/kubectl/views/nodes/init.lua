@@ -69,7 +69,6 @@ function M.Drain(node)
         force = args[5].value == "true" and true or false,
         dry_run = args[6].value == "true" and true or false,
       }
-      vim.print(cmd_args)
       commands.run_async("drain_node_async", cmd_args, function(ok)
         vim.schedule(function()
           vim.notify(ok, vim.log.levels.INFO)
