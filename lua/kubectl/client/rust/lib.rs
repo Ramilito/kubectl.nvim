@@ -4,6 +4,7 @@ use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::Lua;
+use std::future::Future;
 use std::sync::{Mutex, OnceLock};
 use store::get_store_map;
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
@@ -40,6 +41,23 @@ mod utils;
 
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
+
+pub fn with_client<F, Fut, R>(f: F) -> LuaResult<R>
+where
+    F: FnOnce(Client) -> Fut,
+    Fut: Future<Output = LuaResult<R>>,
+{
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
+
+    let client = CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("poisoned CLIENT lock".into()))?
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialised".into()))?;
+
+    rt.block_on(f(client))
+}
 
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
