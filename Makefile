@@ -12,10 +12,10 @@ stylua:
 .PHONY: clean
 clean:
 	cargo clean
-	rm ./go/libkubedescribe.a
-	rm ./go/libkubedescribe.h
+	rm ./go/libkubectl_go.a
+	rm ./go/libkubectl_go.h
 
 .PHONY: build
 build:
-	go -C go build -trimpath -ldflags="-s -w" -buildmode=c-archive -o libkubedescribe.a
+	go -C go build -trimpath -ldflags="-s -w" -buildmode=c-archive -o libkubectl_go.a
 	cargo build --release

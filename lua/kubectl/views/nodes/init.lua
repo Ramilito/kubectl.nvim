@@ -48,37 +48,31 @@ function M.Drain(node)
     ft = "k8s_action",
     display = "Drain node: " .. node .. "?",
     resource = node,
-    cmd = { "drain", "nodes/" .. node },
   }
   local data = {
-    { text = "grace period:", value = "-1", cmd = "--grace-period", type = "option" },
-    { text = "timeout:", value = "5s", cmd = "--timeout", type = "option" },
-    {
-      text = "ignore daemonset:",
-      value = "false",
-      cmd = "--ignore-daemonsets",
-      type = "flag",
-    },
-    {
-      text = "delete emptydir data:",
-      value = "false",
-      cmd = "--delete-emptydir-data",
-      type = "flag",
-    },
-    { text = "force:", value = "false", cmd = "--force", type = "flag" },
-    {
-      text = "dry run:",
-      value = "none",
-      options = { "none", "server", "client" },
-      cmd = "--dry-run",
-      type = "option",
-    },
+    { text = "grace period:", value = "-1", type = "option" },
+    { text = "timeout sec:", value = "5", type = "option" },
+    { text = "ignore daemonset:", value = "false", type = "flag" },
+    { text = "delete emptydir data:", value = "false", type = "flag" },
+    { text = "force:", value = "false", type = "flag" },
+    { text = "dry run:", value = "false", type = "flag" },
   }
   if builder then
     builder.action_view(node_def, data, function(args)
-      commands.shell_command_async("kubectl", args, function(response)
+      local cmd_args = {
+        context = state.context["current-context"],
+        node = node,
+        grace = args[1].value,
+        timeout = args[2].value,
+        ignore_ds = args[3].value == "true" and true or false,
+        delete_emptydir = args[4].value == "true" and true or false,
+        force = args[5].value == "true" and true or false,
+        dry_run = args[6].value == "true" and true or false,
+      }
+      vim.print(cmd_args)
+      commands.run_async("drain_node_async", cmd_args, function(ok)
         vim.schedule(function()
-          vim.notify(response)
+          vim.notify(ok, vim.log.levels.INFO)
         end)
       end)
     end)

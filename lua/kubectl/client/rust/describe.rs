@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 
 use crate::{structs::CmdDescribeArgs, RUNTIME};
 
-#[link(name = "kubedescribe")]
+#[link(name = "kubectl_go")]
 extern "C" {
     fn DescribeResource(
         cGroup: *const c_char,
