@@ -1,13 +1,13 @@
 use k8s_openapi::{
     api::batch::v1::{CronJob, Job},
-    apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference}, serde_json::json,
+    apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference},
+    serde_json::json,
 };
 use kube::{
     api::{Api, Patch, PatchParams, PostParams},
     Resource, ResourceExt,
 };
 use mlua::{Error as LuaError, Lua, Result as LuaResult};
-use tracing::info;
 use std::collections::BTreeMap;
 use tokio::runtime::Runtime;
 
@@ -19,7 +19,6 @@ pub fn create_job_from_cronjob(
 ) -> LuaResult<String> {
     let (job_name, namespace, cronjob_name, dry_run) = args;
 
-    info!("{:?}", dry_run);
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let client_guard = CLIENT_INSTANCE
@@ -83,7 +82,6 @@ pub fn create_job_from_cronjob(
             dry_run,
             ..Default::default()
         };
-        info!("{:?}", pp);
         jobs_api
             .create(&pp, &job)
             .await
@@ -95,8 +93,7 @@ pub fn create_job_from_cronjob(
 pub fn suspend_cronjob(_lua: &Lua, args: (String, String, bool)) -> LuaResult<String> {
     let (cronjob_name, namespace, suspend) = args;
 
-    let rt = RUNTIME
-        .get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let client_guard = CLIENT_INSTANCE
         .lock()
@@ -112,7 +109,10 @@ pub fn suspend_cronjob(_lua: &Lua, args: (String, String, bool)) -> LuaResult<St
         let patch = json!({ "spec": { "suspend": suspend } });
         let pp = PatchParams::default();
 
-        match cj_api.patch(&cronjob_name, &pp, &Patch::Merge(&patch)).await {
+        match cj_api
+            .patch(&cronjob_name, &pp, &Patch::Merge(&patch))
+            .await
+        {
             Ok(_) => Ok(format!(
                 "CronJob '{cronjob_name}' is now {}",
                 if suspend { "SUSPENDED" } else { "RESUMED" }
