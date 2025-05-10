@@ -6,7 +6,11 @@ local M = {}
 ---@field terminal_cmd string?
 ---@field namespace string
 ---@field namespace_fallback string[]
----@field headers {enabled: boolean, hints: boolean, context: boolean, heartbeat: boolean, skew: { enabled: boolean, log_level: number }}
+---@field headers { enabled: boolean,
+---                hints:   boolean,
+---                context: boolean,
+---                heartbeat: boolean,
+---                skew:    { enabled: boolean, log_level: number } }
 ---@field hints boolean
 ---@field context boolean
 ---@field heartbeat boolean
