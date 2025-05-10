@@ -89,7 +89,6 @@ function M.create_from_cronjob(name, ns)
     local job_name = args[1].value
     local dry_run = args[2].value == "true" and true or false
 
-    vim.print(dry_run)
     local client = require("kubectl.client")
     local status = client.create_job_from_cronjob(job_name, ns, name, dry_run)
     if status then
