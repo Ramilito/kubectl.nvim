@@ -2,7 +2,6 @@ local cronjob_view = require("kubectl.views.cronjobs")
 local mappings = require("kubectl.mappings")
 local err_msg = "Failed to extract cronjob name or namespace."
 local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
