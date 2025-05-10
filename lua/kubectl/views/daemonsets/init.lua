@@ -57,7 +57,7 @@ function M.SetImage(name, ns)
   commands.run_async(
     "get_single_async",
     { kind = M.definition.gvk.k, namespace = ns, name = name, output = "Json" },
-    function(data, err)
+    function(data, _)
       if not data then
         return
       end

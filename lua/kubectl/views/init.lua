@@ -468,7 +468,6 @@ end
 function M.view_and_definition(view_name)
   local view_ok, view = pcall(require, "kubectl.views." .. view_name)
   if not view_ok then
-    view_name = "fallback"
     view = require("kubectl.views.fallback")
   end
   return view, view.definition

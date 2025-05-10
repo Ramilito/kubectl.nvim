@@ -23,7 +23,11 @@ return {
   contexts = { "contexts", "context" },
   persistentvolumes = { "persistentvolumes", "persistentvolume", "pv" },
   persistentvolumeclaims = { "persistentvolumeclaims", "persistentvolumeclaim", "pvc" },
-  clusterrolebindings = { "clusterrolebindings", "clusterrolebinding", "clusterrolebindings.rbac.authorization.k8s.io" },
+  clusterrolebindings = {
+    "clusterrolebindings",
+    "clusterrolebinding",
+    "clusterrolebindings.rbac.authorization.k8s.io",
+  },
   ["top_nodes"] = { "top_nodes" },
   ["top_pods"] = { "top_pods" },
   ingresses = { "ingresses", "ingress" },
