@@ -86,11 +86,19 @@ function M.Drain(node)
 end
 
 function M.UnCordon(node)
-  commands.shell_command_async("kubectl", { "uncordon", "nodes/" .. node })
+  local client = require("kubectl.client")
+  local ok = client.uncordon_node(node)
+  vim.schedule(function()
+    vim.notify(ok, vim.log.levels.INFO)
+  end)
 end
 
 function M.Cordon(node)
-  commands.shell_command_async("kubectl", { "cordon", "nodes/" .. node })
+  local client = require("kubectl.client")
+  local ok = client.cordon_node(node)
+  vim.schedule(function()
+    vim.notify(ok, vim.log.levels.INFO)
+  end)
 end
 
 function M.Desc(node, _, reload)

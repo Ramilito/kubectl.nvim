@@ -48,7 +48,7 @@ pub fn set_images(_lua: &Lua, args: (String, String, Vec<ImageSpec>)) -> LuaResu
         .clone();
 
     let fut = async move {
-        let deployments: Api<Deployment> = Api::namespaced(client.clone(), &namespace);
+        let deployment: Api<Deployment> = Api::namespaced(client.clone(), &namespace);
 
         // Build maps for container updates.
         let mut container_updates: HashMap<String, String> = HashMap::new();
@@ -88,7 +88,7 @@ pub fn set_images(_lua: &Lua, args: (String, String, Vec<ImageSpec>)) -> LuaResu
         });
 
         let pp = PatchParams::default();
-        let patched = deployments
+        let patched = deployment
             .patch(&deploy_name, &pp, &Patch::Merge(&patch_body))
             .await;
 

@@ -44,6 +44,14 @@ function client.suspend_cronjob(...)
   return client.implementation.suspend_cronjob(...)
 end
 
+function client.uncordon_node(name)
+  return client.implementation.uncordon_node(name)
+end
+
+function client.cordon_node(name)
+  return client.implementation.cordon_node(name)
+end
+
 function client.get_config()
   return client.implementation.get_config()
 end
