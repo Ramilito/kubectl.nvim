@@ -83,10 +83,10 @@ jobs:
             export CC=aarch64-linux-gnu-gcc
           fi
           env GOOS=${{ matrix.go_os }} GOARCH=${{ matrix.go_arch }} CGO_ENABLED=1 \
-            go build -trimpath -ldflags "-s -w" -o libkubedescribe.a -buildmode=c-archive .
+            go build -trimpath -ldflags "-s -w" -o libkubectl_go.a -buildmode=c-archive .
           cd ..
           mkdir -p prebuilt_go_lib
-          cp go/libkubedescribe.a prebuilt_go_lib/
+          cp go/libkubectl_go.a prebuilt_go_lib/
         shell: bash
 
       - name: Install Rust
