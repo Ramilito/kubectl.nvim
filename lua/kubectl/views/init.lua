@@ -7,7 +7,6 @@ local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
-local pf_definition = require("kubectl.views.port_forwards.definition")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
@@ -260,8 +259,8 @@ end
 -- @return nil
 function M.PortForwards()
   local resource = "port_forwards"
+	local pf_definition = require("kubectl.views.port_forwards.definition")
   local self = manager.get_or_create(resource)
-
   self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
   self.data = pf_definition.getPFRows()
   self.extmarks = {}

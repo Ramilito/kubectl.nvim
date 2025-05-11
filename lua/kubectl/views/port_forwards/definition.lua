@@ -1,9 +1,9 @@
-local client = require("kubectl.client")
 local hl = require("kubectl.actions.highlight")
 
 local M = {}
 
 function M.getPFRows(type)
+  local client = require("kubectl.client")
   local pfs = client.portforward_list()
   local data = {}
   for _, value in pairs(pfs) do
