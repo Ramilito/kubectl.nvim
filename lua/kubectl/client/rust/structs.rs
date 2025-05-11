@@ -1,3 +1,4 @@
+use mlua::{FromLua, Lua, Result as LuaResult, Value as LuaValue};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -112,4 +113,29 @@ pub struct CmdStreamArgs {
     pub previous: Option<bool>,
     pub timestamps: Option<bool>,
     pub prefix: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImageSpec {
+    pub name: String,
+    pub image: String,
+    pub init: bool,
+}
+
+impl FromLua for ImageSpec {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::Table(t) => {
+                let name: String = t.get("name")?;
+                let image: String = t.get("image")?;
+                let init: bool = t.get("init")?;
+                Ok(ImageSpec { name, image, init })
+            }
+            _ => Err(mlua::Error::FromLuaConversionError {
+                from: value.type_name(),
+                to: "ImageSpec".to_string(),
+                message: None,
+            }),
+        }
+    }
 }
