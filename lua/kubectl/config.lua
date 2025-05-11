@@ -1,16 +1,15 @@
 local M = {}
 
+---@alias SkewConfig { enabled: boolean, log_level: number }
+---@alias HeadersConfig { enabled: boolean, hints: boolean, context: boolean, heartbeat: boolean, skew: SkewConfig }
+
 ---@class KubectlOptions
 ---@field log_level number
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field terminal_cmd string?
 ---@field namespace string
 ---@field namespace_fallback string[]
----@field headers { enabled: boolean,
----                hints:   boolean,
----                context: boolean,
----                heartbeat: boolean,
----                skew:    { enabled: boolean, log_level: number } }
+---@field headers HeadersConfig
 ---@field hints boolean
 ---@field context boolean
 ---@field heartbeat boolean
