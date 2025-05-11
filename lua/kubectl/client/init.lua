@@ -32,6 +32,10 @@ function client.deployment_set_images(name, ns, image_spec)
   return client.implementation.deployment_set_images(name, ns, image_spec)
 end
 
+function client.statefulset_set_images(...)
+  return client.implementation.statefulset_set_images(...)
+end
+
 function client.daemonset_set_images(...)
   return client.implementation.daemonset_set_images(...)
 end

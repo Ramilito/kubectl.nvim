@@ -307,6 +307,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_function(dao::deployment::set_images)?,
     )?;
     exports.set(
+        "statefulset_set_images",
+        lua.create_function(dao::statefulset::set_images)?,
+    )?;
+    exports.set(
         "daemonset_set_images",
         lua.create_function(dao::daemonset::set_images)?,
     )?;
