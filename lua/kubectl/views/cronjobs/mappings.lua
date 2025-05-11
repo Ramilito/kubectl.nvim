@@ -42,15 +42,16 @@ M.overrides = {
         vim.notify(err_msg, vim.log.levels.ERROR)
         return
       end
-      current = current == "true" and true or false
-      local action = current and "unsuspend" or "suspend"
+
+      local current_action = current == "true" and true or false
+      local action = current_action and "unsuspend" or "suspend"
       buffers.confirmation_buffer(
         string.format("Are you sure that you want to %s the cronjob: %s", action, name),
         "prompt",
         function(confirm)
           if confirm then
             local client = require("kubectl.client")
-            local status = client.suspend_cronjob(name, ns, not current)
+            local status = client.suspend_cronjob(name, ns, not current_action)
             if status then
               vim.notify(status)
             end

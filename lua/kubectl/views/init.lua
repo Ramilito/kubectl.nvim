@@ -14,8 +14,8 @@ local url = require("kubectl.utils.url")
 local M = {}
 
 --- Generate hints and display them in a floating buffer
----@alias Hint { key: string, desc: string, long_desc: string }
----@param headers Hint[]
+---@alias Hints [{ key: string, desc: string, long_desc: string }]
+---@param headers Hints
 function M.Hints(headers)
   local marks = {}
   local hints = {}

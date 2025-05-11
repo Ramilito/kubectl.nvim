@@ -581,7 +581,7 @@ end
 
 --- Get the current selection from the buffer
 ---@vararg number
----@return string|nil
+---@return string|nil ...
 function M.getCurrentSelection(...)
   local line_number = vim.api.nvim_win_get_cursor(0)[1]
   if line_number <= state.content_row_start then
