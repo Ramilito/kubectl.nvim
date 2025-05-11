@@ -12,7 +12,7 @@ local function get_kind(resource, default_kind)
 end
 
 function M.processRow(rows, cached_api_resources, relationships)
-  if not rows or type(rows) == "string"  then
+  if not rows or type(rows) == "string" then
     return
   end
 
