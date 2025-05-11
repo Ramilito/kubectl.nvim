@@ -299,7 +299,7 @@ function M.new(resource)
           end
           local windows = buffers.get_windows_by_name(resource)
           for _, win_id in ipairs(windows) do
-            builder.prettyPrint(win_id).addDivider(true).addHints(definition.hints, true, true)
+            builder.prettyPrint(win_id).addDivider(true)
             builder.displayContent(win_id, cancellationToken)
           end
           local loop = require("kubectl.utils.loop")

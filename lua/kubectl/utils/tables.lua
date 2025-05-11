@@ -13,9 +13,9 @@ local function calculate_column_widths(rows, columns)
   for _, row in ipairs(rows) do
     for _, column in pairs(columns) do
       if type(row[column]) == "table" then
-        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column].value)))
+        widths[column] = math.max(widths[column] or 0, #row[column].value)
       else
-        widths[column] = math.max(widths[column] or 0, vim.fn.strdisplaywidth(tostring(row[column])))
+        widths[column] = math.max(widths[column] or 0, #row[column])
       end
     end
   end
