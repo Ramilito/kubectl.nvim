@@ -259,7 +259,7 @@ end
 -- @return nil
 function M.PortForwards()
   local resource = "port_forwards"
-	local pf_definition = require("kubectl.views.port_forwards.definition")
+  local pf_definition = require("kubectl.views.port_forwards.definition")
   local self = manager.get_or_create(resource)
   self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
   self.data = pf_definition.getPFRows()

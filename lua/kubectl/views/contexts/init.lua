@@ -1,8 +1,8 @@
-local manager = require("kubectl.resource_manager")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 
 local resource = "contexts"
 

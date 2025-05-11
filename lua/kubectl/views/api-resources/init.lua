@@ -49,7 +49,7 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(_, _, _)
-	return nil
+  return nil
 end
 
 --- Get current seletion for view

@@ -1,5 +1,5 @@
-local manager = require("kubectl.resource_manager")
 local commands = require("kubectl.actions.commands")
+local manager = require("kubectl.resource_manager")
 
 local M = { handles = nil, loading = false, timestamp = nil, cached_api_resources = { values = {}, shortNames = {} } }
 

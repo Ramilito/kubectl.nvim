@@ -1,5 +1,5 @@
 -- FILE: builder_manager.lua
-local ResourceBuilder = require("kubectl.resource_factory")  -- Adjust the path
+local ResourceBuilder = require("kubectl.resource_factory") -- Adjust the path
 local manager = {}
 
 -- We store them by resource name for easy retrieval
