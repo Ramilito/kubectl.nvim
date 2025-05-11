@@ -43,7 +43,7 @@ function M.View(pod, ns)
   M.definition.display_name = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
   local builder = manager.get_or_create(M.definition.resource)
-  builder.view_float(M.definition, { args = { gvk.k, ns, pod, "json" } })
+  builder.view_float(M.definition, { args = { kind = gvk.k, namespace = ns, name = pod, output = "json" } })
 end
 
 function M.exec(pod, ns)
