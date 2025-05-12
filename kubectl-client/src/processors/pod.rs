@@ -7,7 +7,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
 use kube::api::DynamicObject;
-use mlua::{prelude::*, Lua};
+use mlua::prelude::*;
 
 use super::processor::Processor;
 

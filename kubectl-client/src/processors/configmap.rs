@@ -2,7 +2,6 @@ use k8s_openapi::api::core::v1::ConfigMap;
 use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use mlua::Lua;
 
 use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};

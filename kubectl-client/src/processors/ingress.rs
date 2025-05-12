@@ -2,7 +2,6 @@ use k8s_openapi::api::networking::v1::HTTPIngressPath;
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use mlua::Lua;
 use std::collections::BTreeSet;
 
 use crate::processors::processor::Processor;

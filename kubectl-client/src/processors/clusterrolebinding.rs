@@ -1,7 +1,6 @@
 use k8s_openapi::api::rbac::v1::{ClusterRoleBinding, Subject};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use mlua::Lua;
 
 use crate::events::{color_status, symbols};
 use crate::processors::processor::Processor;
