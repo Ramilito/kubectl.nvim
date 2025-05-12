@@ -7,6 +7,7 @@ use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, ResourceExt},
     Client,
 };
+use rayon::prelude::*;
 
 use kube::runtime::reflector::Store;
 use std::collections::HashMap;
@@ -80,7 +81,7 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
 
     let result: Vec<DynamicObject> = store
         .state()
-        .iter()
+        .par_iter()
         .filter(|arc_obj| {
             let obj = arc_obj.as_ref();
             match &namespace {
