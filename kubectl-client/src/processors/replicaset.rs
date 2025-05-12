@@ -25,7 +25,7 @@ pub struct ReplicaSetProcessor;
 impl Processor for ReplicaSetProcessor {
     type Row = ReplicaSetProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let rs: ReplicaSet =
             from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
 

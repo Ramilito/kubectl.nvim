@@ -25,7 +25,7 @@ pub struct ServiceProcessor;
 impl Processor for ServiceProcessor {
     type Row = ServiceProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let svc: Service = from_value(to_value(obj).map_err(LuaError::external)?)
             .map_err(LuaError::external)?;
         let namespace = svc.metadata.namespace.clone().unwrap_or_default();

@@ -19,7 +19,7 @@ pub struct StatefulsetProcessor;
 impl Processor for StatefulsetProcessor {
     type Row = StatefulsetProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let statefulset: StatefulSet =
             from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
         let namespace = statefulset.metadata.namespace.clone().unwrap_or_default();

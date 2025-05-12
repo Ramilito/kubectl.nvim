@@ -1,5 +1,6 @@
 use kube::api::DynamicObject;
 use mlua::{prelude::*, Lua};
+use rayon::prelude::*;
 use std::fmt::Debug;
 
 use crate::{
@@ -42,7 +43,8 @@ impl<T: Processor> DynProcessor for T {
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
     ) -> LuaResult<mlua::Value> {
-        Processor::process(self, lua, items, sort_by, sort_order, filter, filter_label)
+        let rows = Processor::process(self, items, sort_by, sort_order, filter, filter_label)?;
+        lua.to_value(&rows)
     }
 
     fn process_fallback(
@@ -69,46 +71,45 @@ impl<T: Processor> DynProcessor for T {
 }
 
 pub trait Processor: Debug + Send + Sync {
-    type Row: Clone + serde::Serialize;
-    fn build_row(&self, lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row>;
-    fn filterable_fields(&self) -> &'static [&'static str];
+    type Row: Clone + Send + Sync + serde::Serialize;
 
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row>;
+    fn filterable_fields(&self) -> &'static [&'static str];
     fn field_accessor(
         &self,
         mode: AccessorMode,
     ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_>;
-
     fn labels_match(obj: &DynamicObject, wanted: &[(&str, &str)]) -> bool {
-        let labels = match &obj.metadata.labels {
-            Some(map) => map,
-            None => return wanted.is_empty(),
-        };
-        wanted
-            .iter()
-            .all(|(k, v)| labels.get(*k).map(|vv| vv == v).unwrap_or(false))
+        match &obj.metadata.labels {
+            Some(map) => wanted
+                .iter()
+                .all(|(k, v)| map.get(*k).map(|vv| vv == v).unwrap_or(false)),
+            None => wanted.is_empty(),
+        }
     }
 
-    #[tracing::instrument( skip(self, lua, items),fields(item_count = items.len()))]
+    #[tracing::instrument(skip(self, items), fields(item_count = items.len()))]
     fn process(
         &self,
-        lua: &Lua,
         items: &[DynamicObject],
         sort_by: Option<String>,
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
-    ) -> LuaResult<mlua::Value> {
+    ) -> LuaResult<Vec<Self::Row>> {
         let parsed: Vec<(&str, &str)> = filter_label
             .as_deref()
             .unwrap_or(&[])
             .iter()
             .filter_map(|s| s.split_once('='))
             .collect();
+
         let mut rows: Vec<Self::Row> = items
-            .iter()
+            .par_iter()
             .filter(|obj| Self::labels_match(obj, &parsed))
-            .map(|obj| self.build_row(lua, obj))
-            .collect::<LuaResult<_>>()?;
+            .map(|obj| self.build_row(obj).map_err(|e| e.to_string()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(LuaError::external)?;
 
         sort_dynamic(
             &mut rows,
@@ -117,8 +118,8 @@ pub trait Processor: Debug + Send + Sync {
             self.field_accessor(AccessorMode::Sort),
         );
 
-        let rows = if let Some(ref query) = filter {
-            filter_dynamic(
+        if let Some(ref query) = filter {
+            rows = filter_dynamic(
                 &rows,
                 query,
                 self.filterable_fields(),
@@ -126,41 +127,23 @@ pub trait Processor: Debug + Send + Sync {
             )
             .into_iter()
             .cloned()
-            .collect()
-        } else {
-            rows
-        };
+            .collect();
+        }
 
-        lua.to_value(&rows)
+        Ok(rows)
     }
 
-    fn get_age(&self, pod_val: &DynamicObject) -> FieldValue {
+    fn get_age(&self, obj: &DynamicObject) -> FieldValue {
         let mut age = FieldValue {
-            value: "".to_string(),
+            value: String::new(),
             ..Default::default()
         };
-        let creation_ts = pod_val
-            .metadata
-            .creation_timestamp
-            .as_ref()
-            .map(|t| t.0.to_rfc3339())
-            .unwrap_or_default();
 
-        age.value = if !creation_ts.is_empty() {
-            time_since(&creation_ts).to_string()
-        } else {
-            "".to_string()
-        };
+        if let Some(ts) = obj.metadata.creation_timestamp.as_ref() {
+            age.value = time_since(&ts.0.to_rfc3339()).to_string();
+            age.sort_by = Some(ts.0.timestamp().max(0) as usize);
+        }
 
-        age.sort_by = Some(
-            pod_val
-                .metadata
-                .creation_timestamp
-                .as_ref()
-                .map(|time| time.0.timestamp())
-                .expect("Times")
-                .max(0) as usize,
-        );
         age
     }
 

@@ -27,7 +27,7 @@ pub struct CronJobProcessor;
 impl Processor for CronJobProcessor {
     type Row = CronJobProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let cj: CronJob =
             from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
 

@@ -1,6 +1,5 @@
 use crate::processors::processor::Processor;
 use crate::utils::AccessorMode;
-use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -8,37 +7,24 @@ use mlua::prelude::*;
 pub struct DefaultProcessor;
 
 impl Processor for DefaultProcessor {
+    /// Each row is the original Kubernetes object.
     type Row = DynamicObject;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    /// Simply clone the object into the output vector.
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         Ok(obj.clone())
     }
 
+    /// No text-filterable fields for this processor.
     fn filterable_fields(&self) -> &'static [&'static str] {
         &[]
     }
 
+    /// Nothing to extract for sorting or filtering; always returns `None`.
     fn field_accessor(
         &self,
         _mode: AccessorMode,
     ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
         Box::new(|_, _| None)
-    }
-
-    fn process(
-        &self,
-        lua: &Lua,
-        items: &[DynamicObject],
-        _sort_by: Option<String>,
-        _sort_order: Option<String>,
-        _filter: Option<String>,
-        _filter_label: Option<Vec<String>>,
-    ) -> LuaResult<mlua::Value> {
-        let json_vec: Vec<serde_json::Value> = items
-            .iter()
-            .map(|obj| serde_json::to_value(obj).map_err(LuaError::external))
-            .collect::<Result<_, _>>()?;
-
-        lua.to_value(&json_vec)
     }
 }

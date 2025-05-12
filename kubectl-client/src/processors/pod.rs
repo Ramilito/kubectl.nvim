@@ -29,7 +29,7 @@ pub struct PodProcessor;
 impl Processor for PodProcessor {
     type Row = PodProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         use k8s_openapi::api::core::v1::Pod;
         use k8s_openapi::chrono::Utc;
         use k8s_openapi::serde_json::{from_value, to_value};

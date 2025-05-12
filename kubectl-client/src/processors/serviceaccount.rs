@@ -21,7 +21,7 @@ pub struct ServiceAccountProcessor;
 impl Processor for ServiceAccountProcessor {
     type Row = ServiceAccountProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let sa: ServiceAccount =
             from_value(to_value(obj).expect("Failed to convert DynamicObject to JSON Value"))
                 .expect("Failed to convert JSON Value into ServiceAccount");

@@ -22,7 +22,7 @@ pub struct ConfigmapProcessor;
 impl Processor for ConfigmapProcessor {
     type Row = ConfigmapProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let map: ConfigMap =
             from_value(to_value(obj).expect("Failed to convert DynamicObject to JSON Value"))
                 .expect("Failed to convert JSON Value into ClusterRoleBinding");

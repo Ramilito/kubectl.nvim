@@ -22,7 +22,7 @@ pub struct DeploymentProcessor;
 impl Processor for DeploymentProcessor {
     type Row = DeploymentProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let deployment: Deployment = from_value(to_value(obj).map_err(LuaError::external)?)
             .map_err(LuaError::external)?;
         let namespace = deployment.metadata.namespace.clone().unwrap_or_default();

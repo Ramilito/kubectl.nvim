@@ -23,7 +23,7 @@ pub struct ClusterRoleBindingProcessor;
 impl Processor for ClusterRoleBindingProcessor {
     type Row = ClusterRoleBindingProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         use k8s_openapi::serde_json::{from_value, to_value};
 
         let crb: ClusterRoleBinding =

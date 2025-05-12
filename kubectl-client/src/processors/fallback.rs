@@ -41,7 +41,7 @@ struct FallbackRow {
 impl Processor for RuntimeFallbackProcessor {
     type Row = FallbackRow;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let item_json = serde_json::to_value(obj).map_err(LuaError::external)?;
 
         let mut extra = HashMap::<String, FieldValue>::new();
@@ -106,27 +106,29 @@ pub struct FallbackProcessor;
 impl Processor for FallbackProcessor {
     type Row = (); // never used
 
-    fn build_row(&self, _: &Lua, _: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, _obj: &DynamicObject) -> LuaResult<Self::Row> {
         Err(LuaError::external("use process_fallback"))
     }
+
     fn filterable_fields(&self) -> &'static [&'static str] {
         &[]
     }
+
     fn field_accessor(
         &self,
         _mode: AccessorMode,
     ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String>> {
         Box::new(|_, _| None)
     }
+
     fn process(
         &self,
-        _: &Lua,
-        _: &[DynamicObject],
-        _: Option<String>,
-        _: Option<String>,
-        _: Option<String>,
-        _: Option<Vec<String>>,
-    ) -> LuaResult<mlua::Value> {
+        _items: &[DynamicObject],
+        _sort_by: Option<String>,
+        _sort_order: Option<String>,
+        _filter: Option<String>,
+        _filter_label: Option<Vec<String>>,
+    ) -> LuaResult<Vec<Self::Row>> {
         Err(LuaError::external("use process_fallback"))
     }
 
@@ -187,17 +189,20 @@ impl Processor for FallbackProcessor {
                 })
                 .unwrap_or_default();
 
-            let runtime = RuntimeFallbackProcessor {
-                cols: cols.clone(),
-                namespaced,
-            };
-            let rows_lua =
-                runtime.process(lua, &items, sort_by, sort_order, filter, filter_label)?;
+            let runtime = RuntimeFallbackProcessor { cols: cols.clone(), namespaced };
+            let rows_vec = runtime.process(
+                &items,
+                sort_by.clone(),
+                sort_order.clone(),
+                filter.clone(),
+                filter_label.clone(),
+            )?;
+            let rows_lua = lua.to_value(&rows_vec)?;
 
             let mut headers: Vec<String> = if namespaced {
-                vec!["NAMESPACE".to_string(), "NAME".to_string()]
+                vec!["NAMESPACE".into(), "NAME".into()]
             } else {
-                vec!["NAME".to_string()]
+                vec!["NAME".into()]
             };
             headers.push("AGE".into());
             headers.extend(cols.iter().map(|c| c.name.to_uppercase()));

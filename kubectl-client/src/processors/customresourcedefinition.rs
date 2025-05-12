@@ -25,7 +25,7 @@ pub struct ClusterResourceDefinitionProcessor;
 impl Processor for ClusterResourceDefinitionProcessor {
     type Row = ClusterResourceDefinitionProcessed;
 
-    fn build_row(&self, _lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let crd: CustomResourceDefinition =
             from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
 
