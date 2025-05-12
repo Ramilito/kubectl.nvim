@@ -1,6 +1,6 @@
 use kube::api::DynamicObject;
-use std::fmt::Debug;
 use mlua::{prelude::*, Lua};
+use std::fmt::Debug;
 
 use crate::{
     filter::filter_dynamic,
@@ -88,6 +88,7 @@ pub trait Processor: Debug + Send + Sync {
             .all(|(k, v)| labels.get(*k).map(|vv| vv == v).unwrap_or(false))
     }
 
+    #[tracing::instrument( skip(self, lua, items),fields(item_count = items.len()))]
     fn process(
         &self,
         lua: &Lua,
