@@ -33,6 +33,7 @@ fn resource() -> Resource {
             ],
             SCHEMA_URL,
         )
+        .with_service_name("kubectl.nvim")
         .build()
 }
 
