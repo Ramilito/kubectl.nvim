@@ -324,7 +324,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     )?;
     exports.set("cordon_node", lua.create_function(dao::node::cordon)?)?;
     exports.set("uncordon_node", lua.create_function(dao::node::uncordon)?)?;
-    exports.set("drain_node_async", lua.create_async_function(drain::drain_node_async)?)?;
+    exports.set(
+        "drain_node_async",
+        lua.create_async_function(drain::drain_node_async)?,
+    )?;
 
     Ok(exports)
 }

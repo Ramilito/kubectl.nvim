@@ -16,13 +16,20 @@ k8s-openapi = { version = "0.24.0", features = ["latest"] }
 kube = { version = "0.99.0", features = ["runtime", "derive", "ws"] }
 libc = "0.2"
 mlua = { version = "0.10.2", features = ["module", "luajit", "serialize", "async"] }
+opentelemetry = "0.29.1"
+opentelemetry-appender-tracing = "0.29.1"
+opentelemetry-otlp = {version="0.29.0", features=["trace", "grpc-tonic", "http-proto", "reqwest-client", "logs"]}
+opentelemetry-semantic-conventions = "0.29.0"
+opentelemetry-stdout = "0.29.0"
+opentelemetry_sdk = {version = "0.29.0", features = ["trace", "rt-tokio", "experimental_async_runtime"]}
 serde = "1.0.218"
 serde_json_path = "0.7.2"
 serde_yaml = "0.9.34"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "tracing"] }
 tracing = "0.1.41"
 tracing-appender = "0.2.3"
-tracing-subscriber = "0.3.19"
+tracing-opentelemetry = "0.30.0"
+tracing-subscriber = {version = "0.3.19", features=["env-filter", "fmt","registry", "std" ]}
 
 [profile.release]
 opt-level = "z"
