@@ -4,6 +4,7 @@ use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct DefaultProcessor;
 
 impl Processor for DefaultProcessor {

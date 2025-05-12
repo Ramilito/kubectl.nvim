@@ -45,7 +45,7 @@ where
                 let found = fields.iter().any(|field| {
                     get_field_value(item, field)
                         .as_deref()
-                        .map_or(false, |val| val.contains(pat))
+                        .is_some_and(|val| val.contains(pat))
                 });
 
                 if *negative {

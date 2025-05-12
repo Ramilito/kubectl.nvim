@@ -60,6 +60,7 @@ where
     rt.block_on(f(client))
 }
 
+#[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
@@ -96,6 +97,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
 }
 
 //TODO: Should be combined with get_table_async with a pretty output param
+#[tracing::instrument]
 async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: GetAllArgs = serde_json::from_str(&json).unwrap();
     with_client(move |client| async move {
@@ -120,6 +122,7 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
     })
 }
 
+#[tracing::instrument]
 async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
     let args: StartReflectorArgs = serde_json::from_str(&json).unwrap();
 
@@ -130,6 +133,7 @@ async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
     })
 }
 
+#[tracing::instrument]
 async fn fetch_all_async(
     _lua: Lua,
     args: (String, Option<String>, Option<String>, Option<String>),
@@ -151,6 +155,7 @@ async fn fetch_all_async(
     })
 }
 
+#[tracing::instrument]
 async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: FetchArgs = serde_json::from_str(&json).unwrap();
 
@@ -168,6 +173,7 @@ async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
     })
 }
 
+#[tracing::instrument]
 pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetFallbackTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
@@ -186,6 +192,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
     serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
 }
 
+#[tracing::instrument]
 async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;

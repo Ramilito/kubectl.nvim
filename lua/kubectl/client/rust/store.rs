@@ -70,6 +70,7 @@ pub async fn init_reflector_for_kind(
     Ok(())
 }
 
+#[tracing::instrument]
 pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
     let store = match map.get(&kind.to_string()) {
@@ -93,6 +94,7 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
     Ok(result)
 }
 
+#[tracing::instrument]
 pub async fn get_single(
     kind: &str,
     namespace: Option<String>,

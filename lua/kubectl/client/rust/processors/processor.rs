@@ -1,4 +1,5 @@
 use kube::api::DynamicObject;
+use std::fmt::Debug;
 use mlua::{prelude::*, Lua};
 
 use crate::{
@@ -67,7 +68,7 @@ impl<T: Processor> DynProcessor for T {
     }
 }
 
-pub trait Processor: Send + Sync {
+pub trait Processor: Debug + Send + Sync {
     type Row: Clone + serde::Serialize;
     fn build_row(&self, lua: &Lua, obj: &DynamicObject) -> LuaResult<Self::Row>;
     fn filterable_fields(&self) -> &'static [&'static str];
