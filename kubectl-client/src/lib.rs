@@ -4,7 +4,9 @@ use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use mlua::prelude::*;
 use mlua::Lua;
+use std::backtrace::Backtrace;
 use std::future::Future;
+use std::panic;
 use std::sync::{Mutex, OnceLock};
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
@@ -27,13 +29,11 @@ use crate::cmd::scale::scale_async;
 use crate::processors::processor;
 use crate::store::get_store_map;
 
-
-// Choose a backend at compile time.
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
-        use kubectl_telemetry as logging;  // whole external crate
+        use kubectl_telemetry as logging;
     } else {
-        mod log;                           // lightweight fallback
+        mod log;
         use log as logging;
     }
 }
@@ -246,12 +246,19 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "init_logging",
         lua.create_function(|_, path: String| {
-            logging::setup_logger(&path,"http://localhost:4317").map_err(|e| LuaError::external(format!("{:?}", e)))?;
+            logging::setup_logger(&path, "http://localhost:4317")
+                .map_err(|e| LuaError::external(format!("{:?}", e)))?;
             Ok(())
         })?,
     )?;
-    std::panic::set_hook(Box::new(|panic_info| {
-        error!("Panic occurred: {}", panic_info);
+
+    let default = panic::take_hook();
+
+    panic::set_hook(Box::new(move |panic_info| {
+        let bt = Backtrace::force_capture();
+        error!(target: "panic",
+               "panic: {panic_info}\n\nBacktrace:\n{bt}");
+        default(panic_info);
     }));
 
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
