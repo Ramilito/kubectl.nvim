@@ -6,24 +6,24 @@ use std::{
     fs::File,
     sync::{mpsc, OnceLock},
 };
-use tracing::{info, level_filters::LevelFilter, Level};
+use tracing::{info, level_filters::LevelFilter};
 
 use opentelemetry::{trace::TracerProvider, KeyValue};
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+use opentelemetry_sdk::{
+    trace::{Sampler, SdkTracerProvider},
+    Resource,
+};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
-use crate::RUNTIME;
+static SUBSCRIBER_SET:    OnceLock<()>              = OnceLock::new();
+static LOG_GUARD:         OnceLock<WorkerGuard>     = OnceLock::new();
+static TRACER_PROVIDER:   OnceLock<SdkTracerProvider> = OnceLock::new();
+static WORKER_HANDLE:     OnceLock<std::thread::JoinHandle<()>> = OnceLock::new();
 
-static SUBSCRIBER_SET: OnceLock<()> = OnceLock::new();
-static OTEL_GUARD: OnceLock<SdkTracerProvider> = OnceLock::new();
-static LOG_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
-
-static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
-static WORKER_HANDLE: OnceLock<std::thread::JoinHandle<()>> = OnceLock::new();
-
+/// Common OTEL resource descriptor.
 fn resource() -> Resource {
     Resource::builder()
         .with_schema_url(
@@ -36,6 +36,8 @@ fn resource() -> Resource {
         .build()
 }
 
+/// Spawn a Tokio runtime, create the OTLP exporter, and hand the provider back
+/// to the main thread.
 fn init_tracer_provider(ep: &str) -> SdkTracerProvider {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
@@ -44,21 +46,22 @@ fn init_tracer_provider(ep: &str) -> SdkTracerProvider {
         .unwrap();
 
     SdkTracerProvider::builder()
-        // .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
-        //     1.0,
-        // ))))
+        .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
+            1.0,
+        ))))
         .with_resource(resource())
         .with_batch_exporter(exporter)
         .build()
 }
 
-pub fn init(
-    _service_name: &str,
-    log_dir: &str,
+/// Public entry point called by kubectl-core.
+pub fn setup_logger(
+    log_file_path: &str,
     endpoint: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // ---- 1.  start background worker that owns the provider ----
     let (tx, rx) = mpsc::sync_channel(1);
-    let endpoint = endpoint.to_owned();
+    let endpoint_owned = endpoint.to_owned();
 
     let handle = std::thread::Builder::new()
         .name("otel-worker".into())
@@ -67,39 +70,38 @@ pub fn init(
                 .enable_all()
                 .worker_threads(1)
                 .build()
-                .expect("Tokio");
+                .expect("Tokio runtime");
 
             rt.block_on(async move {
-                let provider = init_tracer_provider(&endpoint);
-
-                // send provider back to main thread
-                tx.send(provider).ok();
-
-                // keep runtime alive forever; sleep for the lifetime of the thread
+                let provider = init_tracer_provider(&endpoint_owned);
+                tx.send(provider).ok();           // hand provider back
                 std::future::pending::<()>().await;
             });
         })?;
 
-    // receive provider built on worker
-    let provider = rx.recv()?; // blocks only once during startup
+    // receive provider
+    let provider = rx.recv()?;
     TRACER_PROVIDER.set(provider.clone()).ok();
     WORKER_HANDLE.set(handle).ok();
 
-    // ——— 2. file log layer (non-blocking) ———
+    // ---- 2. file layer (non-blocking) ----
     let (file_layer, guard) = {
-        let file = File::create(format!("{}/kubectl.log", log_dir))?;
+        let file = File::create(format!("{}/kubectl.log", log_file_path))?;
         let (writer, g) = tracing_appender::non_blocking(file);
-        let layer = tracing_subscriber::fmt::layer()
-            .with_line_number(true)
-            .with_writer(writer)
-            .with_filter(LevelFilter::INFO);
-        (layer, g)
+        (
+            tracing_subscriber::fmt::layer()
+                .with_line_number(true)
+                .with_writer(writer)
+                .with_filter(LevelFilter::INFO),
+            g,
+        )
     };
     LOG_GUARD.set(guard).ok();
 
-    // ---- Install subscriber on main thread ----
+    // ---- 3. OTLP layer ----
     let otel_layer = OpenTelemetryLayer::new(provider.tracer("kubectl.nvim"));
 
+    // ---- 4. install subscriber (set only once) ----
     SUBSCRIBER_SET.get_or_init(|| {
         tracing_subscriber::registry()
             .with(LevelFilter::TRACE)

@@ -6,7 +6,7 @@ use tracing_subscriber::fmt;
 static TRACER: OnceLock<()> = OnceLock::new();
 static LOG_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
 
-pub fn setup_logger(log_file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn setup_logger(log_file_path: &str, _ep: &str) -> Result<(), Box<dyn std::error::Error>> {
     TRACER.get_or_init(|| {
         let file = File::create(format!("{}/kubectl.log", log_file_path))
             .expect("Failed to create log file");

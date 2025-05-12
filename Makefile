@@ -15,7 +15,14 @@ clean:
 	rm ./go/libkubectl_go.a
 	rm ./go/libkubectl_go.h
 
-.PHONY: build
-build:
+.PHONY: build_go
+build_go:
 	go -C go build -trimpath -ldflags="-s -w" -buildmode=c-archive -o libkubectl_go.a
+
+.PHONY: build_dev
+build_dev: build_go
+	cargo build --features telemetry
+
+.PHONY: build_release
+build_release: build_go
 	cargo build --release

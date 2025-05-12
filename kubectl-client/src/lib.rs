@@ -27,13 +27,23 @@ use crate::cmd::scale::scale_async;
 use crate::processors::processor;
 use crate::store::get_store_map;
 
+
+// Choose a backend at compile time.
+cfg_if::cfg_if! {
+    if #[cfg(feature = "telemetry")] {
+        use kubectl_telemetry as logging;  // whole external crate
+    } else {
+        mod log;                           // lightweight fallback
+        use log as logging;
+    }
+}
+
 mod cmd;
 mod dao;
 mod describe;
 mod drain;
 mod events;
 mod filter;
-mod log;
 mod processors;
 mod sort;
 mod store;
@@ -236,7 +246,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "init_logging",
         lua.create_function(|_, path: String| {
-            log::setup_logger(&path).map_err(|e| LuaError::external(format!("{:?}", e)))?;
+            logging::setup_logger(&path,"http://localhost:4317").map_err(|e| LuaError::external(format!("{:?}", e)))?;
             Ok(())
         })?,
     )?;

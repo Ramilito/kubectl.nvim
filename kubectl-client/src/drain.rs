@@ -2,12 +2,12 @@ use k8s_openapi::serde_json;
 use libc::free;
 use mlua::{Error as LuaError, Lua, Result as LuaResult};
 use serde::Deserialize;
-use tracing::info;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
 };
 use tokio::runtime::Runtime;
+use tracing::info;
 
 use crate::RUNTIME;
 

@@ -20,13 +20,5 @@ package.cpath = package.cpath
   .. debug.getinfo(1).source:match("@?(.*/)")
   .. "../../../../target/release/?"
   .. get_lib_extension()
-  .. ";"
-  .. debug.getinfo(1).source:match("@?(.*/)")
-  .. "../../../../target/debug/lib?"
-  .. get_lib_extension()
-  .. ";"
-  .. debug.getinfo(1).source:match("@?(.*/)")
-  .. "../../../../target/debug/?"
-  .. get_lib_extension()
 
 return require("kubectl_client")
