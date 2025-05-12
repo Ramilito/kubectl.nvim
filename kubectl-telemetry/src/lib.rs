@@ -6,7 +6,7 @@ use std::{
     fs::File,
     sync::{mpsc, OnceLock},
 };
-use tracing::{info, level_filters::LevelFilter};
+use tracing::level_filters::LevelFilter;
 
 use opentelemetry::{trace::TracerProvider, KeyValue};
 use opentelemetry_otlp::WithExportConfig;
@@ -18,10 +18,10 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
-static SUBSCRIBER_SET:    OnceLock<()>              = OnceLock::new();
-static LOG_GUARD:         OnceLock<WorkerGuard>     = OnceLock::new();
-static TRACER_PROVIDER:   OnceLock<SdkTracerProvider> = OnceLock::new();
-static WORKER_HANDLE:     OnceLock<std::thread::JoinHandle<()>> = OnceLock::new();
+static SUBSCRIBER_SET: OnceLock<()> = OnceLock::new();
+static LOG_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
+static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
+static WORKER_HANDLE: OnceLock<std::thread::JoinHandle<()>> = OnceLock::new();
 
 /// Common OTEL resource descriptor.
 fn resource() -> Resource {
@@ -47,7 +47,7 @@ fn init_tracer_provider(ep: &str) -> SdkTracerProvider {
 
     SdkTracerProvider::builder()
         .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
-            1.0,
+            0.1,
         ))))
         .with_resource(resource())
         .with_batch_exporter(exporter)
@@ -74,7 +74,7 @@ pub fn setup_logger(
 
             rt.block_on(async move {
                 let provider = init_tracer_provider(&endpoint_owned);
-                tx.send(provider).ok();           // hand provider back
+                tx.send(provider).ok(); // hand provider back
                 std::future::pending::<()>().await;
             });
         })?;
