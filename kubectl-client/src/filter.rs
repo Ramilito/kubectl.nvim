@@ -14,6 +14,7 @@
 ///     ├─ contain "baz"
 ///     └─ do **not** contain "bar"
 /// ```
+#[tracing::instrument(skip(data, get_field_value))]
 pub fn filter_dynamic<'a, T, F>(
     data: &'a [T],
     patterns: &str,
