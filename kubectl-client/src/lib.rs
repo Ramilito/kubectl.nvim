@@ -240,6 +240,7 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     })
 }
 
+#[tracing::instrument]
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     let exports = lua.create_table()?;
