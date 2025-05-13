@@ -71,14 +71,17 @@ impl<T: Processor> DynProcessor for T {
 }
 
 pub trait Processor: Debug + Send + Sync {
-    type Row: Clone + Send + Sync + serde::Serialize;
+    type Row: Debug + Clone + Send + Sync + serde::Serialize;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row>;
+
     fn filterable_fields(&self) -> &'static [&'static str];
+
     fn field_accessor(
         &self,
         mode: AccessorMode,
     ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_>;
+
     fn labels_match(obj: &DynamicObject, wanted: &[(&str, &str)]) -> bool {
         match &obj.metadata.labels {
             Some(map) => wanted

@@ -2,7 +2,7 @@ use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 use mlua::{Function, Lua, Result, Table};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum AccessorMode {
     Sort,
     Filter,

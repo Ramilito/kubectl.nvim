@@ -1,9 +1,12 @@
+use std::fmt::Debug;
+#[tracing::instrument(skip(data, get_field_value))]
 pub fn sort_dynamic<T, F>(
     data: &mut [T],
     sort_by: Option<String>,
     sort_order: Option<String>,
     get_field_value: F,
 ) where
+    T: Debug,
     F: Fn(&T, &str) -> Option<String>,
 {
     use std::cmp::Ordering;
