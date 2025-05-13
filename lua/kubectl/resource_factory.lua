@@ -256,7 +256,6 @@ function M.new(resource)
       end
       vim.schedule(function()
         builder.draw(cancellationToken)
-        vim.cmd("doautocmd User K8sDataLoaded")
       end)
     end)
 
@@ -291,6 +290,7 @@ function M.new(resource)
         builder.processedData = builder.data
 
         vim.schedule(function()
+          vim.cmd("doautocmd User K8sDataLoaded")
           if definition.processRow then
             builder.process(definition.processRow, true)
             if sort_data then
