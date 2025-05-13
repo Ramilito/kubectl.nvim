@@ -1,9 +1,13 @@
+use chrono::{Duration, Utc};
+use k8s_openapi::apimachinery::pkg::version::Info;
 use kube::api::DynamicObject;
 use mlua::{prelude::*, Lua};
 use rayon::prelude::*;
 use std::fmt::Debug;
+use tracing::info;
 
 use crate::{
+    events::symbols,
     filter::filter_dynamic,
     sort::sort_dynamic,
     utils::{time_since, AccessorMode, FieldValue},
@@ -145,6 +149,11 @@ pub trait Processor: Debug + Send + Sync {
         if let Some(ts) = obj.metadata.creation_timestamp.as_ref() {
             age.value = time_since(&ts.0.to_rfc3339()).to_string();
             age.sort_by = Some(ts.0.timestamp().max(0) as usize);
+            let ten_minutes = Duration::minutes(10);
+            let age_duration = Utc::now().signed_duration_since(ts.0);
+            if age_duration < ten_minutes {
+                age.symbol = Some(symbols().success.clone());
+            }
         }
 
         age
