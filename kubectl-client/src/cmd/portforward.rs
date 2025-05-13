@@ -30,6 +30,7 @@ pub struct PFData {
     pub remote_port: u16,
 }
 
+#[tracing::instrument]
 pub fn portforward_start(
     _lua: &Lua,
     args: (String, String, String, String, u16, u16),
@@ -88,6 +89,7 @@ pub fn portforward_start(
     Ok(id)
 }
 
+#[tracing::instrument(skip(client))]
 async fn run_port_forward(
     client: Client,
     pf_type: PFType,
@@ -134,6 +136,7 @@ async fn run_port_forward(
     }
 }
 
+#[tracing::instrument(skip(client))]
 async fn forward_pod(
     client: Client,
     namespace: String,
@@ -154,6 +157,7 @@ async fn forward_pod(
     }
 }
 
+#[tracing::instrument(skip(client))]
 async fn forward_service(
     client: Client,
     namespace: String,
@@ -261,6 +265,7 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
     Ok(table)
 }
 
+#[tracing::instrument]
 pub fn portforward_stop(_lua: &Lua, id: usize) -> LuaResult<()> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     rt.block_on(async {

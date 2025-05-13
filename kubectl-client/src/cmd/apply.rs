@@ -10,6 +10,7 @@ use crate::{CLIENT_INSTANCE, RUNTIME};
 
 use super::utils::{dynamic_api, multidoc_deserialize};
 
+#[tracing::instrument]
 pub async fn apply_async(_lua: Lua, args: Option<String>) -> LuaResult<()> {
     let path = args;
 

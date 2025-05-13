@@ -10,6 +10,7 @@ use mlua::{Either, Error as LuaError, Lua, Result as LuaResult};
 use super::utils::dynamic_api;
 use crate::{structs::CmdDeleteArgs, with_client};
 
+#[tracing::instrument]
 pub async fn delete_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdDeleteArgs = serde_json::from_str(&json).unwrap();
 

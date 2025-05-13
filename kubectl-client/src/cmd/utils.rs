@@ -5,6 +5,7 @@ use kube::{
 };
 use mlua::prelude::*;
 
+#[tracing::instrument(skip(discovery))]
 pub fn resolve_api_resource(
     discovery: &Discovery,
     name: &str,
@@ -24,6 +25,7 @@ pub fn resolve_api_resource(
         .map(|(_, res)| res)
 }
 
+#[tracing::instrument(skip(client))]
 pub fn dynamic_api(
     ar: ApiResource,
     caps: ApiCapabilities,

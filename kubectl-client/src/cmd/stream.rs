@@ -8,6 +8,7 @@ use kube::Api;
 use crate::structs::CmdStreamArgs;
 use crate::with_client;
 
+#[tracing::instrument]
 pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<String> {
     let args: CmdStreamArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
@@ -93,6 +94,7 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
     })
 }
 
+#[tracing::instrument]
 fn parse_duration(s: &str) -> Option<Duration> {
     if s == "0" || s.is_empty() {
         return None;

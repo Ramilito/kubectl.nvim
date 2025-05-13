@@ -11,6 +11,7 @@ use mlua::prelude::*;
 use crate::structs::CmdRestartArgs;
 use crate::with_client;
 
+#[tracing::instrument]
 pub async fn restart_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdRestartArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;

@@ -52,6 +52,7 @@ impl Default for OutputMode {
     }
 }
 
+#[tracing::instrument(skip(client))]
 pub async fn get_resources_async(
     client: &Client,
     kind: String,
@@ -91,6 +92,7 @@ pub async fn get_resources_async(
     Ok(list.items)
 }
 
+#[tracing::instrument(skip(client))]
 pub async fn get_resource_async(
     client: &Client,
     kind: String,
@@ -140,6 +142,7 @@ pub async fn get_resource_async(
     Ok(output_mode.format(obj))
 }
 
+#[tracing::instrument]
 pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: GetSingleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
@@ -170,6 +173,7 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
     })
 }
 
+#[tracing::instrument]
 pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: GetServerRawArgs = k8s_openapi::serde_json::from_str(&json).unwrap();
 
@@ -192,6 +196,7 @@ pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> 
     })
 }
 
+#[tracing::instrument]
 pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> LuaResult<String> {
     let (url, _name, is_fallback) = args;
 
@@ -268,6 +273,7 @@ impl FallbackResource {
     }
 }
 
+#[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(move |client| async move {
         let discovery = Discovery::new(client.clone())

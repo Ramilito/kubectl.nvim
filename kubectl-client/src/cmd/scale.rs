@@ -11,6 +11,7 @@ use serde_json::json;
 use crate::structs::CmdScaleArgs;
 use crate::with_client;
 
+#[tracing::instrument]
 pub async fn scale_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdScaleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
