@@ -12,6 +12,10 @@ local M = {
 --- Open the kubectl view
 function M.open()
   local hl = require("kubectl.actions.highlight")
+  local client = require("kubectl.client")
+  if not client then
+    client.set_implementation()
+  end
 
   hl.setup()
   vim.schedule(function()
