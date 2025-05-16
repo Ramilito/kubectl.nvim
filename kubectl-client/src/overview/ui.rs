@@ -33,7 +33,7 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect) {
             x: inner_x,
             y,
             width: inner_w,
-            height: 3,
+            height: 2,
         };
 
         let columns = col_layout(row);
@@ -49,7 +49,7 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect) {
             )
             .percent(ns.cpu_pct as u16);
 
-        let mem_title_str = format!("{} | CPU", ns.name);
+        let mem_title_str = format!("{} | MEM", ns.name);
         let mem_title = title_block(&mem_title_str);
 
         let mem = Gauge::default()
