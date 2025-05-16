@@ -25,12 +25,13 @@ function M.View(cancellationToken)
     end)
   end)
 
-  api.nvim_create_autocmd("BufWipeout", {
+  api.nvim_create_autocmd({ "BufWipeout", "BufUnload", "BufHidden" }, {
     buffer = buf,
     once = true,
     callback = function()
       uv.read_stop(pipe)
       pipe:close()
+      require("kubectl_client").stop_dashboard()
     end,
   })
 end

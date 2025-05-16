@@ -26,7 +26,7 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::overview::dashboard::start_dashboard;
+use crate::overview::dashboard::{start_dashboard, stop_dashboard};
 use crate::processors::processor;
 use crate::store::get_store_map;
 
@@ -271,6 +271,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     )?;
 
     exports.set("start_dashboard", lua.create_function(start_dashboard)?)?;
+    exports.set("stop_dashboard", lua.create_function(stop_dashboard)?)?;
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
