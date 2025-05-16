@@ -19,10 +19,6 @@ pub struct NodeStat {
 }
 pub type SharedStats = Arc<Mutex<Vec<NodeStat>>>;
 
-/// Spawns a background thread that refreshes `stats` every 5 s.
-///
-/// *Creates its own Tokio runtime* so there’s no need to clone the one held
-///   elsewhere in your plugin.
 pub fn spawn_node_collector(stats: SharedStats, client: Client) {
     thread::spawn(move || {
         let rt = Runtime::new().expect("create runtime for node collector");

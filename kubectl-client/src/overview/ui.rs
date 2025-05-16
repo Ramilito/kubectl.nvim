@@ -5,8 +5,7 @@ use ratatui::{
 
 use super::nodes::NodeStat;
 
-/// Renders the “node usage” table full-screen in `f`.
-pub fn draw_nodes(f: &mut Frame, stats: &[NodeStat]) {
+pub fn draw(f: &mut Frame, stats: &[NodeStat]) {
     let size = f.area();
 
     // outer frame

@@ -1,5 +1,3 @@
-//! Exposed to Lua: start_dashboard(width, height) → master FD
-
 use std::{
     fs::File,
     os::unix::io::{FromRawFd, IntoRawFd, RawFd},
@@ -16,7 +14,7 @@ use crate::CLIENT_INSTANCE;
 
 use super::{
     nodes::{spawn_node_collector, SharedStats},
-    ui::draw_nodes,
+    ui::draw,
 };
 
 #[tracing::instrument]
@@ -46,7 +44,7 @@ pub fn start_dashboard(_lua: &Lua, (w, _h): (u16, u16)) -> LuaResult<i32> {
 
         loop {
             let snapshot = stats.lock().unwrap().clone();
-            let _ = term.draw(|f| draw_nodes(f, &snapshot));
+            let _ = term.draw(|f| draw(f, &snapshot));
             thread::sleep(Duration::from_millis(200));
         }
     });
