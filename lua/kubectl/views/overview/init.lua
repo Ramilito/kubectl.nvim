@@ -1,66 +1,56 @@
--- local ResourceBuilder = require("kubectl.resourcebuilder")
--- local commands = require("kubectl.actions.commands")
--- local definition = require("kubectl.views.overview.definition")
--- local grid = require("kubectl.utils.grid")
--- local url = require("kubectl.utils.url")
---
--- local M = {
---   handles = nil,
---   builder = nil,
--- }
---
--- function M.View(cancellationToken)
---   if M.handles then
---     return
---   end
---   local cmds = {
---     {
---       cmd = "curl",
---       args = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/nodes?pretty=false" },
---     },
---     {
---       cmd = "curl",
---       args = { "{{BASE}}/api/v1/nodes?pretty=false" },
---     },
---     {
---       cmd = "curl",
---       args = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
---     },
---     { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" } },
---     { cmd = "curl", args = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}replicasets?pretty=false" } },
---     { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" } },
---   }
---
---   for _, cmd in ipairs(cmds) do
---     if cmd.cmd == "curl" then
---       cmd.args = url.build(cmd.args)
---       cmd.args = url.addHeaders(cmd.args, cmd.contentType)
---     end
---   end
---
---   M.handles = commands.await_shell_command_async(cmds, function(data)
---     if M.builder == nil or M.builder.data == nil then
---       M.builder = ResourceBuilder:new(definition.resource)
---     end
---     M.builder.data = data
---     M.Draw(cancellationToken)
---   end)
--- end
---
--- function M.Draw(cancellationToken)
---   vim.schedule(function()
---     M.builder:decodeJson():decodeJson():process(definition.processRow, true)
---     if M.builder.processedData then
---       M.builder.prettyData, M.builder.extmarks = grid.pretty_print(M.builder.processedData, definition.getSections())
---       M.builder:addHints(definition.hints, true, true, true)
---       if cancellationToken and cancellationToken() then
---         return nil
---       end
---
---       M.builder:display(definition.ft, definition.resource):setContent():draw_header()
---       M.handles = nil
---     end
---   end)
--- end
---
--- return M
+local uv = vim.loop
+local api = vim.api
+local M = {}
+function M.View(cancellationToken)
+  -- dimensions for the floating window
+  local win_w = math.floor(vim.o.columns * 0.70)
+  local win_h = math.floor(vim.o.lines * 0.40)
+
+  -- 1. scratch terminal buffer (no external job)
+  local buf = api.nvim_create_buf(false, true)
+  local chan = api.nvim_open_term(buf, {}) -- libvterm instance
+
+  -- 2. floating window
+  api.nvim_open_win(buf, true, {
+    relative = "editor",
+    row = 2,
+    col = 4,
+    width = win_w,
+    height = win_h,
+    border = "rounded",
+  })
+
+  -- 3. start the PTY-powered dashboard in Rust
+  --    Rust returns the *master* FD as an integer
+  local master_fd = require("kubectl_client").start_dashboard(win_w, win_h)
+
+  -- 4. pump PTY → channel using libuv
+  local pipe = uv.new_pipe(false)
+  pipe:open(master_fd)
+
+  uv.read_start(pipe, function(err, data)
+    if err then
+      return
+    end -- ignore errors for this PoC
+    if not data then
+      return
+    end -- EOF
+    vim.schedule(function()
+      api.nvim_chan_send(chan, data)
+    end)
+  end)
+
+  -- 5. stop reading when the buffer is wiped (user closes window)
+  api.nvim_create_autocmd("BufWipeout", {
+    buffer = buf,
+    once = true,
+    callback = function()
+      uv.read_stop(pipe)
+      pipe:close()
+    end,
+  })
+end
+
+function M.Draw(cancellationToken) end
+
+return M

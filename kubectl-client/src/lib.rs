@@ -10,7 +10,7 @@ use std::panic;
 use std::sync::{Mutex, OnceLock};
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -26,6 +26,7 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
+use crate::overview::start_dashboard;
 use crate::processors::processor;
 use crate::store::get_store_map;
 
@@ -44,6 +45,7 @@ mod describe;
 mod drain;
 mod events;
 mod filter;
+mod overview;
 mod processors;
 mod sort;
 mod store;
@@ -267,6 +269,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "start_reflector_async",
         lua.create_async_function(start_reflector_async)?,
     )?;
+
+    exports.set("start_dashboard", lua.create_function(start_dashboard)?)?;
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
