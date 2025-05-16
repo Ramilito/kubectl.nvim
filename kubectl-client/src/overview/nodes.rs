@@ -21,6 +21,7 @@ pub struct NodeStat {
 }
 pub type SharedStats = Arc<Mutex<Vec<NodeStat>>>;
 
+#[tracing::instrument(skip(client))]
 pub fn spawn_node_collector(stats: SharedStats, client: Client) {
     thread::spawn(move || {
         let rt = Runtime::new().expect("create runtime for node collector");
