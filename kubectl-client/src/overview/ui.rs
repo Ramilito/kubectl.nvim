@@ -3,10 +3,10 @@ use ratatui::{
     style::palette::tailwind,
     widgets::{Block, Borders, Gauge, Padding},
 };
-
 use super::nodes::NodeStat;
 
 pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect) {
+    // outer frame --------------------------------------------------
     let frame = Block::default()
         .title(" Node usage (live) ")
         .borders(Borders::ALL)
@@ -17,61 +17,56 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect) {
         );
     f.render_widget(frame, area);
 
-    let inner_w = area.width.saturating_sub(2);
     let inner_x = area.x + 1;
-    let mut y = area.y + 1;
-
-    let col_layout = |area: Rect| {
-        Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-            .split(area)
-    };
+    let inner_w = area.width.saturating_sub(2);
+    let mut y   = area.y + 1;
 
     for ns in stats {
-        let row = Rect {
-            x: inner_x,
-            y,
-            width: inner_w,
-            height: 2,
+        // block height: 1 (title) + 2 + 2 = 5
+        let node_rect = Rect { x: inner_x, y, width: inner_w, height: 5 };
+        let rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // title
+                Constraint::Length(2), // CPU gauge
+                Constraint::Length(2), // MEM gauge
+            ])
+            .split(node_rect);
+
+        // --- title -------------------------------------------------
+        let title = Line::from(ns.name.clone()).centered();
+        let title_block = Block::default()
+            .borders(Borders::NONE)
+            .title(title)
+            .fg(tailwind::BLUE.c200);
+        f.render_widget(title_block, rows[0]);
+
+        // helper for both gauges
+        let make_gauge = |label: &str, pct: f64, color: Color| {
+            Gauge::default()
+                .block(
+                    Block::default()
+                        .borders(Borders::NONE)
+                        .padding(Padding::horizontal(1))
+                        .title(format!("{label}:")),
+                )
+                .gauge_style(
+                    Style::default()
+                        .fg(color)
+                        .bg(tailwind::GRAY.c800),
+                )
+                .use_unicode(true)
+                .percent(pct.clamp(0.0, 100.0).round() as u16)
         };
 
-        let columns = col_layout(row);
+        // --- CPU gauge --------------------------------------------
+        let cpu_gauge = make_gauge("CPU", ns.cpu_pct, tailwind::GREEN.c500);
+        f.render_widget(cpu_gauge, rows[1]);
 
-        let cpu_title_str = format!("{} | CPU", ns.name);
-        let cpu_title = title_block(&cpu_title_str);
-        let cpu = Gauge::default()
-            .block(cpu_title)
-            .gauge_style(
-                Style::default()
-                    .fg(tailwind::GREEN.c500)
-                    .bg(tailwind::GRAY.c800),
-            )
-            .percent(ns.cpu_pct as u16);
+        // --- Memory gauge -----------------------------------------
+        let mem_gauge = make_gauge("MEM", ns.mem_pct, tailwind::EMERALD.c400);
+        f.render_widget(mem_gauge, rows[2]);
 
-        let mem_title_str = format!("{} | MEM", ns.name);
-        let mem_title = title_block(&mem_title_str);
-
-        let mem = Gauge::default()
-            .block(mem_title)
-            .gauge_style(
-                Style::default()
-                    .fg(tailwind::GREEN.c500)
-                    .bg(tailwind::GRAY.c800),
-            )
-            .percent(ns.mem_pct as u16);
-
-        f.render_widget(cpu, columns[0]);
-        f.render_widget(mem, columns[1]);
-
-        y += 3;
+        y += 6; // 5 lines just drawn + 1 blank row spacing
     }
-}
-fn title_block(title: &str) -> Block {
-    let title = Line::from(title).centered();
-    Block::new()
-        .borders(Borders::NONE)
-        .padding(Padding::horizontal(1))
-        .title(title)
-        .fg(tailwind::BLUE.c200)
 }
