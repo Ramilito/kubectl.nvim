@@ -5,8 +5,10 @@ local M = {}
 function M.View(cancellationToken)
   local buf, win = buffers.floating_buffer("k8s_overview", "Overview")
   local win_config = vim.api.nvim_win_get_config(win)
-  local chan = api.nvim_open_term(buf, {})
+  win_config.border = "none"
+  vim.api.nvim_win_set_config(win, win_config)
 
+  local chan = api.nvim_open_term(buf, {})
   local master_fd = require("kubectl_client").start_dashboard(win_config.width, win_config.height)
 
   -- 4. pump PTY → channel using libuv
