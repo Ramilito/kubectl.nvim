@@ -24,7 +24,7 @@ use super::{
 static STOP: AtomicBool = AtomicBool::new(false);
 
 #[tracing::instrument]
-pub fn start_dashboard(_lua: &Lua, (_w, _h): (u16, u16)) -> LuaResult<i32> {
+pub fn start_dashboard(_lua: &Lua, (cols, rows): (u16, u16)) -> LuaResult<i32> {
     STOP.store(false, Ordering::SeqCst);
     // ── PTY ───────────────────────────────────────────────────────
     let pty = openpty(None, None).map_err(|e| LuaError::ExternalError(Arc::new(e)))?;
@@ -48,14 +48,20 @@ pub fn start_dashboard(_lua: &Lua, (_w, _h): (u16, u16)) -> LuaResult<i32> {
         let file = unsafe { File::from_raw_fd(slave_fd) };
         let backend = CrosstermBackend::new(file);
         let mut term = Terminal::new(backend).unwrap();
-        term.resize(Rect::new(0, 0, 10, 10));
 
         while !STOP.load(Ordering::Relaxed) {
             info!("looping");
             let snapshot = stats.lock().unwrap().clone();
-            let _ = term.draw(|f| draw(f, &snapshot));
+            let _ = term.draw(|f| {
+                let area = Rect::new(0, 0, cols, rows);
+                draw(f, &snapshot, area);
+            });
             thread::sleep(Duration::from_millis(1000));
         }
+        let _ = crossterm::terminal::disable_raw_mode();
+        let _ = term.show_cursor();
+
+        std::mem::forget(term);
     });
 
     Ok(master_fd) // Lua pumps this FD into nvim_chan_send

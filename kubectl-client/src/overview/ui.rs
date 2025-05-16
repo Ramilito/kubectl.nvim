@@ -5,10 +5,7 @@ use ratatui::{
 
 use super::nodes::NodeStat;
 
-pub fn draw(f: &mut Frame, stats: &[NodeStat]) {
-    let size = f.area();
-
-    // outer frame
+pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect) {
     let frame = Block::default()
         .title(" Node usage (live) ")
         .borders(Borders::ALL)
@@ -17,13 +14,13 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat]) {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         );
-    f.render_widget(frame, size);
+    f.render_widget(frame, area);
 
-    let inner_w = size.width.saturating_sub(2);
+    let inner_w = area.width.saturating_sub(2);
     for (i, ns) in stats.iter().enumerate() {
         let row = Rect {
-            x: size.x + 1,
-            y: size.y + 1 + i as u16,
+            x: area.x + 1,
+            y: area.y + 1 + i as u16,
             width: inner_w,
             height: 1,
         };

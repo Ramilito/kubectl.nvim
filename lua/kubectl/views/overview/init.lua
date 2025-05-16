@@ -16,22 +16,22 @@ function M.View(cancellationToken)
   uv.read_start(pipe, function(err, data)
     if err then
       return
-    end -- ignore errors for this PoC
+    end
     if not data then
       return
-    end -- EOF
+    end
     vim.schedule(function()
       api.nvim_chan_send(chan, data)
     end)
   end)
 
-  api.nvim_create_autocmd({ "BufWipeout", "BufUnload", "BufHidden" }, {
+  api.nvim_create_autocmd({ "BufWipeout", "BufHidden" }, {
     buffer = buf,
     once = true,
     callback = function()
+      require("kubectl_client").stop_dashboard()
       uv.read_stop(pipe)
       pipe:close()
-      require("kubectl_client").stop_dashboard()
     end,
   })
 end
