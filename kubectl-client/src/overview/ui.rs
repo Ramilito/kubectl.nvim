@@ -24,7 +24,7 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect) {
             width: inner_w,
             height: 1,
         };
-        let text = format!("{}  CPU:{}  MEM:{}", ns.name, ns.cpu, ns.memory);
+        let text = format!("{}  CPU:{}  MEM:{}", ns.name, ns.cpu_pct, ns.mem_pct);
         f.render_widget(Paragraph::new(text), row);
     }
 }
