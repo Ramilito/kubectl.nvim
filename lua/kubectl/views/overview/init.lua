@@ -1,5 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
-local uv = vim.loop
+local uv = vim.uv
 local api = vim.api
 local M = {}
 function M.View(cancellationToken)
@@ -23,7 +23,7 @@ function M.View(cancellationToken)
       return
     end
     vim.schedule(function()
-      api.nvim_chan_send(chan, data)
+      pcall(api.nvim_chan_send, chan, data)
     end)
   end)
 
