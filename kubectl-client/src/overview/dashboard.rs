@@ -13,6 +13,7 @@ use mlua::{prelude::*, Lua};
 use nix::pty::openpty;
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 use tracing::info;
+use tui_widgets::scrollview::ScrollViewState;
 
 use crate::CLIENT_INSTANCE;
 
@@ -48,13 +49,14 @@ pub fn start_dashboard(_lua: &Lua, (cols, rows): (u16, u16)) -> LuaResult<i32> {
         let file = unsafe { File::from_raw_fd(slave_fd) };
         let backend = CrosstermBackend::new(file);
         let mut term = Terminal::new(backend).unwrap();
+        let mut scroll_state = ScrollViewState::default();
 
         while !STOP.load(Ordering::Relaxed) {
             info!("looping");
             let snapshot = stats.lock().unwrap().clone();
             let _ = term.draw(|f| {
                 let area = Rect::new(0, 0, cols, rows);
-                draw(f, &snapshot, area);
+                draw(f, &snapshot, area, &mut scroll_state);
             });
             thread::sleep(Duration::from_millis(1000));
         }
