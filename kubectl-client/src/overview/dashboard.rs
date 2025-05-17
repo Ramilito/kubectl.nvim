@@ -1,17 +1,19 @@
 use std::{
-    fs::File,
-    os::unix::io::{FromRawFd, IntoRawFd, RawFd},
+    fs::OpenOptions,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
+use crossterm::{
+    event::{self, Event, KeyCode},
+    terminal::{disable_raw_mode, enable_raw_mode},
+};
 use mlua::{prelude::*, Lua};
-use nix::pty::openpty;
-use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use tracing::info;
 use tui_widgets::scrollview::ScrollViewState;
 
@@ -24,15 +26,22 @@ use super::{
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
+/// Start the live dashboard inside the PTY Neovim already created.
+///
+/// `pty_path` is a string like "/dev/pts/11", obtained in Lua via
+/// `vim.api.nvim_get_chan_info(job_id).pty`.
 #[tracing::instrument]
-pub fn start_dashboard(_lua: &Lua, (cols, rows): (u16, u16)) -> LuaResult<i32> {
+pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
     STOP.store(false, Ordering::SeqCst);
-    // ── PTY ───────────────────────────────────────────────────────
-    let pty = openpty(None, None).map_err(|e| LuaError::ExternalError(Arc::new(e)))?;
-    let master_fd: RawFd = pty.master.into_raw_fd();
-    let slave_fd: RawFd = pty.slave.into_raw_fd();
 
-    // ── shared stats + collector ─────────────────────────────────
+    // ── open the existing PTY slave ─────────────────────────────
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&pty_path)
+        .map_err(|e| LuaError::ExternalError(Arc::new(e)))?;
+
+    // ── shared stats + node collector ──────────────────────────
     let stats: SharedStats = Arc::new(Mutex::new(Vec::new()));
     let client = CLIENT_INSTANCE
         .lock()
@@ -40,33 +49,51 @@ pub fn start_dashboard(_lua: &Lua, (cols, rows): (u16, u16)) -> LuaResult<i32> {
         .as_ref()
         .ok_or_else(|| LuaError::RuntimeError("client not initialised".into()))?
         .clone();
-
     spawn_node_collector(stats.clone(), client);
 
-    // ── Ratatui draw loop on the slave side ──────────────────────
+    // ── Ratatui draw / event loop (runs in its own thread) ─────
     thread::spawn(move || {
-        // SAFETY: this thread owns `slave_fd`
-        let file = unsafe { File::from_raw_fd(slave_fd) };
         let backend = CrosstermBackend::new(file);
         let mut term = Terminal::new(backend).unwrap();
         let mut scroll_state = ScrollViewState::default();
 
-        while !STOP.load(Ordering::Relaxed) {
-            info!("looping");
-            let snapshot = stats.lock().unwrap().clone();
-            let _ = term.draw(|f| {
-                let area = Rect::new(0, 0, cols, rows);
-                draw(f, &snapshot, area, &mut scroll_state);
-            });
-            thread::sleep(Duration::from_millis(1000));
-        }
-        let _ = crossterm::terminal::disable_raw_mode();
-        let _ = term.show_cursor();
+        enable_raw_mode().ok();
+        let tick_rate = Duration::from_millis(100);
+        let mut last_tick = Instant::now();
 
-        std::mem::forget(term);
+        while !STOP.load(Ordering::Relaxed) {
+            // ── 1 ▸ handle keyboard input (non-blocking) ──────
+            if event::poll(Duration::from_millis(0)).unwrap() {
+                if let Event::Key(key) = event::read().unwrap() {
+                    info!("{:?}", key);
+                    match key.code {
+                        KeyCode::Down | KeyCode::Char('j') => scroll_state.scroll_down(),
+                        KeyCode::Up | KeyCode::Char('k') => scroll_state.scroll_up(),
+                        KeyCode::PageDown => scroll_state.scroll_page_down(),
+                        KeyCode::PageUp => scroll_state.scroll_page_up(),
+                        KeyCode::Char('q') => break,
+                        _ => {}
+                    }
+                }
+            }
+
+            // ── 2 ▸ redraw at fixed tick rate ─────────────────
+            if last_tick.elapsed() >= tick_rate {
+                let snapshot = stats.lock().unwrap().clone();
+                term.draw(|f| {
+                    let area = f.area();
+                    draw(f, &snapshot, area, &mut scroll_state);
+                })
+                .ok();
+                last_tick = Instant::now();
+            }
+        }
+
+        disable_raw_mode().ok();
+        let _ = term.show_cursor();
     });
 
-    Ok(master_fd) // Lua pumps this FD into nvim_chan_send
+    Ok(())
 }
 
 #[tracing::instrument]

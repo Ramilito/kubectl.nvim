@@ -1,43 +1,33 @@
 local buffers = require("kubectl.actions.buffers")
-local uv = vim.uv
 local api = vim.api
 local M = {}
-function M.View(cancellationToken)
+
+function M.View()
+  -- 1 ▸ floating buffer / window
   local buf, win = buffers.floating_buffer("k8s_overview", "Overview")
-  local win_config = vim.api.nvim_win_get_config(win)
-  win_config.border = "none"
-  vim.api.nvim_win_set_config(win, win_config)
+  api.nvim_win_set_config(win, vim.tbl_extend("force", api.nvim_win_get_config(win), { border = "none" }))
 
-  local chan = api.nvim_open_term(buf, {})
-  local master_fd = require("kubectl_client").start_dashboard(win_config.width, win_config.height)
+  -- 2 ▸ open an *interactive* terminal buffer (term=true)
+  --     cmd = {"sleep", "inf"} keeps the job alive but does nothing
+  api.nvim_set_current_win(win) -- term=true uses current win
+  local job_id = vim.fn.jobstart({ "cat" }, { term = true })
 
-  -- 4. pump PTY → channel using libuv
-  local pipe = uv.new_pipe(false)
-  pipe:open(master_fd)
+  -- 3 ▸ find the PTY path Neovim allocated, e.g. "/dev/pts/11"
+  local info = api.nvim_get_chan_info(job_id)
+  local pty_path = info.pty -- verified in :h channel-info
 
-  uv.read_start(pipe, function(err, data)
-    if err then
-      return
-    end
-    if not data then
-      return
-    end
-    vim.schedule(function()
-      pcall(api.nvim_chan_send, chan, data)
-    end)
-  end)
+  -- 4 ▸ start the dashboard, give it the *path* string
+  require("kubectl_client").start_dashboard(pty_path)
 
+  -- 5 ▸ close everything when the buffer disappears
   api.nvim_create_autocmd({ "BufWipeout", "BufHidden" }, {
     buffer = buf,
     once = true,
     callback = function()
       require("kubectl_client").stop_dashboard()
-      uv.read_stop(pipe)
-      pipe:close()
+      vim.fn.jobstop(job_id) -- kill the sleeping job
     end,
   })
 end
-
-function M.Draw(cancellationToken) end
 
 return M
