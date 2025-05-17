@@ -1,5 +1,6 @@
 use std::{
     fs::OpenOptions,
+    io::Write,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -9,39 +10,36 @@ use std::{
 };
 
 use crossterm::{
-    event::{self, Event, KeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode},
+    cursor,
+    event::{self, Event, KeyCode, MouseEventKind},
+    queue,
+    terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
 use mlua::{prelude::*, Lua};
 use ratatui::{backend::CrosstermBackend, Terminal};
-use tracing::info;
 use tui_widgets::scrollview::ScrollViewState;
-
-use crate::CLIENT_INSTANCE;
 
 use super::{
     nodes::{spawn_node_collector, SharedStats},
     ui::draw,
 };
+use crate::CLIENT_INSTANCE;
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
 /// Start the live dashboard inside the PTY Neovim already created.
-///
-/// `pty_path` is a string like "/dev/pts/11", obtained in Lua via
-/// `vim.api.nvim_get_chan_info(job_id).pty`.
 #[tracing::instrument]
 pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
     STOP.store(false, Ordering::SeqCst);
 
-    // ── open the existing PTY slave ─────────────────────────────
+    // ── open Neovim’s PTY slave ─────────────────────────────────
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .open(&pty_path)
         .map_err(|e| LuaError::ExternalError(Arc::new(e)))?;
 
-    // ── shared stats + node collector ──────────────────────────
+    // ── spawn background collector ──────────────────────────────
     let stats: SharedStats = Arc::new(Mutex::new(Vec::new()));
     let client = CLIENT_INSTANCE
         .lock()
@@ -51,34 +49,52 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
         .clone();
     spawn_node_collector(stats.clone(), client);
 
-    // ── Ratatui draw / event loop (runs in its own thread) ─────
+    // ── Ratatui loop in its own thread ─────────────────────────
     thread::spawn(move || {
         let backend = CrosstermBackend::new(file);
         let mut term = Terminal::new(backend).unwrap();
         let mut scroll_state = ScrollViewState::default();
 
-        enable_raw_mode().ok();
-        let tick_rate = Duration::from_millis(100);
+        // live tick-rate (ms); 50 ≤ tick ≤ 1000
+        let mut tick_ms: u64 = 100;
         let mut last_tick = Instant::now();
 
-        while !STOP.load(Ordering::Relaxed) {
-            // ── 1 ▸ handle keyboard input (non-blocking) ──────
+        enable_raw_mode().ok();
+
+        'ui: while !STOP.load(Ordering::Relaxed) {
             if event::poll(Duration::from_millis(0)).unwrap() {
-                if let Event::Key(key) = event::read().unwrap() {
-                    info!("{:?}", key);
-                    match key.code {
+                match event::read().unwrap() {
+                    Event::Key(key) => match key.code {
+                        // scrolling
                         KeyCode::Down | KeyCode::Char('j') => scroll_state.scroll_down(),
                         KeyCode::Up | KeyCode::Char('k') => scroll_state.scroll_up(),
                         KeyCode::PageDown => scroll_state.scroll_page_down(),
                         KeyCode::PageUp => scroll_state.scroll_page_up(),
-                        KeyCode::Char('q') => break,
+                        // live tick-rate
+                        KeyCode::Char('+') | KeyCode::Char('=') => {
+                            if tick_ms > 50 {
+                                tick_ms -= 50;
+                            }
+                        }
+                        KeyCode::Char('-') | KeyCode::Char('_') => {
+                            if tick_ms < 1000 {
+                                tick_ms += 50;
+                            }
+                        }
+                        // quit
+                        KeyCode::Char('q') => break 'ui,
                         _ => {}
-                    }
+                    },
+                    Event::Mouse(m) => match m.kind {
+                        MouseEventKind::ScrollDown => scroll_state.scroll_down(),
+                        MouseEventKind::ScrollUp => scroll_state.scroll_up(),
+                        _ => {}
+                    },
+                    _ => {}
                 }
             }
 
-            // ── 2 ▸ redraw at fixed tick rate ─────────────────
-            if last_tick.elapsed() >= tick_rate {
+            if last_tick.elapsed() >= Duration::from_millis(tick_ms) {
                 let snapshot = stats.lock().unwrap().clone();
                 term.draw(|f| {
                     let area = f.area();
@@ -89,6 +105,10 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
             }
         }
 
+        // ── graceful clear & restore ───────────────────────────
+        let mut backend = term.backend_mut();
+        queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
+        backend.flush().ok();
         disable_raw_mode().ok();
         let _ = term.show_cursor();
     });
