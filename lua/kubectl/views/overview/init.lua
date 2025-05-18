@@ -3,14 +3,20 @@ local api = vim.api
 local M = {}
 
 function M.View()
-  -- 1 ▸ floating buffer / window
   local buf, win = buffers.floating_buffer("k8s_overview", "Overview")
-  api.nvim_win_set_config(win, vim.tbl_extend("force", api.nvim_win_get_config(win), { border = "none" }))
+  api.nvim_win_set_config(
+    win,
+    vim.tbl_extend(
+      "force",
+      api.nvim_win_get_config(win),
+      { border = "none", 
+			-- height = vim.o.lines, width = vim.o.columns 
+		}
+    )
+  )
 
-  -- 2 ▸ open an *interactive* terminal buffer (term=true)
-  --     cmd = {"sleep", "inf"} keeps the job alive but does nothing
-  api.nvim_set_current_win(win) -- term=true uses current win
-  local job_id = vim.fn.jobstart({ "cat" }, { term = true })
+  api.nvim_set_current_win(win)
+  local job_id = vim.fn.jobstart({ "tail", "-f", "/dev/null" }, { term = true })
 
   -- 3 ▸ find the PTY path Neovim allocated, e.g. "/dev/pts/11"
   local info = api.nvim_get_chan_info(job_id)
