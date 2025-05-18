@@ -1,6 +1,6 @@
 use std::{
     fs::OpenOptions,
-    io::{Result as IoResult, Write},
+    io::Result as IoResult,
     os::fd::{AsRawFd, RawFd},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -11,25 +11,21 @@ use std::{
 };
 
 use crossterm::{
-    cursor, event,
-    queue,
+    cursor, event, queue,
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
 use libc::{dup2, ioctl, winsize, STDERR_FILENO, STDOUT_FILENO, TIOCGWINSZ};
 use mlua::{prelude::*, Lua};
-use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
+use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 use tui_widgets::scrollview::ScrollViewState;
-use tracing::info;
 
 use super::{
     nodes::{spawn_node_collector, SharedStats},
-    ui::draw,
+    top_ui::draw,
 };
 use crate::CLIENT_INSTANCE;
 
 static STOP: AtomicBool = AtomicBool::new(false);
-
-/* ────────────────────────────────────────────────────────────────────────── */
 
 fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
     unsafe {
@@ -41,8 +37,6 @@ fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
         }
     }
 }
-
-/* ─────────────────────────── public API ─────────────────────────────────── */
 
 #[tracing::instrument]
 pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
@@ -92,9 +86,7 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
                         event::KeyCode::Down | event::KeyCode::Char('j') => {
                             scroll_state.scroll_down()
                         }
-                        event::KeyCode::Up | event::KeyCode::Char('k') => {
-                            scroll_state.scroll_up()
-                        }
+                        event::KeyCode::Up | event::KeyCode::Char('k') => scroll_state.scroll_up(),
                         event::KeyCode::PageDown => scroll_state.scroll_page_down(),
                         event::KeyCode::PageUp => scroll_state.scroll_page_up(),
                         /* tick-rate */
@@ -132,7 +124,7 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
         }
 
         /* ── graceful clear & restore ──────────────────────────────────── */
-        let mut backend = term.backend_mut();
+        let backend = term.backend_mut();
         queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
         disable_raw_mode().ok();
         let _ = term.show_cursor();
@@ -140,8 +132,6 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
 
     Ok(())
 }
-
-/* ------------------------------------------------------------------------ */
 
 #[tracing::instrument]
 pub fn stop_dashboard(_lua: &Lua, _args: ()) -> LuaResult<()> {

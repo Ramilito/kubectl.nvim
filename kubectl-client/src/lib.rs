@@ -26,7 +26,7 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::overview::dashboard::{start_dashboard, stop_dashboard};
+use crate::dashboard::overview::{start_dashboard, stop_dashboard};
 use crate::processors::processor;
 use crate::store::get_store_map;
 
@@ -45,7 +45,7 @@ mod describe;
 mod drain;
 mod events;
 mod filter;
-mod overview;
+mod dashboard;
 mod processors;
 mod sort;
 mod store;

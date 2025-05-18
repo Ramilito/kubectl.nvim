@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},
     prelude::*,
     style::palette::tailwind,
-    text::Line, // <- Line::width is Unicode-aware
+    text::Line,
     widgets::{Block, Borders, Gauge, Padding},
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
