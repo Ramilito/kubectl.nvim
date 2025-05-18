@@ -10,7 +10,7 @@ use std::panic;
 use std::sync::{Mutex, OnceLock};
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::{error, info};
+use tracing::error;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -26,7 +26,7 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::dashboard::overview::{start_dashboard, stop_dashboard};
+use crate::ui::dashboard::{start_dashboard, stop_dashboard};
 use crate::processors::processor;
 use crate::store::get_store_map;
 
@@ -41,11 +41,11 @@ cfg_if::cfg_if! {
 
 mod cmd;
 mod dao;
+mod ui;
 mod describe;
 mod drain;
 mod events;
 mod filter;
-mod dashboard;
 mod processors;
 mod sort;
 mod store;
