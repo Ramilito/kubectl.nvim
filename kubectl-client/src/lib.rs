@@ -7,10 +7,10 @@ use mlua::Lua;
 use std::backtrace::Backtrace;
 use std::future::Future;
 use std::panic;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, RwLock};
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -26,9 +26,9 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::ui::dashboard::{start_dashboard, stop_dashboard};
 use crate::processors::processor;
 use crate::store::get_store_map;
+use crate::ui::dashboard::{start_dashboard, stop_dashboard};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -41,7 +41,6 @@ cfg_if::cfg_if! {
 
 mod cmd;
 mod dao;
-mod ui;
 mod describe;
 mod drain;
 mod events;
@@ -50,10 +49,12 @@ mod processors;
 mod sort;
 mod store;
 mod structs;
+mod ui;
 mod utils;
 
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
+static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
 
 pub fn with_client<F, Fut, R>(f: F) -> LuaResult<R>
 where
@@ -94,9 +95,14 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
             let config = Config::from_kubeconfig(&options)
                 .await
                 .map_err(LuaError::external)?;
+
             let client = Client::try_from(config).map_err(LuaError::external)?;
             Ok::<Client, mlua::Error>(client)
         };
+        {
+            let mut ctx = ACTIVE_CONTEXT.write().unwrap();
+            *ctx = context_name.clone(); // ← overwrite every time
+        }
 
         let ((), client_result) = join(store_future, config_future).await;
         client_result

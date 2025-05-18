@@ -13,6 +13,7 @@ use crossterm::{
     queue,
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
+use kube::{config::KubeConfigOptions, Client, Config};
 use libc::{
     _exit, dup2, fork, ioctl, kill, pid_t, setsid, waitpid, winsize, SIGKILL, SIGTERM,
     STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ, WNOHANG,
@@ -21,13 +22,14 @@ use mlua::{prelude::*, Lua};
 use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
 use tokio::runtime::Runtime;
 
-use crate::ui::{
-    nodes_state::{spawn_node_collector, NodeStat, SharedNodeStats},
-    overview_ui,
-    overview_ui::OverviewState,
-    pods_state::{spawn_pod_collector, PodStat, SharedPodStats},
-    top_ui,
-    top_ui::TopViewState,
+use crate::{
+    ui::{
+        nodes_state::{spawn_node_collector, NodeStat, SharedNodeStats},
+        overview_ui::{self, OverviewState},
+        pods_state::{spawn_pod_collector, PodStat, SharedPodStats},
+        top_ui::{self, TopViewState},
+    },
+    ACTIVE_CONTEXT,
 };
 
 fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
@@ -286,8 +288,16 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
         let node_stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
         let pod_stats: SharedPodStats = Arc::new(Mutex::new(Vec::new()));
 
+        let opts = KubeConfigOptions {
+            context: ACTIVE_CONTEXT.read().unwrap().clone(),
+            cluster: None,
+            user: None,
+        };
+        let client: Client = rt.block_on(async {
+            let cfg = Config::from_kubeconfig(&opts).await.expect("kube-config");
+            Client::try_from(cfg).expect("client from ACTIVE_CONTEXT")
+        });
         rt.block_on(async {
-            let client = kube::Client::try_default().await.expect("kube config");
             spawn_node_collector(node_stats.clone(), client.clone());
             spawn_pod_collector(pod_stats.clone(), client.clone());
         });
