@@ -83,8 +83,6 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
         let mut tick_ms: u64 = 200;
         let mut last_tick = Instant::now();
 
-        info!("initial PTY size = {w}×{h}");
-
         'ui: while !STOP.load(Ordering::Relaxed) {
             /* ── non-blocking input ─────────────────────────────────────── */
             if event::poll(Duration::from_millis(0)).unwrap() {
@@ -136,7 +134,6 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
         /* ── graceful clear & restore ──────────────────────────────────── */
         let mut backend = term.backend_mut();
         queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
-        // backend.flush().ok();
         disable_raw_mode().ok();
         let _ = term.show_cursor();
     });

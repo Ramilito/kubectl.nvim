@@ -4,16 +4,7 @@ local M = {}
 
 function M.View()
   local buf, win = buffers.floating_buffer("k8s_overview", "Overview")
-  api.nvim_win_set_config(
-    win,
-    vim.tbl_extend(
-      "force",
-      api.nvim_win_get_config(win),
-      { border = "none", 
-			-- height = vim.o.lines, width = vim.o.columns 
-		}
-    )
-  )
+  api.nvim_win_set_config(win, vim.tbl_extend("force", api.nvim_win_get_config(win), { border = "none" }))
 
   api.nvim_set_current_win(win)
   local job_id = vim.fn.jobstart({ "tail", "-f", "/dev/null" }, { term = true })
@@ -30,8 +21,8 @@ function M.View()
     buffer = buf,
     once = true,
     callback = function()
-      require("kubectl_client").stop_dashboard()
       vim.fn.jobstop(job_id) -- kill the sleeping job
+      require("kubectl_client").stop_dashboard()
     end,
   })
 end

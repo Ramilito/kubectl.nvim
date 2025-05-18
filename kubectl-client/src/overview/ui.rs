@@ -3,27 +3,22 @@ use ratatui::{
     layout::{Constraint, Layout, Margin, Rect, Size},
     prelude::*,
     style::palette::tailwind,
-    widgets::{Block, Borders, Clear, Gauge, Padding},
+    widgets::{Block, Borders, Gauge, Padding},
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-const CARD_HEIGHT: u16 = 4; // title + 2 gauges
+const CARD_HEIGHT: u16 = 1; // title + 2 gauges
 
-/* ────────────────────────────────────────────────────────────────────────── */
-pub fn draw(
-    f: &mut Frame,
-    stats: &[NodeStat],
-    area: Rect,
-    sv_state: &mut ScrollViewState,
-) {
-    /* wipe anything from the previous frame */
-    f.render_widget(Clear, area);
-
+pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, sv_state: &mut ScrollViewState) {
     /* ── outer frame ───────────────────────────────────────────────────── */
     let outer = Block::new()
         .title(" Overview (live) ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        .border_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
     f.render_widget(outer, area);
 
     /* inner area where the scroll-view lives */
@@ -39,7 +34,6 @@ pub fn draw(
     /* helper for both gauges */
     let make_gauge = |label: &str, pct: f64, color: Color| {
         Gauge::default()
-            .block(Block::default().padding(Padding::horizontal(1)))
             .gauge_style(Style::default().fg(color).bg(tailwind::GRAY.c800))
             .label(format!("{label}: {}", pct.round() as u16))
             .use_unicode(true)
@@ -56,21 +50,26 @@ pub fn draw(
             height: CARD_HEIGHT,
         };
 
-        let rows = Layout::vertical([
-            Constraint::Length(1), // title
-            Constraint::Length(1), // CPU
-            Constraint::Length(1), // MEM
+        let rows = Layout::horizontal([
+            Constraint::Percentage(33), // title
+            Constraint::Percentage(33), // CPU
+            Constraint::Percentage(33), // MEM
         ])
         .split(card);
 
         sv.render_widget(
-            Block::default()
-                .title(Line::from(ns.name.clone()).centered())
+            Block::new()
+                .borders(Borders::NONE)
+                .padding(Padding::vertical(1))
+                .title(Line::from(ns.name.clone()).right_aligned())
                 .fg(tailwind::BLUE.c400),
             rows[0],
         );
         sv.render_widget(make_gauge("CPU", ns.cpu_pct, tailwind::GREEN.c500), rows[1]);
-        sv.render_widget(make_gauge("MEM", ns.mem_pct, tailwind::EMERALD.c400), rows[2]);
+        sv.render_widget(
+            make_gauge("MEM", ns.mem_pct, tailwind::EMERALD.c400),
+            rows[2],
+        );
     }
 
     /* paint the scroll-view & scrollbar */
