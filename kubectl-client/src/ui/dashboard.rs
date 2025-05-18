@@ -31,14 +31,8 @@ use crate::{
     CLIENT_INSTANCE,
 };
 
-// ─────── View abstraction ────────────────────────────────────────────────────
-
 trait View {
-    /// React to an input event, returning `true` when the UI changed and needs
-    /// immediate redraw.
     fn on_event(&mut self, ev: &Event) -> bool;
-
-    /// Render the UI.
     fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[crate::ui::nodes::NodeStat]);
 }
 
@@ -154,8 +148,6 @@ impl View for TopView {
     }
 }
 
-// ─────── Helpers ─────────────────────────────────────────────────────────────
-
 static STOP: AtomicBool = AtomicBool::new(false);
 
 fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
@@ -168,8 +160,6 @@ fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
         }
     }
 }
-
-// ─────── Public API ──────────────────────────────────────────────────────────
 
 #[tracing::instrument]
 pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
