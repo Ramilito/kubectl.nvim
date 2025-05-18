@@ -3,54 +3,73 @@ use ratatui::{
     prelude::*,
     style::palette::tailwind,
     text::Line,
-    widgets::{Block, Borders, Gauge, Padding, Paragraph, Tabs},
+    widgets::{Block, Borders, Cell, Gauge, Padding, Row, Table, TableState, Tabs},
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
 use super::nodes_state::NodeStat;
 use super::pods_state::PodStat;
 
-/* ───────────── constants ─────────────────────────────────────────────── */
-const CARD_HEIGHT: u16 = 1; // one line per row
+const CARD_HEIGHT: u16 = 1; // one line per Node row
 const MAX_TITLE_WIDTH: u16 = 40;
+const PAGE: usize = 10;
 
-/* ───────────── per-view state ────────────────────────────────────────── */
 #[derive(Default)]
 pub struct TopViewState {
     selected_tab: usize, // 0 = Nodes, 1 = Pods
     node_scroll: ScrollViewState,
-    pod_scroll: ScrollViewState,
+    pod_table: TableState,
+    pod_rows: usize, // total pod rows (for scroll bounds)
 }
 
 impl TopViewState {
-    fn active_scroll(&mut self) -> &mut ScrollViewState {
-        if self.selected_tab == 0 {
-            &mut self.node_scroll
-        } else {
-            &mut self.pod_scroll
-        }
-    }
-    /* key helpers (called by outer View impl) */
+    /* tab helpers -------------------------------------------------------- */
     pub fn next_tab(&mut self) {
         self.selected_tab = (self.selected_tab + 1) % 2;
     }
     pub fn prev_tab(&mut self) {
         self.selected_tab = if self.selected_tab == 0 { 1 } else { 0 };
     }
+
+    /* scrolling helpers -------------------------------------------------- */
     pub fn scroll_down(&mut self) {
-        self.active_scroll().scroll_down();
+        if self.selected_tab == 0 {
+            self.node_scroll.scroll_down();
+        } else {
+            let next = self.pod_table.selected().unwrap_or(0).saturating_add(1);
+            if next < self.pod_rows {
+                self.pod_table.select(Some(next));
+            }
+        }
     }
     pub fn scroll_up(&mut self) {
-        self.active_scroll().scroll_up();
+        if self.selected_tab == 0 {
+            self.node_scroll.scroll_up();
+        } else if let Some(sel) = self.pod_table.selected() {
+            if sel > 0 {
+                self.pod_table.select(Some(sel - 1));
+            }
+        }
     }
     pub fn scroll_page_down(&mut self) {
-        self.active_scroll().scroll_page_down();
+        if self.selected_tab == 0 {
+            self.node_scroll.scroll_page_down();
+        } else {
+            let next = self.pod_table.selected().unwrap_or(0).saturating_add(PAGE);
+            self.pod_table
+                .select(Some(next.min(self.pod_rows.saturating_sub(1))));
+        }
     }
     pub fn scroll_page_up(&mut self) {
-        self.active_scroll().scroll_page_up();
+        if self.selected_tab == 0 {
+            self.node_scroll.scroll_page_up();
+        } else {
+            let next = self.pod_table.selected().unwrap_or(0).saturating_sub(PAGE);
+            self.pod_table.select(Some(next));
+        }
     }
 
-    /* compatibility aliases */
+    /* compatibility aliases --------------------------------------------- */
     pub fn focus_next(&mut self) {
         self.next_tab();
     }
@@ -59,6 +78,7 @@ impl TopViewState {
     }
 }
 
+/* ───────────── public draw entry-point ───────────────────────────────── */
 pub fn draw(
     f: &mut Frame,
     area: Rect,
@@ -83,16 +103,12 @@ pub fn draw(
         horizontal: 1,
     });
 
-    /* tab bar + body split ---------------------------------------------- */
+    /* split: tab bar + body --------------------------------------------- */
     let [tabs_area, body_area] =
         Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
 
     /* tab bar ------------------------------------------------------------ */
-    let tab_titles = ["Nodes", "Pods"]
-        .into_iter()
-        .map(Line::from)
-        .collect::<Vec<_>>();
-    let tabs = Tabs::new(tab_titles)
+    let tabs = Tabs::new(vec![Line::from("Nodes"), Line::from("Pods")])
         .select(state.selected_tab)
         .style(Style::default().fg(Color::White))
         .highlight_style(
@@ -102,61 +118,42 @@ pub fn draw(
         );
     f.render_widget(tabs, tabs_area);
 
-    /* dataset choice + name-column width -------------------------------- */
-    let (rows, title_width): (usize, u16) = if state.selected_tab == 0 {
-        let w = node_stats
+    /* ============================== NODES ============================== */
+    if state.selected_tab == 0 {
+        let title_w = node_stats
             .iter()
             .map(|ns| Line::from(ns.name.clone()).width() as u16 + 1)
             .max()
             .unwrap_or(0)
             .clamp(1, MAX_TITLE_WIDTH);
-        (node_stats.len(), w)
-    } else {
-        let w = pod_stats
-            .iter()
-            .map(|ps| {
-                let full = format!("{}/{}", ps.namespace, ps.name);
-                Line::from(full).width() as u16 + 1
-            })
-            .max()
-            .unwrap_or(0)
-            .clamp(1, MAX_TITLE_WIDTH);
-        (pod_stats.len(), w)
-    };
 
-    /* scroll-view -------------------------------------------------------- */
-    let content_h = rows as u16 * CARD_HEIGHT;
-    let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
+        let content_h = node_stats.len() as u16 * CARD_HEIGHT;
+        let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
 
-    /* helper for node gauges -------------------------------------------- */
-    let make_gauge = |label: &str, pct: f64, color: Color| {
-        Gauge::default()
-            .gauge_style(Style::default().fg(color).bg(tailwind::GRAY.c800))
-            .label(format!("{label}: {}", pct.round() as u16))
-            .use_unicode(true)
-            .percent(pct.clamp(0.0, 100.0) as u16)
-    };
-
-    /* render rows -------------------------------------------------------- */
-    for idx in 0..rows {
-        let y = idx as u16 * CARD_HEIGHT;
-        let card = Rect {
-            x: 0,
-            y,
-            width: body_area.width,
-            height: CARD_HEIGHT,
+        let make_gauge = |label: &str, pct: f64, color: Color| {
+            Gauge::default()
+                .gauge_style(Style::default().fg(color).bg(tailwind::GRAY.c800))
+                .label(format!("{label}: {}", pct.round() as u16))
+                .use_unicode(true)
+                .percent(pct.clamp(0.0, 100.0) as u16)
         };
 
-        let cols = Layout::horizontal([
-            Constraint::Length(title_width),
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ])
-        .split(card);
+        for (idx, ns) in node_stats.iter().enumerate() {
+            let y = idx as u16 * CARD_HEIGHT;
+            let card = Rect {
+                x: 0,
+                y,
+                width: body_area.width,
+                height: CARD_HEIGHT,
+            };
 
-        if state.selected_tab == 0 {
-            /* ── Nodes tab: percent gauges ─────────────────────────────── */
-            let ns = &node_stats[idx];
+            let cols = Layout::horizontal([
+                Constraint::Length(title_w),
+                Constraint::Percentage(50),
+                Constraint::Percentage(50),
+            ])
+            .split(card);
+
             sv.render_widget(
                 Block::new()
                     .borders(Borders::NONE)
@@ -170,34 +167,56 @@ pub fn draw(
                 make_gauge("MEM", ns.mem_pct, tailwind::EMERALD.c400),
                 cols[2],
             );
-        } else {
-            /* ── Pods tab: absolute numbers ────────────────────────────── */
-            let ps = &pod_stats[idx];
-            let display = format!("{}/{}", ps.namespace, ps.name);
-            sv.render_widget(
-                Block::new()
-                    .borders(Borders::NONE)
-                    .padding(Padding::vertical(1))
-                    .title(display)
-                    .fg(tailwind::BLUE.c400),
-                cols[0],
-            );
-
-            let cpu_line = Line::from(format!("CPU: {} m", ps.cpu_m));
-            let mem_line = Line::from(format!("MEM: {} Mi", ps.mem_mi));
-
-            sv.render_widget(
-                Paragraph::new(cpu_line).style(Style::default().fg(tailwind::GREEN.c500)),
-                cols[1],
-            );
-            sv.render_widget(
-                Paragraph::new(mem_line).style(Style::default().fg(tailwind::EMERALD.c400)),
-                cols[2],
-            );
         }
-    }
 
-    /* final paint -------------------------------------------------------- */
-    let sv_state = state.active_scroll();
-    f.render_stateful_widget(sv, body_area, sv_state);
+        f.render_stateful_widget(sv, body_area, &mut state.node_scroll);
+    } else {
+        state.pod_rows = pod_stats.len();
+        let title_w = pod_stats
+            .iter()
+            .map(|ps| {
+                let full = format!("{}/{}", ps.namespace, ps.name);
+                Line::from(full).width() as u16 + 1
+            })
+            .max()
+            .unwrap_or(0)
+            .clamp(1, MAX_TITLE_WIDTH);
+
+        let header = Row::new(vec![
+            Cell::from("Pod"),
+            Cell::from("CPU (m)"),
+            Cell::from("MEM (Mi)"),
+        ])
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
+
+        let rows: Vec<Row> = pod_stats
+            .iter()
+            .map(|ps| {
+                let name = format!("{}/{}", ps.namespace, ps.name);
+                Row::new(vec![
+                    Cell::from(name),
+                    Cell::from(ps.cpu_m.to_string()),
+                    Cell::from(ps.mem_mi.to_string()),
+                ])
+            })
+            .collect();
+
+        let widths = [
+            Constraint::Length(title_w),
+            Constraint::Length(9),
+            Constraint::Length(9),
+        ];
+
+        let table = Table::new(rows, &widths)
+            .header(header)
+            .column_spacing(2)
+            .row_highlight_style(Style::default().bg(tailwind::BLUE.c900).fg(Color::White))
+            .highlight_symbol("▶ ");
+
+        f.render_stateful_widget(table, body_area, &mut state.pod_table);
+    }
 }
