@@ -18,8 +18,10 @@ use crossterm::{
 };
 use libc::{dup2, ioctl, winsize, STDERR_FILENO, STDOUT_FILENO, TIOCGWINSZ};
 use mlua::{prelude::*, Lua};
-use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
-use tui_widgets::scrollview::ScrollViewState;
+use ratatui::{
+    backend::CrosstermBackend, crossterm::event::ModifierKeyCode, layout::Rect, prelude::*,
+    Terminal,
+};
 
 use crate::{
     ui::{
@@ -28,6 +30,7 @@ use crate::{
         overview_ui::OverviewState,
         pods_state::{spawn_pod_collector, PodStat, SharedPodStats},
         top_ui,
+        top_ui::TopViewState,
     },
     CLIENT_INSTANCE,
 };
@@ -98,12 +101,12 @@ impl View for OverviewView {
 }
 
 struct TopView {
-    state: ScrollViewState,
+    state: TopViewState,
 }
 impl TopView {
     fn new() -> Self {
         Self {
-            state: ScrollViewState::default(),
+            state: TopViewState::default(),
         }
     }
 }
@@ -127,6 +130,10 @@ impl View for TopView {
                     self.state.scroll_page_up();
                     true
                 }
+                KeyCode::Tab => {
+                    self.state.next_tab();
+                    true
+                }
                 _ => false,
             },
             Event::Mouse(m) => match m.kind {
@@ -144,8 +151,8 @@ impl View for TopView {
         }
     }
 
-    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[NodeStat], pods_stats: &[PodStat]) {
-        top_ui::draw(f, stats, area, &mut self.state);
+    fn draw(&mut self, f: &mut Frame, area: Rect, node_stats: &[NodeStat], pods_stats: &[PodStat]) {
+        top_ui::draw(f, area, &mut self.state, node_stats, pods_stats);
     }
 }
 
