@@ -3,16 +3,18 @@ use ratatui::{
     prelude::*,
     style::palette::tailwind,
     text::Line,
-    widgets::{Block, Borders, Gauge, Padding, Tabs},
+    widgets::{Block, Borders, Gauge, Padding, Paragraph, Tabs},
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
 use super::nodes_state::NodeStat;
 use super::pods_state::PodStat;
 
+/* ───────────── constants ─────────────────────────────────────────────── */
 const CARD_HEIGHT: u16 = 1; // one line per row
 const MAX_TITLE_WIDTH: u16 = 40;
 
+/* ───────────── per-view state ────────────────────────────────────────── */
 #[derive(Default)]
 pub struct TopViewState {
     selected_tab: usize, // 0 = Nodes, 1 = Pods
@@ -20,7 +22,6 @@ pub struct TopViewState {
     pod_scroll: ScrollViewState,
 }
 
-/* helper: choose active scroll view */
 impl TopViewState {
     fn active_scroll(&mut self) -> &mut ScrollViewState {
         if self.selected_tab == 0 {
@@ -29,8 +30,7 @@ impl TopViewState {
             &mut self.pod_scroll
         }
     }
-
-    /* key handling helpers ------------------------------------------------ */
+    /* key helpers (called by outer View impl) */
     pub fn next_tab(&mut self) {
         self.selected_tab = (self.selected_tab + 1) % 2;
     }
@@ -50,7 +50,7 @@ impl TopViewState {
         self.active_scroll().scroll_page_up();
     }
 
-    /* kept for compatibility with earlier bindings (Tab / BackTab) */
+    /* compatibility aliases */
     pub fn focus_next(&mut self) {
         self.next_tab();
     }
@@ -59,7 +59,6 @@ impl TopViewState {
     }
 }
 
-/* ── public draw entrypoint ───────────────────────────────────────────── */
 pub fn draw(
     f: &mut Frame,
     area: Rect,
@@ -67,9 +66,9 @@ pub fn draw(
     node_stats: &[NodeStat],
     pod_stats: &[PodStat],
 ) {
-    /* outer bordered block ------------------------------------------------ */
+    /* outer frame -------------------------------------------------------- */
     let outer = Block::new()
-        .title(" Overview (live) ")
+        .title(" Top (live) ")
         .borders(Borders::ALL)
         .border_style(
             Style::default()
@@ -78,18 +77,17 @@ pub fn draw(
         );
     f.render_widget(outer, area);
 
-    /* inner content area (1-cell margin) ---------------------------------- */
+    /* inner region (padding 1) ------------------------------------------ */
     let inner = area.inner(Margin {
         vertical: 1,
         horizontal: 1,
     });
 
-    /* split into tab bar (1 row) + main body ------------------------------ */
-    let split = Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).split(inner);
-    let tabs_area = split[0];
-    let body_area = split[1];
+    /* tab bar + body split ---------------------------------------------- */
+    let [tabs_area, body_area] =
+        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
 
-    /* ── tab bar ---------------------------------------------------------- */
+    /* tab bar ------------------------------------------------------------ */
     let tab_titles = ["Nodes", "Pods"]
         .into_iter()
         .map(Line::from)
@@ -104,7 +102,7 @@ pub fn draw(
         );
     f.render_widget(tabs, tabs_area);
 
-    /* pick dataset & compute name-column width ---------------------------- */
+    /* dataset choice + name-column width -------------------------------- */
     let (rows, title_width): (usize, u16) = if state.selected_tab == 0 {
         let w = node_stats
             .iter()
@@ -126,11 +124,11 @@ pub fn draw(
         (pod_stats.len(), w)
     };
 
-    /* scroll-view container ---------------------------------------------- */
+    /* scroll-view -------------------------------------------------------- */
     let content_h = rows as u16 * CARD_HEIGHT;
     let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
 
-    /* helper for CPU / MEM gauges ---------------------------------------- */
+    /* helper for node gauges -------------------------------------------- */
     let make_gauge = |label: &str, pct: f64, color: Color| {
         Gauge::default()
             .gauge_style(Style::default().fg(color).bg(tailwind::GRAY.c800))
@@ -139,7 +137,7 @@ pub fn draw(
             .percent(pct.clamp(0.0, 100.0) as u16)
     };
 
-    /* render each row ----------------------------------------------------- */
+    /* render rows -------------------------------------------------------- */
     for idx in 0..rows {
         let y = idx as u16 * CARD_HEIGHT;
         let card = Rect {
@@ -149,7 +147,6 @@ pub fn draw(
             height: CARD_HEIGHT,
         };
 
-        // [name] | [CPU gauge] | [MEM gauge]
         let cols = Layout::horizontal([
             Constraint::Length(title_width),
             Constraint::Percentage(50),
@@ -158,7 +155,7 @@ pub fn draw(
         .split(card);
 
         if state.selected_tab == 0 {
-            /* Nodes tab */
+            /* ── Nodes tab: percent gauges ─────────────────────────────── */
             let ns = &node_stats[idx];
             sv.render_widget(
                 Block::new()
@@ -174,7 +171,7 @@ pub fn draw(
                 cols[2],
             );
         } else {
-            /* Pods tab */
+            /* ── Pods tab: absolute numbers ────────────────────────────── */
             let ps = &pod_stats[idx];
             let display = format!("{}/{}", ps.namespace, ps.name);
             sv.render_widget(
@@ -185,15 +182,22 @@ pub fn draw(
                     .fg(tailwind::BLUE.c400),
                 cols[0],
             );
-            sv.render_widget(make_gauge("CPU", ps.cpu_pct, tailwind::GREEN.c500), cols[1]);
+
+            let cpu_line = Line::from(format!("CPU: {} m", ps.cpu_m));
+            let mem_line = Line::from(format!("MEM: {} Mi", ps.mem_mi));
+
             sv.render_widget(
-                make_gauge("MEM", ps.mem_pct, tailwind::EMERALD.c400),
+                Paragraph::new(cpu_line).style(Style::default().fg(tailwind::GREEN.c500)),
+                cols[1],
+            );
+            sv.render_widget(
+                Paragraph::new(mem_line).style(Style::default().fg(tailwind::EMERALD.c400)),
                 cols[2],
             );
         }
     }
 
-    /* final paint + scrollbar -------------------------------------------- */
+    /* final paint -------------------------------------------------------- */
     let sv_state = state.active_scroll();
     f.render_stateful_widget(sv, body_area, sv_state);
 }
