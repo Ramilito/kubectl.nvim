@@ -16,12 +16,9 @@ use crossterm::{
     queue,
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
-use libc::{dup2, ioctl, winsize, STDERR_FILENO, STDOUT_FILENO, TIOCGWINSZ};
+use libc::{dup2, ioctl, winsize, STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ};
 use mlua::{prelude::*, Lua};
-use ratatui::{
-    backend::CrosstermBackend, crossterm::event::ModifierKeyCode, layout::Rect, prelude::*,
-    Terminal,
-};
+use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
 
 use crate::{
     ui::{
@@ -208,6 +205,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
     // redirect stdout/stderr --------------------------------------------------
     unsafe {
         let fd: RawFd = file.as_raw_fd();
+        dup2(fd, STDIN_FILENO);
         dup2(fd, STDOUT_FILENO);
         dup2(fd, STDERR_FILENO);
     }

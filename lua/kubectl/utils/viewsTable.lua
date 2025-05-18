@@ -28,8 +28,7 @@ return {
     "clusterrolebinding",
     "clusterrolebindings.rbac.authorization.k8s.io",
   },
-  ["top_nodes"] = { "top_nodes" },
-  ["top_pods"] = { "top_pods" },
+  top = { "top" },
   ingresses = { "ingresses", "ingress" },
   helm = { "helm" },
 }

@@ -8,6 +8,7 @@ function M.View()
 
   api.nvim_set_current_win(win)
   local job_id = vim.fn.jobstart({ "tail", "-f", "/dev/null" }, { term = true })
+  vim.cmd.startinsert()
 
   -- 3 ▸ find the PTY path Neovim allocated, e.g. "/dev/pts/11"
   local info = api.nvim_get_chan_info(job_id)
