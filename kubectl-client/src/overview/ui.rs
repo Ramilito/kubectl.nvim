@@ -1,15 +1,26 @@
-use super::nodes::NodeStat;
 use ratatui::{
-    layout::{Constraint, Layout, Margin, Rect, Size},
+    layout::{Constraint, Layout, Margin, Rect},
     prelude::*,
     style::palette::tailwind,
+    text::Line, // <- Line::width is Unicode-aware
     widgets::{Block, Borders, Gauge, Padding},
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-const CARD_HEIGHT: u16 = 1; // title + 2 gauges
+use super::nodes::NodeStat;
+
+const CARD_HEIGHT: u16 = 1; // one line per card
+const MAX_TITLE_WIDTH: u16 = 40; // hard cap for the first column
 
 pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, sv_state: &mut ScrollViewState) {
+    /* ── figure out the exact width we need for the name column ────────── */
+    let title_width: u16 = stats
+        .iter()
+        .map(|ns| Line::from(ns.name.clone()).width() as u16 + 1) // Unicode cell-width
+        .max()
+        .unwrap_or(0)
+        .clamp(1, MAX_TITLE_WIDTH);
+
     /* ── outer frame ───────────────────────────────────────────────────── */
     let outer = Block::new()
         .title(" Overview (live) ")
@@ -50,10 +61,11 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, sv_state: &mut Scroll
             height: CARD_HEIGHT,
         };
 
-        let rows = Layout::horizontal([
-            Constraint::Percentage(33), // title
-            Constraint::Percentage(33), // CPU
-            Constraint::Percentage(33), // MEM
+        // layout that keeps the first column *exactly* title_width cells wide
+        let cols = Layout::horizontal([
+            Constraint::Length(title_width), // name column
+            Constraint::Percentage(50),      // CPU gauge
+            Constraint::Percentage(50),      // MEM gauge
         ])
         .split(card);
 
@@ -61,14 +73,15 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, sv_state: &mut Scroll
             Block::new()
                 .borders(Borders::NONE)
                 .padding(Padding::vertical(1))
-                .title(Line::from(ns.name.clone()).right_aligned())
+                .title(ns.name.clone())
                 .fg(tailwind::BLUE.c400),
-            rows[0],
+            cols[0],
         );
-        sv.render_widget(make_gauge("CPU", ns.cpu_pct, tailwind::GREEN.c500), rows[1]);
+
+        sv.render_widget(make_gauge("CPU", ns.cpu_pct, tailwind::GREEN.c500), cols[1]);
         sv.render_widget(
             make_gauge("MEM", ns.mem_pct, tailwind::EMERALD.c400),
-            rows[2],
+            cols[2],
         );
     }
 
