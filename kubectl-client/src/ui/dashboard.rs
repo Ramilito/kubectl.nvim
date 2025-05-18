@@ -18,7 +18,7 @@ use crossterm::{
 };
 use libc::{dup2, ioctl, winsize, STDERR_FILENO, STDOUT_FILENO, TIOCGWINSZ};
 use mlua::{prelude::*, Lua};
-use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
+use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
 use tui_widgets::scrollview::ScrollViewState;
 
 use crate::{
@@ -31,14 +31,132 @@ use crate::{
     CLIENT_INSTANCE,
 };
 
-static STOP: AtomicBool = AtomicBool::new(false);
+// ─────── View abstraction ────────────────────────────────────────────────────
 
-/// The screens the dashboard can show.
-#[derive(Clone, Copy)]
-enum ActiveView {
-    Overview,
-    Top,
+trait View {
+    /// React to an input event, returning `true` when the UI changed and needs
+    /// immediate redraw.
+    fn on_event(&mut self, ev: &Event) -> bool;
+
+    /// Render the UI.
+    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[crate::ui::nodes::NodeStat]);
 }
+
+struct OverviewView {
+    state: OverviewState,
+}
+impl OverviewView {
+    fn new() -> Self {
+        Self {
+            state: OverviewState::default(),
+        }
+    }
+}
+impl View for OverviewView {
+    fn on_event(&mut self, ev: &Event) -> bool {
+        match ev {
+            Event::Key(k) => match k.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.state.scroll_down();
+                    true
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.state.scroll_up();
+                    true
+                }
+                KeyCode::PageDown => {
+                    self.state.scroll_page_down();
+                    true
+                }
+                KeyCode::PageUp => {
+                    self.state.scroll_page_up();
+                    true
+                }
+                KeyCode::Tab => {
+                    self.state.focus_next();
+                    true
+                }
+                KeyCode::BackTab => {
+                    self.state.focus_prev();
+                    true
+                }
+                _ => false,
+            },
+            Event::Mouse(m) => match m.kind {
+                MouseEventKind::ScrollDown => {
+                    self.state.scroll_down();
+                    true
+                }
+                MouseEventKind::ScrollUp => {
+                    self.state.scroll_up();
+                    true
+                }
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[crate::ui::nodes::NodeStat]) {
+        overview_ui::draw(f, stats, area, &mut self.state);
+    }
+}
+
+struct TopView {
+    state: ScrollViewState,
+}
+impl TopView {
+    fn new() -> Self {
+        Self {
+            state: ScrollViewState::default(),
+        }
+    }
+}
+impl View for TopView {
+    fn on_event(&mut self, ev: &Event) -> bool {
+        match ev {
+            Event::Key(k) => match k.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.state.scroll_down();
+                    true
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.state.scroll_up();
+                    true
+                }
+                KeyCode::PageDown => {
+                    self.state.scroll_page_down();
+                    true
+                }
+                KeyCode::PageUp => {
+                    self.state.scroll_page_up();
+                    true
+                }
+                _ => false,
+            },
+            Event::Mouse(m) => match m.kind {
+                MouseEventKind::ScrollDown => {
+                    self.state.scroll_down();
+                    true
+                }
+                MouseEventKind::ScrollUp => {
+                    self.state.scroll_up();
+                    true
+                }
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[crate::ui::nodes::NodeStat]) {
+        top_ui::draw(f, stats, area, &mut self.state);
+    }
+}
+
+// ─────── Helpers ─────────────────────────────────────────────────────────────
+
+static STOP: AtomicBool = AtomicBool::new(false);
 
 fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
     unsafe {
@@ -51,13 +169,16 @@ fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
     }
 }
 
+// ─────── Public API ──────────────────────────────────────────────────────────
+
 #[tracing::instrument]
 pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
     let (pty_path, view_name) = args;
 
-    let active_view = match view_name.to_ascii_lowercase().as_str() {
-        "overview" | "overview_ui" => ActiveView::Overview,
-        "top" | "top_ui" => ActiveView::Top,
+    // select view -------------------------------------------------------------
+    let mut active_view: Box<dyn View + Send> = match view_name.to_ascii_lowercase().as_str() {
+        "overview" | "overview_ui" => Box::new(OverviewView::new()),
+        "top" | "top_ui" => Box::new(TopView::new()),
         other => {
             return Err(LuaError::RuntimeError(format!(
                 "unknown dashboard view: {other}"
@@ -65,14 +186,14 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
         }
     };
 
-    /* 1 ▸ open the PTY slave Neovim created for the float */
+    // open PTY ---------------------------------------------------------------
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .open(&pty_path)
         .map_err(|e| LuaError::ExternalError(Arc::new(e)))?;
 
-    /* 2 ▸ live collector running in background */
+    // live collector ---------------------------------------------------------
     let stats: SharedStats = Arc::new(Mutex::new(Vec::new()));
     let client = CLIENT_INSTANCE
         .lock()
@@ -82,7 +203,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
         .clone();
     spawn_node_collector(stats.clone(), client);
 
-    /*── redirect stdout/stderr to PTY ─────────────────────────────*/
+    // redirect stdout/stderr --------------------------------------------------
     unsafe {
         let fd: RawFd = file.as_raw_fd();
         dup2(fd, STDOUT_FILENO);
@@ -91,98 +212,56 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
 
     STOP.store(false, Ordering::SeqCst);
 
-    /*──────────────────── UI thread ───────────────────────────────*/
+    // UI thread --------------------------------------------------------------
     thread::spawn(move || {
-        /* terminal bootstrap */
+        // term bootstrap -----------------------------------------------------
         let (w, h) = pty_size(&file).unwrap_or((80, 24));
         let backend = CrosstermBackend::new(file);
         let mut term = Terminal::new(backend).unwrap();
         term.resize(Rect::new(0, 0, w, h)).unwrap();
         enable_raw_mode().ok();
 
-        /* one state object per screen */
-        let mut overview_state = OverviewState::default();
-        let mut top_state = ScrollViewState::default();
-
         let mut tick_ms: u64 = 200;
         let mut last_tick = Instant::now();
 
         'ui: while !STOP.load(Ordering::Relaxed) {
-            /*── handle input (non-blocking) ──────────────────*/
+            // input ----------------------------------------------------------
             if event::poll(Duration::from_millis(0)).unwrap() {
-                match event::read().unwrap() {
-                    Event::Key(k) => match k.code {
-                        KeyCode::Down | KeyCode::Char('j') => match active_view {
-                            ActiveView::Overview => overview_state.scroll_down(),
-                            ActiveView::Top => top_state.scroll_down(),
-                        },
-                        KeyCode::Up | KeyCode::Char('k') => match active_view {
-                            ActiveView::Overview => overview_state.scroll_up(),
-                            ActiveView::Top => top_state.scroll_up(),
-                        },
-                        KeyCode::PageDown => match active_view {
-                            ActiveView::Overview => overview_state.scroll_page_down(),
-                            ActiveView::Top => top_state.scroll_page_down(),
-                        },
-                        KeyCode::PageUp => match active_view {
-                            ActiveView::Overview => overview_state.scroll_page_up(),
-                            ActiveView::Top => top_state.scroll_page_up(),
-                        },
+                let ev = event::read().unwrap();
 
-                        KeyCode::Tab if matches!(active_view, ActiveView::Overview) => {
-                            overview_state.focus_next()
-                        }
-                        KeyCode::BackTab if matches!(active_view, ActiveView::Overview) => {
-                            overview_state.focus_prev()
-                        }
-
-                        KeyCode::Char('+') | KeyCode::Char('=') if tick_ms > 50 => tick_ms -= 50,
-                        KeyCode::Char('-') | KeyCode::Char('_') if tick_ms < 1000 => tick_ms += 50,
-
-                        /* quit */
-                        KeyCode::Char('q') => break 'ui,
-                        _ => {}
-                    },
-
-                    /* mouse wheel */
-                    Event::Mouse(m) => match m.kind {
-                        MouseEventKind::ScrollDown => match active_view {
-                            ActiveView::Overview => overview_state.scroll_down(),
-                            ActiveView::Top => top_state.scroll_down(),
-                        },
-                        MouseEventKind::ScrollUp => match active_view {
-                            ActiveView::Overview => overview_state.scroll_up(),
-                            ActiveView::Top => top_state.scroll_up(),
-                        },
-                        _ => {}
-                    },
-
-                    /* resize */
-                    Event::Resize(_, _) => {
-                        term.autoresize().ok();
-                    }
+                // global bindings -------------------------------------------
+                match &ev {
+                    Event::Key(k) if k.code == KeyCode::Char('q') => break 'ui,
+                    Event::Resize(_, _) => term.autoresize().ok().unwrap_or_default(),
                     _ => {}
+                }
+
+                // delegate to the view & redraw immediately if mutated ------
+                if active_view.on_event(&ev) {
+                    let snapshot = stats.lock().unwrap().clone();
+                    term.draw(|f| {
+                        let area = f.area();
+                        active_view.draw(f, area, &snapshot);
+                    })
+                    .ok();
+                    last_tick = Instant::now();
+                    continue; // skip tick redraw this iteration
                 }
             }
 
-            /* ── periodic redraw ────────────────────────────────────────── */
+            // periodic redraw ------------------------------------------------
             if last_tick.elapsed() >= Duration::from_millis(tick_ms) {
                 let snapshot = stats.lock().unwrap().clone();
                 term.draw(|f| {
-                    let rect = f.area();
-                    match active_view {
-                        ActiveView::Overview => {
-                            overview_ui::draw(f, &snapshot, rect, &mut overview_state)
-                        }
-                        ActiveView::Top => top_ui::draw(f, &snapshot, rect, &mut top_state),
-                    }
+                    let area = f.area();
+                    active_view.draw(f, area, &snapshot);
                 })
                 .ok();
                 last_tick = Instant::now();
             }
         }
 
-        /*── cleanup ──────────────────────────────────────────*/
+        // cleanup ------------------------------------------------------------
         let backend = term.backend_mut();
         queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
         disable_raw_mode().ok();
