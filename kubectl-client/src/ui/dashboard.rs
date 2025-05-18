@@ -11,7 +11,9 @@ use std::{
 };
 
 use crossterm::{
-    cursor, event, queue,
+    cursor,
+    event::{self, Event, KeyCode, MouseEventKind},
+    queue,
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
 use libc::{dup2, ioctl, winsize, STDERR_FILENO, STDOUT_FILENO, TIOCGWINSZ};
@@ -19,13 +21,24 @@ use mlua::{prelude::*, Lua};
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 use tui_widgets::scrollview::ScrollViewState;
 
-use super::{
-    nodes::{spawn_node_collector, SharedStats},
-    top_ui::draw,
+use crate::{
+    ui::{
+        nodes::{spawn_node_collector, SharedStats},
+        overview_ui,
+        overview_ui::OverviewState,
+        top_ui,
+    },
+    CLIENT_INSTANCE,
 };
-use crate::CLIENT_INSTANCE;
 
 static STOP: AtomicBool = AtomicBool::new(false);
+
+/// The screens the dashboard can show.
+#[derive(Clone, Copy)]
+enum ActiveView {
+    Overview,
+    Top,
+}
 
 fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
     unsafe {
@@ -39,8 +52,18 @@ fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
 }
 
 #[tracing::instrument]
-pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
-    STOP.store(false, Ordering::SeqCst);
+pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
+    let (pty_path, view_name) = args;
+
+    let active_view = match view_name.to_ascii_lowercase().as_str() {
+        "overview" | "overview_ui" => ActiveView::Overview,
+        "top" | "top_ui" => ActiveView::Top,
+        other => {
+            return Err(LuaError::RuntimeError(format!(
+                "unknown dashboard view: {other}"
+            )))
+        }
+    };
 
     /* 1 ▸ open the PTY slave Neovim created for the float */
     let file = OpenOptions::new()
@@ -59,54 +82,84 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
         .clone();
     spawn_node_collector(stats.clone(), client);
 
-    /* 3 ▸ UI thread */
+    /*── redirect stdout/stderr to PTY ─────────────────────────────*/
     unsafe {
-        let slave_fd: RawFd = file.as_raw_fd();
-        dup2(slave_fd, STDOUT_FILENO); // crossterm::terminal::size() hits the slave
-        dup2(slave_fd, STDERR_FILENO); // stderr goes to the same PTY (optional)
+        let fd: RawFd = file.as_raw_fd();
+        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDERR_FILENO);
     }
 
+    STOP.store(false, Ordering::SeqCst);
+
+    /*──────────────────── UI thread ───────────────────────────────*/
     thread::spawn(move || {
+        /* terminal bootstrap */
         let (w, h) = pty_size(&file).unwrap_or((80, 24));
         let backend = CrosstermBackend::new(file);
         let mut term = Terminal::new(backend).unwrap();
         term.resize(Rect::new(0, 0, w, h)).unwrap();
         enable_raw_mode().ok();
 
-        let mut scroll_state = ScrollViewState::default();
+        /* one state object per screen */
+        let mut overview_state = OverviewState::default();
+        let mut top_state = ScrollViewState::default();
+
         let mut tick_ms: u64 = 200;
         let mut last_tick = Instant::now();
 
         'ui: while !STOP.load(Ordering::Relaxed) {
-            /* ── non-blocking input ─────────────────────────────────────── */
+            /*── handle input (non-blocking) ──────────────────*/
             if event::poll(Duration::from_millis(0)).unwrap() {
                 match event::read().unwrap() {
-                    event::Event::Key(k) => match k.code {
-                        /* scrolling */
-                        event::KeyCode::Down | event::KeyCode::Char('j') => {
-                            scroll_state.scroll_down()
+                    Event::Key(k) => match k.code {
+                        KeyCode::Down | KeyCode::Char('j') => match active_view {
+                            ActiveView::Overview => overview_state.scroll_down(),
+                            ActiveView::Top => top_state.scroll_down(),
+                        },
+                        KeyCode::Up | KeyCode::Char('k') => match active_view {
+                            ActiveView::Overview => overview_state.scroll_up(),
+                            ActiveView::Top => top_state.scroll_up(),
+                        },
+                        KeyCode::PageDown => match active_view {
+                            ActiveView::Overview => overview_state.scroll_page_down(),
+                            ActiveView::Top => top_state.scroll_page_down(),
+                        },
+                        KeyCode::PageUp => match active_view {
+                            ActiveView::Overview => overview_state.scroll_page_up(),
+                            ActiveView::Top => top_state.scroll_page_up(),
+                        },
+
+                        KeyCode::Tab if matches!(active_view, ActiveView::Overview) => {
+                            overview_state.focus_next()
                         }
-                        event::KeyCode::Up | event::KeyCode::Char('k') => scroll_state.scroll_up(),
-                        event::KeyCode::PageDown => scroll_state.scroll_page_down(),
-                        event::KeyCode::PageUp => scroll_state.scroll_page_up(),
-                        /* tick-rate */
-                        event::KeyCode::Char('+') | event::KeyCode::Char('=') if tick_ms > 50 => {
-                            tick_ms -= 50
+                        KeyCode::BackTab if matches!(active_view, ActiveView::Overview) => {
+                            overview_state.focus_prev()
                         }
-                        event::KeyCode::Char('-') | event::KeyCode::Char('_') if tick_ms < 1000 => {
-                            tick_ms += 50
-                        }
+
+                        KeyCode::Char('+') | KeyCode::Char('=') if tick_ms > 50 => tick_ms -= 50,
+                        KeyCode::Char('-') | KeyCode::Char('_') if tick_ms < 1000 => tick_ms += 50,
+
                         /* quit */
-                        event::KeyCode::Char('q') => break 'ui,
+                        KeyCode::Char('q') => break 'ui,
                         _ => {}
                     },
-                    event::Event::Mouse(m) => match m.kind {
-                        event::MouseEventKind::ScrollDown => scroll_state.scroll_down(),
-                        event::MouseEventKind::ScrollUp => scroll_state.scroll_up(),
+
+                    /* mouse wheel */
+                    Event::Mouse(m) => match m.kind {
+                        MouseEventKind::ScrollDown => match active_view {
+                            ActiveView::Overview => overview_state.scroll_down(),
+                            ActiveView::Top => top_state.scroll_down(),
+                        },
+                        MouseEventKind::ScrollUp => match active_view {
+                            ActiveView::Overview => overview_state.scroll_up(),
+                            ActiveView::Top => top_state.scroll_up(),
+                        },
                         _ => {}
                     },
-                    event::Event::Resize(_, _) => {
-                        term.autoresize().ok(); // ratatui ≥ 0.26
+
+                    /* resize */
+                    Event::Resize(_, _) => {
+                        term.autoresize().ok();
                     }
                     _ => {}
                 }
@@ -116,14 +169,20 @@ pub fn start_dashboard(_lua: &Lua, pty_path: String) -> LuaResult<()> {
             if last_tick.elapsed() >= Duration::from_millis(tick_ms) {
                 let snapshot = stats.lock().unwrap().clone();
                 term.draw(|f| {
-                    draw(f, &snapshot, f.area(), &mut scroll_state);
+                    let rect = f.area();
+                    match active_view {
+                        ActiveView::Overview => {
+                            overview_ui::draw(f, &snapshot, rect, &mut overview_state)
+                        }
+                        ActiveView::Top => top_ui::draw(f, &snapshot, rect, &mut top_state),
+                    }
                 })
                 .ok();
                 last_tick = Instant::now();
             }
         }
 
-        /* ── graceful clear & restore ──────────────────────────────────── */
+        /*── cleanup ──────────────────────────────────────────*/
         let backend = term.backend_mut();
         queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
         disable_raw_mode().ok();

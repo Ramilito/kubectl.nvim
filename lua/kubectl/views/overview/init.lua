@@ -14,7 +14,7 @@ function M.View()
   local pty_path = info.pty -- verified in :h channel-info
 
   -- 4 ▸ start the dashboard, give it the *path* string
-  require("kubectl_client").start_dashboard(pty_path)
+  require("kubectl_client").start_dashboard(pty_path, "overview")
 
   -- 5 ▸ close everything when the buffer disappears
   api.nvim_create_autocmd({ "BufWipeout", "BufHidden" }, {
