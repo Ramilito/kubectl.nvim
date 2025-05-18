@@ -7,7 +7,7 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use super::nodes::NodeStat;
+use super::nodes_state::NodeStat;
 
 const CARD_HEIGHT: u16 = 1; // one line per card
 const MAX_TITLE_WIDTH: u16 = 40; // hard cap for the first column

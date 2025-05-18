@@ -23,9 +23,10 @@ use tui_widgets::scrollview::ScrollViewState;
 
 use crate::{
     ui::{
-        nodes::{spawn_node_collector, SharedStats},
+        nodes_state::{spawn_node_collector, NodeStat, SharedNodeStats},
         overview_ui,
         overview_ui::OverviewState,
+        pods_state::{spawn_pod_collector, PodStat, SharedPodStats},
         top_ui,
     },
     CLIENT_INSTANCE,
@@ -33,7 +34,7 @@ use crate::{
 
 trait View {
     fn on_event(&mut self, ev: &Event) -> bool;
-    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[crate::ui::nodes::NodeStat]);
+    fn draw(&mut self, f: &mut Frame, area: Rect, node_stats: &[NodeStat], pod_stats: &[PodStat]);
 }
 
 struct OverviewView {
@@ -91,8 +92,8 @@ impl View for OverviewView {
         }
     }
 
-    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[crate::ui::nodes::NodeStat]) {
-        overview_ui::draw(f, stats, area, &mut self.state);
+    fn draw(&mut self, f: &mut Frame, area: Rect, node_stats: &[NodeStat], pod_stats: &[PodStat]) {
+        overview_ui::draw(f, node_stats, area, &mut self.state);
     }
 }
 
@@ -143,7 +144,7 @@ impl View for TopView {
         }
     }
 
-    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[crate::ui::nodes::NodeStat]) {
+    fn draw(&mut self, f: &mut Frame, area: Rect, stats: &[NodeStat], pods_stats: &[PodStat]) {
         top_ui::draw(f, stats, area, &mut self.state);
     }
 }
@@ -184,14 +185,18 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
         .map_err(|e| LuaError::ExternalError(Arc::new(e)))?;
 
     // live collector ---------------------------------------------------------
-    let stats: SharedStats = Arc::new(Mutex::new(Vec::new()));
+    let node_stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
+    let pod_stats: SharedPodStats = Arc::new(Mutex::new(Vec::new()));
+
     let client = CLIENT_INSTANCE
         .lock()
         .map_err(|_| LuaError::RuntimeError("client poisoned".into()))?
         .as_ref()
         .ok_or_else(|| LuaError::RuntimeError("client not initialised".into()))?
         .clone();
-    spawn_node_collector(stats.clone(), client);
+
+    spawn_node_collector(node_stats.clone(), client.clone());
+    spawn_pod_collector(pod_stats.clone(), client.clone());
 
     // redirect stdout/stderr --------------------------------------------------
     unsafe {
@@ -211,7 +216,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
         term.resize(Rect::new(0, 0, w, h)).unwrap();
         enable_raw_mode().ok();
 
-        let mut tick_ms: u64 = 200;
+        let tick_ms: u64 = 200;
         let mut last_tick = Instant::now();
 
         'ui: while !STOP.load(Ordering::Relaxed) {
@@ -228,10 +233,11 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
 
                 // delegate to the view & redraw immediately if mutated ------
                 if active_view.on_event(&ev) {
-                    let snapshot = stats.lock().unwrap().clone();
+                    let node_snapshot = node_stats.lock().unwrap().clone();
+                    let pod_snapshot = pod_stats.lock().unwrap().clone();
                     term.draw(|f| {
                         let area = f.area();
-                        active_view.draw(f, area, &snapshot);
+                        active_view.draw(f, area, &node_snapshot, &pod_snapshot);
                     })
                     .ok();
                     last_tick = Instant::now();
@@ -241,10 +247,11 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
 
             // periodic redraw ------------------------------------------------
             if last_tick.elapsed() >= Duration::from_millis(tick_ms) {
-                let snapshot = stats.lock().unwrap().clone();
+                let node_snapshot = node_stats.lock().unwrap().clone();
+                let pod_snapshot = pod_stats.lock().unwrap().clone();
                 term.draw(|f| {
                     let area = f.area();
-                    active_view.draw(f, area, &snapshot);
+                    active_view.draw(f, area, &node_snapshot, &pod_snapshot);
                 })
                 .ok();
                 last_tick = Instant::now();

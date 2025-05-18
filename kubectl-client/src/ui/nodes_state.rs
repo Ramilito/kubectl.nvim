@@ -10,7 +10,7 @@ use k8s_metrics::QuantityExt;
 use k8s_openapi::api::core::v1::Node;
 use kube::{api, Api, Client, ResourceExt};
 use tokio::runtime::Runtime;
-use tracing::{info, warn};
+use tracing::warn;
 
 /// One node’s metrics as percentages (0–100).
 #[derive(Clone, Debug)]
@@ -19,10 +19,10 @@ pub struct NodeStat {
     pub cpu_pct: f64,
     pub mem_pct: f64,
 }
-pub type SharedStats = Arc<Mutex<Vec<NodeStat>>>;
+pub type SharedNodeStats = Arc<Mutex<Vec<NodeStat>>>;
 
 #[tracing::instrument(skip(client))]
-pub fn spawn_node_collector(stats: SharedStats, client: Client) {
+pub fn spawn_node_collector(stats: SharedNodeStats, client: Client) {
     thread::spawn(move || {
         let rt = Runtime::new().expect("create runtime for node collector");
 

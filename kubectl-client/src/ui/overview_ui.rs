@@ -16,9 +16,7 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use super::nodes::NodeStat; // ← your existing domain type
-
-/*────────────────────── Internal focus enum ────────────────────────────*/
+use super::nodes_state::NodeStat;
 
 #[derive(Clone, Copy)]
 #[derive(Default)]
