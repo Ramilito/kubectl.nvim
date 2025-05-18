@@ -8,7 +8,7 @@ use k8s_metrics::v1beta1 as metricsv1;
 use k8s_metrics::QuantityExt;
 use kube::{api, Api, Client};
 use tokio::runtime::Runtime;
-use tracing::{info, warn};
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct PodStat {
@@ -62,7 +62,6 @@ pub fn spawn_pod_collector(stats: SharedPodStats, client: Client) {
                     }
 
                     *stats.lock().unwrap() = out;
-                    info!(count = ?stats.lock().unwrap().len(), "pod stats updated");
                 }
                 Err(e) => warn!(error = %e, "failed to fetch pod metrics"),
             }
