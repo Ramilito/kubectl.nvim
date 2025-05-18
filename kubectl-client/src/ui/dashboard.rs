@@ -1,6 +1,6 @@
 use std::{
     fs::OpenOptions,
-    io::Result as IoResult,
+    io::{Result as IoResult, Write},
     os::fd::{AsRawFd, RawFd},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -18,7 +18,8 @@ use crossterm::{
 };
 use libc::{dup2, ioctl, winsize, STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ};
 use mlua::{prelude::*, Lua};
-use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
+use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal, TerminalOptions};
+use tracing::info;
 
 use crate::{
     ui::{
@@ -262,7 +263,6 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
                 last_tick = Instant::now();
             }
         }
-
         // cleanup ------------------------------------------------------------
         let backend = term.backend_mut();
         queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
