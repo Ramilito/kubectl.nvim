@@ -10,7 +10,7 @@ use std::panic;
 use std::sync::{Mutex, OnceLock, RwLock};
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::{error, info};
+use tracing::error;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -45,6 +45,7 @@ mod describe;
 mod drain;
 mod events;
 mod filter;
+mod metrics;
 mod processors;
 mod sort;
 mod store;

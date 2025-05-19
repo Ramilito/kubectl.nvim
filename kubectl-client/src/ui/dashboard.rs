@@ -23,10 +23,10 @@ use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
 use tokio::runtime::Runtime;
 
 use crate::{
+    metrics::nodes::{spawn_node_collector, NodeStat, SharedNodeStats},
+    metrics::pods::{spawn_pod_collector, PodStat, SharedPodStats},
     ui::{
-        nodes_state::{spawn_node_collector, NodeStat, SharedNodeStats},
         overview_ui::{self, OverviewState},
-        pods_state::{spawn_pod_collector, PodStat, SharedPodStats},
         top_ui::{self, TopViewState},
     },
     ACTIVE_CONTEXT,

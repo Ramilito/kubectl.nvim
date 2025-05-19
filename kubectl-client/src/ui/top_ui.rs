@@ -7,8 +7,8 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use super::nodes_state::NodeStat;
-use super::pods_state::PodStat;
+use crate::metrics::nodes::NodeStat;
+use crate::metrics::pods::PodStat;
 
 const CARD_HEIGHT: u16 = 1; // one line per Node row
 const MAX_TITLE_WIDTH: u16 = 40;

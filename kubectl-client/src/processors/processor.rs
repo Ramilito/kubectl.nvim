@@ -1,10 +1,8 @@
 use chrono::{Duration, Utc};
-use k8s_openapi::apimachinery::pkg::version::Info;
 use kube::api::DynamicObject;
 use mlua::{prelude::*, Lua};
 use rayon::prelude::*;
 use std::fmt::Debug;
-use tracing::info;
 
 use crate::{
     events::symbols,

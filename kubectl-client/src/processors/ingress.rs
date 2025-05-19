@@ -92,7 +92,7 @@ fn get_ports(ing: &Ingress) -> FieldValue {
                 }
             }
         }
-        if spec.tls.as_ref().map_or(false, |tls| !tls.is_empty()) {
+        if spec.tls.as_ref().is_some_and(|tls| !tls.is_empty()) {
             ports.insert(443);
         }
     }

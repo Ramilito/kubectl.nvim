@@ -25,8 +25,8 @@ async fn exec_async(
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
     // Split the attached process into stdin and stdout streams.
-    let mut proc_stdout = attached.stdout().take().expect("expected stdout");
-    let mut proc_stdin = attached.stdin().take().expect("expected stdin");
+    let mut proc_stdout = attached.stdout().expect("expected stdout");
+    let mut proc_stdin = attached.stdin().expect("expected stdin");
 
     let _ = debug_print(lua, "testing");
     // Spawn a task to read from the process stdout and write to the Neovim terminal.

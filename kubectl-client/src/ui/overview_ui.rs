@@ -16,7 +16,7 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use super::nodes_state::NodeStat;
+use crate::metrics::nodes::NodeStat;
 
 #[derive(Clone, Copy)]
 #[derive(Default)]
