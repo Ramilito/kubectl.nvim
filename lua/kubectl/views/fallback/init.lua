@@ -22,7 +22,7 @@ function M.View(cancellationToken, kind)
 
   if not resource then
     require("kubectl.views").view_or_fallback("pods")
-    vim.notify("View not found in cache: " .. kind)
+    vim.notify("View not found in cache: " .. (kind or "<nil>"))
 
     return
   end
