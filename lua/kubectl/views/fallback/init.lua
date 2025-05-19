@@ -20,16 +20,9 @@ function M.View(cancellationToken, kind)
   end
   local resource = cached_resources.values[string.lower(M.resource)]
 
-  if cache.loading then
-    require("kubectl.views").view_or_fallback("pods")
-    vim.notify("Fallback cache for " .. (M.resource or "<nil>") .. " is still loading, try again soon")
-
-    return
-  end
-
   if not resource then
     require("kubectl.views").view_or_fallback("pods")
-    vim.notify("View not found: " .. (resource and resource.name or "<nil>"))
+    vim.notify("View not found in cache: " .. kind)
 
     return
   end
@@ -43,8 +36,7 @@ function M.View(cancellationToken, kind)
 
   local builder = manager.get_or_create(M.definition.resource)
   builder.definition = M.definition
-
-  builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, builder.resource)
+  builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, M.resource)
 
   commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = nil }, function()
     vim.schedule(function()
