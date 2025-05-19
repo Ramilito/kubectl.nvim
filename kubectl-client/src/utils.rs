@@ -8,6 +8,10 @@ pub enum AccessorMode {
     Filter,
 }
 
+pub fn pad_key(n: usize) -> String {
+    format!("{:020}", n)
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FieldValue {
     pub value: String,

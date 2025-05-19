@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     events::{color_status, symbols},
     pod_stats,
-    utils::{time_since, AccessorMode, FieldValue},
+    utils::{pad_key, time_since, AccessorMode, FieldValue},
 };
 use chrono::{DateTime, Utc};
 use k8s_metrics::QuantityExt;
@@ -165,12 +165,30 @@ impl Processor for PodProcessor {
                 AccessorMode::Sort => pod.age.sort_by.map(|v| v.to_string()),
                 AccessorMode::Filter => Some(pod.age.value.clone()),
             },
-            "cpu" => Some(pod.cpu.value.clone()),
-            "mem" => Some(pod.mem.value.clone()),
-            "%cpu/r" => Some(pod.cpu_pct_r.value.clone()),
-            "%cpu/l" => Some(pod.cpu_pct_l.value.clone()),
-            "%mem/r" => Some(pod.mem_pct_r.value.clone()),
-            "%mem/l" => Some(pod.mem_pct_l.value.clone()),
+            "cpu" => match mode {
+                AccessorMode::Sort => pod.cpu.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(pod.cpu.value.clone()),
+            },
+            "mem" => match mode {
+                AccessorMode::Sort => pod.mem.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(pod.mem.value.clone()),
+            },
+            "%cpu/r" => match mode {
+                AccessorMode::Sort => pod.cpu_pct_r.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(pod.cpu_pct_r.value.clone()),
+            },
+            "%cpu/l" => match mode {
+                AccessorMode::Sort => pod.cpu_pct_l.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(pod.cpu_pct_l.value.clone()),
+            },
+            "%mem/r" => match mode {
+                AccessorMode::Sort => pod.mem_pct_r.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(pod.mem_pct_r.value.clone()),
+            },
+            "%mem/l" => match mode {
+                AccessorMode::Sort => pod.mem_pct_l.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(pod.mem_pct_l.value.clone()),
+            },
             _ => None,
         })
     }
