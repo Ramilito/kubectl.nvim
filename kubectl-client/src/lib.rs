@@ -2,12 +2,13 @@
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
+use metrics::pods::{spawn_pod_collector, PodStat, SharedPodStats};
 use mlua::prelude::*;
 use mlua::Lua;
 use std::backtrace::Backtrace;
 use std::future::Future;
 use std::panic;
-use std::sync::{Mutex, OnceLock, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 use tracing::error;
@@ -56,6 +57,11 @@ mod utils;
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
+static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
+
+pub fn pod_stats() -> &'static SharedPodStats {
+    POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
+}
 
 pub fn with_client<F, Fut, R>(f: F) -> LuaResult<R>
 where
@@ -98,6 +104,9 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
                 .map_err(LuaError::external)?;
 
             let client = Client::try_from(config).map_err(LuaError::external)?;
+            {
+                spawn_pod_collector(client.clone()); // no extra argument
+            };
             Ok::<Client, mlua::Error>(client)
         };
         {

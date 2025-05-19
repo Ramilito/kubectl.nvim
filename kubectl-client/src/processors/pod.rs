@@ -2,12 +2,18 @@ use std::collections::HashMap;
 
 use crate::{
     events::{color_status, symbols},
+    pod_stats,
     utils::{time_since, AccessorMode, FieldValue},
 };
 use chrono::{DateTime, Utc};
-use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
+use k8s_metrics::QuantityExt;
+use k8s_openapi::{
+    api::core::v1::{ContainerStatus, Pod},
+    apimachinery::pkg::api::resource::Quantity,
+};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
+use tracing::info;
 
 use super::processor::Processor;
 
@@ -21,6 +27,16 @@ pub struct PodProcessed {
     ip: FieldValue,
     node: String,
     age: FieldValue,
+    cpu: FieldValue,
+    mem: FieldValue,
+    #[serde(rename = "%cpu/r")]
+    cpu_pct_r: FieldValue,
+    #[serde(rename = "%cpu/l")]
+    cpu_pct_l: FieldValue,
+    #[serde(rename = "%mem/r")]
+    mem_pct_r: FieldValue,
+    #[serde(rename = "%mem/l")]
+    mem_pct_l: FieldValue,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -38,6 +54,25 @@ impl Processor for PodProcessor {
             from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
 
         let now = Utc::now();
+
+        let ns = pod.metadata.namespace.clone().unwrap_or_default();
+        let name = pod.metadata.name.clone().unwrap_or_default();
+
+        let (cpu_m, mem_mi) = {
+            let guard = pod_stats().lock().unwrap();
+            guard
+                .iter()
+                .find(|s| s.namespace == ns && s.name == name)
+                .map(|s| (s.cpu_m, s.mem_mi))
+                .unwrap_or((0, 0))
+        };
+
+        let (req_cpu_m, req_mem_mi) = sum_requests(&pod);
+        let (lim_cpu_m, lim_mem_mi) = sum_limits(&pod);
+        let cpu_pct_r_val = (req_cpu_m > 0).then(|| percent(cpu_m, req_cpu_m));
+        let cpu_pct_l_val = (lim_cpu_m > 0).then(|| percent(cpu_m, lim_cpu_m));
+        let mem_pct_r_val = (req_mem_mi > 0).then(|| percent(mem_mi, req_mem_mi));
+        let mem_pct_l_val = (lim_mem_mi > 0).then(|| percent(mem_mi, lim_mem_mi));
 
         Ok(PodProcessed {
             ready: get_ready(&pod),
@@ -63,6 +98,44 @@ impl Processor for PodProcessor {
             age: self.get_age(obj),
             namespace: pod.metadata.namespace.unwrap_or_default(),
             name: pod.metadata.name.unwrap_or_default(),
+            cpu: FieldValue {
+                value: format!("{}", cpu_m),
+                sort_by: Some(cpu_m as usize),
+                ..Default::default()
+            },
+            mem: FieldValue {
+                value: format!("{}", mem_mi),
+                sort_by: Some(mem_mi as usize),
+                ..Default::default()
+            },
+            cpu_pct_r: FieldValue {
+                value: cpu_pct_r_val
+                    .map(|p| format!("{p}"))
+                    .unwrap_or_else(|| "n/a".into()),
+                sort_by: cpu_pct_r_val.map(|p| p as usize),
+                symbol: cpu_pct_r_val.map(color_usage),
+            },
+            cpu_pct_l: FieldValue {
+                value: cpu_pct_l_val
+                    .map(|p| format!("{p}"))
+                    .unwrap_or_else(|| "n/a".into()),
+                sort_by: cpu_pct_l_val.map(|p| p as usize),
+                symbol: cpu_pct_l_val.map(color_usage),
+            },
+            mem_pct_r: FieldValue {
+                value: mem_pct_r_val
+                    .map(|p| format!("{p}"))
+                    .unwrap_or_else(|| "n/a".into()),
+                sort_by: mem_pct_r_val.map(|p| p as usize),
+                symbol: mem_pct_r_val.map(color_usage),
+            },
+            mem_pct_l: FieldValue {
+                value: mem_pct_l_val
+                    .map(|p| format!("{p}"))
+                    .unwrap_or_else(|| "n/a".into()),
+                sort_by: mem_pct_l_val.map(|p| p as usize),
+                symbol: mem_pct_l_val.map(color_usage),
+            },
         })
     }
 
@@ -92,9 +165,79 @@ impl Processor for PodProcessor {
                 AccessorMode::Sort => pod.age.sort_by.map(|v| v.to_string()),
                 AccessorMode::Filter => Some(pod.age.value.clone()),
             },
+            "cpu" => Some(pod.cpu.value.clone()),
+            "mem" => Some(pod.mem.value.clone()),
+            "%cpu/r" => Some(pod.cpu_pct_r.value.clone()),
+            "%cpu/l" => Some(pod.cpu_pct_l.value.clone()),
+            "%mem/r" => Some(pod.mem_pct_r.value.clone()),
+            "%mem/l" => Some(pod.mem_pct_l.value.clone()),
             _ => None,
         })
     }
+}
+
+fn sum_requests(pod: &Pod) -> (u64, u64) {
+    let mut cpu_m = 0_u64;
+    let mut mem_mi = 0_u64;
+
+    if let Some(spec) = &pod.spec {
+        for c in &spec.containers {
+            if let Some(reqs) = c.resources.as_ref().and_then(|r| r.requests.as_ref()) {
+                if let Some(q) = reqs.get("cpu") {
+                    cpu_m += quantity_to_millicpu(q);
+                }
+                if let Some(q) = reqs.get("memory") {
+                    mem_mi += quantity_to_mib(q);
+                }
+            }
+        }
+    }
+    (cpu_m, mem_mi)
+}
+
+fn sum_limits(pod: &Pod) -> (u64, u64) {
+    /* returns (cpu_m, mem_mi) */
+    let mut cpu_m = 0_u64;
+    let mut mem_mi = 0_u64;
+
+    if let Some(spec) = &pod.spec {
+        for c in &spec.containers {
+            if let Some(limits) = c.resources.as_ref().and_then(|r| r.limits.as_ref()) {
+                if let Some(q) = limits.get("cpu") {
+                    cpu_m += quantity_to_millicpu(q);
+                }
+                if let Some(q) = limits.get("memory") {
+                    mem_mi += quantity_to_mib(q);
+                }
+            }
+        }
+    }
+    (cpu_m, mem_mi)
+}
+
+fn quantity_to_millicpu(q: &Quantity) -> u64 {
+    /* Quantity handles underlying string; simplest is to reuse the
+    parsing helpers you already used (`to_f64`) */
+    (q.to_f64().unwrap_or(0.0) * 1000.0).round() as u64
+}
+fn quantity_to_mib(q: &Quantity) -> u64 {
+    (q.to_memory().unwrap_or(0) as u64) / (1024 * 1024)
+}
+
+/* symbol colouring: >90 %=Red, >80 %=Yellow, else Green */
+fn color_usage(p: u64) -> String {
+    if p >= 90 {
+        color_status("Red")
+    } else if p >= 80 {
+        color_status("Yellow")
+    } else {
+        color_status("Green")
+    }
+}
+
+/* tiny helper so you can re-use it elsewhere */
+pub fn percent(used: u64, limit: u64) -> u64 {
+    ((used as f64 / limit as f64) * 100.0).round() as u64
 }
 
 fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> FieldValue {

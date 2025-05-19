@@ -309,7 +309,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
         });
         rt.block_on(async {
             spawn_node_collector(node_stats.clone(), client.clone());
-            spawn_pod_collector(pod_stats.clone(), client.clone());
+            spawn_pod_collector(client.clone());
         });
 
         // 5 ▸ Hand over to the TUI loop (never returns) --------------------

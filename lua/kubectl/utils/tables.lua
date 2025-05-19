@@ -453,7 +453,6 @@ function M.pretty_print(data, headers, sort_by, win)
   for k, v in ipairs(headers) do
     columns[k] = v:lower()
   end
-
   local widths = calculate_column_widths(data, columns)
 
   -- adjust for headers being longer than max length content
