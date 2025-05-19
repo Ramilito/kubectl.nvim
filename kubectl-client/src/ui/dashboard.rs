@@ -15,8 +15,8 @@ use crossterm::{
 };
 use kube::{config::KubeConfigOptions, Client, Config};
 use libc::{
-    _exit, dup2, fork, ioctl, kill, pid_t, setsid, waitpid, winsize, SIGKILL, SIGTERM,
-    STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ, WNOHANG,
+    _exit, dup2, fork, ftrimactivefile_t, ioctl, kill, pid_t, setsid, waitpid, winsize, SIGINT,
+    SIGKILL, SIGTERM, STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ, WNOHANG,
 };
 use mlua::{prelude::*, Lua};
 use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
@@ -159,6 +159,10 @@ impl View for TopView {
 
 // ——————————————————————————————————  Global child‑PID slot  ——————————————————————————————————
 static CHILD_PID: OnceLock<Mutex<Option<pid_t>>> = OnceLock::new();
+static TAIL_PID: OnceLock<Mutex<Option<pid_t>>> = OnceLock::new();
+fn tail_slot() -> &'static Mutex<Option<pid_t>> {
+    TAIL_PID.get_or_init(|| Mutex::new(None))
+}
 fn pid_slot() -> &'static Mutex<Option<pid_t>> {
     CHILD_PID.get_or_init(|| Mutex::new(None))
 }
@@ -186,7 +190,15 @@ fn ui_loop(
         if event::poll(Duration::from_millis(0)).unwrap() {
             let ev = event::read().unwrap();
             match &ev {
-                Event::Key(k) if k.code == KeyCode::Char('q') => break 'ui,
+                Event::Key(k) if k.code == KeyCode::Char('q') => {
+                    let maybe_tail = tail_slot().lock().unwrap().take();
+                    if let Some(tail) = maybe_tail {
+                        unsafe {
+                            libc::kill(tail, libc::SIGINT);
+                        }
+                    }
+                    break 'ui;
+                }
                 Event::Resize(_, _) => term.autoresize().ok().unwrap_or_default(),
                 _ => {}
             }
@@ -226,9 +238,10 @@ fn ui_loop(
 }
 
 #[tracing::instrument]
-pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
-    let (pty_path, view_name) = args;
+pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()> {
+    let (pty_path, view_name, tail_pid) = args;
 
+    *tail_slot().lock().unwrap() = Some(tail_pid as pid_t);
     // 0 ▸ If a dashboard is already running, politely stop it --------------
     if let Some(old) = pid_slot().lock().unwrap().take() {
         unsafe {
@@ -254,8 +267,6 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
 
     if pid == 0 {
         // ====================== CHILD PROCESS =============================
-        unsafe { setsid() }; // new session / controlling terminal
-
         // 1 ▸ Resolve which view to start ----------------------------------
         let active_view: Box<dyn View + Send> = match view_name.to_ascii_lowercase().as_str() {
             "overview" | "overview_ui" => Box::new(OverviewView::new()),
@@ -274,7 +285,6 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String)) -> LuaResult<()> {
                 unsafe { _exit(1) }
             }
         };
-
         // 3 ▸ Redirect stdio ----------------------------------------------
         unsafe {
             let fd: RawFd = file.as_raw_fd();
