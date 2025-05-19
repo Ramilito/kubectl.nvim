@@ -15,8 +15,8 @@ use crossterm::{
 };
 use kube::{config::KubeConfigOptions, Client, Config};
 use libc::{
-    _exit, dup2, fork, ftrimactivefile_t, ioctl, kill, pid_t, setsid, waitpid, winsize, SIGINT,
-    SIGKILL, SIGTERM, STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ, WNOHANG,
+    _exit, dup2, fork, ioctl, kill, pid_t, waitpid, winsize, SIGKILL, SIGTERM, STDERR_FILENO,
+    STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ, WNOHANG,
 };
 use mlua::{prelude::*, Lua};
 use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
