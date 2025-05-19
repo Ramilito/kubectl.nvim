@@ -7,8 +7,13 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use crate::metrics::nodes::NodeStat;
-use crate::metrics::pods::PodStat;
+use crate::{
+    metrics::{
+        nodes::NodeStat,
+        pods::PodStat, //  ◀─ global accessor + struct
+    },
+    pod_stats,
+};
 
 const CARD_HEIGHT: u16 = 1; // one line per Node row
 const MAX_TITLE_WIDTH: u16 = 40;
@@ -79,13 +84,13 @@ impl TopViewState {
 }
 
 /* ───────────── public draw entry-point ───────────────────────────────── */
-pub fn draw(
-    f: &mut Frame,
-    area: Rect,
-    state: &mut TopViewState,
-    node_stats: &[NodeStat],
-    pod_stats: &[PodStat],
-) {
+pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[NodeStat]) {
+    /* === NEW: take a snapshot of pods =================================== */
+    let pod_snapshot: Vec<PodStat> = {
+        let guard = pod_stats().lock().unwrap();
+        guard.clone() // clones Vec<PodStat>; releases lock
+    };
+
     /* outer frame -------------------------------------------------------- */
     let outer = Block::new()
         .title(" Top (live) ")
@@ -120,6 +125,7 @@ pub fn draw(
 
     /* ============================== NODES ============================== */
     if state.selected_tab == 0 {
+        /* … 100 % identical to before … */
         let title_w = node_stats
             .iter()
             .map(|ns| Line::from(ns.name.clone()).width() as u16 + 1)
@@ -170,9 +176,12 @@ pub fn draw(
         }
 
         f.render_stateful_widget(sv, body_area, &mut state.node_scroll);
-    } else {
-        state.pod_rows = pod_stats.len();
-        let title_w = pod_stats
+    }
+    /* =============================== PODS ============================== */
+    else {
+        state.pod_rows = pod_snapshot.len();
+
+        let title_w = pod_snapshot
             .iter()
             .map(|ps| {
                 let full = format!("{}/{}", ps.namespace, ps.name);
@@ -186,6 +195,10 @@ pub fn draw(
             Cell::from("Pod"),
             Cell::from("CPU (m)"),
             Cell::from("MEM (Mi)"),
+            Cell::from("%CPU/R"),
+            Cell::from("%CPU/L"),
+            Cell::from("%MEM/R"),
+            Cell::from("%MEM/L"),
         ])
         .style(
             Style::default()
@@ -193,7 +206,7 @@ pub fn draw(
                 .add_modifier(Modifier::BOLD),
         );
 
-        let rows: Vec<Row> = pod_stats
+        let rows: Vec<Row> = pod_snapshot
             .iter()
             .map(|ps| {
                 let name = format!("{}/{}", ps.namespace, ps.name);
@@ -206,9 +219,9 @@ pub fn draw(
             .collect();
 
         let widths = [
-            Constraint::Length(title_w),
-            Constraint::Length(9),
-            Constraint::Length(9),
+            Constraint::Length(title_w), // Pod name
+            Constraint::Length(9),       // CPU (m)
+            Constraint::Length(9),       // MEM (Mi)
         ];
 
         let table = Table::new(rows, &widths)

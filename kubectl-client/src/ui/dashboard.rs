@@ -24,7 +24,6 @@ use tokio::runtime::Runtime;
 
 use crate::{
     metrics::nodes::{spawn_node_collector, NodeStat, SharedNodeStats},
-    metrics::pods::{spawn_pod_collector, PodStat, SharedPodStats},
     ui::{
         overview_ui::{self, OverviewState},
         top_ui::{self, TopViewState},
@@ -70,7 +69,7 @@ macro_rules! scroll_nav {
 // ——————————————————————————————————  View trait & concrete views  ——————————————————————————————————
 trait View {
     fn on_event(&mut self, ev: &Event) -> bool;
-    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat], pods: &[PodStat]);
+    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]);
 }
 
 struct OverviewView {
@@ -112,7 +111,7 @@ impl View for OverviewView {
         }
     }
 
-    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat], _pods: &[PodStat]) {
+    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]) {
         overview_ui::draw(f, nodes, area, &mut self.state);
     }
 }
@@ -152,8 +151,8 @@ impl View for TopView {
         }
     }
 
-    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat], pods: &[PodStat]) {
-        top_ui::draw(f, area, &mut self.state, nodes, pods);
+    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]) {
+        top_ui::draw(f, area, &mut self.state, nodes);
     }
 }
 
@@ -173,7 +172,6 @@ fn ui_loop(
     mut active_view: Box<dyn View + Send>,
     file: std::fs::File,
     node_stats: SharedNodeStats,
-    pod_stats: SharedPodStats,
 ) -> ! {
     // 1 ▸ Terminal setup ----------------------------------------------------
     const TICK_MS: u64 = 200;
@@ -204,10 +202,9 @@ fn ui_loop(
             }
             if active_view.on_event(&ev) {
                 let nodes = node_stats.lock().unwrap().clone();
-                let pods = pod_stats.lock().unwrap().clone();
                 term.draw(|f| {
                     let area = f.area();
-                    active_view.draw(f, area, &nodes, &pods);
+                    active_view.draw(f, area, &nodes);
                 })
                 .ok();
                 last_tick = Instant::now();
@@ -218,10 +215,9 @@ fn ui_loop(
         // — tick —
         if last_tick.elapsed() >= Duration::from_millis(TICK_MS) {
             let nodes = node_stats.lock().unwrap().clone();
-            let pods = pod_stats.lock().unwrap().clone();
             term.draw(|f| {
                 let area = f.area();
-                active_view.draw(f, area, &nodes, &pods);
+                active_view.draw(f, area, &nodes);
             })
             .ok();
             last_tick = Instant::now();
@@ -296,7 +292,6 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
         // 4 ▸ Build runtime + collectors -----------------------------------
         let rt = Runtime::new().expect("tokio runtime");
         let node_stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
-        let pod_stats: SharedPodStats = Arc::new(Mutex::new(Vec::new()));
 
         let opts = KubeConfigOptions {
             context: ACTIVE_CONTEXT.read().unwrap().clone(),
@@ -309,11 +304,10 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
         });
         rt.block_on(async {
             spawn_node_collector(node_stats.clone(), client.clone());
-            spawn_pod_collector(client.clone());
         });
 
         // 5 ▸ Hand over to the TUI loop (never returns) --------------------
-        ui_loop(active_view, file, node_stats, pod_stats);
+        ui_loop(active_view, file, node_stats);
     }
 
     // ============= parent ============ ------------------------------------

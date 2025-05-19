@@ -13,7 +13,6 @@ use k8s_openapi::{
 };
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use tracing::info;
 
 use super::processor::Processor;
 
