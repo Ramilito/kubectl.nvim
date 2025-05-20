@@ -11,7 +11,7 @@ use kube::{api, Api, Client};
 use tokio::runtime::Runtime;
 use tracing::warn;
 
-use crate::pod_stats;
+use crate::{pod_stats, RUNTIME};
 
 pub const HISTORY_LEN: usize = 60; // ≈ 30 s @ 500 ms tick or 30 min @ 30 s tick
 
@@ -63,7 +63,7 @@ pub fn spawn_pod_collector(client: Client) {
     let stats = pod_stats().clone();
 
     thread::spawn(move || {
-        let rt = Runtime::new().expect("create runtime for pod collector");
+        let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
         let metrics_api: Api<metricsv1::PodMetrics> = Api::all(client);
 
         loop {
