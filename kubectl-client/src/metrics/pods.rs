@@ -114,7 +114,7 @@ pub fn spawn_pod_collector(client: Client) {
                 Err(e) => warn!(error = %e, "failed to fetch pod metrics"),
             }
 
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(Duration::from_secs(45));
         }
     });
 }
