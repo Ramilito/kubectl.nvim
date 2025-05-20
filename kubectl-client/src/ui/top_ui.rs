@@ -1,30 +1,36 @@
+//! top_view.rs ─ Nodes tab (gauges) + Pods tab (sparklines)
+
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},
     prelude::*,
     style::palette::tailwind,
     text::Line,
-    widgets::{Block, Borders, Cell, Gauge, Padding, Row, Table, TableState, Tabs},
+    widgets::{Block, Borders, Gauge, Padding, Sparkline, Tabs},
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
 use crate::{
-    metrics::{
-        nodes::NodeStat,
-        pods::PodStat, //  ◀─ global accessor + struct
-    },
+    metrics::{nodes::NodeStat, pods::PodStat},
     pod_stats,
 };
 
-const CARD_HEIGHT: u16 = 1; // one line per Node row
+/* ---------------------------------------------------------------------- */
+/*  CONSTANTS                                                             */
+/* ---------------------------------------------------------------------- */
+
+const CARD_HEIGHT: u16 = 1; // one line per node
+const ROW_H: u16 = 2; // three lines per pod row
 const MAX_TITLE_WIDTH: u16 = 40;
-const PAGE: usize = 10;
+
+/* ---------------------------------------------------------------------- */
+/*  VIEW STATE                                                            */
+/* ---------------------------------------------------------------------- */
 
 #[derive(Default)]
 pub struct TopViewState {
     selected_tab: usize, // 0 = Nodes, 1 = Pods
     node_scroll: ScrollViewState,
-    pod_table: TableState,
-    pod_rows: usize, // total pod rows (for scroll bounds)
+    pod_scroll: ScrollViewState,
 }
 
 impl TopViewState {
@@ -41,36 +47,28 @@ impl TopViewState {
         if self.selected_tab == 0 {
             self.node_scroll.scroll_down();
         } else {
-            let next = self.pod_table.selected().unwrap_or(0).saturating_add(1);
-            if next < self.pod_rows {
-                self.pod_table.select(Some(next));
-            }
+            self.pod_scroll.scroll_down();
         }
     }
     pub fn scroll_up(&mut self) {
         if self.selected_tab == 0 {
             self.node_scroll.scroll_up();
-        } else if let Some(sel) = self.pod_table.selected() {
-            if sel > 0 {
-                self.pod_table.select(Some(sel - 1));
-            }
+        } else {
+            self.pod_scroll.scroll_up();
         }
     }
     pub fn scroll_page_down(&mut self) {
         if self.selected_tab == 0 {
             self.node_scroll.scroll_page_down();
         } else {
-            let next = self.pod_table.selected().unwrap_or(0).saturating_add(PAGE);
-            self.pod_table
-                .select(Some(next.min(self.pod_rows.saturating_sub(1))));
+            self.pod_scroll.scroll_page_down();
         }
     }
     pub fn scroll_page_up(&mut self) {
         if self.selected_tab == 0 {
             self.node_scroll.scroll_page_up();
         } else {
-            let next = self.pod_table.selected().unwrap_or(0).saturating_sub(PAGE);
-            self.pod_table.select(Some(next));
+            self.pod_scroll.scroll_page_up();
         }
     }
 
@@ -83,12 +81,37 @@ impl TopViewState {
     }
 }
 
-/* ───────────── public draw entry-point ───────────────────────────────── */
+/* ---------------------------------------------------------------------- */
+/*  HELPERS                                                               */
+/* ---------------------------------------------------------------------- */
+
+/// Build a coloured sparkline with a tiny title
+fn make_sparkline<'a>(title: &'a str, data: &'a [u64], color: Color) -> Sparkline<'a> {
+    Sparkline::default()
+        .block(Block::new().borders(Borders::NONE).title(title))
+        .data(data)
+        .style(Style::default().fg(color))
+}
+
+/// Trim history to the available column width
+fn slice_to_width<'a>(data: &'a [u64], max_w: u16) -> &'a [u64] {
+    let w = max_w as usize;
+    if data.len() <= w {
+        data
+    } else {
+        &data[..w]
+    }
+}
+
+/* ---------------------------------------------------------------------- */
+/*  PUBLIC DRAW ENTRY-POINT                                               */
+/* ---------------------------------------------------------------------- */
+
 pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[NodeStat]) {
-    /* === NEW: take a snapshot of pods =================================== */
+    /* === snapshot of current pod stats ================================= */
     let pod_snapshot: Vec<PodStat> = {
         let guard = pod_stats().lock().unwrap();
-        guard.clone() // clones Vec<PodStat>; releases lock
+        guard.clone()
     };
 
     /* outer frame -------------------------------------------------------- */
@@ -109,8 +132,9 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
     });
 
     /* split: tab bar + body --------------------------------------------- */
-    let [tabs_area, body_area] =
-        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
+    let chunks = Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).split(inner);
+    let tabs_area = chunks[0];
+    let body_area = chunks[1];
 
     /* tab bar ------------------------------------------------------------ */
     let tabs = Tabs::new(vec![Line::from("Nodes"), Line::from("Pods")])
@@ -125,7 +149,6 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
 
     /* ============================== NODES ============================== */
     if state.selected_tab == 0 {
-        /* … 100 % identical to before … */
         let title_w = node_stats
             .iter()
             .map(|ns| Line::from(ns.name.clone()).width() as u16 + 1)
@@ -179,57 +202,68 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
     }
     /* =============================== PODS ============================== */
     else {
-        state.pod_rows = pod_snapshot.len();
-
         let title_w = pod_snapshot
             .iter()
-            .map(|ps| {
-                let full = format!("{}/{}", ps.namespace, ps.name);
+            .map(|p| {
+                let full = format!("{}/{}", p.namespace, p.name);
                 Line::from(full).width() as u16 + 1
             })
             .max()
-            .unwrap_or(0)
+            .unwrap_or(1)
             .clamp(1, MAX_TITLE_WIDTH);
 
-        let header = Row::new(vec![
-            Cell::from("Pod"),
-            Cell::from("CPU (m)"),
-            Cell::from("MEM (Mi)"),
-            Cell::from("%CPU/R"),
-            Cell::from("%CPU/L"),
-            Cell::from("%MEM/R"),
-            Cell::from("%MEM/L"),
-        ])
-        .style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        );
+        let content_h = pod_snapshot.len() as u16 * ROW_H;
+        let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
 
-        let rows: Vec<Row> = pod_snapshot
-            .iter()
-            .map(|ps| {
-                let name = format!("{}/{}", ps.namespace, ps.name);
-                Row::new(vec![
-                    Cell::from(name),
-                    Cell::from(ps.cpu_m.to_string()),
-                    Cell::from(ps.mem_mi.to_string()),
-                ])
-            })
-            .collect();
+        for (idx, p) in pod_snapshot.iter().enumerate() {
+            let y = idx as u16 * ROW_H;
+            let card = Rect {
+                x: 0,
+                y,
+                width: body_area.width,
+                height: ROW_H,
+            };
 
-        let widths = [
-            Constraint::Length(title_w), // Pod name
-            Constraint::Length(9),       // CPU (m)
-            Constraint::Length(9),       // MEM (Mi)
-        ];
+            /* 1 ─ split off name column + remaining area ------------------ */
+            let cols =
+                Layout::horizontal([Constraint::Length(title_w), Constraint::Min(0)]).split(card);
+            let name_col = cols[0];
+            let rest = cols[1];
 
-        let table = Table::new(rows, &widths)
-            .header(header)
-            .column_spacing(2)
-            .row_highlight_style(Style::default().bg(tailwind::BLUE.c900).fg(Color::White))
-            .highlight_symbol("▶ ");
+            /* 2 ─ split remaining area into two halves -------------------- */
+            let halves =
+                Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+                    .split(rest);
+            let cpu_col = halves[0];
+            let mem_col = halves[1];
 
-        f.render_stateful_widget(table, body_area, &mut state.pod_table);
+            /* 3 ─ render --------------------------------------------------- */
+            sv.render_widget(
+                Block::new()
+                    .borders(Borders::NONE)
+                    .title(format!("{}/{}", p.namespace, p.name))
+                    .fg(tailwind::BLUE.c400),
+                name_col,
+            );
+
+            sv.render_widget(
+                make_sparkline(
+                    "CPU",
+                    slice_to_width(&p.cpu_history, cpu_col.width),
+                    tailwind::GREEN.c500,
+                ),
+                cpu_col,
+            );
+            sv.render_widget(
+                make_sparkline(
+                    "MEM",
+                    slice_to_width(&p.mem_history, mem_col.width),
+                    tailwind::EMERALD.c400,
+                ),
+                mem_col,
+            );
+        }
+
+        f.render_stateful_widget(sv, body_area, &mut state.pod_scroll);
     }
 }
