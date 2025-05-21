@@ -226,10 +226,12 @@ function M.run_async(method_name, args, callback)
     end
   end
 
+  local work
   local payload = vim.json.encode(args, { luanil = { object = true, array = true } })
 
   local function after_work_callback(results, err)
     callback(results, err)
+    work = nil
   end
 
   local function work_callback(cpath, method, json_str)
@@ -242,7 +244,9 @@ function M.run_async(method_name, args, callback)
     return result, nil
   end
 
-  return vim.uv.new_work(work_callback, after_work_callback):queue(package.cpath, method_name, payload)
+  work = vim.uv.new_work(work_callback, after_work_callback)
+  work:queue(package.cpath, method_name, payload)
+  return work
 end
 
 --- Execute a shell command using io.popen
