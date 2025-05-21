@@ -35,3 +35,5 @@ ratatui = "0.29.0"
 nix = {version ="0.30.1", features=["term", "fs"]}
 k8s-metrics = "0.20.0"
 tui-widgets = "0.4.1"
+tokio-util = "0.7.15"
+ctor = "0.4.2"

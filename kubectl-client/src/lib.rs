@@ -1,8 +1,9 @@
+use ctor::dtor;
 // lib.rs
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
-use metrics::pods::{spawn_pod_collector, PodStat, SharedPodStats};
+use metrics::pods::{shutdown_collectors, spawn_pod_collector, PodStat, SharedPodStats};
 use mlua::prelude::*;
 use mlua::Lua;
 use std::backtrace::Backtrace;
@@ -84,6 +85,7 @@ where
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
+    shutdown_collectors();
     let new_client = rt.block_on(async {
         use futures::future::join;
 
@@ -256,6 +258,12 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
         Ok(json_str)
     })
+}
+
+/// Runs automatically when the cdylib is unloaded
+#[dtor]
+fn on_unload() {
+    shutdown_collectors();
 }
 
 #[tracing::instrument]
