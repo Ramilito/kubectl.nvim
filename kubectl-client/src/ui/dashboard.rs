@@ -174,7 +174,7 @@ fn ui_loop(
     node_stats: SharedNodeStats,
 ) -> ! {
     // 1 ▸ Terminal setup ----------------------------------------------------
-    const TICK_MS: u64 = 200;
+    const TICK_MS: u64 = 2000;
     let (w, h) = pty_size(&file).unwrap_or((80, 24));
     let backend = CrosstermBackend::new(file);
     let mut term = Terminal::new(backend).expect("terminal");
@@ -182,7 +182,7 @@ fn ui_loop(
     enable_raw_mode().ok();
 
     // 2 ▸ Event / draw loop -------------------------------------------------
-    let mut last_tick = Instant::now();
+    let mut last_tick = Instant::now() - Duration::from_millis(TICK_MS);
     'ui: loop {
         // — input —
         if event::poll(Duration::from_millis(0)).unwrap() {
