@@ -1,5 +1,5 @@
-use ctor::dtor;
 // lib.rs
+use ctor::dtor;
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
