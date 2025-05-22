@@ -264,6 +264,21 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
 #[dtor]
 fn on_unload() {
     shutdown_collectors();
+
+    {
+        let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
+        *client_guard = None;
+    }
+    {
+        let mut ctx = ACTIVE_CONTEXT.write().unwrap();
+        *ctx = None;
+    }
+
+    {
+        let store_map = get_store_map();
+        let mut map_writer = futures::executor::block_on(store_map.write());
+        map_writer.clear();
+    }
 }
 
 #[tracing::instrument]
