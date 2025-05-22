@@ -1,6 +1,7 @@
 --- @class kubectl.ClientImplementation
 --- @field init_runtime fun(context_name: string)
 --- @field init_logging fun(filepath: string)
+--- @field init_metrics fun()
 --- @field get_resource fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?)
 --- @field start_watcher fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?)
 --- @field edit_resource fun(resource_name: string, namespace: string?, name: string, group: string?, version: string? )

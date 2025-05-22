@@ -83,46 +83,68 @@ where
 
 #[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-
     shutdown_collectors();
-    let new_client = rt.block_on(async {
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
+
+    let client_res: LuaResult<Client> = rt.block_on(async {
         use futures::future::join;
 
         let store_future = async {
-            let store_map = get_store_map();
-            let mut map_writer = store_map.write().await;
-            map_writer.clear();
+            let store = get_store_map();
+            store.write().await.clear();
         };
 
         let config_future = async {
-            let options = KubeConfigOptions {
+            let opts = KubeConfigOptions {
                 context: context_name.clone(),
                 cluster: None,
                 user: None,
             };
-            let config = Config::from_kubeconfig(&options)
+
+            let cfg = Config::from_kubeconfig(&opts)
                 .await
                 .map_err(LuaError::external)?;
 
-            let client = Client::try_from(config).map_err(LuaError::external)?;
-            {
-                spawn_pod_collector(client.clone()); // no extra argument
-            };
-            Ok::<Client, mlua::Error>(client)
+            let client = Client::try_from(cfg).map_err(LuaError::external)?;
+
+            if let Err(e) = client.apiserver_version().await {
+                return Err(LuaError::external(format!("API-server unreachable: {e}")));
+            }
+
+            Ok(client)
         };
         {
-            let mut ctx = ACTIVE_CONTEXT.write().unwrap();
-            *ctx = context_name.clone(); // ← overwrite every time
+            let mut ctx = ACTIVE_CONTEXT
+                .write()
+                .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
+            *ctx = context_name.clone();
         }
 
-        let ((), client_result) = join(store_future, config_future).await;
-        client_result
+        let ((), cli) = join(store_future, config_future).await;
+        cli
+    });
+
+    let client = match client_res {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to initialise kube client");
+            return Ok(false);
+        }
+    };
+
+    {
+        let mut g = CLIENT_INSTANCE.lock().unwrap();
+        *g = Some(client.clone());
+    }
+
+    Ok(true)
+}
+
+fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
+    with_client(|client| async move {
+        spawn_pod_collector(client);
+        Ok(())
     })?;
-
-    let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
-    *client_guard = Some(new_client);
-
     Ok(true)
 }
 
@@ -304,6 +326,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     }));
 
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
+
+    exports.set("init_metrics", lua.create_function(init_metrics)?)?;
     exports.set(
         "start_reflector_async",
         lua.create_async_function(start_reflector_async)?,
