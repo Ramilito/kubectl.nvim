@@ -104,10 +104,14 @@ function M.change_context(cmd)
   state.context["current-context"] = cmd
 
   local client = require("kubectl.client")
-  client.set_implementation()
-  state.setup()
-  local cache = require("kubectl.cache")
-  cache.LoadFallbackData(true)
+  local ok = client.set_implementation()
+  if ok then
+    state.setup()
+    local cache = require("kubectl.cache")
+    cache.LoadFallbackData(true)
+  else
+    vim.notify("Failed to initialise client", vim.log.levels.ERROR)
+  end
 end
 
 function M.processRow(rows)
