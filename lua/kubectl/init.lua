@@ -13,9 +13,7 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   local client = require("kubectl.client")
-  if not client then
-    client.set_implementation()
-  end
+  client.set_implementation()
 
   hl.setup()
   vim.schedule(function()
@@ -64,9 +62,6 @@ function M.setup(options)
   local mappings = require("kubectl.mappings")
   local loop = require("kubectl.utils.loop")
   M.download_if_available(function(_)
-    local client = require("kubectl.client")
-    client.set_implementation()
-
     config.setup(options)
     state.setNS(config.options.namespace)
     local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
