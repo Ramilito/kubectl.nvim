@@ -15,7 +15,7 @@ use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
 type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
-static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
+pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
 
 pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))

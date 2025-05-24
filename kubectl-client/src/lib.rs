@@ -10,6 +10,7 @@ use std::backtrace::Backtrace;
 use std::future::Future;
 use std::panic;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use store::STORE_MAP;
 use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 use tracing::error;
@@ -297,9 +298,9 @@ fn on_unload() {
     }
 
     {
-        let store_map = get_store_map();
-        let mut map_writer = futures::executor::block_on(store_map.write());
-        map_writer.clear();
+        if let Some(map) = STORE_MAP.get() {
+            let _ = map;
+        }
     }
 }
 
