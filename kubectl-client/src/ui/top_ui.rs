@@ -1,4 +1,4 @@
-//! top_view.rs ─ Nodes tab (gauges) + Pods tab (3-row sparklines + spacing)
+//! top_view.rs ─ Nodes tab (gauges) + Pods tab (3-row sparklines + header)
 
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},
@@ -21,10 +21,10 @@ use crate::{
 /* ---------------------------------------------------------------------- */
 
 const CARD_HEIGHT: u16 = 1; // one line per node
-const GRAPH_H: u16 = 3; // graph + label overlay
-const ROW_H: u16 = GRAPH_H + 1; // ← +1 blank spacer row
+const GRAPH_H: u16 = 3; // graph rows (with label overlay)
+const ROW_H: u16 = GRAPH_H + 1; // +1 blank spacer row
 const MAX_TITLE_WIDTH: u16 = 100;
-const OVERSCAN_ROWS: u16 = 2; // overscan in ROW_H units
+const OVERSCAN_ROWS: u16 = 2;
 
 /* ---------------------------------------------------------------------- */
 /*  VIEW STATE + key handling                                             */
@@ -142,7 +142,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
     /* snapshot ----------------------------------------------------------- */
     let pod_snapshot: Vec<PodStat> = { pod_stats().lock().unwrap().clone() };
 
-    /* frame -------------------------------------------------------------- */
+    /* outer frame -------------------------------------------------------- */
     f.render_widget(
         Block::new()
             .title(" Top (live) ")
@@ -154,9 +154,15 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
             ),
         area,
     );
+
+    /* layout: tabs ─ header ─ scrollable body --------------------------- */
     let inner = area.inner(Margin::new(1, 1));
-    let [tabs_area, body_area] =
-        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
+    let [tabs_area, hdr_area, body_area] = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Min(0),
+    ])
+    .areas(inner);
 
     /* tab bar ------------------------------------------------------------ */
     let pods_title = if state.filter.is_empty() {
@@ -174,8 +180,9 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
         );
     f.render_widget(tabs, tabs_area);
 
-    /* ──────────────────────────── NODES TAB ──────────────────────────── */
+    /* ================================= NODES =========================== */
     if state.selected_tab == 0 {
+        /* column width for NAME */
         let title_w = node_stats
             .iter()
             .map(|ns| Line::from(ns.name.clone()).width() as u16 + 1)
@@ -183,6 +190,10 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
             .unwrap_or(0)
             .clamp(1, MAX_TITLE_WIDTH);
 
+        /* header row ----------------------------------------------------- */
+        draw_header(f, hdr_area, title_w);
+
+        /* scroll view ---------------------------------------------------- */
         let content_h = node_stats.len() as u16 * CARD_HEIGHT;
         let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
         let make_gauge = |label: &str, pct: f64, color: Color| {
@@ -201,12 +212,8 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
                 width: body_area.width,
                 height: CARD_HEIGHT,
             };
-            let [name_col, cpu_col, mem_col] = Layout::horizontal([
-                Constraint::Length(title_w),
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ])
-            .areas(card);
+
+            let [name_col, cpu_col, mem_col] = column_split(card, title_w);
 
             sv.render_widget(
                 Block::new()
@@ -222,12 +229,11 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
                 mem_col,
             );
         }
-
         f.render_stateful_widget(sv, body_area, &mut state.node_scroll);
         return;
     }
 
-    /* ──────────────────────────── PODS TAB ───────────────────────────── */
+    /* ================================= PODS ============================ */
 
     /* 0 ▸ filter -------------------------------------------------------- */
     let filtered: Vec<&PodStat> = if state.filter.is_empty() {
@@ -254,7 +260,10 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
         .unwrap_or(1)
         .clamp(1, MAX_TITLE_WIDTH);
 
-    /* 2 ▸ virtual-window maths ----------------------------------------- */
+    /* header row -------------------------------------------------------- */
+    draw_header(f, hdr_area, title_w);
+
+    /* 2 ▸ virtual-window ------------------------------------------------ */
     let content_h = filtered.len() as u16 * ROW_H;
     let offset_px = state.pod_scroll.offset().y;
     let (first, count) = visible_rows(offset_px, ROW_H, body_area.height, OVERSCAN_ROWS);
@@ -265,22 +274,15 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
 
     /* 3 ▸ render slice -------------------------------------------------- */
     for (idx, p) in slice.iter().enumerate() {
-        /* top of this pod entry (graph rows start here) */
         let y_graph = ((first + idx) as u16) * ROW_H;
-
-        /* A rectangle 3 rows tall for graph + label overlay -------------- */
-        let card = Rect {
+        let graph_rect = Rect {
             x: 0,
             y: y_graph,
             width: body_area.width,
             height: GRAPH_H,
         };
-        let [name_col, cpu_col, mem_col] = Layout::horizontal([
-            Constraint::Length(title_w),
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ])
-        .areas(card);
+
+        let [name_col, cpu_col, mem_col] = column_split(graph_rect, title_w);
 
         /* name column ---------------------------------------------------- */
         sv.render_widget(
@@ -291,11 +293,9 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
             name_col,
         );
 
-        /* CPU + MEM columns --------------------------------------------- */
+        /* spark bars ----------------------------------------------------- */
         let cpu_data = slice_to_width(&p.cpu_history, cpu_col.width);
         let mem_data = slice_to_width(&p.mem_history, mem_col.width);
-
-        // draw the bars …
         sv.render_widget(
             Sparkline::default()
                 .data(cpu_data)
@@ -311,4 +311,37 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
     }
 
     f.render_stateful_widget(sv, body_area, &mut state.pod_scroll);
+}
+
+/* ---------------------------------------------------------------------- */
+/*  SMALL UTILS                                                           */
+/* ---------------------------------------------------------------------- */
+
+fn column_split(card: Rect, name_w: u16) -> [Rect; 3] {
+    Layout::horizontal([
+        Constraint::Length(name_w),
+        Constraint::Percentage(50),
+        Constraint::Percentage(50),
+    ])
+    .areas(card)
+}
+
+fn draw_header(f: &mut Frame, hdr_area: Rect, name_w: u16) {
+    let cols = column_split(hdr_area, name_w);
+    let style = Style::default()
+        .fg(tailwind::GRAY.c300)
+        .add_modifier(Modifier::BOLD);
+    f.render_widget(Paragraph::new("NAME").style(style), cols[0]);
+    f.render_widget(
+        Paragraph::new("CPU")
+            .alignment(Alignment::Center)
+            .style(style),
+        cols[1],
+    );
+    f.render_widget(
+        Paragraph::new("MEM")
+            .alignment(Alignment::Center)
+            .style(style),
+        cols[2],
+    );
 }
