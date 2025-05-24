@@ -22,7 +22,7 @@ use crate::{
 
 const CARD_HEIGHT: u16 = 1; // one line per node
 const ROW_H: u16 = 2; // two lines per pod row
-const MAX_TITLE_WIDTH: u16 = 40;
+const MAX_TITLE_WIDTH: u16 = 100;
 const OVERSCAN_ROWS: u16 = 2; // rows to build above/below the viewport
 
 /* ---------------------------------------------------------------------- */
