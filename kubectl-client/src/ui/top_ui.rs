@@ -19,8 +19,9 @@ use crate::{
 /* ---------------------------------------------------------------------- */
 
 const CARD_HEIGHT: u16 = 1; // one line per node
-const ROW_H: u16 = 2; // three lines per pod row
+const ROW_H: u16 = 2;       // two lines per pod row
 const MAX_TITLE_WIDTH: u16 = 40;
+const OVERSCAN_ROWS: u16 = 2; // rows to build above/below the viewport
 
 /* ---------------------------------------------------------------------- */
 /*  VIEW STATE                                                            */
@@ -94,13 +95,22 @@ fn make_sparkline<'a>(title: &'a str, data: &'a [u64], color: Color) -> Sparklin
 }
 
 /// Trim history to the available column width
-fn slice_to_width<'a>(data: &'a [u64], max_w: u16) -> &'a [u64] {
+fn slice_to_width(data: &[u64], max_w: u16) -> &[u64] {
     let w = max_w as usize;
     if data.len() <= w {
         data
     } else {
         &data[..w]
     }
+}
+
+/// Return (first_row, how_many) given current scroll offset and viewport
+fn visible_rows(offset_px: u16, row_h: u16, view_h: u16, overscan: u16) -> (usize, usize) {
+    let first = offset_px / row_h;                  // topmost fully-visible row
+    let visible = (view_h / row_h) + 1;             // +1 so we don’t truncate
+    let start = first.saturating_sub(overscan);     // overscan above
+    let end = first + visible + overscan;           // and below
+    (start as usize, (end - start) as usize)
 }
 
 /* ---------------------------------------------------------------------- */
@@ -212,11 +222,19 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
             .unwrap_or(1)
             .clamp(1, MAX_TITLE_WIDTH);
 
+        /* ---------------- virtual-window maths ------------------------- */
         let content_h = pod_snapshot.len() as u16 * ROW_H;
+        let offset_px = state.pod_scroll.offset(); // ← scroll position in px
+        let (first, count) =
+            visible_rows(offset_px.y, ROW_H, body_area.height, OVERSCAN_ROWS);
+        let last = (first + count).min(pod_snapshot.len());
+        let slice = &pod_snapshot[first..last];
+
         let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
 
-        for (idx, p) in pod_snapshot.iter().enumerate() {
-            let y = idx as u16 * ROW_H;
+        for (idx, p) in slice.iter().enumerate() {
+            // idx is 0..count inside the window – convert to absolute y
+            let y = ((first + idx) as u16) * ROW_H;
             let card = Rect {
                 x: 0,
                 y,
@@ -245,7 +263,6 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
                     .fg(tailwind::BLUE.c400),
                 name_col,
             );
-
             sv.render_widget(
                 make_sparkline(
                     "CPU",
