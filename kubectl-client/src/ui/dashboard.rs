@@ -9,7 +9,7 @@ use std::{
 
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, MouseEventKind},
+    event::{self, Event, KeyCode, KeyEvent, MouseEventKind},
     queue,
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
@@ -30,6 +30,8 @@ use crate::{
     },
     ACTIVE_CONTEXT,
 };
+
+use super::top_ui::InputMode;
 
 fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
     unsafe {
@@ -66,11 +68,14 @@ macro_rules! scroll_nav {
     }};
 }
 
-// ——————————————————————————————————  View trait & concrete views  ——————————————————————————————————
+/* ─────────────────────────── View trait & concrete views ─────────────────────────── */
+
 trait View {
     fn on_event(&mut self, ev: &Event) -> bool;
     fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]);
 }
+
+/* ------------------------------ Overview view ------------------------------ */
 
 struct OverviewView {
     state: OverviewState,
@@ -116,6 +121,8 @@ impl View for OverviewView {
     }
 }
 
+/* -------------------------------- Top view -------------------------------- */
+
 struct TopView {
     state: TopViewState,
 }
@@ -129,13 +136,28 @@ impl TopView {
 impl View for TopView {
     fn on_event(&mut self, ev: &Event) -> bool {
         match ev {
-            Event::Key(k) => match k.code {
-                KeyCode::Tab => {
-                    self.state.next_tab();
-                    true
+            Event::Key(k) => {
+                /* 1 ▸ Let the view-state consume filter keys first */
+                self.state.handle_key(*k);
+
+                /* Did the key touch the filter prompt? – always redraw */
+                let filter_keys = matches!(
+                    k.code,
+                    KeyCode::Char('/') | KeyCode::Esc | KeyCode::Enter | KeyCode::Backspace
+                );
+                if filter_keys || self.state.input_mode == InputMode::Filtering {
+                    return true;
                 }
-                other => scroll_nav!(self.state, other),
-            },
+
+                /* 2 ▸ Normal keys (tab / scrolling) */
+                match k.code {
+                    KeyCode::Tab => {
+                        self.state.next_tab();
+                        true
+                    }
+                    other => scroll_nav!(self.state, other),
+                }
+            }
             Event::Mouse(m) => match m.kind {
                 MouseEventKind::ScrollDown => {
                     self.state.scroll_down();
@@ -156,7 +178,8 @@ impl View for TopView {
     }
 }
 
-// ——————————————————————————————————  Global child‑PID slot  ——————————————————————————————————
+/* ────────────────────────────── Global child-PID slot ───────────────────────────── */
+
 static CHILD_PID: OnceLock<Mutex<Option<pid_t>>> = OnceLock::new();
 static TAIL_PID: OnceLock<Mutex<Option<pid_t>>> = OnceLock::new();
 fn tail_slot() -> &'static Mutex<Option<pid_t>> {
@@ -166,14 +189,15 @@ fn pid_slot() -> &'static Mutex<Option<pid_t>> {
     CHILD_PID.get_or_init(|| Mutex::new(None))
 }
 
-// ——————————————————————————————————  Child UI loop  ——————————————————————————————————
+/* ──────────────────────────────── Child UI loop ─────────────────────────────── */
+
 /// Runs inside the *child* after stdio is already redirected onto the PTY.
 fn ui_loop(
     mut active_view: Box<dyn View + Send>,
     file: std::fs::File,
     node_stats: SharedNodeStats,
 ) -> ! {
-    // 1 ▸ Terminal setup ----------------------------------------------------
+    /* 1 ▸ Terminal setup —————————————————————————— */
     const TICK_MS: u64 = 2000;
     let (w, h) = pty_size(&file).unwrap_or((80, 24));
     let backend = CrosstermBackend::new(file);
@@ -181,10 +205,10 @@ fn ui_loop(
     term.resize(Rect::new(0, 0, w, h)).ok();
     enable_raw_mode().ok();
 
-    // 2 ▸ Event / draw loop -------------------------------------------------
+    /* 2 ▸ Event / draw loop —————————————————————— */
     let mut last_tick = Instant::now() - Duration::from_millis(TICK_MS);
     'ui: loop {
-        // — input —
+        /* — input — */
         if event::poll(Duration::from_millis(0)).unwrap() {
             let ev = event::read().unwrap();
             match &ev {
@@ -212,7 +236,7 @@ fn ui_loop(
             }
         }
 
-        // — tick —
+        /* — tick — */
         if last_tick.elapsed() >= Duration::from_millis(TICK_MS) {
             let nodes = node_stats.lock().unwrap().clone();
             term.draw(|f| {
@@ -224,7 +248,7 @@ fn ui_loop(
         }
     }
 
-    // 3 ▸ Cleanup ----------------------------------------------------------
+    /* 3 ▸ Cleanup ——————————————————————————————— */
     let backend = term.backend_mut();
     queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
     disable_raw_mode().ok();
@@ -233,12 +257,15 @@ fn ui_loop(
     unsafe { _exit(0) } // never returns
 }
 
+/* ───────────────────────────── Public Lua bindings ───────────────────────────── */
+
 #[tracing::instrument]
 pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()> {
     let (pty_path, view_name, tail_pid) = args;
 
     *tail_slot().lock().unwrap() = Some(tail_pid as pid_t);
-    // 0 ▸ If a dashboard is already running, politely stop it --------------
+
+    /* 0 ▸ If a dashboard is already running, politely stop it */
     if let Some(old) = pid_slot().lock().unwrap().take() {
         unsafe {
             kill(old, SIGTERM);
@@ -253,7 +280,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
         }
     }
 
-    // 1 ▸ Fork -------------------------------------------------------------
+    /* 1 ▸ Fork */
     let pid = unsafe { fork() };
     if pid < 0 {
         return Err(LuaError::ExternalError(Arc::new(
@@ -262,8 +289,8 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
     }
 
     if pid == 0 {
-        // ====================== CHILD PROCESS =============================
-        // 1 ▸ Resolve which view to start ----------------------------------
+        /* ====================== CHILD PROCESS ====================== */
+        /* 1 ▸ Resolve which view to start */
         let active_view: Box<dyn View + Send> = match view_name.to_ascii_lowercase().as_str() {
             "overview" | "overview_ui" => Box::new(OverviewView::new()),
             "top" | "top_ui" => Box::new(TopView::new()),
@@ -273,7 +300,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
             }
         };
 
-        // 2 ▸ Open the PTY -------------------------------------------------
+        /* 2 ▸ Open the PTY */
         let file = match OpenOptions::new().read(true).write(true).open(&pty_path) {
             Ok(f) => f,
             Err(e) => {
@@ -281,7 +308,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
                 unsafe { _exit(1) }
             }
         };
-        // 3 ▸ Redirect stdio ----------------------------------------------
+        /* 3 ▸ Redirect stdio */
         unsafe {
             let fd: RawFd = file.as_raw_fd();
             dup2(fd, STDIN_FILENO);
@@ -289,7 +316,7 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
             dup2(fd, STDERR_FILENO);
         }
 
-        // 4 ▸ Build runtime + collectors -----------------------------------
+        /* 4 ▸ Build runtime + collectors */
         let rt = Runtime::new().expect("tokio runtime");
         let node_stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
 
@@ -306,14 +333,15 @@ pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()>
             spawn_node_collector(node_stats.clone(), client.clone());
         });
 
-        // 5 ▸ Hand over to the TUI loop (never returns) --------------------
+        /* 5 ▸ Hand over to the TUI loop (never returns) */
         ui_loop(active_view, file, node_stats);
     }
 
-    // ============= parent ============ ------------------------------------
+    /* ============ parent ============ */
     *pid_slot().lock().unwrap() = Some(pid);
     Ok(())
 }
+
 #[tracing::instrument]
 pub fn stop_dashboard(_lua: &Lua, _args: ()) -> LuaResult<()> {
     if let Some(pid) = pid_slot().lock().unwrap().take() {

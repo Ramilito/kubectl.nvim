@@ -1,4 +1,4 @@
-//! top_view.rs ─ Nodes tab (gauges) + Pods tab (sparklines)
+//! top_view.rs ─ Nodes tab (gauges) + Pods tab (sparklines + filter)
 
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},
@@ -8,6 +8,8 @@ use ratatui::{
     widgets::{Block, Borders, Gauge, Padding, Sparkline, Tabs},
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{
     metrics::{nodes::NodeStat, pods::PodStat},
@@ -19,7 +21,7 @@ use crate::{
 /* ---------------------------------------------------------------------- */
 
 const CARD_HEIGHT: u16 = 1; // one line per node
-const ROW_H: u16 = 2;       // two lines per pod row
+const ROW_H: u16 = 2; // two lines per pod row
 const MAX_TITLE_WIDTH: u16 = 40;
 const OVERSCAN_ROWS: u16 = 2; // rows to build above/below the viewport
 
@@ -27,11 +29,20 @@ const OVERSCAN_ROWS: u16 = 2; // rows to build above/below the viewport
 /*  VIEW STATE                                                            */
 /* ---------------------------------------------------------------------- */
 
+#[derive(PartialEq, Eq, Default)]
+pub enum InputMode {
+    #[default]
+    Normal,
+    Filtering,
+}
+
 #[derive(Default)]
 pub struct TopViewState {
     selected_tab: usize, // 0 = Nodes, 1 = Pods
     node_scroll: ScrollViewState,
     pod_scroll: ScrollViewState,
+    filter: String,
+    pub input_mode: InputMode,
 }
 
 impl TopViewState {
@@ -80,6 +91,40 @@ impl TopViewState {
     pub fn focus_prev(&mut self) {
         self.prev_tab();
     }
+
+    /* ------------------------------------------------------------------ */
+    /*  KEY HANDLER – call from your event loop                           */
+    /* ------------------------------------------------------------------ */
+    pub fn handle_key(&mut self, key: KeyEvent) {
+        match self.input_mode {
+            InputMode::Normal => match key.code {
+                KeyCode::Char('/') => {
+                    self.input_mode = InputMode::Filtering;
+                }
+                _ => {
+                    // put existing key handling here (scroll, tab switch, etc.)
+                }
+            },
+            InputMode::Filtering => match key.code {
+                KeyCode::Esc => {
+                    self.filter.clear();
+                    self.input_mode = InputMode::Normal;
+                }
+                KeyCode::Enter => {
+                    self.input_mode = InputMode::Normal;
+                }
+                KeyCode::Backspace => {
+                    self.filter.pop();
+                }
+                KeyCode::Char(c)
+                    if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+                {
+                    self.filter.push(c);
+                }
+                _ => {}
+            },
+        }
+    }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -106,10 +151,10 @@ fn slice_to_width(data: &[u64], max_w: u16) -> &[u64] {
 
 /// Return (first_row, how_many) given current scroll offset and viewport
 fn visible_rows(offset_px: u16, row_h: u16, view_h: u16, overscan: u16) -> (usize, usize) {
-    let first = offset_px / row_h;                  // topmost fully-visible row
-    let visible = (view_h / row_h) + 1;             // +1 so we don’t truncate
-    let start = first.saturating_sub(overscan);     // overscan above
-    let end = first + visible + overscan;           // and below
+    let first = offset_px / row_h; // topmost fully-visible row
+    let visible = (view_h / row_h) + 1; // +1 so we don’t truncate
+    let start = first.saturating_sub(overscan); // overscan above
+    let end = first + visible + overscan; // and below
     (start as usize, (end - start) as usize)
 }
 
@@ -147,7 +192,12 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
     let body_area = chunks[1];
 
     /* tab bar ------------------------------------------------------------ */
-    let tabs = Tabs::new(vec![Line::from("Nodes"), Line::from("Pods")])
+    let pods_tab_title = if state.filter.is_empty() {
+        Line::from("Pods")
+    } else {
+        Line::from(format!("Pods (filter: {})", state.filter))
+    };
+    let tabs = Tabs::new(vec![Line::from("Nodes"), pods_tab_title])
         .select(state.selected_tab)
         .style(Style::default().fg(Color::White))
         .highlight_style(
@@ -212,7 +262,22 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
     }
     /* =============================== PODS ============================== */
     else {
-        let title_w = pod_snapshot
+        /* 0 ─ apply filter ------------------------------------------------ */
+        let filtered: Vec<&PodStat> = if state.filter.is_empty() {
+            pod_snapshot.iter().collect()
+        } else {
+            let needle = state.filter.to_lowercase();
+            pod_snapshot
+                .iter()
+                .filter(|p| {
+                    let hay = format!("{}/{}", p.namespace, p.name).to_lowercase();
+                    hay.contains(&needle)
+                })
+                .collect()
+        };
+
+        /* 1 ─ static maths ------------------------------------------------ */
+        let title_w = filtered
             .iter()
             .map(|p| {
                 let full = format!("{}/{}", p.namespace, p.name);
@@ -222,18 +287,18 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
             .unwrap_or(1)
             .clamp(1, MAX_TITLE_WIDTH);
 
-        /* ---------------- virtual-window maths ------------------------- */
-        let content_h = pod_snapshot.len() as u16 * ROW_H;
-        let offset_px = state.pod_scroll.offset(); // ← scroll position in px
-        let (first, count) =
-            visible_rows(offset_px.y, ROW_H, body_area.height, OVERSCAN_ROWS);
-        let last = (first + count).min(pod_snapshot.len());
-        let slice = &pod_snapshot[first..last];
+        /* 2 ─ virtual-window maths --------------------------------------- */
+        let content_h = filtered.len() as u16 * ROW_H;
+        let offset_px = state.pod_scroll.offset(); // scroll position in px
+        let (first, count) = visible_rows(offset_px.y, ROW_H, body_area.height, OVERSCAN_ROWS);
+        let last = (first + count).min(filtered.len());
+        let slice = &filtered[first..last];
 
         let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
 
+        /* 3 ─ render slice ------------------------------------------------ */
         for (idx, p) in slice.iter().enumerate() {
-            // idx is 0..count inside the window – convert to absolute y
+            // idx is 0..count in slice – convert to absolute y
             let y = ((first + idx) as u16) * ROW_H;
             let card = Rect {
                 x: 0,
@@ -242,20 +307,18 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
                 height: ROW_H,
             };
 
-            /* 1 ─ split off name column + remaining area ------------------ */
+            /* 3a ─ layout -------------------------------------------------- */
             let cols =
                 Layout::horizontal([Constraint::Length(title_w), Constraint::Min(0)]).split(card);
             let name_col = cols[0];
             let rest = cols[1];
-
-            /* 2 ─ split remaining area into two halves -------------------- */
             let halves =
                 Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
                     .split(rest);
             let cpu_col = halves[0];
             let mem_col = halves[1];
 
-            /* 3 ─ render --------------------------------------------------- */
+            /* 3b ─ widgets ------------------------------------------------- */
             sv.render_widget(
                 Block::new()
                     .borders(Borders::NONE)
