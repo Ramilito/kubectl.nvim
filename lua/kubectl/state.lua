@@ -64,10 +64,14 @@ function M.setup()
     callback = function(_)
       local ft = vim.bo.filetype
       if ft:match("^k8s_") then
-        vim.defer_fn(function()
-          local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-          M.set_session(buf_name)
-        end, 100)
+        local win_id = vim.api.nvim_get_current_win()
+        local win_config = vim.api.nvim_win_get_config(win_id)
+        if win_config.relative == "" then
+          vim.defer_fn(function()
+            local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+            M.set_session(buf_name)
+          end, 100)
+        end
       end
     end,
   })
