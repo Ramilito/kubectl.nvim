@@ -90,6 +90,7 @@ end
 --- Change context and restart proxy
 --- @param cmd string
 function M.change_context(cmd)
+  M.clear_buffers(cmd)
   local state = require("kubectl.state")
 
   -- TODO: keep persist functionality?
@@ -111,6 +112,23 @@ function M.change_context(cmd)
     cache.LoadFallbackData(true)
   else
     vim.notify("Failed to initialise client", vim.log.levels.ERROR)
+  end
+end
+
+function M.clear_buffers(context)
+  local prefix = "k8s_"
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    -- Clearing all buffers
+    local cfg = vim.api.nvim_win_get_config(win)
+    if cfg.relative == "" or cfg.relative == nil then
+      local buf = vim.api.nvim_win_get_buf(win)
+      if vim.api.nvim_buf_is_loaded(buf) then
+        local ft = vim.bo[buf].filetype or ""
+        if ft:sub(1, #prefix) == prefix then
+          vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Loading new context: " .. context })
+        end
+      end
+    end
   end
 end
 
