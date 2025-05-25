@@ -129,12 +129,17 @@ function M.checkHealth()
 
   M.livez.timer:start(0, 5000, function()
     commands.run_async("get_server_raw_async", { path = "/livez" }, function(data)
+      local status = false
       if data == "ok" then
-        M.livez.ok = true
+        status = true
         M.livez.time_of_ok = os.time()
       else
-        M.livez.ok = false
+        status = false
       end
+      M.livez.ok = status
+      vim.schedule(function()
+        vim.cmd("doautocmd User K8sDataLoaded")
+      end)
     end)
   end)
 end
