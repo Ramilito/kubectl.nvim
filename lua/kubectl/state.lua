@@ -260,7 +260,7 @@ function M.set_buffer_state(buf, filetype, mode, open_func, args)
   local function valid()
     return filetype ~= "k8s_picker"
       and filetype ~= "k8s_container_exec"
-      and filetype ~= "k8s_namespace"
+      and filetype ~= "k8s_namespaces"
       and filetype ~= "k8s_aliases"
       and filetype ~= "k8s_filter"
       and filetype ~= "k8s_contexts"
