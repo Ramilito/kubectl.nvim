@@ -11,4 +11,4 @@ opt-level = "z"
 lto = "fat"
 strip = "symbols"
 codegen-units = 1
-panic = "abort"
+panic = "unwind"

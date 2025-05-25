@@ -317,15 +317,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         })?,
     )?;
 
-    let default = panic::take_hook();
-
-    panic::set_hook(Box::new(move |panic_info| {
-        let bt = Backtrace::force_capture();
-        error!(target: "panic",
-               "panic: {panic_info}\n\nBacktrace:\n{bt}");
-        default(panic_info);
-    }));
-
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
 
     exports.set("init_metrics", lua.create_function(init_metrics)?)?;
