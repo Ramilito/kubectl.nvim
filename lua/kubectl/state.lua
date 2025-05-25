@@ -127,7 +127,7 @@ end
 function M.checkHealth()
   M.livez.timer = vim.uv.new_timer()
 
-  M.livez.timer:start(0, 5000, function()
+  M.livez.timer:start(0, 2000, function()
     commands.run_async("get_server_raw_async", { path = "/livez" }, function(data)
       local status = false
       if data == "ok" then
