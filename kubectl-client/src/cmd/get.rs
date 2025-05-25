@@ -11,6 +11,8 @@ use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
+use tokio::time::{timeout, Duration};
+use tokio_util::time::FutureExt;
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -191,7 +193,11 @@ pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> 
             .body(Vec::new())
             .map_err(LuaError::external)?;
 
-        let text = client.request_text(req).await.map_err(LuaError::external)?;
+        let text = timeout(Duration::from_millis(2000), client.request_text(req))
+            .await
+            .map_err(|_| LuaError::external("request timed out"))?
+            .map_err(LuaError::external)?;
+
         Ok(text)
     })
 }
