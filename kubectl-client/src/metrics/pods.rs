@@ -62,6 +62,7 @@ struct PodCollector {
 }
 
 impl PodCollector {
+    #[tracing::instrument(skip(client))]
     fn new(client: Client) -> Self {
         let stats = pod_stats().clone();
         let cancel = CancellationToken::new();

@@ -54,14 +54,14 @@ impl Processor for PodProcessor {
 
         let now = Utc::now();
 
-        let ns = pod.metadata.namespace.clone().unwrap_or_default();
+        let namespace = pod.metadata.namespace.clone().unwrap_or_default();
         let name = pod.metadata.name.clone().unwrap_or_default();
 
         let (cpu_m, mem_mi) = {
             let guard = pod_stats().lock().unwrap();
             guard
                 .iter()
-                .find(|s| s.namespace == ns && s.name == name)
+                .find(|s| s.namespace == namespace && s.name == name)
                 .map(|s| (s.cpu_m, s.mem_mi))
                 .unwrap_or((0, 0))
         };
@@ -95,8 +95,8 @@ impl Processor for PodProcessor {
                 .and_then(|s| s.node_name.clone())
                 .unwrap_or_default(),
             age: self.get_age(obj),
-            namespace: pod.metadata.namespace.unwrap_or_default(),
-            name: pod.metadata.name.unwrap_or_default(),
+            namespace,
+            name,
             cpu: FieldValue {
                 value: format!("{}", cpu_m),
                 sort_by: Some(cpu_m as usize),
@@ -233,15 +233,23 @@ fn sum_limits(pod: &Pod) -> (u64, u64) {
 }
 
 fn quantity_to_millicpu(q: &Quantity) -> u64 {
-    /* Quantity handles underlying string; simplest is to reuse the
-    parsing helpers you already used (`to_f64`) */
     (q.to_f64().unwrap_or(0.0) * 1000.0).round() as u64
 }
 fn quantity_to_mib(q: &Quantity) -> u64 {
-    (q.to_memory().unwrap_or(0) as u64) / (1024 * 1024)
+    if let Ok(bytes) = q.to_memory() {
+        return (bytes as u64) / (1024 * 1024);
+    }
+
+    let raw = q.0.as_str();
+    if let Some(num_str) = raw.strip_suffix('m') {
+        if let Ok(num) = num_str.parse::<f64>() {
+            return ((num / 1000.0) / (1024.0 * 1024.0)).round() as u64;
+        }
+    }
+
+    0
 }
 
-/* symbol colouring: >90 %=Red, >80 %=Yellow, else Green */
 fn color_usage(p: u64) -> String {
     if p >= 90 {
         color_status("Red")
@@ -252,7 +260,6 @@ fn color_usage(p: u64) -> String {
     }
 }
 
-/* tiny helper so you can re-use it elsewhere */
 pub fn percent(used: u64, limit: u64) -> u64 {
     ((used as f64 / limit as f64) * 100.0).round() as u64
 }
@@ -280,7 +287,7 @@ fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> FieldValue {
                         .and_then(|ls| ls.terminated.as_ref())
                         .and_then(|t| t.finished_at.as_ref())
                 })
-                .last()
+                .next_back()
                 .map(|time| time_since(&time.0.to_rfc3339()));
 
             if let Some(lf) = last_finished {
