@@ -1,11 +1,10 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex, OnceLock},
     time::Duration,
 };
 
-use k8s_metrics::v1beta1 as metricsv1;
-use k8s_metrics::QuantityExt;
+use k8s_metrics::{v1beta1 as metricsv1, QuantityExt};
 use kube::{api, Api, Client};
 use tokio::{task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
@@ -18,11 +17,18 @@ pub const HISTORY_LEN: usize = 60; // ≈ 30 s @ 500 ms tick or 30 min @ 30 s ti
 #[derive(Clone, Debug)]
 pub struct PodStat {
     pub namespace: String,
-    pub name: String,
+    pub name: String,                    
+    pub cpu_m: u64,                     
+    pub mem_mi: u64,                   
+    pub cpu_history: Vec<u64>,        
+    pub mem_history: Vec<u64>,       
+    pub containers: HashMap<String, ContainerSample>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ContainerSample {
     pub cpu_m: u64,
     pub mem_mi: u64,
-    pub cpu_history: Vec<u64>,
-    pub mem_history: Vec<u64>,
 }
 
 impl PodStat {
@@ -34,6 +40,7 @@ impl PodStat {
             mem_mi: 0,
             cpu_history: Vec::with_capacity(HISTORY_LEN),
             mem_history: Vec::with_capacity(HISTORY_LEN),
+            containers: HashMap::new(),
         }
     }
 
@@ -66,57 +73,67 @@ impl PodCollector {
     fn new(client: Client) -> Self {
         let stats = pod_stats().clone();
         let cancel = CancellationToken::new();
-        let child_token = cancel.clone();
+        let child = cancel.clone();
 
-        // Build the async task.
         let metrics_api: Api<metricsv1::PodMetrics> = Api::all(client);
+
         let handle = tokio::spawn(async move {
-            let mut ticker = time::interval(POLL_INTERVAL);
+            let mut tick = time::interval(POLL_INTERVAL);
 
             loop {
                 tokio::select! {
-                    _ = child_token.cancelled() => break,
-                    _ = ticker.tick() => {
-                        let lp = api::ListParams::default();
-
-                        match metrics_api.list(&lp).await {
+                    _ = child.cancelled() => break,
+                    _ = tick.tick() => {
+                        match metrics_api.list(&api::ListParams::default()).await {
                             Ok(metrics_list) => {
-                                let mut seen =
-                                    HashSet::with_capacity(metrics_list.items.len());
+                                let mut seen = HashSet::<String>::with_capacity(metrics_list.items.len());
                                 let mut guard = stats.lock().unwrap();
 
                                 for m in metrics_list {
-                                    let ns   = m.metadata.namespace.clone().unwrap_or_default();
-                                    let name = m.metadata.name.clone().unwrap_or_default();
-                                    let key  = format!("{ns}/{name}");
-                                    seen.insert(key);
+                                    let ns  = m.metadata.namespace.clone().unwrap_or_default();
+                                    let pod = m.metadata.name.clone().unwrap_or_default();
+                                    let key = format!("{ns}/{pod}");
+                                    seen.insert(key.clone());
 
-                                    /* ---- sum usage over all containers ---- */
-                                    let (mut used_cpu_cores, mut used_mem_bytes) = (0.0_f64, 0_i64);
+                                    /* ---- aggregate ---- */
+                                    let mut agg_cpu = 0.0_f64;
+                                    let mut agg_mem = 0_i64;
+
+                                    /* tmp map for this tick's container samples */
+                                    let mut c_map: HashMap<String, ContainerSample> = HashMap::new();
+
                                     for c in m.containers {
-                                        used_cpu_cores += c.usage.cpu.to_f64().unwrap_or(0.0);
-                                        used_mem_bytes += c.usage.memory.to_memory().unwrap_or(0);
-                                    }
-                                    let cpu_m  = (used_cpu_cores * 1000.0).round() as u64;
-                                    let mem_mi = (used_mem_bytes.max(0) as u64) / (1024 * 1024);
+                                        let cpu_m  = (c.usage.cpu.to_f64().unwrap_or(0.0) * 1000.0).round() as u64;
+                                        let mem_mi = (c.usage.memory.to_memory().unwrap_or(0).max(0) as u64)/(1024*1024);
 
-                                    /* ---- upsert PodStat ---- */
-                                    match guard.iter_mut()
-                                              .find(|p| p.namespace == ns && p.name == name) {
-                                        Some(p) => p.push_sample(cpu_m, mem_mi),
-                                        None    => {
-                                            let mut p = PodStat::new(ns, name);
-                                            p.push_sample(cpu_m, mem_mi);
-                                            guard.push(p);
+                                        agg_cpu += c.usage.cpu.to_f64().unwrap_or(0.0);
+                                        agg_mem += c.usage.memory.to_memory().unwrap_or(0);
+
+                                        c_map.insert(c.name, ContainerSample { cpu_m, mem_mi });
+                                    }
+
+                                    let agg_cpu_m  = (agg_cpu * 1000.0).round() as u64;
+                                    let agg_mem_mi = (agg_mem.max(0) as u64) / (1024*1024);
+
+                                    /* ---- upsert pod row ---- */
+                                    match guard.iter_mut().find(|p| p.namespace == ns && p.name == pod) {
+                                        Some(p) => {
+                                            p.push_sample(agg_cpu_m, agg_mem_mi);
+                                            p.containers = c_map;
+                                        }
+                                        None => {
+                                            let mut ps = PodStat::new(ns.clone(), pod.clone());
+                                            ps.push_sample(agg_cpu_m, agg_mem_mi);
+                                            ps.containers = c_map;
+                                            guard.push(ps);
                                         }
                                     }
                                 }
 
-                                // Drop pods that disappeared
-                                guard.retain(|p| seen.contains(&format!("{}/{}", p.namespace,
-                                                                        p.name)));
+                                /* drop pods that vanished */
+                                guard.retain(|p| seen.contains(&format!("{}/{}", p.namespace, p.name)));
                             }
-                            Err(e) => warn!(error = %e, "failed to fetch pod metrics"),
+                            Err(e) => warn!(error=%e, "failed to fetch pod metrics"),
                         }
                     }
                 }

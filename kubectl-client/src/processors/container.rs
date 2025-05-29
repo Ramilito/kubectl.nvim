@@ -90,8 +90,8 @@ impl Processor for ContainerProcessor {
 
             let (cpu_m, mem_mi) = stats_guard
                 .iter()
-                .find(|s| s.namespace == ns && s.name == pod_name)
-                .map(|s| (s.cpu_m, s.mem_mi))
+                .find(|p| p.namespace == ns && p.name == pod_name)
+                .and_then(|p| p.containers.get(c_name).map(|c| (c.cpu_m, c.mem_mi)))
                 .unwrap_or((0, 0));
 
             ContainerRow {
