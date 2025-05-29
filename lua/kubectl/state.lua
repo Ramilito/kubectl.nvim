@@ -114,6 +114,10 @@ function M.checkVersions()
       M.versions.client.minor = clientVersion.minor
       M.versions.server.minor = serverVersion.minor
       M.versions.server.major = serverVersion.major
+    else
+      vim.schedule(function()
+        require("kubectl.views.contexts").View()
+      end)
     end
   end)
 end
