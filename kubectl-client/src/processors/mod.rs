@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 
 pub mod clusterrolebinding;
 pub mod configmap;
+pub mod container;
 pub mod cronjob;
 pub mod customresourcedefinition;
 pub mod default;
@@ -23,6 +24,7 @@ pub mod serviceaccount;
 pub mod statefulset;
 pub mod storageclass;
 
+use container::ContainerProcessor;
 use node::NodeProcessor;
 
 use crate::processors::{
@@ -48,6 +50,7 @@ fn processors() -> &'static ProcessorMap {
         m.insert("configmap", Box::new(ConfigmapProcessor));
         m.insert("job", Box::new(JobProcessor));
         m.insert("cronjob", Box::new(CronJobProcessor));
+        m.insert("container", Box::new(ContainerProcessor));
         m.insert(
             "customresourcedefinition",
             Box::new(ClusterResourceDefinitionProcessor),

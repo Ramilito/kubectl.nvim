@@ -21,10 +21,16 @@ local M = {
       "TYPE",
       "RESTARTS",
       "PORTS",
+      "CPU",
+      "MEM",
+      "%CPU/R",
+      "%CPU/L",
+      "%MEM/R",
+      "%MEM/L",
       "AGE",
     },
     processRow = definition.processRow,
-    cmd = "get_single_async",
+    cmd = "get_container_table_async",
     hints = {
       { key = "<Plug>(kubectl.logs)", desc = "logs" },
       { key = "<Plug>(kubectl.debug)", desc = "debug" },
@@ -43,7 +49,7 @@ function M.View(pod, ns)
   M.definition.display_name = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
   local builder = manager.get_or_create(M.definition.resource)
-  builder.view_float(M.definition, { args = { kind = gvk.k, namespace = ns, name = pod, output = "json" } })
+  builder.view_float(M.definition, { args = { kind = gvk.k, name = pod, namespace = ns } })
 end
 
 function M.exec(pod, ns)

@@ -6,14 +6,13 @@ use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use metrics::pods::{shutdown_collectors, spawn_pod_collector, PodStat, SharedPodStats};
 use mlua::prelude::*;
 use mlua::Lua;
-use std::backtrace::Backtrace;
 use std::future::Future;
-use std::panic;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use store::STORE_MAP;
-use structs::{FetchArgs, GetAllArgs, GetFallbackTableArgs, GetTableArgs, StartReflectorArgs};
+use structs::{
+    FetchArgs, GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs,
+};
 use tokio::runtime::Runtime;
-use tracing::error;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -246,6 +245,27 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
 }
 
 #[tracing::instrument]
+async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> {
+    let args: GetSingleArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
+
+    let pod = store::get_single(&args.kind, args.namespace.clone(), &args.name)
+        .await
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
+        .unwrap();
+
+    let vec = vec![pod.unwrap()];
+    let proc = processor("container");
+    let processed = proc
+        .process(&lua, &vec, None, None, None, None)
+        .map_err(mlua::Error::external)?;
+
+    let json_str = k8s_openapi::serde_json::to_string(&processed)
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+    Ok(json_str)
+}
+
+#[tracing::instrument]
 async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
@@ -376,6 +396,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(fetch_all_async)?,
     )?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
+    exports.set(
+        "get_container_table_async",
+        lua.create_async_function(get_container_table_async)?,
+    )?;
     exports.set(
         "get_table_async",
         lua.create_async_function(get_table_async)?,
