@@ -18,6 +18,8 @@ function M.processRow(row)
       ports = c.ports,
       cpu = c.cpu,
       mem = c.mem,
+      ["cpu/rl"] = c["cpu/rl"],
+      ["mem/rl"] = c["mem/rl"],
       ["%cpu/r"] = c["%cpu/r"],
       ["%cpu/l"] = c["%cpu/l"],
       ["%mem/r"] = c["%mem/r"],

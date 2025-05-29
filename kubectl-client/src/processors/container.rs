@@ -25,6 +25,10 @@ pub struct ContainerRow {
     ports: String,
     cpu: String,
     mem: String,
+    #[serde(rename = "cpu/rl")]
+    cpu_rl: String,
+    #[serde(rename = "mem/rl")]
+    mem_rl: String,
     #[serde(rename = "%cpu/r")]
     cpu_pct_r: String,
     #[serde(rename = "%cpu/l")]
@@ -81,17 +85,17 @@ impl Processor for ContainerProcessor {
                 .map(|ts| time_since(&ts.to_rfc3339()))
                 .unwrap_or_else(|| "n/a".into());
 
+            let (req_cpu, req_mem) = resource_pair(res, true);
+            let (lim_cpu, lim_mem) = resource_pair(res, false);
+
             let (cpu_m, mem_mi) = stats_guard
                 .iter()
                 .find(|s| s.namespace == ns && s.name == pod_name)
                 .map(|s| (s.cpu_m, s.mem_mi))
                 .unwrap_or((0, 0));
 
-            let (req_cpu_m, req_mem_mi) = resource_pair(res, true);
-            let (lim_cpu_m, lim_mem_mi) = resource_pair(res, false);
-
             ContainerRow {
-                name: c_name.to_owned(),
+                name: c_name.to_string(),
                 image: image.cloned().unwrap_or_default(),
                 ready,
                 state,
@@ -100,10 +104,12 @@ impl Processor for ContainerProcessor {
                 ports: ports_to_string(ports),
                 cpu: cpu_m.to_string(),
                 mem: mem_mi.to_string(),
-                cpu_pct_r: pct(cpu_m, req_cpu_m),
-                cpu_pct_l: pct(cpu_m, lim_cpu_m),
-                mem_pct_r: pct(mem_mi, req_mem_mi),
-                mem_pct_l: pct(mem_mi, lim_mem_mi),
+                cpu_rl: format!("{}:{}", req_cpu, lim_cpu),
+                mem_rl: format!("{}:{}", req_mem, lim_mem),
+                cpu_pct_r: pct(cpu_m, req_cpu),
+                cpu_pct_l: pct(cpu_m, lim_cpu),
+                mem_pct_r: pct(mem_mi, req_mem),
+                mem_pct_l: pct(mem_mi, lim_mem),
                 age,
             }
         };
