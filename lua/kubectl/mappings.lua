@@ -432,6 +432,37 @@ function M.get_mappings()
         vim.cmd.close()
       end,
     },
+    ["<Plug>(kubectl.toggle_fullscreen)"] = {
+      mode = "n",
+      desc = "Toggle fullscreen",
+      callback = function()
+				local VAR = "_kubectl_float_cfg"
+        local win = vim.api.nvim_get_current_win()
+        local cfg = vim.api.nvim_win_get_config(win)
+
+        if cfg.relative == "" then
+          return
+        end
+
+        if vim.w[VAR] then
+          vim.api.nvim_win_set_config(win, vim.w[VAR])
+          vim.w[VAR] = nil
+        else
+          vim.w[VAR] = cfg
+
+          vim.api.nvim_win_set_config(win, {
+            relative = "editor",
+            row = 0,
+            col = 0,
+            width = vim.o.columns,
+            height = vim.o.lines - vim.o.cmdheight,
+            border = "none",
+            style = cfg.style,
+            zindex = cfg.zindex,
+          })
+        end
+      end,
+    },
     ["<Plug>(kubectl.tab)"] = {
       mode = "n",
       desc = "Select resource",
@@ -517,6 +548,7 @@ function M.register()
     vim.api.nvim_buf_set_keymap(0, "n", "q", "<Plug>(kubectl.quit)", opts)
     vim.api.nvim_buf_set_keymap(0, "n", "<esc>", "<Plug>(kubectl.quit)", opts)
     vim.api.nvim_buf_set_keymap(0, "i", "<C-c>", "<Esc><Plug>(kubectl.quit)", opts)
+    vim.api.nvim_buf_set_keymap(0, "n", "<f4>", "<Plug>(kubectl.toggle_fullscreen)", opts)
   end
 
   M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
