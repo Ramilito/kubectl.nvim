@@ -200,6 +200,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "", "<Plug>(kubectl.quit)", opts) -- Close view (when applicable)
     k("n", "gk", "<Plug>(kubectl.kill)", opts) -- Pod/portforward kill
     k("n", "<M-h>", "<Plug>(kubectl.toggle_headers)", opts) -- Toggle headers
+    k("n", "<f4>", "<Plug>(kubectl.toggle_fullscreen)", opts) -- Toggle fullscreen
 
     -- Views
     k("n", "<C-p>", "<Plug>(kubectl.picker_view)", opts) -- Picker view
