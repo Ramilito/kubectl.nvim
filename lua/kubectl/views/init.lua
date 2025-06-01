@@ -282,12 +282,16 @@ function M.Header()
   vim.api.nvim_create_augroup("kubectl_header", { clear = true })
 
   local ui = vim.api.nvim_list_uis()[1] -- current UI size
-  local height = 5
+  local height = 10
   local row = ui.height - height
-  local headerVisible = true
+  local show_header = true
 
   local function refresh_header()
     if not config.options.headers.enabled then
+      return
+    end
+
+    if not show_header then
       return
     end
     local builder = manager.get_or_create("header")
@@ -351,14 +355,14 @@ function M.Header()
       if not builder then
         return
       end
-      if overlapping and headerVisible then
+      if overlapping and show_header then
         vim.schedule(function()
           pcall(vim.api.nvim_buf_delete, builder.buf_nr, { force = true })
         end)
-        headerVisible = false
-      elseif (not overlapping) and not headerVisible then
+        show_header = false
+      elseif (not overlapping) and not show_header then
+        show_header = true
         refresh_header()
-        headerVisible = true
       end
     end,
   })
