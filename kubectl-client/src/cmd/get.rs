@@ -180,13 +180,7 @@ pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> 
     let args: GetServerRawArgs = k8s_openapi::serde_json::from_str(&json).unwrap();
 
     with_client(move |client| async move {
-        let config = Config::infer().await.map_err(LuaError::external)?;
-        let base = config.cluster_url.to_string();
-        let full_url_str = format!(
-            "{}/{}",
-            base.trim_end_matches('/'),
-            args.path.trim_start_matches('/')
-        );
+        let full_url_str = format!("/{}", args.path.trim_start_matches('/'));
         let full_url: Uri = full_url_str.parse().map_err(LuaError::external)?;
 
         let req = http::Request::get(full_url)

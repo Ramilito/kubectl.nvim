@@ -107,10 +107,6 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
 
             let client = Client::try_from(cfg).map_err(LuaError::external)?;
 
-            if let Err(e) = client.apiserver_version().await {
-                return Err(LuaError::external(format!("API-server unreachable: {e}")));
-            }
-
             Ok(client)
         };
         {
