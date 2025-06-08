@@ -125,7 +125,10 @@ function M.clear_buffers(context)
       if vim.api.nvim_buf_is_loaded(buf) then
         local ft = vim.bo[buf].filetype or ""
         if ft:sub(1, #prefix) == prefix then
-          vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Loading new context: " .. context })
+          vim.schedule(function()
+            pcall(vim.api.nvim_set_option_value, "winbar", "", { scope = "local", win = win })
+            vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Loading new context: " .. context })
+          end)
         end
       end
     end
