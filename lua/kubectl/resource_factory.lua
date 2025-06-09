@@ -316,8 +316,7 @@ function M.new(resource)
     builder.definition = definition or {}
 
     local title = definition.display_name or builder.resource
-    builder.buf_nr, builder.win_nr =
-      buffers.floating_buffer(definition.ft, title, definition.syntax, builder.win_nr)
+    builder.buf_nr, builder.win_nr = buffers.floating_buffer(definition.ft, title, definition.syntax, builder.win_nr)
 
     commands.run_async(definition.cmd, opts.args, function(result)
       builder.data = result

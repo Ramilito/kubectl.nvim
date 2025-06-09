@@ -211,9 +211,9 @@ end
 ---@return table[]
 local function addContextRows(context)
   local items = {}
-	if not context.contexts then
-		return items
-	end
+  if not context.contexts then
+    return items
+  end
   local current_context = context.contexts[1]
   if current_context then
     table.insert(items, { label = "Context:", value = current_context.name, symbol = hl.symbols.pending })

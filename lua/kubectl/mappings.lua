@@ -436,7 +436,7 @@ function M.get_mappings()
       mode = "n",
       desc = "Toggle fullscreen",
       callback = function()
-				local VAR = "_kubectl_float_cfg"
+        local VAR = "_kubectl_float_cfg"
         local win = vim.api.nvim_get_current_win()
         local cfg = vim.api.nvim_win_get_config(win)
 
