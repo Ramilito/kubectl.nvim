@@ -202,7 +202,7 @@ function M.shell_command_async(cmd, args, on_exit, on_stdout, on_stderr, opts)
   return handle
 end
 
-function M.await_all(cmds, final_callback)
+function M.await_all(cmds, callback, final_callback)
   local results = {}
   local errors = {}
   local completed = 0
@@ -212,6 +212,9 @@ function M.await_all(cmds, final_callback)
       results[idx] = res
       errors[idx] = err
       completed = completed + 1
+			if callback then
+				callback()
+			end
       if completed == total then
         final_callback(results, errors)
       end

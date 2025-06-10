@@ -12,6 +12,8 @@ local M = {
   builder = nil,
   loaded = false,
   is_loading = false,
+  processed = 0,
+  total = 0,
 }
 
 function M.View(name, ns, kind)
@@ -19,10 +21,15 @@ function M.View(name, ns, kind)
   M.selection.name = name
   M.selection.ns = ns
   M.selection.kind = kind
+	M.total = 0
 
-  if not M.loaded then
+  if not M.loaded and not M.is_loading then
     M.is_loading = true
     M.load_cache()
+  end
+
+  for _, _ in pairs(cache.cached_api_resources.values) do
+    M.total = M.total + 1
   end
 
   M.builder = manager.get_or_create(definition.resource)
@@ -40,7 +47,10 @@ function M.Draw()
   M.builder.data = { "Associated Resources: " }
   if cache.loading or M.is_loading then
     table.insert(M.builder.data, "")
-    table.insert(M.builder.data, "Cache still loading...")
+    vim.schedule(function()
+      table.insert(M.builder.data, M.processed .. "/" .. M.total)
+      table.insert(M.builder.data, "Cache still loading...")
+    end)
   else
     local data = definition.collect_all_resources(cache.cached_api_resources.values)
     local graph = definition.build_graph(data)
@@ -106,8 +116,11 @@ end
 function M.load_cache(callback)
   local cached_api_resources = cache.cached_api_resources
   local all_gvk = {}
+  M.processed = 0
   for _, resource in pairs(cached_api_resources.values) do
-    table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk, nil } })
+    if resource.gvk then
+      table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk, nil } })
+    end
   end
 
   collectgarbage("collect")
@@ -116,7 +129,9 @@ function M.load_cache(callback)
   local mem_before = collectgarbage("count")
   local relationships = require("kubectl.utils.relationships")
 
-  commands.await_all(all_gvk, function(data)
+  commands.await_all(all_gvk, function()
+    M.processed = M.processed + 1
+  end, function(data)
     M.builder.data = data
     M.builder.splitData()
     M.builder.decodeJson()
