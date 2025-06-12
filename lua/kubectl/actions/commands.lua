@@ -212,9 +212,9 @@ function M.await_all(cmds, callback, final_callback)
       results[idx] = res
       errors[idx] = err
       completed = completed + 1
-			if callback then
-				callback()
-			end
+      if callback then
+        callback()
+      end
       if completed == total then
         final_callback(results, errors)
       end
