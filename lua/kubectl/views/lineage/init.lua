@@ -21,7 +21,7 @@ function M.View(name, ns, kind)
   M.selection.name = name
   M.selection.ns = ns
   M.selection.kind = kind
-	M.total = 0
+  M.total = 0
 
   if not M.loaded and not M.is_loading then
     M.is_loading = true
