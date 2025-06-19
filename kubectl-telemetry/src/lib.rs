@@ -48,7 +48,7 @@ fn init_tracer_provider(ep: &str) -> SdkTracerProvider {
 
     SdkTracerProvider::builder()
         .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
-            0.1,
+            1.0,
         ))))
         .with_resource(resource())
         .with_batch_exporter(exporter)
