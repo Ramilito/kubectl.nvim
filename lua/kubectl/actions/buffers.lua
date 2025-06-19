@@ -389,6 +389,7 @@ function M.buffer(filetype, title)
   end
 
   api.nvim_set_current_buf(buf)
+  state.set_session(bufname)
 
   return buf, win
 end
