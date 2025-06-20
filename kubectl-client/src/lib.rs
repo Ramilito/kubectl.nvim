@@ -290,38 +290,23 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
 async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-    with_client(move |client| async move {
-        let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
-        let resources: Vec<DynamicObject> = if cached.is_empty() {
-            get_resources_async(
-                &client,
-                args.gvk.k.clone(),
-                Some(args.gvk.g),
-                Some(args.gvk.v),
-                args.namespace,
-            )
-            .await
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
-        } else {
-            cached
-        };
+    let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
 
-        let processor = processor(args.gvk.k.to_lowercase().as_str());
-        let processed = processor
-            .process(
-                &lua,
-                &resources,
-                args.sort_by,
-                args.sort_order,
-                args.filter,
-                args.filter_label,
-            )
-            .map_err(mlua::Error::external)?;
+    let processor = processor(args.gvk.k.to_lowercase().as_str());
+    let processed = processor
+        .process(
+            &lua,
+            &cached,
+            args.sort_by,
+            args.sort_order,
+            args.filter,
+            args.filter_label,
+        )
+        .map_err(mlua::Error::external)?;
 
-        let json_str = k8s_openapi::serde_json::to_string(&processed)
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-        Ok(json_str)
-    })
+    let json_str = k8s_openapi::serde_json::to_string(&processed)
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+    Ok(json_str)
 }
 
 /// Runs automatically when the cdylib is unloaded
