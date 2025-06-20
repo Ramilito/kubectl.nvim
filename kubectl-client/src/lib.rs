@@ -144,6 +144,31 @@ fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
     Ok(true)
 }
 
+#[tracing::instrument]
+fn get_all(lua: &Lua, json: String) -> LuaResult<String> {
+    let args: GetAllArgs = serde_json::from_str(&json).unwrap();
+    with_client(move |client| async move {
+        let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
+        let resources: Vec<DynamicObject> = if cached.is_empty() {
+            get_resources_async(
+                &client,
+                args.gvk.k,
+                Some(args.gvk.g),
+                Some(args.gvk.v),
+                args.namespace,
+            )
+            .await
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+        } else {
+            cached
+        };
+        let json_str = k8s_openapi::serde_json::to_string(&resources)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        Ok(json_str)
+    })
+}
+
 //TODO: Should be combined with get_table_async with a pretty output param
 #[tracing::instrument]
 async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
@@ -391,6 +416,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "fetch_all_async",
         lua.create_async_function(fetch_all_async)?,
     )?;
+    exports.set("get_all", lua.create_function(get_all)?)?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(
         "get_container_table_async",

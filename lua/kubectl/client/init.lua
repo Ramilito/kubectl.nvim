@@ -20,6 +20,10 @@ function client.get_resource(...)
   return client.implementation.get_resource(...)
 end
 
+function client.get_all(...)
+  return client.implementation.get_all(...)
+end
+
 function client.portforward_start(...)
   return client.implementation.portforward_start(...)
 end

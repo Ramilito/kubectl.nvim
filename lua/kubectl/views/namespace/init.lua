@@ -76,17 +76,15 @@ function M.listNamespaces()
   if #M.namespaces - #config.options.namespace_fallback > 1 then
     return M.namespaces
   end
-  local output = commands.shell_command("kubectl", { "get", "ns", "-o", "name", "--no-headers" })
-  local ns = {}
-  for line in output:gmatch("[^\r\n]+") do
-    local namespace = line:match("^namespace/(.+)$")
-    if namespace then
-      table.insert(ns, namespace)
-    end
-  end
 
-  M.namespaces = ns
-  return M.namespaces
+  local client = require("kubectl.client")
+  local payload = vim.json.encode({ gvk = M.definition.gvk, nil }, { luanil = { object = true, array = true } })
+  local output = vim.json.decode(client.get_all(payload), { luanil = { object = true, array = true } })
+  local ns = {}
+  for _, value in ipairs(output) do
+    table.insert(ns, value.metadata.name)
+  end
+  return ns
 end
 
 function M.changeNamespace(name)
