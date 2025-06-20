@@ -24,7 +24,13 @@ local M = {
 
 function M.View()
   local buf, win = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
-    M.changeNamespace(input)
+    if vim.tbl_contains(M.namespaces, input) or input == "" then
+      M.changeNamespace(input)
+    else
+      vim.schedule(function()
+        vim.notify("Not a valid namespace", vim.log.levels.ERROR)
+      end)
+    end
   end, { header = { data = {} }, prompt = true })
 
   local builder = manager.get_or_create(M.definition.resource)
