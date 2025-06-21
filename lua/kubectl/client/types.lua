@@ -3,6 +3,7 @@
 --- @field init_logging fun(filepath: string)
 --- @field init_metrics fun()
 --- @field get_resource fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?)
+--- @field get_all fun(gvk: {}, ns: string?)
 --- @field start_watcher fun(resource_name: string, group: string?, version: string?, name: string?, namespace: string?)
 --- @field edit_resource fun(resource_name: string, namespace: string?, name: string, group: string?, version: string? )
 --- @field portforward_start fun(kind: string, name: string, namespace: string, local_port: number, remote_port: number)
