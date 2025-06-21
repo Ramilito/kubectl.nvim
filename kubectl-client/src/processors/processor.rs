@@ -1,8 +1,10 @@
 use chrono::{Duration, Utc};
+use k8s_openapi::{apimachinery::pkg::version::Info, serde_json};
 use kube::api::DynamicObject;
 use mlua::{prelude::*, Lua};
 use rayon::prelude::*;
 use std::fmt::Debug;
+use tracing::{info, span, Level};
 
 use crate::{
     events::symbols,
@@ -21,7 +23,7 @@ pub trait DynProcessor: Send + Sync {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
-    ) -> LuaResult<mlua::Value>;
+    ) -> LuaResult<String>;
 
     fn process_fallback(
         &self,
@@ -44,9 +46,19 @@ impl<T: Processor> DynProcessor for T {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
-    ) -> LuaResult<mlua::Value> {
-        let rows = Processor::process(self, items, sort_by, sort_order, filter, filter_label)?;
-        lua.to_value(&rows)
+    ) -> LuaResult<String> {
+        let processed = Processor::process(self, items, sort_by, sort_order, filter, filter_label)?;
+
+        let json_span = span!(Level::INFO, "json_convert").entered();
+
+        let mut buf = Vec::with_capacity(processed.len().saturating_mul(512).max(4 * 1024));
+        serde_json::to_writer(&mut buf, &processed)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        let json_str = lua.create_string(&buf)?.to_str()?.to_owned();
+        json_span.record("out_bytes", json_str.len() as u64);
+        json_span.exit();
+        Ok(json_str)
     }
 
     fn process_fallback(

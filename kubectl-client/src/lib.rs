@@ -13,6 +13,7 @@ use structs::{
     FetchArgs, GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs,
 };
 use tokio::runtime::Runtime;
+use tracing::{span, Level};
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -303,10 +304,7 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
             args.filter_label,
         )
         .map_err(mlua::Error::external)?;
-
-    let json_str = k8s_openapi::serde_json::to_string(&processed)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    Ok(json_str)
+    Ok(processed)
 }
 
 /// Runs automatically when the cdylib is unloaded
