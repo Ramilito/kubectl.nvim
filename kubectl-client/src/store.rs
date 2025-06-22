@@ -21,6 +21,7 @@ pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObjec
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
 
+#[tracing::instrument(skip(client))]
 pub async fn init_reflector_for_kind(
     client: Client,
     gvk: GroupVersionKind,
@@ -56,6 +57,7 @@ pub async fn init_reflector_for_kind(
                 });
             }
         })
+        .default_backoff()
         .reflect(writer)
         .applied_objects();
 
