@@ -46,7 +46,7 @@ pub async fn init_reflector_for_kind(
     let ar_kind = ar.kind.clone();
 
     let stream = watcher(api, config)
-        .default_backoff()
+        // .default_backoff()
         .modify(move |resource| {
             resource.managed_fields_mut().clear();
             resource.data["api_version"] = json!(ar_api_version.clone());
