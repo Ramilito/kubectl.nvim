@@ -260,8 +260,8 @@ function M.get_mappings()
           group = instance.definition.group,
           version = instance.definition.version,
         }
-        commands.run_async("fetch_async", {
-          gvk = def.gvk,
+        commands.run_async("get_single_async", {
+          kind = def.gvk.k,
           name = def.name,
           namespace = def.ns,
           output = "Yaml",

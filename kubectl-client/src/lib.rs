@@ -208,46 +208,6 @@ async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
 }
 
 #[tracing::instrument]
-async fn fetch_all_async(
-    _lua: Lua,
-    args: (String, Option<String>, Option<String>, Option<String>),
-) -> LuaResult<String> {
-    let (kind, group, version, namespace) = args;
-
-    with_client(move |client| async move {
-        let mut items = get_resources_async(&client, kind, group, version, namespace)
-            .await
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-
-        for item in &mut items {
-            crate::utils::strip_managed_fields(item);
-        }
-        let json_str = k8s_openapi::serde_json::to_string(&items)
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-
-        Ok(json_str)
-    })
-}
-
-#[tracing::instrument]
-async fn fetch_async(_lua: Lua, json: String) -> LuaResult<String> {
-    let args: FetchArgs = serde_json::from_str(&json).unwrap();
-
-    with_client(move |client| async move {
-        get_resource_async(
-            &client,
-            args.gvk.k,
-            Some(args.gvk.g),
-            Some(args.gvk.v),
-            args.name,
-            args.namespace,
-            args.output,
-        )
-        .await
-    })
-}
-
-#[tracing::instrument]
 pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetFallbackTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
@@ -393,11 +353,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "get_single_async",
         lua.create_async_function(get_single_async)?,
-    )?;
-    exports.set("fetch_async", lua.create_async_function(fetch_async)?)?;
-    exports.set(
-        "fetch_all_async",
-        lua.create_async_function(fetch_all_async)?,
     )?;
     exports.set("get_all", lua.create_function(get_all)?)?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
