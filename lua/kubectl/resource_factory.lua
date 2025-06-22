@@ -2,6 +2,7 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local timeme = require("kubectl.utils.timeme")
 
 local M = {}
 
@@ -250,12 +251,14 @@ function M.new(resource)
     builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, builder.resource)
     state.addToHistory(builder.resource)
 
+		timeme.start()
     commands.run_async("start_reflector_async", { gvk = definition.gvk, namespace = nil }, function(_, err)
       if err then
         return
       end
       vim.schedule(function()
         builder.draw(cancellationToken)
+        timeme.stop()
         vim.cmd("doautocmd User K8sDataLoaded")
       end)
     end)
