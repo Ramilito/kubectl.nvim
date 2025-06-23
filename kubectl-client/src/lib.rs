@@ -242,9 +242,7 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
         .process(&lua, &vec, None, None, None, None)
         .map_err(mlua::Error::external)?;
 
-    let json_str = k8s_openapi::serde_json::to_string(&processed)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    Ok(json_str)
+    Ok(processed)
 }
 
 #[tracing::instrument]
