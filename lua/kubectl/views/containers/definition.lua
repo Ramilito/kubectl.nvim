@@ -2,8 +2,17 @@ local M = {}
 
 function M.processRow(row)
   local data = {}
+  if type(row) == "string" then
+    local ok, decoded = pcall(vim.json.decode, row)
+    if ok then
+      row = decoded
+    else
+      vim.notify("Failed to decode JSON: " .. decoded, vim.log.levels.ERROR)
+      return data
+    end
+  end
 
-  if not row or #row == 0 then
+  if not row or #row == 0 or not row[1] or not row[1].containers then
     return data
   end
 
