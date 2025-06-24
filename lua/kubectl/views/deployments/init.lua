@@ -12,6 +12,12 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "apps", v = "v1", k = "Deployment" },
+    child_view = {
+      name = "replicasets",
+      predicate = function(name)
+        return "metadata.ownerReferences.name=" .. name
+      end,
+    },
     hints = {
       { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change deployment image" },
       { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },

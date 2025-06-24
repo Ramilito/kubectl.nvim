@@ -3,24 +3,11 @@ local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.views.deployments")
 local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
-local state = require("kubectl.state")
-local view = require("kubectl.views")
 
 local M = {}
 local err_msg = "Failed to extract pod name or namespace."
 
 M.overrides = {
-  ["<Plug>(kubectl.select)"] = {
-    noremap = true,
-    silent = true,
-    desc = "Go to pods",
-    callback = function()
-      local name, ns = deployment_view.getCurrentSelection()
-      state.setFilter("")
-      view.set_and_open_pod_selector(name, ns)
-    end,
-  },
-
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,

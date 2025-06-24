@@ -117,6 +117,7 @@ pub trait Processor: Debug + Send + Sync {
             None => wanted.is_empty(),
         }
     }
+
     fn json_value_at<'a>(obj: &'a DynamicObject, path: &str) -> Option<&'a str> {
         let mut segs = path.split('.');
 
@@ -127,6 +128,21 @@ pub trait Processor: Debug + Send + Sync {
                 "labels" => {
                     let key = segs.next()?;
                     obj.metadata.labels.as_ref()?.get(key).map(String::as_str)
+                }
+                "ownerReferences" => {
+                    let field = segs.next()?;
+
+                    obj.metadata
+                        .owner_references
+                        .as_ref()?
+                        .iter()
+                        .find_map(|r| match field {
+                            "kind" => Some(r.kind.as_str()),
+                            "name" => Some(r.name.as_str()),
+                            "uid" => Some(r.uid.as_str()),
+                            "apiVersion" => Some(r.api_version.as_str()),
+                            _ => None,
+                        })
                 }
                 _ => None,
             },
@@ -151,15 +167,15 @@ pub trait Processor: Debug + Send + Sync {
         filter_label: Option<Vec<String>>,
         filter_key: Option<String>,
     ) -> LuaResult<Vec<Self::Row>> {
-        let key_filter: Option<(&str, &str)> =
-            filter_key.as_deref().and_then(|s| s.split_once('='));
-
         let parsed: Vec<(&str, &str)> = filter_label
             .as_deref()
             .unwrap_or(&[])
             .iter()
             .filter_map(|s| s.split_once('='))
             .collect();
+
+        let key_filter: Option<(&str, &str)> =
+            filter_key.as_deref().and_then(|s| s.split_once('='));
 
         let mut rows: Vec<Self::Row> = items
             .par_iter()
