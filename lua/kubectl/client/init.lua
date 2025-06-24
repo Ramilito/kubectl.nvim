@@ -24,6 +24,10 @@ function client.get_all(...)
   return client.implementation.get_all(...)
 end
 
+function client.get_single(...)
+  return client.implementation.get_single(...)
+end
+
 function client.portforward_start(...)
   return client.implementation.portforward_start(...)
 end

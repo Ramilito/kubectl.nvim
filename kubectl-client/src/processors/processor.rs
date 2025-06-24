@@ -119,42 +119,37 @@ pub trait Processor: Debug + Send + Sync {
     }
 
     fn json_value_at<'a>(obj: &'a DynamicObject, path: &str) -> Option<&'a str> {
-        let mut segs = path.split('.');
-
-        match segs.next()? {
-            "metadata" => match segs.next()? {
-                "name" => obj.metadata.name.as_deref(),
-                "namespace" => obj.metadata.namespace.as_deref(),
-                "labels" => {
-                    let key = segs.next()?;
-                    obj.metadata.labels.as_ref()?.get(key).map(String::as_str)
-                }
-                "ownerReferences" => {
-                    let field = segs.next()?;
-
-                    obj.metadata
-                        .owner_references
-                        .as_ref()?
-                        .iter()
-                        .find_map(|r| match field {
-                            "kind" => Some(r.kind.as_str()),
-                            "name" => Some(r.name.as_str()),
-                            "uid" => Some(r.uid.as_str()),
-                            "apiVersion" => Some(r.api_version.as_str()),
-                            _ => None,
-                        })
-                }
-                _ => None,
-            },
-
-            top_key => {
-                let mut cur = obj.data.get(top_key)?;
-                for s in segs {
-                    cur = cur.get(s)?;
-                }
-                cur.as_str()
-            }
+        if let Some(key) = path.strip_prefix("metadata.labels.") {
+            return obj.metadata.labels.as_ref()?.get(key).map(String::as_str);
         }
+        if path == "metadata.name" {
+            return obj.metadata.name.as_deref();
+        }
+        if path == "metadata.namespace" {
+            return obj.metadata.namespace.as_deref();
+        }
+        if let Some(field) = path.strip_prefix("metadata.ownerReferences.") {
+            return obj
+                .metadata
+                .owner_references
+                .as_ref()?
+                .iter()
+                .find_map(|r| match field {
+                    "kind" => Some(r.kind.as_str()),
+                    "name" => Some(r.name.as_str()),
+                    "uid" => Some(r.uid.as_str()),
+                    "apiVersion" => Some(r.api_version.as_str()),
+                    _ => None,
+                });
+        }
+
+        let mut segs = path.split('.');
+        let top_key = segs.next()?;
+        let mut cur = obj.data.get(top_key)?;
+        for s in segs {
+            cur = cur.get(s)?;
+        }
+        cur.as_str()
     }
 
     #[tracing::instrument(skip(self, items), fields(item_count = items.len()))]
@@ -174,18 +169,23 @@ pub trait Processor: Debug + Send + Sync {
             .filter_map(|s| s.split_once('='))
             .collect();
 
-        let key_filter: Option<(&str, &str)> =
-            filter_key.as_deref().and_then(|s| s.split_once('='));
+        let key_filters: Vec<(String, String)> = filter_key
+            .as_deref()
+            .map(|s| {
+                s.split([',', ' '])
+                    .filter_map(|kv| kv.split_once('='))
+                    .map(|(p, v)| (p.to_string(), v.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
 
         let mut rows: Vec<Self::Row> = items
             .par_iter()
             .filter(|obj| Self::labels_match(obj, &parsed))
             .filter(|obj| {
-                if let Some((path, expect)) = key_filter {
+                key_filters.iter().all(|(path, expect)| {
                     Self::json_value_at(obj, path).is_some_and(|v| v == expect)
-                } else {
-                    true
-                }
+                })
             })
             .map(|obj| self.build_row(obj).map_err(|e| e.to_string()))
             .collect::<Result<Vec<_>, _>>()

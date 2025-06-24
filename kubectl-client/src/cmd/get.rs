@@ -144,6 +144,37 @@ pub async fn get_resource_async(
 }
 
 #[tracing::instrument]
+pub fn get_single(lua: &Lua, json: String) -> LuaResult<String> {
+    let args: GetSingleArgs =
+        serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
+
+    let output_mode = args
+        .output
+        .as_deref()
+        .map(OutputMode::from_str)
+        .unwrap_or_default();
+
+    with_client(move |client| async move {
+        if let Some(found) =
+            store::get_single(&args.kind, args.namespace.clone(), &args.name).await?
+        {
+            return Ok(output_mode.format(found));
+        }
+        let result = get_resource_async(
+            &client,
+            args.kind,
+            None,
+            None,
+            args.name,
+            args.namespace,
+            args.output,
+        );
+
+        result.await
+    })
+}
+
+#[tracing::instrument]
 pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: GetSingleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;

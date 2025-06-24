@@ -13,9 +13,21 @@ local M = {
     ft = "k8s_" .. resource,
     gvk = { g = "apps", v = "v1", k = "Deployment" },
     child_view = {
-      name = "replicasets",
-      predicate = function(name)
-        return "metadata.ownerReferences.name=" .. name
+      name = "pods",
+      predicate = function(name, ns)
+        local client = require("kubectl.client")
+        local deploy =
+          client.get_single(vim.json.encode({ kind = "Deployment", namespace = ns, name = name, output = "Json" }))
+
+        local deploy_decoded = vim.json.decode(deploy)
+
+        local labels = deploy_decoded.spec.selector.matchLabels
+        local parts = {}
+        for k, v in pairs(labels) do
+          table.insert(parts, ("metadata.labels.%s=%s"):format(k, v))
+        end
+
+        return table.concat(parts, ",")
       end,
     },
     hints = {

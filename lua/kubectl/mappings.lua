@@ -504,10 +504,10 @@ function M.get_mappings()
           return
         end
 
-        local name, _ = view.getCurrentSelection()
+        local name, ns = view.getCurrentSelection()
         if name then
           local child_view = require("kubectl.views." .. view.definition.child_view.name)
-          state.filter_key = view.definition.child_view.predicate(name)
+          state.filter_key = view.definition.child_view.predicate(name, ns)
           child_view.View()
         end
       end,
