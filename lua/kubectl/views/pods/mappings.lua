@@ -47,6 +47,7 @@ M.overrides = {
 M.register = function()
   mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
   mappings.map_if_plug_not_set("n", "gp", "<Plug>(kubectl.portforward)")
+  mappings.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
 end
 
 return M

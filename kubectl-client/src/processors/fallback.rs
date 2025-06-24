@@ -128,6 +128,7 @@ impl Processor for FallbackProcessor {
         _sort_order: Option<String>,
         _filter: Option<String>,
         _filter_label: Option<Vec<String>>,
+        _filter_key: Option<String>,
     ) -> LuaResult<Vec<Self::Row>> {
         Err(LuaError::external("use process_fallback"))
     }
@@ -141,6 +142,7 @@ impl Processor for FallbackProcessor {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
+        filter_key: Option<String>,
     ) -> LuaResult<mlua::Value> {
         with_client(move |client| async move {
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
@@ -196,6 +198,7 @@ impl Processor for FallbackProcessor {
                 sort_order.clone(),
                 filter.clone(),
                 filter_label.clone(),
+                filter_key.clone(),
             )?;
             let rows_lua = lua.to_value(&rows_vec)?;
 

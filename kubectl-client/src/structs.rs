@@ -22,6 +22,7 @@ pub struct GetTableArgs {
     pub sort_order: Option<String>,
     pub filter: Option<String>,
     pub filter_label: Option<Vec<String>>,
+    pub filter_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

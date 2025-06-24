@@ -12,6 +12,12 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "", v = "v1", k = "Node" },
+    child_view = {
+      name = "pods",
+      predicate = function(name)
+        return "spec.nodeName=" .. name
+      end,
+    },
     hints = {
       { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
       { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },

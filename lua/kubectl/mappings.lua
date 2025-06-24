@@ -38,6 +38,7 @@ function M.get_mappings()
       callback = function()
         local view = require("kubectl.views")
         local state = require("kubectl.state")
+				state.reset_filters()
         local older_view = state.history[#state.history - 1]
         if not older_view then
           return
@@ -185,6 +186,8 @@ function M.get_mappings()
       mode = "n",
       desc = "Reload",
       callback = function()
+        local state = require("kubectl.state")
+        state.reset_filters()
         if win_config.relative == "" then
           local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
           vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
@@ -489,6 +492,26 @@ function M.get_mappings()
         end
       end,
     },
+    ["<Plug>(kubectl.select)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Go to child view",
+      callback = function()
+        local state = require("kubectl.state")
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+        if not view_ok then
+          return
+        end
+
+        local name, _ = view.getCurrentSelection()
+        if name then
+          local child_view = require("kubectl.views." .. view.definition.child_view.name)
+          state.filter_key = view.definition.child_view.predicate(name)
+          child_view.View()
+        end
+      end,
+    },
     ["<Plug>(kubectl.lineage)"] = {
       noremap = true,
       silent = true,
@@ -543,6 +566,7 @@ function M.register()
     M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
     M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
     M.map_if_plug_not_set("n", "<M-h>", "<Plug>(kubectl.toggle_headers)")
+    M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
   else
     local opts = { noremap = true, silent = true, callback = nil }
     vim.api.nvim_buf_set_keymap(0, "n", "q", "<Plug>(kubectl.quit)", opts)
@@ -561,7 +585,6 @@ function M.register()
   M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")
   M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
   M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
-  M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
 
   if config.options.lineage.enabled then
     M.map_if_plug_not_set("n", "gxx", "<Plug>(kubectl.lineage)")

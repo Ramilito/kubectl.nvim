@@ -1,31 +1,10 @@
 local mappings = require("kubectl.mappings")
 local node_view = require("kubectl.views.nodes")
-local state = require("kubectl.state")
-local view = require("kubectl.views")
 local err_msg = "Failed to extract node name."
 
 local M = {}
 
 M.overrides = {
-  ["<Plug>(kubectl.select)"] = {
-    noremap = true,
-    silent = true,
-    desc = "Go to pods",
-    callback = function()
-      local name = node_view.getCurrentSelection()
-      if not name then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      state.setFilter("")
-      view.set_url_and_open_view({
-        src = "nodes",
-        dest = "pods",
-        new_query_params = { fieldSelector = "spec.nodeName=" .. name },
-        name = name,
-      })
-    end,
-  },
   ["<Plug>(kubectl.drain)"] = {
     noremap = true,
     silent = true,

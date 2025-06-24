@@ -178,6 +178,13 @@ function M.new(resource)
       filter_str = filter_str .. table.concat(state.filter_label, ", ")
     end
 
+    if include_filter and #state.filter_key ~= "" then
+      if filter_str ~= "" then
+        filter_str = filter_str .. ", "
+      end
+      filter_str = filter_str .. state.filter_key
+    end
+
     builder.header.divider_winbar = tables.generateDividerWinbar({
       resource = builder.resource,
       count = count,
@@ -251,7 +258,7 @@ function M.new(resource)
     builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, builder.resource)
     state.addToHistory(builder.resource)
 
-		timeme.start()
+    timeme.start()
     commands.run_async("start_reflector_async", { gvk = definition.gvk, namespace = nil }, function(_, err)
       if err then
         return
@@ -275,6 +282,7 @@ function M.new(resource)
     local sort_order = sort_data and sort_data.order or nil
     local filter = state.getFilter() or nil
     local filter_label = state.getFilterLabel() or nil
+    local filter_key = state.getFilterKey() or nil
 
     local args = {
       gvk = definition.gvk,
@@ -283,6 +291,7 @@ function M.new(resource)
       sort_order = sort_order,
       filter = filter,
       filter_label = filter_label,
+      filter_key = filter_key,
     }
     commands.run_async("get_table_async", args, function(data, err)
       if err then

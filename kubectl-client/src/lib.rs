@@ -218,6 +218,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
         args.sort_order,
         args.filter,
         args.filter_label,
+        None,
     )?;
 
     serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
@@ -236,7 +237,7 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
     let vec = vec![pod.unwrap()];
     let proc = processor("container");
     let processed = proc
-        .process(&lua, &vec, None, None, None, None)
+        .process(&lua, &vec, None, None, None, None, None)
         .map_err(mlua::Error::external)?;
 
     Ok(processed)
@@ -257,6 +258,7 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
             args.sort_order,
             args.filter,
             args.filter_label,
+            args.filter_key,
         )
         .map_err(mlua::Error::external)?;
     Ok(processed)

@@ -1,10 +1,10 @@
 use chrono::{Duration, Utc};
-use k8s_openapi::{apimachinery::pkg::version::Info, serde_json};
+use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use mlua::{prelude::*, Lua};
 use rayon::prelude::*;
 use std::fmt::Debug;
-use tracing::{info, span, Level};
+use tracing::{span, Level};
 
 use crate::{
     events::symbols,
@@ -23,6 +23,7 @@ pub trait DynProcessor: Send + Sync {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
+        filter_key: Option<String>,
     ) -> LuaResult<String>;
 
     fn process_fallback(
@@ -34,6 +35,7 @@ pub trait DynProcessor: Send + Sync {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
+        filter_key: Option<String>,
     ) -> LuaResult<mlua::Value>;
 }
 /* blanket-impl:  every real Processor automatically becomes a DynProcessor */
@@ -46,8 +48,17 @@ impl<T: Processor> DynProcessor for T {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
+        filter_key: Option<String>,
     ) -> LuaResult<String> {
-        let processed = Processor::process(self, items, sort_by, sort_order, filter, filter_label)?;
+        let processed = Processor::process(
+            self,
+            items,
+            sort_by,
+            sort_order,
+            filter,
+            filter_label,
+            filter_key,
+        )?;
 
         let json_span = span!(Level::INFO, "json_convert").entered();
 
@@ -70,6 +81,7 @@ impl<T: Processor> DynProcessor for T {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
+        filter_key: Option<String>,
     ) -> LuaResult<mlua::Value> {
         Processor::process_fallback(
             self,
@@ -80,6 +92,7 @@ impl<T: Processor> DynProcessor for T {
             sort_order,
             filter,
             filter_label,
+            filter_key,
         )
     }
 }
@@ -104,6 +117,29 @@ pub trait Processor: Debug + Send + Sync {
             None => wanted.is_empty(),
         }
     }
+    fn json_value_at<'a>(obj: &'a DynamicObject, path: &str) -> Option<&'a str> {
+        let mut segs = path.split('.');
+
+        match segs.next()? {
+            "metadata" => match segs.next()? {
+                "name" => obj.metadata.name.as_deref(),
+                "namespace" => obj.metadata.namespace.as_deref(),
+                "labels" => {
+                    let key = segs.next()?;
+                    obj.metadata.labels.as_ref()?.get(key).map(String::as_str)
+                }
+                _ => None,
+            },
+
+            top_key => {
+                let mut cur = obj.data.get(top_key)?;
+                for s in segs {
+                    cur = cur.get(s)?;
+                }
+                cur.as_str()
+            }
+        }
+    }
 
     #[tracing::instrument(skip(self, items), fields(item_count = items.len()))]
     fn process(
@@ -113,7 +149,11 @@ pub trait Processor: Debug + Send + Sync {
         sort_order: Option<String>,
         filter: Option<String>,
         filter_label: Option<Vec<String>>,
+        filter_key: Option<String>,
     ) -> LuaResult<Vec<Self::Row>> {
+        let key_filter: Option<(&str, &str)> =
+            filter_key.as_deref().and_then(|s| s.split_once('='));
+
         let parsed: Vec<(&str, &str)> = filter_label
             .as_deref()
             .unwrap_or(&[])
@@ -124,6 +164,13 @@ pub trait Processor: Debug + Send + Sync {
         let mut rows: Vec<Self::Row> = items
             .par_iter()
             .filter(|obj| Self::labels_match(obj, &parsed))
+            .filter(|obj| {
+                if let Some((path, expect)) = key_filter {
+                    Self::json_value_at(obj, path).is_some_and(|v| v == expect)
+                } else {
+                    true
+                }
+            })
             .map(|obj| self.build_row(obj).map_err(|e| e.to_string()))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LuaError::external)?;
@@ -191,6 +238,7 @@ pub trait Processor: Debug + Send + Sync {
         _sort_order: Option<String>,
         _filter: Option<String>,
         _filter_label: Option<Vec<String>>,
+        _filter_key: Option<String>,
     ) -> LuaResult<mlua::Value> {
         Err(LuaError::external("Not implemented for this processor"))
     }

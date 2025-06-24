@@ -13,6 +13,8 @@ M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 
 M.ns = ""
 ---@type string
 M.filter = ""
+---@type string
+M.filter_key = ""
 ---@type string[]
 M.filter_label = {}
 ---@type string[]
@@ -148,6 +150,12 @@ function M.getFilter()
   return M.filter
 end
 
+--- Get the current filter_key
+--- @return string filter_key The current filter
+function M.getFilterKey()
+  return M.filter_key
+end
+
 --- Get the current filter_label
 --- @return string[] filter_label The current filter
 function M.getFilterLabel()
@@ -182,6 +190,12 @@ end
 --- @param port number The port for the proxy URL
 function M.setProxyUrl(port)
   M.proxyUrl = "http://127.0.0.1:" .. port
+end
+
+function M.reset_filters()
+  M.filter = ""
+  M.filter_key = ""
+  M.filter_label = {}
 end
 
 --- Set the namespace
