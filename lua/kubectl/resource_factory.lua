@@ -178,7 +178,7 @@ function M.new(resource)
       filter_str = filter_str .. table.concat(state.filter_label, ", ")
     end
 
-    if include_filter and #state.filter_key ~= "" then
+    if include_filter and #state.filter_key > 0 then
       if filter_str ~= "" then
         filter_str = filter_str .. ", "
       end

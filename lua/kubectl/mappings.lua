@@ -38,7 +38,7 @@ function M.get_mappings()
       callback = function()
         local view = require("kubectl.views")
         local state = require("kubectl.state")
-				state.reset_filters()
+        state.reset_filters()
         local older_view = state.history[#state.history - 1]
         if not older_view then
           return

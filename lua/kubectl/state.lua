@@ -193,7 +193,6 @@ function M.setProxyUrl(port)
 end
 
 function M.reset_filters()
-  M.filter = ""
   M.filter_key = ""
   M.filter_label = {}
 end
