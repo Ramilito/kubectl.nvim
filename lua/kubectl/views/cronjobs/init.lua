@@ -10,6 +10,12 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "batch", v = "v1", k = "CronJob" },
+    child_view = {
+      name = "jobs",
+      predicate = function(name)
+        return "metadata.ownerReferences.name=" .. name
+      end,
+    },
     hints = {
       { key = "<Plug>(kubectl.create_job)", desc = "create", long_desc = "Create job from cronjob" },
       { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },

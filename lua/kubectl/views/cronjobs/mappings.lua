@@ -7,18 +7,6 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 M.overrides = {
-  ["<Plug>(kubectl.select)"] = {
-    noremap = true,
-    silent = true,
-    desc = "Go to jobs",
-    callback = function()
-      local name, ns = cronjob_view.getCurrentSelection()
-      if not name or not ns then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-    end,
-  },
   ["<Plug>(kubectl.create_job)"] = {
     noremap = true,
     silent = true,
