@@ -75,6 +75,12 @@ function M.set_running(buf, running)
   end
 end
 
+function M.stop_all()
+  for key, _ in pairs(timers) do
+    M.stop_loop(key)
+  end
+end
+
 --- Check if the loop is running
 ---@return boolean
 function M.is_running(buf)

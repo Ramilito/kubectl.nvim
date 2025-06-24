@@ -90,6 +90,9 @@ end
 --- Change context and restart proxy
 --- @param cmd string
 function M.change_context(cmd)
+  local loop = require("kubectl.utils.loop")
+  loop.stop_all()
+
   M.clear_buffers(cmd)
   local state = require("kubectl.state")
 
