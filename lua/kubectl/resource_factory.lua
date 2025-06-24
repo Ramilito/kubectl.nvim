@@ -258,14 +258,14 @@ function M.new(resource)
     builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, builder.resource)
     state.addToHistory(builder.resource)
 
-    timeme.start()
+    timeme.start(definition.gvk.k)
     commands.run_async("start_reflector_async", { gvk = definition.gvk, namespace = nil }, function(_, err)
       if err then
         return
       end
       vim.schedule(function()
         builder.draw(cancellationToken)
-        timeme.stop()
+        timeme.stop(definition.gvk.k)
         vim.cmd("doautocmd User K8sDataLoaded")
       end)
     end)

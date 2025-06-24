@@ -93,15 +93,14 @@ function M.change_context(cmd)
   M.clear_buffers(cmd)
   local state = require("kubectl.state")
 
-  -- TODO: keep persist functionality?
-  -- local config = require("kubectl.config")
-  -- if config.kubectl_cmd and config.kubectl_cmd.persist_context_change then
-  --   local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
-  --
-  --   if not results then
-  --     vim.notify(results, vim.log.levels.INFO)
-  --   end
-  -- end
+  local config = require("kubectl.config")
+  if config.options.kubectl_cmd and config.options.kubectl_cmd.persist_context_change then
+    local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
+
+    if not results then
+      vim.notify(results, vim.log.levels.INFO)
+    end
+  end
   state.context["current-context"] = cmd
 
   local client = require("kubectl.client")
@@ -117,19 +116,18 @@ end
 
 function M.clear_buffers(context)
   local prefix = "k8s_"
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    -- Clearing all buffers
-    local cfg = vim.api.nvim_win_get_config(win)
-    if cfg.relative == "" or cfg.relative == nil then
-      local buf = vim.api.nvim_win_get_buf(win)
-      if vim.api.nvim_buf_is_loaded(buf) then
-        local ft = vim.bo[buf].filetype or ""
-        if ft:sub(1, #prefix) == prefix then
-          vim.schedule(function()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) then
+      local name = vim.api.nvim_buf_get_name(buf)
+      local ft = vim.bo[buf].filetype or ""
+      if ft:sub(1, #prefix) == prefix or name:find(prefix) then
+        vim.schedule(function()
+          local win = vim.fn.bufwinid(buf)
+          if win ~= -1 then
             pcall(vim.api.nvim_set_option_value, "winbar", "", { scope = "local", win = win })
-            vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Loading new context: " .. context })
-          end)
-        end
+          end
+          vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Loading new context: " .. context })
+        end)
       end
     end
   end
