@@ -9,11 +9,8 @@ use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use store::STORE_MAP;
-use structs::{
-    FetchArgs, GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs,
-};
+use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::{span, Level};
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -23,7 +20,7 @@ use crate::cmd::delete::delete_async;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec;
 use crate::cmd::get::{
-    get_api_resources_async, get_raw_async, get_resource_async, get_resources_async,
+    get_api_resources_async, get_raw_async, get_resources_async,
     get_server_raw_async, get_single_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};

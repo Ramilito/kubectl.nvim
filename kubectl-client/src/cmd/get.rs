@@ -5,14 +5,13 @@ use kube::{
     core::GroupVersionKind,
     discovery::{verbs, ApiCapabilities, Discovery, Scope},
     error::DiscoveryError,
-    Client, Config, Error,
+    Client, Error,
 };
 use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
 use tokio::time::{timeout, Duration};
-use tokio_util::time::FutureExt;
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{

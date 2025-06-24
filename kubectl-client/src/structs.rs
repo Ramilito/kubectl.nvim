@@ -45,14 +45,6 @@ pub struct GetSingleArgs {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct FetchArgs {
-    pub gvk: Gvk,
-    pub name: String,
-    pub namespace: Option<String>,
-    pub output: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct CmdEditArgs {
     pub path: String,
 }
