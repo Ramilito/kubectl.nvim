@@ -120,6 +120,17 @@ end
 
 function M.clear_buffers(context)
   local prefix = "k8s_"
+
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if
+      vim.api.nvim_buf_is_loaded(buf)
+      and (vim.bo[buf].filetype or ""):sub(1, #prefix) == prefix
+      and vim.fn.bufwinnr(buf) == -1
+    then
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+  end
+
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     -- Clearing all buffers
     local cfg = vim.api.nvim_win_get_config(win)
