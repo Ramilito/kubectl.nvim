@@ -93,6 +93,9 @@ M.overrides = {
       end
 
       fl_view.Draw()
+
+      -- move cursor to the new label
+      vim.api.nvim_win_set_cursor(0, { store.labels_len + #store.header.data, 0 })
     end,
   },
   ["<Plug>(kubectl.delete_label)"] = {
