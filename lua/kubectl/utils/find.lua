@@ -137,6 +137,16 @@ function M.array(array, pattern)
   return nil
 end
 
+--- Find index of an item in an array that matches a pattern
+function M.tbl_idx(tbl, pattern)
+  for idx, item in ipairs(tbl) do
+    if item == pattern then
+      return idx
+    end
+  end
+  return nil -- Return nil if no match is found
+end
+
 --- Find a key-value pair in a dictionary that matches a given function
 ---@param dict table
 ---@param match_func fun(key: any, value: any): boolean

@@ -12,15 +12,15 @@ local M = {
     display = "Filter on labels",
     ft = "k8s_filter_label",
     hints = {
-      { key = "<Plug>(kubectl.select)", desc = "apply" },
-      { key = "<Plug>(kubectl.tab)", desc = "next" },
-      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+      { key = "<Plug>(kubectl.tab)", desc = "toggle label" },
+      { key = "<Plug>(kubectl.add_label)", desc = "new label" },
+      { key = "<Plug>(kubectl.delete_label)", desc = "delete label" },
     },
     notes = "Select none to clear existing filters.",
   },
 }
 
-function M.filter_label_new()
+function M.View()
   local buf_name = vim.api.nvim_buf_get_var(0, "buf_name")
 
   local instance = manager.get(buf_name)
@@ -47,6 +47,7 @@ function M.filter_label_new()
 
     builder.header = { data = {}, marks = {} }
     builder.extmarks = {}
+    builder.labels_len = 0
     builder.data = data
     builder.decodeJson()
     local lines = {}
@@ -64,13 +65,7 @@ function M.filter_label_new()
         right_gravity = false,
       })
 
-      -- add highlight extmark to key
-      table.insert(builder.extmarks, {
-        row = #lines - 1,
-        start_col = 0,
-        end_col = #key,
-        hl_group = hl.symbols.info,
-      })
+      builder.labels_len = builder.labels_len + 1
     end
 
     local win_config
@@ -104,41 +99,19 @@ function M.filter_label_new()
       local confirmation = "[y]es [n]o"
       local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
       table.insert(builder.extmarks, {
+        name = "confirmation",
         row = #builder.data - 1,
         start_col = 0,
         virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
         virt_text_pos = "inline",
       })
-      builder.displayContentRaw()
+      M.Draw()
     end)
-
-    -- local action_data = {}
-    -- for key, value in pairs(labels) do
-    --   table.insert(action_data, {
-    --     text = key .. "=" .. value,
-    --     value = "[ ]",
-    --     type = "positional",
-    --     options = { "[x]", "[ ]" },
-    --   })
-    -- end
-    --
-    -- builder.data = {}
-    -- vim.schedule(function()
-    --   builder.action_view(def, action_data, function(args)
-    --     local selection = {}
-    --     for _, item in ipairs(args) do
-    --       if item.value == "[x]" then
-    --         table.insert(selection, item.text)
-    --       end
-    --     end
-    --     state.filter_label = selection
-    --   end)
-    -- end)
   end)
 end
 
 function M.Draw()
-  local builder = manager.get("action_view")
+  local builder = manager.get(M.definition.resource)
   if not builder then
     return
   end
