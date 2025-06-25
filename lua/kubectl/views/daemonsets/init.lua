@@ -11,6 +11,24 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "apps", v = "v1", k = "DaemonSet" },
+    child_view = {
+      name = "pods",
+      predicate = function(name, ns)
+        local client = require("kubectl.client")
+        local deploy =
+          client.get_single(vim.json.encode({ kind = "DaemonSet", namespace = ns, name = name, output = "Json" }))
+
+        local deploy_decoded = vim.json.decode(deploy)
+
+        local labels = deploy_decoded.spec.selector.matchLabels
+        local parts = {}
+        for k, v in pairs(labels) do
+          table.insert(parts, ("metadata.labels.%s=%s"):format(k, v))
+        end
+
+        return table.concat(parts, ",")
+      end,
+    },
     hints = {
       { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected daemonset" },
       { key = "<Plug>(kubectl.set_image)", desc = "image", long_desc = "Set image" },
