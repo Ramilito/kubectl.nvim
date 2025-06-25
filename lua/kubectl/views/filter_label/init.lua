@@ -85,7 +85,7 @@ function M.View()
             local vt = ext[4].virt_text
             if vt and vt[1] and vt[1][1] == "[x] " then
               local row = ext[2]
-              local buf_line = builder.data[row - #builder.header.data + 1] -- 1-based
+              local buf_line = vim.api.nvim_buf_get_lines(builder.buf_nr, row, row + 1, false)[1]
               table.insert(labels, buf_line)
             end
           end
