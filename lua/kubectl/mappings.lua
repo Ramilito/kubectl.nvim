@@ -360,8 +360,8 @@ function M.get_mappings()
       mode = "n",
       desc = "Filter",
       callback = function()
-        local filter_view = require("kubectl.views.filter")
-        filter_view.filter_label()
+        local filter_label_view = require("kubectl.views.filter-label")
+        filter_label_view.filter_label_new()
       end,
     },
     ["<Plug>(kubectl.namespace_view)"] = {
