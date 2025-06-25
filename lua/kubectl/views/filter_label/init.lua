@@ -2,7 +2,7 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
--- local state = require("kubectl.state")
+local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local views = require("kubectl.views")
 
@@ -72,7 +72,24 @@ function M.View()
     vim.schedule(function()
       builder.buf_nr, win_config = buffers.confirmation_buffer(M.definition.display, M.definition.ft, function(confirm)
         if confirm then
-          print(vim.inspect(win_config))
+          local labels = {}
+          local ns_id = state.marks.ns_id
+          --
+          local ok, exts =
+            pcall(vim.api.nvim_buf_get_extmarks, builder.buf_nr, ns_id, 0, -1, { details = true, type = "virt_text" })
+          if not (ok and exts) then
+            return
+          end
+          --
+          for _, ext in ipairs(exts) do
+            local vt = ext[4].virt_text
+            if vt and vt[1] and vt[1][1] == "[x] " then
+              local row = ext[2]
+              local buf_line = builder.data[row - #builder.header.data + 1] -- 1-based
+              table.insert(labels, buf_line)
+            end
+          end
+          state.filter_label = labels
         end
       end)
 
