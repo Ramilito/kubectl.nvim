@@ -95,16 +95,6 @@ function M.change_context(cmd)
 
   M.clear_buffers(cmd)
   local state = require("kubectl.state")
-
-  -- TODO: keep persist functionality?
-  -- local config = require("kubectl.config")
-  -- if config.kubectl_cmd and config.kubectl_cmd.persist_context_change then
-  --   local results = commands.shell_command("kubectl", { "config", "use-context", cmd })
-  --
-  --   if not results then
-  --     vim.notify(results, vim.log.levels.INFO)
-  --   end
-  -- end
   state.context["current-context"] = cmd
 
   local client = require("kubectl.client")
@@ -113,6 +103,10 @@ function M.change_context(cmd)
     state.setup()
     local cache = require("kubectl.cache")
     cache.LoadFallbackData(true)
+    vim.api.nvim_exec_autocmds("User", {
+      pattern = "K8sContextChanged",
+      data = { context = cmd },
+    })
   else
     vim.notify("Failed to initialise client", vim.log.levels.ERROR)
   end
@@ -124,7 +118,7 @@ function M.clear_buffers(context)
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if
       vim.api.nvim_buf_is_loaded(buf)
-      and (vim.bo[buf].filetype or ""):sub(1, #prefix) == prefix
+      and vim.startswith(vim.bo[buf].filetype, prefix)
       and vim.fn.bufwinnr(buf) == -1
     then
       vim.api.nvim_buf_delete(buf, { force = true })
@@ -137,8 +131,7 @@ function M.clear_buffers(context)
     if cfg.relative == "" or cfg.relative == nil then
       local buf = vim.api.nvim_win_get_buf(win)
       if vim.api.nvim_buf_is_loaded(buf) then
-        local ft = vim.bo[buf].filetype or ""
-        if ft:sub(1, #prefix) == prefix then
+        if vim.startswith(vim.bo[buf].filetype, prefix) then
           vim.schedule(function()
             pcall(vim.api.nvim_set_option_value, "winbar", "", { scope = "local", win = win })
             vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Loading new context: " .. context })
