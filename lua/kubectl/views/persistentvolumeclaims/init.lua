@@ -11,6 +11,12 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     gvk = { g = "", v = "v1", k = "PersistentVolumeClaim" },
+    child_view = {
+      name = "persistentvolumes",
+      predicate = function(name)
+        return "spec.claimRef.name=" .. name
+      end,
+    },
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "Go to PVs", long_desc = "Go to the PV of the selected PVC" },
     },
