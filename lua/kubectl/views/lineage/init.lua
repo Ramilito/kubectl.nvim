@@ -163,11 +163,16 @@ function M.set_keymaps(bufnr)
     silent = true,
     desc = "Select",
     callback = function()
-      local kind, name, ns = M.getCurrentSelection()
+      local kind, ns, name = M.getCurrentSelection()
       if name and ns then
+        local state = require("kubectl.state")
         vim.api.nvim_set_option_value("modified", false, { buf = 0 })
         vim.cmd.fclose()
 
+        state.filter_key = "metadata.name=" .. name
+        if ns then
+          state.filter_key = state.filter_key .. ",metadata.namespace=" .. ns
+        end
         view.view_or_fallback(kind)
       else
         vim.api.nvim_err_writeln("Failed to select resource.")
