@@ -91,7 +91,7 @@ impl Processor for NodeProcessor {
         Box::new(move |row, field| match field {
             "name" => Some(row.name.clone()),
             "status" => match mode {
-                AccessorMode::Sort => row.status.sort_by.map(|v| v.to_string()),
+                AccessorMode::Sort => Some(row.status.value.to_string()),
                 AccessorMode::Filter => Some(row.status.value.clone()),
             },
             "roles" => Some(row.roles.value.clone()),
