@@ -107,11 +107,11 @@ function M.View(definition, data, callback)
   end
 
   for _, item in ipairs(data) do
-    table.insert(builder.data, item.text)
+    table.insert(builder.data, item.value)
     table.insert(builder.extmarks, {
       row = #builder.data - 1,
       start_col = 0,
-      virt_text = { { item.value .. " ", "KubectlHeader" } },
+      virt_text = { { item.text .. " ", "KubectlHeader" } },
       virt_text_pos = "inline",
       right_gravity = false,
     })
