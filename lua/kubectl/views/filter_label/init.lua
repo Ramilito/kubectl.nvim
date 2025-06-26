@@ -94,14 +94,14 @@ function M.View()
 
       -- add divider
       tables.generateDividerRow(builder.header.data, builder.header.marks)
+      builder.header_len = #builder.header.data + 1
 
       -- INIT CONTENT --
       ---@type table<number, FilterLabelViewLine>
       builder.fl_content = {}
 
       -- add existing labels
-      local added_existing_labels = utils.add_existing_labels(builder)
-      print("added_existing_labels: " .. tostring(added_existing_labels))
+      utils.add_existing_labels(builder)
 
       -- add resource labels
       local res_label_line = {
@@ -110,11 +110,7 @@ function M.View()
         type = "res_label",
         extmarks = {},
       }
-      if added_existing_labels then
-        utils.add_and_shift(builder.fl_content, res_label_line)
-      else
-        utils.add_and_shift(builder.fl_content, res_label_line, #builder.header.data + 1)
-      end
+      utils.add_and_shift(builder.fl_content, res_label_line)
 
       -- kind = resource_definition.gvk.k,
       for key, value in pairs(labels) do
@@ -178,7 +174,7 @@ function M.Draw()
   for _, line in pairs(builder.fl_content) do
     table.insert(builder.data, line.text)
     for _, ext in ipairs(line.extmarks or {}) do
-      ext.row = line.row - #builder.header.data - 1
+      ext.row = line.ext_number
       if line.is_label then
         ext.virt_text[1][1] = line.is_selected and "[x] " or "[ ] "
       end
