@@ -1,22 +1,12 @@
-local find = require("kubectl.utils.find")
 local fl_view = require("kubectl.views.filter_label")
-local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
+local utils = require("kubectl.views.filter_label.utils")
 
 local M = {}
 
-local boxes = { "[ ] ", "[x] " }
 local resource = "kubectl_filter_label"
-
----@param list string[]   the option list
----@param idx  integer?   last index (or nil the first time)
----@return integer        next index in [1..#list]
-local function next_idx(list, idx)
-  idx = (idx or 0) + 1
-  return ((idx - 1) % #list) + 1 -- simple modulo cycle
-end
 
 M.overrides = {
   ["<Plug>(kubectl.tab)"] = {
@@ -29,35 +19,17 @@ M.overrides = {
         return
       end
 
-      local row = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-based
-      local ns_id = state.marks.ns_id
-      --
-      local ok, ext = pcall(
-        vim.api.nvim_buf_get_extmarks,
-        store.buf_nr,
-        ns_id,
-        { row, 0 },
-        { row, 0 },
-        { details = true, type = "virt_text" }
-      )
-      if not (ok and ext[1]) then
-        return
-      end
-      --
-      local vt = ext[1][4].virt_text
-      local checkbox = vt and vt[1] and vt[1][1] -- literal text token
-      if not checkbox or not vim.tbl_contains(boxes, checkbox) then
-        return
-      end
-      local box_idx = find.tbl_idx(boxes, checkbox)
-      local next_box = boxes[next_idx(boxes, box_idx)]
+      local row = vim.api.nvim_win_get_cursor(0)[1]
+      local row_iter = vim.iter(store.fl_content)
+      local res = row_iter:find(function(row_data)
+        return row_data.row == row
+      end)
 
-      -- update the checkbox extmark
-      vim.api.nvim_buf_set_extmark(store.buf_nr, ns_id, row, 0, {
-        id = ext[1][1],
-        virt_text = { { next_box, hl.symbols.header } },
-        virt_text_pos = "inline",
-      })
+      if not res then
+        return
+      end
+      res.is_selected = not res.is_selected
+      fl_view.Draw()
     end,
   },
   ["<Plug>(kubectl.add_label)"] = {
@@ -70,32 +42,35 @@ M.overrides = {
         return
       end
 
-      -- add label k=v
-      local new_label = "key=value"
-      table.insert(store.data, store.labels_len + 1, new_label)
-      store.labels_len = store.labels_len + 1
+      table.insert(state.session_filter_label, "key=value")
+      utils.add_existing_labels(store)
 
-      -- add checkbox
-      table.insert(store.extmarks, {
-        row = store.labels_len - 1,
-        start_col = 0,
-        virt_text = { { boxes[1], hl.symbols.header } },
-        virt_text_pos = "inline",
-        right_gravity = false,
-      })
-
-      for i, ext in ipairs(store.extmarks) do
-        if ext.name == "confirmation" then
-          ext.row = ext.row + 1
-          store.extmarks[i] = ext
-          break
-        end
-      end
+      -- -- add label k=v
+      -- local new_label = "key=value"
+      -- table.insert(store.data, store.labels_len + 1, new_label)
+      -- store.labels_len = store.labels_len + 1
+      --
+      -- -- add checkbox
+      -- table.insert(store.extmarks, {
+      --   row = store.labels_len - 1,
+      --   start_col = 0,
+      --   virt_text = { { boxes[1], hl.symbols.header } },
+      --   virt_text_pos = "inline",
+      --   right_gravity = false,
+      -- })
+      --
+      -- for i, ext in ipairs(store.extmarks) do
+      --   if ext.name == "confirmation" then
+      --     ext.row = ext.row + 1
+      --     store.extmarks[i] = ext
+      --     break
+      --   end
+      -- end
 
       fl_view.Draw()
 
       -- move cursor to the new label
-      vim.api.nvim_win_set_cursor(0, { store.labels_len + #store.header.data, 0 })
+      -- vim.api.nvim_win_set_cursor(0, { store.labels_len + #store.header.data, 0 })
     end,
   },
   ["<Plug>(kubectl.delete_label)"] = {
