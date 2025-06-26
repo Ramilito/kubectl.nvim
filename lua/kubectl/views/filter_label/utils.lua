@@ -11,33 +11,28 @@ function M.add_and_shift(tbl, row, start_row)
       type_exists = true
       last_idx = i
     end
-    print("type: " .. row.type .. " exists: " .. tostring(type_exists) .. ", last_idx: " .. tostring(last_idx))
     if type_exists then
-      if entry.type ~= row.type then
-        -- Shift rows downward from the current position
-        table.insert(
-          tbl,
-          last_idx + 1,
-          vim.tbl_deep_extend("force", {}, entry, row, {
-            row = entry.row + 1,
-            ext_number = entry.ext_number + 1,
-          })
-        )
-        print("table now: " .. vim.inspect(tbl))
-        -- Update subsequent rows
-        for j = i + 2, #tbl do
-          tbl[j].row = tbl[j].row + 1
-          tbl[j].ext_number = tbl[j].ext_number + 1
-        end
-        break
+      -- Shift rows downward from the current position
+      table.insert(
+        tbl,
+        last_idx + 1,
+        vim.tbl_deep_extend("force", {}, entry, row, {
+          row = entry.row + 1,
+          ext_number = entry.ext_number + 1,
+        })
+      )
+      print("added row: " .. vim.inspect(row) .. " after " .. vim.inspect(entry) .. " at index: " .. last_idx + 1)
+      -- Update subsequent rows
+      for j = i + 2, #tbl do
+        tbl[j].row = tbl[j].row + 1
+        tbl[j].ext_number = tbl[j].ext_number + 1
       end
+      break
     end
-    print("----------------")
   end
 
   -- Append to the end if the type doesn't exist
   if not type_exists then
-    print('type "' .. row.type .. '" does not exist, appending to the end')
     if #tbl > 0 and not start_row then
       local last_entry = tbl[#tbl]
       table.insert(
