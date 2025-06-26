@@ -28,7 +28,7 @@ function M.add_and_shift(tbl, row, start_row)
 
   -- Append to the end if the type doesn't exist
   if not type_exists then
-    if #tbl > 0 then
+    if #tbl > 0 and not start_row then
       local last_entry = tbl[#tbl]
       table.insert(
         tbl,
@@ -42,9 +42,16 @@ function M.add_and_shift(tbl, row, start_row)
         tbl,
         vim.tbl_deep_extend("force", {}, row, {
           row = start_row,
-          ext_number = start_row - 1,
+          ext_number = 0,
         })
       )
+      -- Adjust subsequent rows when prepending
+      for i, entry in ipairs(tbl) do
+        if i > 1 then
+          entry.row = entry.row + 1
+          entry.ext_number = entry.ext_number + 1
+        end
+      end
     end
   end
 end
@@ -54,7 +61,6 @@ function M.remove_type(tbl, type)
   while i <= #tbl do
     if tbl[i].type == type then
       table.remove(tbl, i)
-      removed = true
       for j = i, #tbl do
         tbl[j].row = tbl[j].row - 1
         tbl[j].ext_number = tbl[j].ext_number - 1
@@ -77,7 +83,7 @@ function M.add_existing_labels(builder)
     type = "existing_label",
     extmarks = {},
   }
-  M.add_and_shift(builder.fl_content, header_line, #builder.header.data + 1)
+  M.add_and_shift(builder.fl_content, header_line, builder.header_len)
 
   local function add_existing_label(label)
     local label_line = {
@@ -104,10 +110,19 @@ function M.add_existing_labels(builder)
 
   -- add existing labels from session
   local sess_fl = state.getSessionFilterLabel()
-  print("session_filter_label: " .. vim.inspect(sess_fl))
   for _, label in ipairs(sess_fl) do
-    print("here")
     add_existing_label(label)
+  end
+
+  -- add 2 blank lines
+  for _ = 1, 2 do
+    local blank_line = {
+      is_label = false,
+      text = "",
+      type = "existing_label",
+      extmarks = {},
+    }
+    M.add_and_shift(builder.fl_content, blank_line)
   end
 end
 
