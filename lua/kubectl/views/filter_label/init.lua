@@ -72,7 +72,7 @@ function M.View()
     vim.schedule(function()
       builder.buf_nr, win_config = buffers.confirmation_buffer(M.definition.display, M.definition.ft, function(confirm)
         if confirm then
-          local labels = {}
+          labels = {}
           local ns_id = state.marks.ns_id
           --
           local ok, exts =
