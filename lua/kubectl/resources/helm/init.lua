@@ -57,6 +57,8 @@ end
 
 function M.Draw(cancellationToken)
   local builder = manager.get(M.definition.resource)
+  local sort_data = state.sortby[M.definition.resource]
+
   if builder then
     commands.shell_command_async(M.definition.cmd, M.definition.url, function(data)
       vim.schedule(function()
@@ -65,9 +67,9 @@ function M.Draw(cancellationToken)
 
         vim.schedule(function()
           builder.process(M.definition.processRow, true)
-          -- if sort_data then
-          --   builder.sort()
-          -- end
+          if sort_data then
+            builder.sort()
+          end
           local windows = buffers.get_windows_by_name(M.definition.resource)
           for _, win_id in ipairs(windows) do
             builder.prettyPrint(win_id).addDivider(true)
