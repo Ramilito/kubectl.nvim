@@ -73,11 +73,12 @@ M.overrides = {
       end
       local sess_filter_id = store.fl_content[label_type][label_idx].sess_filter_id
       if not sess_filter_id then
+        print("not sess_filter_id")
         return
       end
 
       table.remove(state.session_filter_label, sess_filter_id)
-
+      utils.add_existing_labels(store)
       fl_view.Draw()
     end,
   },

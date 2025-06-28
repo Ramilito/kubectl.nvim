@@ -135,14 +135,9 @@ function M.View()
           end
           local row = vim.api.nvim_win_get_cursor(0)[1]
           local line = vim.api.nvim_buf_get_lines(ev.buf, row - 1, row, false)[1]
-          local prev_line = builder.fl_content[lbl_type][lbl_idx].text
+          local sess_filter_id = builder.fl_content[lbl_type][lbl_idx].sess_filter_id
 
-          local sess_fl = state.getSessionFilterLabel()
-          local line_sess_index = find.tbl_idx(sess_fl, prev_line)
-          if not line_sess_index then
-            return
-          end
-          state.session_filter_label[line_sess_index] = line
+          state.session_filter_label[sess_filter_id] = line
           utils.add_existing_labels(builder)
           M.Draw()
         end,
