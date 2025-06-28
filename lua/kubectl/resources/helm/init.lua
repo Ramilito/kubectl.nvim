@@ -84,18 +84,29 @@ function M.Draw(cancellationToken)
   end
 end
 
--- function M.Desc(name, ns, reload)
---   local builder = manager.get(definition.resource)
---   if not builder then
---     return
---   end
---   builder.view_float({
---     resource = "helm | " .. name .. " | " .. ns,
---     ft = "k8s_desc",
---     url = { "status", name, "-n", ns, "--show-resources" },
---     syntax = "yaml",
---   }, { cmd = definition.cmd, reload = reload })
--- end
+function M.Desc(name, ns, reload)
+  local def = {
+    resource = M.definition.resource .. "_desc",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
+    ft = "k8s_desc",
+    syntax = "yaml",
+    args = { "status", name, "-n", ns, "--show-desc" },
+  }
+
+  local builder = manager.get_or_create(def.resource)
+  if not builder then
+    return
+  end
+
+  builder.buf_nr, builder.win_nr = buffers.floating_buffer(def.ft, def.display_name, def.syntax, builder.win_nr)
+
+  commands.shell_command_async(M.definition.cmd, def.args, function(data)
+    builder.data = data
+    vim.schedule(function()
+      builder.splitData().displayContentRaw()
+    end)
+  end)
+end
 --
 -- function M.Yaml(name, ns)
 --   if name then

@@ -28,6 +28,16 @@ M.overrides = {
     end,
   },
 
+  ["<Plug>(kubectl.describe)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Describe",
+    callback = function()
+      local name, ns = helm_view.getCurrentSelection()
+      helm_view.Desc(name, ns)
+    end,
+  },
+
   ["<Plug>(kubectl.values)"] = {
     noremap = true,
     silent = true,
@@ -40,6 +50,7 @@ M.overrides = {
 }
 function M.register()
   mappings.map_if_plug_not_set("n", "gv", "<Plug>(kubectl.values)")
+  mappings.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
 end
 
 return M
