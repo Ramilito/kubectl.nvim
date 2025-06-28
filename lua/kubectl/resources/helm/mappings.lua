@@ -38,6 +38,15 @@ M.overrides = {
     end,
   },
 
+  ["<Plug>(kubectl.yaml)"] = {
+    noremap = true,
+    silent = true,
+    desc = "View yaml",
+    callback = function()
+      local name, ns = helm_view.getCurrentSelection()
+      helm_view.Yaml(name, ns)
+    end,
+  },
   ["<Plug>(kubectl.values)"] = {
     noremap = true,
     silent = true,
@@ -50,6 +59,7 @@ M.overrides = {
 }
 function M.register()
   mappings.map_if_plug_not_set("n", "gv", "<Plug>(kubectl.values)")
+  mappings.map_if_plug_not_set("n", "gy", "<Plug>(kubectl.yaml)")
   mappings.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.describe)")
 end
 

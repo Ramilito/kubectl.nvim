@@ -84,7 +84,7 @@ function M.Draw(cancellationToken)
   end
 end
 
-function M.Desc(name, ns, reload)
+function M.Desc(name, ns)
   local def = {
     resource = M.definition.resource .. "_desc",
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
@@ -107,50 +107,54 @@ function M.Desc(name, ns, reload)
     end)
   end)
 end
---
--- function M.Yaml(name, ns)
---   if name then
---     local def = {
---       resource = "helm" .. " | " .. name,
---       ft = "k8s_yaml",
---       url = { "get", "manifest", name },
---       syntax = "yaml",
---     }
---     if ns then
---       table.insert(def.url, "-n")
---       table.insert(def.url, ns)
---       def.resource = def.resource .. " | " .. ns
---     end
---
---     local builder = manager.get(definition.resource)
---     if not builder then
---       return
---     end
---     builder.view_float(def, { cmd = "helm" })
---   end
--- end
---
--- function M.Values(name, ns)
--- 	vim.print(name, ns)
---   if name then
---     local def = {
---       resource = "helm" .. " | " .. name,
---       ft = "k8s_yaml",
---       url = { "get", "values", name },
---       syntax = "yaml",
---     }
---     if ns then
---       table.insert(def.url, "-n")
---       table.insert(def.url, ns)
---       def.resource = def.resource .. " | " .. ns
---     end
---     local builder = manager.get(definition.resource)
---     if not builder then
---       return
---     end
---     builder.view_float(def, { cmd = "helm" })
---   end
--- end
+
+function M.Yaml(name, ns)
+  local def = {
+    resource = M.definition.resource .. "_yaml",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
+    ft = "k8s_yaml",
+    syntax = "yaml",
+    args = { "get", "manifest", name },
+  }
+
+  local builder = manager.get_or_create(def.resource)
+  if not builder then
+    return
+  end
+
+  builder.buf_nr, builder.win_nr = buffers.floating_buffer(def.ft, def.display_name, def.syntax, builder.win_nr)
+
+  commands.shell_command_async(M.definition.cmd, def.args, function(data)
+    builder.data = data
+    vim.schedule(function()
+      builder.splitData().displayContentRaw()
+    end)
+  end)
+end
+
+function M.Values(name, ns)
+  local def = {
+    resource = M.definition.resource .. "_values",
+    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
+    ft = "k8s_yaml",
+    syntax = "yaml",
+    args = { "get", "values", name, "-n", ns },
+  }
+
+  local builder = manager.get_or_create(def.resource)
+  if not builder then
+    return
+  end
+
+  builder.buf_nr, builder.win_nr = buffers.floating_buffer(def.ft, def.display_name, def.syntax, builder.win_nr)
+
+  commands.shell_command_async(M.definition.cmd, def.args, function(data)
+    builder.data = data
+    vim.schedule(function()
+      builder.splitData().displayContentRaw()
+    end)
+  end)
+end
 
 --- Get current seletion for view
 ---@return string|nil
