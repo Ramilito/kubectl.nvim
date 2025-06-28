@@ -1,5 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
+local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
@@ -8,6 +9,7 @@ local utils = require("kubectl.views.filter_label.utils")
 local views = require("kubectl.views")
 
 local M = {
+  win_config = nil,
   definition = {
     resource = "kubectl_filter_label",
     display = "Filter on labels",
@@ -19,6 +21,7 @@ local M = {
     },
     notes = "Select none to clear existing filters.",
   },
+  augroup = vim.api.nvim_create_augroup("KubectlFilterLabel", { clear = true }),
 }
 
 function M.View()
@@ -53,33 +56,38 @@ function M.View()
     builder.data = data
     builder.decodeJson()
 
-    local labels = builder.data.metadata.labels
-
-    local win_config
     vim.schedule(function()
-      builder.buf_nr, win_config = buffers.confirmation_buffer(M.definition.display, M.definition.ft, function(confirm)
-        if confirm then
-          local confirmed_labels = {}
-          local ns_id = state.marks.ns_id
-          --
-          local ok, exts =
-            pcall(vim.api.nvim_buf_get_extmarks, builder.buf_nr, ns_id, 0, -1, { details = true, type = "virt_text" })
-          if not (ok and exts) then
-            return
-          end
-          --
-          for _, ext in ipairs(exts) do
-            local vt = ext[4].virt_text
-            if vt and vt[1] and vt[1][1] == "[x] " then
-              local row = ext[2]
-              local buf_line = vim.api.nvim_buf_get_lines(builder.buf_nr, row, row + 1, false)[1]
-              table.insert(confirmed_labels, buf_line)
+      builder.buf_nr, M.win_config = buffers.confirmation_buffer(
+        M.definition.display,
+        M.definition.ft,
+        -- on confirm (clicked y)
+        function(confirm)
+          if confirm then
+            local confirmed_labels = {}
+            local ns_id = state.marks.ns_id
+            --
+            local ok, exts =
+              pcall(vim.api.nvim_buf_get_extmarks, builder.buf_nr, ns_id, 0, -1, { details = true, type = "virt_text" })
+            if not (ok and exts) then
+              return
             end
+            --
+            for _, ext in ipairs(exts) do
+              local vt = ext[4].virt_text
+              if vt and vt[1] and vt[1][1] == "[x] " then
+                local row = ext[2]
+                local buf_line = vim.api.nvim_buf_get_lines(builder.buf_nr, row, row + 1, false)[1]
+                table.insert(confirmed_labels, buf_line)
+              end
+            end
+            state.filter_label = confirmed_labels
           end
-          state.filter_label = confirmed_labels
         end
-      end)
+      )
 
+      ------------
+      -- HEADER --
+      ------------
       -- add hints
       builder.addHints(M.definition.hints, false, false)
 
@@ -96,66 +104,48 @@ function M.View()
       tables.generateDividerRow(builder.header.data, builder.header.marks)
       builder.header_len = #builder.header.data + 1
 
-      -- INIT CONTENT --
-      ---@type table<number, FilterLabelViewLine>
-      builder.fl_content = {}
-
-      -- add existing labels
-      utils.add_existing_labels(builder)
-
-      -- add resource labels
-      local res_label_line = {
-        is_label = false,
-        text = resource_definition.gvk.k .. " labels:",
-        type = "res_label",
-        extmarks = {},
+      -------------
+      -- CONTENT --
+      -------------
+      builder.fl_content = {
+        existing_labels = {},
+        res_labels = {},
+        confirmation = {},
+        lines = {},
       }
-      utils.add_and_shift(builder.fl_content, res_label_line)
 
-      -- kind = resource_definition.gvk.k,
-      for key, value in pairs(labels) do
-        local label_line = {
-          is_label = true,
-          is_selected = false,
-          text = key .. "=" .. value,
-          type = "res_label",
-          ---@type ExtMark[]
-          extmarks = {
-            {
-              start_col = 0,
-              virt_text = { { "", hl.symbols.header } },
-              virt_text_pos = "inline",
-              right_gravity = false,
-            },
-          },
-        }
-        utils.add_and_shift(builder.fl_content, label_line)
-      end
+      utils.add_existing_labels(builder)
+      utils.add_res_labels(builder, resource_definition)
+      utils.add_confirmation(builder, M.win_config)
 
-      -- add confirmation boxes
-      for _ = 1, 2 do
-        local empty_line = {
-          is_label = false,
-          text = "",
-          type = "confirmation",
-          extmarks = {},
-        }
-        utils.add_and_shift(builder.fl_content, empty_line)
-      end
+      -- clear augroup
+      vim.api.nvim_clear_autocmds({ group = M.augroup })
+      vim.api.nvim_create_autocmd("InsertLeave", {
+        group = M.augroup,
+        buffer = builder.buf_nr,
+        -- save the label on insert leave
+        callback = function(ev)
+          local lbl_type, lbl_idx = utils.get_row_data(builder)
+          if not (lbl_type and lbl_idx) then
+            return
+          end
+          if lbl_type == "res_labels" then
+            M.Draw()
+            return
+          end
+          local row = vim.api.nvim_win_get_cursor(0)[1]
+          local line = vim.api.nvim_buf_get_lines(ev.buf, row - 1, row, false)[1]
+          local prev_line = builder.fl_content[lbl_type][lbl_idx].text
 
-      local confirmation = "[y]es [n]o"
-      local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
-      utils.add_and_shift(builder.fl_content, {
-        is_label = false,
-        text = "",
-        type = "confirmation",
-        extmarks = {
-          {
-            start_col = 0,
-            virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
-            virt_text_pos = "inline",
-          },
-        },
+          local sess_fl = state.getSessionFilterLabel()
+          local line_sess_index = find.tbl_idx(sess_fl, prev_line)
+          if not line_sess_index then
+            return
+          end
+          state.session_filter_label[line_sess_index] = line
+          utils.add_existing_labels(builder)
+          M.Draw()
+        end,
       })
 
       M.Draw()
@@ -171,19 +161,26 @@ function M.Draw()
 
   builder.data = {}
   builder.extmarks = {}
-  for _, line in pairs(builder.fl_content) do
-    table.insert(builder.data, line.text)
-    for _, ext in ipairs(line.extmarks or {}) do
-      ext.row = line.ext_number
-      if line.is_label then
-        ext.virt_text[1][1] = line.is_selected and "[x] " or "[ ] "
+  builder.fl_content.lines = {}
+
+  for _, type in ipairs({ "existing_labels", "res_labels", "confirmation" }) do
+    for _, line in ipairs(builder.fl_content[type]) do
+      line.row = #builder.fl_content.lines + #builder.header.data + 1
+      for _, ext in ipairs(line.extmarks or {}) do
+        ext.row = #builder.fl_content.lines
+        if line.is_label then
+          ext.virt_text[1][1] = line.is_selected and "[x] " or "[ ] "
+        end
       end
-      table.insert(builder.extmarks, ext)
+      table.insert(builder.fl_content.lines, vim.tbl_deep_extend("force", line, { type = type }))
     end
   end
 
-  -- print("fl_content: " .. vim.inspect(builder.fl_content))
-  -- print("extmarks: " .. vim.inspect(builder.extmarks))
+  for _, line in ipairs(builder.fl_content.lines) do
+    table.insert(builder.data, line.text)
+    vim.list_extend(builder.extmarks, line.extmarks or {})
+  end
+
   builder.displayContentRaw()
 end
 

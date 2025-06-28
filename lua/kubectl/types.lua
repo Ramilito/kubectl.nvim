@@ -41,5 +41,6 @@
 ---@field is_label boolean whether the line is a label or not
 ---@field is_selected? boolean whether the line is selected or not (only applies
 ---if is_label is true)
+---@field sess_filter_id? string the session filter ID, if applicable
 ---@field extmarks ExtMark[] the extmarks associated with the line
 ---@field type string the type of the line, can be "existing_label", "res_label", or "confirmation"

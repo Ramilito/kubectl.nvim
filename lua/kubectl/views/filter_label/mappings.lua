@@ -19,16 +19,18 @@ M.overrides = {
         return
       end
 
-      local row = vim.api.nvim_win_get_cursor(0)[1]
-      local row_iter = vim.iter(store.fl_content)
-      local res = row_iter:find(function(row_data)
-        return row_data.row == row
-      end)
-
-      if not res then
+      local label_type, label_idx = utils.get_row_data(store)
+      if not (label_type and label_idx) then
         return
       end
-      res.is_selected = not res.is_selected
+      print("label_type: " .. label_type .. ", label_idx: " .. label_idx)
+      print("fl: " .. vim.inspect(store.fl_content[label_type]))
+      local label_line = store.fl_content[label_type][label_idx]
+      if not label_line.is_label then
+        return
+      end
+      label_line.is_selected = not label_line.is_selected
+
       fl_view.Draw()
     end,
   },
@@ -42,35 +44,17 @@ M.overrides = {
         return
       end
 
-      table.insert(state.session_filter_label, "key=value")
+      local kv = "key=value"
+      table.insert(state.session_filter_label, kv)
       utils.add_existing_labels(store)
-
-      -- -- add label k=v
-      -- local new_label = "key=value"
-      -- table.insert(store.data, store.labels_len + 1, new_label)
-      -- store.labels_len = store.labels_len + 1
-      --
-      -- -- add checkbox
-      -- table.insert(store.extmarks, {
-      --   row = store.labels_len - 1,
-      --   start_col = 0,
-      --   virt_text = { { boxes[1], hl.symbols.header } },
-      --   virt_text_pos = "inline",
-      --   right_gravity = false,
-      -- })
-      --
-      -- for i, ext in ipairs(store.extmarks) do
-      --   if ext.name == "confirmation" then
-      --     ext.row = ext.row + 1
-      --     store.extmarks[i] = ext
-      --     break
-      --   end
-      -- end
 
       fl_view.Draw()
 
       -- move cursor to the new label
-      -- vim.api.nvim_win_set_cursor(0, { store.labels_len + #store.header.data, 0 })
+      vim.api.nvim_win_set_cursor(0, {
+        #store.header.data + #store.fl_content.existing_labels - 1,
+        1, -- 1-based index
+      })
     end,
   },
   ["<Plug>(kubectl.delete_label)"] = {
@@ -83,29 +67,16 @@ M.overrides = {
         return
       end
 
-      local row = vim.api.nvim_win_get_cursor(0)[1]
-      if row <= #store.header.data or row > store.labels_len + #store.header.data then
+      local label_type, label_idx = utils.get_row_data(store)
+      if not (label_type and label_idx) then
+        return
+      end
+      local sess_filter_id = store.fl_content[label_type][label_idx].sess_filter_id
+      if not sess_filter_id then
         return
       end
 
-      local ext_row = row - #store.header.data - 1 -- 0-based
-      local line_idx = nil
-
-      for i, ext in ipairs(store.extmarks) do
-        if ext.row == ext_row then
-          line_idx = i
-        elseif ext.row > ext_row then
-          ext.row = ext.row - 1
-          store.extmarks[i] = ext
-        end
-      end
-
-      if line_idx then
-        table.remove(store.extmarks, line_idx)
-      end
-
-      table.remove(store.data, ext_row + 1)
-      store.labels_len = store.labels_len - 1
+      table.remove(state.session_filter_label, sess_filter_id)
 
       fl_view.Draw()
     end,
