@@ -27,7 +27,7 @@ function M.View()
   if not instance then
     return
   end
-  local view, resource_definition = views.view_and_definition(instance.resource)
+  local view, resource_definition = views.resource_and_definition(instance.resource)
   local name, ns = view.getCurrentSelection()
   if not name then
     return

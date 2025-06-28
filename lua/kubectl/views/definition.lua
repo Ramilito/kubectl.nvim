@@ -32,7 +32,7 @@ function M.on_prompt_input(input)
 
   local parsed_input = string.lower(vim.trim(input))
   local view = require("kubectl.views")
-  view.view_or_fallback(parsed_input)
+  view.resource_or_fallback(parsed_input)
 end
 
 function M.merge_views(cached_resources, views_table)

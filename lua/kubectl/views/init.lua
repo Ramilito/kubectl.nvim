@@ -258,7 +258,7 @@ end
 -- @return nil
 function M.PortForwards()
   local resource = "port_forwards"
-  local pf_definition = require("kubectl.views.port_forwards.definition")
+  local pf_definition = require("kubectl.resources.port_forwards.definition")
   local self = manager.get_or_create(resource)
   self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
   self.data = pf_definition.getPFRows()
@@ -391,7 +391,7 @@ function M.Redraw()
 
   if win_config.relative == "" then
     local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-    local current_view, _ = M.view_and_definition(string.lower(vim.trim(buf_name)))
+    local current_view, _ = M.resource_and_definition(string.lower(vim.trim(buf_name)))
     pcall(current_view.Draw)
   end
 end
@@ -414,7 +414,7 @@ function M.set_url_and_open_view(opts)
   local encode = function(str)
     return vim.uri_encode(str, "rfc2396")
   end
-  local res_view, res_definition = M.view_and_definition(dest)
+  local res_view, res_definition = M.resource_and_definition(dest)
   -- save url details
   local original_url = res_definition.url[1]
   local url_no_query_params, original_query_params = url.breakUrl(original_url, true, false)
@@ -467,15 +467,15 @@ function M.set_and_open_pod_selector(name, ns)
   })
 end
 
-function M.view_and_definition(view_name)
-  local view_ok, view = pcall(require, "kubectl.views." .. view_name)
+function M.resource_and_definition(view_name)
+  local view_ok, view = pcall(require, "kubectl.resources." .. view_name)
   if not view_ok then
-    view = require("kubectl.views.fallback")
+    view = require("kubectl.resources.fallback")
   end
   return view, view.definition
 end
 
-function M.view_or_fallback(view_name)
+function M.resource_or_fallback(view_name)
   local supported_view = nil
   local viewsTable = require("kubectl.utils.viewsTable")
   for k, v in pairs(viewsTable) do
@@ -485,14 +485,14 @@ function M.view_or_fallback(view_name)
     end
   end
   local view_to_find = supported_view or view_name
-  local ok, view = pcall(require, "kubectl.views." .. view_to_find)
+  local ok, view = pcall(require, "kubectl.resources." .. view_to_find)
   if ok then
     vim.schedule(function()
       pcall(view.View)
     end)
   else
     vim.schedule(function()
-      local fallback = require("kubectl.views.fallback")
+      local fallback = require("kubectl.resources.fallback")
       fallback.View(nil, view_name)
     end)
   end
