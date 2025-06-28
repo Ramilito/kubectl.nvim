@@ -9,6 +9,7 @@ pub mod fallback;
 pub mod horizontalpodautoscaler;
 pub mod ingress;
 pub mod job;
+pub mod namespace;
 pub mod node;
 pub mod persistentvolume;
 pub mod persistentvolumeclaim;
