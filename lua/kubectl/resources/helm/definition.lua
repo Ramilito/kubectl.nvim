@@ -1,16 +1,6 @@
 local events = require("kubectl.utils.events")
 local time = require("kubectl.utils.time")
-local M = {
-  resource = "helm",
-  display_name = "Helm",
-  ft = "k8s_helm",
-  cmd = "helm",
-  url = { "ls", "-a", "-A", "--output", "json" },
-  hints = {
-    { key = "<Plug>(kubectl.kill)", desc = "uninstall" },
-    { key = "<Plug>(kubectl.values)", desc = "values" },
-  },
-}
+local M = {}
 
 function M.processRow(rows)
   local data = {}
@@ -31,18 +21,6 @@ function M.processRow(rows)
     table.insert(data, helm)
   end
   return data
-end
-
-function M.getHeaders()
-  return {
-    "NAMESPACE",
-    "NAME",
-    "REVISION",
-    "UPDATED",
-    "STATUS",
-    "CHART",
-    "APP-VERSION",
-  }
 end
 
 return M
