@@ -18,6 +18,8 @@ M.filter_key = ""
 ---@type string[]
 M.filter_label = {}
 ---@type string[]
+M.session_filter_label = {}
+---@type string[]
 M.filter_history = {}
 ---@type string[]
 M.alias_history = {}
@@ -162,6 +164,12 @@ function M.getFilterLabel()
   return M.filter_label
 end
 
+--- Get the current session_filter_label
+--- @return string[] session_filter_label The current session filter label
+function M.getSessionFilterLabel()
+  return M.session_filter_label
+end
+
 --- Get the selections
 --- @return table selections The selections
 function M.getSelections()
@@ -195,6 +203,7 @@ end
 function M.reset_filters()
   M.filter_key = ""
   M.filter_label = {}
+  M.session_filter_label = {}
 end
 
 --- Set the namespace

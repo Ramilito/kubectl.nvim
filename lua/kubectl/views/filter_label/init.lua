@@ -4,9 +4,11 @@ local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
+local utils = require("kubectl.views.filter_label.utils")
 local views = require("kubectl.views")
 
 local M = {
+  win_config = nil,
   definition = {
     resource = "kubectl_filter_label",
     display = "Filter on labels",
@@ -18,25 +20,114 @@ local M = {
     },
     notes = "Select none to clear existing filters.",
   },
+  augroup = vim.api.nvim_create_augroup("KubectlFilterLabel", { clear = true }),
+  resource_definition = {},
 }
 
+local function display_float(builder)
+  builder.buf_nr, M.win_config = buffers.confirmation_buffer(
+    M.definition.display,
+    M.definition.ft,
+    -- on confirm (clicked y)
+    function(confirm)
+      if confirm then
+        local confirmed_labels = {}
+        for _, label in ipairs(builder.fl_content.existing_labels) do
+          if label.is_label and label.is_selected then
+            table.insert(confirmed_labels, label.text)
+          end
+        end
+        for _, label in ipairs(builder.fl_content.res_labels) do
+          if label.is_label and label.is_selected then
+            table.insert(confirmed_labels, label.text)
+          end
+        end
+        state.filter_label = confirmed_labels
+      end
+    end
+  )
+
+  ------------
+  -- HEADER --
+  ------------
+  -- add hints
+  builder.addHints(M.definition.hints, false, false)
+
+  -- add notes with extmark
+  table.insert(builder.header.data, M.definition.notes)
+  table.insert(builder.header.marks, {
+    row = #builder.header.data - 1,
+    start_col = 0,
+    end_col = #builder.header.data[#builder.header.data],
+    hl_group = hl.symbols.gray,
+  })
+
+  -- add divider
+  tables.generateDividerRow(builder.header.data, builder.header.marks)
+
+  -------------
+  -- CONTENT --
+  -------------
+  builder.fl_content = {
+    existing_labels = {},
+    res_labels = {},
+    confirmation = {},
+    lines = {},
+  }
+
+  utils.add_existing_labels(builder)
+  utils.add_res_labels(builder, M.resource_definition.gvk.k)
+  utils.add_confirmation(builder, M.win_config)
+
+  -- clear augroup
+  vim.api.nvim_clear_autocmds({ group = M.augroup })
+  vim.api.nvim_create_autocmd({ "InsertLeave" }, {
+    group = M.augroup,
+    buffer = builder.buf_nr,
+    -- save the label on insert leave
+    callback = function(ev)
+      local lbl_type, lbl_idx = utils.get_row_data(builder)
+      if not (lbl_type and lbl_idx) then
+        return
+      end
+      if lbl_type == "res_labels" then
+        M.Draw()
+        return
+      end
+      local row = vim.api.nvim_win_get_cursor(0)[1]
+      local line = vim.api.nvim_buf_get_lines(ev.buf, row - 1, row, false)[1]
+      local sess_filter_id = builder.fl_content[lbl_type][lbl_idx].sess_filter_id
+
+      state.session_filter_label[sess_filter_id] = line
+      utils.add_existing_labels(builder)
+      M.Draw()
+    end,
+  })
+
+  M.Draw()
+end
+
 function M.View()
+  local builder = manager.get_or_create(M.definition.resource)
   local buf_name = vim.api.nvim_buf_get_var(0, "buf_name")
 
   local instance = manager.get(buf_name)
   if not instance then
     return
   end
-  local view, resource_definition = views.resource_and_definition(instance.resource)
+  local view
+  view, M.resource_definition = views.resource_and_definition(instance.resource)
   local name, ns = view.getCurrentSelection()
   if not name then
+    vim.schedule(function()
+      display_float(builder)
+    end)
     return
   end
   M.definition.ns = ns
 
-  local builder = manager.get_or_create(M.definition.resource)
   commands.run_async("get_single_async", {
-    kind = resource_definition.gvk.k,
+    kind = M.resource_definition.gvk.k,
     namespace = ns,
     name = name,
     output = "Json",
@@ -45,84 +136,15 @@ function M.View()
       return
     end
 
+    -- init builder
     builder.header = { data = {}, marks = {} }
+
     builder.extmarks = {}
-    builder.labels_len = 0
     builder.data = data
     builder.decodeJson()
-    local lines = {}
-    local labels = builder.data.metadata.labels
-    for key, value in pairs(labels) do
-      -- add label k=v
-      table.insert(lines, key .. "=" .. value)
 
-      -- add checkbox
-      table.insert(builder.extmarks, {
-        row = #lines - 1,
-        start_col = 0,
-        virt_text = { { "[ ]" .. " ", hl.symbols.header } },
-        virt_text_pos = "inline",
-        right_gravity = false,
-      })
-
-      builder.labels_len = builder.labels_len + 1
-    end
-
-    local win_config
     vim.schedule(function()
-      builder.buf_nr, win_config = buffers.confirmation_buffer(M.definition.display, M.definition.ft, function(confirm)
-        if confirm then
-          labels = {}
-          local ns_id = state.marks.ns_id
-          --
-          local ok, exts =
-            pcall(vim.api.nvim_buf_get_extmarks, builder.buf_nr, ns_id, 0, -1, { details = true, type = "virt_text" })
-          if not (ok and exts) then
-            return
-          end
-          --
-          for _, ext in ipairs(exts) do
-            local vt = ext[4].virt_text
-            if vt and vt[1] and vt[1][1] == "[x] " then
-              local row = ext[2]
-              local buf_line = vim.api.nvim_buf_get_lines(builder.buf_nr, row, row + 1, false)[1]
-              table.insert(labels, buf_line)
-            end
-          end
-          state.filter_label = labels
-        end
-      end)
-
-      -- add hints
-      builder.addHints(M.definition.hints, false, false)
-
-      -- add notes with extmark
-      table.insert(builder.header.data, M.definition.notes)
-      table.insert(builder.header.marks, {
-        row = #builder.header.data - 1,
-        start_col = 0,
-        end_col = #builder.header.data[#builder.header.data],
-        hl_group = hl.symbols.gray,
-      })
-
-      -- add divider
-      tables.generateDividerRow(builder.header.data, builder.header.marks)
-
-      builder.data = lines
-      table.insert(builder.data, "")
-      table.insert(builder.data, "")
-      table.insert(builder.data, "")
-
-      local confirmation = "[y]es [n]o"
-      local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
-      table.insert(builder.extmarks, {
-        name = "confirmation",
-        row = #builder.data - 1,
-        start_col = 0,
-        virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
-        virt_text_pos = "inline",
-      })
-      M.Draw()
+      display_float(builder)
     end)
   end)
 end
@@ -133,8 +155,29 @@ function M.Draw()
     return
   end
 
+  builder.data = {}
+  builder.extmarks = {}
+  builder.fl_content.lines = {}
+
+  for _, type in ipairs({ "existing_labels", "res_labels", "confirmation" }) do
+    for _, line in ipairs(builder.fl_content[type]) do
+      line.row = #builder.fl_content.lines + #builder.header.data + 1
+      for _, ext in ipairs(line.extmarks or {}) do
+        ext.row = #builder.fl_content.lines
+        if line.is_label then
+          ext.virt_text[1][1] = line.is_selected and "[x] " or "[ ] "
+        end
+      end
+      table.insert(builder.fl_content.lines, vim.tbl_deep_extend("force", line, { type = type }))
+    end
+  end
+
+  for _, line in ipairs(builder.fl_content.lines) do
+    table.insert(builder.data, line.text)
+    vim.list_extend(builder.extmarks, line.extmarks or {})
+  end
+
   builder.displayContentRaw()
-  vim.cmd([[syntax match KubectlPending /.*/]])
 end
 
 return M
