@@ -62,16 +62,16 @@ function M.add_existing_labels(builder)
   })
 end
 
-function M.add_res_labels(builder, resource_definition)
+function M.add_res_labels(builder, kind)
   builder.fl_content.res_labels = {}
 
   table.insert(builder.fl_content.res_labels, {
     is_label = false,
-    text = resource_definition.gvk.k .. " labels:",
+    text = kind .. " labels:",
     extmarks = {},
   })
 
-  local labels = builder.data.metadata.labels
+  local labels = builder.data and builder.metadata and builder.data.metadata.labels or {}
   for key, value in pairs(labels) do
     local label_line = {
       is_label = true,
