@@ -71,7 +71,7 @@ function M.add_res_labels(builder, kind)
     extmarks = {},
   })
 
-  local labels = builder.data and builder.metadata and builder.data.metadata.labels or {}
+  local labels = builder.data and builder.data.metadata and builder.data.metadata.labels or {}
   for key, value in pairs(labels) do
     local label_line = {
       is_label = true,
