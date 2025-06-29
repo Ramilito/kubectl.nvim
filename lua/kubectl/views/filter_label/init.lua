@@ -73,7 +73,6 @@ function M.View()
                 table.insert(confirmed_labels, label.text)
               end
             end
-            print("Confirmed labels:" .. vim.inspect(confirmed_labels))
             state.filter_label = confirmed_labels
           end
         end
