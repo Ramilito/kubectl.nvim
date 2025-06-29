@@ -68,8 +68,8 @@ function client.cordon_node(name)
   return client.implementation.cordon_node(name)
 end
 
-function client.exec(ns, pod, cmd)
-  return client.implementation.exec(ns, pod, cmd)
+function client.exec(ns, pod, container, cmd)
+  return client.implementation.exec(ns, pod, container, cmd)
 end
 
 function client.get_config()

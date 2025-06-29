@@ -19,6 +19,7 @@ pub async fn open_exec(
     client: &Client,
     ns: &str,
     pod: &str,
+    container: &Option<String>,
     cmd: &Vec<String>,
     tty: bool,
 ) -> Result<kube::api::AttachedProcess> {
@@ -29,6 +30,7 @@ pub async fn open_exec(
         stderr: !tty,
         stdin: true,
         tty: true,
+        container: container.clone(),
         ..Default::default()
     };
 
@@ -47,11 +49,12 @@ impl Session {
         client: Client,
         ns: String,
         pod: String,
+        container: Option<String>,
         cmd: Vec<String>,
         tty: bool,
     ) -> LuaResult<Self> {
-        let mut proc =
-            block_on(open_exec(&client, &ns, &pod, &cmd, tty)).map_err(LuaError::external)?;
+        let mut proc = block_on(open_exec(&client, &ns, &pod, &container, &cmd, tty))
+            .map_err(LuaError::external)?;
 
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
         /* 2 ▸ Channels between Lua and async tasks */

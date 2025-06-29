@@ -320,9 +320,13 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
     exports.set(
         "exec",
-        lua.create_function(|_, (ns, pod, cmd): (String, String, Vec<String>)| {
-            with_client(|client| async move { cmd::exec::Session::new(client, ns, pod, cmd, true) })
-        })?,
+        lua.create_function(
+            |_, (ns, pod, container, cmd): (String, String, Option<String>, Vec<String>)| {
+                with_client(|client| async move {
+                    cmd::exec::Session::new(client, ns, pod, container, cmd, true)
+                })
+            },
+        )?,
     )?;
     exports.set(
         "log_stream_async",

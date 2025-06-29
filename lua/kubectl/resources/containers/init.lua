@@ -62,7 +62,14 @@ function M.exec(pod, ns)
   else
     local client = require("kubectl.client")
     local buf, win = buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
-    local sess = client.exec(ns, pod, { "/bin/sh" })
+    local ok, sess = pcall(client.exec, ns, pod, M.selection, { "/bin/sh" })
+    if not ok then
+      vim.notify(sess, vim.log.levels.ERROR)
+      return
+    elseif sess == nil then
+      vim.notify("exec failed: " .. tostring(sess), vim.log.levels.ERROR)
+      return
+    end
     local chan = vim.api.nvim_open_term(buf, {
       on_input = function(_, _, _, bytes)
         sess:write(bytes)
