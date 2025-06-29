@@ -81,7 +81,7 @@ local function display_float(builder)
 
   -- clear augroup
   vim.api.nvim_clear_autocmds({ group = M.augroup })
-  vim.api.nvim_create_autocmd("InsertLeave", {
+  vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged" }, {
     group = M.augroup,
     buffer = builder.buf_nr,
     -- save the label on insert leave
