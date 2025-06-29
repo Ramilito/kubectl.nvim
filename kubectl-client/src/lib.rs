@@ -10,7 +10,6 @@ use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
-use tokio::io::AsyncReadExt;
 use tokio::runtime::Runtime;
 
 use crate::cmd::apply::apply_async;
@@ -19,7 +18,6 @@ use crate::cmd::config::{
 };
 use crate::cmd::delete::delete_async;
 use crate::cmd::edit::edit_async;
-use crate::cmd::exec::{open_exec, Session};
 use crate::cmd::get::{
     get_api_resources_async, get_raw_async, get_resources_async, get_server_raw_async, get_single,
     get_single_async,
@@ -320,7 +318,12 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
-    exports.set("exec", lua.create_function(exec::exec)?)?;
+    exports.set(
+        "exec",
+        lua.create_function(|_, (ns, pod, cmd): (String, String, Vec<String>)| {
+            with_client(|client| async move { cmd::exec::Session::new(client, ns, pod, cmd, true) })
+        })?,
+    )?;
     exports.set(
         "log_stream_async",
         lua.create_async_function(cmd::stream::log_stream_async)?,

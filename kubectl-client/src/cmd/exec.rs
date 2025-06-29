@@ -1,78 +1,134 @@
-use k8s_openapi::api::core::v1::Pod;
+use crate::{block_on, RUNTIME};
 use kube::api::AttachParams;
-use kube::{Api, Client};
-use mlua::{Lua, Result as LuaResult, Table as LuaTable};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use kube::{Api, Client, Error as KubeError};
+use mlua::{prelude::*, UserData, UserDataMethods};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
+use tokio::runtime::Runtime;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    sync::mpsc,
+};
 
-use crate::utils::debug_print;
-use crate::with_client;
+type Result<T> = std::result::Result<T, KubeError>;
 
-async fn exec_async(
-    lua: &Lua,
+#[tracing::instrument(skip(client))]
+pub async fn open_exec(
     client: &Client,
-    pod_name: String,
-    cmd: Vec<String>,
-) -> LuaResult<String> {
-    let pods: Api<Pod> = Api::default_namespaced(client.clone());
+    ns: &str,
+    pod: &str,
+    cmd: &Vec<String>,
+    tty: bool,
+) -> Result<kube::api::AttachedProcess> {
+    let pods: Api<k8s_openapi::api::core::v1::Pod> = Api::namespaced(client.clone(), ns);
 
-    let mut attached = pods
-        .exec(
-            &pod_name,
-            cmd,
-            &AttachParams::default().stdin(true).tty(true),
-        )
-        .await
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+    let attach = AttachParams {
+        stdout: true,
+        stderr: !tty,
+        stdin: true,
+        tty: true,
+        ..Default::default()
+    };
 
-    // Split the attached process into stdin and stdout streams.
-    let mut proc_stdout = attached.stdout().expect("expected stdout");
-    let mut proc_stdin = attached.stdin().expect("expected stdin");
-
-    let _ = debug_print(lua, "testing");
-    // Spawn a task to read from the process stdout and write to the Neovim terminal.
-    // Replace the placeholder print! with your Neovim terminal output integration.
-    let stdout_task = tokio::spawn(async move {
-        let mut buf = [0u8; 1024];
-        loop {
-            match proc_stdout.read(&mut buf).await {
-                Ok(0) => break, // EOF
-                Ok(n) => {
-                    // This should forward the output to Neovim's terminal.
-                    print!("{}", String::from_utf8_lossy(&buf[..n]));
-                }
-                Err(e) => {
-                    eprintln!("Error reading process stdout: {:?}", e);
-                    break;
-                }
-            }
-        }
-    });
-
-    // Spawn a task to read user input from Neovim and write to the process stdin.
-    // Replace the simulated input below with your actual Neovim terminal input callback.
-    let stdin_task = tokio::spawn(async move {
-        // Example: Simulate user input. Replace this with real-time input from Neovim.
-        let simulated_input = b"echo 'Hello from Rust interactive exec'\n";
-        if let Err(e) = proc_stdin.write_all(simulated_input).await {
-            eprintln!("Error writing to process stdin: {:?}", e);
-        }
-    });
-
-    // Wait for both tasks to complete.
-    let _ = tokio::join!(stdout_task, stdin_task);
-    attached
-        .join()
-        .await
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    Ok("".to_string())
+    pods.exec(pod, cmd, &attach).await
 }
 
-pub fn exec(lua: &Lua, (pod_name, cmd_table): (String, LuaTable)) -> LuaResult<String> {
-    let cmd: Vec<String> = cmd_table.sequence_values().collect::<Result<_, _>>()?;
+pub struct Session {
+    tx_in: mpsc::UnboundedSender<Vec<u8>>,
+    rx_out: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>,
+    open: Arc<AtomicBool>,
+}
 
-    with_client(move |client| async move {
-        exec_async(lua, &client, pod_name, cmd)
-            .await
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
-    })
+impl Session {
+    #[tracing::instrument(skip(client))]
+    pub fn new(
+        client: Client,
+        ns: String,
+        pod: String,
+        cmd: Vec<String>,
+        tty: bool,
+    ) -> LuaResult<Self> {
+        let mut proc =
+            block_on(open_exec(&client, &ns, &pod, &cmd, tty)).map_err(LuaError::external)?;
+
+        let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
+        /* 2 ▸ Channels between Lua and async tasks */
+        let (tx_in, mut rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
+        let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
+        let open = Arc::new(AtomicBool::new(true));
+        let open_w = open.clone();
+        let open_r = open.clone();
+
+        /* 3 ▸ Spawn background writer */
+        if let Some(mut stdin) = proc.stdin() {
+            rt.spawn(async move {
+                while let Some(buf) = rx_in.recv().await {
+                    if stdin.write_all(&buf).await.is_err() {
+                        break;
+                    }
+                }
+                open_w.store(false, Ordering::Release);
+            });
+        }
+
+        /* 4 ▸ Spawn background reader */
+        if let Some(mut stdout) = proc.stdout() {
+            rt.spawn(async move {
+                let mut buf = [0u8; 4096];
+                loop {
+                    match stdout.read(&mut buf).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            let _ = tx_out.send(buf[..n].to_vec());
+                        }
+                    }
+                }
+                open_r.store(false, Ordering::Release);
+            });
+        }
+
+        Ok(Self {
+            tx_in,
+            rx_out: Mutex::new(rx_out),
+            open,
+        })
+    }
+
+    /* ---------- called from Lua ---------- */
+    fn read_chunk(&self) -> Option<String> {
+        match self.rx_out.lock().unwrap().try_recv() {
+            Ok(bytes) => Some(String::from_utf8_lossy(&bytes).into_owned()),
+            _ => None,
+        }
+    }
+
+    fn write(&self, s: &str) {
+        let _ = self.tx_in.send(s.as_bytes().to_vec());
+    }
+
+    fn is_open(&self) -> bool {
+        self.open.load(Ordering::Acquire)
+    }
+
+    fn close(&self) {
+        self.open.store(false, Ordering::Release);
+        // self.tx_in.close_channel();
+    }
+}
+
+impl UserData for Session {
+    fn add_methods<M: UserDataMethods<Self>>(m: &mut M) {
+        m.add_method("read_chunk", |_, this, ()| Ok(this.read_chunk()));
+        m.add_method("write", |_, this, data: String| {
+            this.write(&data);
+            Ok(())
+        });
+        m.add_method("open", |_, this, ()| Ok(this.is_open()));
+        m.add_method("close", |_, this, ()| {
+            this.close();
+            Ok(())
+        });
+    }
 }

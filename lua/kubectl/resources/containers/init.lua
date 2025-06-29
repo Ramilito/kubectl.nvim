@@ -55,18 +55,45 @@ function M.View(pod, ns)
 end
 
 function M.exec(pod, ns)
-  local args = { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" }
-  local cmd = "kubectl"
-
   if config.options.terminal_cmd then
-    local command = commands.configure_command(cmd, {}, args)
+    local args = { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" }
+    local command = commands.configure_command("kubectl", {}, args)
     vim.fn.jobstart(config.options.terminal_cmd .. " " .. table.concat(command.args, " "))
   else
-    buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
+    local client = require("kubectl.client")
+    local buf, win = buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
+    local sess = client.exec(ns, pod, { "/bin/sh" })
+    local chan = vim.api.nvim_open_term(buf, {
+      on_input = function(_, _, _, bytes)
+        sess:write(bytes)
+        return true
+      end,
+    })
+    vim.cmd.startinsert()
 
-    -- local client = require("kubectl.client")
-    -- client.exec(pod, { "sh", "-c", "echo echo Hello from Lua; exec /bin/sh" })
-    commands.execute_terminal(cmd, args)
+    local timer = vim.loop.new_timer()
+    timer:start(
+      0,
+      30,
+      vim.schedule_wrap(function()
+        while true do
+          local chunk = sess:read_chunk()
+          if chunk then
+            vim.api.nvim_chan_send(chan, chunk)
+          else
+            break
+          end
+        end
+        if not sess:open() then
+          timer:stop()
+          timer:close()
+          vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+        end
+      end)
+    )
   end
 end
 
