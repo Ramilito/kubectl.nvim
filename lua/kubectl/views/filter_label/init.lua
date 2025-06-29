@@ -1,6 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
-local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
@@ -64,22 +63,17 @@ function M.View()
         function(confirm)
           if confirm then
             local confirmed_labels = {}
-            local ns_id = state.marks.ns_id
-            --
-            local ok, exts =
-              pcall(vim.api.nvim_buf_get_extmarks, builder.buf_nr, ns_id, 0, -1, { details = true, type = "virt_text" })
-            if not (ok and exts) then
-              return
-            end
-            --
-            for _, ext in ipairs(exts) do
-              local vt = ext[4].virt_text
-              if vt and vt[1] and vt[1][1] == "[x] " then
-                local row = ext[2]
-                local buf_line = vim.api.nvim_buf_get_lines(builder.buf_nr, row, row + 1, false)[1]
-                table.insert(confirmed_labels, buf_line)
+            for _, label in ipairs(builder.fl_content.existing_labels) do
+              if label.is_label and label.is_selected then
+                table.insert(confirmed_labels, label.text)
               end
             end
+            for _, label in ipairs(builder.fl_content.res_labels) do
+              if label.is_label and label.is_selected then
+                table.insert(confirmed_labels, label.text)
+              end
+            end
+            print("Confirmed labels:" .. vim.inspect(confirmed_labels))
             state.filter_label = confirmed_labels
           end
         end

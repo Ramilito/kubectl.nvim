@@ -23,8 +23,6 @@ M.overrides = {
       if not (label_type and label_idx) then
         return
       end
-      print("label_type: " .. label_type .. ", label_idx: " .. label_idx)
-      print("fl: " .. vim.inspect(store.fl_content[label_type]))
       local label_line = store.fl_content[label_type][label_idx]
       if not label_line.is_label then
         return
@@ -73,7 +71,6 @@ M.overrides = {
       end
       local sess_filter_id = store.fl_content[label_type][label_idx].sess_filter_id
       if not sess_filter_id then
-        print("not sess_filter_id")
         return
       end
 
