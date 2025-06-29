@@ -14,6 +14,7 @@ return {
   events = { "events", "event", "ev", "events.events.k8s.io" },
   horizontalpodautoscalers = { "horizontalpodautoscalers", "horizontalpodautoscaler", "hpa" },
   nodes = { "nodes", "node", "no" },
+  namespaces = { "ns", "namespace", "namespaces" },
   serviceaccounts = { "serviceaccounts", "serviceaccount", "sa" },
   secrets = { "secrets", "secret", "sec" },
   storageclasses = { "storageclasses", "storageclass", "sc" },

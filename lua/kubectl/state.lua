@@ -103,7 +103,7 @@ function M.checkVersions()
       M.versions.server.major = serverVersion.major
     else
       vim.schedule(function()
-        require("kubectl.views.contexts").View()
+        require("kubectl.resources.contexts").View()
       end)
     end
   end)
@@ -261,7 +261,7 @@ function M.restore_session()
     M.ns = "All"
   end
 
-  require("kubectl.views").view_or_fallback(session_view)
+  require("kubectl.views").resource_or_fallback(session_view)
 end
 
 function M.set_buffer_state(buf, filetype, mode, open_func, args)

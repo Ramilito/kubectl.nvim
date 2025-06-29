@@ -23,6 +23,10 @@ build_go:
 build_dev: build_go
 	cargo build --features telemetry
 
+.PHONY: build_release
+build_release: build_go
+	@cargo build --release --features telemetry
+
 .PHONY: build
 build: build_go
 	cargo build --release

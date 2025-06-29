@@ -13,6 +13,7 @@ use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+use tracing::info;
 
 type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
 pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
@@ -85,8 +86,11 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
         .par_iter()
         .filter(|arc_obj| {
             let obj = arc_obj.as_ref();
+            if obj.namespace().is_none() {
+                return true;
+            }
             match &namespace {
-                Some(ns) => obj.namespace().as_deref() == Some(ns),
+                Some(ns) => obj.namespace().as_deref() == Some(ns.as_str()),
                 None => true,
             }
         })

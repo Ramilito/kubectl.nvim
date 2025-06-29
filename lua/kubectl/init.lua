@@ -1,6 +1,6 @@
 local cache = require("kubectl.cache")
 local config = require("kubectl.config")
-local ctx_view = require("kubectl.views.contexts")
+local ctx_view = require("kubectl.resources.contexts")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
 local view = require("kubectl.views")
@@ -75,7 +75,7 @@ function M.setup(options)
 
         if win_config.relative == "" then
           if not loop.is_running(ev.buf) then
-            local current_view = require("kubectl.views").view_and_definition(ev.file)
+            local current_view = require("kubectl.views").resource_and_definition(ev.file)
             loop.start_loop(current_view.Draw, { buf = ev.buf })
             vim.opt_local.foldmethod = "manual"
           end
@@ -107,7 +107,7 @@ function M.setup(options)
       end
       top_view.View()
     elseif action == "api-resources" then
-      require("kubectl.views.api-resources").View()
+      require("kubectl.resources.api-resources").View()
     else
       view.UserCmd(opts.fargs)
     end

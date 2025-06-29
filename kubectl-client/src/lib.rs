@@ -26,7 +26,7 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::processors::processor;
+use crate::processors::processor_for;
 use crate::store::get_store_map;
 use crate::ui::dashboard::{start_dashboard, stop_dashboard};
 
@@ -209,7 +209,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
     let args: GetFallbackTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
-    let proc = processor("fallback");
+    let proc = processor_for("fallback");
     let processed = proc.process_fallback(
         &lua,
         args.name,
@@ -235,7 +235,7 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
         .unwrap();
 
     let vec = vec![pod.unwrap()];
-    let proc = processor("container");
+    let proc = processor_for("container");
     let processed = proc
         .process(&lua, &vec, None, None, None, None, None)
         .map_err(mlua::Error::external)?;
@@ -247,21 +247,20 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
 async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-    let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
+    let cached = store::get(&args.gvk.k, args.namespace.clone())
+        .await
+        .unwrap_or_default();
+    let proc = processor_for(&args.gvk.k.to_lowercase());
 
-    let processor = processor(args.gvk.k.to_lowercase().as_str());
-    let processed = processor
-        .process(
-            &lua,
-            &cached,
-            args.sort_by,
-            args.sort_order,
-            args.filter,
-            args.filter_label,
-            args.filter_key,
-        )
-        .map_err(mlua::Error::external)?;
-    Ok(processed)
+    proc.process(
+        &lua,
+        &cached,
+        args.sort_by,
+        args.sort_order,
+        args.filter,
+        args.filter_label,
+        args.filter_key,
+    )
 }
 
 /// Runs automatically when the cdylib is unloaded

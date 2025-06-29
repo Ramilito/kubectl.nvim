@@ -140,7 +140,6 @@ end
 --- Find index of an item in an array that matches a pattern
 function M.tbl_idx(tbl, pattern)
   for idx, item in ipairs(tbl) do
-    print("checking if " .. vim.inspect(item) .. " == " .. vim.inspect(pattern))
     if item == pattern then
       return idx
     end

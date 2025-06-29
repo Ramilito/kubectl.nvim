@@ -49,7 +49,7 @@ function M.filter_label()
   if not instance then
     return
   end
-  local view, definition = views.view_and_definition(instance.resource)
+  local view, definition = views.resource_and_definition(instance.resource)
   local name, ns = view.getCurrentSelection()
   if not name then
     return
