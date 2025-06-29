@@ -1,6 +1,4 @@
 use k8s_openapi::chrono::{DateTime, Utc};
-use kube::api::DynamicObject;
-use mlua::{Function, Lua, Result, Table};
 
 #[derive(Debug, Clone, Copy)]
 pub enum AccessorMode {
@@ -27,10 +25,6 @@ impl Default for FieldValue {
             sort_by: None,
         }
     }
-}
-
-pub fn strip_managed_fields(obj: &mut DynamicObject) {
-    obj.metadata.managed_fields = None;
 }
 
 pub fn time_since(ts_str: &str) -> String {
@@ -64,12 +58,4 @@ pub fn time_since(ts_str: &str) -> String {
     } else {
         "".to_string()
     }
-}
-
-pub fn debug_print(lua: &Lua, msg: &str) -> Result<()> {
-    let globals = lua.globals();
-    let vim: Table = globals.get("vim")?;
-    let notify: Function = vim.get("notify")?;
-    notify.call::<String>(msg)?;
-    Ok(())
 }

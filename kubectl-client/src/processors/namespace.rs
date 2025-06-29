@@ -1,11 +1,10 @@
-use crate::events::{color_status, symbols};
+use crate::events::color_status;
 use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
-use k8s_openapi::api::core::v1::{Namespace, Node, NodeCondition};
+use k8s_openapi::api::core::v1::Namespace;
 use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct NamespaceProcessed {

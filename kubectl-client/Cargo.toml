@@ -25,7 +25,7 @@ mlua = { version = "0.10.2", features = ["module", "luajit", "serialize", "async
 serde = "1.0.218"
 serde_json_path = "0.7.2"
 serde_yaml = "0.9.34"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "tracing"] }
+tokio = { version = "1", features = ["full"] }
 tracing = "0.1.41"
 tracing-appender            = "0.2"
 tracing-subscriber          = { version = "0.3", features = ["env-filter", "fmt", "registry"] }

@@ -10,6 +10,7 @@ use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
+use tokio::io::AsyncReadExt;
 use tokio::runtime::Runtime;
 
 use crate::cmd::apply::apply_async;
@@ -18,7 +19,7 @@ use crate::cmd::config::{
 };
 use crate::cmd::delete::delete_async;
 use crate::cmd::edit::edit_async;
-use crate::cmd::exec;
+use crate::cmd::exec::{open_exec, Session};
 use crate::cmd::get::{
     get_api_resources_async, get_raw_async, get_resources_async, get_server_raw_async, get_single,
     get_single_async,
@@ -62,13 +63,22 @@ pub fn pod_stats() -> &'static SharedPodStats {
     POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
 }
 
+fn block_on<F: std::future::Future>(fut: F) -> F::Output {
+    use tokio::{runtime::Handle, task};
+    match Handle::try_current() {
+        Ok(h) => task::block_in_place(|| h.block_on(fut)),
+        Err(_) => {
+            let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
+            rt.block_on(fut)
+        }
+    }
+}
+
 pub fn with_client<F, Fut, R>(f: F) -> LuaResult<R>
 where
     F: FnOnce(Client) -> Fut,
     Fut: Future<Output = LuaResult<R>>,
 {
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
-
     let client = CLIENT_INSTANCE
         .lock()
         .map_err(|_| LuaError::RuntimeError("poisoned CLIENT lock".into()))?
@@ -76,7 +86,7 @@ where
         .cloned()
         .ok_or_else(|| LuaError::RuntimeError("Client not initialised".into()))?;
 
-    rt.block_on(f(client))
+    block_on(f(client))
 }
 
 #[tracing::instrument]
