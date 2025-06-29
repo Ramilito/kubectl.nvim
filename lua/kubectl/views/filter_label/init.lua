@@ -95,7 +95,6 @@ function M.View()
 
       -- add divider
       tables.generateDividerRow(builder.header.data, builder.header.marks)
-      builder.header_len = #builder.header.data + 1
 
       -------------
       -- CONTENT --
