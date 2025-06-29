@@ -156,19 +156,4 @@ function M.get_row_data(builder)
   return label_type, label_idx
 end
 
-function M.save_existing_labels(builder)
-  local labels = {}
-  for _, line in ipairs(builder.fl_content.existing_labels) do
-    if line.is_label and line.is_selected then
-      table.insert(labels, line.text)
-    end
-  end
-
-  -- save to state
-  state.setFilterLabel(labels)
-
-  -- save to session
-  state.setSessionFilterLabel(labels)
-end
-
 return M
