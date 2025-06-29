@@ -32,9 +32,13 @@ local function display_float(builder)
     function(confirm)
       if confirm then
         local confirmed_labels = {}
+        local sess_labels = {}
         for _, label in ipairs(builder.fl_content.existing_labels) do
-          if label.is_label and label.is_selected then
-            table.insert(confirmed_labels, label.text)
+          if label.is_label then
+            table.insert(sess_labels, label.text)
+            if label.is_selected then
+              table.insert(confirmed_labels, label.text)
+            end
           end
         end
         for _, label in ipairs(builder.fl_content.res_labels) do
@@ -43,6 +47,7 @@ local function display_float(builder)
           end
         end
         state.filter_label = confirmed_labels
+        state.session_filter_label = sess_labels
       end
     end
   )
