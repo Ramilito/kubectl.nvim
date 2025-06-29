@@ -66,12 +66,11 @@ function M.exec(pod, ns)
     local chan = vim.api.nvim_open_term(buf, {
       on_input = function(_, _, _, bytes)
         sess:write(bytes)
-        return true
       end,
     })
     vim.cmd.startinsert()
 
-    local timer = vim.loop.new_timer()
+    local timer = vim.uv.new_timer()
     timer:start(
       0,
       30,

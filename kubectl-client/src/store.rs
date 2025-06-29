@@ -13,7 +13,6 @@ use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
-use tracing::info;
 
 type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
 pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
