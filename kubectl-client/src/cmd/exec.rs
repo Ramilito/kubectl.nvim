@@ -1,14 +1,16 @@
 use crate::{block_on, RUNTIME};
-use kube::api::AttachParams;
-use kube::{Api, Client, Error as KubeError};
+use kube::{
+    api::{Api, AttachParams, AttachedProcess},
+    Client, Error as KubeError,
+};
 use mlua::{prelude::*, UserData, UserDataMethods};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
-use tokio::runtime::Runtime;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
+    runtime::{Handle, Runtime},
     sync::mpsc,
 };
 
@@ -20,20 +22,18 @@ pub async fn open_exec(
     ns: &str,
     pod: &str,
     container: &Option<String>,
-    cmd: &Vec<String>,
+    cmd: &[String],
     tty: bool,
-) -> Result<kube::api::AttachedProcess> {
+) -> Result<AttachedProcess> {
     let pods: Api<k8s_openapi::api::core::v1::Pod> = Api::namespaced(client.clone(), ns);
-
     let attach = AttachParams {
         stdout: true,
         stderr: !tty,
         stdin: true,
-        tty: true,
+        tty,
         container: container.clone(),
         ..Default::default()
     };
-
     pods.exec(pod, cmd, &attach).await
 }
 
@@ -57,27 +57,27 @@ impl Session {
             .map_err(LuaError::external)?;
 
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
-        /* 2 ▸ Channels between Lua and async tasks */
+        // ---- wire channels ----------------------------------------------------
         let (tx_in, mut rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
         let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
         let open = Arc::new(AtomicBool::new(true));
-        let open_w = open.clone();
-        let open_r = open.clone();
 
-        /* 3 ▸ Spawn background writer */
+        // writer
         if let Some(mut stdin) = proc.stdin() {
+            let flag = open.clone();
             rt.spawn(async move {
                 while let Some(buf) = rx_in.recv().await {
                     if stdin.write_all(&buf).await.is_err() {
                         break;
                     }
                 }
-                open_w.store(false, Ordering::Release);
+                flag.store(false, Ordering::Release);
             });
         }
 
-        /* 4 ▸ Spawn background reader */
+        // single reader (stdout + merged‑stderr)
         if let Some(mut stdout) = proc.stdout() {
+            let flag = open.clone();
             rt.spawn(async move {
                 let mut buf = [0u8; 4096];
                 loop {
@@ -88,7 +88,7 @@ impl Session {
                         }
                     }
                 }
-                open_r.store(false, Ordering::Release);
+                flag.store(false, Ordering::Release);
             });
         }
 
@@ -99,33 +99,32 @@ impl Session {
         })
     }
 
-    /* ---------- called from Lua ---------- */
+    // ---------- Lua‑visible helpers ------------------------------------------
     fn read_chunk(&self) -> Option<String> {
-        match self.rx_out.lock().unwrap().try_recv() {
-            Ok(bytes) => Some(String::from_utf8_lossy(&bytes).into_owned()),
-            _ => None,
-        }
+        self.rx_out
+            .lock()
+            .unwrap()
+            .try_recv()
+            .ok()
+            .map(|v| String::from_utf8_lossy(&v).into_owned())
     }
 
     fn write(&self, s: &str) {
         let _ = self.tx_in.send(s.as_bytes().to_vec());
     }
-
     fn is_open(&self) -> bool {
         self.open.load(Ordering::Acquire)
     }
-
     fn close(&self) {
         self.open.store(false, Ordering::Release);
-        // self.tx_in.close_channel();
     }
 }
 
 impl UserData for Session {
     fn add_methods<M: UserDataMethods<Self>>(m: &mut M) {
         m.add_method("read_chunk", |_, this, ()| Ok(this.read_chunk()));
-        m.add_method("write", |_, this, data: String| {
-            this.write(&data);
+        m.add_method("write", |_, this, s: String| {
+            this.write(&s);
             Ok(())
         });
         m.add_method("open", |_, this, ()| Ok(this.is_open()));
