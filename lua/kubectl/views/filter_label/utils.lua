@@ -12,12 +12,15 @@ function M.add_existing_labels(builder)
     extmarks = {},
   })
 
-  -- add existing labels from state
-  for _, label in ipairs(state.filter_label) do
-    local label_line = {
+  -- add existing labels from session
+  local sess_fl = state.getSessionFilterLabel()
+  for i, label in ipairs(sess_fl) do
+    -- check if label is in state.filter_label
+    table.insert(builder.fl_content.existing_labels, {
       is_label = true,
-      is_selected = true,
+      is_selected = false,
       text = label,
+      sess_filter_id = i,
       ---@type ExtMark[]
       extmarks = {
         {
@@ -27,20 +30,16 @@ function M.add_existing_labels(builder)
           right_gravity = false,
         },
       },
-    }
-    table.insert(builder.fl_content.existing_labels, label_line)
+    })
   end
 
-  -- add existing labels from session
-  local sess_fl = state.getSessionFilterLabel()
-  for i, label in ipairs(sess_fl) do
-    -- check if label is in state.filter_label
-    if not vim.tbl_contains(state.filter_label, label) then
-      local label_line = {
+  -- add existing labels from state
+  for _, label in ipairs(state.filter_label) do
+    if not vim.tbl_contains(sess_fl, label) then
+      table.insert(builder.fl_content.existing_labels, {
         is_label = true,
-        is_selected = false,
+        is_selected = true,
         text = label,
-        sess_filter_id = i,
         ---@type ExtMark[]
         extmarks = {
           {
@@ -50,8 +49,7 @@ function M.add_existing_labels(builder)
             right_gravity = false,
           },
         },
-      }
-      table.insert(builder.fl_content.existing_labels, label_line)
+      })
     end
   end
 
