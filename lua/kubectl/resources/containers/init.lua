@@ -62,7 +62,13 @@ function M.exec(pod, ns)
   else
     local client = require("kubectl.client")
     local buf, win = buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
-    local ok, sess = pcall(client.exec, ns, pod, M.selection, { "/bin/sh" })
+    local ok, sess = pcall(
+      client.exec,
+      ns,
+      pod,
+      M.selection,
+      { "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh" }
+    )
     if not ok then
       vim.notify(sess, vim.log.levels.ERROR)
       return
