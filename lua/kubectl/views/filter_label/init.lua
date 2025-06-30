@@ -43,6 +43,7 @@ local function display_float(builder)
         end
         for _, label in ipairs(builder.fl_content.res_labels) do
           if label.is_label and label.is_selected then
+            table.insert(sess_labels, label.text)
             table.insert(confirmed_labels, label.text)
           end
         end
