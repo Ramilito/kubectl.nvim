@@ -90,18 +90,15 @@ function M.exec(pod, ns)
             break
           end
         end
-        -- vim.notify(
-        --   "sess:open(): " .. vim.inspect(sess:open()) .. " timer:is_closing(): " .. vim.inspect(timer:is_closing())
-        -- )
 
-        -- if not sess:open() and not timer:is_closing() then
-        --   timer:stop()
-        --   timer:close()
-        --   --   vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-        --   --   if vim.api.nvim_win_is_valid(win) then
-        --   --     vim.api.nvim_win_close(win, true)
-        --   --   end
-        -- end
+        if not sess:open() and not timer:is_closing() then
+          timer:stop()
+          timer:close()
+          vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+        end
       end)
     )
   end
