@@ -1,4 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
+local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.resources.containers.definition")
@@ -54,66 +55,71 @@ function M.View(pod, ns)
   builder.view_float(M.definition, { args = { kind = gvk.k, name = pod, namespace = ns } })
 end
 
+local function attach_session(sess, buf, win)
+  local chan = vim.api.nvim_open_term(buf, {
+    on_input = function(_, _, _, data)
+      sess:write(data)
+    end,
+  })
+  vim.cmd.startinsert()
+
+  local timer = vim.uv.new_timer()
+  timer:start(
+    0,
+    30,
+    vim.schedule_wrap(function()
+      repeat
+        local chunk = sess:read_chunk()
+        if chunk then
+          vim.api.nvim_chan_send(chan, chunk)
+        end
+      until not chunk
+      if not sess:open() then
+        timer:stop()
+        timer:close()
+        vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
+        if vim.api.nvim_win_is_valid(win) then
+          vim.api.nvim_win_close(win, true)
+        end
+      end
+    end)
+  )
+end
+
+local function spawn_terminal(title, key, fn, ...)
+  local ok, sess = pcall(fn, ...)
+  if not ok or sess == nil then
+    vim.notify("kubectl‑client error: " .. tostring(sess), vim.log.levels.ERROR)
+    return
+  end
+  local buf, win = buffers.floating_buffer(key, title)
+  attach_session(sess, buf, win)
+end
+
 function M.exec(pod, ns)
   if config.options.terminal_cmd then
-    local args = { "exec", "-it", pod, "-n", ns, "-c ", M.selection, "--", "/bin/sh" }
-    local command = commands.configure_command("kubectl", {}, args)
-    vim.fn.jobstart(config.options.terminal_cmd .. " " .. table.concat(command.args, " "))
-  else
-    local client = require("kubectl.client")
-    local buf, win = buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
-    local ok, sess = pcall(
-      client.exec,
-      ns,
-      pod,
-      M.selection,
-      { "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh" }
-    )
-    if not ok then
-      vim.notify(sess, vim.log.levels.ERROR)
-      return
-    elseif sess == nil then
-      vim.notify("exec failed: " .. tostring(sess), vim.log.levels.ERROR)
-      return
-    end
-    local chan = vim.api.nvim_open_term(buf, {
-      on_input = function(_, _, _, bytes)
-        sess:write(bytes)
-      end,
-    })
-    vim.cmd.startinsert()
-
-    local timer = vim.uv.new_timer()
-    timer:start(
-      0,
-      30,
-      vim.schedule_wrap(function()
-        while true do
-          local chunk = sess:read_chunk()
-          if chunk then
-            vim.api.nvim_chan_send(chan, chunk)
-          else
-            break
-          end
-        end
-        if not sess:open() then
-          timer:stop()
-          timer:close()
-          vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-          if vim.api.nvim_win_is_valid(win) then
-            vim.api.nvim_win_close(win, true)
-          end
-        end
-      end)
-    )
+    local args = { "exec", "-it", pod, "-n", ns, "-c", M.selection, "--", "/bin/sh" }
+    local cmd = commands.configure_command("kubectl", {}, args)
+    vim.fn.jobstart(config.options.terminal_cmd .. " " .. table.concat(cmd.args, " "))
+    return
   end
+
+  spawn_terminal(
+    string.format("%s: %s | %s", pod, M.selection, ns),
+    "k8s_container_exec",
+    client.exec,
+    ns,
+    pod,
+    M.selection,
+    { "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh" }
+  )
 end
 
 function M.debug(pod, ns)
   local def = {
     resource = "kubectl_debug",
     ft = "k8s_action",
-    display = "Debug: " .. pod .. "-" .. M.selection .. "?",
+    display = "Debug: " .. pod .. " - " .. M.selection .. " ?",
     cmd = { "debug", pod, "-n", ns },
   }
 
@@ -124,52 +130,25 @@ function M.debug(pod, ns)
     { text = "image:", value = "busybox", cmd = "--image", type = "option" },
     { text = "stdin:", value = "true", cmd = "--stdin", type = "flag" },
     { text = "tty:", value = "true", cmd = "--tty", type = "flag" },
-    { text = "shell:", value = "/bin/sh", options = { "/bin/sh", "/bin/bash" }, cmd = "--", type = "positional" },
+    {
+      text = "shell:",
+      value = "/bin/sh",
+      options = { "/bin/sh", "/bin/bash" },
+      cmd = "--",
+      type = "positional",
+    },
   }
 
-  builder.action_view(def, data, function(args)
+  builder.action_view(def, data, function(_args)
     vim.schedule(function()
-      local client = require("kubectl.client")
-      local buf, win = buffers.floating_buffer("k8s_container_debug", pod .. ": " .. M.selection .. " | " .. ns)
-      -- TODO: connect image from arguments
-      local ok, sess = pcall(client.debug, ns, pod, "busybox", M.selection)
-      if not ok then
-        vim.notify(sess, vim.log.levels.ERROR)
-        return
-      elseif sess == nil then
-        vim.notify("debug failed: " .. tostring(sess), vim.log.levels.ERROR)
-        return
-      end
-
-      local chan = vim.api.nvim_open_term(buf, {
-        on_input = function(_, _, _, bytes)
-          sess:write(bytes)
-        end,
-      })
-      vim.cmd.startinsert()
-
-      local timer = vim.uv.new_timer()
-      timer:start(
-        0,
-        30,
-        vim.schedule_wrap(function()
-          while true do
-            local chunk = sess:read_chunk()
-            if chunk then
-              vim.api.nvim_chan_send(chan, chunk)
-            else
-              break
-            end
-          end
-          if not sess:open() then
-            timer:stop()
-            timer:close()
-            vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-            if vim.api.nvim_win_is_valid(win) then
-              vim.api.nvim_win_close(win, true)
-            end
-          end
-        end)
+      spawn_terminal(
+        string.format("%s: %s | %s", pod, M.selection, ns),
+        "k8s_container_debug",
+        client.debug, -- fn
+        ns,
+        pod,
+        "busybox",
+        M.selection
       )
     end)
   end)
