@@ -279,9 +279,7 @@ function M.set_buffer_state(buf, filetype, mode, open_func, args)
     return
   end
 
-  if mode == "dynamic" then
-    M.buffers[buf] = { open = open_func, args = args }
-  elseif mode == "floating" then
+  if mode == "dynamic" or mode == "floating" then
     M.buffers[buf] = { open = open_func, args = args }
   end
 end

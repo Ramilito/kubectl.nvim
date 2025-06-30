@@ -284,6 +284,30 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   return buf, win
 end
 
+--- Created a buffer in a new tab
+---- @param filetype string: The filetype of the buffer.
+--- @param title string: The buffer title
+--- @param opts { syntax: string|nil, content: table|nil, marks: table|nil }|nil: Options for the buffer.
+--- @return integer, integer: The buffer and win number.
+function M.tab_buffer(filetype, title, opts)
+  opts = opts or {}
+  local bufname = (filetype .. " | " .. title) or "kubectl_tab"
+  local buf = M.get_buffer_by_name(bufname)
+
+  if not buf then
+    vim.cmd("tabnew")
+    buf = create_buffer(bufname)
+    vim.api.nvim_set_current_buf(buf) -- Set the new buffer as the current buffer
+    -- M.set_content(buf, { content = { "Loading..." } })
+  end
+
+  layout.set_buf_options(buf, filetype, opts.syntax or filetype, bufname)
+
+  state.set_buffer_state(buf, filetype, "tab", M.tab_buffer, { filetype, title, opts })
+
+  return buf, 0
+end
+
 --- Sets buffer content.
 --- @param buf number: Buffer number
 --- @param opts { content: table, marks: table,  header: { data: table }}

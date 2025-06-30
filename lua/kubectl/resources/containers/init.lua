@@ -61,7 +61,7 @@ function M.exec(pod, ns)
     vim.fn.jobstart(config.options.terminal_cmd .. " " .. table.concat(command.args, " "))
   else
     local client = require("kubectl.client")
-    local buf, win = buffers.floating_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
+    local buf, win = buffers.tab_buffer("k8s_container_exec", pod .. ": " .. M.selection .. " | " .. ns)
     local ok, sess = pcall(client.exec, ns, pod, M.selection, { "/bin/sh" })
     if not ok then
       vim.notify(sess, vim.log.levels.ERROR)
@@ -90,14 +90,18 @@ function M.exec(pod, ns)
             break
           end
         end
-        if not sess:open() then
-          timer:stop()
-          timer:close()
-          vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-          if vim.api.nvim_win_is_valid(win) then
-            vim.api.nvim_win_close(win, true)
-          end
-        end
+        -- vim.notify(
+        --   "sess:open(): " .. vim.inspect(sess:open()) .. " timer:is_closing(): " .. vim.inspect(timer:is_closing())
+        -- )
+
+        -- if not sess:open() and not timer:is_closing() then
+        --   timer:stop()
+        --   timer:close()
+        --   --   vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
+        --   --   if vim.api.nvim_win_is_valid(win) then
+        --   --     vim.api.nvim_win_close(win, true)
+        --   --   end
+        -- end
       end)
     )
   end
