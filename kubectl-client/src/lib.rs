@@ -319,6 +319,16 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
     exports.set(
+        "debug",
+        lua.create_function(
+            |_, (ns, pod, image, target): (String, String, String, Option<String>)| {
+                with_client(|client| async move {
+                    cmd::exec::open_debug(client, ns, pod, image, target)
+                })
+            },
+        )?,
+    )?;
+    exports.set(
         "exec",
         lua.create_function(
             |_, (ns, pod, container, cmd): (String, String, Option<String>, Vec<String>)| {

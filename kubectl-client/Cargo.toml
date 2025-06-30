@@ -37,3 +37,4 @@ k8s-metrics = "0.21.0"
 tui-widgets = "0.4.1"
 tokio-util = "0.7.15"
 ctor = "0.4.2"
+uuid = { version = "1.17.0", features = ["v4"] }
