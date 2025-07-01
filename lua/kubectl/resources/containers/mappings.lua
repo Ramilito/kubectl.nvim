@@ -34,7 +34,7 @@ M.overrides = {
       end
     end,
   },
-  ["<Plug>(kubectl.select_tab)"] = {
+  ["<Plug>(kubectl.select_fullscreen)"] = {
     noremap = true,
     silent = true,
     desc = "Exec into",

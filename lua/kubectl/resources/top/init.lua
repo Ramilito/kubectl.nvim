@@ -1,40 +1,63 @@
 local buffers = require("kubectl.actions.buffers")
-local api = vim.api
 local M = {}
 
 function M.View()
-  local buf, win = buffers.floating_buffer("k8s_top", "Top")
-  api.nvim_win_set_config(win, vim.tbl_extend("force", api.nvim_win_get_config(win), { border = "none" }))
+  local buf, win = buffers.floating_buffer("k8s_graphs", "K8s graphs")
 
-  api.nvim_set_current_win(win)
-  local job_id = vim.fn.jobstart({ "tail", "-f", "/dev/null" }, {
-    term = true,
-    on_exit = function()
-      vim.schedule(function()
-        if api.nvim_win_is_valid(win) then
-          api.nvim_win_close(win, true)
-        end
-        if api.nvim_buf_is_valid(buf) then
-          api.nvim_buf_delete(buf, { force = true })
-        end
-      end)
+  local client = require("kubectl.client")
+  local ok, sess = pcall(client.start_dashboard, "top")
+
+  if not ok then
+    vim.notify("graphs.start failed: " .. sess, vim.log.levels.ERROR)
+    return
+  end
+
+  local function push_size()
+    if vim.api.nvim_win_is_valid(win) then
+      local w = vim.api.nvim_win_get_width(win)
+      local h = vim.api.nvim_win_get_height(win)
+      sess:resize(w, h)
+    end
+  end
+
+  push_size()
+
+  vim.api.nvim_create_autocmd("WinResized", {
+    callback = function()
+      push_size()
+    end,
+  })
+
+  local chan = vim.api.nvim_open_term(buf, {
+    on_input = function(_, _, _, bytes)
+      sess:write(bytes)
     end,
   })
   vim.cmd.startinsert()
 
-  local info = api.nvim_get_chan_info(job_id)
-  local pid = vim.fn.jobpid(job_id)
-  require("kubectl_client").start_dashboard(info.pty, "top", pid)
-
-  -- 5 ▸ close everything when the buffer disappears
-  api.nvim_create_autocmd({ "BufWipeout", "BufHidden" }, {
-    buffer = buf,
-    once = true,
-    callback = function()
-      vim.fn.jobstop(job_id)
-      require("kubectl_client").stop_dashboard()
-    end,
-  })
+  local timer = vim.uv.new_timer()
+  timer:start(
+    0,
+    30,
+    vim.schedule_wrap(function()
+      repeat
+        local chunk = sess:read_chunk()
+        if chunk then
+          vim.api.nvim_chan_send(chan, chunk)
+        end
+      until not chunk
+      if not sess:open() then
+        timer:stop()
+        if not timer:is_closing() then
+          timer:close()
+        end
+        vim.api.nvim_chan_send(chan, "\r\n[UI exited]\r\n")
+        if vim.api.nvim_win_is_valid(win) then
+          vim.api.nvim_win_close(win, true)
+        end
+      end
+    end)
+  )
 end
 
 return M

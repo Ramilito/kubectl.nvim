@@ -27,7 +27,6 @@ use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
 use crate::processors::processor_for;
 use crate::store::get_store_map;
-use crate::ui::dashboard::{start_dashboard, stop_dashboard};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -313,8 +312,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(start_reflector_async)?,
     )?;
 
-    exports.set("start_dashboard", lua.create_function(start_dashboard)?)?;
-    exports.set("stop_dashboard", lua.create_function(stop_dashboard)?)?;
+    exports.set(
+        "start_dashboard",
+        lua.create_function(|_, view_name: String| ui::dashboard::Session::new(view_name))?,
+    )?;
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;

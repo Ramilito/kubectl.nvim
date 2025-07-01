@@ -1,26 +1,24 @@
-use std::{
-    fs::OpenOptions,
-    io::Result as IoResult,
-    os::fd::{AsRawFd, RawFd},
-    ptr,
-    sync::{Arc, Mutex, OnceLock},
-    time::{Duration, Instant},
-};
-
+use crate::{with_client, RUNTIME};
 use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode, KeyEvent, MouseEventKind},
-    queue,
-    terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
+    event::{Event, KeyCode, KeyEvent, MouseEventKind},
+    terminal::enable_raw_mode,
 };
-use kube::{config::KubeConfigOptions, Client, Config};
-use libc::{
-    _exit, dup2, fork, ioctl, kill, pid_t, waitpid, winsize, SIGKILL, SIGTERM, STDERR_FILENO,
-    STDIN_FILENO, STDOUT_FILENO, TIOCGWINSZ, WNOHANG,
+use mlua::{prelude::*, UserData, UserDataMethods};
+use ratatui::{
+    backend::CrosstermBackend, layout::Rect, Frame, Terminal, TerminalOptions, Viewport,
 };
-use mlua::{prelude::*, Lua};
-use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::*, Terminal};
-use tokio::runtime::Runtime;
+use std::{
+    io::{Result as IoResult, Write},
+    sync::{
+        atomic::{AtomicBool, AtomicU16, Ordering},
+        Arc, Mutex,
+    },
+    time::Instant,
+};
+use tokio::{
+    sync::mpsc,
+    time::{sleep, Duration},
+};
 
 use crate::{
     metrics::nodes::{spawn_node_collector, NodeStat, SharedNodeStats},
@@ -28,21 +26,116 @@ use crate::{
         overview_ui::{self, OverviewState},
         top_ui::{self, TopViewState},
     },
-    ACTIVE_CONTEXT,
 };
 
 use super::top_ui::InputMode;
 
-fn pty_size(file: &std::fs::File) -> IoResult<(u16, u16)> {
-    unsafe {
-        let mut ws: winsize = std::mem::zeroed();
-        if ioctl(file.as_raw_fd(), TIOCGWINSZ, &mut ws) == 0 {
-            Ok((ws.ws_col, ws.ws_row))
-        } else {
-            Err(std::io::Error::last_os_error())
-        }
+struct NvWriter(mpsc::UnboundedSender<Vec<u8>>);
+
+impl Write for NvWriter {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        let _ = self.0.send(buf.to_vec());
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> IoResult<()> {
+        Ok(())
     }
 }
+
+pub struct Session {
+    tx_in: mpsc::UnboundedSender<Vec<u8>>,
+    rx_out: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>,
+    open: Arc<AtomicBool>,
+    cols: Arc<AtomicU16>,
+    rows: Arc<AtomicU16>,
+}
+
+impl Session {
+    pub fn new(view_name: String) -> LuaResult<Self> {
+        let rt = RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().unwrap());
+        let open = Arc::new(AtomicBool::new(true));
+        let cols = Arc::new(AtomicU16::new(80));
+        let rows = Arc::new(AtomicU16::new(24));
+        let node_stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
+        let ui_node_stats = node_stats.clone();
+        let _ = with_client(move |client| async move {
+            spawn_node_collector(node_stats.clone(), client.clone());
+            Ok(())
+        });
+
+        let (tx_in, rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
+        let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
+
+        {
+            let open = open.clone();
+            let ui_cols = cols.clone();
+            let ui_rows = rows.clone();
+            rt.spawn(async move {
+                run_ui(
+                    ui_node_stats,
+                    view_name,
+                    rx_in,
+                    tx_out,
+                    open,
+                    ui_cols,
+                    ui_rows,
+                )
+                .await
+            });
+        }
+
+        Ok(Self {
+            tx_in,
+            rx_out: Mutex::new(rx_out),
+            open,
+            cols,
+            rows,
+        })
+    }
+
+    fn read_chunk(&self) -> Option<String> {
+        self.rx_out
+            .lock()
+            .unwrap()
+            .try_recv()
+            .ok()
+            .map(|v| String::from_utf8_lossy(&v).into_owned())
+    }
+    fn write(&self, s: &str) {
+        let _ = self.tx_in.send(s.as_bytes().to_vec());
+    }
+    fn is_open(&self) -> bool {
+        self.open.load(Ordering::Acquire)
+    }
+    fn resize(&self, w: u16, h: u16) {
+        self.cols.store(w, Ordering::Release);
+        self.rows.store(h, Ordering::Release);
+    }
+}
+
+impl UserData for Session {
+    fn add_methods<M: UserDataMethods<Self>>(m: &mut M) {
+        m.add_method("read_chunk", |_, this, ()| Ok(this.read_chunk()));
+        m.add_method("write", |_, this, s: String| {
+            this.write(&s);
+            Ok(())
+        });
+        m.add_method("open", |_, this, ()| Ok(this.is_open()));
+        m.add_method("resize", |_, this, (w, h): (u16, u16)| {
+            this.resize(w, h);
+            Ok(())
+        });
+    }
+}
+
+/* ─────────────────────────── View trait & concrete views ─────────────────────────── */
+
+trait View {
+    fn on_event(&mut self, ev: &Event) -> bool;
+    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]);
+}
+
+/* ------------------------------ Overview view ------------------------------ */
 
 macro_rules! scroll_nav {
     ($state:expr, $key:expr) => {{
@@ -67,15 +160,6 @@ macro_rules! scroll_nav {
         }
     }};
 }
-
-/* ─────────────────────────── View trait & concrete views ─────────────────────────── */
-
-trait View {
-    fn on_event(&mut self, ev: &Event) -> bool;
-    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]);
-}
-
-/* ------------------------------ Overview view ------------------------------ */
 
 struct OverviewView {
     state: OverviewState,
@@ -178,177 +262,91 @@ impl View for TopView {
     }
 }
 
-/* ────────────────────────────── Global child-PID slot ───────────────────────────── */
-
-static CHILD_PID: OnceLock<Mutex<Option<pid_t>>> = OnceLock::new();
-static TAIL_PID: OnceLock<Mutex<Option<pid_t>>> = OnceLock::new();
-fn tail_slot() -> &'static Mutex<Option<pid_t>> {
-    TAIL_PID.get_or_init(|| Mutex::new(None))
+fn bytes_to_event(b: &[u8]) -> Option<Event> {
+    match b {
+        b"\x1B[A" => Some(Event::Key(KeyCode::Up.into())),
+        b"\x1B[B" => Some(Event::Key(KeyCode::Down.into())),
+        b"\x1B[C" => Some(Event::Key(KeyCode::Right.into())),
+        b"\x1B[D" => Some(Event::Key(KeyCode::Left.into())),
+        b"\x1B[5~" => Some(Event::Key(KeyCode::PageUp.into())),
+        b"\x1B[6~" => Some(Event::Key(KeyCode::PageDown.into())),
+        b"\x7F" => Some(Event::Key(KeyCode::Backspace.into())),
+        b"\t" => Some(Event::Key(KeyCode::Tab.into())),
+        b"\x1B[Z" => Some(Event::Key(KeyCode::BackTab.into())),
+        [c] if *c >= 0x20 && *c <= 0x7e => Some(Event::Key(KeyCode::Char(*c as char).into())),
+        _ => None,
+    }
 }
-fn pid_slot() -> &'static Mutex<Option<pid_t>> {
-    CHILD_PID.get_or_init(|| Mutex::new(None))
-}
 
-/* ──────────────────────────────── Child UI loop ─────────────────────────────── */
-
-/// Runs inside the *child* after stdio is already redirected onto the PTY.
-fn ui_loop(
-    mut active_view: Box<dyn View + Send>,
-    file: std::fs::File,
+#[tracing::instrument]
+async fn run_ui(
     node_stats: SharedNodeStats,
-) -> ! {
-    /* 1 ▸ Terminal setup —————————————————————————— */
-    const TICK_MS: u64 = 2000;
-    let (w, h) = pty_size(&file).unwrap_or((80, 24));
-    let backend = CrosstermBackend::new(file);
-    let mut term = Terminal::new(backend).expect("terminal");
-    term.resize(Rect::new(0, 0, w, h)).ok();
+    view_name: String,
+    mut rx_in: mpsc::UnboundedReceiver<Vec<u8>>,
+    tx_out: mpsc::UnboundedSender<Vec<u8>>,
+    open: Arc<AtomicBool>,
+    cols: Arc<AtomicU16>,
+    rows: Arc<AtomicU16>,
+) {
+    let w = cols.load(Ordering::Acquire);
+    let h = rows.load(Ordering::Acquire);
+    let backend = CrosstermBackend::new(NvWriter(tx_out));
+    let options = TerminalOptions {
+        viewport: Viewport::Fixed(Rect::new(0, 0, w, h)),
+    };
+    let mut term = Terminal::with_options(backend, options).expect("terminal");
+
     enable_raw_mode().ok();
 
-    /* 2 ▸ Event / draw loop —————————————————————— */
+    let mut active_view: Box<dyn View + Send> = match view_name.to_ascii_lowercase().as_str() {
+        "overview" | "overview_ui" => Box::new(OverviewView::new()),
+        "top" | "top_ui" => Box::new(TopView::new()),
+        _other => Box::new(OverviewView::new()),
+    };
+
+    /* 3 ▸ tick / event loop -------------------------------------------------- */
+    const TICK_MS: u64 = 2_000;
     let mut last_tick = Instant::now() - Duration::from_millis(TICK_MS);
-    'ui: loop {
-        /* — input — */
-        if event::poll(Duration::from_millis(0)).unwrap() {
-            let ev = event::read().unwrap();
-            match &ev {
-                Event::Key(k) if k.code == KeyCode::Char('q') => {
-                    let maybe_tail = tail_slot().lock().unwrap().take();
-                    if let Some(tail) = maybe_tail {
-                        unsafe {
-                            libc::kill(tail, libc::SIGINT);
-                        }
-                    }
-                    break 'ui;
+
+    loop {
+        /* — a. Handle every input chunk Neovim sent us — */
+        while let Ok(bytes) = rx_in.try_recv() {
+            if let Some(ev) = bytes_to_event(&bytes) {
+                /* global quit key */
+                if matches!(
+                    ev,
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('q'),
+                        ..
+                    })
+                ) {
+                    open.store(false, Ordering::Release);
+                    return;
                 }
-                Event::Resize(_, _) => term.autoresize().ok().unwrap_or_default(),
-                _ => {}
-            }
-            if active_view.on_event(&ev) {
-                let nodes = node_stats.lock().unwrap().clone();
-                term.draw(|f| {
-                    let area = f.area();
-                    active_view.draw(f, area, &nodes);
-                })
-                .ok();
-                last_tick = Instant::now();
-                continue;
+
+                /* delegate to the active view */
+                if active_view.on_event(&ev) {
+                    let nodes = node_stats.lock().unwrap().clone();
+                    let _ = term.draw(|f| {
+                        let area = f.area();
+                        active_view.draw(f, area, &nodes);
+                    });
+                    last_tick = Instant::now();
+                }
             }
         }
 
-        /* — tick — */
+        /* — b. Periodic redraw (“tick”) — */
         if last_tick.elapsed() >= Duration::from_millis(TICK_MS) {
             let nodes = node_stats.lock().unwrap().clone();
-            term.draw(|f| {
+            let _ = term.draw(|f| {
                 let area = f.area();
                 active_view.draw(f, area, &nodes);
-            })
-            .ok();
+            });
             last_tick = Instant::now();
         }
+
+        /* — c. keep frame‑rate smooth — */
+        sleep(Duration::from_millis(30)).await;
     }
-
-    /* 3 ▸ Cleanup ——————————————————————————————— */
-    let backend = term.backend_mut();
-    queue!(backend, Clear(ClearType::All), cursor::MoveTo(0, 0)).ok();
-    disable_raw_mode().ok();
-    let _ = term.show_cursor();
-
-    unsafe { _exit(0) } // never returns
-}
-
-/* ───────────────────────────── Public Lua bindings ───────────────────────────── */
-
-#[tracing::instrument]
-pub fn start_dashboard(_lua: &Lua, args: (String, String, i64)) -> LuaResult<()> {
-    let (pty_path, view_name, tail_pid) = args;
-
-    *tail_slot().lock().unwrap() = Some(tail_pid as pid_t);
-
-    /* 0 ▸ If a dashboard is already running, politely stop it */
-    if let Some(old) = pid_slot().lock().unwrap().take() {
-        unsafe {
-            kill(old, SIGTERM);
-            for _ in 0..30 {
-                if waitpid(old, ptr::null_mut(), WNOHANG) == old {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(5));
-            }
-            kill(old, SIGKILL); // force if still around
-            let _ = waitpid(old, ptr::null_mut(), 0);
-        }
-    }
-
-    /* 1 ▸ Fork */
-    let pid = unsafe { fork() };
-    if pid < 0 {
-        return Err(LuaError::ExternalError(Arc::new(
-            std::io::Error::last_os_error(),
-        )));
-    }
-
-    if pid == 0 {
-        /* ====================== CHILD PROCESS ====================== */
-        /* 1 ▸ Resolve which view to start */
-        let active_view: Box<dyn View + Send> = match view_name.to_ascii_lowercase().as_str() {
-            "overview" | "overview_ui" => Box::new(OverviewView::new()),
-            "top" | "top_ui" => Box::new(TopView::new()),
-            other => {
-                eprintln!("unknown view: {other}");
-                unsafe { _exit(1) }
-            }
-        };
-
-        /* 2 ▸ Open the PTY */
-        let file = match OpenOptions::new().read(true).write(true).open(&pty_path) {
-            Ok(f) => f,
-            Err(e) => {
-                eprintln!("open pty failed: {e}");
-                unsafe { _exit(1) }
-            }
-        };
-        /* 3 ▸ Redirect stdio */
-        unsafe {
-            let fd: RawFd = file.as_raw_fd();
-            dup2(fd, STDIN_FILENO);
-            dup2(fd, STDOUT_FILENO);
-            dup2(fd, STDERR_FILENO);
-        }
-
-        /* 4 ▸ Build runtime + collectors */
-        let rt = Runtime::new().expect("tokio runtime");
-        let node_stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
-
-        let opts = KubeConfigOptions {
-            context: ACTIVE_CONTEXT.read().unwrap().clone(),
-            cluster: None,
-            user: None,
-        };
-        let client: Client = rt.block_on(async {
-            let cfg = Config::from_kubeconfig(&opts).await.expect("kube-config");
-            Client::try_from(cfg).expect("client from ACTIVE_CONTEXT")
-        });
-        rt.block_on(async {
-            spawn_node_collector(node_stats.clone(), client.clone());
-        });
-
-        /* 5 ▸ Hand over to the TUI loop (never returns) */
-        ui_loop(active_view, file, node_stats);
-    }
-
-    /* ============ parent ============ */
-    *pid_slot().lock().unwrap() = Some(pid);
-    Ok(())
-}
-
-#[tracing::instrument]
-pub fn stop_dashboard(_lua: &Lua, _args: ()) -> LuaResult<()> {
-    if let Some(pid) = pid_slot().lock().unwrap().take() {
-        unsafe {
-            kill(pid, SIGTERM);
-            let _ = waitpid(pid, ptr::null_mut(), 0);
-        }
-    }
-    Ok(())
 }
