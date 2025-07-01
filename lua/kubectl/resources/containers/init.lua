@@ -76,7 +76,9 @@ local function attach_session(sess, buf, win)
       until not chunk
       if not sess:open() then
         timer:stop()
-        timer:close()
+        if not timer:is_closing() then
+          timer:close()
+        end
         vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
         if vim.api.nvim_win_is_valid(win) then
           vim.api.nvim_win_close(win, true)
