@@ -280,7 +280,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_win_options(win)
   M.fit_to_content(buf, win, 2)
 
-  state.set_buffer_state(buf, filetype, "dynamic", M.floating_dynamic_buffer, { filetype, title, callback, opts })
+  state.set_buffer_state(buf, filetype, M.floating_dynamic_buffer, { filetype, title, callback, opts })
   return buf, win
 end
 
@@ -301,7 +301,7 @@ end
 --- @param syntax string?: The buffer title
 --- @param win integer?: The buffer title
 --- @return integer, integer: The buffer and win number.
-function M.floating_buffer(filetype, title, syntax, win)
+function M.floating_buffer(filetype, title, syntax, win, fullscreen)
   local bufname = (filetype .. " | " .. title) or "kubectl_float"
   local buf = M.get_buffer_by_name(bufname)
 
@@ -318,7 +318,7 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  state.set_buffer_state(buf, filetype, "floating", M.floating_buffer, { filetype, title, syntax, win })
+  state.set_buffer_state(buf, filetype, M.floating_buffer, { filetype, title, syntax, win })
 
   return buf, win
 end

@@ -34,6 +34,23 @@ M.overrides = {
       end
     end,
   },
+  ["<Plug>(kubectl.select_tab)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Exec into",
+    callback = function()
+      local container_name = tables.getCurrentSelection(unpack({ 1 }))
+      if container_name then
+        container_view.selectContainer(container_name)
+        vim.cmd("tabnew")
+        vim.schedule(function()
+          container_view.exec(pod_view.selection.pod, pod_view.selection.ns, true)
+        end)
+      else
+        print("Failed to extract containers.")
+      end
+    end,
+  },
   ["<Plug>(kubectl.select)"] = {
     noremap = true,
     silent = true,
@@ -54,6 +71,7 @@ M.register = function()
   mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
   mappings.map_if_plug_not_set("n", "gd", "<Plug>(kubectl.debug)")
   mappings.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
+  mappings.map_if_plug_not_set("n", "g<cr>", "<Plug>(kubectl.select_fullscreen)")
 end
 
 return M

@@ -264,10 +264,9 @@ function M.restore_session()
   require("kubectl.views").resource_or_fallback(session_view)
 end
 
-function M.set_buffer_state(buf, filetype, mode, open_func, args)
+function M.set_buffer_state(buf, filetype, open_func, args)
   local function valid()
     return filetype ~= "k8s_picker"
-      and filetype ~= "k8s_container_exec"
       and filetype ~= "k8s_namespaces"
       and filetype ~= "k8s_aliases"
       and filetype ~= "k8s_filter"
@@ -279,11 +278,8 @@ function M.set_buffer_state(buf, filetype, mode, open_func, args)
     return
   end
 
-  if mode == "dynamic" then
-    M.buffers[buf] = { open = open_func, args = args }
-  elseif mode == "floating" then
-    M.buffers[buf] = { open = open_func, args = args }
-  end
+  local current_tab = vim.api.nvim_get_current_tabpage()
+  M.buffers[buf] = { open = open_func, args = args, tab_id = current_tab }
 end
 
 return M

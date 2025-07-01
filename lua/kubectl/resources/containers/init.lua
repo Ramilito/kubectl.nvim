@@ -38,6 +38,7 @@ local M = {
       { key = "<Plug>(kubectl.logs)", desc = "logs" },
       { key = "<Plug>(kubectl.debug)", desc = "debug" },
       { key = "<Plug>(kubectl.select)", desc = "exec" },
+      { key = "<Plug>(kubectl.select_fullscreen)", desc = "exec" },
     },
   },
   log_since = config.options.logs.since,
@@ -88,17 +89,29 @@ local function attach_session(sess, buf, win)
   )
 end
 
-local function spawn_terminal(title, key, fn, ...)
+local function spawn_terminal(title, key, fn, is_fullscreen, ...)
   local ok, sess = pcall(fn, ...)
   if not ok or sess == nil then
     vim.notify("kubectl‑client error: " .. tostring(sess), vim.log.levels.ERROR)
     return
   end
-  local buf, win = buffers.floating_buffer(key, title)
-  attach_session(sess, buf, win)
+  local buf, win
+  local state = require("kubectl.state")
+  if is_fullscreen then
+    buf, win = buffers.buffer(key, title)
+    state.set_buffer_state(buf, title, buffers.buffer, { key, title })
+  else
+    buf, win = buffers.floating_buffer(key, title)
+    state.set_buffer_state(buf, title, buffers.floating_buffer, { key, title })
+  end
+
+  vim.api.nvim_set_current_buf(buf)
+  vim.schedule(function()
+    attach_session(sess, buf, win)
+  end)
 end
 
-function M.exec(pod, ns)
+function M.exec(pod, ns, is_fullscreen)
   if config.options.terminal_cmd then
     local args = { "exec", "-it", pod, "-n", ns, "-c", M.selection, "--", "/bin/sh" }
     local cmd = commands.configure_command("kubectl", {}, args)
@@ -110,6 +123,7 @@ function M.exec(pod, ns)
     string.format("%s: %s | %s", pod, M.selection, ns),
     "k8s_container_exec",
     client.exec,
+    is_fullscreen,
     ns,
     pod,
     M.selection,
@@ -117,7 +131,7 @@ function M.exec(pod, ns)
   )
 end
 
-function M.debug(pod, ns)
+function M.debug(pod, ns, is_fullscreen)
   local def = {
     resource = "kubectl_debug",
     ft = "k8s_action",
@@ -146,7 +160,8 @@ function M.debug(pod, ns)
       spawn_terminal(
         string.format("%s: %s | %s", pod, M.selection, ns),
         "k8s_container_debug",
-        client.debug, -- fn
+        client.debug,
+        is_fullscreen,
         ns,
         pod,
         "busybox",
