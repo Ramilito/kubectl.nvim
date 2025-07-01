@@ -301,7 +301,7 @@ end
 --- @param syntax string?: The buffer title
 --- @param win integer?: The buffer title
 --- @return integer, integer: The buffer and win number.
-function M.floating_buffer(filetype, title, syntax, win, fullscreen)
+function M.floating_buffer(filetype, title, syntax, win)
   local bufname = (filetype .. " | " .. title) or "kubectl_float"
   local buf = M.get_buffer_by_name(bufname)
 
