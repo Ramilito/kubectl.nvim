@@ -302,7 +302,6 @@ function M.tab_buffer(filetype, title, opts)
   vim.cmd.startinsert()
 
   layout.set_buf_options(buf, filetype, opts.syntax or filetype, bufname)
-
   state.set_buffer_state(buf, filetype, "tab", M.tab_buffer, { filetype, title, opts })
 
   return buf, vim.api.nvim_tabpage_get_win(0)
