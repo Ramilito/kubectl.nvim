@@ -143,14 +143,8 @@ function M.debug(pod, ns)
     },
   }
 
-<<<<<<< HEAD
   builder.action_view(def, data, function(_args)
     print("args: " .. vim.inspect(_args))
-||||||| 32e660a
-  builder.action_view(def, data, function(args)
-=======
-  builder.action_view(def, data, function(_args)
->>>>>>> rami/v2.0.0
     vim.schedule(function()
       spawn_terminal(
         string.format("%s: %s | %s", pod, M.selection, ns),
