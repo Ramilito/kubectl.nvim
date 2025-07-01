@@ -267,7 +267,6 @@ end
 function M.set_buffer_state(buf, filetype, mode, open_func, args)
   local function valid()
     return filetype ~= "k8s_picker"
-      and filetype ~= "k8s_container_exec"
       and filetype ~= "k8s_namespaces"
       and filetype ~= "k8s_aliases"
       and filetype ~= "k8s_filter"
@@ -276,10 +275,12 @@ function M.set_buffer_state(buf, filetype, mode, open_func, args)
   end
 
   if not valid() then
+    print('filetype "' .. filetype .. '" is not supported or buffer already exists')
     return
   end
+  print("Setting buffer state for " .. filetype .. " in mode: " .. mode)
 
-  if mode == "dynamic" or mode == "floating" then
+  if mode == "dynamic" or mode == "floating" or mode == "tab" then
     M.buffers[buf] = { open = open_func, args = args }
   end
 end

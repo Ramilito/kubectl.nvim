@@ -294,18 +294,18 @@ function M.tab_buffer(filetype, title, opts)
   local bufname = (filetype .. " | " .. title) or "kubectl_tab"
   local buf = M.get_buffer_by_name(bufname)
 
+  vim.cmd("tabnew")
   if not buf then
-    vim.cmd("tabnew")
     buf = create_buffer(bufname)
-    vim.api.nvim_set_current_buf(buf) -- Set the new buffer as the current buffer
-    -- M.set_content(buf, { content = { "Loading..." } })
   end
+  vim.api.nvim_set_current_buf(buf) -- Set the new buffer as the current buffer
+  vim.cmd.startinsert()
 
   layout.set_buf_options(buf, filetype, opts.syntax or filetype, bufname)
 
   state.set_buffer_state(buf, filetype, "tab", M.tab_buffer, { filetype, title, opts })
 
-  return buf, 0
+  return buf, vim.api.nvim_tabpage_get_win(0)
 end
 
 --- Sets buffer content.
