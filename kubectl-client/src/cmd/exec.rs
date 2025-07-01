@@ -17,7 +17,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     runtime::Runtime,
     sync::mpsc,
-    time::sleep,
+    time::{sleep, timeout},
 };
 
 type Result<T> = std::result::Result<T, KubeError>;
@@ -107,6 +107,25 @@ pub fn open_debug(
     })
 }
 
+async fn await_status_or_timeout(mut proc: AttachedProcess) -> Result<AttachedProcess> {
+    if let Some(fut) = proc.take_status() {
+        match timeout(Duration::from_millis(200), fut).await {
+            Ok(Some(status)) if status.status.as_deref() == Some("Failure") => {
+                // convert Status -> kube::Error::Api
+                Err(KubeError::Api(kube::error::ErrorResponse {
+                    status: status.status.unwrap_or_default(),
+                    message: status.message.unwrap_or_else(|| "exec failed".into()),
+                    reason: status.reason.unwrap_or_default(),
+                    code: status.code.unwrap_or(400) as u16,
+                }))
+            }
+            _ => Ok(proc),
+        }
+    } else {
+        Ok(proc)
+    }
+}
+
 pub struct Session {
     tx_in: mpsc::UnboundedSender<Vec<u8>>,
     rx_out: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>,
@@ -123,8 +142,11 @@ impl Session {
         cmd: Vec<String>,
         tty: bool,
     ) -> LuaResult<Self> {
-        let mut proc = block_on(open_exec(&client, &ns, &pod, &container, &cmd, tty))
-            .map_err(LuaError::external)?;
+        let mut proc = block_on(async {
+            let p = open_exec(&client, &ns, &pod, &container, &cmd, tty).await?;
+            await_status_or_timeout(p).await
+        })
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
         // ---- wire channels ----------------------------------------------------
