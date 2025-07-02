@@ -289,7 +289,7 @@ function M.Header()
   vim.api.nvim_create_augroup("kubectl_header", { clear = true })
 
   local ui = vim.api.nvim_list_uis()[1] -- current UI size
-  local height = 10
+  local height = 20
   local row = ui.height - height
   local show_header = true
 
@@ -354,10 +354,10 @@ function M.Header()
       local screenpos = vim.fn.screenpos(curwin, curpos[1], curpos[2] + 1)
       local cursor_row = screenpos.row
 
-      local float_top = row + 1
-      local float_bottom = float_top + height - 1
-      local overlapping = (cursor_row >= float_top and cursor_row <= float_bottom)
+      local float_top = row - 2
+      local overlapping = (cursor_row >= float_top)
 
+      print(cursor_row, float_top)
       local builder = manager.get("header")
       if not builder then
         return

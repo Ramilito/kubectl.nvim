@@ -333,7 +333,7 @@ function M.header_buffer(win)
     M.set_content(buf, { content = { "Loading..." } })
   end
   local width = 50
-  local height = 5
+  local height = 10
 
   local total_lines = vim.o.lines
   local row = total_lines - height - 1
