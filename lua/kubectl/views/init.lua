@@ -157,9 +157,9 @@ function M.Picker()
         vim.schedule(function()
           if not vim.api.nvim_tabpage_is_valid(buffer.tab_id) then
             vim.cmd("tabnew")
+            buffer.tab_id = vim.api.nvim_get_current_tabpage()
           end
           vim.schedule(function()
-            buffer.tab_id = vim.api.nvim_get_current_tabpage()
             vim.api.nvim_set_current_tabpage(buffer.tab_id)
             buffer.open(unpack(buffer.args))
           end)
