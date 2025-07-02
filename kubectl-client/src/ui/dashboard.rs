@@ -1,7 +1,7 @@
 use crate::{with_client, RUNTIME};
 use crossterm::{
-    event::{Event, KeyCode, KeyEvent, MouseEventKind},
-    terminal::enable_raw_mode,
+    event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEventKind},
+    terminal::{disable_raw_mode, enable_raw_mode},
 };
 use mlua::{prelude::*, UserData, UserDataMethods};
 use ratatui::{
@@ -13,22 +13,19 @@ use std::{
         atomic::{AtomicBool, AtomicU16, Ordering},
         Arc, Mutex,
     },
-    time::Instant,
 };
 use tokio::{
     sync::mpsc,
-    time::{sleep, Duration},
+    time::{self, Duration},
 };
 
 use crate::{
     metrics::nodes::{spawn_node_collector, NodeStat, SharedNodeStats},
     ui::{
         overview_ui::{self, OverviewState},
-        top_ui::{self, TopViewState},
+        top_ui::{self, InputMode, TopViewState},
     },
 };
-
-use super::top_ui::InputMode;
 
 struct NvWriter(mpsc::UnboundedSender<Vec<u8>>);
 
@@ -43,8 +40,8 @@ impl Write for NvWriter {
 }
 
 pub struct Session {
-    tx_in: mpsc::UnboundedSender<Vec<u8>>,
-    rx_out: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>,
+    tx_in: mpsc::UnboundedSender<Vec<u8>>, // stdin  (Neo → UI)
+    rx_out: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>, // stdout (UI  → Neo)
     open: Arc<AtomicBool>,
     cols: Arc<AtomicU16>,
     rows: Arc<AtomicU16>,
@@ -52,37 +49,31 @@ pub struct Session {
 
 impl Session {
     pub fn new(view_name: String) -> LuaResult<Self> {
-        let rt = RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().unwrap());
+        /* shared flags / size */
         let open = Arc::new(AtomicBool::new(true));
         let cols = Arc::new(AtomicU16::new(80));
         let rows = Arc::new(AtomicU16::new(24));
-        let node_stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
-        let ui_node_stats = node_stats.clone();
-        let _ = with_client(move |client| async move {
-            spawn_node_collector(node_stats.clone(), client.clone());
+
+        /* metrics collector -------------------------------------------------- */
+        let stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
+        let stats_copy = stats.clone();
+        let _ = with_client(|c| async move {
+            spawn_node_collector(stats.clone(), c.clone());
             Ok(())
         });
 
+        /* channels ----------------------------------------------------------- */
         let (tx_in, rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
         let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
 
-        {
-            let open = open.clone();
-            let ui_cols = cols.clone();
-            let ui_rows = rows.clone();
-            rt.spawn(async move {
-                run_ui(
-                    ui_node_stats,
-                    view_name,
-                    rx_in,
-                    tx_out,
-                    open,
-                    ui_cols,
-                    ui_rows,
-                )
-                .await
-            });
-        }
+        /* spawn UI task ------------------------------------------------------ */
+        let rt = RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().unwrap());
+        let ui_open = open.clone();
+        let ui_cols = cols.clone();
+        let ui_rows = rows.clone();
+        rt.spawn(run_ui(
+            stats_copy, view_name, rx_in, tx_out, ui_open, ui_cols, ui_rows,
+        ));
 
         Ok(Self {
             tx_in,
@@ -93,6 +84,7 @@ impl Session {
         })
     }
 
+    /* ── Lua‑visible helpers ─────────────────────────────────────────────── */
     fn read_chunk(&self) -> Option<String> {
         self.rx_out
             .lock()
@@ -128,17 +120,13 @@ impl UserData for Session {
     }
 }
 
-/* ─────────────────────────── View trait & concrete views ─────────────────────────── */
-
-trait View {
+trait View: Send {
     fn on_event(&mut self, ev: &Event) -> bool;
     fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]);
 }
 
-/* ------------------------------ Overview view ------------------------------ */
-
 macro_rules! scroll_nav {
-    ($state:expr, $key:expr) => {{
+    ($state:expr, $key:expr) => {
         match $key {
             KeyCode::Down | KeyCode::Char('j') => {
                 $state.scroll_down();
@@ -158,19 +146,37 @@ macro_rules! scroll_nav {
             }
             _ => false,
         }
-    }};
+    };
 }
 
+fn bytes_to_event(b: &[u8]) -> Option<Event> {
+    use KeyCode::*;
+    use KeyModifiers as M;
+    macro_rules! key {
+        ($code:expr) => {
+            Event::Key(KeyEvent::new($code, M::NONE))
+        };
+    }
+    match b {
+        b"\x1B[A" => Some(key!(Up)),
+        b"\x1B[B" => Some(key!(Down)),
+        b"\x1B[C" => Some(key!(Right)),
+        b"\x1B[D" => Some(key!(Left)),
+        b"\x1B[5~" => Some(key!(PageUp)),
+        b"\x1B[6~" => Some(key!(PageDown)),
+        b"\x1B[Z" => Some(key!(BackTab)),
+        b"\t" => Some(key!(Tab)),
+        b"\x7F" => Some(key!(Backspace)),
+        [c @ 0x20..=0x7e] => Some(key!(Char(*c as char))),
+        _ => None,
+    }
+}
+
+#[derive(Default)]
 struct OverviewView {
     state: OverviewState,
 }
-impl OverviewView {
-    fn new() -> Self {
-        Self {
-            state: OverviewState::default(),
-        }
-    }
-}
+
 impl View for OverviewView {
     fn on_event(&mut self, ev: &Event) -> bool {
         match ev {
@@ -199,41 +205,30 @@ impl View for OverviewView {
             _ => false,
         }
     }
-
     fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]) {
         overview_ui::draw(f, nodes, area, &mut self.state);
     }
 }
 
-/* -------------------------------- Top view -------------------------------- */
-
+#[derive(Default)]
 struct TopView {
     state: TopViewState,
 }
-impl TopView {
-    fn new() -> Self {
-        Self {
-            state: TopViewState::default(),
-        }
-    }
-}
+
 impl View for TopView {
     fn on_event(&mut self, ev: &Event) -> bool {
         match ev {
             Event::Key(k) => {
-                /* 1 ▸ Let the view-state consume filter keys first */
+                /* 1 — filter prompt eats its own keys */
                 self.state.handle_key(*k);
-
-                /* Did the key touch the filter prompt? – always redraw */
-                let filter_keys = matches!(
+                let is_filter_key = matches!(
                     k.code,
                     KeyCode::Char('/') | KeyCode::Esc | KeyCode::Enter | KeyCode::Backspace
                 );
-                if filter_keys || self.state.input_mode == InputMode::Filtering {
+                if is_filter_key || self.state.input_mode == InputMode::Filtering {
                     return true;
                 }
-
-                /* 2 ▸ Normal keys (tab / scrolling) */
+                /* 2 — generic nav */
                 match k.code {
                     KeyCode::Tab => {
                         self.state.next_tab();
@@ -256,29 +251,19 @@ impl View for TopView {
             _ => false,
         }
     }
-
     fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]) {
         top_ui::draw(f, area, &mut self.state, nodes);
     }
 }
 
-fn bytes_to_event(b: &[u8]) -> Option<Event> {
-    match b {
-        b"\x1B[A" => Some(Event::Key(KeyCode::Up.into())),
-        b"\x1B[B" => Some(Event::Key(KeyCode::Down.into())),
-        b"\x1B[C" => Some(Event::Key(KeyCode::Right.into())),
-        b"\x1B[D" => Some(Event::Key(KeyCode::Left.into())),
-        b"\x1B[5~" => Some(Event::Key(KeyCode::PageUp.into())),
-        b"\x1B[6~" => Some(Event::Key(KeyCode::PageDown.into())),
-        b"\x7F" => Some(Event::Key(KeyCode::Backspace.into())),
-        b"\t" => Some(Event::Key(KeyCode::Tab.into())),
-        b"\x1B[Z" => Some(Event::Key(KeyCode::BackTab.into())),
-        [c] if *c >= 0x20 && *c <= 0x7e => Some(Event::Key(KeyCode::Char(*c as char).into())),
-        _ => None,
+fn make_view(name: &str) -> Box<dyn View> {
+    match name.to_ascii_lowercase().as_str() {
+        "top" | "top_ui" => Box::new(TopView::default()),
+        "overview" | "overview_ui" => Box::new(OverviewView::default()),
+        _other => Box::new(OverviewView::default()),
     }
 }
 
-#[tracing::instrument]
 async fn run_ui(
     node_stats: SharedNodeStats,
     view_name: String,
@@ -288,65 +273,59 @@ async fn run_ui(
     cols: Arc<AtomicU16>,
     rows: Arc<AtomicU16>,
 ) {
-    let w = cols.load(Ordering::Acquire);
-    let h = rows.load(Ordering::Acquire);
-    let backend = CrosstermBackend::new(NvWriter(tx_out));
-    let options = TerminalOptions {
-        viewport: Viewport::Fixed(Rect::new(0, 0, w, h)),
-    };
-    let mut term = Terminal::with_options(backend, options).expect("terminal");
-
     enable_raw_mode().ok();
+    let backend = CrosstermBackend::new(NvWriter(tx_out));
+    let initial_w = cols.load(Ordering::Acquire);
+    let initial_h = rows.load(Ordering::Acquire);
+    let mut term = Terminal::with_options(
+        backend,
+        TerminalOptions {
+            viewport: Viewport::Fixed(Rect::new(0, 0, initial_w, initial_h)),
+        },
+    )
+    .expect("terminal");
 
-    let mut active_view: Box<dyn View + Send> = match view_name.to_ascii_lowercase().as_str() {
-        "overview" | "overview_ui" => Box::new(OverviewView::new()),
-        "top" | "top_ui" => Box::new(TopView::new()),
-        _other => Box::new(OverviewView::new()),
-    };
-
-    /* 3 ▸ tick / event loop -------------------------------------------------- */
-    const TICK_MS: u64 = 2_000;
-    let mut last_tick = Instant::now() - Duration::from_millis(TICK_MS);
+    let mut view = make_view(&view_name);
+    let mut tick = time::interval(Duration::from_millis(2_000));
 
     loop {
-        /* — a. Handle every input chunk Neovim sent us — */
-        while let Ok(bytes) = rx_in.try_recv() {
-            if let Some(ev) = bytes_to_event(&bytes) {
-                /* global quit key */
-                if matches!(
-                    ev,
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        ..
-                    })
-                ) {
-                    open.store(false, Ordering::Release);
-                    return;
-                }
-
-                /* delegate to the active view */
-                if active_view.on_event(&ev) {
-                    let nodes = node_stats.lock().unwrap().clone();
-                    let _ = term.draw(|f| {
-                        let area = f.area();
-                        active_view.draw(f, area, &nodes);
-                    });
-                    last_tick = Instant::now();
+        tokio::select! {
+            /* ── a) input from Neovim ─────────────────────────────────── */
+            Some(bytes) = rx_in.recv() => {
+                if let Some(ev) = bytes_to_event(&bytes) {
+                    if matches!(ev, Event::Key(KeyEvent{code:KeyCode::Char('q'),..})) {
+                        open.store(false, Ordering::Release);
+                        break;
+                    }
+                    if view.on_event(&ev) { draw(&mut term, &mut *view, &node_stats); }
                 }
             }
-        }
 
-        /* — b. Periodic redraw (“tick”) — */
-        if last_tick.elapsed() >= Duration::from_millis(TICK_MS) {
-            let nodes = node_stats.lock().unwrap().clone();
-            let _ = term.draw(|f| {
-                let area = f.area();
-                active_view.draw(f, area, &nodes);
-            });
-            last_tick = Instant::now();
-        }
+            /* ── b) periodic tick ─────────────────────────────────────── */
+            _ = tick.tick() => {
+                draw(&mut term, &mut *view, &node_stats);
+            }
 
-        /* — c. keep frame‑rate smooth — */
-        sleep(Duration::from_millis(30)).await;
+            /* ── c) cooperative yield allows resize updates ───────────── */
+            else => {
+                let w = cols.load(Ordering::Acquire);
+                let h = rows.load(Ordering::Acquire);
+                term.resize(Rect::new(0,0,w,h)).ok();
+            }
+        }
     }
+
+    disable_raw_mode().ok();
+}
+
+fn draw(
+    term: &mut Terminal<CrosstermBackend<NvWriter>>,
+    view: &mut dyn View,
+    stats: &SharedNodeStats,
+) {
+    let data = stats.lock().unwrap().clone();
+    let _ = term.draw(|f| {
+        let area = f.area();
+        view.draw(f, area, &data);
+    });
 }
