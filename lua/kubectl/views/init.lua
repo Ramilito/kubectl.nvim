@@ -121,7 +121,7 @@ function M.Picker()
   self.processedData = self.data
 
   self.addHints({
-    { key = "<Plug>(kubectl.kill)", desc = "kill" },
+    { key = "<Plug>(kubectl.delete)", desc = "delete" },
     { key = "<Plug>(kubectl.select)", desc = "select" },
   }, false, false, false)
 
@@ -131,7 +131,7 @@ function M.Picker()
     { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" },
     { current_word = "ID", order = "desc" }
   )
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
     noremap = true,
     callback = function()
       local selection = tables.getCurrentSelection(1)
@@ -169,7 +169,7 @@ function M.Picker()
   })
   self.displayContent(self.win_nr)
   vim.schedule(function()
-    mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+    mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
   end)
 end
 
