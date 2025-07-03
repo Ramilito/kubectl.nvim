@@ -499,21 +499,27 @@ function M.get_mappings()
       callback = function()
         local state = require("kubectl.state")
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view_ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
-        if not view_ok then
-          return
-        end
-        if not view.definition.child_view then
-          vim.notify("Not implemented: suggest a behaviour in our github")
+        local view = require("kubectl.views").resource_and_definition(vim.trim(buf_name))
+
+        if not view then
           return
         end
 
         local name, ns = view.getCurrentSelection()
-        if name then
-          local child_view = require("kubectl.resources." .. view.definition.child_view.name)
-          state.filter_key = view.definition.child_view.predicate(name, ns)
-          child_view.View()
+        if not view.definition.child_view then
+          vim.notify("Not implemented: suggest a behaviour in our github or listen to K8sResourceSelected cmd")
+        else
+          if name then
+            local child_view = require("kubectl.resources." .. view.definition.child_view.name)
+            state.filter_key = view.definition.child_view.predicate(name, ns)
+            child_view.View()
+          end
         end
+
+        vim.api.nvim_exec_autocmds("User", {
+          pattern = "K8sResourceSelected",
+          data = { name = name, ns = ns },
+        })
       end,
     },
     ["<Plug>(kubectl.lineage)"] = {

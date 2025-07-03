@@ -368,7 +368,6 @@ function M.Header()
       local float_top = row - 2
       local overlapping = (cursor_row >= float_top)
 
-      print(cursor_row, float_top)
       local builder = manager.get("header")
       if not builder then
         return
