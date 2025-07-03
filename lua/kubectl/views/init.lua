@@ -104,9 +104,15 @@ function M.Picker()
     local namespace = vim.trim(parts[3] or "")
     local type = value.args[1]:gsub("k8s_", "")
     local symbol = hl.symbols.success
+
     if type == "exec" then
-      symbol = hl.symbols.pending
+      symbol = hl.symbols.experimental
+    elseif type == "desc" then
+      symbol = hl.symbols.debug
+    elseif type == "yaml" then
+      symbol = hl.symbols.header
     end
+
     table.insert(data, {
       id = { value = id, symbol = hl.symbols.gray },
       kind = { value = kind, symbol = symbol },

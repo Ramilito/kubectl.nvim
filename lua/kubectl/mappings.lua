@@ -143,9 +143,9 @@ function M.get_mappings()
             helm_view.Yaml(name, ns)
           else
             local def = {
-              resource = view.definition.resource,
+              resource = view.definition.resource .. "_yaml",
               gvk = view.definition.gvk,
-              display_name = string.upper(view.definition.resource),
+              display_name = view.definition.resource .. " | " .. name .. " | " .. (ns or ""),
               ft = "k8s_yaml",
               syntax = "yaml",
               cmd = "get_single_async",
