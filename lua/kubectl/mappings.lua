@@ -1,8 +1,7 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local event_handler = require("kubectl.actions.eventhandler").handler
+local manager = require("kubectl.resource_manager")
 local string_utils = require("kubectl.utils.string")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
@@ -39,12 +38,13 @@ function M.get_mappings()
       callback = function()
         local view = require("kubectl.views")
         local state = require("kubectl.state")
+        state.reset_filters()
         local older_view = state.history[#state.history - 1]
         if not older_view then
           return
         end
         table.remove(state.history, #state.history)
-        view.view_or_fallback(older_view)
+        view.resource_or_fallback(older_view)
       end,
     },
     ["<Plug>(kubectl.help)"] = {
@@ -53,7 +53,7 @@ function M.get_mappings()
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view = require("kubectl.views")
-        local _, definition = view.view_and_definition(string.lower(vim.trim(buf_name)))
+        local _, definition = view.resource_and_definition(string.lower(vim.trim(buf_name)))
 
         if definition then
           view.Hints(definition.hints)
@@ -65,13 +65,15 @@ function M.get_mappings()
       desc = "Delete",
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+        local view_ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
+
         if not view_ok then
-          view = require("kubectl.views.fallback")
+          view = require("kubectl.resources.fallback")
         end
-        local tables = require("kubectl.utils.tables")
+
         local state = require("kubectl.state")
         local selections = state.getSelections()
+
         if vim.tbl_count(selections) == 0 then
           local name, ns = view.getCurrentSelection()
           if name then
@@ -83,56 +85,44 @@ function M.get_mappings()
         for _, value in ipairs(selections) do
           table.insert(data, { name = value.name, namespace = value.namespace })
         end
+        local builder = manager.get_or_create("delete_view")
 
-        local self = ResourceBuilder:new("delete_resource")
-        self.data = data
-        self.processedData = self.data
+        local def = {
+          resource = "delete_resource",
+          display = "Delete resource",
+          ft = "k8s_action",
+          group = view.definition.group,
+          version = view.definition.version,
+        }
 
-        local prompt = "Are you sure you want to delete the selected resource(s)?"
-        local buf_nr, win = buffers.confirmation_buffer(prompt, "prompt", function(confirm)
-          if confirm then
-            local resource = string.lower(buf_name)
-            for _, selection in ipairs(selections) do
-              local name = selection.name
-              local ns = selection.namespace
-              vim.notify("deleting " .. name)
-              if name then
-                if buf_name == "fallback" then
-                  resource = view.resource
+        local action_data = {}
+        for _, value in ipairs(selections) do
+          local ns_prefix = value.namespace and (value.namespace .. ": ") or ""
+          table.insert(action_data, {
+            text = ">> " .. ns_prefix .. value.name,
+            value = "",
+            cmd = { name = value.name, namespace = value.namespace },
+            type = "positional",
+          })
+        end
+        builder.data = data
+        builder.action_view(def, action_data, function(args)
+          local gvk = view.definition.gvk
+          for _, value in ipairs(args) do
+            local ns = value.cmd.namespace
+            local name = value.cmd.name
+
+            vim.notify("Deleting " .. gvk.k .. ": " .. name, vim.log.levels.INFO)
+            commands.run_async("delete_async", { gvk = gvk, namespace = ns, name = name }, function(_, err)
+              vim.schedule(function()
+                if not err then
+                  vim.notify(gvk.k .. " deleted: " .. name, vim.log.levels.INFO)
                 end
-                local args = { "delete", resource, name }
-                if ns and ns ~= "nil" then
-                  table.insert(args, "-n")
-                  table.insert(args, ns)
-                end
-                commands.shell_command_async("kubectl", args, function(delete_data)
-                  vim.schedule(function()
-                    vim.notify(delete_data, vim.log.levels.INFO)
-                  end)
-                end)
-              end
-            end
-            state.selections = {}
-            vim.schedule(function()
-              view.Draw()
+              end)
             end)
           end
+          state.selections = {}
         end)
-
-        self.buf_nr = buf_nr
-        self.prettyData, self.extmarks = tables.pretty_print(self.processedData, { "NAME", "NAMESPACE" })
-
-        table.insert(self.prettyData, "")
-        table.insert(self.prettyData, "")
-        local confirmation = "[y]es [n]o"
-        local padding = string.rep(" ", (win.width - #confirmation) / 2)
-        table.insert(self.extmarks, {
-          row = #self.prettyData - 1,
-          start_col = 0,
-          virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
-          virt_text_pos = "inline",
-        })
-        self:setContent()
       end,
     },
     ["<Plug>(kubectl.yaml)"] = {
@@ -140,30 +130,39 @@ function M.get_mappings()
       desc = "View yaml",
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+        local view_ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
+
         if not view_ok then
-          view = require("kubectl.views.fallback")
+          view = require("kubectl.resources.fallback")
         end
         local name, ns = view.getCurrentSelection()
 
         if name then
           if buf_name == "helm" then
-            local helm_view = require("kubectl.views.helm")
+            local helm_view = require("kubectl.resources.helm")
             helm_view.Yaml(name, ns)
           else
             local def = {
-              resource = buf_name .. " | " .. name,
+              resource = view.definition.resource .. "_yaml",
+              gvk = view.definition.gvk,
+              display_name = view.definition.resource .. " | " .. name .. " | " .. (ns or ""),
               ft = "k8s_yaml",
-              url = { "get", buf_name, name, "-o", "yaml" },
               syntax = "yaml",
+              cmd = "get_single_async",
             }
             if ns then
-              table.insert(def.url, "-n")
-              table.insert(def.url, ns)
-              def.resource = def.resource .. " | " .. ns
+              def.display_name = def.display_name .. " | " .. ns
             end
 
-            ResourceBuilder:view_float(def, { cmd = "kubectl" })
+            local builder = manager.get_or_create("yaml")
+            builder.view_float(def, {
+              args = {
+                kind = def.gvk.k,
+                namespace = ns,
+                name = name,
+                output = "yaml",
+              },
+            })
           end
         end
       end,
@@ -173,25 +172,31 @@ function M.get_mappings()
       desc = "Describe resource",
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+        local view_ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
+        local interval = 2000
+        local timer = vim.uv.new_timer()
+
         if not view_ok then
-          view = require("kubectl.views.fallback")
+          view = require("kubectl.resources.fallback")
         end
         local name, ns = view.getCurrentSelection()
         if name then
-          local ok = pcall(view.Desc, name, ns, true)
-          if ok then
-            local state = require("kubectl.state")
-            event_handler:on("MODIFIED", state.instance_float.buf_nr, function(event)
-              if event.object.metadata.name == name and event.object.metadata.namespace == ns then
-                vim.schedule(function()
-                  pcall(view.Desc, name, ns, false)
-                end)
-              end
+          view.Desc(name, ns, true)
+
+          timer:start(
+            0,
+            interval,
+            vim.schedule_wrap(function()
+              view.Desc(name, ns, true)
+
+              vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
+                buffer = 0,
+                callback = function()
+                  timer:stop()
+                end,
+              })
             end)
-          else
-            vim.api.nvim_err_writeln("Failed to describe " .. buf_name .. ".")
-          end
+          )
         end
       end,
     },
@@ -199,14 +204,16 @@ function M.get_mappings()
       mode = "n",
       desc = "Reload",
       callback = function()
+        local state = require("kubectl.state")
+        state.reset_filters()
         if win_config.relative == "" then
           local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
           vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
-          local ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+          local ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
           if ok then
             pcall(view.View)
           else
-            view = require("kubectl.views.fallback")
+            view = require("kubectl.resources.fallback")
             view.View()
           end
         else
@@ -219,7 +226,7 @@ function M.get_mappings()
           local parts = vim.split(buf_name, "|")
 
           vim.notify("Reloading " .. parts[3], vim.log.levels.INFO)
-          local ok, view = pcall(require, "kubectl.views." .. vim.trim(parts[2]))
+          local ok, view = pcall(require, "kubectl.resources." .. vim.trim(parts[2]))
 
           if not ok then
             vim.notify(parts[3] .. " not found", vim.log.levels.INFO)
@@ -246,15 +253,12 @@ function M.get_mappings()
       mode = "n",
       desc = "Edit resource",
       callback = function()
-        local state = require("kubectl.state")
-
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+        local view_ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
         if not view_ok then
-          view = require("kubectl.views.fallback")
+          view = require("kubectl.resources.fallback")
         end
 
-        local resource = state.instance[buf_name].resource
         local name, ns = view.getCurrentSelection()
 
         if not name then
@@ -262,65 +266,70 @@ function M.get_mappings()
           return
         end
 
-        local args = { "get", resource .. "/" .. name, "-o", "yaml" }
-        if ns and ns ~= "nil" then
-          table.insert(args, "-n")
-          table.insert(args, ns)
+        local instance = manager.get(buf_name)
+        if not instance then
+          vim.notify("Resource not found", vim.log.levels.INFO)
+          return
         end
+        local def = {
+          resource = buf_name .. " | " .. name,
+          syntax = "yaml",
+          resource_name = string_utils.capitalize(instance.definition.resource_name),
+          name = name,
+          ns = ns,
+          gvk = instance.definition.gvk,
+          group = instance.definition.group,
+          version = instance.definition.version,
+        }
+        commands.run_async("get_single_async", {
+          kind = def.gvk.k,
+          name = def.name,
+          namespace = def.ns,
+          output = "Yaml",
+        }, function(data)
+          vim.schedule(function()
+            local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
 
-        local self = ResourceBuilder:new("edit_resource"):setCmd(args, "kubectl"):fetch()
+            local tmpfile = assert(io.open(tmpfilename, "w+"), "Failed to open temp file")
+            tmpfile:write(data)
+            tmpfile:close()
 
-        local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
-        vim.print("editing " .. tmpfilename)
+            vim.cmd("tabnew | edit " .. tmpfilename)
 
-        local tmpfile = assert(io.open(tmpfilename, "w+"), "Failed to open temp file")
-        tmpfile:write(self.data)
-        tmpfile:close()
+            vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = 0 })
+            local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
 
-        local original_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
-        vim.api.nvim_buf_set_var(0, "original_mtime", original_mtime)
-
-        vim.cmd("tabnew | edit " .. tmpfilename)
-
-        vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = 0 })
-        local group = vim.api.nvim_create_augroup("__kubectl_edited", { clear = false })
-
-        vim.api.nvim_create_autocmd("QuitPre", {
-          buffer = 0,
-          group = group,
-          callback = function()
-            vim.defer_fn(function()
-              local ok
-              ok, original_mtime = pcall(vim.api.nvim_buf_get_var, 0, "original_mtime")
-              local current_mtime = vim.loop.fs_stat(tmpfilename).mtime.sec
-
-              if ok and current_mtime ~= original_mtime then
-                vim.notify("Edited. Applying changes")
-                commands.shell_command_async("kubectl", { "apply", "-f", tmpfilename }, function(apply_data)
+            vim.api.nvim_create_autocmd("QuitPre", {
+              buffer = 0,
+              group = group,
+              callback = function()
+                commands.run_async("edit_async", {
+                  tmpfilename,
+                }, function(result, err)
                   vim.schedule(function()
-                    vim.notify(apply_data, vim.log.levels.INFO)
+                    vim.notify(result or err)
                   end)
                 end)
-              else
-                vim.notify("Not Edited", vim.log.levels.INFO)
-              end
-            end, 100)
-          end,
-        })
+              end,
+            })
+          end)
+        end)
       end,
     },
     ["<Plug>(kubectl.toggle_headers)"] = {
       mode = "n",
       desc = "Toggle headers",
       callback = function()
-        config.options.headers = not config.options.headers
-        if not config.options.headers then
+        config.options.headers.enabled = not config.options.headers.enabled
+        if not config.options.headers.enabled then
           local bufnr = buffers.get_buffer_by_name("kubectl_header")
           if bufnr then
-            vim.api.nvim_buf_delete(bufnr, { force = false })
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+            manager.remove("header")
           end
+        else
+          pcall(require("kubectl.views").Header)
         end
-        pcall(require("kubectl.views").Redraw)
       end,
     },
     ["<Plug>(kubectl.alias_view)"] = {
@@ -369,8 +378,8 @@ function M.get_mappings()
       mode = "n",
       desc = "Filter",
       callback = function()
-        local filter_view = require("kubectl.views.filter")
-        filter_view.filter_label()
+        local filter_label_view = require("kubectl.views.filter_label")
+        filter_label_view.View()
       end,
     },
     ["<Plug>(kubectl.namespace_view)"] = {
@@ -385,7 +394,7 @@ function M.get_mappings()
       mode = "n",
       desc = "Change context",
       callback = function()
-        local contexts_view = require("kubectl.views.contexts")
+        local contexts_view = require("kubectl.resources.contexts")
         contexts_view.View()
       end,
     },
@@ -429,9 +438,9 @@ function M.get_mappings()
         end
         state.sortby_old.current_word = sortby.current_word
 
-        local view_ok, view = pcall(require, "kubectl.views." .. string.lower(vim.trim(buf_name)))
+        local view_ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
         if not view_ok then
-          view = require("kubectl.views.fallback")
+          view = require("kubectl.resources.fallback")
         end
         pcall(view.Draw)
       end,
@@ -444,6 +453,37 @@ function M.get_mappings()
         vim.cmd.close()
       end,
     },
+    ["<Plug>(kubectl.toggle_fullscreen)"] = {
+      mode = "n",
+      desc = "Toggle fullscreen",
+      callback = function()
+        local VAR = "_kubectl_float_cfg"
+        local win = vim.api.nvim_get_current_win()
+        local cfg = vim.api.nvim_win_get_config(win)
+
+        if cfg.relative == "" then
+          return
+        end
+
+        if vim.w[VAR] then
+          vim.api.nvim_win_set_config(win, vim.w[VAR])
+          vim.w[VAR] = nil
+        else
+          vim.w[VAR] = cfg
+
+          vim.api.nvim_win_set_config(win, {
+            relative = "editor",
+            row = 0,
+            col = 0,
+            width = vim.o.columns,
+            height = vim.o.lines - vim.o.cmdheight,
+            border = "none",
+            style = cfg.style,
+            zindex = cfg.zindex,
+          })
+        end
+      end,
+    },
     ["<Plug>(kubectl.tab)"] = {
       mode = "n",
       desc = "Select resource",
@@ -451,7 +491,7 @@ function M.get_mappings()
         local state = require("kubectl.state")
         local view = require("kubectl.views")
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-        local current_view, _ = view.view_and_definition(string.lower(vim.trim(buf_name)))
+        local current_view, _ = view.resource_and_definition(string.lower(vim.trim(buf_name)))
 
         local name, ns = current_view.getCurrentSelection()
         for i, selection in ipairs(state.selections) do
@@ -470,6 +510,35 @@ function M.get_mappings()
         end
       end,
     },
+    ["<Plug>(kubectl.select)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Go to child view",
+      callback = function()
+        local state = require("kubectl.state")
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local view = require("kubectl.views").resource_and_definition(vim.trim(buf_name))
+
+        if not view then
+          return
+        end
+
+        local name, ns = view.getCurrentSelection()
+        if not view.definition.child_view then
+          vim.notify("Not implemented: suggest a behaviour in our github or listen to K8sResourceSelected cmd")
+        else
+          if name then
+            local child_view = require("kubectl.resources." .. view.definition.child_view.name)
+            state.filter_key = view.definition.child_view.predicate(name, ns)
+            child_view.View()
+          end
+        end
+        vim.api.nvim_exec_autocmds("User", {
+          pattern = "K8sResourceSelected",
+          data = { kind = view.definition.resource, name = name, ns = ns },
+        })
+      end,
+    },
     ["<Plug>(kubectl.lineage)"] = {
       noremap = true,
       silent = true,
@@ -477,12 +546,12 @@ function M.get_mappings()
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view = require("kubectl.views")
-        local current_view, _ = view.view_and_definition(string.lower(vim.trim(buf_name)))
+        local current_view, _ = view.resource_and_definition(string.lower(vim.trim(buf_name)))
 
         local name, ns = current_view.getCurrentSelection()
         local lineage_view = require("kubectl.views.lineage")
 
-        lineage_view.View(name, ns, buf_name)
+        lineage_view.View(name, ns, current_view.definition.gvk.k)
       end,
     },
   }
@@ -495,7 +564,7 @@ function M.get_mappings()
       mode = "n",
       desc = desc,
       callback = function()
-        local view = require("kubectl.views." .. view_name)
+        local view = require("kubectl.resources." .. view_name)
         view.View()
       end,
     }
@@ -529,6 +598,7 @@ function M.register()
     vim.api.nvim_buf_set_keymap(0, "n", "q", "<Plug>(kubectl.quit)", opts)
     vim.api.nvim_buf_set_keymap(0, "n", "<esc>", "<Plug>(kubectl.quit)", opts)
     vim.api.nvim_buf_set_keymap(0, "i", "<C-c>", "<Esc><Plug>(kubectl.quit)", opts)
+    vim.api.nvim_buf_set_keymap(0, "n", "<f4>", "<Plug>(kubectl.toggle_fullscreen)", opts)
   end
 
   M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
@@ -544,13 +614,16 @@ function M.register()
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
 
   if config.options.lineage.enabled then
-    M.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.lineage)")
+    M.map_if_plug_not_set("n", "gxx", "<Plug>(kubectl.lineage)")
   end
 end
 
 function M.setup(ev)
   local view_name = ev.match:gsub("k8s_", "")
-  local ok, view_mappings = pcall(require, "kubectl.views." .. view_name .. ".mappings")
+  local ok, view_mappings = pcall(require, "kubectl.resources." .. view_name .. ".mappings")
+  if not ok then
+    ok, view_mappings = pcall(require, "kubectl.views." .. view_name .. ".mappings")
+  end
 
   local globals = M.get_mappings()
   local locals = {}

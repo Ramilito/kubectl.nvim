@@ -3,12 +3,7 @@ local events = require("kubectl.utils.events")
 local hl = require("kubectl.actions.highlight")
 local time = require("kubectl.utils.time")
 
-local M = {
-  resource = "namespace",
-  display_name = "Namespace",
-  ft = "k8s_namespace",
-  url = { "{{BASE}}/api/v1/namespaces?pretty=false" },
-}
+local M = {}
 
 function M.processRow(rows)
   local data = {}
@@ -36,11 +31,11 @@ function M.processRow(rows)
     return data
   end
 
-  if not rows or not rows.items then
+  if not rows then
     return data
   end
 
-  for _, row in pairs(rows.items) do
+  for _, row in pairs(rows) do
     local ns = {
       name = { value = row.metadata.name, symbol = hl.symbols.success },
       status = { symbol = events.ColorStatus(row.status.phase), value = row.status.phase },
@@ -51,16 +46,6 @@ function M.processRow(rows)
   end
 
   return data
-end
-
-function M.getHeaders()
-  local headers = {
-    "NAME",
-    "STATUS",
-    "AGE",
-  }
-
-  return headers
 end
 
 return M

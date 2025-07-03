@@ -1,13 +1,19 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
+local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
+local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.lineage.definition")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local view = require("kubectl.views")
 
 local M = {
   selection = {},
   builder = nil,
+  loaded = false,
+  is_loading = false,
+  processed = 0,
+  total = 0,
 }
 
 function M.View(name, ns, kind)
@@ -15,9 +21,21 @@ function M.View(name, ns, kind)
   M.selection.name = name
   M.selection.ns = ns
   M.selection.kind = kind
+  M.total = 0
 
-  M.builder = ResourceBuilder:new(definition.resource)
-  M.builder:displayFloatFit(definition.ft, definition.resource, definition.syntax)
+  if not M.loaded and not M.is_loading then
+    M.is_loading = true
+    M.load_cache()
+  end
+
+  for _, _ in pairs(cache.cached_api_resources.values) do
+    M.total = M.total + 1
+  end
+
+  M.builder = manager.get_or_create(definition.resource)
+
+  M.builder.buf_nr, M.builder.win_nr =
+    buffers.floating_dynamic_buffer(definition.ft, definition.resource, definition.syntax)
   M.Draw()
 end
 
@@ -26,16 +44,19 @@ function M.Draw()
     return
   end
 
-  local kind, ns, name = M.selection.kind, M.selection.ns, M.selection.name
   M.builder.data = { "Associated Resources: " }
-  if cache.loading then
+  if cache.loading or M.is_loading then
     table.insert(M.builder.data, "")
-    table.insert(M.builder.data, "Cache still loading...")
+    vim.schedule(function()
+      table.insert(M.builder.data, M.processed .. "/" .. M.total)
+      table.insert(M.builder.data, "Cache still loading...")
+    end)
   else
     local data = definition.collect_all_resources(cache.cached_api_resources.values)
     local graph = definition.build_graph(data)
 
     -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
+    local kind, ns, name = string.lower(M.selection.kind), M.selection.ns, M.selection.name
     if
       kind:sub(-1) == "s"
       and kind ~= "ingresses"
@@ -53,6 +74,7 @@ function M.Draw()
     elseif kind == "sa" then
       kind = "serviceaccount"
     end
+
     local selected_key = kind
     if ns then
       selected_key = selected_key .. "/" .. ns
@@ -85,9 +107,53 @@ function M.Draw()
       table.insert(M.builder.header.data, line)
     end
 
-    M.builder:setContentRaw()
-    M.set_folding(M.builder.win_nr)
+    M.builder.displayContentRaw()
+    M.set_folding(M.builder.win_nr, M.builder.buf_nr)
     collectgarbage("collect")
+  end)
+end
+
+function M.load_cache(callback)
+  local cached_api_resources = cache.cached_api_resources
+  local all_gvk = {}
+  M.processed = 0
+  for _, resource in pairs(cached_api_resources.values) do
+    if resource.gvk then
+      table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk, nil } })
+    end
+  end
+
+  collectgarbage("collect")
+
+  -- Memory usage before creating the table
+  local mem_before = collectgarbage("count")
+  local relationships = require("kubectl.utils.relationships")
+
+  commands.await_all(all_gvk, function()
+    M.processed = M.processed + 1
+  end, function(data)
+    M.builder.data = data
+    M.builder.splitData()
+    M.builder.decodeJson()
+    M.builder.processedData = {}
+
+    for _, values in pairs(M.builder.data) do
+      definition.processRow(values, cached_api_resources, relationships)
+    end
+
+    -- Memory usage after creating the table
+    collectgarbage("collect")
+    local mem_after = collectgarbage("count")
+    local mem_diff_mb = (mem_after - mem_before) / 1024
+
+    print("Memory used by the table (in MB):", mem_diff_mb)
+    print("finished loading cache")
+
+    M.is_loading = false
+    M.loaded = true
+    if callback then
+      callback()
+    end
   end)
 end
 
@@ -97,11 +163,16 @@ function M.set_keymaps(bufnr)
     silent = true,
     desc = "Select",
     callback = function()
-      local kind, name, ns = M.getCurrentSelection()
+      local kind, ns, name = M.getCurrentSelection()
       if name and ns then
+        local state = require("kubectl.state")
         vim.api.nvim_set_option_value("modified", false, { buf = 0 })
         vim.cmd.fclose()
 
+        state.filter_key = "metadata.name=" .. name
+        if ns then
+          state.filter_key = state.filter_key .. ",metadata.namespace=" .. ns
+        end
         view.view_or_fallback(kind)
       else
         vim.api.nvim_err_writeln("Failed to select resource.")
@@ -114,7 +185,7 @@ function M.set_keymaps(bufnr)
     silent = true,
     desc = "Refresh",
     callback = function()
-      cache.LoadFallbackData(true, function()
+      M.load_cache(function()
         vim.schedule(function()
           M.Draw()
         end)
@@ -123,16 +194,16 @@ function M.set_keymaps(bufnr)
   })
 end
 
-function M.set_folding(win_nr)
+function M.set_folding(win_nr, buf_nr)
   -- Set fold options using nvim_set_option_value
   vim.api.nvim_set_option_value("foldmethod", "expr", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldexpr", "v:lua.kubectl_fold_expr(v:lnum)", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldenable", true, { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldtext", "", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldcolumn", "1", { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("shiftwidth", 4, { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("tabstop", 4, { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("expandtab", false, { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("shiftwidth", 4, { scope = "local", buf = buf_nr })
+  vim.api.nvim_set_option_value("tabstop", 4, { scope = "local", buf = buf_nr })
+  vim.api.nvim_set_option_value("expandtab", false, { scope = "local", buf = buf_nr })
 
   -- Corrected fold expression function
   _G.kubectl_fold_expr = function(lnum)
@@ -153,9 +224,8 @@ function M.set_folding(win_nr)
       return false
     end
 
-    local shiftwidth = vim.api.nvim_get_option_value("shiftwidth", { scope = "local", win = win_nr })
+    local shiftwidth = vim.api.nvim_get_option_value("shiftwidth", { scope = "local", buf = buf_nr })
     shiftwidth = shiftwidth > 0 and shiftwidth or 1
-
     local current_indent = vim.fn.indent(lnum)
     local prev_indent = vim.fn.indent(lnum - 1)
 

@@ -88,8 +88,6 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 
 ## ⚡️ Required Dependencies
 
-- kubectl
-- curl
 - neovim >= 0.10
 
 ## ⚡️ Optional Dependencies
@@ -109,6 +107,11 @@ Install the plugin with your preferred package manager:
 return {
   {
     "ramilito/kubectl.nvim",
+    -- use a release tag to download pre-built binaries
+    version = '2.*',
+    -- AND/OR build from source, requires nightly: https://rust-lang.github.io/rustup/concepts/channels.html#working-with-nightly-rust
+    -- build = 'cargo build --release',
+    dependencies = "saghen/blink.download",
     config = function()
       require("kubectl").setup()
     end,
@@ -200,6 +203,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "", "<Plug>(kubectl.quit)", opts) -- Close view (when applicable)
     k("n", "gk", "<Plug>(kubectl.kill)", opts) -- Pod/portforward kill
     k("n", "<M-h>", "<Plug>(kubectl.toggle_headers)", opts) -- Toggle headers
+    k("n", "<f4>", "<Plug>(kubectl.toggle_fullscreen)", opts) -- Toggle fullscreen
 
     -- Views
     k("n", "<C-p>", "<Plug>(kubectl.picker_view)", opts) -- Picker view
@@ -288,11 +292,18 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
   terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
-  hints = true,
-  context = true,
-  heartbeat = true,
+  headers = {
+    enabled = true,
+    hints = true,
+    context = true,
+    heartbeat = true,
+    skew = {
+      enabled = true,
+      log_level = vim.log.levels.OFF,
+    },
+  },
   lineage = {
-    enabled = false, -- This feature is in beta at the moment
+    enabled = true, -- This feature is in beta at the moment
   },
   logs = {
     prefix = true,
@@ -321,10 +332,6 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
     row = 5,
   },
   obj_fresh = 5, -- highlight if creation newer than number (in minutes)
-  skew = {
-    enabled = true
-    log_level = vim.log.levels.INFO,
-  }
 }
 ```
 
@@ -353,6 +360,35 @@ The plugin uses the following highlight groups:
 
 </details>
 
+
+## Events
+
+We trigger events that you can use to run custom logic:
+
+<details><summary>events</summary>
+
+| Name                | When                          | Data |
+| ------------------- | ----------------------------- | ----------------------------- |
+| K8sResourceSelected | On main views, when selecting a resource unless overriden (like pod view) | kind, name, ns |
+| K8sContextChanged | After context change | context |
+
+
+Example: saving session on context change
+
+```lua
+   vim.api.nvim_create_autocmd('User', {
+      group = group,
+      pattern = 'K8sContextChanged',
+      callback = function(ctx)
+        local results = require('kubectl.actions.commands').shell_command('kubectl', { 'config', 'use-context', ctx.data.context })
+        if not results then
+          vim.notify(results, vim.log.levels.INFO)
+        end
+      end,
+    })
+```
+</details>
+
 ## 🚀 Performance
 
 ### Startup
@@ -360,11 +396,11 @@ The plugin uses the following highlight groups:
 The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
-### Efficient Resource Monitoring
+### Efficient resource monitoring
 
-We leverage the Kubernetes Informer to efficiently monitor resource updates.
+We leverage the kubernetes informer to efficiently monitor resource updates.
 
-By using the `resourceVersion`, we avoid fetching all resources in each loop.
+By using the `resourceversion`, we avoid fetching all resources in each loop.
 
 Instead, the Informer provides only the changes, significantly reducing overhead and improving performance.
 

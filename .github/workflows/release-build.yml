@@ -2,3 +2,145 @@ name: Release-build
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          ## Linux builds
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: target/x86_64-unknown-linux-gnu/release/libkubectl_client.so
+            go_os: linux
+            go_arch: amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: target/aarch64-unknown-linux-gnu/release/libkubectl_client.so
+            go_os: linux
+            go_arch: arm64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact_name: target/x86_64-unknown-linux-musl/release/libkubectl_client.so
+            go_os: linux
+            go_arch: amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            artifact_name: target/aarch64-unknown-linux-musl/release/libkubectl_client.so
+            go_os: linux
+            go_arch: arm64
+
+          ## macOS builds
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: target/x86_64-apple-darwin/release/libkubectl_client.dylib
+            go_os: darwin
+            go_arch: amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: target/aarch64-apple-darwin/release/libkubectl_client.dylib
+            go_os: darwin
+            go_arch: arm64
+
+          ## Windows builds
+          # - os: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   artifact_name: target/x86_64-pc-windows-msvc/release/libkubectl_client.dll
+          #   go_os: windows
+          #   go_arch: amd64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install ARM64 cross-compiler (Linux)
+        if: ${{ matrix.go_os == 'linux' && matrix.go_arch == 'arm64' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        shell: bash
+
+      - name: Build Go Library
+        run: |
+          echo "Building Go static library for target ${{ matrix.target }}..."
+          cd go
+          # Set GOOS, GOARCH, and enable CGO.
+          # If building for Linux/ARM64, set CC to the cross compiler.
+          if [ "${{ matrix.go_os }}" = "linux" ] && [ "${{ matrix.go_arch }}" = "arm64" ]; then
+            export CC=aarch64-linux-gnu-gcc
+          fi
+          env GOOS=${{ matrix.go_os }} GOARCH=${{ matrix.go_arch }} CGO_ENABLED=1 \
+            go build -trimpath -ldflags "-s -w" -o libkubectl_go.a -buildmode=c-archive .
+          cd ..
+          mkdir -p prebuilt_go_lib
+          cp go/libkubectl_go.a prebuilt_go_lib/
+        shell: bash
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+
+      - name: Build for Linux
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          # Pass PREBUILT_GO_LIB so that build.rs links against our prebuilt Go library.
+          PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cross build --release --target ${{ matrix.target }}
+          mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.so"
+        shell: bash
+
+      - name: Build for macOS
+        if: contains(matrix.os, 'macos')
+        run: |
+          MACOSX_DEPLOYMENT_TARGET="13" PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cargo build --release --target ${{ matrix.target }}
+          mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dylib"
+        shell: bash
+
+      - name: Build for Windows
+        if: contains(matrix.os, 'windows')
+        run: |
+          PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cargo build --release --target ${{ matrix.target }}
+          mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dll"
+        shell: bash
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.target }}.*
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          token: ${{ github.token }}
+          files: ./**/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true

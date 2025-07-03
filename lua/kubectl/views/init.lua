@@ -1,4 +1,3 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
 local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
@@ -6,6 +5,7 @@ local config = require("kubectl.config")
 local definition = require("kubectl.views.definition")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -13,8 +13,7 @@ local url = require("kubectl.utils.url")
 
 local M = {}
 
---- Generate hints and display them in a floating buffer
----@alias Hint { key: string, desc: string, long_desc: string }
+-- Generate hints and display them in a floating buffer
 ---@param headers Hint[]
 function M.Hints(headers)
   local marks = {}
@@ -42,7 +41,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_services)", desc = "Services" },
     { key = "<Plug>(kubectl.view_ingresses)", desc = "Ingresses" },
     { key = "<Plug>(kubectl.view_api_resources)", desc = "API-Resources" },
-    { key = "<Plug>(kubectl.view_clusterrolebinding)", desc = "ClusterRoleBindings" },
+    { key = "<Plug>(kubectl.view_clusterrolebindings)", desc = "ClusterRoleBindings" },
     { key = "<Plug>(kubectl.view_crds)", desc = "CRDs" },
     { key = "<Plug>(kubectl.view_cronjobs)", desc = "CronJobs" },
     { key = "<Plug>(kubectl.view_daemonsets)", desc = "DaemonSets" },
@@ -95,7 +94,7 @@ end
 function M.Picker()
   vim.cmd("fclose!")
 
-  local self = ResourceBuilder:new("Picker")
+  local self = manager.get_or_create("Picker")
   local data = {}
 
   for id, value in pairs(state.buffers) do
@@ -103,12 +102,23 @@ function M.Picker()
     local kind = vim.trim(parts[1])
     local resource = vim.trim(parts[2] or "")
     local namespace = vim.trim(parts[3] or "")
+    local type = value.args[1]:gsub("k8s_", "")
+    local symbol = hl.symbols.success
+
+    if type == "exec" then
+      symbol = hl.symbols.experimental
+    elseif type == "desc" then
+      symbol = hl.symbols.debug
+    elseif type == "yaml" then
+      symbol = hl.symbols.header
+    end
+
     table.insert(data, {
       id = { value = id, symbol = hl.symbols.gray },
-      kind = { value = kind, symbol = hl.symbols.success },
-      type = { value = value.args[1]:gsub("k8s_", ""), symbol = hl.symbols.success },
-      resource = { value = resource, symbol = hl.symbols.success },
-      namespace = { value = namespace },
+      kind = { value = kind, symbol = symbol },
+      type = { value = type, symbol = symbol },
+      resource = { value = resource, symbol = symbol },
+      namespace = { value = namespace, symbol = hl.symbols.gray },
     })
   end
 
@@ -121,17 +131,18 @@ function M.Picker()
   self.data = data
   self.processedData = self.data
 
-  self:addHints({
-    { key = "<Plug>(kubectl.kill)", desc = "kill" },
+  self.addHints({
+    { key = "<Plug>(kubectl.delete)", desc = "delete" },
     { key = "<Plug>(kubectl.select)", desc = "select" },
   }, false, false, false)
-  self:displayFloatFit("k8s_picker", "Picker")
+
+  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_picker", "Picker", nil, nil)
   self.prettyData, self.extmarks = tables.pretty_print(
     self.processedData,
     { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" },
     { current_word = "ID", order = "desc" }
   )
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.kill)", "", {
+  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
     noremap = true,
     callback = function()
       local selection = tables.getCurrentSelection(1)
@@ -155,22 +166,29 @@ function M.Picker()
       if buffer then
         vim.cmd("fclose!")
         vim.schedule(function()
-          buffer.open(unpack(buffer.args))
+          if not vim.api.nvim_tabpage_is_valid(buffer.tab_id) then
+            vim.cmd("tabnew")
+            buffer.tab_id = vim.api.nvim_get_current_tabpage()
+          end
+          vim.schedule(function()
+            vim.api.nvim_set_current_tabpage(buffer.tab_id)
+            buffer.open(unpack(buffer.args))
+          end)
         end)
       end
     end,
   })
-  self:setContent()
+  self.displayContent(self.win_nr)
   vim.schedule(function()
-    mappings.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.kill)")
+    mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
   end)
 end
 
 function M.Aliases()
-  local self = ResourceBuilder:new("aliases")
+  local self = manager.get_or_create("aliases")
   local viewsTable = require("kubectl.utils.viewsTable")
   self.data = cache.cached_api_resources.values
-  self:splitData():decodeJson()
+  self.splitData().decodeJson()
   self.data = definition.merge_views(self.data, viewsTable)
   local buf, win = buffers.aliases_buffer(
     "k8s_aliases",
@@ -189,7 +207,7 @@ function M.Aliases()
       if is_valid_win and is_valid_buf then
         local new_cached = require("kubectl.cache").cached_api_resources.values
         self.data = new_cached
-        self:splitData():decodeJson()
+        self.splitData().decodeJson()
         self.data = definition.merge_views(self.data, viewsTable)
         vim.api.nvim_win_set_config(win, { title = "k8s_aliases - Aliases - " .. vim.tbl_count(self.data) })
       end
@@ -199,7 +217,7 @@ function M.Aliases()
   completion.with_completion(buf, self.data, function()
     -- We reassign the cache since it can be slow to load
     self.data = cache.cached_api_resources.values
-    self:splitData():decodeJson()
+    self.splitData().decodeJson()
     self.data = definition.merge_views(self.data, viewsTable)
   end)
 
@@ -257,15 +275,16 @@ end
 -- @function PortForwards
 -- @return nil
 function M.PortForwards()
-  local pfs = {}
-  pfs = definition.getPFData(pfs, false)
-
-  local self = ResourceBuilder:new("Port forward"):displayFloatFit("k8s_port_forwards", "Port forwards")
-  self.data = definition.getPFRows(pfs)
+  local resource = "port_forwards"
+  local pf_definition = require("kubectl.resources.port_forwards.definition")
+  local self = manager.get_or_create(resource)
+  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
+  self.data = pf_definition.getPFRows()
   self.extmarks = {}
-
-  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "PID", "TYPE", "RESOURCE", "PORT" })
-  self:addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false):setContent()
+  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
+  self
+    .addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false)
+    .displayContent(self.win_nr)
 
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
@@ -274,18 +293,111 @@ function M.PortForwards()
   end, { buffer = self.buf_nr, silent = true })
 end
 
+function M.Header()
+  if not config.options.headers.enabled then
+    return
+  end
+  vim.api.nvim_create_augroup("kubectl_header", { clear = true })
+
+  local ui = vim.api.nvim_list_uis()[1] -- current UI size
+  local height = 20
+  local row = ui.height - height
+  local show_header = true
+
+  local function refresh_header()
+    if not config.options.headers.enabled then
+      return
+    end
+
+    if not show_header then
+      return
+    end
+    local builder = manager.get_or_create("header")
+    builder.buf_nr, builder.win_nr = buffers.header_buffer(builder.win_nr)
+
+    local current_win = vim.api.nvim_get_current_win()
+    local ok, win_config = pcall(vim.api.nvim_win_get_config, current_win)
+
+    if ok and (win_config.relative == "") then
+      local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+      local current_builder = manager.get(buf_name)
+
+      if current_builder then
+        local hints = current_builder.definition and current_builder.definition.hints or {}
+        builder.addHints(hints, true, true)
+        buffers.set_content(builder.buf_nr, { content = builder.header.data, marks = builder.header.marks })
+        height = #builder.header.data + 1
+        row = ui.height - height
+      end
+    end
+
+    buffers.fit_to_content(builder.buf_nr, builder.win_nr, 0)
+  end
+
+  refresh_header()
+
+  vim.api.nvim_create_autocmd("User", {
+    group = "kubectl_header",
+    pattern = "K8sDataLoaded",
+    callback = function()
+      refresh_header()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("BufEnter", {
+    group = "kubectl_header",
+    pattern = "*",
+    callback = function(_)
+      local ft = vim.bo.filetype
+      if ft:match("^k8s_") then
+        vim.schedule(function()
+          refresh_header()
+        end)
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+    group = "kubectl_header",
+    callback = function()
+      local curwin = vim.api.nvim_get_current_win()
+      local curpos = vim.api.nvim_win_get_cursor(curwin)
+      local screenpos = vim.fn.screenpos(curwin, curpos[1], curpos[2] + 1)
+      local cursor_row = screenpos.row
+
+      local float_top = row - 2
+      local overlapping = (cursor_row >= float_top)
+
+      local builder = manager.get("header")
+      if not builder then
+        return
+      end
+      if overlapping and show_header then
+        vim.schedule(function()
+          pcall(vim.api.nvim_buf_delete, builder.buf_nr, { force = true })
+        end)
+        show_header = false
+      elseif (not overlapping) and not show_header then
+        show_header = true
+        refresh_header()
+      end
+    end,
+  })
+end
+
 --- Execute a user command and handle the response
 ---@param args table
 function M.UserCmd(args)
-  ResourceBuilder:new("k8s_usercmd"):setCmd(args, "kubectl"):fetchAsync(function(self)
+  local builder = manager.get_or_create("k8s_usercmd")
+  builder.setCmd(args, "kubectl").fetchAsync(function(self)
     if self.data == "" then
       return
     end
-    self:splitData()
+    self.splitData()
     self.prettyData = self.data
 
     vim.schedule(function()
-      self:display("k8s_usercmd", "UserCmd"):setContent()
+      self.display("k8s_usercmd", "UserCmd").setContent()
     end)
   end)
 end
@@ -296,7 +408,7 @@ function M.Redraw()
 
   if win_config.relative == "" then
     local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
-    local current_view, _ = M.view_and_definition(string.lower(vim.trim(buf_name)))
+    local current_view, _ = M.resource_and_definition(string.lower(vim.trim(buf_name)))
     pcall(current_view.Draw)
   end
 end
@@ -319,7 +431,7 @@ function M.set_url_and_open_view(opts)
   local encode = function(str)
     return vim.uri_encode(str, "rfc2396")
   end
-  local res_view, res_definition = M.view_and_definition(dest)
+  local res_view, res_definition = M.resource_and_definition(dest)
   -- save url details
   local original_url = res_definition.url[1]
   local url_no_query_params, original_query_params = url.breakUrl(original_url, true, false)
@@ -372,17 +484,15 @@ function M.set_and_open_pod_selector(name, ns)
   })
 end
 
-function M.view_and_definition(view_name)
-  local view_ok, view = pcall(require, "kubectl.views." .. view_name)
+function M.resource_and_definition(view_name)
+  local view_ok, view = pcall(require, "kubectl.resources." .. view_name)
   if not view_ok then
-    view_name = "fallback"
-    view = require("kubectl.views.fallback")
+    view = require("kubectl.resources.fallback")
   end
-  local view_definition = require("kubectl.views." .. view_name .. ".definition")
-  return view, view_definition
+  return view, view.definition
 end
 
-function M.view_or_fallback(view_name)
+function M.resource_or_fallback(view_name)
   local supported_view = nil
   local viewsTable = require("kubectl.utils.viewsTable")
   for k, v in pairs(viewsTable) do
@@ -392,14 +502,14 @@ function M.view_or_fallback(view_name)
     end
   end
   local view_to_find = supported_view or view_name
-  local ok, view = pcall(require, "kubectl.views." .. view_to_find)
+  local ok, view = pcall(require, "kubectl.resources." .. view_to_find)
   if ok then
     vim.schedule(function()
       pcall(view.View)
     end)
   else
     vim.schedule(function()
-      local fallback = require("kubectl.views.fallback")
+      local fallback = require("kubectl.resources.fallback")
       fallback.View(nil, view_name)
     end)
   end

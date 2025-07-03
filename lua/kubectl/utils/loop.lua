@@ -15,25 +15,23 @@ function M.start_loop_for_buffer(buf, callback, opts)
 
   local interval = opts.interval or config.options.auto_refresh.interval
   local timer = vim.uv.new_timer()
-  local running = false
+  timers[buf] = { running = true, timer = nil }
 
   local function is_cancelled()
     return timers[buf] == nil
   end
 
   timer:start(0, interval, function()
-    if not running then
-      running = true
+    if not timers[buf] or not timers[buf].running then
+      timers[buf].running = true
 
       vim.schedule(function()
         callback(is_cancelled)
-
-        running = false
       end)
     end
   end)
 
-  timers[buf] = timer
+  timers[buf].timer = timer
 
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     buffer = buf,
@@ -61,18 +59,32 @@ end
 --- Stop the loop for a specific buffer
 ---@param buf number: The buffer number.
 function M.stop_loop(buf)
-  local timer = timers[buf]
-  if timer then
-    timer:stop()
-    timer:close()
-    timers[buf] = nil
+  if timers[buf] then
+    local timer = timers[buf].timer
+    if timer then
+      timer:stop()
+      timer:close()
+      timers[buf] = nil
+    end
+  end
+end
+
+function M.set_running(buf, running)
+  if timers[buf] then
+    timers[buf].running = running
+  end
+end
+
+function M.stop_all()
+  for key, _ in pairs(timers) do
+    M.stop_loop(key)
   end
 end
 
 --- Check if the loop is running
 ---@return boolean
 function M.is_running(buf)
-  return timers[buf] ~= nil
+  return timers[buf] and timers[buf].timer ~= nil
 end
 
 return M

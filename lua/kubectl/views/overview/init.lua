@@ -1,66 +1,42 @@
-local ResourceBuilder = require("kubectl.resourcebuilder")
-local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.views.overview.definition")
-local grid = require("kubectl.utils.grid")
-local url = require("kubectl.utils.url")
+local buffers = require("kubectl.actions.buffers")
+local api = vim.api
+local M = {}
 
-local M = {
-  handles = nil,
-  builder = nil,
-}
+function M.View()
+  local buf, win = buffers.floating_buffer("k8s_overview", "Overview")
+  api.nvim_win_set_config(win, vim.tbl_extend("force", api.nvim_win_get_config(win), { border = "none" }))
 
-function M.View(cancellationToken)
-  if M.handles then
-    return
-  end
-  local cmds = {
-    {
-      cmd = "curl",
-      args = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/nodes?pretty=false" },
-    },
-    {
-      cmd = "curl",
-      args = { "{{BASE}}/api/v1/nodes?pretty=false" },
-    },
-    {
-      cmd = "curl",
-      args = { "{{BASE}}/apis/metrics.k8s.io/v1beta1/{{NAMESPACE}}pods?pretty=false" },
-    },
-    { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}pods?pretty=false" } },
-    { cmd = "curl", args = { "{{BASE}}/apis/apps/v1/{{NAMESPACE}}replicasets?pretty=false" } },
-    { cmd = "curl", args = { "{{BASE}}/api/v1/{{NAMESPACE}}events?pretty=false" } },
-  }
+  api.nvim_set_current_win(win)
+  local job_id = vim.fn.jobstart({ "tail", "-f", "/dev/null" }, {
+    term = true,
+    on_exit = function()
+      vim.schedule(function()
+        if api.nvim_win_is_valid(win) then
+          api.nvim_win_close(win, true)
+        end
+        if api.nvim_buf_is_valid(buf) then
+          api.nvim_buf_delete(buf, { force = true })
+        end
+      end)
+    end,
+  })
+  vim.cmd.startinsert()
 
-  for _, cmd in ipairs(cmds) do
-    if cmd.cmd == "curl" then
-      cmd.args = url.build(cmd.args)
-      cmd.args = url.addHeaders(cmd.args, cmd.contentType)
-    end
-  end
+  -- 3 ▸ find the PTY path Neovim allocated, e.g. "/dev/pts/11"
+  local info = api.nvim_get_chan_info(job_id)
+  local pid = vim.fn.jobpid(job_id)
 
-  M.handles = commands.await_shell_command_async(cmds, function(data)
-    if M.builder == nil or M.builder.data == nil then
-      M.builder = ResourceBuilder:new(definition.resource)
-    end
-    M.builder.data = data
-    M.Draw(cancellationToken)
-  end)
-end
+  require("kubectl_client").start_dashboard(info.pty, "overview", pid)
 
-function M.Draw(cancellationToken)
-  vim.schedule(function()
-    M.builder:decodeJson():decodeJson():process(definition.processRow, true)
-    if M.builder.processedData then
-      M.builder.prettyData, M.builder.extmarks = grid.pretty_print(M.builder.processedData, definition.getSections())
-      M.builder:addHints(definition.hints, true, true, true)
-      if cancellationToken and cancellationToken() then
-        return nil
-      end
-
-      M.builder:display(definition.ft, definition.resource):setContent():draw_header()
-      M.handles = nil
-    end
-  end)
+  -- 5 ▸ close everything when the buffer disappears
+  api.nvim_create_autocmd({ "BufWipeout", "BufHidden" }, {
+    buffer = buf,
+    once = true,
+    callback = function()
+      vim.fn.jobstop(job_id) -- kill the sleeping job
+      require("kubectl_client").stop_dashboard()
+    end,
+  })
 end
 
 return M

@@ -393,7 +393,7 @@ M.definition = {
       },
     },
   },
-  ClusterRoleBinding = {
+  ClusterRoleBindings = {
     kind = "ClusterRoleBinding",
     relationships = {
       -- RelationshipClusterRoleBindingSubject

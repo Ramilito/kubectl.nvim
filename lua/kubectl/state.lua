@@ -13,6 +13,12 @@ M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 
 M.ns = ""
 ---@type string
 M.filter = ""
+---@type string
+M.filter_key = ""
+---@type string[]
+M.filter_label = {}
+---@type string[]
+M.session_filter_label = {}
 ---@type string[]
 M.filter_history = {}
 ---@type string[]
@@ -55,11 +61,15 @@ end
 
 --- Setup the kubectl state
 function M.setup()
+  vim.api.nvim_create_augroup("kubectl_session", { clear = true })
+
   for k, _ in pairs(viewsTable) do
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
   end
 
-  commands.shell_command_async("kubectl", { "config", "view", "--minify", "-o", "json" }, function(data)
+  commands.run_async("get_minified_config_async", {
+    ctx_override = M.context["current-context"] or nil,
+  }, function(data)
     local result = decode(data)
     if result then
       M.context = result
@@ -70,50 +80,33 @@ function M.setup()
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
     vim.schedule(function()
       M.restore_session()
-      if config.options.skew.enabled then
+      M.checkHealth()
+      if config.options.headers.skew.enabled then
         M.checkVersions()
-        M.checkHealth(function()
-          if
-            M.versions.client.major == 0
-            or M.versions.server.major == 0
-            or M.versions.client.minor == 0
-            or M.versions.server.minor == 0
-          then
-            M.checkVersions()
-          end
-        end)
       end
     end)
   end)
 end
 
 function M.checkVersions()
-  -- get client and server version
-  commands.shell_command_async(
-    "kubectl",
-    { "version", "--output", "json" },
-    function(data)
-      local result = decode(data)
-      if result then
-        local clientVersion = result.clientVersion and result.clientVersion.gitVersion or "0.0"
-        local serverVersion = result.serverVersion and result.serverVersion.gitVersion or "0.0"
-        if not clientVersion or not serverVersion then
-          return
-        end
-        M.versions.client.major = tonumber(string.match(clientVersion, "(%d+)%..*")) or 0
-        M.versions.server.major = tonumber(string.match(serverVersion, "(%d+)%..*")) or 0
-        M.versions.client.minor = tonumber(string.match(clientVersion, "%d+%.(%d+)%..*")) or 0
-        M.versions.server.minor = tonumber(string.match(serverVersion, "%d+%.(%d+)%..*")) or 0
+  commands.run_async("get_version_async", {}, function(data)
+    local result = decode(data)
+    if result then
+      local clientVersion = result.clientVersion
+      local serverVersion = result.serverVersion
+      if not clientVersion or not serverVersion then
+        return
       end
-    end,
-    nil,
-    function(_, data)
-      if data and config.options.skew.log_level < 5 then
-        vim.notify(data, vim.log.levels.ERROR)
-      end
-    end,
-    nil
-  )
+      M.versions.client.major = clientVersion.major
+      M.versions.client.minor = clientVersion.minor
+      M.versions.server.minor = serverVersion.minor
+      M.versions.server.major = serverVersion.major
+    else
+      vim.schedule(function()
+        require("kubectl.resources.contexts").View()
+      end)
+    end
+  end)
 end
 
 function M.stop_livez()
@@ -122,30 +115,22 @@ function M.stop_livez()
   end
 end
 
-function M.checkHealth(cb)
+function M.checkHealth()
   M.livez.timer = vim.uv.new_timer()
-  local ResourceBuilder = require("kubectl.resourcebuilder")
-  local builder = ResourceBuilder:new("health_check"):setCmd({ "{{BASE}}/livez" }, "curl")
 
-  M.livez.timer:start(0, 5000, function()
-    builder:fetchAsync(
-      function(self)
-        if self.data == "ok" then
-          M.livez.ok = true
-          M.livez.time_of_ok = os.time()
-          if cb then
-            cb()
-          end
-        else
-          M.livez.ok = false
-        end
-      end,
-      nil,
-      function(_)
+  M.livez.timer:start(0, 2000, function()
+    commands.run_async("get_server_raw_async", { path = "/livez" }, function(data)
+      M.livez.ok = false
+      if data == "ok" then
+        M.livez.ok = true
+        M.livez.time_of_ok = os.time()
+      else
         M.livez.ok = false
-      end,
-      { timeout = 5000 }
-    )
+      end
+      vim.schedule(function()
+        vim.cmd("doautocmd User K8sDataLoaded")
+      end)
+    end)
   end)
 end
 
@@ -165,6 +150,24 @@ end
 --- @return string filter The current filter
 function M.getFilter()
   return M.filter
+end
+
+--- Get the current filter_key
+--- @return string filter_key The current filter
+function M.getFilterKey()
+  return M.filter_key
+end
+
+--- Get the current filter_label
+--- @return string[] filter_label The current filter
+function M.getFilterLabel()
+  return M.filter_label
+end
+
+--- Get the current session_filter_label
+--- @return string[] session_filter_label The current session filter label
+function M.getSessionFilterLabel()
+  return M.session_filter_label
 end
 
 --- Get the selections
@@ -197,6 +200,12 @@ function M.setProxyUrl(port)
   M.proxyUrl = "http://127.0.0.1:" .. port
 end
 
+function M.reset_filters()
+  M.filter_key = ""
+  M.filter_label = {}
+  M.session_filter_label = {}
+end
+
 --- Set the namespace
 --- @param ns string The namespace to set
 function M.setNS(ns)
@@ -210,13 +219,9 @@ function M.addToHistory(new_view)
   table.insert(M.history, new_view)
 end
 
-function M.set_session(ev)
-  local win_config = vim.api.nvim_win_get_config(0)
-
-  if win_config.relative == "" then
-    local session_name = M.context["current-context"]
-    M.session.contexts[session_name] = { view = ev.file, namespace = M.ns }
-  end
+function M.set_session(view)
+  local session_name = M.context["current-context"]
+  M.session.contexts[session_name] = { view = view, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
   commands.save_config("kubectl.json", M.session)
@@ -224,48 +229,57 @@ end
 
 function M.restore_session()
   local current_context = M.context["current-context"]
-  local config_file = commands.load_config("kubectl.json")
-  if config_file then
-    if config_file.contexts then
-      M.session.contexts = config_file.contexts
-    end
-    if config_file.filter_history then
-      M.session.filter_history = config_file.filter_history
-    end
-    if config_file.alias_history then
-      M.session.alias_history = config_file.alias_history
+  local session_view = "pods"
+
+  local ok, data_or_err = pcall(commands.load_config, "kubectl.json")
+  if ok and type(data_or_err) == "table" then
+    M.session = data_or_err
+    local ctx_session = M.session.contexts[current_context]
+    if ctx_session then
+      -- Found a saved context in the session file => restore from it
+      M.ns = ctx_session.namespace
+      M.filter_history = M.session.filter_history or {}
+      M.alias_history = M.session.alias_history or {}
+      session_view = ctx_session.view
     end
   end
 
-  if not M.session.contexts or not M.session.contexts[current_context] then
-    M.session.contexts[current_context] = { view = "pods", namespace = "All" }
+  if not M.ns and current_context and M.context then
+    local found_ns
+    for _, item in ipairs(M.context.contexts or {}) do
+      if item.name == current_context and item.context then
+        found_ns = item.context.namespace
+        break
+      end
+    end
+    if found_ns then
+      M.ns = found_ns
+    end
   end
 
-  -- Restore state
-  M.ns = M.session.contexts[current_context].namespace
-  M.filter_history = M.session.filter_history
-  M.alias_history = M.session.alias_history
+  if not M.ns then
+    M.ns = "All"
+  end
 
-  -- change view
-  local session_view = M.session.contexts[current_context].view
-  require("kubectl.views").view_or_fallback(session_view)
+  require("kubectl.views").resource_or_fallback(session_view)
 end
 
-function M.set_buffer_state(buf, filetype, mode, open_func, args)
+function M.set_buffer_state(buf, filetype, open_func, args)
   local function valid()
     return filetype ~= "k8s_picker"
-      and filetype ~= "k8s_container_exec"
-      and filetype ~= "k8s_namespace"
+      and filetype ~= "k8s_namespaces"
       and filetype ~= "k8s_aliases"
       and filetype ~= "k8s_filter"
-      and (not M.buffers[buf] or M.buffers[buf].args.filetype ~= filetype)
+      and filetype ~= "k8s_contexts"
+      and not M.buffers[buf]
   end
 
-  if mode == "dynamic" and valid() then
-    M.buffers[buf] = { open = open_func, args = args }
-  elseif mode == "floating" and valid() then
-    M.buffers[buf] = { open = open_func, args = args }
+  if not valid() then
+    return
   end
+
+  local current_tab = vim.api.nvim_get_current_tabpage()
+  M.buffers[buf] = { open = open_func, args = args, tab_id = current_tab }
 end
 
 return M

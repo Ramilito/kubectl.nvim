@@ -1,12 +1,15 @@
 local M = {}
 
+---@alias SkewConfig { enabled: boolean, log_level: number }
+---@alias HeadersConfig { enabled: boolean, hints: boolean, context: boolean, heartbeat: boolean, skew: SkewConfig }
+
 ---@class KubectlOptions
 ---@field log_level number
 ---@field auto_refresh { enabled: boolean, interval: number }
 ---@field terminal_cmd string?
 ---@field namespace string
 ---@field namespace_fallback string[]
----@field headers boolean
+---@field headers HeadersConfig
 ---@field hints boolean
 ---@field context boolean
 ---@field heartbeat boolean
@@ -15,12 +18,11 @@ local M = {}
 ---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
----@field skew { enabled: boolean, log_level: number }
 local defaults = {
   log_level = vim.log.levels.INFO,
   auto_refresh = {
     enabled = true,
-    interval = 300, -- milliseconds
+    interval = 500, -- milliseconds
   },
   diff = {
     bin = "kubediff",
@@ -33,15 +35,18 @@ local defaults = {
   terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {},
-  headers = true,
-
-  -- only relevant if headers is true
-  hints = true,
-  context = true,
-  heartbeat = true,
-
+  headers = {
+    enabled = true,
+    hints = true,
+    context = true,
+    heartbeat = true,
+    skew = {
+      enabled = true,
+      log_level = vim.log.levels.OFF,
+    },
+  },
   lineage = {
-    enabled = false,
+    enabled = true,
   },
   completion = {
     follow_cursor = false,
@@ -71,10 +76,6 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 5, -- highghlight if age is less than minutes
-  skew = {
-    enabled = true,
-    log_level = vim.log.levels.OFF,
-  },
 }
 
 ---@type KubectlOptions
