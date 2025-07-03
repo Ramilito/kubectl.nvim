@@ -503,6 +503,10 @@ function M.get_mappings()
         if not view_ok then
           return
         end
+        if not view.definition.child_view then
+          vim.notify("Not implemented: suggest a behaviour in our github")
+          return
+        end
 
         local name, ns = view.getCurrentSelection()
         if name then
