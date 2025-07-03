@@ -515,10 +515,9 @@ function M.get_mappings()
             child_view.View()
           end
         end
-
         vim.api.nvim_exec_autocmds("User", {
           pattern = "K8sResourceSelected",
-          data = { name = name, ns = ns },
+          data = { kind = view.definition.resource, name = name, ns = ns },
         })
       end,
     },
