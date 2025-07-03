@@ -88,8 +88,6 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 
 ## ⚡️ Required Dependencies
 
-- kubectl
-- curl
 - neovim >= 0.10
 
 ## ⚡️ Optional Dependencies
@@ -357,6 +355,35 @@ The plugin uses the following highlight groups:
 
 </details>
 
+
+## Events
+
+We trigger events that you can use to run custom logic:
+
+<details><summary>events</summary>
+
+| Name                | When                          | Data |
+| ------------------- | ----------------------------- | ----------------------------- |
+| K8sResourceSelected | On main views, when selecting a resource unless overriden (like pod view) | kind, name, ns |
+| K8sContextChanged | After context change | context |
+
+
+Example: saving session on context change
+
+```lua
+   vim.api.nvim_create_autocmd('User', {
+      group = group,
+      pattern = 'K8sContextChanged',
+      callback = function(ctx)
+        local results = require('kubectl.actions.commands').shell_command('kubectl', { 'config', 'use-context', ctx.data.context })
+        if not results then
+          vim.notify(results, vim.log.levels.INFO)
+        end
+      end,
+    })
+```
+
+
 ## 🚀 Performance
 
 ### Startup
@@ -364,11 +391,11 @@ The plugin uses the following highlight groups:
 The setup function only adds ~1ms to startup.
 We use kubectl proxy and curl to reduce latency.
 
-### Efficient Resource Monitoring
+### Efficient resource monitoring
 
-We leverage the Kubernetes Informer to efficiently monitor resource updates.
+We leverage the kubernetes informer to efficiently monitor resource updates.
 
-By using the `resourceVersion`, we avoid fetching all resources in each loop.
+By using the `resourceversion`, we avoid fetching all resources in each loop.
 
 Instead, the Informer provides only the changes, significantly reducing overhead and improving performance.
 
