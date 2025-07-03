@@ -382,7 +382,7 @@ Example: saving session on context change
       end,
     })
 ```
-
+</details>
 
 ## 🚀 Performance
 
