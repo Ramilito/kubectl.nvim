@@ -120,8 +120,8 @@ function M.exec(pod, ns, is_fullscreen)
   end
 
   spawn_terminal(
-    string.format("%s: %s | %s", pod, M.selection, ns),
-    "k8s_container_exec",
+    string.format("%s | %s: %s | %s", "container", pod, M.selection, ns),
+    "k8s_exec",
     client.exec,
     is_fullscreen,
     ns,
@@ -158,8 +158,8 @@ function M.debug(pod, ns, is_fullscreen)
   builder.action_view(def, data, function(_args)
     vim.schedule(function()
       spawn_terminal(
-        string.format("%s: %s | %s", pod, M.selection, ns),
-        "k8s_container_debug",
+        string.format("%s | %s: %s | %s", "container", pod, M.selection, ns),
+        "k8s_debug",
         client.debug,
         is_fullscreen,
         ns,

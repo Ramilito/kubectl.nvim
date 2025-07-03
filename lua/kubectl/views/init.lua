@@ -102,12 +102,17 @@ function M.Picker()
     local kind = vim.trim(parts[1])
     local resource = vim.trim(parts[2] or "")
     local namespace = vim.trim(parts[3] or "")
+    local type = value.args[1]:gsub("k8s_", "")
+    local symbol = hl.symbols.success
+    if type == "exec" then
+      symbol = hl.symbols.pending
+    end
     table.insert(data, {
       id = { value = id, symbol = hl.symbols.gray },
-      kind = { value = kind, symbol = hl.symbols.success },
-      type = { value = value.args[1]:gsub("k8s_", ""), symbol = hl.symbols.success },
-      resource = { value = resource, symbol = hl.symbols.success },
-      namespace = { value = namespace },
+      kind = { value = kind, symbol = symbol },
+      type = { value = type, symbol = symbol },
+      resource = { value = resource, symbol = symbol },
+      namespace = { value = namespace, symbol = hl.symbols.gray },
     })
   end
 
