@@ -225,7 +225,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
         args.sort_order,
         args.filter,
         args.filter_label,
-        None,
+        args.filter_key,
     )?;
 
     serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))

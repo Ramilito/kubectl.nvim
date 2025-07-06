@@ -61,6 +61,7 @@ function M.Draw(cancellationToken)
 
   local filter = state.getFilter()
   local filter_label = state.getFilterLabel()
+  local filter_key = state.getFilterKey()
   local sort_by = state.sortby[builder.definition.resource].current_word
   local sort_order = state.sortby[builder.definition.resource].order
 
@@ -71,6 +72,7 @@ function M.Draw(cancellationToken)
     sort_order = sort_order,
     filter = filter,
     filter_label = filter_label,
+    filter_key = filter_key,
   }, function(result)
     if not result then
       return
