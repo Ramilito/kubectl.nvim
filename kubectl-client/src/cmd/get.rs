@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use http::Uri;
+use futures::{stream::iter, StreamExt};
+use http::{Request, Uri};
 use k8s_openapi::{
-    apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
+    apimachinery::pkg::apis::meta::v1::APIResourceList,
     serde_json::{self},
 };
 use kube::{
@@ -10,16 +11,13 @@ use kube::{
     core::GroupVersionKind,
     discovery::{verbs, ApiCapabilities, Discovery, Scope},
     error::DiscoveryError,
-    Api, Client, Error,
+    Client, Error,
 };
 use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
-use tokio::{
-    time::{timeout, Duration},
-    try_join,
-};
+use tokio::time::{timeout, Duration};
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -322,29 +320,72 @@ impl FallbackResource {
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(move |client| async move {
-        let discovery_fut = Discovery::new(client.clone())
+        let discovery = Discovery::new(client.clone())
             .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
-            .run();
+            .run()
+            .await
+            .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
+        let doc_futs = discovery
+            .groups()
+            .flat_map(|g| {
+                let g_name = g.name().to_owned();
+                g.versions().map({
+                    let value = client.clone();
+                    move |ver| {
+                        let path = if g_name.is_empty() {
+                            format!("/api/{}", ver)
+                        } else {
+                            format!("/apis/{g}/{ver}", g = g_name, ver = ver)
+                        };
+                        let req = Request::get(path.clone()).body(Vec::new()).expect("req");
+                        let group = g_name.clone();
+                        let ver_s = ver.to_string();
+                        let client_inner = value.clone();
+                        async move {
+                            client_inner
+                                .request::<APIResourceList>(req)
+                                .await
+                                .map_err(move |e| (e, group, ver_s))
+                        }
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
 
-        let crd_api = Api::<CustomResourceDefinition>::all(client.clone());
-        let list_params = ListParams::default();
-        let crd_list_fut = crd_api.list(&list_params);
-
-        let (discovery, crds) = try_join!(discovery_fut, crd_list_fut)
-            .map_err(|e| LuaError::external(format!("initial calls: {e}")))?;
+        let lists = iter(doc_futs)
+            .buffer_unordered(20)
+            .collect::<Vec<_>>()
+            .await;
 
         let mut sn_map: HashMap<String, Vec<String>> = HashMap::new();
-        for crd in crds.items {
-            let key = if crd.spec.group.is_empty() {
-                crd.spec.names.plural.clone()
-            } else {
-                format!("{}.{}", crd.spec.names.plural, crd.spec.group)
+        for res in lists {
+            let list = match res {
+                Ok(l) => l,
+                Err((e, g, v)) => {
+                    tracing::warn!("skip discovery doc {g}/{v}: {e}");
+                    continue;
+                }
             };
-            let mut names = crd.spec.names.short_names.unwrap_or_default();
-            if let Some(s) = &crd.spec.names.singular {
-                names.push(s.clone());
+
+            let group = list
+                .group_version
+                .split_once('/')
+                .map(|(g, _)| g)
+                .unwrap_or("");
+
+            for r in list.resources {
+                let key = if group.is_empty() {
+                    r.name.clone()
+                } else {
+                    format!("{}.{}", r.name, group)
+                };
+
+                let mut alias = r.short_names.unwrap_or_default();
+                if !r.singular_name.is_empty() {
+                    alias.push(r.singular_name.clone());
+                }
+                sn_map.entry(key).or_default().extend(alias);
             }
-            sn_map.insert(key, names);
         }
 
         let resources: Vec<FallbackResource> = discovery
@@ -359,7 +400,6 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
             })
             .collect();
 
-        serde_json::to_string(&resources)
-            .map_err(|e| LuaError::external(format!("JSON serialization error: {e}")))
+        serde_json::to_string(&resources).map_err(|e| LuaError::external(format!("serialize: {e}")))
     })
 }
