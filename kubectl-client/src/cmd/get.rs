@@ -1,11 +1,16 @@
+use std::collections::HashMap;
+
 use http::Uri;
-use k8s_openapi::serde_json::{self};
+use k8s_openapi::{
+    apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
+    serde_json::{self, Value},
+};
 use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt, TypeMeta},
     core::GroupVersionKind,
     discovery::{verbs, ApiCapabilities, Discovery, Scope},
     error::DiscoveryError,
-    Client, Error,
+    Api, Client, Error,
 };
 use mlua::prelude::*;
 use mlua::Either;
@@ -276,19 +281,24 @@ struct FallbackResource {
     gvk: GroupVersionKind,
     plural: String,
     namespaced: bool,
-    // short_names: Vec<String>,
     api_version: String,
     crd_name: String,
+    short_names: Vec<String>,
 }
 
 impl FallbackResource {
-    fn from_ar_cap(ar: &ApiResource, cap: &ApiCapabilities) -> Self {
+    fn from_ar_cap(
+        ar: &ApiResource,
+        cap: &ApiCapabilities,
+        shortnames_by_crd: &HashMap<String, Vec<String>>,
+    ) -> Self {
         let crd_name = if ar.group.is_empty() {
             ar.plural.clone()
         } else {
             format!("{}.{}", ar.plural, ar.group)
         };
-        FallbackResource {
+
+        Self {
             gvk: GroupVersionKind {
                 group: ar.group.clone(),
                 version: ar.version.clone(),
@@ -297,7 +307,10 @@ impl FallbackResource {
             plural: ar.plural.clone(),
             api_version: ar.api_version.clone(),
             namespaced: cap.scope == Scope::Namespaced,
-            // short_names: ar.short_names.clone(),
+            short_names: shortnames_by_crd
+                .get(&crd_name)
+                .cloned()
+                .unwrap_or_default(),
             crd_name,
         }
     }
@@ -306,11 +319,32 @@ impl FallbackResource {
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(move |client| async move {
+        let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+        let mut shortnames_by_crd: HashMap<String, Vec<String>> = HashMap::new();
+
+        for crd in crd_api
+            .list(&ListParams::default())
+            .await
+            .map_err(|e| LuaError::external(format!("CRD list error: {e}")))?
+            .items
+        {
+            let key = if crd.spec.group.is_empty() {
+                crd.spec.names.plural.clone()
+            } else {
+                format!("{}.{}", crd.spec.names.plural, crd.spec.group)
+            };
+            let mut names = crd.spec.names.short_names.unwrap_or_default();
+            if let Some(sing) = &crd.spec.names.singular {
+                names.push(sing.clone());
+            }
+            shortnames_by_crd.insert(key, names);
+        }
+
         let discovery = Discovery::new(client.clone())
             .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
             .run()
             .await
-            .map_err(|e| mlua::Error::RuntimeError(format!("Discovery error: {}", e)))?;
+            .map_err(|e| LuaError::external(format!("Discovery error: {e}")))?;
 
         let resources: Vec<_> = discovery
             .groups()
@@ -320,10 +354,11 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
                     .filter(|(ar, caps)| {
                         caps.supports_operation(verbs::LIST) && ar.plural != "componentstatuses"
                     })
-                    .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps))
+                    .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps, &shortnames_by_crd))
             })
             .collect();
+
         serde_json::to_string(&resources)
-            .map_err(|e| mlua::Error::RuntimeError(format!("JSON serialization error: {}", e)))
+            .map_err(|e| LuaError::external(format!("JSON serialization error: {e}")))
     })
 }
