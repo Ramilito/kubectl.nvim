@@ -12,6 +12,8 @@ use crate::{
     utils::{time_since, AccessorMode, FieldValue},
 };
 
+type FieldAccessorFn<'a, R> = Box<dyn Fn(&R, &str) -> Option<String> + 'a>;
+
 pub trait Processor: Debug + Send + Sync {
     type Row: Debug + Clone + Send + Sync + serde::Serialize;
 
@@ -19,10 +21,7 @@ pub trait Processor: Debug + Send + Sync {
 
     fn filterable_fields(&self) -> &'static [&'static str];
 
-    fn field_accessor(
-        &self,
-        mode: AccessorMode,
-    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_>;
+    fn field_accessor(&self, mode: AccessorMode) -> FieldAccessorFn<'_, Self::Row>;
 
     fn labels_match(obj: &DynamicObject, wanted: &[(&str, &str)]) -> bool {
         match &obj.metadata.labels {
