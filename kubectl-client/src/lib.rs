@@ -219,7 +219,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
     let proc = processor_for("fallback");
     let processed = proc.process_fallback(
         &lua,
-        args.name,
+        args.gvk,
         args.namespace,
         args.sort_by,
         args.sort_order,

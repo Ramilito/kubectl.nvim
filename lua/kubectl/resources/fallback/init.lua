@@ -66,7 +66,7 @@ function M.Draw(cancellationToken)
   local sort_order = state.sortby[builder.definition.resource].order
 
   commands.run_async("get_fallback_table_async", {
-    name = builder.definition.crd_name,
+    gvk = builder.definition.gvk,
     namespace = ns,
     sort_by = sort_by,
     sort_order = sort_order,

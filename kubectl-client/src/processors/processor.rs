@@ -8,8 +8,11 @@ use crate::{
     events::symbols,
     filter::filter_dynamic,
     sort::sort_dynamic,
+    structs::Gvk,
     utils::{time_since, AccessorMode, FieldValue},
 };
+
+type FieldAccessorFn<'a, R> = Box<dyn Fn(&R, &str) -> Option<String> + 'a>;
 
 pub trait Processor: Debug + Send + Sync {
     type Row: Debug + Clone + Send + Sync + serde::Serialize;
@@ -18,10 +21,7 @@ pub trait Processor: Debug + Send + Sync {
 
     fn filterable_fields(&self) -> &'static [&'static str];
 
-    fn field_accessor(
-        &self,
-        mode: AccessorMode,
-    ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_>;
+    fn field_accessor(&self, mode: AccessorMode) -> FieldAccessorFn<'_, Self::Row>;
 
     fn labels_match(obj: &DynamicObject, wanted: &[(&str, &str)]) -> bool {
         match &obj.metadata.labels {
@@ -161,7 +161,7 @@ pub trait Processor: Debug + Send + Sync {
     fn process_fallback(
         &self,
         _lua: &Lua,
-        _name: String,
+        _gvk: Gvk,
         _ns: Option<String>,
         _sort_by: Option<String>,
         _sort_order: Option<String>,

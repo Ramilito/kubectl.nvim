@@ -5,6 +5,8 @@ use kube::api::DynamicObject;
 use mlua::{Lua, Result as LuaResult};
 use tracing::{span, Level};
 
+use crate::structs::Gvk;
+
 use super::{
     clusterrolebinding::ClusterRoleBindingProcessor, configmap::ConfigmapProcessor,
     container::ContainerProcessor, cronjob::CronJobProcessor,
@@ -48,6 +50,7 @@ pub enum ProcessorKind {
 impl FromStr for ProcessorKind {
     type Err = ();
 
+    #[tracing::instrument]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "clusterrolebinding" => Self::ClusterRoleBinding,
@@ -77,6 +80,7 @@ impl FromStr for ProcessorKind {
 }
 
 #[inline]
+#[tracing::instrument]
 pub fn processor_for(kind: &str) -> ProcessorKind {
     kind.parse().unwrap_or(ProcessorKind::Default)
 }
@@ -105,10 +109,11 @@ fn run<P: Processor>(
 }
 
 impl ProcessorKind {
+    #[tracing::instrument]
     pub fn process_fallback(
         &self,
         lua: &Lua,
-        name: String,
+        gvk: Gvk,
         ns: Option<String>,
         sort_by: Option<String>,
         sort_order: Option<String>,
@@ -120,7 +125,7 @@ impl ProcessorKind {
         match self {
             Fallback => FallbackProcessor.process_fallback(
                 lua,
-                name,
+                gvk,
                 ns,
                 sort_by,
                 sort_order,
