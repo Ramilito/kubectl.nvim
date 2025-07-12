@@ -74,7 +74,7 @@ pub struct CmdScaleArgs {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GetFallbackTableArgs {
-    pub name: String,
+    pub gvk: Gvk,
     pub namespace: Option<String>,
     pub sort_by: Option<String>,
     pub sort_order: Option<String>,

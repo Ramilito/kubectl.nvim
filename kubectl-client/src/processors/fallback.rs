@@ -9,10 +9,12 @@ use kube::{
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::HashMap;
+use tokio::try_join;
 
 use super::processor::Processor;
 use crate::{
     cmd::utils::dynamic_api,
+    structs::Gvk,
     utils::{AccessorMode, FieldValue},
     with_client,
 };
@@ -133,10 +135,11 @@ impl Processor for FallbackProcessor {
         Err(LuaError::external("use process_fallback"))
     }
 
+    #[tracing::instrument]
     fn process_fallback(
         &self,
         lua: &Lua,
-        name: String,
+        gvk: Gvk,
         ns: Option<String>,
         sort_by: Option<String>,
         sort_order: Option<String>,
@@ -145,53 +148,61 @@ impl Processor for FallbackProcessor {
         filter_key: Option<String>,
     ) -> LuaResult<mlua::Value> {
         with_client(move |client| async move {
-            let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
-            let crd = crd_api.get(&name).await.map_err(LuaError::external)?;
-            let version = crd
-                .spec
-                .versions
-                .iter()
-                .find(|v| v.served)
-                .ok_or_else(|| LuaError::external("No served version"))?;
-
+            let gvk = GroupVersionKind {
+                group: gvk.g,
+                version: gvk.v,
+                kind: gvk.k.to_string(),
+            };
             let discovery = Discovery::new(client.clone())
-                .filter(&[&crd.spec.group])
+                .filter(&[&gvk.group])
                 .run()
                 .await
-                .map_err(LuaError::external)?;
+                .map_err(|e| LuaError::external(e.to_string()))?;
 
-            let gvk = GroupVersionKind {
-                group: crd.spec.group.clone(),
-                version: version.name.clone(),
-                kind: crd.spec.names.kind.clone(),
-            };
             let (ar, caps) = discovery
                 .resolve_gvk(&gvk)
                 .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {gvk:?}")))?;
 
+            let api: Api<DynamicObject> = dynamic_api(
+                ar.clone(),
+                caps.clone(),
+                client.clone(),
+                ns.as_deref(),
+                false,
+            );
+            let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+            let crd_name = format!("{}.{}", ar.plural, gvk.group);
+
+            let lp = ListParams::default();
+            let (crd_opt, list) = try_join!(crd_api.get_opt(&crd_name), api.list(&lp),)
+                .map_err(LuaError::external)?;
+
+            let cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
+                crd.spec
+                    .versions
+                    .iter()
+                    .find(|v| v.served && v.name == gvk.version)
+                    .and_then(|v| v.additional_printer_columns.as_ref())
+                    .map(|v| {
+                        v.iter()
+                            .map(|c| PrinterCol {
+                                name: c.name.clone(),
+                                json_path: c.json_path.clone(),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+
+            let items = list.items;
             let namespaced = matches!(caps.scope, Scope::Namespaced);
-            let api: Api<DynamicObject> = dynamic_api(ar, caps, client, ns.as_deref(), false);
+            let runtime = RuntimeFallbackProcessor {
+                cols: cols.clone(),
+                namespaced,
+            };
 
-            let items = api
-                .list(&ListParams::default())
-                .await
-                .map_err(LuaError::external)?
-                .items;
-
-            let cols: Vec<PrinterCol> = version
-                .additional_printer_columns
-                .as_ref()
-                .map(|v| {
-                    v.iter()
-                        .map(|c| PrinterCol {
-                            name: c.name.clone(),
-                            json_path: c.json_path.clone(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            let runtime = RuntimeFallbackProcessor { cols: cols.clone(), namespaced };
             let rows_vec = runtime.process(
                 &items,
                 sort_by.clone(),
@@ -214,7 +225,6 @@ impl Processor for FallbackProcessor {
             let tbl = lua.create_table()?;
             tbl.set("headers", headers_lua)?;
             tbl.set("rows", rows_lua)?;
-
             Ok(mlua::Value::Table(tbl))
         })
     }
