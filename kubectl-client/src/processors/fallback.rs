@@ -10,7 +10,6 @@ use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::HashMap;
 use tokio::try_join;
-use tracing::info;
 
 use super::processor::Processor;
 use crate::{
@@ -148,7 +147,6 @@ impl Processor for FallbackProcessor {
         filter_label: Option<Vec<String>>,
         filter_key: Option<String>,
     ) -> LuaResult<mlua::Value> {
-        info!("start");
         with_client(move |client| async move {
             let gvk = GroupVersionKind {
                 group: gvk.g,
