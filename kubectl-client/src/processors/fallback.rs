@@ -9,6 +9,7 @@ use kube::{
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::HashMap;
+use tokio::try_join;
 use tracing::info;
 
 use super::processor::Processor;
@@ -164,23 +165,26 @@ impl Processor for FallbackProcessor {
                 .resolve_gvk(&gvk)
                 .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {gvk:?}")))?;
 
+            let api: Api<DynamicObject> = dynamic_api(
+                ar.clone(),
+                caps.clone(),
+                client.clone(),
+                ns.as_deref(),
+                false,
+            );
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
             let crd_name = format!("{}.{}", ar.plural, gvk.group);
 
-            let crd_opt = crd_api
-                .get_opt(&crd_name)
-                .await
+            let lp = ListParams::default();
+            let (crd_opt, list) = try_join!(crd_api.get_opt(&crd_name), api.list(&lp),)
                 .map_err(LuaError::external)?;
 
             let cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
-                let ver = crd
-                    .spec
+                crd.spec
                     .versions
                     .iter()
                     .find(|v| v.served && v.name == gvk.version)
-                    .ok_or_else(|| LuaError::external("No served version on CRD"))?;
-                ver.additional_printer_columns
-                    .as_ref()
+                    .and_then(|v| v.additional_printer_columns.as_ref())
                     .map(|v| {
                         v.iter()
                             .map(|c| PrinterCol {
@@ -194,20 +198,7 @@ impl Processor for FallbackProcessor {
                 Vec::new()
             };
 
-            let api: Api<DynamicObject> = dynamic_api(
-                ar.clone(),
-                caps.clone(),
-                client.clone(),
-                ns.as_deref(),
-                false,
-            );
-
-            let items = api
-                .list(&ListParams::default())
-                .await
-                .map_err(LuaError::external)?
-                .items;
-
+            let items = list.items;
             let namespaced = matches!(caps.scope, Scope::Namespaced);
             let runtime = RuntimeFallbackProcessor {
                 cols: cols.clone(),
