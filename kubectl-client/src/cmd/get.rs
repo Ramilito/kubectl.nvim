@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use http::Uri;
 use k8s_openapi::{
     apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
-    serde_json::{self, Value},
+    serde_json::{self},
 };
 use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt, TypeMeta},
@@ -16,7 +16,10 @@ use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
-use tokio::time::{timeout, Duration};
+use tokio::{
+    time::{timeout, Duration},
+    try_join,
+};
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -319,34 +322,32 @@ impl FallbackResource {
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(move |client| async move {
-        let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
-        let mut shortnames_by_crd: HashMap<String, Vec<String>> = HashMap::new();
+        let discovery_fut = Discovery::new(client.clone())
+            .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
+            .run();
 
-        for crd in crd_api
-            .list(&ListParams::default())
-            .await
-            .map_err(|e| LuaError::external(format!("CRD list error: {e}")))?
-            .items
-        {
+        let crd_api = Api::<CustomResourceDefinition>::all(client.clone());
+        let list_params = ListParams::default();
+        let crd_list_fut = crd_api.list(&list_params);
+
+        let (discovery, crds) = try_join!(discovery_fut, crd_list_fut)
+            .map_err(|e| LuaError::external(format!("initial calls: {e}")))?;
+
+        let mut sn_map: HashMap<String, Vec<String>> = HashMap::new();
+        for crd in crds.items {
             let key = if crd.spec.group.is_empty() {
                 crd.spec.names.plural.clone()
             } else {
                 format!("{}.{}", crd.spec.names.plural, crd.spec.group)
             };
             let mut names = crd.spec.names.short_names.unwrap_or_default();
-            if let Some(sing) = &crd.spec.names.singular {
-                names.push(sing.clone());
+            if let Some(s) = &crd.spec.names.singular {
+                names.push(s.clone());
             }
-            shortnames_by_crd.insert(key, names);
+            sn_map.insert(key, names);
         }
 
-        let discovery = Discovery::new(client.clone())
-            .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
-            .run()
-            .await
-            .map_err(|e| LuaError::external(format!("Discovery error: {e}")))?;
-
-        let resources: Vec<_> = discovery
+        let resources: Vec<FallbackResource> = discovery
             .groups()
             .flat_map(|g| {
                 g.recommended_resources()
@@ -354,7 +355,7 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
                     .filter(|(ar, caps)| {
                         caps.supports_operation(verbs::LIST) && ar.plural != "componentstatuses"
                     })
-                    .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps, &shortnames_by_crd))
+                    .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps, &sn_map))
             })
             .collect();
 
