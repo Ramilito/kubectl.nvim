@@ -5,7 +5,11 @@ use rayon::prelude::*;
 use std::fmt::Debug;
 
 use crate::{
-    events::symbols, filter::filter_dynamic, sort::sort_dynamic, structs::Gvk, utils::{time_since, AccessorMode, FieldValue}
+    events::symbols,
+    filter::filter_dynamic,
+    sort::sort_dynamic,
+    structs::Gvk,
+    utils::{time_since, AccessorMode, FieldValue},
 };
 
 pub trait Processor: Debug + Send + Sync {
