@@ -165,15 +165,12 @@ impl Processor for FallbackProcessor {
                 .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {gvk:?}")))?;
 
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+            let crd_name = format!("{}.{}", ar.plural, gvk.group);
+
             let crd_opt = crd_api
-                .list(&ListParams::default())
+                .get_opt(&crd_name)
                 .await
-                .map_err(LuaError::external)?
-                .items
-                .into_iter()
-                .find(|c| {
-                    c.spec.group == gvk.group && c.spec.names.kind.eq_ignore_ascii_case(&gvk.kind)
-                });
+                .map_err(LuaError::external)?;
 
             let cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
                 let ver = crd
