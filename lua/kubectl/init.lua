@@ -23,11 +23,9 @@ function M.open()
   if config.options.headers.enabled then
     view.Header()
   end
-  vim.defer_fn(function()
-    vim.schedule(function()
-      cache.LoadFallbackData()
-    end)
-  end, 2000)
+  vim.schedule(function()
+    cache.LoadFallbackData()
+  end)
 end
 
 function M.close()
