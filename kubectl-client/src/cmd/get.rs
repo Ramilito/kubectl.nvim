@@ -1,11 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::{HashMap, HashSet};
 
-use futures::{stream::FuturesUnordered, StreamExt};
-use http::{Request, Uri};
-use k8s_openapi::{
-    apimachinery::pkg::apis::meta::v1::APIResourceList,
-    serde_json::{self},
-};
+use http::Uri;
+use k8s_openapi::serde_json::{self};
 use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt, TypeMeta},
     core::GroupVersionKind,
@@ -17,11 +13,8 @@ use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
-use tokio::{
-    sync::Semaphore,
-    task,
-    time::{timeout, Duration},
-};
+use tokio::time::{timeout, Duration};
+use tracing::{trace_span, warn, Instrument};
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -330,67 +323,60 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
             .await
             .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
 
-        let semaphore = Arc::new(Semaphore::new(20));
-        let mut tasks = FuturesUnordered::new();
+        let mut sn_map: HashMap<String, HashSet<String>> = HashMap::new();
 
         for group in discovery.groups() {
-            let g_name = group.name().to_owned();
+            let g_name = group.name();
             for ver in group.versions() {
-                let path = if g_name.is_empty() {
-                    format!("/api/{ver}")
-                } else {
-                    format!("/apis/{g_name}/{ver}")
-                };
-                let req = Request::get(&path).body(Vec::new()).expect("build req");
-                let semaphore = semaphore.clone();
+                let span = trace_span!("disc_doc", group = %g_name, version = %ver);
 
-                let client_cloned = client.clone();
-                let g_owned = g_name.clone();
-                let v_owned = ver.to_owned();
-
-                tasks.push(task::spawn(async move {
-                    let _permit = semaphore.acquire().await.unwrap();
-                    let response = client_cloned
-                        .request::<APIResourceList>(req)
-                        .await
-                        .map_err(|e| (e, g_owned, v_owned));
-
-                    drop(_permit);
-                    response
-                }));
-            }
-        }
-
-        let mut sn_map: HashMap<String, Vec<String>> = HashMap::new();
-        while let Some(outcome) = tasks.next().await {
-            match outcome {
-                Err(join_err) => tracing::warn!("worker task failed: {join_err}"),
-                Ok(Ok(list)) => {
-                    let group = list
-                        .group_version
-                        .split_once('/')
-                        .map(|(g, _)| g)
-                        .unwrap_or("");
-
-                    for r in list.resources {
-                        let key = if group.is_empty() {
-                            r.name.clone()
-                        } else {
-                            format!("{}.{}", r.name, group)
-                        };
-
-                        let mut aliases = r.short_names.unwrap_or_default();
-                        if !r.singular_name.is_empty() {
-                            aliases.push(r.singular_name.clone());
-                        }
-                        sn_map.entry(key).or_default().extend(aliases);
+                let result = async {
+                    if g_name.is_empty() {
+                        client.list_core_api_resources(ver).await
+                    } else {
+                        let gv = format!("{g_name}/{ver}");
+                        client.list_api_group_resources(&gv).await
                     }
                 }
-                Ok(Err((e, g, v))) => {
-                    tracing::warn!("skip discovery doc {g}/{v}: {e}");
+                .instrument(span)
+                .await;
+
+                match result {
+                    Ok(list) => {
+                        let group_str = list
+                            .group_version
+                            .split_once('/')
+                            .map(|(g, _)| g)
+                            .unwrap_or("");
+
+                        for r in list.resources {
+                            let key = if group_str.is_empty() {
+                                r.name.clone()
+                            } else {
+                                format!("{}.{}", r.name, group_str)
+                            };
+
+                            let mut names: HashSet<String> =
+                                r.short_names.unwrap_or_default().into_iter().collect();
+                            if !r.singular_name.is_empty() {
+                                names.insert(r.singular_name.clone());
+                            }
+                            sn_map.entry(key).or_default().extend(names);
+                        }
+                    }
+                    Err(e) => warn!("skip discovery doc {g_name}/{ver}: {e}"),
                 }
             }
         }
+
+        let sn_map: HashMap<String, Vec<String>> = sn_map
+            .into_iter()
+            .map(|(k, set)| {
+                let mut v: Vec<String> = set.into_iter().collect();
+                v.sort_unstable();
+                (k, v)
+            })
+            .collect();
 
         let resources: Vec<FallbackResource> = discovery
             .groups()
