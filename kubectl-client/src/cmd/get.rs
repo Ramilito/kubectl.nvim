@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use futures::{stream::iter, StreamExt};
+use futures::future::join_all;
 use http::{Request, Uri};
 use k8s_openapi::{
     apimachinery::pkg::apis::meta::v1::APIResourceList,
@@ -17,7 +17,11 @@ use mlua::prelude::*;
 use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
-use tokio::time::{timeout, Duration};
+use tokio::{
+    task,
+    time::{timeout, Duration},
+};
+use tracing::info_span;
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -320,71 +324,74 @@ impl FallbackResource {
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(move |client| async move {
+        let _enter = info_span!("get_api_resources_async::inner").entered();
+
         let discovery = Discovery::new(client.clone())
             .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
             .run()
             .await
             .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
-        let doc_futs = discovery
-            .groups()
-            .flat_map(|g| {
-                let g_name = g.name().to_owned();
-                g.versions().map({
-                    let value = client.clone();
-                    move |ver| {
-                        let path = if g_name.is_empty() {
-                            format!("/api/{}", ver)
-                        } else {
-                            format!("/apis/{g}/{ver}", g = g_name, ver = ver)
-                        };
-                        let req = Request::get(path.clone()).body(Vec::new()).expect("req");
-                        let group = g_name.clone();
-                        let ver_s = ver.to_string();
-                        let client_inner = value.clone();
-                        async move {
-                            client_inner
-                                .request::<APIResourceList>(req)
-                                .await
-                                .map_err(move |e| (e, group, ver_s))
-                        }
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
 
-        let lists = iter(doc_futs)
-            .buffer_unordered(20)
-            .collect::<Vec<_>>()
-            .await;
+        let mut handles = Vec::new();
+        let client_arc = client.clone();
 
-        let mut sn_map: HashMap<String, Vec<String>> = HashMap::new();
-        for res in lists {
-            let list = match res {
-                Ok(l) => l,
-                Err((e, g, v)) => {
-                    tracing::warn!("skip discovery doc {g}/{v}: {e}");
-                    continue;
-                }
-            };
-
-            let group = list
-                .group_version
-                .split_once('/')
-                .map(|(g, _)| g)
-                .unwrap_or("");
-
-            for r in list.resources {
-                let key = if group.is_empty() {
-                    r.name.clone()
+        for group in discovery.groups() {
+            let g_name = group.name().to_owned();
+            for ver in group.versions() {
+                let path = if g_name.is_empty() {
+                    format!("/api/{ver}")
                 } else {
-                    format!("{}.{}", r.name, group)
+                    format!("/apis/{g_name}/{ver}")
                 };
 
-                let mut alias = r.short_names.unwrap_or_default();
-                if !r.singular_name.is_empty() {
-                    alias.push(r.singular_name.clone());
+                let req = Request::get(&path).body(Vec::new()).expect("request build");
+
+                let g_owned = g_name.clone();
+                let v_owned = ver.to_owned();
+                let client_cloned = client_arc.clone();
+
+                handles.push(task::spawn(async move {
+                    client_cloned
+                        .request::<APIResourceList>(req)
+                        .await
+                        .map_err(|e| (e, g_owned, v_owned))
+                }));
+            }
+        }
+
+        let results = join_all(handles).await;
+
+        let mut sn_map: HashMap<String, Vec<String>> = HashMap::new();
+
+        for task_outcome in results {
+            match task_outcome {
+                Ok(Ok(list)) => {
+                    let group = list
+                        .group_version
+                        .split_once('/')
+                        .map(|(g, _)| g)
+                        .unwrap_or("");
+
+                    for r in list.resources {
+                        let key = if group.is_empty() {
+                            r.name.clone()
+                        } else {
+                            format!("{}.{}", r.name, group)
+                        };
+
+                        let mut aliases = r.short_names.unwrap_or_default();
+                        if !r.singular_name.is_empty() {
+                            aliases.push(r.singular_name.clone());
+                        }
+                        sn_map.entry(key).or_default().extend(aliases);
+                    }
                 }
-                sn_map.entry(key).or_default().extend(alias);
+                Ok(Err((e, g, v))) => {
+                    tracing::warn!("skip discovery doc {g}/{v}: {e}");
+                }
+                Err(join_err) => {
+                    tracing::warn!("worker task failed: {join_err}");
+                }
             }
         }
 
