@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use futures::future::join_all;
+use futures::{stream::FuturesUnordered, StreamExt};
 use http::{Request, Uri};
 use k8s_openapi::{
     apimachinery::pkg::apis::meta::v1::APIResourceList,
@@ -18,10 +18,10 @@ use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
 use tokio::{
+    sync::Semaphore,
     task,
     time::{timeout, Duration},
 };
-use tracing::info_span;
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -323,17 +323,15 @@ impl FallbackResource {
 
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
-    with_client(move |client| async move {
-        let _enter = info_span!("get_api_resources_async::inner").entered();
-
+    with_client(|client| async move {
         let discovery = Discovery::new(client.clone())
-            .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
+            .exclude(&[r"metrics.k8s.io", r"events.k8s.io"])
             .run()
             .await
             .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
 
-        let mut handles = Vec::new();
-        let client_arc = client.clone();
+        let semaphore = Arc::new(Semaphore::new(20));
+        let mut tasks = FuturesUnordered::new();
 
         for group in discovery.groups() {
             let g_name = group.name().to_owned();
@@ -343,28 +341,30 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
                 } else {
                     format!("/apis/{g_name}/{ver}")
                 };
+                let req = Request::get(&path).body(Vec::new()).expect("build req");
+                let semaphore = semaphore.clone();
 
-                let req = Request::get(&path).body(Vec::new()).expect("request build");
-
+                let client_cloned = client.clone();
                 let g_owned = g_name.clone();
                 let v_owned = ver.to_owned();
-                let client_cloned = client_arc.clone();
 
-                handles.push(task::spawn(async move {
-                    client_cloned
+                tasks.push(task::spawn(async move {
+                    let _permit = semaphore.acquire().await.unwrap();
+                    let response = client_cloned
                         .request::<APIResourceList>(req)
                         .await
-                        .map_err(|e| (e, g_owned, v_owned))
+                        .map_err(|e| (e, g_owned, v_owned));
+
+                    drop(_permit);
+                    response
                 }));
             }
         }
 
-        let results = join_all(handles).await;
-
         let mut sn_map: HashMap<String, Vec<String>> = HashMap::new();
-
-        for task_outcome in results {
-            match task_outcome {
+        while let Some(outcome) = tasks.next().await {
+            match outcome {
+                Err(join_err) => tracing::warn!("worker task failed: {join_err}"),
                 Ok(Ok(list)) => {
                     let group = list
                         .group_version
@@ -388,9 +388,6 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
                 }
                 Ok(Err((e, g, v))) => {
                     tracing::warn!("skip discovery doc {g}/{v}: {e}");
-                }
-                Err(join_err) => {
-                    tracing::warn!("worker task failed: {join_err}");
                 }
             }
         }
