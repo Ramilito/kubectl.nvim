@@ -78,8 +78,20 @@ function M.apply_marks(bufnr, marks, header)
   pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
   local local_marks = marks
   local local_header = header
-
   state.marks.ns_id = ns_id
+
+  local is_float = false
+  -- TODO: Extract column header management
+  local wins = vim.fn.win_findbuf(bufnr)
+  for _, win in ipairs(wins) do
+    local cfg = vim.api.nvim_win_get_config(win)
+    if cfg.relative ~= "" then
+      is_float = true
+    end
+  end
+  if not is_float then
+    state.marks.header = {}
+  end
 
   vim.schedule(function()
     if local_header and local_header.marks then
@@ -98,7 +110,6 @@ function M.apply_marks(bufnr, marks, header)
       end
     end
     if local_marks then
-      state.marks.header = {}
       for _, mark in ipairs(local_marks) do
         -- adjust for content not being at first row
         local start_row = mark.row
@@ -118,8 +129,9 @@ function M.apply_marks(bufnr, marks, header)
           sign_text = mark.sign_text or nil,
           sign_hl_group = mark.sign_hl_group or nil,
         })
+				-- TODO: Extract column header management
         -- the first row is always column headers, we save that so other content can use it
-        if ok and mark.row == 0 then
+        if not is_float and ok and mark.row == 0 then
           state.content_row_start = start_row + 1
           table.insert(state.marks.header, result)
         end
