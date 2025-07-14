@@ -69,7 +69,7 @@ pub fn setup_logger(
         .spawn(move || {
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
-                .worker_threads(1)
+                .worker_threads(4)
                 .build()
                 .expect("Tokio runtime");
 

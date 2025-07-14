@@ -18,7 +18,7 @@ end
 
 local function process_apis(resource, cached_api_resources)
   local name = string.lower(resource.crd_name)
-  cached_api_resources.values[name] = {
+  local value = {
     name = name,
     gvk = {
       g = resource.gvk.group,
@@ -31,18 +31,14 @@ local function process_apis(resource, cached_api_resources)
     api_version = resource.api_version,
   }
 
-  require("kubectl.state").sortby[name] = { mark = {}, current_word = "", order = "asc" }
-  -- cached_api_resources.shortNames[name] = resource
+  cached_api_resources.values[name] = value
 
-  -- if resource.singularName then
-  --   cached_api_resources.shortNames[resource.singularName] = name
-  -- end
-  --
-  -- if resource.shortNames then
-  --   for _, shortName in ipairs(resource.shortNames) do
-  --     cached_api_resources.shortNames[shortName] = name
-  --   end
-  -- end
+  if resource.short_names then
+    for _, shortName in ipairs(resource.short_names) do
+      cached_api_resources.shortNames[shortName] = value
+    end
+  end
+  require("kubectl.state").sortby[name] = { mark = {}, current_word = "", order = "asc" }
 end
 
 function M.load_cache(cached_api_resources)

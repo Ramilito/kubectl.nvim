@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use http::Uri;
 use k8s_openapi::serde_json::{self};
 use kube::{
@@ -12,6 +14,7 @@ use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
 use tokio::time::{timeout, Duration};
+use tracing::{trace_span, warn, Instrument};
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -276,19 +279,24 @@ struct FallbackResource {
     gvk: GroupVersionKind,
     plural: String,
     namespaced: bool,
-    // short_names: Vec<String>,
     api_version: String,
     crd_name: String,
+    short_names: Vec<String>,
 }
 
 impl FallbackResource {
-    fn from_ar_cap(ar: &ApiResource, cap: &ApiCapabilities) -> Self {
+    fn from_ar_cap(
+        ar: &ApiResource,
+        cap: &ApiCapabilities,
+        shortnames_by_crd: &HashMap<String, Vec<String>>,
+    ) -> Self {
         let crd_name = if ar.group.is_empty() {
             ar.plural.clone()
         } else {
             format!("{}.{}", ar.plural, ar.group)
         };
-        FallbackResource {
+
+        Self {
             gvk: GroupVersionKind {
                 group: ar.group.clone(),
                 version: ar.version.clone(),
@@ -297,7 +305,10 @@ impl FallbackResource {
             plural: ar.plural.clone(),
             api_version: ar.api_version.clone(),
             namespaced: cap.scope == Scope::Namespaced,
-            // short_names: ar.short_names.clone(),
+            short_names: shortnames_by_crd
+                .get(&crd_name)
+                .cloned()
+                .unwrap_or_default(),
             crd_name,
         }
     }
@@ -305,14 +316,69 @@ impl FallbackResource {
 
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
-    with_client(move |client| async move {
+    with_client(|client| async move {
         let discovery = Discovery::new(client.clone())
-            .exclude(&[r#"metrics.k8s.io"#, r#"events.k8s.io"#])
+            .exclude(&[r"metrics.k8s.io", r"events.k8s.io"])
             .run()
             .await
-            .map_err(|e| mlua::Error::RuntimeError(format!("Discovery error: {}", e)))?;
+            .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
 
-        let resources: Vec<_> = discovery
+        let mut sn_map: HashMap<String, HashSet<String>> = HashMap::new();
+
+        for group in discovery.groups() {
+            let g_name = group.name();
+            for ver in group.versions() {
+                let span = trace_span!("disc_doc", group = %g_name, version = %ver);
+
+                let result = async {
+                    if g_name.is_empty() {
+                        client.list_core_api_resources(ver).await
+                    } else {
+                        let gv = format!("{g_name}/{ver}");
+                        client.list_api_group_resources(&gv).await
+                    }
+                }
+                .instrument(span)
+                .await;
+
+                match result {
+                    Ok(list) => {
+                        let group_str = list
+                            .group_version
+                            .split_once('/')
+                            .map(|(g, _)| g)
+                            .unwrap_or("");
+
+                        for r in list.resources {
+                            let key = if group_str.is_empty() {
+                                r.name.clone()
+                            } else {
+                                format!("{}.{}", r.name, group_str)
+                            };
+
+                            let mut names: HashSet<String> =
+                                r.short_names.unwrap_or_default().into_iter().collect();
+                            if !r.singular_name.is_empty() {
+                                names.insert(r.singular_name.clone());
+                            }
+                            sn_map.entry(key).or_default().extend(names);
+                        }
+                    }
+                    Err(e) => warn!("skip discovery doc {g_name}/{ver}: {e}"),
+                }
+            }
+        }
+
+        let sn_map: HashMap<String, Vec<String>> = sn_map
+            .into_iter()
+            .map(|(k, set)| {
+                let mut v: Vec<String> = set.into_iter().collect();
+                v.sort_unstable();
+                (k, v)
+            })
+            .collect();
+
+        let resources: Vec<FallbackResource> = discovery
             .groups()
             .flat_map(|g| {
                 g.recommended_resources()
@@ -320,10 +386,10 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
                     .filter(|(ar, caps)| {
                         caps.supports_operation(verbs::LIST) && ar.plural != "componentstatuses"
                     })
-                    .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps))
+                    .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps, &sn_map))
             })
             .collect();
-        serde_json::to_string(&resources)
-            .map_err(|e| mlua::Error::RuntimeError(format!("JSON serialization error: {}", e)))
+
+        serde_json::to_string(&resources).map_err(|e| LuaError::external(format!("serialize: {e}")))
     })
 }

@@ -218,7 +218,6 @@ impl Processor for FallbackProcessor {
             } else {
                 vec!["NAME".into()]
             };
-            headers.push("AGE".into());
             headers.extend(cols.iter().map(|c| c.name.to_uppercase()));
 
             let headers_lua = lua.to_value(&headers)?;

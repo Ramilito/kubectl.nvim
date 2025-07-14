@@ -18,7 +18,9 @@ function M.View(cancellationToken, kind)
   if kind then
     M.resource = kind
   end
+
   local resource = cached_resources.values[string.lower(M.resource)]
+    or cached_resources.shortNames[string.lower(M.resource)]
 
   if not resource then
     require("kubectl.views").resource_or_fallback("pods")
@@ -36,7 +38,7 @@ function M.View(cancellationToken, kind)
 
   local builder = manager.get_or_create(M.definition.resource)
   builder.definition = M.definition
-  builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, M.resource)
+  builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, resource.name)
 
   commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = nil }, function()
     vim.schedule(function()
