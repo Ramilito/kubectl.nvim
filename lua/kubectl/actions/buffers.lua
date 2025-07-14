@@ -129,7 +129,7 @@ function M.apply_marks(bufnr, marks, header)
           sign_text = mark.sign_text or nil,
           sign_hl_group = mark.sign_hl_group or nil,
         })
-				-- TODO: Extract column header management
+        -- TODO: Extract column header management
         -- the first row is always column headers, we save that so other content can use it
         if not is_float and ok and mark.row == 0 then
           state.content_row_start = start_row + 1
