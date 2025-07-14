@@ -58,8 +58,7 @@ pub async fn init_reflector_for_kind(
             }
         })
         .default_backoff()
-        .reflect(writer)
-        .applied_objects();
+        .reflect(writer);
 
     tokio::spawn(async move {
         stream.for_each(|_| futures::future::ready(())).await;
