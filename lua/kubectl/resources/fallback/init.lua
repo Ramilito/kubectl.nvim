@@ -83,6 +83,7 @@ function M.Draw(cancellationToken)
     builder.decodeJson()
     builder.processedData = builder.data.rows
     builder.definition.headers = builder.data.headers
+    builder.sort()
 
     vim.schedule(function()
       local windows = buffers.get_windows_by_name(builder.definition.resource)
