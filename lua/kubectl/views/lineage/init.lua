@@ -173,9 +173,9 @@ function M.set_keymaps(bufnr)
         if ns then
           state.filter_key = state.filter_key .. ",metadata.namespace=" .. ns
         end
-        view.view_or_fallback(kind)
+        view.resource_or_fallback(kind)
       else
-        vim.api.nvim_err_writeln("Failed to select resource.")
+        vim.notify("Failed to select resource.", vim.log.levels.ERROR)
       end
     end,
   })
