@@ -27,12 +27,6 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // {
-    //     let map = get_store_map().read().await;
-    //     if map.contains_key(&gvk.kind) {
-    //         return Ok(());
-    //     }
-    // }
     let ar = ApiResource::from_gvk(&gvk);
     let api: Api<DynamicObject> = match namespace {
         Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),
