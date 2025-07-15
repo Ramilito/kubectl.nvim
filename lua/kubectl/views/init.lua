@@ -394,10 +394,10 @@ function M.UserCmd(args)
       return
     end
     self.splitData()
-    self.prettyData = self.data
 
     vim.schedule(function()
-      self.display("k8s_usercmd", "UserCmd").setContent()
+      self.buf_nr = 0
+      self.displayContentRaw()
     end)
   end)
 end

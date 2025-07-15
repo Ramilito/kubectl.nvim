@@ -23,7 +23,7 @@ M.overrides = {
         return
       end
       local view = require("kubectl.views")
-      view.view_or_fallback(name)
+      view.resource_or_fallback(name)
     end,
   },
 }
