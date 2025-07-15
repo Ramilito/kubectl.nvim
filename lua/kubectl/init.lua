@@ -87,7 +87,7 @@ function M.setup(options)
     if action == "get" then
       if #opts.fargs == 2 then
         local resource_type = opts.fargs[2]
-        view.view_or_fallback(resource_type)
+        view.resource_or_fallback(resource_type)
       else
         view.UserCmd(opts.fargs)
       end
