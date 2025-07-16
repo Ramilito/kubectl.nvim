@@ -40,7 +40,7 @@ pub async fn init_reflector_for_kind(
         let map = store_map.read().await;
         if let Some(entry) = map.get(&gvk.kind) {
             if !entry.task.is_finished() {
-                info!("reloading");
+                info!("watcher not recreated");
                 return Ok(());
             }
         }
