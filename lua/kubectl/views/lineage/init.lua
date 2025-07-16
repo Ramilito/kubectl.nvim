@@ -17,19 +17,29 @@ local M = {
 }
 
 function M.View(name, ns, kind)
+  if cache.loading then
+    vim.notify("cache is not ready")
+    return
+  end
+
+  M.total = 0
+  for _, _ in pairs(cache.cached_api_resources.values) do
+    M.total = M.total + 1
+  end
+
+  if M.total == 0 then
+    vim.notify("cache is not ready")
+    return
+  end
+
   M.builder = nil
   M.selection.name = name
   M.selection.ns = ns
   M.selection.kind = kind
-  M.total = 0
 
   if not M.loaded and not M.is_loading then
     M.is_loading = true
     M.load_cache()
-  end
-
-  for _, _ in pairs(cache.cached_api_resources.values) do
-    M.total = M.total + 1
   end
 
   M.builder = manager.get_or_create(definition.resource)
@@ -37,6 +47,14 @@ function M.View(name, ns, kind)
   M.builder.buf_nr, M.builder.win_nr =
     buffers.floating_dynamic_buffer(definition.ft, definition.resource, definition.syntax)
   M.Draw()
+
+  vim.api.nvim_create_autocmd("User", {
+    group = "kubectl_header",
+    pattern = "K8sDataLoaded",
+    callback = function()
+      M.Draw()
+    end,
+  })
 end
 
 function M.Draw()
@@ -153,6 +171,7 @@ function M.load_cache(callback)
     M.loaded = true
     if callback then
       callback()
+      vim.cmd("doautocmd User K8sLineageDataLoaded")
     end
   end)
 end
@@ -195,6 +214,9 @@ function M.set_keymaps(bufnr)
 end
 
 function M.set_folding(win_nr, buf_nr)
+  if not vim.api.nvim_win_is_valid(win_nr) then
+    return
+  end
   -- Set fold options using nvim_set_option_value
   vim.api.nvim_set_option_value("foldmethod", "expr", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldexpr", "v:lua.kubectl_fold_expr(v:lnum)", { scope = "local", win = win_nr })
