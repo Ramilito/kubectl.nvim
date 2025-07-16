@@ -305,9 +305,9 @@ function M.get_mappings()
               callback = function()
                 commands.run_async("edit_async", {
                   tmpfilename,
-                }, function(result, err)
+                }, function(result)
                   vim.schedule(function()
-                    vim.notify(result or err)
+                    vim.notify(result)
                   end)
                 end)
               end,
