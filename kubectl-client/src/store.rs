@@ -10,15 +10,23 @@ use kube::{
 use rayon::prelude::*;
 
 use kube::runtime::reflector::Store;
+use tracing::info;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+use tokio::task::JoinHandle;
 
-type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
-pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
+pub struct StoreEntry {
+    reader: Store<DynamicObject>,
+    task: JoinHandle<()>,
+}
 
-pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
-    STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
+pub static STORE_MAP: OnceLock<Arc<RwLock<HashMap<String, StoreEntry>>>> = OnceLock::new();
+
+pub fn get_store_map() -> Arc<RwLock<HashMap<String, StoreEntry>>> {
+    STORE_MAP
+        .get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
+        .clone()
 }
 
 #[tracing::instrument(skip(client))]
@@ -27,6 +35,17 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let store_map = get_store_map();
+    {
+        let map = store_map.read().await;
+        if let Some(entry) = map.get(&gvk.kind) {
+            if !entry.task.is_finished() {
+                info!("reloading");
+                return Ok(());
+            }
+        }
+    }
+
     let ar = ApiResource::from_gvk(&gvk);
     let api: Api<DynamicObject> = match namespace {
         Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),
@@ -54,26 +73,39 @@ pub async fn init_reflector_for_kind(
         .default_backoff()
         .reflect(writer);
 
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         stream.for_each(|_| futures::future::ready(())).await;
     });
 
     let _ = reader.wait_until_ready().await;
-    let mut map = get_store_map().write().await;
-    map.insert(gvk.kind.to_string(), reader);
+
+    {
+        let mut map = store_map.write().await;
+        if let Some(old) = map.insert(
+            gvk.kind.clone(),
+            StoreEntry {
+                reader,
+                task: handle,
+            },
+        ) {
+            old.task.abort();
+        }
+    }
 
     Ok(())
 }
 
 #[tracing::instrument]
 pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
-    let map = get_store_map().read().await;
+    let store_map = get_store_map();
+    let map = store_map.read().await;
     let store = match map.get(&kind.to_string()) {
         Some(store) => store,
         None => return Ok(Vec::new()),
     };
 
     let result: Vec<DynamicObject> = store
+        .reader
         .state()
         .par_iter()
         .filter(|arc_obj| {
@@ -98,13 +130,15 @@ pub async fn get_single(
     namespace: Option<String>,
     name: &str,
 ) -> Result<Option<DynamicObject>, mlua::Error> {
-    let map = get_store_map().read().await;
+    let store_map = get_store_map();
+    let map = store_map.read().await;
 
     let store = map
         .get(&kind.to_string())
         .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
 
     let result = store
+        .reader
         .state()
         .iter()
         .find(|arc_obj| {
