@@ -1,8 +1,9 @@
 use k8s_openapi::serde_json;
-use kube::api::{Api, DynamicObject, GroupVersionKind, ResourceExt};
+use kube::api::{Api, DynamicObject, GroupVersionKind, Patch, PatchParams, ResourceExt};
 use kube::discovery;
 use mlua::prelude::*;
 use mlua::Result as LuaResult;
+use tracing::{error, info};
 
 use crate::structs::CmdEditArgs;
 use crate::with_client;
@@ -18,7 +19,7 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
         let yaml_val: serde_yaml::Value = serde_yaml::from_str(&yaml_raw)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
-        let obj: DynamicObject = serde_yaml::from_value(yaml_val)
+        let mut obj: DynamicObject = serde_yaml::from_value(yaml_val)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
         let namespace = obj.metadata.namespace.as_deref();
@@ -49,21 +50,36 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
 
         live.managed_fields_mut().clear();
 
-        let live_yaml =
-            serde_yaml::to_string(&live).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-        let edited_yaml =
-            serde_yaml::to_string(&obj).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        obj.managed_fields_mut().clear();
+        obj.metadata.managed_fields = None;
 
-        if live_yaml == edited_yaml {
-            Ok(format!(
-                "no changes detected for {:?}/{:?}",
-                ar.plural, name
-            ))
-        } else {
-            api.replace(&name, &Default::default(), &obj)
-                .await
-                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-            Ok(format!("{}/{} edited", ar.plural, name))
+        let field_manager = "kubectl-edit-lua";
+        let patch = Patch::Strategic(&obj);
+        let pp = PatchParams::apply(field_manager).dry_run();
+
+        let mut simulated = api.patch(&name, &pp, &patch).await.unwrap();
+        simulated.managed_fields_mut().clear();
+
+        let changed =
+            serde_json::to_value(&live).unwrap() != serde_json::to_value(&simulated).unwrap();
+
+        if !changed {
+            return Ok(format!("no changes detected for {}/{}", ar.plural, name));
         }
+
+        let pp_real = PatchParams::apply(field_manager);
+        api.patch(&name, &pp_real, &patch)
+            .await
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        Ok(format!("{}/{} edited", ar.plural, name))
+
+        // match api.patch(&name, &pp, &patch).await {
+        //     Ok(resp) => Ok(format!("{:?}", resp)),
+        //     Err(kube::Error::Api(ae)) => {
+        //         error!("API error {}: {}", ae.code, ae.message); // <-- full text
+        //         Ok(ae.message)
+        //     }
+        //     Err(e) => Ok(e.to_string()),
+        // }
     })
 }
