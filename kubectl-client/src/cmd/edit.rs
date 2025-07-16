@@ -3,7 +3,6 @@ use kube::api::{Api, DynamicObject, GroupVersionKind, Patch, PatchParams, Resour
 use kube::discovery;
 use mlua::prelude::*;
 use mlua::Result as LuaResult;
-use tracing::{error, info};
 
 use crate::structs::CmdEditArgs;
 use crate::with_client;
@@ -49,15 +48,22 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
         live.managed_fields_mut().clear();
-
         obj.managed_fields_mut().clear();
         obj.metadata.managed_fields = None;
 
         let field_manager = "kubectl-edit-lua";
-        let patch = Patch::Strategic(&obj);
-        let pp = PatchParams::apply(field_manager).dry_run();
+        let patch = Patch::Apply(&obj);
+        let pp = PatchParams::apply(field_manager).force();
 
-        let mut simulated = api.patch(&name, &pp, &patch).await.unwrap();
+        let mut simulated = match api.patch(&name, &pp.clone().dry_run(), &patch).await {
+            Ok(o) => o,
+            Err(kube::Error::Api(ae)) => {
+                return Ok(ae.message);
+            }
+            Err(e) => {
+                return Ok(e.to_string());
+            }
+        };
         simulated.managed_fields_mut().clear();
 
         let changed =
@@ -67,19 +73,10 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
             return Ok(format!("no changes detected for {}/{}", ar.plural, name));
         }
 
-        let pp_real = PatchParams::apply(field_manager);
-        api.patch(&name, &pp_real, &patch)
-            .await
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-        Ok(format!("{}/{} edited", ar.plural, name))
-
-        // match api.patch(&name, &pp, &patch).await {
-        //     Ok(resp) => Ok(format!("{:?}", resp)),
-        //     Err(kube::Error::Api(ae)) => {
-        //         error!("API error {}: {}", ae.code, ae.message); // <-- full text
-        //         Ok(ae.message)
-        //     }
-        //     Err(e) => Ok(e.to_string()),
-        // }
+        match api.patch(&name, &pp, &patch).await {
+            Ok(resp) => Ok(format!("{:?}", resp)),
+            Err(kube::Error::Api(ae)) => Ok(ae.message),
+            Err(e) => Ok(e.to_string()),
+        }
     })
 }
