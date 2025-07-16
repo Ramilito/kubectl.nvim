@@ -1,6 +1,7 @@
 local cache = require("kubectl.cache")
 local config = require("kubectl.config")
 local ctx_view = require("kubectl.resources.contexts")
+local manager = require("kubectl.resource_manager")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
 local view = require("kubectl.views")
@@ -29,11 +30,15 @@ function M.open()
 end
 
 function M.close()
-  -- Only stop proxy and save session if not a floating buffer
   local win_config = vim.api.nvim_win_get_config(0)
 
   if win_config.relative == "" then
     state.stop_livez()
+  end
+  local header_builder = manager.get("header")
+  if header_builder then
+    vim.api.nvim_buf_delete(header_builder.buf_nr, { force = true })
+    manager.remove("header")
   end
   vim.api.nvim_buf_delete(0, { force = true })
 end

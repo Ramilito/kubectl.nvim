@@ -46,6 +46,7 @@ pub async fn init_reflector_for_kind(
         }
     }
 
+
     let ar = ApiResource::from_gvk(&gvk);
     let api: Api<DynamicObject> = match namespace {
         Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),
