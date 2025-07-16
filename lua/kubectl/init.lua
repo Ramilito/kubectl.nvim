@@ -35,8 +35,11 @@ function M.close()
   if win_config.relative == "" then
     state.stop_livez()
   end
-  local builder = manager.get_or_create("header")
-  vim.api.nvim_buf_delete(builder.buf_nr, { force = true })
+  local header_builder = manager.get("header")
+  if header_builder then
+    vim.api.nvim_buf_delete(header_builder.buf_nr, { force = true })
+    manager.remove("header")
+  end
   vim.api.nvim_buf_delete(0, { force = true })
 end
 
