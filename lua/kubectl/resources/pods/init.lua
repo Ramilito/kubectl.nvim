@@ -115,7 +115,7 @@ function M.TailLogs(pod, ns, container)
   end)
 
   vim.schedule(function()
-    vim.notify(ntfy)
+    vim.notify("Started" .. ntfy)
   end)
 
   local group = vim.api.nvim_create_augroup("__kubectl_tailing", { clear = false })

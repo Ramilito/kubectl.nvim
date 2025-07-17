@@ -524,9 +524,7 @@ function M.get_mappings()
         end
 
         local name, ns = view.getCurrentSelection()
-        if not view.definition.child_view then
-          vim.notify("Not implemented: suggest a behaviour in our github or listen to K8sResourceSelected cmd")
-        else
+        if view.definition.child_view then
           if name then
             local child_view = require("kubectl.resources." .. view.definition.child_view.name)
             state.filter_key = view.definition.child_view.predicate(name, ns)
