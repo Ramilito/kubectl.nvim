@@ -15,17 +15,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
 use tracing::info;
 
 pub struct StoreEntry {
     reader: Store<DynamicObject>,
-    task: JoinHandle<()>,
-    last_event: Arc<AtomicU64>, // updated on every item
+    last_event: Arc<AtomicU64>,
 }
 
 pub static STORE_MAP: OnceLock<Arc<RwLock<HashMap<String, StoreEntry>>>> = OnceLock::new();
-const STALE_AFTER_SECS: u64 = 30;
+const STALE_AFTER_SECS: u64 = 25;
 
 pub fn get_store_map() -> Arc<RwLock<HashMap<String, StoreEntry>>> {
     STORE_MAP
@@ -50,8 +48,7 @@ pub async fn init_reflector_for_kind(
     {
         let map = store_map.read().await;
         if let Some(e) = map.get(&gvk.kind) {
-            let healthy = !e.task.is_finished()
-                && (now() - e.last_event.load(Ordering::Relaxed) <= STALE_AFTER_SECS);
+            let healthy = now() - e.last_event.load(Ordering::Relaxed) <= STALE_AFTER_SECS;
             if healthy {
                 info!("watcher is healthy");
                 return Ok(());
@@ -60,7 +57,6 @@ pub async fn init_reflector_for_kind(
             }
         }
     }
-
 
     let ar = ApiResource::from_gvk(&gvk);
     let api: Api<DynamicObject> = match namespace {
@@ -91,7 +87,7 @@ pub async fn init_reflector_for_kind(
 
     let last_event = Arc::new(AtomicU64::new(now()));
     let le = last_event.clone();
-    let handle = tokio::spawn(async move {
+    tokio::spawn(async move {
         stream
             .for_each(move |_res| {
                 le.store(now(), Ordering::Relaxed);
@@ -104,16 +100,7 @@ pub async fn init_reflector_for_kind(
 
     {
         let mut map = store_map.write().await;
-        if let Some(old) = map.insert(
-            gvk.kind.clone(),
-            StoreEntry {
-                reader,
-                task: handle,
-                last_event,
-            },
-        ) {
-            old.task.abort();
-        }
+        map.insert(gvk.kind.clone(), StoreEntry { reader, last_event });
     }
 
     Ok(())
