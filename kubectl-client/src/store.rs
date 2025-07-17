@@ -25,7 +25,7 @@ pub struct StoreEntry {
 }
 
 pub static STORE_MAP: OnceLock<Arc<RwLock<HashMap<String, StoreEntry>>>> = OnceLock::new();
-const STALE_AFTER_SECS: u64 = 20;
+const STALE_AFTER_SECS: u64 = 30;
 
 pub fn get_store_map() -> Arc<RwLock<HashMap<String, StoreEntry>>> {
     STORE_MAP
