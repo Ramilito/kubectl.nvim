@@ -1,51 +1,37 @@
 use k8s_openapi::serde_json;
-use kube::api::{Api, DynamicObject, GroupVersionKind, ResourceExt};
+use kube::api::{Api, DynamicObject, GroupVersionKind, Patch, PatchParams, ResourceExt};
 use kube::discovery;
 use mlua::prelude::*;
 use mlua::Result as LuaResult;
-use tokio::runtime::Runtime;
 
-use crate::{structs::CmdEditArgs, CLIENT_INSTANCE, RUNTIME};
+use crate::structs::CmdEditArgs;
+use crate::with_client;
 
 #[tracing::instrument]
 pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdEditArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
-    let (client, rt_handle) = {
-        let client = {
-            let guard = CLIENT_INSTANCE.lock().map_err(|_| {
-                mlua::Error::RuntimeError("Failed to acquire lock on client instance".into())
+    with_client(move |client| async move {
+        let yaml_raw = std::fs::read_to_string(&args.path)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        let yaml_val: serde_yaml::Value = serde_yaml::from_str(&yaml_raw)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        let mut obj: DynamicObject = serde_yaml::from_value(yaml_val)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+
+        let namespace = obj.metadata.namespace.as_deref();
+        let gvk = obj
+            .types
+            .as_ref()
+            .ok_or_else(|| mlua::Error::RuntimeError("Missing apiVersion/kind".into()))
+            .and_then(|t| {
+                GroupVersionKind::try_from(t).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
             })?;
-            guard
-                .as_ref()
-                .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?
-                .clone()
-        };
-        let handle = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create runtime"));
-        (client, handle)
-    };
 
-    let yaml_raw = std::fs::read_to_string(&args.path)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    let yaml_val: serde_yaml::Value =
-        serde_yaml::from_str(&yaml_raw).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        let name = obj.name_any();
 
-    let obj: DynamicObject =
-        serde_yaml::from_value(yaml_val).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-
-    let namespace = obj.metadata.namespace.as_deref();
-    let gvk = obj
-        .types
-        .as_ref()
-        .ok_or_else(|| mlua::Error::RuntimeError("Missing apiVersion/kind".into()))
-        .and_then(|t| {
-            GroupVersionKind::try_from(t).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
-        })?;
-
-    let name = obj.name_any();
-
-    rt_handle.block_on(async {
         let (ar, _caps) = discovery::pinned_kind(&client, &gvk)
             .await
             .map_err(|e| LuaError::RuntimeError(format!("Failed to discover resource: {e}")))?;
@@ -62,22 +48,35 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
         live.managed_fields_mut().clear();
+        obj.managed_fields_mut().clear();
+        obj.metadata.managed_fields = None;
 
-        let live_yaml =
-            serde_yaml::to_string(&live).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-        let edited_yaml =
-            serde_yaml::to_string(&obj).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        let field_manager = "kubectl-edit-lua";
+        let patch = Patch::Apply(&obj);
+        let pp = PatchParams::apply(field_manager).force();
 
-        if live_yaml == edited_yaml {
-            Ok(format!(
-                "no changes detected for {:?}/{:?}",
-                ar.plural, name
-            ))
-        } else {
-            api.replace(&name, &Default::default(), &obj)
-                .await
-                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-            Ok(format!("{}/{} edited", ar.plural, name))
+        let mut simulated = match api.patch(&name, &pp.clone().dry_run(), &patch).await {
+            Ok(o) => o,
+            Err(kube::Error::Api(ae)) => {
+                return Ok(ae.message);
+            }
+            Err(e) => {
+                return Ok(e.to_string());
+            }
+        };
+        simulated.managed_fields_mut().clear();
+
+        let changed =
+            serde_json::to_value(&live).unwrap() != serde_json::to_value(&simulated).unwrap();
+
+        if !changed {
+            return Ok(format!("no changes detected for {}/{}", ar.plural, name));
+        }
+
+        match api.patch(&name, &pp, &patch).await {
+            Ok(resp) => Ok(format!("{:?}", resp)),
+            Err(kube::Error::Api(ae)) => Ok(ae.message),
+            Err(e) => Ok(e.to_string()),
         }
     })
 }
