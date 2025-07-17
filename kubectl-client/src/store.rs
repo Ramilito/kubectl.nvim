@@ -10,23 +10,34 @@ use kube::{
 use rayon::prelude::*;
 
 use kube::runtime::reflector::Store;
-use tracing::info;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+use tracing::info;
 
 pub struct StoreEntry {
     reader: Store<DynamicObject>,
     task: JoinHandle<()>,
+    last_event: Arc<AtomicU64>, // updated on every item
 }
 
 pub static STORE_MAP: OnceLock<Arc<RwLock<HashMap<String, StoreEntry>>>> = OnceLock::new();
+const STALE_AFTER_SECS: u64 = 20;
 
 pub fn get_store_map() -> Arc<RwLock<HashMap<String, StoreEntry>>> {
     STORE_MAP
         .get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
         .clone()
+}
+
+fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }
 
 #[tracing::instrument(skip(client))]
@@ -38,10 +49,14 @@ pub async fn init_reflector_for_kind(
     let store_map = get_store_map();
     {
         let map = store_map.read().await;
-        if let Some(entry) = map.get(&gvk.kind) {
-            if !entry.task.is_finished() {
-                info!("watcher not recreated");
+        if let Some(e) = map.get(&gvk.kind) {
+            let healthy = !e.task.is_finished()
+                && (now() - e.last_event.load(Ordering::Relaxed) <= STALE_AFTER_SECS);
+            if healthy {
+                info!("watcher is healthy");
                 return Ok(());
+            } else {
+                info!("resetting watcher");
             }
         }
     }
@@ -53,7 +68,7 @@ pub async fn init_reflector_for_kind(
         None => Api::all_with(client.clone(), &ar),
     };
 
-    let config = watcher::Config::default().page_size(10500);
+    let config = watcher::Config::default().page_size(10500).timeout(20);
     let writer: Writer<DynamicObject> = Writer::new(ar.clone());
     let reader: Store<DynamicObject> = writer.as_reader();
 
@@ -74,8 +89,15 @@ pub async fn init_reflector_for_kind(
         .default_backoff()
         .reflect(writer);
 
+    let last_event = Arc::new(AtomicU64::new(now()));
+    let le = last_event.clone();
     let handle = tokio::spawn(async move {
-        stream.for_each(|_| futures::future::ready(())).await;
+        stream
+            .for_each(move |_res| {
+                le.store(now(), Ordering::Relaxed);
+                futures::future::ready(())
+            })
+            .await;
     });
 
     let _ = reader.wait_until_ready().await;
@@ -87,6 +109,7 @@ pub async fn init_reflector_for_kind(
             StoreEntry {
                 reader,
                 task: handle,
+                last_event,
             },
         ) {
             old.task.abort();
