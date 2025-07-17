@@ -371,6 +371,7 @@ function M.get_mappings()
 
         vim.api.nvim_set_option_value("modified", false, { buf = 0 })
         vim.notify("filtering for.. " .. filter_term)
+        vim.api.nvim_input("<Plug>(kubectl.refresh)")
       end,
     },
     ["<Plug>(kubectl.filter_label)"] = {
