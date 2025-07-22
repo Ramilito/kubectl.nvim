@@ -98,7 +98,7 @@ function M.change_context(cmd)
   state.context["current-context"] = cmd
 
   local client = require("kubectl.client")
-  local ok = client.set_implementation()
+  local ok, result = client.set_implementation()
   if ok then
     state.setup()
     local cache = require("kubectl.cache")
@@ -108,7 +108,7 @@ function M.change_context(cmd)
       data = { context = cmd },
     })
   else
-    vim.notify("Failed to initialise client", vim.log.levels.ERROR)
+    vim.notify(result, vim.log.levels.ERROR)
   end
 end
 

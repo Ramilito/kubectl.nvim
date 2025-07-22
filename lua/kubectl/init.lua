@@ -14,7 +14,12 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   local client = require("kubectl.client")
-  client.set_implementation()
+  local ok, result = client.set_implementation()
+
+  if not ok then
+    vim.notify(result, vim.log.levels.ERROR)
+    return
+  end
 
   hl.setup()
   vim.schedule(function()
