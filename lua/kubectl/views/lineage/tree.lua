@@ -12,9 +12,13 @@ local function selectors_match(selectors, labels)
   if not selectors or not labels then
     return false
   end
-  for key, value in pairs(selectors) do
-    if labels[key] ~= value then
-      return false
+  if type(selectors) == "string" then
+    print("Selector should be a table: " .. selectors)
+  else
+    for key, value in pairs(selectors) do
+      if labels[key] ~= value then
+        return false
+      end
     end
   end
   return true
@@ -100,11 +104,12 @@ function Tree:link_nodes()
         if owner_node and not node.is_linked then
           owner_node:add_child(node)
           node.is_linked = true
-        else
+          -- else
           -- We ignore events since they can have references to resources that no longer exist
-          if resource.kind ~= "event" then
-            print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
-          end
+          -- if resource.kind ~= "event" then
+          -- TODO: This is information level print, disabling until we have a way to choose level
+          -- print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
+          -- end
         end
       end
 
