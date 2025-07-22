@@ -171,7 +171,7 @@ function M.load_cache(callback)
     M.loaded = true
     if callback then
       vim.schedule(function()
-				callback()
+        callback()
         vim.cmd("doautocmd User K8sLineageDataLoaded")
       end)
     end
