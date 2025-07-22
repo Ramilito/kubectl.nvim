@@ -145,7 +145,7 @@ function M.load_cache(callback)
 
   -- Memory usage before creating the table
   local mem_before = collectgarbage("count")
-  local relationships = require("kubectl.utils.relationships")
+  local relationships = require("kubectl.views.lineage.relationships")
 
   commands.await_all(all_gvk, function()
     M.processed = M.processed + 1
