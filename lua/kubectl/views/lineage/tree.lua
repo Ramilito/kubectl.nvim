@@ -12,9 +12,13 @@ local function selectors_match(selectors, labels)
   if not selectors or not labels then
     return false
   end
-  for key, value in pairs(selectors) do
-    if labels[key] ~= value then
-      return false
+  if type(selectors) == "string" then
+    print("Selector should be a table: " .. selectors)
+  else
+    for key, value in pairs(selectors) do
+      if labels[key] ~= value then
+        return false
+      end
     end
   end
   return true
