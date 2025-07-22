@@ -50,12 +50,19 @@ function M.processRow(rows, cached_api_resources, relationships)
       -- Add ownerReferences
       if item.metadata.ownerReferences then
         for _, owner in ipairs(item.metadata.ownerReferences) do
+          -- TODO: Check if resource is NamespaceScoped or ClusterScoped in a better way
+          local get_ns = function()
+            if owner.kind == "Node" then
+              return nil
+            end
+            return owner.namespace or item.metadata.namespace
+          end
           table.insert(owners, {
             kind = owner.kind,
             apiVersion = owner.apiVersion,
             name = owner.name,
             uid = owner.uid,
-            ns = owner.namespace or item.metadata.namespace,
+            ns = get_ns(),
           })
         end
       end
