@@ -106,9 +106,10 @@ function Tree:link_nodes()
           node.is_linked = true
         else
           -- We ignore events since they can have references to resources that no longer exist
-          if resource.kind ~= "event" then
-            print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
-          end
+          -- if resource.kind ~= "event" then
+          -- TODO: This is information level print, disabling until we have a way to choose level
+          -- print("Owner " .. owner_key .. " not found in the tree for: " .. resource.name)
+          -- end
         end
       end
 
