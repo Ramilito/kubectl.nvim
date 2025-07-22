@@ -11,7 +11,6 @@ use rayon::prelude::*;
 
 use kube::runtime::reflector::Store;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 

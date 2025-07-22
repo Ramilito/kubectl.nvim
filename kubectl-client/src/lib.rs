@@ -2,6 +2,7 @@
 use ctor::dtor;
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
+use kube::config::ExecInteractiveMode;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use metrics::pods::{shutdown_collectors, spawn_pod_collector, PodStat, SharedPodStats};
 use mlua::prelude::*;
@@ -88,7 +89,7 @@ where
 }
 
 #[tracing::instrument]
-fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
+fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
     shutdown_collectors();
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
 
@@ -111,6 +112,17 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
                 .await
                 .map_err(LuaError::external)?;
 
+            if let Some(exec) = cfg.auth_info.exec.as_mut() {
+                exec.interactive_mode = Some(ExecInteractiveMode::Never);
+            }
+            if let Some(exec) = cfg.auth_info.exec.as_mut() {
+                if let Some(args) = exec.args.as_mut() {
+                    if let Some(pos) = args.iter().position(|a| a == "devicecode") {
+                        args[pos] = "azurecli".into();
+                    }
+                }
+            }
+
             cfg.read_timeout = Some(Duration::from_secs(15));
             let client = Client::try_from(cfg).map_err(LuaError::external)?;
 
@@ -131,7 +143,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
         Ok(c) => c,
         Err(e) => {
             tracing::warn!(error = %e, "failed to initialise kube client");
-            return Ok(false);
+            return Ok((false, e.to_string()));
         }
     };
 
@@ -140,7 +152,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
         *g = Some(client.clone());
     }
 
-    Ok(true)
+    Ok((true, String::new()))
 }
 
 fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
