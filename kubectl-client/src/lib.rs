@@ -8,6 +8,7 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::time::Duration;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
@@ -106,10 +107,11 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<bool> {
                 user: None,
             };
 
-            let cfg = Config::from_kubeconfig(&opts)
+            let mut cfg = Config::from_kubeconfig(&opts)
                 .await
                 .map_err(LuaError::external)?;
 
+            cfg.read_timeout = Some(Duration::from_secs(15));
             let client = Client::try_from(cfg).map_err(LuaError::external)?;
 
             Ok(client)

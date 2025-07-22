@@ -11,6 +11,7 @@ use rayon::prelude::*;
 
 use kube::runtime::reflector::Store;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
@@ -27,13 +28,20 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    {
+        let map = get_store_map().read().await;
+        if map.contains_key(&gvk.kind) {
+            return Ok(());
+        }
+    }
+
     let ar = ApiResource::from_gvk(&gvk);
     let api: Api<DynamicObject> = match namespace {
         Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),
         None => Api::all_with(client.clone(), &ar),
     };
 
-    let config = watcher::Config::default().page_size(10500);
+    let config = watcher::Config::default().page_size(10500).timeout(20);
     let writer: Writer<DynamicObject> = Writer::new(ar.clone());
     let reader: Store<DynamicObject> = writer.as_reader();
 
