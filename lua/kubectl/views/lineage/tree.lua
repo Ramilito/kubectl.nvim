@@ -9,16 +9,13 @@ local function get_resource_key(resource)
 end
 
 local function selectors_match(selectors, labels)
-  if not selectors or not labels then
+  -- TODO: Handle when selectors is string scenario #592
+  if not selectors or not labels or type(selectors) == "string" then
     return false
   end
-  if type(selectors) == "string" then
-    print("Selector should be a table: " .. selectors)
-  else
-    for key, value in pairs(selectors) do
-      if labels[key] ~= value then
-        return false
-      end
+  for key, value in pairs(selectors) do
+    if labels[key] ~= value then
+      return false
     end
   end
   return true
