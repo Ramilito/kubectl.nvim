@@ -16,6 +16,13 @@ local M = {
   total = 0,
 }
 
+vim.api.nvim_create_autocmd("User", {
+  pattern = "K8sLineageDataLoaded",
+  callback = function()
+    M.Draw()
+  end,
+})
+
 function M.View(name, ns, kind)
   if cache.loading then
     vim.notify("cache is not ready")
@@ -47,14 +54,6 @@ function M.View(name, ns, kind)
   M.builder.buf_nr, M.builder.win_nr =
     buffers.floating_dynamic_buffer(definition.ft, definition.resource, definition.syntax)
   M.Draw()
-
-  vim.api.nvim_create_autocmd("User", {
-    group = "kubectl_header",
-    pattern = "K8sDataLoaded",
-    callback = function()
-      M.Draw()
-    end,
-  })
 end
 
 function M.Draw()
@@ -170,11 +169,11 @@ function M.load_cache(callback)
     M.is_loading = false
     M.loaded = true
     if callback then
-      vim.schedule(function()
-        callback()
-        vim.cmd("doautocmd User K8sLineageDataLoaded")
-      end)
+      callback()
     end
+    vim.schedule(function()
+      vim.cmd("doautocmd User K8sLineageDataLoaded")
+    end)
   end)
 end
 
