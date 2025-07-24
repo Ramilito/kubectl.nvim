@@ -24,58 +24,54 @@ local function calculate_column_widths(rows, columns)
 end
 
 --- Calculate and distribute extra padding
----@param widths table The table of current column widths
----@param headers string[] The column headers
----@param win number? The window number
+---@param widths  table     -- current column‑widths  (keyed by lower‑case header)
+---@param headers string[]  -- column headers, in display order
+---@param win     number?   -- window handle; defaults to current
 local function calculate_extra_padding(widths, headers, win)
   win = win or vim.api.nvim_get_current_win()
   if not vim.api.nvim_win_is_valid(win) then
     return
   end
+
+  ---------------------------------------------------------------------------
+  -- 1.  Minimum width for every column (text + “ | ” separator, etc.)
+  ---------------------------------------------------------------------------
   local win_width = vim.api.nvim_win_get_width(win)
   local textoff = vim.fn.getwininfo(win)[1].textoff
   local text_width = win_width - textoff
-  local total_width = 0
-  local separator_width = 3 -- Padding for sort icon or column separator
-  local column_count = #headers
 
-  -- Calculate the maximum width for each column, including separator width
-  for index, key in ipairs(headers) do
-    local value_width = widths[string.lower(key)] or 0
-    local header_width = #key
-    local max_width = math.max(header_width, value_width) + separator_width
-    if index == #headers then
-      max_width = max_width - separator_width + 1
+  local separator_width = 3 -- space reserved for sort icon / “ | ”
+  local total_width = 0
+
+  for i, header in ipairs(headers) do
+    local key = header:lower()
+    local value_width = widths[key] or 0
+    local col_width = math.max(#header, value_width) + separator_width
+
+    if i == #headers then -- no trailing separator after the last col
+      col_width = col_width - separator_width + 1
     end
-    widths[string.lower(key)] = max_width
-    total_width = total_width + max_width
+
+    widths[key] = col_width
+    total_width = total_width + col_width
   end
 
-  -- Calculate total padding needed (subtracting 2 for any additional offsets, not sure why this is needed tbh)
+  ---------------------------------------------------------------------------
+  -- 2.  Share the remaining room **across every column** (left‑aligned)
+  ---------------------------------------------------------------------------
   local total_padding = text_width - total_width - 2
-
-  if total_padding < 0 then
-    -- Not enough space to add extra padding
+  if total_padding <= 0 then
     return
   end
 
-  -- Exclude the last column from receiving extra padding
-  local padding_columns = column_count - 1
+  local ncols = #headers
+  local base_padding = math.floor(total_padding / ncols)
+  local remainder = total_padding % ncols
 
-  if padding_columns > 0 then
-    -- Calculate base padding and distribute any remainder
-    local base_padding = math.floor(total_padding / padding_columns)
-    local extra_padding = total_padding % padding_columns
-
-    -- Add padding to each column except the last one
-    for i, key in ipairs(headers) do
-      if i == column_count then
-        -- Do not add extra padding to the last column
-        break
-      end
-      local extra = (i <= extra_padding) and 1 or 0
-      widths[string.lower(key)] = widths[string.lower(key)] + base_padding + extra
-    end
+  for i, header in ipairs(headers) do
+    local key = header:lower()
+    local extra = (i <= remainder) and 1 or 0
+    widths[key] = widths[key] + base_padding + extra
   end
 end
 
