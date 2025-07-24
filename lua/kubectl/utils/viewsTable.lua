@@ -12,7 +12,12 @@ return {
   jobs = { "jobs", "job", "jo", "jobs.batch" },
   cronjobs = { "cronjobs", "cronjob", "cj", "cronjobs.batch" },
   events = { "events", "event", "ev", "events.events.k8s.io" },
-  horizontalpodautoscalers = { "horizontalpodautoscalers", "horizontalpodautoscaler", "hpa", "horizontalpodautoscalers.autoscaling" },
+  horizontalpodautoscalers = {
+    "horizontalpodautoscalers",
+    "horizontalpodautoscaler",
+    "hpa",
+    "horizontalpodautoscalers.autoscaling",
+  },
   nodes = { "nodes", "node", "no" },
   namespaces = { "ns", "namespace", "namespaces" },
   serviceaccounts = { "serviceaccounts", "serviceaccount", "sa" },
