@@ -10,7 +10,4 @@ fn main() {
     println!("cargo:rerun-if-changed={}", static_lib.display());
     println!("cargo:rustc-link-search=native={}", lib_path.display());
     println!("cargo:rustc-link-lib=static=kubectl_go");
-
-    println!("cargo:rustc-link-arg=-Wl,-Bdynamic");
-    println!("cargo:rustc-link-lib=gcc_s");
 }
