@@ -12,4 +12,3 @@ lto = "fat"
 strip = "symbols"
 codegen-units = 1
 panic = "unwind"
-
