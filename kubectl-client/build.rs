@@ -10,5 +10,9 @@ fn main() {
     println!("cargo:rerun-if-changed={}", static_lib.display());
     println!("cargo:rustc-link-search=native={}", lib_path.display());
     println!("cargo:rustc-link-lib=static=kubectl_go");
-    println!("cargo:rustc-link-lib=dylib=gcc_s");
+
+    if std::env::var("CARGO_CFG_TARGET_ENV").ok().as_deref() == Some("gnu") {
+        println!("cargo:rustc-link-arg=-Wl,-Bdynamic");
+        println!("cargo:rustc-link-lib=gcc_s");
+    }
 }
