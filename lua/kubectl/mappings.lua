@@ -206,6 +206,7 @@ function M.get_mappings()
       callback = function()
         local state = require("kubectl.state")
         state.reset_filters()
+        state.selections = {}
         if win_config.relative == "" then
           local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
           vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
