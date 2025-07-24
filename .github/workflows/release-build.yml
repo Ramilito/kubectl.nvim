@@ -100,7 +100,7 @@ jobs:
         run: |
           cargo install cross --git https://github.com/cross-rs/cross
           # Pass PREBUILT_GO_LIB so that build.rs links against our prebuilt Go library.
-          PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cross build --release --target ${{ matrix.target }}
+          PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cargo build --release --target ${{ matrix.target }}
           mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.so"
         shell: bash
 
