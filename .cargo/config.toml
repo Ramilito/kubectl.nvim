@@ -11,10 +11,18 @@ rustflags = [
 ]
 
 [target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "target-feature=-crt-static"]
+linker    = "gcc"
+rustflags = [
+    "-C", "target-feature=-crt-static",
+    "-C", "link-arg=-shared-libgcc"
+]
 
 [target.aarch64-unknown-linux-gnu]
-rustflags = ["-C", "target-feature=-crt-static"]
+linker    = "gcc"
+rustflags = [
+    "-C", "target-feature=-crt-static",
+    "-C", "link-arg=-shared-libgcc"
+]
 
 [target.x86_64-unknown-linux-musl]
 rustflags = ["-C", "target-feature=-crt-static"]
