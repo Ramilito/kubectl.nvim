@@ -30,7 +30,7 @@ use crate::cmd::portforward::{portforward_list, portforward_start, portforward_s
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
 use crate::processors::processor_for;
-use crate::statusline::{get_statusline, Statusline};
+use crate::statusline::get_statusline;
 use crate::store::get_store_map;
 
 cfg_if::cfg_if! {
