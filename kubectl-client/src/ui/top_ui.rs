@@ -141,8 +141,8 @@ fn visible_rows(offset_px: u16, row_h: u16, view_h: u16, overscan: u16) -> (usiz
 pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     /* snapshot ----------------------------------------------------------- */
     let pod_snapshot: Vec<PodStat> = { pod_stats().lock().unwrap().clone() };
-
     let node_snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
+
     /* outer frame -------------------------------------------------------- */
     f.render_widget(
         Block::new()

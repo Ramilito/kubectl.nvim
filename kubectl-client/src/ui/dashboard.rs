@@ -1,4 +1,4 @@
-use crate::{with_client, RUNTIME};
+use crate::RUNTIME;
 use crossterm::{
     event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEventKind},
     terminal::{disable_raw_mode, enable_raw_mode},
@@ -19,12 +19,9 @@ use tokio::{
     time::{self, Duration},
 };
 
-use crate::{
-    metrics::nodes::{spawn_node_collector, NodeStat, SharedNodeStats},
-    ui::{
-        overview_ui::{self, OverviewState},
-        top_ui::{self, InputMode, TopViewState},
-    },
+use crate::ui::{
+    overview_ui::{self, OverviewState},
+    top_ui::{self, InputMode, TopViewState},
 };
 
 struct NvWriter(mpsc::UnboundedSender<Vec<u8>>);
@@ -53,12 +50,6 @@ impl Session {
         let open = Arc::new(AtomicBool::new(true));
         let cols = Arc::new(AtomicU16::new(80));
         let rows = Arc::new(AtomicU16::new(24));
-
-        /* metrics collector -------------------------------------------------- */
-        let _ = with_client(|c| async move {
-            spawn_node_collector(c.clone());
-            Ok(())
-        });
 
         /* channels ----------------------------------------------------------- */
         let (tx_in, rx_in) = mpsc::unbounded_channel::<Vec<u8>>();

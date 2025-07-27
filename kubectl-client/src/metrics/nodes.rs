@@ -1,6 +1,5 @@
-//! src/node_stats.rs
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{Arc, Mutex, OnceLock},
     time::Duration,
 };
@@ -10,7 +9,9 @@ use k8s_openapi::api::core::v1::Node;
 use kube::{api, Api, Client, ResourceExt};
 use tokio::{task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
-use tracing::{info, warn};
+use tracing::warn;
+
+use crate::node_stats;
 
 pub const POLL_INTERVAL: Duration = Duration::from_secs(45);
 
@@ -30,7 +31,6 @@ impl NodeStat {
         }
     }
 
-    /// Push a new instantaneous sample and maintain a fixed‑length ring‑buffer.
     pub fn push_sample(&mut self, cpu_pct: f64, mem_pct: f64) {
         self.cpu_pct = cpu_pct;
         self.mem_pct = mem_pct;
@@ -38,11 +38,6 @@ impl NodeStat {
 }
 
 pub type SharedNodeStats = Arc<Mutex<Vec<NodeStat>>>;
-
-pub fn node_stats() -> &'static SharedNodeStats {
-    static STATS: OnceLock<SharedNodeStats> = OnceLock::new();
-    STATS.get_or_init(|| Arc::new(Mutex::new(Vec::new())))
-}
 
 struct NodeCollector {
     handle: JoinHandle<()>,
