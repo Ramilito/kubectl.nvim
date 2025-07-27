@@ -297,7 +297,6 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
 
 #[tracing::instrument]
 pub async fn get_statusline_async(lua: Lua, args: ()) -> LuaResult<String> {
-    info!("in get statusline");
     let statusline = get_statusline();
 
     let json_str = k8s_openapi::serde_json::to_string(&statusline)

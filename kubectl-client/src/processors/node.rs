@@ -107,7 +107,7 @@ impl Processor for NodeProcessor {
     }
 }
 
-fn get_status(node: &Node) -> FieldValue {
+pub fn get_status(node: &Node) -> FieldValue {
     let conditions: BTreeMap<_, _> = node
         .status
         .as_ref()

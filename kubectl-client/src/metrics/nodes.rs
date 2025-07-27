@@ -11,21 +11,23 @@ use tokio::{task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::node_stats;
+use crate::{node_stats, processors::node::get_status};
 
 pub const POLL_INTERVAL: Duration = Duration::from_secs(45);
 
 #[derive(Clone, Debug)]
 pub struct NodeStat {
     pub name: String,
+    pub status: String,
     pub cpu_pct: f64,
     pub mem_pct: f64,
 }
 
 impl NodeStat {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: String, status: String) -> Self {
         Self {
             name,
+            status,
             cpu_pct: 0.0,
             mem_pct: 0.0,
         }
@@ -72,7 +74,7 @@ impl NodeCollector {
                             match fetch.await {
                 Ok((node_list, metrics_list)) => {
                         // capacity map: name → (cpu cores, mem bytes)
-                        let mut cap: HashMap<String, (f64, i64)> = HashMap::new();
+                        let mut cap: HashMap<String, (String,f64, i64)> = HashMap::new();
                         for n in node_list {
                             if let (Some(cpu_q), Some(mem_q)) = (
                                 n.status
@@ -84,14 +86,15 @@ impl NodeCollector {
                             ) {
                                 let cpu_cores = cpu_q.to_f64().unwrap_or(0.); // e.g. “4”
                                 let mem_bytes = mem_q.to_memory().unwrap_or(0); // bytes
-                                cap.insert(n.name_any(), (cpu_cores, mem_bytes));
+                                let status = get_status(&n);
+                                cap.insert(n.name_any(), (status.value, cpu_cores, mem_bytes));
                             }
                         }
 
                         let mut out = Vec::new();
                         for m in metrics_list {
                             let name = m.metadata.name.unwrap_or_default();
-                            if let Some((cap_cpu, cap_mem)) = cap.get(&name) {
+                            if let Some((status, cap_cpu, cap_mem)) = cap.get(&name) {
                                 let used_cpu = m.usage.cpu.to_f64().unwrap_or(0.);
                                 let used_mem = m.usage.memory.to_memory().unwrap_or(0) as f64;
                                 let cap_mem = *cap_mem as f64;
@@ -110,6 +113,7 @@ impl NodeCollector {
 
                                 out.push(NodeStat {
                                     name,
+                                    status: status.to_string(),
                                     cpu_pct,
                                     mem_pct,
                                 });
