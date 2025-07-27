@@ -8,8 +8,8 @@ use crate::node_stats;
 pub struct Statusline {
     pub ready: u16,
     pub not_ready: u16,
-    pub cpu_pct: f64,
-    pub mem_pct: f64,
+    pub cpu_pct: u16,
+    pub mem_pct: u16,
 }
 pub fn get_statusline() -> Statusline {
     let snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
@@ -37,7 +37,7 @@ pub fn get_statusline() -> Statusline {
     Statusline {
         ready,
         not_ready,
-        cpu_pct: cpu_sum / n,
-        mem_pct: mem_sum / n,
+        cpu_pct: (cpu_sum / n) as u16,
+        mem_pct: (mem_sum / n) as u16,
     }
 }

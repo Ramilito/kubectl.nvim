@@ -13,7 +13,7 @@ use tracing::warn;
 
 use crate::{node_stats, processors::node::get_status};
 
-pub const POLL_INTERVAL: Duration = Duration::from_secs(45);
+pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Debug)]
 pub struct NodeStat {

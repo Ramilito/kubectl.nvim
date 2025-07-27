@@ -1,9 +1,11 @@
 local commands = require("kubectl.actions.commands")
+local manager = require("kubectl.resource_manager")
 local M = {
   interval = 2000,
 }
 
 M.View = function()
+  local _ = manager.get_or_create("statusline")
   vim.o.laststatus = 3
   local timer = vim.uv.new_timer()
 
