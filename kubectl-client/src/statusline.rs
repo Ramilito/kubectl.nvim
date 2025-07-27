@@ -1,14 +1,8 @@
-use k8s_openapi::api::core::v1::Node;
-use kube::api::ListParams;
-use kube::Api;
 use serde::Deserialize;
 use serde::Serialize;
-use tracing::error;
-use tracing::info;
 
 use crate::metrics::nodes::NodeStat;
 use crate::node_stats;
-use crate::with_client;
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct Statusline {
