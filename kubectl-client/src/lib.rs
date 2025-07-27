@@ -30,6 +30,7 @@ use crate::cmd::portforward::{portforward_list, portforward_start, portforward_s
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
 use crate::processors::processor_for;
+use crate::statusline::{get_statusline, Statusline};
 use crate::store::get_store_map;
 
 cfg_if::cfg_if! {
@@ -50,6 +51,7 @@ mod filter;
 mod metrics;
 mod processors;
 mod sort;
+mod statusline;
 mod store;
 mod structs;
 mod ui;
@@ -296,17 +298,11 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
 #[tracing::instrument]
 pub async fn get_statusline_async(lua: Lua, args: ()) -> LuaResult<String> {
     info!("in get statusline");
-    with_client(|client| async move {
-        let node_snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
-        // let stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
-        // spawn_node_collector(stats.clone(), client.clone());
-        // let node_stats = stats.lock().unwrap().clone();
+    let statusline = get_statusline();
 
-        for (idx, ns) in node_snapshot.iter().enumerate() {
-            info!("in gest statusline, {:?}", ns);
-        }
-        Ok("".to_string())
-    })
+    let json_str = k8s_openapi::serde_json::to_string(&statusline)
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+    return Ok(json_str);
 }
 
 /// Runs automatically when the cdylib is unloaded
