@@ -49,6 +49,17 @@ function M.close()
     vim.api.nvim_buf_delete(header_builder.buf_nr, { force = true })
     manager.remove("header")
   end
+  local statusline_builder = manager.get("statusline")
+  if statusline_builder then
+    vim.o.laststatus = statusline_builder.original_values.laststatus
+    pcall(
+      vim.api.nvim_set_option_value,
+      "statusline",
+      statusline_builder.original_values.statusline,
+      { scope = "global" }
+    )
+  end
+
   vim.api.nvim_buf_delete(0, { force = true })
 end
 

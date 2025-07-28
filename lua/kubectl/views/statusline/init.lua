@@ -6,11 +6,16 @@ local M = {
 }
 
 M.View = function()
-  local _ = manager.get_or_create("statusline")
+  local builder = manager.get_or_create("statusline")
+
+  builder.original_values = {
+    laststatus = vim.o.laststatus,
+    statusline = vim.o.statusline,
+  }
   vim.o.laststatus = 3
   local timer = vim.uv.new_timer()
 
-  timer:start(10000, M.interval, function()
+  timer:start(5000, M.interval, function()
     vim.schedule(function()
       M.Draw()
     end)
