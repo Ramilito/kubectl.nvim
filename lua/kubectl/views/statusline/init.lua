@@ -65,7 +65,7 @@ function M.process(data)
   local cpu_txt = string.format("%d", cpu) .. "%%"
   local mem_txt = string.format("%d", mem) .. "%%"
 
-  return dot
+  local core = dot
     .. " "
     .. hl_ready
     .. ready
@@ -84,6 +84,7 @@ function M.process(data)
     .. hl_evt
     .. crit_events
     .. reset
+  return "%=" .. core .. "%="
 end
 
 return M
