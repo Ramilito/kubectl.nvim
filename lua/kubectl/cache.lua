@@ -32,6 +32,7 @@ M.LoadFallbackData = function(force)
   end
 
   M.cached_api_resources = cached_data
+  M.timestamp = file_write_time
 end
 
 local function process_apis(resource, cached_api_resources)
@@ -78,6 +79,7 @@ function M.load_cache(cached_api_resources)
     end
 
     M.loading = false
+    M.timestamp = os.time()
     vim.schedule(function()
       vim.cmd("doautocmd User KubectlCacheLoaded")
       local ctx = require("kubectl.state").context["current-context"]
