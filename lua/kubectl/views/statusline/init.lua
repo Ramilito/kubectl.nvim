@@ -2,7 +2,7 @@ local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local M = {
-  interval = 10000,
+  interval = 30000,
 }
 
 M.View = function()
@@ -10,7 +10,7 @@ M.View = function()
   vim.o.laststatus = 3
   local timer = vim.uv.new_timer()
 
-  timer:start(0, M.interval, function()
+  timer:start(10000, M.interval, function()
     vim.schedule(function()
       M.Draw()
     end)
@@ -39,6 +39,7 @@ function M.process(data)
   local total = ready + not_ready
   local cpu = data.cpu_pct or 0
   local mem = data.mem_pct or 0
+  local crit_events = data.crit_events or 0
 
   local GOOD = hl.symbols.success
   local BAD = hl.symbols.error
@@ -46,11 +47,14 @@ function M.process(data)
   local ready_ok = (not_ready == 0)
   local cpu_ok = (cpu < 90)
   local mem_ok = (mem < 90)
+  local evt_ok = (crit_events == 0)
 
-  local ready_hl = "%#" .. (ready_ok and GOOD or BAD) .. "#"
-  local cpu_hl = "%#" .. (cpu_ok and GOOD or BAD) .. "#"
-  local mem_hl = "%#" .. (mem_ok and GOOD or BAD) .. "#"
-  local reset = "%*" -- reset back to default HL
+  local hl_ready = "%#" .. (ready_ok and GOOD or BAD) .. "#"
+  local hl_cpu = "%#" .. (cpu_ok and GOOD or BAD) .. "#"
+  local hl_mem = "%#" .. (mem_ok and GOOD or BAD) .. "#"
+  local hl_evt = "%#" .. (evt_ok and GOOD or BAD) .. "#"
+
+  local reset = "%*"
 
   local dot = ready_ok and "🟢" or "🔴"
   local cpu_txt = string.format("%d", cpu) .. "%%"
@@ -58,18 +62,22 @@ function M.process(data)
 
   return dot
     .. " "
-    .. ready_hl
+    .. hl_ready
     .. ready
     .. "/"
     .. total
     .. reset
     .. " │ CPU "
-    .. cpu_hl
+    .. hl_cpu
     .. cpu_txt
     .. reset
     .. " │ MEM "
-    .. mem_hl
+    .. hl_mem
     .. mem_txt
+    .. reset
+    .. " │ EVT "
+    .. hl_evt
+    .. crit_events
     .. reset
 end
 

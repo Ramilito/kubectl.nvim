@@ -297,11 +297,12 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
 
 #[tracing::instrument]
 pub async fn get_statusline_async(lua: Lua, args: ()) -> LuaResult<String> {
-    let statusline = get_statusline();
-
-    let json_str = k8s_openapi::serde_json::to_string(&statusline)
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    return Ok(json_str);
+    with_client(|client| async move {
+        let statusline = get_statusline(client).await.unwrap();
+        let json_str = k8s_openapi::serde_json::to_string(&statusline)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        Ok(json_str)
+    })
 }
 
 /// Runs automatically when the cdylib is unloaded
