@@ -83,7 +83,7 @@ impl Processor for DaemonsetProcessor {
     }
 
     fn filterable_fields(&self) -> &'static [&'static str] {
-        &["namespace", "name", "ready"]
+        &["namespace", "name"]
     }
 
     fn field_accessor(
