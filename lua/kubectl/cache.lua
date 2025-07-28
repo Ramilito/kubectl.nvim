@@ -3,7 +3,7 @@ local manager = require("kubectl.resource_manager")
 
 local M = { handles = nil, loading = false, timestamp = nil, cached_api_resources = { values = {}, shortNames = {} } }
 
-local ten_min_in_seconds = 10 * 60
+local api_resources_cache_ttl = require("kubectl.config").options.api_resources_cache_ttl
 local current_time = os.time()
 
 M.LoadFallbackData = function(force)
@@ -26,7 +26,7 @@ M.LoadFallbackData = function(force)
   local file_write_time =
     vim.uv.fs_stat(vim.fn.stdpath("data") .. "/kubectl/api_resources/" .. ctx .. ".json").mtime.sec
 
-  if current_time - file_write_time >= ten_min_in_seconds then
+  if current_time - file_write_time >= api_resources_cache_ttl then
     M.load_cache(M.cached_api_resources)
     return
   end

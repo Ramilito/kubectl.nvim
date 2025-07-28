@@ -18,6 +18,7 @@ local M = {}
 ---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
 ---@field obj_fresh number
+---@field api_resources_cache_ttl number
 local defaults = {
   log_level = vim.log.levels.INFO,
   auto_refresh = {
@@ -76,6 +77,7 @@ local defaults = {
     row = 5,
   },
   obj_fresh = 5, -- highghlight if age is less than minutes
+  api_resources_cache_ttl = 60 * 60 * 3,
 }
 
 ---@type KubectlOptions
