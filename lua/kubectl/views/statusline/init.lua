@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local M = {
   interval = 2000,
@@ -39,9 +40,37 @@ function M.process(data)
   local cpu = data.cpu_pct or 0
   local mem = data.mem_pct or 0
 
-  local dot = (not_ready == 0) and "🟢" or "🔴"
+  local GOOD = hl.symbols.success
+  local BAD = hl.symbols.error
 
-  return string.format("%s %d/%d │ CPU %d │ MEM %d", dot, ready, total, cpu, mem)
+  local ready_ok = (not_ready == 0)
+  local cpu_ok = (cpu < 90)
+  local mem_ok = (mem < 90)
+
+  local ready_hl = "%#" .. (ready_ok and GOOD or BAD) .. "#"
+  local cpu_hl = "%#" .. (cpu_ok and GOOD or BAD) .. "#"
+  local mem_hl = "%#" .. (mem_ok and GOOD or BAD) .. "#"
+  local reset = "%*" -- reset back to default HL
+
+  local dot = ready_ok and "🟢" or "🔴"
+  local cpu_txt = string.format("%d", cpu) .. "%%"
+  local mem_txt = string.format("%d", mem) .. "%%"
+
+  return dot
+    .. " "
+    .. ready_hl
+    .. ready
+    .. "/"
+    .. total
+    .. reset
+    .. " │ CPU "
+    .. cpu_hl
+    .. cpu_txt
+    .. reset
+    .. " │ MEM "
+    .. mem_hl
+    .. mem_txt
+    .. reset
 end
 
 return M
