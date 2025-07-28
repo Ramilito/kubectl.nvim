@@ -224,14 +224,14 @@ function M.set_session(view)
   M.session.contexts[session_name] = { view = view, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
-  commands.save_config("kubectl.json", M.session)
+  commands.save_config(M.session)
 end
 
 function M.restore_session()
   local current_context = M.context["current-context"]
   local session_view = "pods"
 
-  local ok, data_or_err = pcall(commands.load_config, "kubectl.json")
+  local ok, data_or_err = pcall(commands.read_file, "kubectl.json")
   if ok and type(data_or_err) == "table" then
     M.session = data_or_err
     local ctx_session = M.session.contexts[current_context]
