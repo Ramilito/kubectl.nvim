@@ -224,6 +224,7 @@ function M.Aliases()
   vim.schedule(function()
     local header, marks = tables.generateHeader({
       { key = "<Plug>(kubectl.select)", desc = "apply" },
+      { key = "<Plug>(kubectl.refresh)", desc = "refresh" },
       { key = "<Plug>(kubectl.tab)", desc = "next" },
       { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
       -- TODO: Definition should be moved to mappings.lua
