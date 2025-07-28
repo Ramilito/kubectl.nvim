@@ -80,7 +80,7 @@ function M.process(data)
     .. hl_mem
     .. mem_txt
     .. reset
-    .. " │ EVT "
+    .. " │ EVENTS: "
     .. hl_evt
     .. crit_events
     .. reset
