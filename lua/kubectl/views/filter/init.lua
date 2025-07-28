@@ -8,7 +8,7 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local views = require("kubectl.views")
 
-local resource = "kubectl_filter_label"
+local resource = "filter_label"
 local M = {
   definition = {
     resource = resource,
