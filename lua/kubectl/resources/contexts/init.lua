@@ -102,7 +102,8 @@ function M.change_context(cmd)
   if ok then
     state.setup()
     local cache = require("kubectl.cache")
-    cache.LoadFallbackData(true)
+    cache.loading = false
+    cache.LoadFallbackData()
     local lineage = require("kubectl.views.lineage")
     lineage.loaded = false
     vim.api.nvim_exec_autocmds("User", {
