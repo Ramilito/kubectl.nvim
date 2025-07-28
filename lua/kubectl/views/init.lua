@@ -244,6 +244,14 @@ function M.Aliases()
     buffers.apply_marks(buf, marks, header)
     buffers.fit_to_content(buf, win, 1)
 
+    vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.refresh)", "", {
+      noremap = true,
+      callback = function()
+        vim.notify("Refreshing aliases...")
+        require("kubectl.cache").LoadFallbackData(true)
+      end,
+    })
+
     vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
       noremap = true,
       callback = function()

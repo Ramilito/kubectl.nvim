@@ -22,6 +22,7 @@ M.LoadFallbackData = function(force)
     M.load_cache(M.cached_api_resources)
     return
   end
+  M.cached_api_resources = cached_data
 
   local file_write_time =
     vim.uv.fs_stat(vim.fn.stdpath("data") .. "/kubectl/api_resources/" .. ctx .. ".json").mtime.sec
@@ -31,7 +32,6 @@ M.LoadFallbackData = function(force)
     return
   end
 
-  M.cached_api_resources = cached_data
   M.timestamp = file_write_time
 end
 
