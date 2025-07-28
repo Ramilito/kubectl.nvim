@@ -331,6 +331,9 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
     col = 10,
     row = 5,
   },
+  statusline = {
+    enabled = true
+  },
   obj_fresh = 5, -- highlight if creation newer than number (in minutes)
 }
 ```

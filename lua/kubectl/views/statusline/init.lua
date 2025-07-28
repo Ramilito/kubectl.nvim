@@ -2,7 +2,7 @@ local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local M = {
-  interval = 2000,
+  interval = 10000,
 }
 
 M.View = function()

@@ -32,8 +32,10 @@ function M.open()
   if config.options.headers.enabled then
     view.Header()
   end
-	local statusline = require("kubectl.views.statusline")
-	statusline.View()
+  if config.options.statusline.enabled then
+    local statusline = require("kubectl.views.statusline")
+    statusline.View()
+  end
 end
 
 function M.close()
