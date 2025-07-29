@@ -77,6 +77,8 @@ function M.setup()
       M.context = result
     end
 
+    local cache = require("kubectl.cache")
+    cache.LoadFallbackData()
     M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }

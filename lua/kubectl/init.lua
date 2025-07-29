@@ -1,4 +1,3 @@
-local cache = require("kubectl.cache")
 local config = require("kubectl.config")
 local ctx_view = require("kubectl.resources.contexts")
 local header = require("kubectl.views.header")
@@ -24,7 +23,6 @@ function M.open()
   hl.setup()
   vim.schedule(function()
     state.setup()
-    cache.LoadFallbackData()
   end)
 
   if config.options.headers.enabled then
