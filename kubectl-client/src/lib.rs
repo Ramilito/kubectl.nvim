@@ -309,6 +309,7 @@ pub async fn get_statusline_async(lua: Lua, args: ()) -> LuaResult<String> {
 #[dtor]
 fn on_unload() {
     shutdown_pod_collector();
+    shutdown_node_collector();
 
     {
         let mut client_guard = CLIENT_INSTANCE.lock().unwrap();

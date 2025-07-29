@@ -17,11 +17,11 @@ pub const HISTORY_LEN: usize = 60; // ≈ 30 s @ 500 ms tick or 30 min @ 30 s ti
 #[derive(Clone, Debug)]
 pub struct PodStat {
     pub namespace: String,
-    pub name: String,                    
-    pub cpu_m: u64,                     
-    pub mem_mi: u64,                   
-    pub cpu_history: Vec<u64>,        
-    pub mem_history: Vec<u64>,       
+    pub name: String,
+    pub cpu_m: u64,
+    pub mem_mi: u64,
+    pub cpu_history: Vec<u64>,
+    pub mem_history: Vec<u64>,
     pub containers: HashMap<String, ContainerSample>,
 }
 
@@ -32,6 +32,7 @@ pub struct ContainerSample {
 }
 
 impl PodStat {
+    #[tracing::instrument]
     pub fn new(namespace: String, name: String) -> Self {
         Self {
             namespace,
@@ -44,6 +45,7 @@ impl PodStat {
         }
     }
 
+    #[tracing::instrument]
     pub fn push_sample(&mut self, cpu_m: u64, mem_mi: u64) {
         self.cpu_m = cpu_m;
         self.mem_mi = mem_mi;
@@ -161,6 +163,7 @@ fn collector_slot() -> &'static Mutex<Option<PodCollector>> {
     COLLECTOR.get_or_init(|| Mutex::new(None))
 }
 
+#[tracing::instrument(skip(client))]
 pub fn spawn_pod_collector(client: Client) {
     let mut slot = collector_slot().lock().unwrap();
     if let Some(old) = slot.take() {
@@ -169,6 +172,7 @@ pub fn spawn_pod_collector(client: Client) {
     *slot = Some(PodCollector::new(client));
 }
 
+#[tracing::instrument]
 pub fn shutdown_pod_collector() {
     let mut slot = collector_slot().lock().unwrap();
     if let Some(old) = slot.take() {
