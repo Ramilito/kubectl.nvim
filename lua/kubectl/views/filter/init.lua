@@ -1,12 +1,9 @@
 local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
-local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local views = require("kubectl.views")
 
 local resource = "filter_label"
 local M = {
@@ -40,77 +37,6 @@ function M.save_history(input)
   end
 
   state.filter_history = result
-end
-
-function M.filter_label()
-  local buf_name = vim.api.nvim_buf_get_var(0, "buf_name")
-
-  local instance = manager.get(buf_name)
-  if not instance then
-    return
-  end
-  local view, definition = views.resource_and_definition(instance.resource)
-  local name, ns = view.getCurrentSelection()
-  if not name then
-    return
-  end
-
-  local def = {
-    resource = "filter_label",
-    display = "Filter on labels",
-    ft = "k8s_action",
-    ns = ns,
-    group = M.definition.group,
-    version = M.definition.version,
-    hints = {
-      { key = "<Plug>(kubectl.select)", desc = "apply" },
-      { key = "<Plug>(kubectl.tab)", desc = "next" },
-      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
-      { key = "<Plug>(kubectl.clear)", desc = "close" },
-      -- TODO: Definition should be moved to mappings.lua
-      { key = "<Plug>(kubectl.quit)", desc = "close" },
-    },
-    notes = "Select none to clear existing filters.",
-  }
-
-  local builder = manager.get_or_create(def.resource)
-  commands.run_async("get_single_async", {
-    kind = definition.gvk.k,
-    namespace = ns,
-    name = name,
-    output = "Json",
-  }, function(data)
-    if not data then
-      return
-    end
-
-    builder.data = data
-    builder.decodeJson()
-    local labels = builder.data.metadata.labels
-
-    local action_data = {}
-    for key, value in pairs(labels) do
-      table.insert(action_data, {
-        text = key .. "=" .. value,
-        value = "[ ]",
-        type = "positional",
-        options = { "[x]", "[ ]" },
-      })
-    end
-
-    builder.data = {}
-    vim.schedule(function()
-      builder.action_view(def, action_data, function(args)
-        local selection = {}
-        for _, item in ipairs(args) do
-          if item.value == "[x]" then
-            table.insert(selection, item.text)
-          end
-        end
-        state.filter_label = selection
-      end)
-    end)
-  end)
 end
 
 function M.filter()
