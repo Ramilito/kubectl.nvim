@@ -2,7 +2,10 @@ local buffers = require("kubectl.actions.buffers")
 local config = require("kubectl.config")
 local manager = require("kubectl.resource_manager")
 
-local M = {}
+local M = {
+  debounce_ms = 150,
+  pendin_id = nil,
+}
 
 local function is_overlapping()
   local ui = vim.api.nvim_list_uis()[1] -- current UI size
@@ -50,15 +53,24 @@ function M.View()
   vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = "kubectl_header",
     callback = function()
-      local win_id = vim.api.nvim_get_current_win()
-      local win_config = vim.api.nvim_win_get_config(win_id)
-      if win_config.relative == "" then
-        if is_overlapping() then
-          M.Close()
-        else
-          M.Draw()
-        end
+      if M.pending_id then
+        vim.fn.timer_stop(M.pending_id)
       end
+
+      M.pending_id = vim.fn.timer_start(M.debounce_ms, function()
+        M.pending_id = nil
+
+        local win = vim.api.nvim_get_current_win()
+        local conf = vim.api.nvim_win_get_config(win)
+
+        if conf.relative == "" then
+          if is_overlapping() then
+            M.Close()
+          else
+            M.Draw()
+          end
+        end
+      end)
     end,
   })
 end
