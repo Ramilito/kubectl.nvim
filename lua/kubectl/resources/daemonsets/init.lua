@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local definition = require("kubectl.resources.daemonsets.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -45,7 +44,6 @@ local M = {
       "NODE SELECTOR",
       "AGE",
     },
-    processRow = definition.processRow,
   },
 }
 

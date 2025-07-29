@@ -3,6 +3,7 @@ pub mod configmap;
 pub mod container;
 pub mod cronjob;
 pub mod customresourcedefinition;
+pub mod daemonset;
 pub mod default;
 pub mod deployment;
 pub mod fallback;
