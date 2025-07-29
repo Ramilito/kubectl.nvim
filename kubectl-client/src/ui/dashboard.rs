@@ -1,4 +1,4 @@
-use crate::{with_client, RUNTIME};
+use crate::RUNTIME;
 use crossterm::{
     event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEventKind},
     terminal::{disable_raw_mode, enable_raw_mode},
@@ -19,12 +19,9 @@ use tokio::{
     time::{self, Duration},
 };
 
-use crate::{
-    metrics::nodes::{spawn_node_collector, NodeStat, SharedNodeStats},
-    ui::{
-        overview_ui::{self, OverviewState},
-        top_ui::{self, InputMode, TopViewState},
-    },
+use crate::ui::{
+    overview_ui::{self, OverviewState},
+    top_ui::{self, InputMode, TopViewState},
 };
 
 struct NvWriter(mpsc::UnboundedSender<Vec<u8>>);
@@ -54,14 +51,6 @@ impl Session {
         let cols = Arc::new(AtomicU16::new(80));
         let rows = Arc::new(AtomicU16::new(24));
 
-        /* metrics collector -------------------------------------------------- */
-        let stats: SharedNodeStats = Arc::new(Mutex::new(Vec::new()));
-        let stats_copy = stats.clone();
-        let _ = with_client(|c| async move {
-            spawn_node_collector(stats.clone(), c.clone());
-            Ok(())
-        });
-
         /* channels ----------------------------------------------------------- */
         let (tx_in, rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
         let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
@@ -71,9 +60,7 @@ impl Session {
         let ui_open = open.clone();
         let ui_cols = cols.clone();
         let ui_rows = rows.clone();
-        rt.spawn(run_ui(
-            stats_copy, view_name, rx_in, tx_out, ui_open, ui_cols, ui_rows,
-        ));
+        rt.spawn(run_ui(view_name, rx_in, tx_out, ui_open, ui_cols, ui_rows));
 
         Ok(Self {
             tx_in,
@@ -122,7 +109,7 @@ impl UserData for Session {
 
 trait View: Send {
     fn on_event(&mut self, ev: &Event) -> bool;
-    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]);
+    fn draw(&mut self, f: &mut Frame, area: Rect);
 }
 
 macro_rules! scroll_nav {
@@ -205,8 +192,8 @@ impl View for OverviewView {
             _ => false,
         }
     }
-    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]) {
-        overview_ui::draw(f, nodes, area, &mut self.state);
+    fn draw(&mut self, f: &mut Frame, area: Rect) {
+        overview_ui::draw(f, area, &mut self.state);
     }
 }
 
@@ -251,8 +238,8 @@ impl View for TopView {
             _ => false,
         }
     }
-    fn draw(&mut self, f: &mut Frame, area: Rect, nodes: &[NodeStat]) {
-        top_ui::draw(f, area, &mut self.state, nodes);
+    fn draw(&mut self, f: &mut Frame, area: Rect) {
+        top_ui::draw(f, area, &mut self.state);
     }
 }
 
@@ -265,7 +252,6 @@ fn make_view(name: &str) -> Box<dyn View> {
 }
 
 async fn run_ui(
-    node_stats: SharedNodeStats,
     view_name: String,
     mut rx_in: mpsc::UnboundedReceiver<Vec<u8>>,
     tx_out: mpsc::UnboundedSender<Vec<u8>>,
@@ -297,13 +283,13 @@ async fn run_ui(
                         open.store(false, Ordering::Release);
                         break;
                     }
-                    if view.on_event(&ev) { draw(&mut term, &mut *view, &node_stats); }
+                    if view.on_event(&ev) { draw(&mut term, &mut *view); }
                 }
             }
 
             /* ── b) periodic tick ─────────────────────────────────────── */
             _ = tick.tick() => {
-                draw(&mut term, &mut *view, &node_stats);
+                draw(&mut term, &mut *view);
             }
 
             /* ── c) cooperative yield allows resize updates ───────────── */
@@ -318,14 +304,9 @@ async fn run_ui(
     disable_raw_mode().ok();
 }
 
-fn draw(
-    term: &mut Terminal<CrosstermBackend<NvWriter>>,
-    view: &mut dyn View,
-    stats: &SharedNodeStats,
-) {
-    let data = stats.lock().unwrap().clone();
+fn draw(term: &mut Terminal<CrosstermBackend<NvWriter>>, view: &mut dyn View) {
     let _ = term.draw(|f| {
         let area = f.area();
-        view.draw(f, area, &data);
+        view.draw(f, area);
     });
 }

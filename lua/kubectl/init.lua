@@ -3,6 +3,7 @@ local ctx_view = require("kubectl.resources.contexts")
 local header = require("kubectl.views.header")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
+local statusline = require("kubectl.views.statusline")
 local view = require("kubectl.views")
 
 local M = {
@@ -28,6 +29,9 @@ function M.open()
   if config.options.headers.enabled then
     header.View()
   end
+  if config.options.statusline.enabled then
+    statusline.View()
+  end
 end
 
 function M.close()
@@ -36,7 +40,9 @@ function M.close()
   if win_config.relative == "" then
     state.stop_livez()
   end
+  statusline.Close()
   header.Close()
+
   vim.api.nvim_buf_delete(0, { force = true })
 end
 

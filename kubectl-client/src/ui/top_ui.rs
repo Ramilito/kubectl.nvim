@@ -13,7 +13,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{
     metrics::{nodes::NodeStat, pods::PodStat},
-    pod_stats,
+    node_stats, pod_stats,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -138,9 +138,10 @@ fn visible_rows(offset_px: u16, row_h: u16, view_h: u16, overscan: u16) -> (usiz
 /*  DRAW ENTRY-POINT                                                      */
 /* ---------------------------------------------------------------------- */
 
-pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[NodeStat]) {
+pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     /* snapshot ----------------------------------------------------------- */
     let pod_snapshot: Vec<PodStat> = { pod_stats().lock().unwrap().clone() };
+    let node_snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
 
     /* outer frame -------------------------------------------------------- */
     f.render_widget(
@@ -183,7 +184,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
     /* ================================= NODES =========================== */
     if state.selected_tab == 0 {
         /* column width for NAME */
-        let title_w = node_stats
+        let title_w = node_snapshot
             .iter()
             .map(|ns| Line::from(ns.name.clone()).width() as u16 + 1)
             .max()
@@ -194,7 +195,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
         draw_header(f, hdr_area, title_w);
 
         /* scroll view ---------------------------------------------------- */
-        let content_h = node_stats.len() as u16 * CARD_HEIGHT;
+        let content_h = node_snapshot.len() as u16 * CARD_HEIGHT;
         let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
         let make_gauge = |label: &str, pct: f64, color: Color| {
             Gauge::default()
@@ -204,7 +205,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState, node_stats: &[N
                 .percent(pct.clamp(0.0, 100.0) as u16)
         };
 
-        for (idx, ns) in node_stats.iter().enumerate() {
+        for (idx, ns) in node_snapshot.iter().enumerate() {
             let y = idx as u16 * CARD_HEIGHT;
             let card = Rect {
                 x: 0,

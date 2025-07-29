@@ -16,10 +16,9 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use crate::metrics::nodes::NodeStat;
+use crate::{metrics::nodes::NodeStat, node_stats};
 
-#[derive(Clone, Copy)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 enum Pane {
     Info,
     #[default]
@@ -105,7 +104,7 @@ impl OverviewState {
 
 /*────────────────────── TOP-LEVEL DRAW FUNCTION ───────────────────────*/
 
-pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, st: &mut OverviewState) {
+pub fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
     /*────────────── split outer rect: 2 rows × 3 cols ──────────────*/
     let rows =
         Layout::vertical([Constraint::Percentage(60), Constraint::Percentage(40)]).split(area);
@@ -124,11 +123,12 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, st: &mut OverviewStat
     ])
     .split(rows[1]);
 
+    let node_snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
     /*─────────────── data prep (top-N lists etc.) ──────────────────*/
-    let mut by_cpu = stats.to_vec();
+    let mut by_cpu = node_snapshot.to_vec();
     by_cpu.sort_by(|a, b| b.cpu_pct.total_cmp(&a.cpu_pct));
 
-    let mut by_mem = stats.to_vec();
+    let mut by_mem = node_snapshot.to_vec();
     by_mem.sort_by(|a, b| b.mem_pct.total_cmp(&a.mem_pct));
 
     // demo placeholders – replace with real data later
@@ -146,7 +146,7 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, st: &mut OverviewStat
         cols_top[0],
         " Info ",
         &[
-            Line::from(format!("Nodes: {}", stats.len())),
+            Line::from(format!("Nodes: {}", node_snapshot.len())),
             Line::from("TAB / Shift-TAB – cycle focus"),
             Line::from("↑/↓, PgUp/PgDn  – scroll pane"),
             Line::from("q – quit"),
@@ -155,7 +155,7 @@ pub fn draw(f: &mut Frame, stats: &[NodeStat], area: Rect, st: &mut OverviewStat
         Color::Blue,
     );
 
-    draw_nodes_table(f, cols_top[1], " Nodes ", stats, &mut st.nodes);
+    draw_nodes_table(f, cols_top[1], " Nodes ", &node_snapshot, &mut st.nodes);
 
     draw_text_list(
         f,

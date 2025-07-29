@@ -169,7 +169,7 @@ pub fn spawn_pod_collector(client: Client) {
     *slot = Some(PodCollector::new(client));
 }
 
-pub fn shutdown_collectors() {
+pub fn shutdown_pod_collector() {
     let mut slot = collector_slot().lock().unwrap();
     if let Some(old) = slot.take() {
         old.shutdown();

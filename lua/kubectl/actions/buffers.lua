@@ -396,7 +396,6 @@ function M.buffer(filetype, title)
     vim.schedule(function()
       layout.set_win_options(win)
       layout.set_buf_options(buf, filetype, filetype, bufname)
-      vim.api.nvim_set_option_value("statusline", " ", { win = win })
     end)
   end
 

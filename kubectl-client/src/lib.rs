@@ -4,7 +4,8 @@ use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::config::ExecInteractiveMode;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
-use metrics::pods::{shutdown_collectors, spawn_pod_collector, PodStat, SharedPodStats};
+use metrics::nodes::{shutdown_node_collector, spawn_node_collector, NodeStat, SharedNodeStats};
+use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodStat, SharedPodStats};
 use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
@@ -13,6 +14,7 @@ use std::time::Duration;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
+use tracing::info;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -28,6 +30,7 @@ use crate::cmd::portforward::{portforward_list, portforward_start, portforward_s
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
 use crate::processors::processor_for;
+use crate::statusline::get_statusline;
 use crate::store::get_store_map;
 
 cfg_if::cfg_if! {
@@ -48,6 +51,7 @@ mod filter;
 mod metrics;
 mod processors;
 mod sort;
+mod statusline;
 mod store;
 mod structs;
 mod ui;
@@ -57,9 +61,14 @@ static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
 static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
+static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
 
 pub fn pod_stats() -> &'static SharedPodStats {
     POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
+}
+
+pub fn node_stats() -> &'static SharedNodeStats {
+    NODE_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<NodeStat>::new())))
 }
 
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
@@ -90,7 +99,8 @@ where
 
 #[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
-    shutdown_collectors();
+    shutdown_pod_collector();
+    shutdown_node_collector();
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
 
     let client_res: LuaResult<Client> = rt.block_on(async {
@@ -157,7 +167,8 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
 
 fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
     with_client(|client| async move {
-        spawn_pod_collector(client);
+        spawn_pod_collector(client.clone());
+        spawn_node_collector(client);
         Ok(())
     })?;
     Ok(true)
@@ -284,10 +295,20 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
     )
 }
 
+#[tracing::instrument]
+pub async fn get_statusline_async(lua: Lua, args: ()) -> LuaResult<String> {
+    with_client(|client| async move {
+        let statusline = get_statusline(client).await.unwrap();
+        let json_str = k8s_openapi::serde_json::to_string(&statusline)
+            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        Ok(json_str)
+    })
+}
+
 /// Runs automatically when the cdylib is unloaded
 #[dtor]
 fn on_unload() {
-    shutdown_collectors();
+    shutdown_pod_collector();
 
     {
         let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
@@ -406,6 +427,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "get_fallback_table_async",
         lua.create_async_function(get_fallback_table_async)?,
+    )?;
+    exports.set(
+        "get_statusline_async",
+        lua.create_async_function(get_statusline_async)?,
     )?;
     exports.set("delete_async", lua.create_async_function(delete_async)?)?;
     exports.set("scale_async", lua.create_async_function(scale_async)?)?;

@@ -17,6 +17,7 @@ local M = {}
 ---@field completion { follow_cursor: boolean }
 ---@field logs { prefix: boolean, timestamps: boolean, since: string }
 ---@field float_size { width: number, height: number, col: number, row: number }
+---@field statusline { enabled: boolean }
 ---@field obj_fresh number
 ---@field api_resources_cache_ttl number
 local defaults = {
@@ -75,6 +76,9 @@ local defaults = {
     height = 0.8,
     col = 10,
     row = 5,
+  },
+  statusline = {
+    enabled = false,
   },
   obj_fresh = 5, -- highghlight if age is less than minutes
   api_resources_cache_ttl = 60 * 60 * 3,
