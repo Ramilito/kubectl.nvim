@@ -64,9 +64,8 @@ function M.Draw(cancellationToken)
   local filter = state.getFilter()
   local filter_label = state.getFilterLabel()
   local filter_key = state.getFilterKey()
-  local sort_by = state.sortby[builder.definition.resource] and state.sortby[builder.definition.resource].current_word
-    or ""
-  local sort_order = state.sortby[builder.definition.resource] and state.sortby[builder.definition.resource].order or ""
+  local sort_by = state.sortby[builder.definition.resource].current_word or nil
+  local sort_order = state.sortby[builder.definition.resource].order or nil
 
   commands.run_async("get_fallback_table_async", {
     gvk = builder.definition.gvk,
