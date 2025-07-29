@@ -4,36 +4,37 @@ local state = require("kubectl.state")
 
 local M = { handles = nil, loading = false, timestamp = nil, cached_api_resources = { values = {}, shortNames = {} } }
 
-local api_resources_cache_ttl = require("kubectl.config").options.api_resources_cache_ttl
-local current_time = os.time()
+local ttl = require("kubectl.config").options.api_resources_cache_ttl
+local data = vim.fn.stdpath("data") .. "/kubectl"
 
 M.LoadFallbackData = function(force)
   if M.loading then
     return
   end
-  if force then
-    M.cached_api_resources = { values = {}, shortNames = {} }
-    M.load_cache(M.cached_api_resources)
-    return
-  end
 
   local ctx = state.context["current-context"]
-  local cached_data = commands.read_file("api_resources/" .. ctx .. ".json")
-  if not cached_data then
-    M.load_cache(M.cached_api_resources)
-    return
-  end
-  M.cached_api_resources = cached_data
+  local path = string.format("%s/%s.json", data .. "/api_resources", ctx)
 
-  local file_write_time =
-    vim.uv.fs_stat(vim.fn.stdpath("data") .. "/kubectl/api_resources/" .. ctx .. ".json").mtime.sec
+  local stat = vim.uv.fs_stat(path)
+  local is_stale = not stat or (os.time() - stat.mtime.sec >= ttl)
 
-  if current_time - file_write_time >= api_resources_cache_ttl then
+  if force or is_stale then
+    M.cached_api_resources = { values = {}, shortNames = {} }
     M.load_cache(M.cached_api_resources)
+    M.timestamp = os.time()
     return
   end
 
-  M.timestamp = file_write_time
+  local cached = commands.read_file("api_resources/" .. ctx .. ".json")
+  if cached then
+    M.cached_api_resources = cached
+    if stat then
+      M.timestamp = stat.mtime.sec
+    end
+  else
+    M.load_cache(M.cached_api_resources)
+    M.timestamp = os.time()
+  end
 end
 
 local function process_apis(resource, cached_api_resources)
