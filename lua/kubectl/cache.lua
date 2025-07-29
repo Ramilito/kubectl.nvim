@@ -1,5 +1,6 @@
 local commands = require("kubectl.actions.commands")
 local manager = require("kubectl.resource_manager")
+local state = require("kubectl.state")
 
 local M = { handles = nil, loading = false, timestamp = nil, cached_api_resources = { values = {}, shortNames = {} } }
 
@@ -16,7 +17,7 @@ M.LoadFallbackData = function(force)
     return
   end
 
-  local ctx = require("kubectl.state").context["current-context"]
+  local ctx = state.context["current-context"]
   local cached_data = commands.read_file("api_resources/" .. ctx .. ".json")
   if not cached_data then
     M.load_cache(M.cached_api_resources)
@@ -57,7 +58,7 @@ local function process_apis(resource, cached_api_resources)
       cached_api_resources.shortNames[shortName] = value
     end
   end
-  require("kubectl.state").sortby[name] = { mark = {}, current_word = "", order = "asc" }
+  state.sortby[name] = { mark = {}, current_word = "", order = "asc" }
 end
 
 function M.load_cache(cached_api_resources)
@@ -82,7 +83,7 @@ function M.load_cache(cached_api_resources)
     M.timestamp = os.time()
     vim.schedule(function()
       vim.cmd("doautocmd User KubectlCacheLoaded")
-      local ctx = require("kubectl.state").context["current-context"]
+      local ctx = state.context["current-context"]
       local ok, msg = commands.save_file("api_resources/" .. ctx .. ".json", cached_api_resources)
       if not ok then
         vim.notify("Failed to save api_resources: " .. msg, vim.log.levels.ERROR)
