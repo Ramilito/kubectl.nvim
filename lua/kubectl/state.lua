@@ -227,7 +227,7 @@ function M.set_session(view)
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
 
-  local config_file = M.read_file(config_filename) or {}
+  local config_file = commands.read_file(config_filename) or {}
   local merged = vim.tbl_deep_extend("force", config_file, M.session)
   commands.save_file(config_filename, merged)
 end
