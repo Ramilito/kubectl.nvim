@@ -5,7 +5,7 @@ local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local resource = "kubectl_filter_label"
+local resource = "filter_label"
 local M = {
   definition = {
     resource = resource,
