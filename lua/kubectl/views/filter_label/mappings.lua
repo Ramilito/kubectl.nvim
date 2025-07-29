@@ -6,7 +6,7 @@ local utils = require("kubectl.views.filter_label.utils")
 
 local M = {}
 
-local resource = "kubectl_filter_label"
+local resource = "filter_label"
 
 M.overrides = {
   ["<Plug>(kubectl.tab)"] = {
