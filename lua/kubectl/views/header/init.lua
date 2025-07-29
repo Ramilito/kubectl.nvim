@@ -48,13 +48,21 @@ function M.View()
     end,
   })
 
-  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+  vim.api.nvim_create_autocmd({ "VimResized" }, {
     group = "kubectl_header",
     callback = function()
       local builder = manager.get("header")
       if not builder then
         return
       end
+      M.Close()
+      M.View()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+    group = "kubectl_header",
+    callback = function()
       if is_overlapping() then
         M.Close()
       else
