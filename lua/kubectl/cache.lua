@@ -16,8 +16,9 @@ M.LoadFallbackData = function(force)
   local path = string.format("%s/%s.json", data .. "/api_resources", ctx)
 
   local stat = vim.uv.fs_stat(path)
-  print("file found in: ", path)
+  print("file path: ", path)
   if stat then
+    print("file found")
     local cached = commands.read_file("api_resources/" .. ctx .. ".json")
     if cached then
       print("cached file successfully loaded")
