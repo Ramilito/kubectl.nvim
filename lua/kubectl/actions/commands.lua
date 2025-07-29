@@ -311,11 +311,13 @@ function M.execute_terminal(cmd, args, opts)
   vim.cmd("startinsert")
 end
 
+local data_dir = vim.fn.stdpath("data") .. "/kubectl/"
+
 --- Load kubectl.json config file from data dir
 ---@param file_name string The filename to load
 ---@return table|nil The content of the file
-function M.load_config(file_name)
-  local file_path = vim.fn.stdpath("data") .. "/" .. file_name
+function M.read_file(file_name)
+  local file_path = data_dir .. file_name
   local file = io.open(file_path, "r")
   if not file then
     return nil
@@ -331,22 +333,31 @@ function M.load_config(file_name)
   return nil
 end
 
---- Save to config file
+--- Save file
 --- @param file_name string The filename to save
 --- @param data table The content to save
-function M.save_config(file_name, data)
-  local config_file = M.load_config("kubectl.json") or {}
-  local merged = vim.tbl_deep_extend("force", config_file, data)
-  local ok, encoded = pcall(vim.json.encode, merged)
-  if ok then
-    local file_path = vim.fn.stdpath("data") .. "/" .. file_name
-    local file = io.open(file_path, "w")
-    if file then
-      file:write(encoded)
-      file:close()
-    end
+--- @return boolean, string|nil True if successful, false and error message if failed
+function M.save_file(file_name, data)
+  local file_path = data_dir .. file_name
+  -- create the directory if it doesn't exist
+  local dir_path = vim.fs.dirname(file_path)
+  if not vim.uv.fs_stat(dir_path) then
+    vim.uv.fs_mkdir(dir_path, tonumber("755", 8))
   end
-  return ok
+  local file = io.open(file_path, "w")
+  if not file then
+    return false, "Failed to open file for writing: " .. file_path
+  end
+
+  local ok, encoded = pcall(vim.json.encode, data)
+  if not ok then
+    file:close()
+    return false, "Failed to encode data to JSON: " .. encoded
+  end
+
+  file:write(encoded)
+  file:close()
+  return true
 end
 
 return M

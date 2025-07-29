@@ -224,6 +224,7 @@ function M.Aliases()
   vim.schedule(function()
     local header, marks = tables.generateHeader({
       { key = "<Plug>(kubectl.select)", desc = "apply" },
+      { key = "<Plug>(kubectl.refresh)", desc = "refresh" },
       { key = "<Plug>(kubectl.tab)", desc = "next" },
       { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
       -- TODO: Definition should be moved to mappings.lua
@@ -243,6 +244,21 @@ function M.Aliases()
 
     buffers.apply_marks(buf, marks, header)
     buffers.fit_to_content(buf, win, 1)
+
+    vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.refresh)", "", {
+      noremap = true,
+      callback = function()
+        vim.notify("Refreshing aliases...")
+        require("kubectl.cache").LoadFallbackData(true)
+
+        vim.api.nvim_create_autocmd("User", {
+          pattern = "KubectlCacheLoaded",
+          callback = function()
+            vim.notify("Refreshing aliases completed")
+          end,
+        })
+      end,
+    })
 
     vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
       noremap = true,

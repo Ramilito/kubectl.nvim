@@ -45,6 +45,8 @@ M.history = {}
 ---@type table
 M.livez = { ok = nil, time_of_ok = os.time(), handle = nil }
 
+local config_filename = "kubectl.json"
+
 --- Decode a JSON string
 --- @param string string The JSON string to decode
 --- @return table|nil result The decoded table or nil if decoding fails
@@ -75,6 +77,8 @@ function M.setup()
       M.context = result
     end
 
+    local cache = require("kubectl.cache")
+    cache.LoadFallbackData()
     M.ns = M.session.namespace or config.options.namespace
     M.filter = ""
     M.versions = { client = { major = 0, minor = 0 }, server = { major = 0, minor = 0 } }
@@ -224,14 +228,17 @@ function M.set_session(view)
   M.session.contexts[session_name] = { view = view, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
-  commands.save_config("kubectl.json", M.session)
+
+  local config_file = commands.read_file(config_filename) or {}
+  local merged = vim.tbl_deep_extend("force", config_file, M.session)
+  commands.save_file(config_filename, merged)
 end
 
 function M.restore_session()
   local current_context = M.context["current-context"]
   local session_view = "pods"
 
-  local ok, data_or_err = pcall(commands.load_config, "kubectl.json")
+  local ok, data_or_err = pcall(commands.read_file, config_filename)
   if ok and type(data_or_err) == "table" then
     M.session = data_or_err
     local ctx_session = M.session.contexts[current_context]

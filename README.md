@@ -108,7 +108,7 @@ return {
   {
     "ramilito/kubectl.nvim",
     -- use a release tag to download pre-built binaries
-    version = '2.*',
+    version = "2.*",
     -- AND/OR build from source, requires nightly: https://rust-lang.github.io/rustup/concepts/channels.html#working-with-nightly-rust
     -- build = 'cargo build --release',
     dependencies = "saghen/blink.download",
@@ -335,6 +335,7 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
     enabled = true
   },
   obj_fresh = 5, -- highlight if creation newer than number (in minutes)
+  api_resources_cache_ttl = 60 * 60 * 3, -- 3 hours in seconds
 }
 ```
 
@@ -363,7 +364,6 @@ The plugin uses the following highlight groups:
 
 </details>
 
-
 ## Events
 
 We trigger events that you can use to run custom logic:
@@ -375,21 +375,22 @@ We trigger events that you can use to run custom logic:
 | K8sResourceSelected | On main views, when selecting a resource unless overriden (like pod view) | kind, name, ns |
 | K8sContextChanged | After context change | context |
 
-
 Example: saving session on context change
 
 ```lua
-   vim.api.nvim_create_autocmd('User', {
-      group = group,
-      pattern = 'K8sContextChanged',
-      callback = function(ctx)
-        local results = require('kubectl.actions.commands').shell_command('kubectl', { 'config', 'use-context', ctx.data.context })
-        if not results then
-          vim.notify(results, vim.log.levels.INFO)
-        end
-      end,
-    })
+   vim.api.nvim_create_autocmd("User", {
+     group = group,
+     pattern = "K8sContextChanged",
+     callback = function(ctx)
+       local results =
+         require("kubectl.actions.commands").shell_command("kubectl", { "config", "use-context", ctx.data.context })
+       if not results then
+         vim.notify(results, vim.log.levels.INFO)
+       end
+     end,
+   })
 ```
+
 </details>
 
 ## 🚀 Performance
