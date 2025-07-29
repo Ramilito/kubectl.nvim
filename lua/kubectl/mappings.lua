@@ -323,13 +323,9 @@ function M.get_mappings()
       callback = function()
         config.options.headers.enabled = not config.options.headers.enabled
         if not config.options.headers.enabled then
-          local bufnr = buffers.get_buffer_by_name("header")
-          if bufnr then
-            vim.api.nvim_buf_delete(bufnr, { force = true })
-            manager.remove("header")
-          end
+          pcall(require("kubectl.views.header").Close)
         else
-          pcall(require("kubectl.views").Header)
+          pcall(require("kubectl.views.header").View)
         end
       end,
     },

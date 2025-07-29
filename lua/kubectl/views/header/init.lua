@@ -28,6 +28,7 @@ function M.View()
   end
   vim.api.nvim_create_augroup("kubectl_header", { clear = true })
 
+  manager.get_or_create("header")
   M.Draw()
 
   vim.api.nvim_create_autocmd("User", {
@@ -65,7 +66,7 @@ function M.View()
 
         if conf.relative == "" then
           if is_overlapping() then
-            M.Close()
+            M.Hide()
           else
             M.Draw()
           end
@@ -83,7 +84,10 @@ function M.Draw()
     return
   end
 
-  local builder = manager.get_or_create("header")
+  local builder = manager.get("header")
+  if not builder then
+    return
+  end
   builder.buf_nr, builder.win_nr = buffers.header_buffer(builder.win_nr)
 
   local current_win = vim.api.nvim_get_current_win()
@@ -101,6 +105,16 @@ function M.Draw()
   end
 
   buffers.fit_to_content(builder.buf_nr, builder.win_nr, 0)
+end
+
+function M.Hide()
+  local builder = manager.get("header")
+
+  if builder then
+    vim.schedule(function()
+      pcall(vim.api.nvim_buf_delete, builder.buf_nr, { force = true })
+    end)
+  end
 end
 
 function M.Close()
