@@ -250,6 +250,13 @@ function M.Aliases()
       callback = function()
         vim.notify("Refreshing aliases...")
         require("kubectl.cache").LoadFallbackData(true)
+
+        vim.api.nvim_create_autocmd("User", {
+          pattern = "KubectlCacheLoaded",
+          callback = function()
+            vim.notify("Refreshing aliases completed")
+          end,
+        })
       end,
     })
 
