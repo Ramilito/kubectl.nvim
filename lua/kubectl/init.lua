@@ -81,7 +81,8 @@ function M.setup(options)
 
         if win_config.relative == "" then
           if not loop.is_running(ev.buf) then
-            local current_view = require("kubectl.views").resource_and_definition(ev.file)
+            local resource_name = ev.match:sub(#"k8s_" + 1)
+            local current_view = require("kubectl.views").resource_and_definition(resource_name)
             loop.start_loop(current_view.Draw, { buf = ev.buf })
             vim.opt_local.foldmethod = "manual"
           end
