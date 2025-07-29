@@ -35,19 +35,6 @@ function M.View()
     end,
   })
 
-  vim.api.nvim_create_autocmd("BufEnter", {
-    group = "kubectl_header",
-    pattern = "*",
-    callback = function(_)
-      local ft = vim.bo.filetype
-      if ft:match("^k8s_") then
-        vim.schedule(function()
-          M.Draw()
-        end)
-      end
-    end,
-  })
-
   vim.api.nvim_create_autocmd({ "VimResized" }, {
     group = "kubectl_header",
     callback = function()
@@ -63,10 +50,14 @@ function M.View()
   vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = "kubectl_header",
     callback = function()
-      if is_overlapping() then
-        M.Close()
-      else
-        M.Draw()
+      local win_id = vim.api.nvim_get_current_win()
+      local win_config = vim.api.nvim_win_get_config(win_id)
+      if win_config.relative == "" then
+        if is_overlapping() then
+          M.Close()
+        else
+          M.Draw()
+        end
       end
     end,
   })
