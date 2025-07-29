@@ -342,14 +342,14 @@ function M.save_file(file_name, data)
   -- create the directory if it doesn't exist
   local dir_path = vim.fs.dirname(file_path)
   if not vim.uv.fs_stat(dir_path) then
-    vim.uv.fs_mkdir(dir_path, 493)
+    vim.uv.fs_mkdir(dir_path, tonumber("755", 8))
   end
   local file = io.open(file_path, "w")
   if not file then
     return false, "Failed to open file for writing: " .. file_path
   end
 
-  local ok, encoded = pcall(vim.json.encode, data, { luanil = { object = true, array = true } })
+  local ok, encoded = pcall(vim.json.encode, data)
   if not ok then
     file:close()
     return false, "Failed to encode data to JSON: " .. encoded
