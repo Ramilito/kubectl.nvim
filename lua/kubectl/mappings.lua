@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local manager = require("kubectl.resource_manager")
