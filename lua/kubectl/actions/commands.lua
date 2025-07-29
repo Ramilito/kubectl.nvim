@@ -333,7 +333,7 @@ function M.read_file(file_name)
   return nil
 end
 
---- Save cache file
+--- Save file
 --- @param file_name string The filename to save
 --- @param data table The content to save
 --- @return boolean, string|nil True if successful, false and error message if failed
@@ -358,15 +358,6 @@ function M.save_file(file_name, data)
   file:write(encoded)
   file:close()
   return true
-end
-
---- Save to config file
---- @param data table The content to save
-function M.save_config(data)
-  local file_name = "kubectl.json"
-  local config_file = M.read_file(file_name) or {}
-  local merged = vim.tbl_deep_extend("force", config_file, data)
-  M.save_file(file_name, merged)
 end
 
 return M

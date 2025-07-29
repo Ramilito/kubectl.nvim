@@ -224,7 +224,11 @@ function M.set_session(view)
   M.session.contexts[session_name] = { view = view, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
-  commands.save_config(M.session)
+
+  local file_name = "kubectl.json"
+  local config_file = M.read_file(file_name) or {}
+  local merged = vim.tbl_deep_extend("force", config_file, M.session)
+  commands.save_file(file_name, merged)
 end
 
 function M.restore_session()
