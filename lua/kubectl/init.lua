@@ -3,6 +3,7 @@ local ctx_view = require("kubectl.resources.contexts")
 local header = require("kubectl.views.header")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
+local statusline = require("kubectl.views.statusline")
 local view = require("kubectl.views")
 
 local M = {
@@ -29,7 +30,6 @@ function M.open()
     header.View()
   end
   if config.options.statusline.enabled then
-    local statusline = require("kubectl.views.statusline")
     statusline.View()
   end
 end
@@ -40,17 +40,7 @@ function M.close()
   if win_config.relative == "" then
     state.stop_livez()
   end
-  local statusline_builder = manager.get("statusline")
-  if statusline_builder then
-    vim.o.laststatus = statusline_builder.original_values.laststatus
-    pcall(
-      vim.api.nvim_set_option_value,
-      "statusline",
-      statusline_builder.original_values.statusline,
-      { scope = "global" }
-    )
-  end
-  
+  statusline.Close()
   header.Close()
 
   vim.api.nvim_buf_delete(0, { force = true })

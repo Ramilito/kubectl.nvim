@@ -38,6 +38,19 @@ M.Draw = function()
   end
 end
 
+M.Close = function()
+  local statusline_builder = manager.get("statusline")
+  if statusline_builder then
+    vim.o.laststatus = statusline_builder.original_values.laststatus
+    pcall(
+      vim.api.nvim_set_option_value,
+      "statusline",
+      statusline_builder.original_values.statusline,
+      { scope = "global" }
+    )
+  end
+end
+
 function M.process(data)
   local ready = data.ready or 0
   local not_ready = data.not_ready or 0

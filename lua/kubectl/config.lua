@@ -78,7 +78,7 @@ local defaults = {
     row = 5,
   },
   statusline = {
-    enabled = true,
+    enabled = false,
   },
   obj_fresh = 5, -- highghlight if age is less than minutes
   api_resources_cache_ttl = 60 * 60 * 3,
