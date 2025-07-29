@@ -1,6 +1,7 @@
 local cache = require("kubectl.cache")
 local config = require("kubectl.config")
 local ctx_view = require("kubectl.resources.contexts")
+local header = require("kubectl.views.header")
 local manager = require("kubectl.resource_manager")
 local ns_view = require("kubectl.views.namespace")
 local state = require("kubectl.state")
@@ -30,7 +31,7 @@ function M.open()
   end)
 
   if config.options.headers.enabled then
-    view.Header()
+    header.View()
   end
 end
 
