@@ -17,12 +17,19 @@ local M = {
       name = "pods",
       predicate = function(name, ns)
         local client = require("kubectl.client")
-        local deploy =
+        local svc =
           client.get_single(vim.json.encode({ kind = "Service", namespace = ns, name = name, output = "Json" }))
 
-        local deploy_decoded = vim.json.decode(deploy)
+        local svc_decoded = vim.json.decode(svc)
+        if svc_decoded.spec.type == "ExternalName" then
+          vim.notify(
+            "Service " .. name .. " in namespace " .. ns .. " is of type ExternalName, no pods to show.",
+            vim.log.levels.WARN
+          )
+          return ""
+        end
 
-        local labels = deploy_decoded.spec.selector
+        local labels = svc_decoded.spec.selector
         local parts = {}
         for k, v in pairs(labels) do
           table.insert(parts, ("metadata.labels.%s=%s"):format(k, v))
