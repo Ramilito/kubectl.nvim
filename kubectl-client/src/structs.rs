@@ -43,6 +43,7 @@ pub struct GetSingleArgs {
     pub name: String,
     pub namespace: Option<String>,
     pub output: Option<String>,
+    pub cached: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

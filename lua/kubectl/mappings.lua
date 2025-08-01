@@ -286,6 +286,7 @@ function M.get_mappings()
           name = def.name,
           namespace = def.ns,
           output = "Yaml",
+          cached = false,
         }, function(data)
           vim.schedule(function()
             local tmpfilename = string.format("%s-%s-%s.yaml", vim.fn.tempname(), name, ns)
