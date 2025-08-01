@@ -14,7 +14,7 @@ use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
 use tokio::time::{timeout, Duration};
-use tracing::{info, trace_span, warn, Instrument};
+use tracing::{trace_span, warn, Instrument};
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
