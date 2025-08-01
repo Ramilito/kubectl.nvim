@@ -189,10 +189,12 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
         .unwrap_or_default();
 
     with_client(move |client| async move {
-        if let Some(found) =
-            store::get_single(&args.kind, args.namespace.clone(), &args.name).await?
-        {
-            return Ok(output_mode.format(found));
+        if args.cached.unwrap_or(true) {
+            if let Some(found) =
+                store::get_single(&args.kind, args.namespace.clone(), &args.name).await?
+            {
+                return Ok(output_mode.format(found));
+            }
         }
         let result = get_resource_async(
             &client,

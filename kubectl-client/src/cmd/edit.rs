@@ -74,7 +74,7 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
         }
 
         match api.patch(&name, &pp, &patch).await {
-            Ok(resp) => Ok(format!("{:?}", resp)),
+            Ok(_) => Ok(format!("{}/{} edited", ar.kind, name)),
             Err(kube::Error::Api(ae)) => Ok(ae.message),
             Err(e) => Ok(e.to_string()),
         }
