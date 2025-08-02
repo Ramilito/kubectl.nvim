@@ -2,7 +2,7 @@ local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
-local definition = require("kubectl.views.definition")
+local definition = require("kubectl.views.alias.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -104,7 +104,7 @@ M.View = function()
 
         if config.options.alias.apply_on_select_from_history then
           vim.schedule(function()
-            -- vim.api.nvim_input("<cr>")
+            vim.api.nvim_input("<cr>")
           end)
         end
       end,
