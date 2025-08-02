@@ -88,18 +88,20 @@ M.View = function()
     vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
       noremap = true,
       callback = function()
-        local line = vim.api.nvim_get_current_line()
-
         -- Don't act on prompt line
         local current_line = vim.api.nvim_win_get_cursor(0)[1]
         if current_line >= #header then
           return
         end
 
-        local prompt = "% "
+        local picked = vim.api.nvim_get_current_line()
+        local mark = vim.api.nvim_buf_get_mark(buf, ":")
+        local row = mark[1] - 1
 
-        vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
-        vim.api.nvim_win_set_cursor(0, { #header + 2, #prompt })
+        local prompt = "% " .. picked
+        vim.api.nvim_buf_set_lines(buf, row, row + 2, false, { prompt })
+
+        vim.api.nvim_win_set_cursor(win, { row + 1, #prompt })
         vim.cmd("startinsert!")
 
         if config.options.alias.apply_on_select_from_history then
