@@ -29,7 +29,6 @@ function M.on_prompt_input(input)
   end
 
   state.alias_history = result
-  print("state: " .. vim.inspect(state.alias_history))
 
   local parsed_input = string.lower(vim.trim(input))
   local view = require("kubectl.views")
