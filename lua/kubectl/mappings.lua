@@ -333,8 +333,8 @@ function M.get_mappings()
       mode = "n",
       desc = "Aliases",
       callback = function()
-        local view = require("kubectl.views")
-        view.Aliases()
+        local view = require("kubectl.views.alias")
+        view.View()
       end,
     },
     ["<Plug>(kubectl.filter_view)"] = {
@@ -342,7 +342,7 @@ function M.get_mappings()
       desc = "Filter",
       callback = function()
         local filter_view = require("kubectl.views.filter")
-        filter_view.filter()
+        filter_view.View()
       end,
     },
     ["<Plug>(kubectl.picker_view)"] = {

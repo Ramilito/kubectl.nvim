@@ -58,11 +58,22 @@ end
 --- @param header table|nil: The header lines (optional).
 --- @param content table: The content lines.
 local function set_buffer_lines(buf, header, content)
-  if header and #header >= 1 then
-    pcall(vim.api.nvim_buf_set_lines, buf, 0, #header, false, header)
-    pcall(vim.api.nvim_buf_set_lines, buf, #header, -1, false, content)
+  header = header or {}
+  content = content or {}
+
+  if #header == 0 and #content == 0 then
+    return
+  end
+
+  local lines = vim.list_extend(vim.deepcopy(header), content)
+
+  local buftype = vim.api.nvim_get_option_value("buftype", { buf = buf })
+
+  if buftype == "prompt" then
+    local prompt = vim.api.nvim_buf_line_count(buf) - 1
+    vim.api.nvim_buf_set_lines(buf, 0, prompt, false, lines)
   else
-    pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, content)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   end
 end
 
