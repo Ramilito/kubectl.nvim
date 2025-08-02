@@ -333,8 +333,8 @@ function M.get_mappings()
       mode = "n",
       desc = "Aliases",
       callback = function()
-        local view = require("kubectl.views")
-        view.Aliases()
+        local view = require("kubectl.views.alias")
+        view.View()
       end,
     },
     ["<Plug>(kubectl.filter_view)"] = {
