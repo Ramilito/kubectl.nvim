@@ -98,11 +98,13 @@ function M.View()
     end
 
     local picked = vim.api.nvim_get_current_line()
-    local prompt = "% " .. picked
-    local prompt_l = #prompt
+    local mark = vim.api.nvim_buf_get_mark(buf, ":")
+    local row = mark[1] - 1
 
-    vim.api.nvim_buf_set_lines(self.buf_nr, #header + 1, -1, false, { prompt })
-    vim.api.nvim_win_set_cursor(0, { #header + 2, prompt_l })
+    local prompt = "% " .. picked
+    vim.api.nvim_buf_set_lines(buf, row, row + 2, false, { prompt })
+
+    vim.api.nvim_win_set_cursor(win, { row + 1, #prompt })
     vim.cmd("startinsert!")
 
     if config.options.filter.apply_on_select_from_history then
