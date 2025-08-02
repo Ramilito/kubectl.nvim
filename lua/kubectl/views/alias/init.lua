@@ -89,7 +89,6 @@ M.View = function()
       noremap = true,
       callback = function()
         local line = vim.api.nvim_get_current_line()
-				print(line)
 
         -- Don't act on prompt line
         local current_line = vim.api.nvim_win_get_cursor(0)[1]
