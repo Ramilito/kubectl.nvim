@@ -342,7 +342,7 @@ function M.get_mappings()
       desc = "Filter",
       callback = function()
         local filter_view = require("kubectl.views.filter")
-        filter_view.filter()
+        filter_view.View()
       end,
     },
     ["<Plug>(kubectl.picker_view)"] = {

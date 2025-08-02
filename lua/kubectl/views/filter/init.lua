@@ -2,6 +2,7 @@ local buffers = require("kubectl.actions.buffers")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -39,90 +40,77 @@ function M.save_history(input)
   state.filter_history = result
 end
 
-function M.filter()
+function M.View()
+  local self = manager.get_or_create("filter")
   local buf, win = buffers.filter_buffer("k8s_filter", M.save_history, { title = "Filter", header = { data = {} } })
+  self.buf_nr = buf
+  self.win_nr = win
 
-  local list = {}
-  for _, value in ipairs(state.filter_history) do
-    table.insert(list, { name = value })
+  local items = vim.tbl_map(function(entry)
+    return { name = entry }
+  end, state.filter_history)
+
+  completion.with_completion(self.buf_nr, items, nil, false)
+
+  local legend_spec = {
+    { key = "<Plug>(kubectl.select)", desc = "apply" },
+    { key = "<Plug>(kubectl.tab)", desc = "next" },
+    { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+    { key = "<Plug>(kubectl.quit)", desc = "close" },
+  }
+
+  local header, marks = tables.generateHeader(legend_spec, false, false)
+
+  local instructions = {
+    "Use commas to separate multiple patterns.",
+    "Prefix a pattern with ! for negative filtering.",
+    "All patterns must match for a line to be included.",
+  }
+
+  local function add_gray_line(txt)
+    table.insert(header, txt)
+    table.insert(marks, {
+      row = #header - 1,
+      start_col = 0,
+      end_col = #txt,
+      hl_group = hl.symbols.gray,
+    })
   end
-  completion.with_completion(buf, list, nil, false)
 
-  -- We wrap because with_completion is adding keymappings that generateHeader needs
-  vim.schedule(function()
-    local header, marks = tables.generateHeader({
-      { key = "<Plug>(kubectl.select)", desc = "apply" },
-      { key = "<Plug>(kubectl.tab)", desc = "next" },
-      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
-      -- TODO: Definition should be moved to mappings.lua
-      { key = "<Plug>(kubectl.quit)", desc = "close" },
-    }, false, false)
+  for _, line in ipairs(instructions) do
+    add_gray_line(line)
+  end
+  tables.generateDividerRow(header, marks)
 
-    table.insert(header, "Use commas to separate multiple patterns.")
-    table.insert(marks, {
-      row = #header - 1,
-      start_col = 0,
-      end_col = #header[#header],
-      hl_group = hl.symbols.gray,
-    })
+  table.insert(header, "History:")
+  vim.list_extend(header, state.filter_history)
+  table.insert(header, "")
 
-    table.insert(header, "Prefix a pattern with ! for negative filtering.")
-    table.insert(marks, {
-      row = #header - 1,
-      start_col = 0,
-      end_col = #header[#header],
-      hl_group = hl.symbols.gray,
-    })
+  buffers.set_content(self.buf_nr, { header = { data = header }, content = {}, marks = {} })
+  buffers.apply_marks(self.buf_nr, marks, header)
+  buffers.fit_to_content(self.buf_nr, self.win_nr, 0)
+  vim.api.nvim_win_set_cursor(self.win_nr, { 1, 0 })
 
-    table.insert(header, "All patterns must match for a line to be included.")
-    table.insert(marks, {
-      row = #header - 1,
-      start_col = 0,
-      end_col = #header[#header],
-      hl_group = hl.symbols.gray,
-    })
-    tables.generateDividerRow(header, marks)
-
-    table.insert(header, "History:")
-    local headers_len = #header
-    for _, value in ipairs(state.filter_history) do
-      table.insert(header, headers_len + 1, value)
+  vim.keymap.set("n", "<Plug>(kubectl.select)", function()
+    local lnum = vim.api.nvim_win_get_cursor(0)[1]
+    if lnum >= #header then
+      return
     end
-    table.insert(header, "")
 
-    buffers.set_content(buf, { content = {}, marks = {}, header = { data = header } })
-    vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " .. state.getFilter(), "" })
+    local picked = vim.api.nvim_get_current_line()
+    local prompt = "% " .. picked
+    local prompt_l = #prompt
 
-    -- TODO: Marks should be set in buffers.set_content above
-    buffers.apply_marks(buf, marks, header)
-    buffers.fit_to_content(buf, win, 0)
+    vim.api.nvim_buf_set_lines(self.buf_nr, #header + 1, -1, false, { prompt })
+    vim.api.nvim_win_set_cursor(0, { #header + 2, prompt_l })
+    vim.cmd("startinsert!")
 
-    -- TODO: Registering keymap after generateheader makes it not appear in hints
-    vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.select)", "", {
-      noremap = true,
-      callback = function()
-        local line = vim.api.nvim_get_current_line()
-
-        -- Don't act on prompt line
-        local current_line = vim.api.nvim_win_get_cursor(0)[1]
-        if current_line >= #header then
-          return
-        end
-
-        local prompt = "% "
-
-        vim.api.nvim_buf_set_lines(buf, #header + 1, -1, false, { prompt .. line })
-        vim.api.nvim_win_set_cursor(0, { #header + 2, #(prompt .. line) })
-        vim.cmd("startinsert!")
-
-        if config.options.filter.apply_on_select_from_history then
-          vim.schedule(function()
-            vim.api.nvim_input("<cr>")
-          end)
-        end
-      end,
-    })
-  end)
+    if config.options.filter.apply_on_select_from_history then
+      vim.schedule(function()
+        vim.api.nvim_input("<CR>")
+      end)
+    end
+  end, { buffer = self.buf_nr, noremap = true })
 end
 
 return M
