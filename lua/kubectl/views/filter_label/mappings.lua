@@ -30,7 +30,7 @@ M.overrides = {
       label_line.is_selected = not label_line.is_selected
 
       vim.schedule(function()
-        utils.toggle_event = true
+        utils.event = "toggle"
         fl_view.Draw()
       end)
     end,
@@ -49,6 +49,7 @@ M.overrides = {
       table.insert(state.filter_label_history, kv)
       utils.add_existing_labels(store)
       vim.schedule(function()
+        utils.event = "add"
         fl_view.Draw()
 
         -- move cursor to the new label
@@ -81,6 +82,7 @@ M.overrides = {
       table.remove(state.filter_label_history, sess_filter_id)
       utils.add_existing_labels(store)
       vim.schedule(function()
+        utils.event = "delete"
         fl_view.Draw()
       end)
     end,

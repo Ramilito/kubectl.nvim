@@ -3,7 +3,7 @@ local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 
 local M = {
-  toggle_event = false,
+  event = nil,
 }
 
 --- Saves label filter history
@@ -21,15 +21,15 @@ end
 
 function M.add_existing_labels(builder)
   builder.fl_content.existing_labels = {}
+  local sess_fl = state.getSessionFilterLabel()
 
   table.insert(builder.fl_content.existing_labels, {
     is_label = false,
-    text = "Existing labels:",
+    text = string.format("Existing labels (%s):", vim.tbl_count(sess_fl)),
     extmarks = {},
   })
 
   -- add existing labels from session
-  local sess_fl = state.getSessionFilterLabel()
   for i, label in ipairs(sess_fl) do
     -- check if label is in state.filter_label
     table.insert(builder.fl_content.existing_labels, {
@@ -172,6 +172,15 @@ function M.get_row_data(builder)
     label_idx = row - #builder.fl_content.existing_labels - #builder.header.data
   end
   return label_type, label_idx
+end
+
+function M.find_label_index(builder, label)
+  for i, existing_label in ipairs(builder.fl_content.existing_labels) do
+    if existing_label.text == label then
+      return i
+    end
+  end
+  return nil
 end
 
 return M
