@@ -275,32 +275,6 @@ function M.set_url_and_open_view(opts)
   res_definition.url = { original_url }
 end
 
-function M.set_and_open_pod_selector(name, ns)
-  -- get the selectors for the pods
-  local buf_name = vim.api.nvim_buf_get_var(0, "buf_name")
-  local resource = tables.find_resource(state.instance[buf_name].data, name, ns)
-  if not resource then
-    return
-  end
-  local selector_t = (resource.spec.selector and resource.spec.selector.matchLabels or resource.spec.selector)
-    or resource.metadata.labels
-  local key_vals = table.concat(
-    vim.tbl_map(function(key)
-      return key .. "=" .. selector_t[key]
-    end, vim.tbl_keys(selector_t)),
-    ","
-  )
-  M.set_url_and_open_view({
-    src = state.instance.resource,
-    dest = "pods",
-    new_query_params = {
-      labelSelector = key_vals,
-    },
-    name = name,
-    ns = ns,
-  })
-end
-
 function M.resource_and_definition(view_name)
   local view_ok, view = pcall(require, "kubectl.resources." .. view_name)
   if not view_ok then
