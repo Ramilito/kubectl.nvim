@@ -133,7 +133,7 @@ function M.View()
   M.definition.ns = ns
 
   commands.run_async("get_single_async", {
-    kind = M.resource_definition.gvk.k,
+    gvk = M.resource_definition.gvk,
     namespace = ns,
     name = name,
     output = "Json",

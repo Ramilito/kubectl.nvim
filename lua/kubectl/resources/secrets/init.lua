@@ -46,7 +46,7 @@ function M.Desc(name, ns, reload)
   local builder = manager.get_or_create(def.resource)
   builder.view_float(def, {
     args = {
-      kind = M.definition.gvk.k,
+      gvk = M.definition.gvk,
       namespace = ns,
       name = name,
       output = def.syntax,

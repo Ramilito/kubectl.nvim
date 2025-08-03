@@ -32,7 +32,7 @@ M.overrides = {
       local builder = manager.get_or_create("deployment_scale")
       commands.run_async(
         "get_single_async",
-        { kind = deployment_view.definition.gvk.k, namespace = ns, name = name, output = "Json" },
+        { gvk = deployment_view.definition.gvk, namespace = ns, name = name, output = "Json" },
         function(data)
           if not data then
             return

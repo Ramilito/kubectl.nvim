@@ -6,19 +6,20 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local resource = "services"
+local gvk = { g = "", v = "v1", k = "Service" }
+
 ---@class ServicesModule
 local M = {
   definition = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "Service" },
+    gvk = gvk,
     child_view = {
       name = "pods",
       predicate = function(name, ns)
         local client = require("kubectl.client")
-        local svc =
-          client.get_single(vim.json.encode({ kind = "Service", namespace = ns, name = name, output = "Json" }))
+        local svc = client.get_single(vim.json.encode({ gvk = gvk, namespace = ns, name = name, output = "Json" }))
 
         local svc_decoded = vim.json.decode(svc)
         if svc_decoded.spec.type == "ExternalName" then
@@ -101,7 +102,7 @@ function M.PortForward(name, ns)
   }
 
   commands.run_async("get_single_async", {
-    kind = M.definition.gvk.k,
+    gvk = M.definition.gvk,
     name = name,
     namespace = ns,
     output = def.syntax,

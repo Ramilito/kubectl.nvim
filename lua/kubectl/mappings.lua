@@ -156,7 +156,7 @@ function M.get_mappings()
             local builder = manager.get_or_create("yaml")
             builder.view_float(def, {
               args = {
-                kind = def.gvk.k,
+                gvk = def.gvk,
                 namespace = ns,
                 name = name,
                 output = "yaml",
@@ -274,15 +274,13 @@ function M.get_mappings()
         local def = {
           resource = buf_name .. " | " .. name,
           syntax = "yaml",
-          resource_name = string_utils.capitalize(instance.definition.resource_name),
+          display_name = string_utils.capitalize(instance.definition.display_name),
           name = name,
           ns = ns,
           gvk = instance.definition.gvk,
-          group = instance.definition.group,
-          version = instance.definition.version,
         }
         commands.run_async("get_single_async", {
-          kind = def.gvk.k,
+          gvk = def.gvk,
           name = def.name,
           namespace = def.ns,
           output = "Yaml",
