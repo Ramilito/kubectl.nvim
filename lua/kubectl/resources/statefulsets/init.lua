@@ -15,14 +15,12 @@ local M = {
       name = "pods",
       predicate = function(name, ns)
         local client = require("kubectl.client")
-        local deploy = client.get_single(
-          vim.json.encode({
-            gvk = gvk,
-            namespace = ns,
-            name = name,
-            output = "Json",
-          })
-        )
+        local deploy = client.get_single(vim.json.encode({
+          gvk = gvk,
+          namespace = ns,
+          name = name,
+          output = "Json",
+        }))
 
         local deploy_decoded = vim.json.decode(deploy)
 
