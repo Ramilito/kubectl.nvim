@@ -6,12 +6,7 @@ local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
-local resource = "filter_label"
-local M = {
-  definition = {
-    resource = resource,
-  },
-}
+local M = {}
 
 --- Saves filter history
 --- @param input string: The input

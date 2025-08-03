@@ -18,9 +18,9 @@ M.filter_key = ""
 ---@type string[]
 M.filter_label = {}
 ---@type string[]
-M.session_filter_label = {}
----@type string[]
 M.filter_history = {}
+---@type string[]
+M.filter_label_history = {}
 ---@type string[]
 M.alias_history = {}
 ---@type string
@@ -35,7 +35,7 @@ M.selections = {}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
 ---@type table
-M.session = { contexts = {}, filter_history = {}, alias_history = {} }
+M.session = { contexts = {}, filter_history = {}, filter_label_history = {}, alias_history = {} }
 ---@type table
 M.instance = {}
 ---@type table
@@ -171,7 +171,7 @@ end
 --- Get the current session_filter_label
 --- @return string[] session_filter_label The current session filter label
 function M.getSessionFilterLabel()
-  return M.session_filter_label
+  return M.filter_label_history
 end
 
 --- Get the selections
@@ -207,7 +207,7 @@ end
 function M.reset_filters()
   M.filter_key = ""
   M.filter_label = {}
-  M.session_filter_label = {}
+  M.filter_label_history = {}
 end
 
 --- Set the namespace
@@ -228,6 +228,7 @@ function M.set_session(view)
   M.session.contexts[session_name] = { view = view, namespace = M.ns }
   M.session.filter_history = M.filter_history
   M.session.alias_history = M.alias_history
+  M.session.filter_label_history = M.filter_label_history
 
   local config_file = commands.read_file(config_filename) or {}
   local merged = vim.tbl_deep_extend("force", config_file, M.session)
@@ -247,6 +248,7 @@ function M.restore_session()
       M.ns = ctx_session.namespace
       M.filter_history = M.session.filter_history or {}
       M.alias_history = M.session.alias_history or {}
+      M.filter_label_history = M.session.filter_label_history or {}
       session_view = ctx_session.view
     end
   end

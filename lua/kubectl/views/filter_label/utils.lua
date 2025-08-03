@@ -1,7 +1,23 @@
+local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 
 local M = {}
+
+--- Saves label filter history
+--- @param input string: The input
+function M.save_history()
+  local history_size = config.options.filter_label.max_history
+  local history = state.filter_label_history
+
+  if #history > history_size then
+    for i = 1, #history - history_size do
+      print("removing " .. history[i])
+      table.remove(history, i)
+    end
+  end
+  state.set_session(state.session.contexts[state.context["current-context"]].view)
+end
 
 function M.add_existing_labels(builder)
   builder.fl_content.existing_labels = {}
@@ -63,13 +79,15 @@ end
 function M.add_res_labels(builder, kind)
   builder.fl_content.res_labels = {}
 
+  local labels = builder.data and builder.data.metadata and builder.data.metadata.labels or {}
+  if not labels or vim.tbl_count(labels) == 0 then
+    return
+  end
   table.insert(builder.fl_content.res_labels, {
     is_label = false,
     text = kind .. " labels:",
     extmarks = {},
   })
-
-  local labels = builder.data and builder.data.metadata and builder.data.metadata.labels or {}
   for key, value in pairs(labels) do
     local label_line = {
       is_label = true,
@@ -87,18 +105,20 @@ function M.add_res_labels(builder, kind)
     }
     table.insert(builder.fl_content.res_labels, label_line)
   end
+  table.insert(builder.fl_content.res_labels, {
+    is_label = false,
+    text = "",
+    extmarks = {},
+  })
 end
 
 function M.add_confirmation(builder, win_config)
-  for _ = 1, 2 do
-    local empty_line = {
-      is_label = false,
-      text = "",
-      type = "confirmation",
-      extmarks = {},
-    }
-    table.insert(builder.fl_content.confirmation, empty_line)
-  end
+  table.insert(builder.fl_content.confirmation, {
+    is_label = false,
+    text = "",
+    type = "confirmation",
+    extmarks = {},
+  })
 
   local confirmation = "[y]es [n]o"
   local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
