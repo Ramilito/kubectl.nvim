@@ -47,7 +47,9 @@ function M.View()
         return
       end
       M.Close()
-      M.View()
+      vim.schedule(function()
+        M.View()
+      end)
     end,
   })
 
@@ -121,10 +123,8 @@ function M.Close()
   local builder = manager.get("header")
 
   if builder then
-    vim.schedule(function()
-      pcall(vim.api.nvim_buf_delete, builder.buf_nr, { force = true })
-      manager.remove("header")
-    end)
+    pcall(vim.api.nvim_buf_delete, builder.buf_nr, { force = true })
+    manager.remove("header")
   end
 end
 
