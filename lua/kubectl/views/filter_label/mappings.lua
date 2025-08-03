@@ -30,6 +30,7 @@ M.overrides = {
       label_line.is_selected = not label_line.is_selected
 
       vim.schedule(function()
+        utils.toggle_event = true
         fl_view.Draw()
       end)
     end,

@@ -2,7 +2,9 @@ local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 
-local M = {}
+local M = {
+  toggle_event = false,
+}
 
 --- Saves label filter history
 function M.save_history()

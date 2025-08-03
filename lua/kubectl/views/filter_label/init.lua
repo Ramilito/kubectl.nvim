@@ -92,6 +92,10 @@ local function display_float(builder)
     buffer = builder.buf_nr,
     -- save the label on insert leave
     callback = function(ev)
+      if utils.toggle_event then
+        utils.toggle_event = false
+        return
+      end
       local lbl_type, lbl_idx = utils.get_row_data(builder)
       if not (lbl_type and lbl_idx) then
         return
