@@ -49,7 +49,6 @@ M.overrides = {
         fl_view.Draw()
 
         -- move cursor to the new label
-        print("len of state.filter_label_history 2: " .. #state.filter_label_history)
         vim.api.nvim_win_set_cursor(0, {
           #store.header.data + #state.filter_label_history,
           1, -- 1-based index
