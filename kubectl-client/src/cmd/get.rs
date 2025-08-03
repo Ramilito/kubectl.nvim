@@ -110,32 +110,20 @@ pub async fn get_resource_async(
         .as_deref()
         .map(OutputMode::from_str)
         .unwrap_or_default();
-    let discovery = Discovery::new(client.clone())
-        .run()
-        .await
-        .map_err(mlua::Error::external)?;
 
     let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
-        let gvk = GroupVersionKind {
-            group: g,
-            version: v,
-            kind: kind.to_string(),
-        };
-        if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
-            (ar, caps)
-        } else {
-            return Err(mlua::Error::external(format!(
-                "Unable to discover resource by GVK: {:?}",
-                gvk
-            )));
-        }
-    } else if let Some((ar, caps)) = resolve_api_resource(&discovery, &kind) {
-        (ar, caps)
+        let gvk = GroupVersionKind::gvk(g.as_str(), v.as_str(), kind.as_str());
+        kube::discovery::pinned_kind(client, &gvk)
+            .await
+            .map_err(mlua::Error::external)?
     } else {
-        return Err(mlua::Error::external(format!(
-            "Resource not found in cluster: {}",
-            kind
-        )));
+        let discovery = Discovery::new(client.clone())
+            .run()
+            .await
+            .map_err(mlua::Error::external)?;
+        resolve_api_resource(&discovery, &kind).ok_or_else(|| {
+            mlua::Error::external(format!("Resource not found in cluster: {kind}"))
+        })?
     };
 
     let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
@@ -159,15 +147,15 @@ pub fn get_single(lua: &Lua, json: String) -> LuaResult<String> {
 
     with_client(move |client| async move {
         if let Some(found) =
-            store::get_single(&args.kind, args.namespace.clone(), &args.name).await?
+            store::get_single(&args.gvk.k, args.namespace.clone(), &args.name).await?
         {
             return Ok(output_mode.format(found));
         }
         let result = get_resource_async(
             &client,
-            args.kind,
-            None,
-            None,
+            args.gvk.k,
+            Some(args.gvk.g),
+            Some(args.gvk.v),
             args.name,
             args.namespace,
             args.output,
@@ -191,16 +179,16 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
     with_client(move |client| async move {
         if args.cached.unwrap_or(true) {
             if let Some(found) =
-                store::get_single(&args.kind, args.namespace.clone(), &args.name).await?
+                store::get_single(&args.gvk.k, args.namespace.clone(), &args.name).await?
             {
                 return Ok(output_mode.format(found));
             }
         }
         let result = get_resource_async(
             &client,
-            args.kind,
-            None,
-            None,
+            args.gvk.k,
+            Some(args.gvk.g),
+            Some(args.gvk.v),
             args.name,
             args.namespace,
             args.output,

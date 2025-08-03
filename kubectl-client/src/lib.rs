@@ -14,7 +14,6 @@ use std::time::Duration;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::info;
 
 use crate::cmd::apply::apply_async;
 use crate::cmd::config::{
@@ -261,7 +260,7 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
     let args: GetSingleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
-    let pod = store::get_single(&args.kind, args.namespace.clone(), &args.name)
+    let pod = store::get_single(&args.gvk.k, args.namespace.clone(), &args.name)
         .await
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
         .unwrap();

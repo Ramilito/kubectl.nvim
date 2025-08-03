@@ -177,7 +177,7 @@ function M.PortForward(pod, ns)
   }
 
   commands.run_async("get_single_async", {
-    kind = M.definition.gvk.k,
+    gvk = M.definition.gvk,
     name = pod,
     namespace = ns,
     output = def.syntax,

@@ -41,7 +41,7 @@ end
 function M.OpenBrowser(name, ns)
   commands.run_async(
     "get_single_async",
-    { kind = M.definition.gvk.k, namespace = ns, name = name, output = nil },
+    { gvk = M.definition.gvk, namespace = ns, name = name, output = nil },
     function(data)
       local builder = manager.get_or_create(M.definition.resource .. "_browser")
       if not builder then

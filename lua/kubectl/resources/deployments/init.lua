@@ -4,6 +4,7 @@ local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local resource = "deployments"
+local gvk = { g = "apps", v = "v1", k = "Deployment" }
 
 ---@class Module
 local M = {
@@ -11,13 +12,12 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
-    gvk = { g = "apps", v = "v1", k = "Deployment" },
+    gvk = gvk,
     child_view = {
       name = "pods",
       predicate = function(name, ns)
         local client = require("kubectl.client")
-        local deploy =
-          client.get_single(vim.json.encode({ kind = "Deployment", namespace = ns, name = name, output = "Json" }))
+        local deploy = client.get_single(vim.json.encode({ gvk = gvk, namespace = ns, name = name, output = "Json" }))
 
         local deploy_decoded = vim.json.decode(deploy)
 
@@ -72,7 +72,7 @@ function M.SetImage(name, ns)
 
   commands.run_async(
     "get_single_async",
-    { kind = M.definition.gvk.k, namespace = ns, name = name, output = "Json" },
+    { gvk = M.definition.gvk, namespace = ns, name = name, output = "Json" },
     function(data)
       if not data then
         return

@@ -36,10 +36,9 @@ pub struct GetServerRawArgs {
     pub path: String,
 }
 
-#[derive(Clone, Deserialize, Default)]
-#[serde(default)]
+#[derive(Clone, Deserialize)]
 pub struct GetSingleArgs {
-    pub kind: String,
+    pub gvk: Gvk,
     pub name: String,
     pub namespace: Option<String>,
     pub output: Option<String>,
