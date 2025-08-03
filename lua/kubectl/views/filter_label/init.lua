@@ -49,6 +49,7 @@ local function display_float(builder)
         end
         state.filter_label = confirmed_labels
         state.filter_label_history = sess_labels
+        utils.save_history()
       end
     end
   )
@@ -100,15 +101,6 @@ local function display_float(builder)
       local event = utils.event
       utils.event = nil
       if event == "toggle" and lbl_type == "res_labels" then
-        local item_idx = tables.find_index(state.filter_label_history, label_line.text)
-        if not item_idx and label_line.is_selected then
-          table.insert(state.filter_label_history, label_line.text)
-          utils.save_history()
-          table.remove(state.filter_label, #state.filter_label)
-        elseif item_idx and not label_line.is_selected then
-          table.remove(state.filter_label_history, item_idx)
-          utils.save_history()
-        end
         return
       elseif event == nil then
         local row = vim.api.nvim_win_get_cursor(0)[1]
@@ -118,8 +110,8 @@ local function display_float(builder)
         if line and sess_filter_id then
           state.filter_label_history[sess_filter_id] = line
         end
-        utils.save_history()
       end
+      utils.save_history()
     end,
   })
 
