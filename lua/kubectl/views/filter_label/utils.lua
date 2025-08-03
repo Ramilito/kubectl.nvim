@@ -18,7 +18,7 @@ function M.add_existing_labels(builder)
     -- check if label is in state.filter_label
     table.insert(builder.fl_content.existing_labels, {
       is_label = true,
-      is_selected = false,
+      is_selected = vim.tbl_contains(state.filter_label, label),
       text = label,
       sess_filter_id = i,
       ---@type ExtMark[]
