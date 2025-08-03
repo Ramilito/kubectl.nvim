@@ -29,7 +29,9 @@ M.overrides = {
       end
       label_line.is_selected = not label_line.is_selected
 
-      fl_view.Draw()
+      vim.schedule(function()
+        fl_view.Draw()
+      end)
     end,
   },
   ["<Plug>(kubectl.add_label)"] = {

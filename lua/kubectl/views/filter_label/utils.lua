@@ -5,14 +5,12 @@ local state = require("kubectl.state")
 local M = {}
 
 --- Saves label filter history
---- @param input string: The input
 function M.save_history()
   local history_size = config.options.filter_label.max_history
   local history = state.filter_label_history
 
   if #history > history_size then
     for i = 1, #history - history_size do
-      print("removing " .. history[i])
       table.remove(history, i)
     end
   end
