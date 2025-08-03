@@ -101,22 +101,20 @@ local function display_float(builder)
         return
       end
       if lbl_type == "res_labels" then
-        vim.schedule(function()
-          M.Draw()
-        end)
         return
       end
       local row = vim.api.nvim_win_get_cursor(0)[1]
       local line = vim.api.nvim_buf_get_lines(ev.buf, row - 1, row, false)[1]
       local sess_filter_id = builder.fl_content[lbl_type][lbl_idx].sess_filter_id
 
-      if not line or not state.filter_label_history[sess_filter_id] then
-        return
+      if line and sess_filter_id then
+        state.filter_label_history[sess_filter_id] = line
       end
-      state.filter_label_history[sess_filter_id] = line
       utils.save_history()
       utils.add_existing_labels(builder)
-      M.Draw()
+      vim.schedule(function()
+        M.Draw()
+      end)
     end,
   })
 

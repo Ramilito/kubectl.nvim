@@ -53,8 +53,8 @@ M.overrides = {
 
         -- move cursor to the new label
         vim.api.nvim_win_set_cursor(0, {
-          #store.header.data + #state.filter_label_history,
-          1, -- 1-based index
+          #store.header.data + #state.filter_label_history + 1,
+          1,
         })
       end)
     end,
