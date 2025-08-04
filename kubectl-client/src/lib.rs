@@ -58,6 +58,7 @@ mod utils;
 
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
+static CLIENT_STREAM_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
 static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
 static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
@@ -96,13 +97,28 @@ where
     block_on(f(client))
 }
 
+pub fn with_stream_client<F, Fut, R>(f: F) -> LuaResult<R>
+where
+    F: FnOnce(Client) -> Fut,
+    Fut: Future<Output = LuaResult<R>>,
+{
+    let client = CLIENT_STREAM_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("poisoned CLIENT lock".into()))?
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| LuaError::RuntimeError("Client not initialised".into()))?;
+
+    block_on(f(client))
+}
+
 #[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
     shutdown_pod_collector();
     shutdown_node_collector();
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
 
-    let client_res: LuaResult<Client> = rt.block_on(async {
+    let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
         use futures::future::join;
 
         let store_future = async {
@@ -117,14 +133,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
                 user: None,
             };
 
-            let mut cfg = Config::from_kubeconfig(&opts)
+            let mut base_cfg = Config::from_kubeconfig(&opts)
                 .await
                 .map_err(LuaError::external)?;
 
-            if let Some(exec) = cfg.auth_info.exec.as_mut() {
+            if let Some(exec) = base_cfg.auth_info.exec.as_mut() {
                 exec.interactive_mode = Some(ExecInteractiveMode::Never);
-            }
-            if let Some(exec) = cfg.auth_info.exec.as_mut() {
                 if let Some(args) = exec.args.as_mut() {
                     if let Some(pos) = args.iter().position(|a| a == "devicecode") {
                         args[pos] = "azurecli".into();
@@ -132,11 +146,17 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
                 }
             }
 
-            cfg.read_timeout = Some(Duration::from_secs(15));
-            let client = Client::try_from(cfg).map_err(LuaError::external)?;
+            let mut cfg_fast = base_cfg.clone();
+            cfg_fast.read_timeout = Some(Duration::from_secs(20));
+            let client_main = Client::try_from(cfg_fast).map_err(LuaError::external)?;
 
-            Ok(client)
+            let mut cfg_long = base_cfg;
+            cfg_long.read_timeout = Some(Duration::from_secs(295));
+            let client_long = Client::try_from(cfg_long).map_err(LuaError::external)?;
+
+            Ok((client_main, client_long))
         };
+
         {
             let mut ctx = ACTIVE_CONTEXT
                 .write()
@@ -148,17 +168,17 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
         cli
     });
 
-    let client = match client_res {
-        Ok(c) => c,
+    let (client_main, client_long) = match cli_res {
+        Ok(pair) => pair,
         Err(e) => {
-            tracing::warn!(error = %e, "failed to initialise kube client");
+            tracing::warn!(error = %e, "failed to initialise kube clients");
             return Ok((false, e.to_string()));
         }
     };
 
     {
-        let mut g = CLIENT_INSTANCE.lock().unwrap();
-        *g = Some(client.clone());
+        *CLIENT_INSTANCE.lock().unwrap() = Some(client_main.clone());
+        *CLIENT_STREAM_INSTANCE.lock().unwrap() = Some(client_long.clone());
     }
 
     Ok((true, String::new()))
@@ -311,8 +331,8 @@ fn on_unload() {
     shutdown_node_collector();
 
     {
-        let mut client_guard = CLIENT_INSTANCE.lock().unwrap();
-        *client_guard = None;
+        *CLIENT_INSTANCE.lock().unwrap() = None;
+        *CLIENT_STREAM_INSTANCE.lock().unwrap() = None;
     }
     {
         let mut ctx = ACTIVE_CONTEXT.write().unwrap();
@@ -358,7 +378,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "debug",
         lua.create_function(
             |_, (ns, pod, image, target): (String, String, String, Option<String>)| {
-                with_client(|client| async move {
+                with_stream_client(|client| async move {
                     cmd::exec::open_debug(client, ns, pod, image, target)
                 })
             },
@@ -368,7 +388,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "exec",
         lua.create_function(
             |_, (ns, pod, container, cmd): (String, String, Option<String>, Vec<String>)| {
-                with_client(|client| async move {
+                with_stream_client(|client| async move {
                     cmd::exec::Session::new(client, ns, pod, container, cmd, true)
                 })
             },
