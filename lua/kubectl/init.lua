@@ -166,7 +166,11 @@ function M.download_if_available(callback)
         .. extension
     end,
     on_download = function()
-      vim.notify("[Kubectl.nvim] Downloading prebuilt binary...", vim.log.levels.INFO, { title = "kubectl.nvim" })
+      vim.notify(
+        "[Kubectl.nvim] Downloading binary; restart Neovim to apply.",
+        vim.log.levels.INFO,
+        { title = "kubectl.nvim" }
+      )
     end,
 
     root_dir = root_dir,
