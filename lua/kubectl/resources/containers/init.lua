@@ -53,7 +53,7 @@ function M.View(pod, ns)
   M.definition.display_name = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
   local builder = manager.get_or_create(M.definition.resource)
-  builder.view_float(M.definition, { args = { kind = gvk.k, name = pod, namespace = ns } })
+  builder.view_float(M.definition, { args = { gvk = gvk, name = pod, namespace = ns } })
 end
 
 local function attach_session(sess, buf, win)
