@@ -318,6 +318,9 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
     apply_on_select_from_history = true,
     max_history = 10,
   },
+  filter_label = {
+    max_history = 20,
+  },
   float_size = {
     -- Almost fullscreen:
     -- width = 1.0,

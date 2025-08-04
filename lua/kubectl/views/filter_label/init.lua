@@ -48,7 +48,8 @@ local function display_float(builder)
           end
         end
         state.filter_label = confirmed_labels
-        state.session_filter_label = sess_labels
+        state.filter_label_history = sess_labels
+        utils.save_history()
       end
     end
   )
@@ -87,7 +88,7 @@ local function display_float(builder)
 
   -- clear augroup
   vim.api.nvim_clear_autocmds({ group = M.augroup })
-  vim.api.nvim_create_autocmd({ "InsertLeave" }, {
+  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = M.augroup,
     buffer = builder.buf_nr,
     -- save the label on insert leave
@@ -96,17 +97,21 @@ local function display_float(builder)
       if not (lbl_type and lbl_idx) then
         return
       end
-      if lbl_type == "res_labels" then
-        M.Draw()
+      local label_line = builder.fl_content[lbl_type][lbl_idx]
+      local event = utils.event
+      utils.event = nil
+      if event == "toggle" and lbl_type == "res_labels" then
         return
-      end
-      local row = vim.api.nvim_win_get_cursor(0)[1]
-      local line = vim.api.nvim_buf_get_lines(ev.buf, row - 1, row, false)[1]
-      local sess_filter_id = builder.fl_content[lbl_type][lbl_idx].sess_filter_id
+      elseif event == nil then
+        local row = vim.api.nvim_win_get_cursor(0)[1]
+        local line = vim.api.nvim_buf_get_lines(ev.buf, row - 1, row, false)[1]
+        local sess_filter_id = label_line.sess_filter_id
 
-      state.session_filter_label[sess_filter_id] = line
-      utils.add_existing_labels(builder)
-      M.Draw()
+        if line and sess_filter_id then
+          state.filter_label_history[sess_filter_id] = line
+        end
+      end
+      utils.save_history()
     end,
   })
 

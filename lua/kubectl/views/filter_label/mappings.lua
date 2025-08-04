@@ -29,7 +29,10 @@ M.overrides = {
       end
       label_line.is_selected = not label_line.is_selected
 
-      fl_view.Draw()
+      vim.schedule(function()
+        utils.event = "toggle"
+        fl_view.Draw()
+      end)
     end,
   },
   ["<Plug>(kubectl.add_label)"] = {
@@ -43,16 +46,18 @@ M.overrides = {
       end
 
       local kv = "key=value"
-      table.insert(state.session_filter_label, kv)
+      table.insert(state.filter_label_history, kv)
       utils.add_existing_labels(store)
+      vim.schedule(function()
+        utils.event = "add"
+        fl_view.Draw()
 
-      fl_view.Draw()
-
-      -- move cursor to the new label
-      vim.api.nvim_win_set_cursor(0, {
-        #store.header.data + #store.fl_content.existing_labels - 1,
-        1, -- 1-based index
-      })
+        -- move cursor to the new label
+        vim.api.nvim_win_set_cursor(0, {
+          #store.header.data + #state.filter_label_history + 1,
+          1,
+        })
+      end)
     end,
   },
   ["<Plug>(kubectl.delete_label)"] = {
@@ -74,9 +79,12 @@ M.overrides = {
         return
       end
 
-      table.remove(state.session_filter_label, sess_filter_id)
+      table.remove(state.filter_label_history, sess_filter_id)
       utils.add_existing_labels(store)
-      fl_view.Draw()
+      vim.schedule(function()
+        utils.event = "delete"
+        fl_view.Draw()
+      end)
     end,
   },
 }

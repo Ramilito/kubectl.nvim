@@ -66,6 +66,9 @@ local defaults = {
     apply_on_select_from_history = true,
     max_history = 10,
   },
+  filter_label = {
+    max_history = 20,
+  },
   float_size = {
     -- Almost fullscreen:
     -- width = 1.0,
