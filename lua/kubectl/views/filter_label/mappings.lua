@@ -46,7 +46,9 @@ M.overrides = {
       end
 
       local kv = "key=value"
-      table.insert(state.filter_label_history, kv)
+      if state.filter_label_history then
+        table.insert(state.filter_label_history, kv)
+      end
       utils.add_existing_labels(store)
       vim.schedule(function()
         utils.event = "add"
