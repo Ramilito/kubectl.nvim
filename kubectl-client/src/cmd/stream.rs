@@ -36,6 +36,10 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
             .ok_or_else(|| mlua::Error::external("No pod spec found"))?;
 
         let mut containers = spec.containers;
+        if let Some(init) = spec.init_containers {
+            containers.extend(init);
+        }
+
         if let Some(ref container) = args.container {
             containers.retain(|c| c.name == *container);
             if containers.is_empty() {
