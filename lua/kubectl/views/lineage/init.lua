@@ -205,11 +205,17 @@ function M.set_keymaps(bufnr)
     silent = true,
     desc = "Refresh",
     callback = function()
-      M.load_cache(function()
-        vim.schedule(function()
-          M.Draw()
+      if not M.is_loading then
+        M.is_loading = true
+        M.load_cache(function()
+          vim.schedule(function()
+            M.Draw()
+          end)
         end)
-      end)
+        return
+      else
+        vim.notify("Cache is loading, please wait...", vim.log.levels.INFO)
+      end
     end,
   })
 end
