@@ -17,7 +17,10 @@ function M.View()
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" })
   self
     .addHints(
-      { { key = "<Plug>(kubectl.delete)", desc = "Delete PF" }, { key = "<Plug>(kubectl.browse)", desc = "Open in browser" } },
+      {
+        { key = "<Plug>(kubectl.delete)", desc = "Delete PF" },
+        { key = "<Plug>(kubectl.browse)", desc = "Open in browser" },
+      },
       false,
       false,
       false
