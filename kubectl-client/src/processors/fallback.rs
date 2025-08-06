@@ -8,7 +8,7 @@ use kube::{
 };
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tokio::try_join;
 
 use super::processor::Processor;
@@ -177,7 +177,7 @@ impl Processor for FallbackProcessor {
             let (crd_opt, list) = try_join!(crd_api.get_opt(&crd_name), api.list(&lp),)
                 .map_err(LuaError::external)?;
 
-            let cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
+            let mut cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
                 crd.spec
                     .versions
                     .iter()
@@ -196,6 +196,24 @@ impl Processor for FallbackProcessor {
                 Vec::new()
             };
 
+            let canonical: &[&str] = if matches!(caps.scope, Scope::Namespaced) {
+                &["NAMESPACE", "NAME"]
+            } else {
+                &["NAME"]
+            };
+
+            let mut seen: HashSet<String> = canonical.iter().map(|s| s.to_string()).collect();
+
+            cols.retain(|c| {
+                let up = c.name.to_uppercase();
+                if seen.contains(&up) {
+                    false
+                } else {
+                    seen.insert(up);
+                    true
+                }
+            });
+
             let items = list.items;
             let namespaced = matches!(caps.scope, Scope::Namespaced);
             let runtime = RuntimeFallbackProcessor {
@@ -213,11 +231,7 @@ impl Processor for FallbackProcessor {
             )?;
             let rows_lua = lua.to_value(&rows_vec)?;
 
-            let mut headers: Vec<String> = if namespaced {
-                vec!["NAMESPACE".into(), "NAME".into()]
-            } else {
-                vec!["NAME".into()]
-            };
+            let mut headers: Vec<String> = canonical.iter().map(|s| s.to_string()).collect();
             headers.extend(cols.iter().map(|c| c.name.to_uppercase()));
 
             let headers_lua = lua.to_value(&headers)?;
