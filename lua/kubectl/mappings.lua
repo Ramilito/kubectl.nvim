@@ -182,6 +182,11 @@ function M.get_mappings()
         if name then
           view.Desc(name, ns, true)
 
+					-- TODO: This is a temp fix for: https://github.com/Ramilito/kubectl.nvim/issues/635
+          if buf_name == "secrets" then
+            return
+          end
+
           timer:start(
             0,
             interval,
