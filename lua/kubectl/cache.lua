@@ -88,4 +88,9 @@ function M.load_cache(cached_api_resources)
   end)
 end
 
+M.clear_cache = function()
+  M.cached_api_resources = { values = {}, shortNames = {} }
+  M.timestamp = nil
+end
+
 return M

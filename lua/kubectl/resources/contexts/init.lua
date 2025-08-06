@@ -97,11 +97,13 @@ function M.change_context(cmd)
   local state = require("kubectl.state")
   state.context["current-context"] = cmd
 
+  local cache = require("kubectl.cache")
+  cache.clear_cache()
+
   local client = require("kubectl.client")
   local ok, result = client.set_implementation()
   if ok then
     state.setup()
-    local cache = require("kubectl.cache")
     cache.loading = false
     cache.LoadFallbackData()
     local lineage = require("kubectl.views.lineage")
