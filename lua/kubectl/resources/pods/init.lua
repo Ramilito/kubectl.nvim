@@ -2,7 +2,7 @@ local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
-local pf_definition = require("kubectl.resources.port_forwards.definition")
+local pf_view = require("kubectl.views.portforward")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -56,9 +56,9 @@ end
 function M.Draw(cancellationToken)
   local builder = manager.get(M.definition.resource)
   if builder then
-    local pfs = pf_definition.getPFRows(string.lower(M.definition.gvk.k))
+    local pfs = pf_view.getPFRows(string.lower(M.definition.gvk.k))
     builder.extmarks_extra = {}
-    pf_definition.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
+    pf_view.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
     builder.draw(cancellationToken)
   end
 end

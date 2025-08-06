@@ -1,6 +1,30 @@
+local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
+
+--- PortForwards function retrieves port forwards and displays them in a float window.
+-- @function PortForwards
+-- @return nil
+function M.View()
+  local resource = "portforward"
+  local self = manager.get_or_create(resource)
+  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
+  self.data = M.getPFRows()
+  self.extmarks = {}
+  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
+  self
+    .addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false)
+    .displayContent(self.win_nr)
+
+  vim.keymap.set("n", "q", function()
+    vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
+    vim.cmd.fclose()
+    vim.api.nvim_input("<Plug>(kubectl.refresh)")
+  end, { buffer = self.buf_nr, silent = true })
+end
 
 function M.getPFRows(type)
   local client = require("kubectl.client")

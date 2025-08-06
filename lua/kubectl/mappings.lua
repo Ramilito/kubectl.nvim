@@ -27,8 +27,8 @@ function M.get_mappings()
       mode = "n",
       desc = "View Port Forwards",
       callback = function()
-        local view = require("kubectl.views")
-        view.PortForwards()
+        local view = require("kubectl.views.portforward")
+        view.View()
       end,
     },
     ["<Plug>(kubectl.go_up)"] = {
