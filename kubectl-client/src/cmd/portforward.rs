@@ -26,6 +26,7 @@ pub struct PFData {
     pub pf_type: PFType,
     pub name: String,
     pub namespace: String,
+    pub host: String,
     pub local_port: u16,
     pub remote_port: u16,
 }
@@ -78,6 +79,7 @@ pub fn portforward_start(
         pf_type: forward_type,
         name,
         namespace,
+        host: bind_address.clone(),
         local_port,
         remote_port,
     };
@@ -255,6 +257,7 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
             )?;
             entry.set("name", pf.name.clone())?;
             entry.set("namespace", pf.namespace.clone())?;
+            entry.set("host", pf.host.clone())?;
             entry.set("local_port", pf.local_port)?;
             entry.set("remote_port", pf.remote_port)?;
             table.set(*id, entry)?;

@@ -14,9 +14,14 @@ function M.View()
   self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
   self.data = M.getPFRows()
   self.extmarks = {}
-  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
+  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" })
   self
-    .addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false)
+    .addHints(
+      { { key = "<Plug>(kubectl.delete)", desc = "Delete PF" }, { key = "<Plug>(kubectl.browse)", desc = "Open in browser" } },
+      false,
+      false,
+      false
+    )
     .displayContent(self.win_nr)
 
   vim.keymap.set("n", "q", function()
@@ -36,6 +41,7 @@ function M.getPFRows(type)
       type = { value = value.type, symbol = hl.symbols.info },
       name = { value = value.name, symbol = hl.symbols.success },
       ns = { value = value.namespace, symbol = hl.symbols.info },
+      host = { value = value.host, symbol = hl.symbols.pending },
       port = { value = value.local_port .. ":" .. value.remote_port, symbol = hl.symbols.pending },
     }
     if not type then
@@ -73,6 +79,22 @@ function M.setPortForwards(marks, data, port_forwards)
     end
   end
   return marks
+end
+
+function M.getCurrentSelection()
+  return tables.getCurrentSelection(5, 6)
+end
+
+function M.OpenBrowser(host, port)
+  local proto = port == "443" and "https" or "http"
+  local url
+  if port ~= "443" and port ~= "80" then
+    url = string.format("%s://%s:%s", proto, host, port)
+  else
+    url = string.format("%s://%s", proto, host)
+  end
+  print(url)
+  vim.ui.open(url)
 end
 
 return M
