@@ -16,15 +16,10 @@ function M.View()
   self.extmarks = {}
   self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" })
   self
-    .addHints(
-      {
-        { key = "<Plug>(kubectl.delete)", desc = "Delete PF" },
-        { key = "<Plug>(kubectl.browse)", desc = "Open in browser" },
-      },
-      false,
-      false,
-      false
-    )
+    .addHints({
+      { key = "<Plug>(kubectl.delete)", desc = "Delete PF" },
+      { key = "<Plug>(kubectl.browse)", desc = "Open in browser" },
+    }, false, false, false)
     .displayContent(self.win_nr)
 
   vim.keymap.set("n", "q", function()
