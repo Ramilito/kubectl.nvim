@@ -180,28 +180,6 @@ function M.Picker()
   end)
 end
 
---- PortForwards function retrieves port forwards and displays them in a float window.
--- @function PortForwards
--- @return nil
-function M.PortForwards()
-  local resource = "port_forwards"
-  local pf_definition = require("kubectl.resources.port_forwards.definition")
-  local self = manager.get_or_create(resource)
-  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
-  self.data = pf_definition.getPFRows()
-  self.extmarks = {}
-  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "PORT" })
-  self
-    .addHints({ { key = "<Plug>(kubectl.delete)", desc = "Delete PF" } }, false, false, false)
-    .displayContent(self.win_nr)
-
-  vim.keymap.set("n", "q", function()
-    vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
-    vim.cmd.fclose()
-    vim.api.nvim_input("<Plug>(kubectl.refresh)")
-  end, { buffer = self.buf_nr, silent = true })
-end
-
 --- Execute a user command and handle the response
 ---@param args table
 function M.UserCmd(args)

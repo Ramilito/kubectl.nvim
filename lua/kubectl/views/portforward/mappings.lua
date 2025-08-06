@@ -1,5 +1,6 @@
 local mappings = require("kubectl.mappings")
 local tables = require("kubectl.utils.tables")
+local view = require("kubectl.views.portforward")
 
 local M = {}
 
@@ -20,10 +21,28 @@ M.overrides = {
       end)
     end,
   },
+  ["<Plug>(kubectl.browse)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Open host in browser",
+    callback = function()
+      local host, ports = view.getCurrentSelection()
+
+      if not host or not ports then
+        vim.notify("Failed to retrieve host or port", vim.log.levels.ERROR)
+        return
+      end
+      local port = vim.split(ports, ":")[1]
+      if port then
+        view.OpenBrowser(host, port)
+      end
+    end,
+  },
 }
 
 M.register = function()
   mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
+  mappings.map_if_plug_not_set("n", "gx", "<Plug>(kubectl.browse)")
 end
 
 return M
