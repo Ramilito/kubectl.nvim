@@ -212,6 +212,8 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<C-f>", "<Plug>(kubectl.filter_view)", opts) -- Filter view
     k("n", "<C-n>", "<Plug>(kubectl.namespace_view)", opts) -- Namespaces view
     k("n", "gP", "<Plug>(kubectl.portforwards_view)", opts) -- Portforwards view
+
+    -- views
     k("n", "1", "<Plug>(kubectl.view_deployments)", opts) -- Deployments view
     k("n", "2", "<Plug>(kubectl.view_pods)", opts) -- Pods view
     k("n", "3", "<Plug>(kubectl.view_configmaps)", opts) -- ConfigMaps view
@@ -225,12 +227,16 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "", "<Plug>(kubectl.view_daemonsets)", opts) -- DaemonSets view
     k("n", "", "<Plug>(kubectl.view_events)", opts) -- Events view
     k("n", "", "<Plug>(kubectl.view_helm)", opts) -- Helm view
+    k("n", "", "<Plug>(kubectl.view_horizontalpodautoscalers)", opts) -- HorizontalPodAutoscalers view
     k("n", "", "<Plug>(kubectl.view_jobs)", opts) -- Jobs view
     k("n", "", "<Plug>(kubectl.view_nodes)", opts) -- Nodes view
     k("n", "", "<Plug>(kubectl.view_overview)", opts) -- Overview view
     k("n", "", "<Plug>(kubectl.view_pv)", opts) -- PersistentVolumes view
     k("n", "", "<Plug>(kubectl.view_pvc)", opts) -- PersistentVolumeClaims view
+    k("n", "", "<Plug>(kubectl.view_replicasets)", opts) -- ReplicaSets view,
     k("n", "", "<Plug>(kubectl.view_sa)", opts) -- ServiceAccounts view
+    k("n", "", "<Plug>(kubectl.view_statefulsets)", opts) -- StatefulSets view
+    k("n", "", "<Plug>(kubectl.view_storageclasses)", opts) -- StorageClasses view
     k("n", "", "<Plug>(kubectl.view_top_nodes)", opts) -- Top view for nodes
     k("n", "", "<Plug>(kubectl.view_top_pods)", opts) -- Top view for pods
 
