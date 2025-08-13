@@ -15,7 +15,7 @@ function M.start_loop_for_buffer(buf, callback, opts)
 
   local interval = opts.interval or config.options.auto_refresh.interval
   local timer = vim.uv.new_timer()
-  timers[buf] = { running = true, timer = nil }
+  timers[buf] = { running = false, timer = nil }
 
   local function is_cancelled()
     return timers[buf] == nil

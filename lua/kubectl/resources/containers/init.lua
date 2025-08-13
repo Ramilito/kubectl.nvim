@@ -53,7 +53,37 @@ function M.View(pod, ns)
   M.definition.display_name = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
   local builder = manager.get_or_create(M.definition.resource)
+
+  -- Store pod and namespace for refresh functionality
+  M.current_pod = pod
+  M.current_ns = ns
+
   builder.view_float(M.definition, { args = { gvk = gvk, name = pod, namespace = ns } })
+
+  -- Start auto refresh loop if enabled
+  local loop = require("kubectl.utils.loop")
+  if not loop.is_running(builder.buf_nr) then
+    loop.start_loop(function(cancellationToken)
+      M.Draw(cancellationToken)
+    end, { buf = builder.buf_nr })
+  end
+end
+
+function M.Draw(cancellationToken)
+  if (cancellationToken and cancellationToken()) or not M.current_pod or not M.current_ns then
+    return
+  end
+
+  local gvk = M.definition.gvk
+  local builder = manager.get(M.definition.resource)
+
+  if builder and builder.buf_nr and vim.api.nvim_buf_is_valid(builder.buf_nr) then
+    -- Clear header data to prevent accumulation
+    builder.header = { data = nil, marks = nil }
+
+    -- Use draw_float which now handles the auto refresh lifecycle properly
+    builder.draw_float(M.definition, { args = { gvk = gvk, name = M.current_pod, namespace = M.current_ns } })
+  end
 end
 
 local function attach_session(sess, buf, win)

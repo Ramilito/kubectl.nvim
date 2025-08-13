@@ -357,13 +357,20 @@ function M.new(resource)
       builder.decodeJson()
       vim.schedule(function()
         if definition.processRow then
-          builder.process(definition.processRow, true).sort().prettyPrint().addDivider(false)
+          builder
+            .process(definition.processRow, true)
+            .sort()
+            .prettyPrint()
+            .addDivider(false)
+            .addHints(definition.hints, false, false)
           builder.displayContent(builder.win_nr)
         else
-          builder.splitData()
+          builder.splitData().builder.addHints(definition.hints, false, false)
           builder.addDivider(false)
           builder.displayContentRaw()
         end
+        local loop = require("kubectl.utils.loop")
+        loop.set_running(builder.buf_nr, false)
       end)
     end)
 
