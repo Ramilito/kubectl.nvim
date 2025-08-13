@@ -84,4 +84,15 @@ function client.get_config()
   return client.implementation.get_config()
 end
 
+function client.setup()
+  return client.implementation.setup()
+end
+
+function client.pop_all()
+  return client.implementation.pop_all()
+end
+function client.demo()
+  return client.implementation.demo()
+end
+
 return client

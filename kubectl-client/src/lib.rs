@@ -9,7 +9,9 @@ use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodStat, Shared
 use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::thread;
 use std::time::Duration;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
@@ -346,6 +348,9 @@ fn on_unload() {
     }
 }
 
+static TX: OnceLock<Sender<String>> = OnceLock::new();
+static RX: OnceLock<Mutex<Receiver<String>>> = OnceLock::new();
+
 #[tracing::instrument]
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
@@ -481,6 +486,50 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "drain_node_async",
         lua.create_async_function(drain::drain_node_async)?,
     )?;
+
+    let setup = lua.create_function(|_, ()| {
+        if TX.get().is_none() {
+            let (tx, rx) = channel::<String>();
+            TX.set(tx).ok();
+            RX.set(Mutex::new(rx)).ok();
+        }
+        Ok(true)
+    })?;
+
+    // pop_all(): drain queued events (main thread calls this)
+    let pop_all = lua.create_function(|lua, ()| {
+        let rx = RX
+            .get()
+            .ok_or_else(|| mlua::Error::RuntimeError("call setup() first".into()))?
+            .lock()
+            .map_err(|_| mlua::Error::RuntimeError("rx poisoned".into()))?;
+
+        let out = lua.create_table()?;
+        for (i, msg) in rx.try_iter().enumerate() {
+            out.set(i + 1, msg)?;
+        }
+        Ok(out)
+    })?;
+
+    // demo(): spawn a background thread that sends a few events
+    let demo = lua.create_function(|_, ()| {
+        let tx = TX
+            .get()
+            .ok_or_else(|| mlua::Error::RuntimeError("call setup() first".into()))?
+            .clone();
+
+        thread::spawn(move || {
+            for i in 1..=5 {
+                let _ = tx.send(format!("kubectl demo event {i}"));
+                thread::sleep(Duration::from_millis(350));
+            }
+        });
+
+        Ok(())
+    })?;
+    exports.set("setup", setup)?;
+    exports.set("pop_all", pop_all)?;
+    exports.set("demo", demo)?;
 
     Ok(exports)
 }
