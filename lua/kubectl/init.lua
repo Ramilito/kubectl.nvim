@@ -32,6 +32,9 @@ function M.open()
   if config.options.statusline.enabled then
     statusline.View()
   end
+
+  local queue = require("kubectl.event_queue")
+  queue.start(50)
 end
 
 function M.close()
@@ -42,6 +45,9 @@ function M.close()
   end
   statusline.Close()
   header.Close()
+
+  local queue = require("kubectl.event_queue")
+  queue.stop()
 
   vim.api.nvim_buf_delete(0, { force = true })
 end

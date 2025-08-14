@@ -45,6 +45,7 @@ mod cmd;
 mod dao;
 mod describe;
 mod drain;
+mod event_queue;
 mod events;
 mod filter;
 mod metrics;
@@ -285,7 +286,10 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
         .unwrap();
 
-    let vec = vec![pod.unwrap()];
+    let vec = match pod {
+        Some(p) => vec![p],
+        None => Vec::new(),
+    };
     let proc = processor_for("container");
     let processed = proc
         .process(&lua, &vec, None, None, None, None, None)
@@ -481,6 +485,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "drain_node_async",
         lua.create_async_function(drain::drain_node_async)?,
     )?;
+
+    event_queue::install(lua, &exports)?;
 
     Ok(exports)
 }
