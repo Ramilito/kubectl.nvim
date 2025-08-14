@@ -26,9 +26,13 @@ M.overrides = {
     silent = true,
     desc = "Open host in browser",
     callback = function()
-      local host, ports = view.getCurrentSelection()
+      local ok, host, ports = pcall(view.getCurrentSelection)
+      if not ok then
+        vim.notify("Failed to retrieve current selection: " .. tostring(host), vim.log.levels.ERROR)
+        return
+      end
 
-      if not host or not ports then
+      if not (host and host ~= "HOST") or not (ports and ports ~= "PORT") then
         vim.notify("Failed to retrieve host or port", vim.log.levels.ERROR)
         return
       end
