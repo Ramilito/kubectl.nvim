@@ -91,8 +91,8 @@ end
 function client.pop_all()
   return client.implementation.pop_all()
 end
-function client.demo()
-  return client.implementation.demo()
+function client.emit(key, payload)
+  return client.implementation.emit(key, payload)
 end
 
 return client

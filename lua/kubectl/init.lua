@@ -33,31 +33,8 @@ function M.open()
     statusline.View()
   end
 
-	client.setup()
-  local t = vim.loop.new_timer()
-  t:start(
-    0,
-    50,
-    vim.schedule_wrap(function()
-      local batch = client.pop_all()
-      if #batch > 0 then
-        for _, msg in ipairs(batch) do
-          vim.api.nvim_exec_autocmds("User", { pattern = "KubectlEvent", data = msg })
-        end
-      end
-    end)
-  )
-
-  -- 2) Listen for those events
-  local grp = vim.api.nvim_create_augroup("KubectlPoc", { clear = true })
-  vim.api.nvim_create_autocmd("User", {
-    group = grp,
-    pattern = "KubectlEvent",
-    callback = function(ev)
-      vim.notify(("kubectl.nvim event: %s"):format(vim.inspect(ev.data)))
-    end,
-  })
-	client.demo()
+  local queue = require("kubectl.event_queue")
+  queue.start(50)
 end
 
 function M.close()

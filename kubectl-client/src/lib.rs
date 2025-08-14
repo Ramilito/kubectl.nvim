@@ -8,10 +8,10 @@ use metrics::nodes::{shutdown_node_collector, spawn_node_collector, NodeStat, Sh
 use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodStat, SharedPodStats};
 use mlua::prelude::*;
 use mlua::Lua;
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use std::thread;
 use std::time::Duration;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
@@ -30,6 +30,7 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
+use crate::event_queue::notify_named;
 use crate::processors::processor_for;
 use crate::statusline::get_statusline;
 use crate::store::get_store_map;
@@ -47,6 +48,7 @@ mod cmd;
 mod dao;
 mod describe;
 mod drain;
+mod event_queue;
 mod events;
 mod filter;
 mod metrics;
@@ -64,6 +66,7 @@ static CLIENT_STREAM_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
 static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
 static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
+static CALLBACKS: OnceLock<Mutex<HashMap<String, LuaRegistryKey>>> = OnceLock::new();
 
 pub fn pod_stats() -> &'static SharedPodStats {
     POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
@@ -348,9 +351,6 @@ fn on_unload() {
     }
 }
 
-static TX: OnceLock<Sender<String>> = OnceLock::new();
-static RX: OnceLock<Mutex<Receiver<String>>> = OnceLock::new();
-
 #[tracing::instrument]
 #[mlua::lua_module(skip_memory_check)]
 fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
@@ -487,49 +487,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(drain::drain_node_async)?,
     )?;
 
-    let setup = lua.create_function(|_, ()| {
-        if TX.get().is_none() {
-            let (tx, rx) = channel::<String>();
-            TX.set(tx).ok();
-            RX.set(Mutex::new(rx)).ok();
-        }
-        Ok(true)
-    })?;
-
-    // pop_all(): drain queued events (main thread calls this)
-    let pop_all = lua.create_function(|lua, ()| {
-        let rx = RX
-            .get()
-            .ok_or_else(|| mlua::Error::RuntimeError("call setup() first".into()))?
-            .lock()
-            .map_err(|_| mlua::Error::RuntimeError("rx poisoned".into()))?;
-
-        let out = lua.create_table()?;
-        for (i, msg) in rx.try_iter().enumerate() {
-            out.set(i + 1, msg)?;
-        }
-        Ok(out)
-    })?;
-
-    // demo(): spawn a background thread that sends a few events
-    let demo = lua.create_function(|_, ()| {
-        let tx = TX
-            .get()
-            .ok_or_else(|| mlua::Error::RuntimeError("call setup() first".into()))?
-            .clone();
-
-        thread::spawn(move || {
-            for i in 1..=5 {
-                let _ = tx.send(format!("kubectl demo event {i}"));
-                thread::sleep(Duration::from_millis(350));
-            }
-        });
-
-        Ok(())
-    })?;
-    exports.set("setup", setup)?;
-    exports.set("pop_all", pop_all)?;
-    exports.set("demo", demo)?;
+    event_queue::install(lua, &exports)?;
 
     Ok(exports)
 }
