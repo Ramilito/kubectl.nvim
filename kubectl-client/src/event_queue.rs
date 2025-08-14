@@ -1,9 +1,3 @@
-// src/event_queue.rs
-// Minimal named-event queue for Neovim.
-// - Background Rust code calls `notify_named("pods", payload)`.
-// - Lua calls `setup()` once, then `pop_all()` from a tiny timer.
-// - No Lua callbacks stored in Rust; callbacks live entirely in Lua (simpler).
-
 use mlua::prelude::*;
 use std::sync::{
     mpsc::{channel, Receiver, Sender},
@@ -27,7 +21,6 @@ fn ensure_channel() {
     }
 }
 
-/// Call from any Rust thread/task (watchers) to enqueue an event for Lua.
 pub fn notify_named<N: Into<String>, P: Into<String>>(name: N, payload: P) -> bool {
     if let Some(tx) = TX.get() {
         let _ = tx.send(Event {
@@ -36,20 +29,16 @@ pub fn notify_named<N: Into<String>, P: Into<String>>(name: N, payload: P) -> bo
         });
         true
     } else {
-        false // Lua hasn't called setup() yet; decide if you want to log/drop.
+        false
     }
 }
 
-/// Install functions into the module's export table.
-/// Call this from your lib.rs; keep lib.rs logic-free.
 pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
-    // setup(): initialize the queue once.
     let setup = lua.create_function(|_, ()| {
         ensure_channel();
         Ok(true)
     })?;
 
-    // pop_all(): returns an array of { name = "...", payload = "..." }
     let pop_all = lua.create_function(|lua, ()| {
         let rx = RX
             .get()
@@ -67,7 +56,6 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
         Ok(out)
     })?;
 
-    // emit(name, payload): convenience for manual testing from Lua.
     let emit = lua.create_function(|_, (name, payload): (String, String)| {
         ensure_channel();
         Ok(notify_named(name, payload))
