@@ -1,5 +1,8 @@
 local client = require("kubectl.client")
 
+---@class EventQueue
+---@field callbacks table
+---@field timer uv_timer_t?
 local M = {
   callbacks = {},
   timer = nil,
