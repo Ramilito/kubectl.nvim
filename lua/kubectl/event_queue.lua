@@ -1,11 +1,7 @@
 local client = require("kubectl.client")
 
----@class EventQueue
----@field callbacks table
----@field timer uv_timer_t?
 local M = {
   callbacks = {},
-  timer = nil,
 }
 
 function M.register(name, buf_nr, fn)
@@ -31,9 +27,6 @@ end
 function M.start(interval_ms)
   client.setup_queue()
   M.timer = vim.uv.new_timer()
-  if not M.timer then
-    return
-  end
   M.timer:start(
     0,
     interval_ms or 50,
