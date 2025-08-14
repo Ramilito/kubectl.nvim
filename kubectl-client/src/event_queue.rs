@@ -61,8 +61,8 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
         Ok(notify_named(name, payload))
     })?;
 
-    exports.set("setup", setup)?;
-    exports.set("pop_all", pop_all)?;
+    exports.set("setup_queue", setup)?;
+    exports.set("pop_queue", pop_all)?;
     exports.set("emit", emit)?;
     Ok(())
 }

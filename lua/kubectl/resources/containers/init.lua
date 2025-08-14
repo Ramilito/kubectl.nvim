@@ -58,7 +58,7 @@ function M.View(pod, ns)
 
   queue.register(pod_view.definition.gvk.k, function(payload)
     local ev = vim.json.decode(payload)
-    if ev.name == pod_view.selection.pod then
+    if ev.metadata.name == pod_view.selection.pod then
       M.View(pod_view.selection.pod, pod_view.selection.ns)
     end
   end)

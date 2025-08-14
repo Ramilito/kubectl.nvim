@@ -84,13 +84,14 @@ function client.get_config()
   return client.implementation.get_config()
 end
 
-function client.setup()
-  return client.implementation.setup()
+function client.setup_queue()
+  return client.implementation.setup_queue()
 end
 
-function client.pop_all()
-  return client.implementation.pop_all()
+function client.pop_queue()
+  return client.implementation.pop_queue()
 end
+
 function client.emit(key, payload)
   return client.implementation.emit(key, payload)
 end

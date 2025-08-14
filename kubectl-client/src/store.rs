@@ -64,8 +64,30 @@ pub async fn init_reflector_for_kind(
         })
         .default_backoff()
         .map(move |res| {
-            if let Ok(Event::Apply(obj)) = res.as_ref() {
-                if let Ok(payload) = serde_json::to_string(&obj.metadata) {
+            if let Ok(event) = res.as_ref() {
+                let mut payload = json!({"event": "", "metadata": ""});
+                match event {
+                    Event::Apply(obj) => {
+                        payload["event"] = serde_json::Value::from("MODIFIED");
+                        payload["metadata"] =
+                            serde_json::to_value(&obj.metadata).unwrap_or(serde_json::Value::Null);
+
+                        if let Ok(payload) = serde_json::to_string(&payload) {
+                            let _ = notify_named(kind_for_emit.clone(), payload);
+                        }
+                    }
+                    Event::Delete(obj) => {
+                        payload["event"] = serde_json::Value::from("DELETED");
+                        payload["metadata"] =
+                            serde_json::to_value(&obj.metadata).unwrap_or(serde_json::Value::Null);
+
+                        if let Ok(payload) = serde_json::to_string(&payload) {
+                            let _ = notify_named(kind_for_emit.clone(), payload);
+                        }
+                    }
+                    _ => {}
+                }
+                if let Ok(payload) = serde_json::to_string(&payload) {
                     let _ = notify_named(kind_for_emit.clone(), payload);
                 }
             }

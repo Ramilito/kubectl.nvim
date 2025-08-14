@@ -25,14 +25,14 @@ function M.unregister(name)
 end
 
 function M.start(interval_ms)
-  client.setup()
+  client.setup_queue()
   local uv = vim.uv or vim.loop
   M._timer = uv.new_timer()
   M._timer:start(
     0,
     interval_ms or 50,
     vim.schedule_wrap(function()
-      local batch = client.pop_all()
+      local batch = client.pop_queue()
       for _, ev in ipairs(batch) do
         local cb = M._callbacks[ev.name]
         if cb then

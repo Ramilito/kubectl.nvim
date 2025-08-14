@@ -21,3 +21,6 @@
 --- @field uncordon_node fun(name: string)
 --- @field cordon_node fun(name: string)
 --- @field get_config fun()
+--- @field setup_queue fun()
+--- @field pop_queue fun()
+--- @field emit fun(key, payload)
