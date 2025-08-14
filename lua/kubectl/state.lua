@@ -216,6 +216,10 @@ function M.setNS(ns)
   M.ns = ns
 end
 
+function M.setSortby(buf_name, word)
+  M.sortby[buf_name] = { mark = {}, current_word = word, order = "asc" }
+end
+
 function M.addToHistory(new_view)
   if #M.history > 0 and M.history[#M.history] == new_view then
     return
