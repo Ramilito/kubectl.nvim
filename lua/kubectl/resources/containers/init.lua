@@ -5,6 +5,7 @@ local config = require("kubectl.config")
 local definition = require("kubectl.resources.containers.definition")
 local manager = require("kubectl.resource_manager")
 local pod_view = require("kubectl.resources.pods")
+local queue = require("kubectl.event_queue")
 
 local resource = "containers"
 
@@ -54,6 +55,13 @@ function M.View(pod, ns)
   local gvk = M.definition.gvk
   local builder = manager.get_or_create(M.definition.resource)
   builder.view_float(M.definition, { args = { gvk = gvk, name = pod, namespace = ns } })
+
+  queue.register(pod_view.definition.gvk.k, builder.buf_nr, function(payload)
+    local ev = vim.json.decode(payload)
+    if ev.metadata.name == pod_view.selection.pod then
+      M.View(pod_view.selection.pod, pod_view.selection.ns)
+    end
+  end)
 end
 
 local function attach_session(sess, buf, win)
@@ -65,6 +73,10 @@ local function attach_session(sess, buf, win)
   vim.cmd.startinsert()
 
   local timer = vim.uv.new_timer()
+  if not timer then
+    vim.notify("Timer failed to initialize", vim.log.levels.ERROR)
+    return
+  end
   timer:start(
     0,
     30,
