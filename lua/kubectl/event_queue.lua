@@ -5,15 +5,7 @@ local M = {
   _timer = nil,
 }
 
-function M.register(name, buf_nr, fn_or_code)
-  local fn = fn_or_code
-  if type(fn_or_code) == "string" then
-    local ok, chunk = pcall(load, "return " .. fn_or_code)
-    if not ok then
-      error("invalid callback code: " .. chunk)
-    end
-    fn = chunk()
-  end
+function M.register(name, buf_nr, fn)
   if type(fn) ~= "function" then
     error("callback must be a function or a code string that returns a function")
   end
@@ -35,8 +27,7 @@ end
 
 function M.start(interval_ms)
   client.setup_queue()
-  local uv = vim.uv or vim.loop
-  M._timer = uv.new_timer()
+  M._timer = vim.uv.new_timer()
   M._timer:start(
     0,
     interval_ms or 50,
