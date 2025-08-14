@@ -19,8 +19,10 @@ function M.register(name, buf_nr, fn_or_code)
   end
   M._callbacks[name] = fn
 
+  local group = vim.api.nvim_create_augroup("Kubectl", { clear = false })
   vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
     buffer = buf_nr,
+    group = group,
     callback = function()
       M.unregister(name)
     end,

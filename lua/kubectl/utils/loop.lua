@@ -33,8 +33,10 @@ function M.start_loop_for_buffer(buf, callback, opts)
 
   timers[buf].timer = timer
 
+  local group = vim.api.nvim_create_augroup("Kubectl", { clear = false })
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     buffer = buf,
+    group = group,
     callback = function()
       M.start_loop_for_buffer(buf, callback, opts)
     end,
