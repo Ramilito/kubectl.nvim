@@ -8,9 +8,7 @@ use metrics::nodes::{shutdown_node_collector, spawn_node_collector, NodeStat, Sh
 use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodStat, SharedPodStats};
 use mlua::prelude::*;
 use mlua::Lua;
-use std::collections::HashMap;
 use std::future::Future;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::Duration;
 use store::STORE_MAP;
@@ -30,7 +28,6 @@ use crate::cmd::get::{
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::event_queue::notify_named;
 use crate::processors::processor_for;
 use crate::statusline::get_statusline;
 use crate::store::get_store_map;
@@ -66,7 +63,6 @@ static CLIENT_STREAM_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
 static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
 static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
-static CALLBACKS: OnceLock<Mutex<HashMap<String, LuaRegistryKey>>> = OnceLock::new();
 
 pub fn pod_stats() -> &'static SharedPodStats {
     POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
