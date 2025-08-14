@@ -424,7 +424,8 @@ function M.get_mappings()
         buf_name = string.lower(buf_name)
         local sortby = state.sortby[buf_name]
         if not sortby then
-          return
+          state.setSortby(buf_name, "")
+          sortby = state.sortby[buf_name]
         end
         sortby.mark = mark
         sortby.current_word = word
