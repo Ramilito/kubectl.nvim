@@ -1,15 +1,15 @@
 local client = require("kubectl.client")
 
 local M = {
-  _callbacks = {},
-  _timer = nil,
+  callbacks = {},
+  timer = nil,
 }
 
 function M.register(name, buf_nr, fn)
   if type(fn) ~= "function" then
     error("callback must be a function or a code string that returns a function")
   end
-  M._callbacks[name] = fn
+  M.callbacks[name] = fn
 
   local group = vim.api.nvim_create_augroup("Kubectl", { clear = false })
   vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
@@ -22,19 +22,22 @@ function M.register(name, buf_nr, fn)
 end
 
 function M.unregister(name)
-  M._callbacks[name] = nil
+  M.callbacks[name] = nil
 end
 
 function M.start(interval_ms)
   client.setup_queue()
-  M._timer = vim.uv.new_timer()
-  M._timer:start(
+  M.timer = vim.uv.new_timer()
+  if not M.timer then
+    return
+  end
+  M.timer:start(
     0,
     interval_ms or 50,
     vim.schedule_wrap(function()
       local batch = client.pop_queue()
       for _, ev in ipairs(batch) do
-        local cb = M._callbacks[ev.name]
+        local cb = M.callbacks[ev.name]
         if cb then
           cb(ev.payload)
         end
@@ -46,12 +49,12 @@ function M.start(interval_ms)
 end
 
 function M.stop()
-  if M._timer then
+  if M.timer then
     pcall(function()
-      M._timer:stop()
-      M._timer:close()
+      M.timer:stop()
+      M.timer:close()
     end)
-    M._timer = nil
+    M.timer = nil
   end
 end
 
