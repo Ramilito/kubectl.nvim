@@ -1,7 +1,8 @@
 use futures::StreamExt;
-use k8s_openapi::serde_json::json;
+use k8s_openapi::serde_json::{self, json};
 use kube::api::TypeMeta;
 use kube::runtime::reflector::store::Writer;
+use kube::runtime::watcher::Event;
 use kube::runtime::{watcher, WatchStreamExt};
 use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, ResourceExt},
@@ -13,6 +14,8 @@ use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+
+use crate::event_queue::notify_named;
 
 type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
 pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
@@ -46,6 +49,7 @@ pub async fn init_reflector_for_kind(
 
     let ar_api_version = ar.api_version.clone();
     let ar_kind = ar.kind.clone();
+    let kind_for_emit = gvk.kind.clone();
 
     let stream = watcher(api, config)
         .modify(move |resource| {
@@ -59,6 +63,14 @@ pub async fn init_reflector_for_kind(
             }
         })
         .default_backoff()
+        .map(move |res| {
+            if let Ok(Event::Apply(obj)) = res.as_ref() {
+                if let Ok(payload) = serde_json::to_string(&obj.metadata) {
+                    let _ = notify_named(kind_for_emit.clone(), payload);
+                }
+            }
+            res
+        })
         .reflect(writer);
 
     tokio::spawn(async move {

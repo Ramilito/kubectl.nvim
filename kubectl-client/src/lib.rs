@@ -290,7 +290,10 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
         .unwrap();
 
-    let vec = vec![pod.unwrap()];
+    let vec = match pod {
+        Some(p) => vec![p],
+        None => Vec::new(),
+    };
     let proc = processor_for("container");
     let processed = proc
         .process(&lua, &vec, None, None, None, None, None)
