@@ -93,6 +93,8 @@ function M.Draw(cancellationToken)
         builder.prettyPrint(win_id).addDivider(true).addHints(builder.definition.hints, true, true)
         builder.displayContent(win_id, cancellationToken)
       end
+      local loop = require("kubectl.utils.loop")
+      loop.set_running(builder.buf_nr, false)
     end)
   end)
 end
