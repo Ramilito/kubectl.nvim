@@ -56,7 +56,7 @@ function M.View(pod, ns)
   local builder = manager.get_or_create(M.definition.resource)
   builder.view_float(M.definition, { args = { gvk = gvk, name = pod, namespace = ns } })
 
-  queue.register(pod_view.definition.gvk.k, function(payload)
+  queue.register(pod_view.definition.gvk.k, builder.buf_nr, function(payload)
     local ev = vim.json.decode(payload)
     if ev.metadata.name == pod_view.selection.pod then
       M.View(pod_view.selection.pod, pod_view.selection.ns)

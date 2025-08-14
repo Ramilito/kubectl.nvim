@@ -5,7 +5,7 @@ local M = {
   _timer = nil,
 }
 
-function M.register(name, fn_or_code)
+function M.register(name, buf_nr, fn_or_code)
   local fn = fn_or_code
   if type(fn_or_code) == "string" then
     local ok, chunk = pcall(load, "return " .. fn_or_code)
@@ -18,6 +18,13 @@ function M.register(name, fn_or_code)
     error("callback must be a function or a code string that returns a function")
   end
   M._callbacks[name] = fn
+
+  vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
+    buffer = buf_nr,
+    callback = function()
+      M.unregister(name)
+    end,
+  })
 end
 
 function M.unregister(name)
