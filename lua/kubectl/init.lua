@@ -46,6 +46,9 @@ function M.close()
   statusline.Close()
   header.Close()
 
+  local queue = require("kubectl.event_queue")
+  queue.stop()
+
   vim.api.nvim_buf_delete(0, { force = true })
 end
 
