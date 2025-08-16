@@ -34,7 +34,7 @@ function M.open()
   end
 
   local queue = require("kubectl.event_queue")
-  queue.start(50)
+  queue.start(500)
 end
 
 function M.close()
