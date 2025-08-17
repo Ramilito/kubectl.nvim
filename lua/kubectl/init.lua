@@ -8,6 +8,7 @@ local view = require("kubectl.views")
 
 local M = {
   is_open = false,
+  did_setup = false,
 }
 
 --- Open the kubectl view
@@ -95,6 +96,7 @@ function M.setup(options)
         end
       end,
     })
+    M.did_setup = true
   end)
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
