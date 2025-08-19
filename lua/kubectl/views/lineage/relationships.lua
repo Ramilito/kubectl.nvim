@@ -393,6 +393,38 @@ M.definition = {
       },
     },
   },
+  PersistentVolumeClaim = {
+    kind = "PersistentVolumeClaim",
+    relationships = {
+      {
+        relationship_type = "dependency",
+        field_path = "spec.volumeName",
+        target_kind = "PersistentVolume",
+        target_name = function(field_value)
+          return field_value.volumeName
+        end,
+        target_namespace = nil,
+      },
+    },
+  },
+  PersistentVolume = {
+    kind = "PersistentVolume",
+    relationships = {
+      {
+        relationship_type = "dependency",
+        field_path = "spec.claimRef",
+        target_kind = function(field_value)
+          return field_value.kind
+        end,
+        target_name = function(field_value)
+          return field_value.name
+        end,
+        target_namespace = function(field_value)
+          return field_value.namespace
+        end,
+      },
+    },
+  },
   ClusterRoleBindings = {
     kind = "ClusterRoleBinding",
     relationships = {
