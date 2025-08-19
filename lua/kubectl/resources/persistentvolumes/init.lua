@@ -61,7 +61,6 @@ end
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  vim.print("call in pv")
   return tables.getCurrentSelection(1)
 end
 
