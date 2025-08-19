@@ -8,8 +8,8 @@ use tracing::{span, Level};
 use crate::structs::Gvk;
 
 use super::{
-    clusterrolebinding::ClusterRoleBindingProcessor, configmap::ConfigmapProcessor,
-    container::ContainerProcessor, cronjob::CronJobProcessor,
+    clusterrole::ClusterRoleProcessor, clusterrolebinding::ClusterRoleBindingProcessor,
+    configmap::ConfigmapProcessor, container::ContainerProcessor, cronjob::CronJobProcessor,
     customresourcedefinition::ClusterResourceDefinitionProcessor, daemonset::DaemonsetProcessor,
     default::DefaultProcessor, deployment::DeploymentProcessor, fallback::FallbackProcessor,
     horizontalpodautoscaler::HorizontalPodAutoscalerProcessor, ingress::IngressProcessor,
@@ -24,6 +24,7 @@ use super::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProcessorKind {
     ClusterRoleBinding,
+    ClusterRole,
     ConfigMap,
     Container,
     CronJob,
@@ -54,6 +55,7 @@ impl FromStr for ProcessorKind {
     #[tracing::instrument]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
+            "clusterrole" => Self::ClusterRole,
             "clusterrolebinding" => Self::ClusterRoleBinding,
             "configmap" => Self::ConfigMap,
             "container" => Self::Container,
@@ -153,6 +155,7 @@ impl ProcessorKind {
     ) -> LuaResult<String> {
         use ProcessorKind::*;
         match self {
+            ClusterRole=> run(&ClusterRoleProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
             ClusterRoleBinding => run(&ClusterRoleBindingProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
             ConfigMap => run(&ConfigmapProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
             Container => run(&ContainerProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),

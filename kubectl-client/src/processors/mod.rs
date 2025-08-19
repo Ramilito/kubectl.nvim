@@ -1,4 +1,5 @@
 pub mod clusterrolebinding;
+pub mod clusterrole;
 pub mod configmap;
 pub mod container;
 pub mod cronjob;
