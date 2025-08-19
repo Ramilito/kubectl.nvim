@@ -27,57 +27,8 @@ function health.report_download()
   if not ok then
     H.error("Blink.download not available")
   end
-  local download_config = require("blink.cmp.config").fuzzy.prebuilt_binaries
 
-  local get_linux_libc_sync = function()
-    local _, process = pcall(function()
-      return vim.system({ "cc", "-dumpmachine" }, { text = true }):wait()
-    end)
-    if process and process.code == 0 then
-      -- strip whitespace
-      local stdout = process.stdout:gsub("%s+", "")
-      local triple_parts = vim.fn.split(stdout, "-")
-      if triple_parts[4] ~= nil then
-        return triple_parts[4]
-      end
-    end
-
-    local _, is_alpine = pcall(function()
-      return vim.uv.fs_stat("/etc/alpine-release")
-    end)
-    if is_alpine then
-      return "musl"
-    end
-    return "gnu"
-  end
-
-  local get_triple = function()
-    if download_config.force_system_triple then
-      return download_config.force_system_triple
-    end
-
-    local os, arch = system.get_info()
-    local triples = system.triples[os]
-    if triples == nil then
-      return
-    end
-
-    if os == "linux" then
-      if vim.fn.has("android") == 1 then
-        return triples.android
-      end
-
-      local triple = triples[arch]
-      if type(triple) ~= "function" then
-        return triple
-      end
-      return triple(get_linux_libc_sync())
-    else
-      return triples[arch]
-    end
-  end
-
-  local system_triple = get_triple()
+  local system_triple = system.get_triple_sync()
   if system_triple then
     H.ok("Your system is supported by pre-built binaries (" .. system_triple .. ")")
   else
