@@ -1,4 +1,6 @@
-local M = {}
+local M = {
+  config_did_setup = false,
+}
 
 ---@alias SkewConfig { enabled: boolean, log_level: number }
 ---@alias AutoRefreshConfig { enabled: boolean, interval: number }
@@ -116,6 +118,7 @@ function M.setup(options)
     vim.notify("Warning: notifications is deprecated. This feature is removed")
   end
   M.options = vim.tbl_deep_extend("force", {}, defaults, options or {})
+  M.config_did_setup = true
 end
 
 return M
