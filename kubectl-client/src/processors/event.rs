@@ -5,7 +5,7 @@ use mlua::prelude::*;
 
 use crate::events::color_status;
 use crate::processors::processor::Processor;
-use crate::utils::{time_since, AccessorMode, FieldValue};
+use crate::utils::{pad_key, time_since, AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EventProcessed {
@@ -96,11 +96,14 @@ impl Processor for EventProcessor {
                 AccessorMode::Sort => Some(row.last_seen.sort_by?.to_string()),
                 AccessorMode::Filter => Some(row.last_seen.value.clone()),
             },
-            "type" => Some(row.type_.value.clone()),
+            "type" => match mode {
+                AccessorMode::Sort => Some(row.type_.value.to_string()),
+                AccessorMode::Filter => Some(row.type_.value.clone()),
+            },
             "reason" => Some(row.reason.clone()),
             "object" => Some(row.object.clone()),
             "count" => match mode {
-                AccessorMode::Sort => Some(row.count.sort_by?.to_string()),
+                AccessorMode::Sort => row.count.sort_by.map(pad_key),
                 AccessorMode::Filter => Some(row.count.value.clone()),
             },
             "message" => Some(row.message.clone()),
