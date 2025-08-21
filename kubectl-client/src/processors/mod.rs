@@ -1,5 +1,5 @@
-pub mod clusterrolebinding;
 pub mod clusterrole;
+pub mod clusterrolebinding;
 pub mod configmap;
 pub mod container;
 pub mod cronjob;
@@ -7,6 +7,7 @@ pub mod customresourcedefinition;
 pub mod daemonset;
 pub mod default;
 pub mod deployment;
+pub mod event;
 pub mod fallback;
 pub mod horizontalpodautoscaler;
 pub mod ingress;
