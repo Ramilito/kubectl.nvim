@@ -50,10 +50,11 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
         live.managed_fields_mut().clear();
         obj.managed_fields_mut().clear();
         obj.metadata.managed_fields = None;
+        normalize_finalizers_for_ssa(&mut obj, &live);
 
         let field_manager = "kubectl-edit-lua";
-        let patch = Patch::Apply(&obj);
-        let pp = PatchParams::apply(field_manager).force();
+        let patch = Patch::Merge(&obj);
+        let pp = PatchParams::apply(field_manager);
 
         let mut simulated = match api.patch(&name, &pp.clone().dry_run(), &patch).await {
             Ok(o) => o,
@@ -79,4 +80,17 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
             Err(e) => Ok(e.to_string()),
         }
     })
+}
+
+fn normalize_finalizers_for_ssa(obj: &mut DynamicObject, live: &DynamicObject) {
+    let user_removed_field = obj.metadata.finalizers.is_none();
+    let live_has_finalizers = live
+        .metadata
+        .finalizers
+        .as_ref()
+        .map_or(false, |v| !v.is_empty());
+
+    if user_removed_field && live_has_finalizers {
+        obj.metadata.finalizers = Some(Vec::new());
+    }
 }
