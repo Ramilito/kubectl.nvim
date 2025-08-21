@@ -1,9 +1,9 @@
 use k8s_openapi::api::core::v1::{Event as CoreEvent, ObjectReference};
-use k8s_openapi::api::events::v1::Event;
 use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
+use crate::events::color_status;
 use crate::processors::processor::Processor;
 use crate::utils::{time_since, AccessorMode, FieldValue};
 
@@ -28,96 +28,50 @@ impl Processor for EventProcessor {
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         use k8s_openapi::serde_json::{from_value, to_value};
+        let ev: CoreEvent =
+            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
 
-        let v = to_value(obj).map_err(LuaError::external)?;
-        if let Ok(ev) = from_value::<Event>(v.clone()) {
-            let namespace = ev.metadata.namespace.clone().unwrap_or_default();
+        let namespace = ev.metadata.namespace.clone().unwrap_or_default();
 
-            let (object_kind, object_name) = ev
-                .regarding
+        let (object_kind, object_name) = {
+            let r: &ObjectReference = &ev.involved_object;
+            (
+                r.kind.clone().unwrap_or_default(),
+                r.name.clone().unwrap_or_default(),
+            )
+        };
+        let last_seen = last_seen_field(
+            ev.series
                 .as_ref()
-                .map(|r: &ObjectReference| {
-                    (
-                        r.kind.clone().unwrap_or_default(),
-                        r.name.clone().unwrap_or_default(),
-                    )
-                })
-                .unwrap_or_default();
+                .and_then(|s| s.last_observed_time.as_ref().map(|t| t.0)),
+            ev.event_time.as_ref().map(|t| t.0),
+            ev.metadata.creation_timestamp.as_ref().map(|t| t.0),
+            ev.last_timestamp.as_ref().map(|t| t.0),
+        );
 
-            let last_seen = last_seen_field(
-                ev.series.as_ref().map(|s| s.last_observed_time.0.to_utc()),
-                ev.event_time.as_ref().map(|t| t.0),
-                ev.metadata.creation_timestamp.as_ref().map(|t| t.0),
-                None,
-            );
+        let count_i = ev.count.unwrap_or(1);
 
-            let count_i = ev.series.as_ref().map(|s| s.count).unwrap_or(1);
-            let count = FieldValue {
-                value: count_i.to_string(),
-                sort_by: Some(count_i.try_into().unwrap()),
+        let count = FieldValue {
+            value: count_i.to_string(),
+            sort_by: Some(count_i.try_into().unwrap()),
+            ..Default::default()
+        };
+        let mut message = ev.message.clone().unwrap_or_default();
+        message = message.replace("\n", "");
+
+        Ok(EventProcessed {
+            namespace,
+            last_seen,
+            type_: FieldValue {
+                value: ev.type_.clone().unwrap_or_default(),
+                symbol: Some(color_status(&ev.type_.unwrap_or_default())),
                 ..Default::default()
-            };
-            let mut message = ev.note.clone().unwrap_or_default();
-            let mess_length = message.trim_end_matches(&['\r', '\n'][..]).len();
-            message.truncate(mess_length);
-
-            Ok(EventProcessed {
-                namespace,
-                last_seen,
-                type_: FieldValue {
-                    value: ev.type_.clone().unwrap_or_default(),
-                    ..Default::default()
-                },
-                reason: ev.reason.clone().unwrap_or_default(),
-                object: object_string(object_kind, object_name),
-                count,
-                message,
-            })
-        } else {
-            let ev: CoreEvent = from_value(v).map_err(LuaError::external)?;
-
-            let namespace = ev.metadata.namespace.clone().unwrap_or_default();
-
-            let (object_kind, object_name) = {
-                let r: &ObjectReference = &ev.involved_object;
-                (
-                    r.kind.clone().unwrap_or_default(),
-                    r.name.clone().unwrap_or_default(),
-                )
-            };
-
-            let last_seen = last_seen_field(
-                ev.series
-                    .as_ref()
-                    .and_then(|s| s.last_observed_time.as_ref().map(|t| t.0)),
-                ev.event_time.as_ref().map(|t| t.0),
-                ev.metadata.creation_timestamp.as_ref().map(|t| t.0),
-                ev.last_timestamp.as_ref().map(|t| t.0),
-            );
-
-            let count_i = ev.count.unwrap_or(1);
-            let count = FieldValue {
-                value: count_i.to_string(),
-                sort_by: Some(count_i.try_into().unwrap()),
-                ..Default::default()
-            };
-            let mut message = ev.message.clone().unwrap_or_default();
-            let mess_length = message.trim_end_matches(&['\r', '\n'][..]).len();
-            message.truncate(mess_length);
-
-            Ok(EventProcessed {
-                namespace,
-                last_seen,
-                type_: FieldValue {
-                    value: ev.type_.clone().unwrap_or_default(),
-                    ..Default::default()
-                },
-                reason: ev.reason.clone().unwrap_or_default(),
-                object: object_string(object_kind, object_name),
-                count,
-                message,
-            })
-        }
+            },
+            reason: ev.reason.clone().unwrap_or_default(),
+            object: object_string(object_kind, object_name),
+            count,
+            message,
+        })
     }
 
     fn filterable_fields(&self) -> &'static [&'static str] {
@@ -154,8 +108,6 @@ impl Processor for EventProcessor {
         })
     }
 }
-
-/* -------------------- helpers -------------------- */
 
 fn object_string(kind: String, name: String) -> String {
     let k = if kind.is_empty() {
