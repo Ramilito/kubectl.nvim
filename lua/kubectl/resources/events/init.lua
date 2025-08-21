@@ -1,5 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
-local definition = require("kubectl.resources.events.definition")
+-- local definition = require("kubectl.resources.events.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -25,7 +25,7 @@ local M = {
       "COUNT",
       "MESSAGE",
     },
-    processRow = definition.processRow,
+    -- processRow = definition.processRow,
   },
 }
 

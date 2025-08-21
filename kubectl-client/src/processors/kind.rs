@@ -11,10 +11,10 @@ use super::{
     clusterrole::ClusterRoleProcessor, clusterrolebinding::ClusterRoleBindingProcessor,
     configmap::ConfigmapProcessor, container::ContainerProcessor, cronjob::CronJobProcessor,
     customresourcedefinition::ClusterResourceDefinitionProcessor, daemonset::DaemonsetProcessor,
-    default::DefaultProcessor, deployment::DeploymentProcessor, fallback::FallbackProcessor,
-    horizontalpodautoscaler::HorizontalPodAutoscalerProcessor, ingress::IngressProcessor,
-    job::JobProcessor, namespace::NamespaceProcessor, node::NodeProcessor,
-    persistentvolume::PersistentVolumeProcessor,
+    default::DefaultProcessor, deployment::DeploymentProcessor, event::EventProcessor,
+    fallback::FallbackProcessor, horizontalpodautoscaler::HorizontalPodAutoscalerProcessor,
+    ingress::IngressProcessor, job::JobProcessor, namespace::NamespaceProcessor,
+    node::NodeProcessor, persistentvolume::PersistentVolumeProcessor,
     persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor, processor::Processor,
     replicaset::ReplicaSetProcessor, secret::SecretProcessor, service::ServiceProcessor,
     serviceaccount::ServiceAccountProcessor, statefulset::StatefulsetProcessor,
@@ -27,6 +27,7 @@ pub enum ProcessorKind {
     ClusterRole,
     ConfigMap,
     Container,
+    Event,
     CronJob,
     CustomResourceDefinition,
     DaemonSet,
@@ -56,6 +57,7 @@ impl FromStr for ProcessorKind {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "clusterrole" => Self::ClusterRole,
+            "event" => Self::Event,
             "clusterrolebinding" => Self::ClusterRoleBinding,
             "configmap" => Self::ConfigMap,
             "container" => Self::Container,
@@ -156,6 +158,7 @@ impl ProcessorKind {
         use ProcessorKind::*;
         match self {
             ClusterRole=> run(&ClusterRoleProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
+            Event=> run(&EventProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
             ClusterRoleBinding => run(&ClusterRoleBindingProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
             ConfigMap => run(&ConfigmapProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
             Container => run(&ContainerProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
