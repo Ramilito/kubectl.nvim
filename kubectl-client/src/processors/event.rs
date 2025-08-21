@@ -10,7 +10,7 @@ use crate::utils::{time_since, AccessorMode, FieldValue};
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EventProcessed {
     namespace: String,
-    #[serde(rename = "last-seen")]
+    #[serde(rename = "last seen")]
     last_seen: FieldValue,
     #[serde(rename = "type")]
     type_: FieldValue,
@@ -52,7 +52,11 @@ impl Processor for EventProcessor {
             );
 
             let count_i = ev.series.as_ref().map(|s| s.count).unwrap_or(1);
-            let count = count_field(count_i);
+            let count = FieldValue {
+                value: count_i.to_string(),
+                sort_by: Some(count_i.try_into().unwrap()),
+                ..Default::default()
+            };
             let mut message = ev.note.clone().unwrap_or_default();
             let mess_length = message.trim_end_matches(&['\r', '\n'][..]).len();
             message.truncate(mess_length);
@@ -60,7 +64,10 @@ impl Processor for EventProcessor {
             Ok(EventProcessed {
                 namespace,
                 last_seen,
-                type_: text_field(ev.type_.clone().unwrap_or_default()),
+                type_: FieldValue {
+                    value: ev.type_.clone().unwrap_or_default(),
+                    ..Default::default()
+                },
                 reason: ev.reason.clone().unwrap_or_default(),
                 object: object_string(object_kind, object_name),
                 count,
@@ -89,7 +96,11 @@ impl Processor for EventProcessor {
             );
 
             let count_i = ev.count.unwrap_or(1);
-            let count = count_field(count_i);
+            let count = FieldValue {
+                value: count_i.to_string(),
+                sort_by: Some(count_i.try_into().unwrap()),
+                ..Default::default()
+            };
             let mut message = ev.message.clone().unwrap_or_default();
             let mess_length = message.trim_end_matches(&['\r', '\n'][..]).len();
             message.truncate(mess_length);
@@ -97,7 +108,10 @@ impl Processor for EventProcessor {
             Ok(EventProcessed {
                 namespace,
                 last_seen,
-                type_: text_field(ev.type_.clone().unwrap_or_default()),
+                type_: FieldValue {
+                    value: ev.type_.clone().unwrap_or_default(),
+                    ..Default::default()
+                },
                 reason: ev.reason.clone().unwrap_or_default(),
                 object: object_string(object_kind, object_name),
                 count,
@@ -109,7 +123,7 @@ impl Processor for EventProcessor {
     fn filterable_fields(&self) -> &'static [&'static str] {
         &[
             "namespace",
-            "last_seen",
+            "last seen",
             "type",
             "reason",
             "object",
@@ -124,7 +138,7 @@ impl Processor for EventProcessor {
     ) -> Box<dyn Fn(&Self::Row, &str) -> Option<String> + '_> {
         Box::new(move |row, field| match field {
             "namespace" => Some(row.namespace.clone()),
-            "last_seen" => match mode {
+            "last seen" => match mode {
                 AccessorMode::Sort => Some(row.last_seen.sort_by?.to_string()),
                 AccessorMode::Filter => Some(row.last_seen.value.clone()),
             },
@@ -153,21 +167,6 @@ fn object_string(kind: String, name: String) -> String {
         k
     } else {
         format!("{}/{}", k, name)
-    }
-}
-
-fn text_field(s: String) -> FieldValue {
-    FieldValue {
-        value: s,
-        ..Default::default()
-    }
-}
-
-fn count_field(n: i32) -> FieldValue {
-    FieldValue {
-        value: n.to_string(),
-        sort_by: Some(n.try_into().unwrap()),
-        ..Default::default()
     }
 }
 
