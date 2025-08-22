@@ -272,7 +272,7 @@ end
 --- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
-  local bufname = (filetype .. " | " .. title) or "dynamic_float"
+  local bufname = filetype or "dynamic_float"
   local buf = M.get_buffer_by_name(bufname)
 
   if not buf then

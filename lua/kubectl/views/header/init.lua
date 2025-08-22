@@ -2,7 +2,7 @@ local buffers = require("kubectl.actions.buffers")
 local config = require("kubectl.config")
 local manager = require("kubectl.resource_manager")
 
-local M = {}
+local M = { is_drawing = false }
 
 local function is_overlapping()
   local ui = vim.api.nvim_list_uis()[1] -- current UI size
@@ -68,7 +68,7 @@ function M.View()
 end
 
 function M.Draw()
-  if not config.options.headers.enabled then
+  if not config.options.headers.enabled or M.is_drawing then
     return
   end
   if is_overlapping() then
@@ -79,6 +79,7 @@ function M.Draw()
   if not builder then
     return
   end
+  M.is_drawing = true
   builder.buf_nr, builder.win_nr = buffers.header_buffer(builder.win_nr)
 
   local current_win = vim.api.nvim_get_current_win()
@@ -96,6 +97,7 @@ function M.Draw()
   end
 
   buffers.fit_to_content(builder.buf_nr, builder.win_nr, 0)
+  M.is_drawing = false
 end
 
 function M.Hide()
