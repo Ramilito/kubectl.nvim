@@ -26,7 +26,7 @@ function health.report_download()
   local ok, system = pcall(require, "blink.download.system")
   if not ok then
     H.error("Blink.download not available")
-		return
+    return
   end
 
   local system_triple = system.get_triple_sync()
