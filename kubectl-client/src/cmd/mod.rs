@@ -6,12 +6,15 @@ use crate::cmd::config::{
 };
 use crate::cmd::delete::delete_async;
 use crate::cmd::edit::edit_async;
+use crate::cmd::exec::{open_debug, Session};
 use crate::cmd::get::{
     get_api_resources_async, get_raw_async, get_server_raw_async, get_single, get_single_async,
 };
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
+use crate::cmd::stream::log_stream_async;
+use crate::with_stream_client;
 
 pub mod apply;
 pub mod config;
@@ -65,6 +68,33 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
     exports.set(
         "get_single_async",
         lua.create_async_function(get_single_async)?,
+    )?;
+
+    exports.set(
+        "debug",
+        lua.create_function(
+            |_, (ns, pod, image, target): (String, String, String, Option<String>)| {
+                with_stream_client(
+                    |client| async move { open_debug(client, ns, pod, image, target) },
+                )
+            },
+        )?,
+    )?;
+
+    exports.set(
+        "exec",
+        lua.create_function(
+            |_, (ns, pod, container, cmd): (String, String, Option<String>, Vec<String>)| {
+                with_stream_client(|client| async move {
+                    Session::new(client, ns, pod, container, cmd, true)
+                })
+            },
+        )?,
+    )?;
+
+    exports.set(
+        "log_stream_async",
+        lua.create_async_function(log_stream_async)?,
     )?;
     Ok(())
 }
