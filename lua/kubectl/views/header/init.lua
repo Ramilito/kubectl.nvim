@@ -23,13 +23,13 @@ function M.View()
   if not config.options.headers.enabled then
     return
   end
-  vim.api.nvim_create_augroup("kubectl_header", { clear = true })
+  local group = vim.api.nvim_create_augroup("kubectl_header", { clear = true })
 
   manager.get_or_create("header")
   M.Draw()
 
   vim.api.nvim_create_autocmd("User", {
-    group = "kubectl_header",
+    group = group,
     pattern = "K8sDataLoaded",
     callback = function()
       M.Draw()
@@ -37,7 +37,7 @@ function M.View()
   })
 
   vim.api.nvim_create_autocmd({ "VimResized" }, {
-    group = "kubectl_header",
+    group = group,
     callback = function()
       local builder = manager.get("header")
       if not builder then
@@ -51,7 +51,7 @@ function M.View()
   })
 
   vim.api.nvim_create_autocmd({ "CursorHold" }, {
-    group = "kubectl_header",
+    group = group,
     callback = function()
       local win = vim.api.nvim_get_current_win()
       local conf = vim.api.nvim_win_get_config(win)

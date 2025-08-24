@@ -87,7 +87,7 @@ function M.list_contexts()
   return M.contexts
 end
 
---- Change context and restart proxy
+--- Change context and reset state
 --- @param cmd string
 function M.change_context(cmd)
   local loop = require("kubectl.utils.loop")
@@ -99,6 +99,9 @@ function M.change_context(cmd)
 
   local cache = require("kubectl.cache")
   cache.clear_cache()
+
+  local header = require("kubectl.views.header")
+  header.Close()
 
   local client = require("kubectl.client")
   local ok, result = client.set_implementation()
@@ -112,6 +115,8 @@ function M.change_context(cmd)
       pattern = "K8sContextChanged",
       data = { context = cmd },
     })
+
+    header.View()
   else
     vim.notify(result, vim.log.levels.ERROR)
   end
