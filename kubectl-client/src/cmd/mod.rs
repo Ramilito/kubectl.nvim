@@ -32,7 +32,6 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
     exports.set("portforward_start", lua.create_function(portforward_start)?)?;
     exports.set("portforward_list", lua.create_function(portforward_list)?)?;
     exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
-
     exports.set("apply_async", lua.create_async_function(apply_async)?)?;
     exports.set(
         "edit_async",
@@ -41,7 +40,6 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
     exports.set("delete_async", lua.create_async_function(delete_async)?)?;
     exports.set("scale_async", lua.create_async_function(scale_async)?)?;
     exports.set("restart_async", lua.create_async_function(restart_async)?)?;
-
     exports.set("get_raw_async", lua.create_async_function(get_raw_async)?)?;
     exports.set(
         "get_server_raw_async",
@@ -69,7 +67,6 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
         "get_single_async",
         lua.create_async_function(get_single_async)?,
     )?;
-
     exports.set(
         "debug",
         lua.create_function(
@@ -80,7 +77,6 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
             },
         )?,
     )?;
-
     exports.set(
         "exec",
         lua.create_function(
@@ -91,10 +87,10 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
             },
         )?,
     )?;
-
     exports.set(
         "log_stream_async",
         lua.create_async_function(log_stream_async)?,
     )?;
+
     Ok(())
 }

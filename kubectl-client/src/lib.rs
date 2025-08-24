@@ -356,7 +356,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     )?;
 
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
-
     exports.set("init_metrics", lua.create_function(init_metrics)?)?;
     exports.set(
         "start_reflector_async",
