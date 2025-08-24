@@ -362,14 +362,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(start_reflector_async)?,
     )?;
 
-    exports.set(
-        "start_dashboard",
-        lua.create_function(|_, view_name: String| ui::dashboard::Session::new(view_name))?,
-    )?;
-    exports.set(
-        "describe_async",
-        lua.create_async_function(describe::describe_async)?,
-    )?;
     exports.set("get_all", lua.create_function(get_all)?)?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(
@@ -391,6 +383,15 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "drain_node_async",
         lua.create_async_function(drain::drain_node_async)?,
+    )?;
+
+    exports.set(
+        "start_dashboard",
+        lua.create_function(|_, view_name: String| ui::dashboard::Session::new(view_name))?,
+    )?;
+    exports.set(
+        "describe_async",
+        lua.create_async_function(describe::describe_async)?,
     )?;
 
     dao::install(lua, &exports)?;
