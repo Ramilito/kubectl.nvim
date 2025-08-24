@@ -15,19 +15,7 @@ use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 
-use crate::cmd::apply::apply_async;
-use crate::cmd::config::{
-    get_config, get_config_async, get_minified_config_async, get_version_async,
-};
-use crate::cmd::delete::delete_async;
-use crate::cmd::edit::edit_async;
-use crate::cmd::get::{
-    get_api_resources_async, get_raw_async, get_resources_async, get_server_raw_async, get_single,
-    get_single_async,
-};
-use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
-use crate::cmd::restart::restart_async;
-use crate::cmd::scale::scale_async;
+use crate::cmd::get::get_resources_async;
 use crate::processors::processor_for;
 use crate::statusline::get_statusline;
 use crate::store::get_store_map;
@@ -368,80 +356,12 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     )?;
 
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
-
     exports.set("init_metrics", lua.create_function(init_metrics)?)?;
     exports.set(
         "start_reflector_async",
         lua.create_async_function(start_reflector_async)?,
     )?;
 
-    exports.set(
-        "start_dashboard",
-        lua.create_function(|_, view_name: String| ui::dashboard::Session::new(view_name))?,
-    )?;
-    exports.set("portforward_start", lua.create_function(portforward_start)?)?;
-    exports.set("portforward_list", lua.create_function(portforward_list)?)?;
-    exports.set("portforward_stop", lua.create_function(portforward_stop)?)?;
-    exports.set(
-        "debug",
-        lua.create_function(
-            |_, (ns, pod, image, target): (String, String, String, Option<String>)| {
-                with_stream_client(|client| async move {
-                    cmd::exec::open_debug(client, ns, pod, image, target)
-                })
-            },
-        )?,
-    )?;
-    exports.set(
-        "exec",
-        lua.create_function(
-            |_, (ns, pod, container, cmd): (String, String, Option<String>, Vec<String>)| {
-                with_stream_client(|client| async move {
-                    cmd::exec::Session::new(client, ns, pod, container, cmd, true)
-                })
-            },
-        )?,
-    )?;
-    exports.set(
-        "log_stream_async",
-        lua.create_async_function(cmd::stream::log_stream_async)?,
-    )?;
-    exports.set("apply_async", lua.create_async_function(apply_async)?)?;
-    exports.set(
-        "edit_async",
-        lua.create_async_function(|lua, args| async move { edit_async(lua, args).await })?,
-    )?;
-    exports.set(
-        "describe_async",
-        lua.create_async_function(describe::describe_async)?,
-    )?;
-    exports.set("get_raw_async", lua.create_async_function(get_raw_async)?)?;
-    exports.set(
-        "get_server_raw_async",
-        lua.create_async_function(get_server_raw_async)?,
-    )?;
-    exports.set(
-        "get_api_resources_async",
-        lua.create_async_function(get_api_resources_async)?,
-    )?;
-    exports.set("get_config", lua.create_function(get_config)?)?;
-    exports.set(
-        "get_config_async",
-        lua.create_async_function(get_config_async)?,
-    )?;
-    exports.set(
-        "get_minified_config_async",
-        lua.create_async_function(get_minified_config_async)?,
-    )?;
-    exports.set(
-        "get_version_async",
-        lua.create_async_function(get_version_async)?,
-    )?;
-    exports.set("get_single", lua.create_function(get_single)?)?;
-    exports.set(
-        "get_single_async",
-        lua.create_async_function(get_single_async)?,
-    )?;
     exports.set("get_all", lua.create_function(get_all)?)?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(
@@ -460,36 +380,22 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "get_statusline_async",
         lua.create_async_function(get_statusline_async)?,
     )?;
-    exports.set("delete_async", lua.create_async_function(delete_async)?)?;
-    exports.set("scale_async", lua.create_async_function(scale_async)?)?;
-    exports.set("restart_async", lua.create_async_function(restart_async)?)?;
-    exports.set(
-        "deployment_set_images",
-        lua.create_function(dao::deployment::set_images)?,
-    )?;
-    exports.set(
-        "statefulset_set_images",
-        lua.create_function(dao::statefulset::set_images)?,
-    )?;
-    exports.set(
-        "daemonset_set_images",
-        lua.create_function(dao::daemonset::set_images)?,
-    )?;
-    exports.set(
-        "create_job_from_cronjob",
-        lua.create_function(dao::cronjob::create_job_from_cronjob)?,
-    )?;
-    exports.set(
-        "suspend_cronjob",
-        lua.create_function(dao::cronjob::suspend_cronjob)?,
-    )?;
-    exports.set("cordon_node", lua.create_function(dao::node::cordon)?)?;
-    exports.set("uncordon_node", lua.create_function(dao::node::uncordon)?)?;
     exports.set(
         "drain_node_async",
         lua.create_async_function(drain::drain_node_async)?,
     )?;
 
+    exports.set(
+        "start_dashboard",
+        lua.create_function(|_, view_name: String| ui::dashboard::Session::new(view_name))?,
+    )?;
+    exports.set(
+        "describe_async",
+        lua.create_async_function(describe::describe_async)?,
+    )?;
+
+    dao::install(lua, &exports)?;
+    cmd::install(lua, &exports)?;
     event_queue::install(lua, &exports)?;
 
     Ok(exports)
