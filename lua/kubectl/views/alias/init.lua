@@ -22,8 +22,10 @@ M.View = function()
   )
 
   -- autocmd for KubectlCacheLoaded
+  local group = vim.api.nvim_create_augroup("kubectl_cacheloaded", { clear = true })
   vim.api.nvim_create_autocmd({ "User" }, {
     pattern = "KubectlCacheLoaded",
+    group = group,
     callback = function()
       -- check if win and buf are valid
       local _, is_valid_win = pcall(vim.api.nvim_win_is_valid, win)
