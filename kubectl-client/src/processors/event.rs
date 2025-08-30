@@ -18,6 +18,7 @@ pub struct EventProcessed {
     object: String,
     count: FieldValue,
     message: String,
+    name: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -59,6 +60,7 @@ impl Processor for EventProcessor {
         let mut message = ev.message.clone().unwrap_or_default();
         message = message.replace("\n", "");
 
+        let name = ev.metadata.name.clone().unwrap_or_default();
         Ok(EventProcessed {
             namespace,
             last_seen,
@@ -71,6 +73,7 @@ impl Processor for EventProcessor {
             object: object_string(object_kind, object_name),
             count,
             message,
+            name,
         })
     }
 
@@ -83,6 +86,7 @@ impl Processor for EventProcessor {
             "object",
             "count",
             "message",
+            "name",
         ]
     }
 
@@ -107,6 +111,7 @@ impl Processor for EventProcessor {
                 AccessorMode::Filter => Some(row.count.value.clone()),
             },
             "message" => Some(row.message.clone()),
+            "name" => Some(row.name.clone()),
             _ => None,
         })
     }

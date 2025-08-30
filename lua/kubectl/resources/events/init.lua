@@ -1,5 +1,4 @@
 local buffers = require("kubectl.actions.buffers")
--- local definition = require("kubectl.resources.events.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -24,8 +23,8 @@ local M = {
       "OBJECT",
       "COUNT",
       "MESSAGE",
+      "NAME",
     },
-    -- processRow = definition.processRow,
   },
 }
 
@@ -86,7 +85,7 @@ end
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  return tables.getCurrentSelection(5, 1)
+  return tables.getCurrentSelection(8, 1)
 end
 
 return M
