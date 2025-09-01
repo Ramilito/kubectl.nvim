@@ -419,9 +419,7 @@ Instead, the Informer provides only the changes, significantly reducing overhead
 
 ## ⚠️ Versioning
 
-As we advance to `v1.0.0`, our primary goal is to maintain the stability of the
-plugin and minimize any breaking changes. We are committed to providing a
-reliable and consistent user experience.
+As of `v2`, the plugin is in a stable state. No breaking changes are scheduled at this time, and we remain committed to delivering a reliable, consistent user experience.
 
 ## Troubleshooting
 
