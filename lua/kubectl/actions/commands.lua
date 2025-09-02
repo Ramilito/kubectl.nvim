@@ -32,15 +32,15 @@ function M.configure_command(cmd, envs, args)
     end
   end
 
-  table.insert(result.env, "PATH=" .. current_env["PATH"])
+  result.env.PATH = current_env["PATH"]
   if current_env["HOME"] then
-    table.insert(result.env, "HOME=" .. current_env["HOME"])
+    result.env.HOME = current_env["HOME"]
   end
   if current_env["KUBECONFIG"] then
-    table.insert(result.env, "KUBECONFIG=" .. current_env["KUBECONFIG"])
+    result.env.KUBECONFIG = current_env["KUBECONFIG"]
   end
   if current_env["KUBECACHEDIR"] then
-    table.insert(result.env, "KUBECACHEDIR=" .. current_env["KUBECACHEDIR"])
+    result.env.KUBECACHEDIR = current_env["KUBECACHEDIR"]
   end
 
   if envs then

@@ -44,6 +44,7 @@ function M.start_loop_for_buffer(buf, callback, opts)
 
   vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
     buffer = buf,
+    group = group,
     callback = function()
       M.stop_loop(buf)
     end,
