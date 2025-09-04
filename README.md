@@ -303,6 +303,7 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
     hints = true,
     context = true,
     heartbeat = true,
+    blend = 20,
     skew = {
       enabled = true,
       log_level = vim.log.levels.OFF,

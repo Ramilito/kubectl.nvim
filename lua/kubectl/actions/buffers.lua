@@ -388,7 +388,8 @@ function M.header_buffer(win)
     win = vim.api.nvim_open_win(buf, false, win_opts)
   end
 
-  vim.api.nvim_set_option_value("winblend", 20, { win = win })
+  local config = require("kubectl.config")
+  vim.api.nvim_set_option_value("winblend", config.options.headers.blend, { win = win })
   vim.api.nvim_set_option_value("wrap", true, { win = win })
 
   return buf, win

@@ -59,6 +59,7 @@ local defaults = {
     hints = true,
     context = true,
     heartbeat = true,
+    blend = 20,
     skew = {
       enabled = true,
       log_level = vim.log.levels.OFF,
