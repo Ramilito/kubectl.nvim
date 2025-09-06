@@ -32,7 +32,9 @@ function M.View()
     group = group,
     pattern = "K8sDataLoaded",
     callback = function()
-      M.Draw()
+      vim.schedule(function()
+        M.Draw()
+      end)
     end,
   })
 
@@ -60,7 +62,9 @@ function M.View()
         if is_overlapping() then
           M.Hide()
         else
-          M.Draw()
+          vim.schedule(function()
+            M.Draw()
+          end)
         end
       end
     end,
