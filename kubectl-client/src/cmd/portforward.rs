@@ -2,9 +2,9 @@ use k8s_openapi::api::core::v1::{Endpoints, Pod, Service};
 use kube::{api::ListParams, Api, Client};
 use mlua::prelude::*;
 use std::collections::HashMap;
-use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::sync::{oneshot, Mutex};
@@ -22,7 +22,6 @@ pub enum PFType {
     Service,
 }
 
-#[allow(dead_code)]
 pub struct PFData {
     pub handle: tokio::task::JoinHandle<()>,
     pub cancel: Option<oneshot::Sender<()>>,
@@ -34,46 +33,24 @@ pub struct PFData {
     pub remote_port: u16,
 }
 
-#[derive(Debug)]
-enum PFError {
-    Io(std::io::Error),
-    Kube(kube::Error),
-    Msg(String),
-}
+type PFResult<T> = Result<T, String>;
 
-impl fmt::Display for PFError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PFError::Io(e) => write!(f, "io error: {}", e),
-            PFError::Kube(e) => write!(f, "kube error: {}", e),
-            PFError::Msg(s) => write!(f, "{}", s),
-        }
-    }
-}
-
-impl From<std::io::Error> for PFError {
-    fn from(e: std::io::Error) -> Self {
-        PFError::Io(e)
-    }
-}
-impl From<kube::Error> for PFError {
-    fn from(e: kube::Error) -> Self {
-        PFError::Kube(e)
-    }
+#[inline]
+fn err<E: std::fmt::Display>(e: E) -> String {
+    e.to_string()
 }
 
 pub fn portforward_start(
     _lua: &Lua,
     args: (String, String, String, String, u16, u16),
 ) -> LuaResult<usize> {
-    let (pf_type_str, name, namespace, bind_address, local_port, remote_port) = args;
+    let (pf_type_str, name, namespace, bind_host, local_port, remote_port) = args;
 
     let (client, rt) = {
         let client = {
-            let client_guard = CLIENT_INSTANCE.lock().unwrap();
-            client_guard
-                .as_ref()
-                .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".to_string()))?
+            let g = CLIENT_INSTANCE.lock().unwrap();
+            g.as_ref()
+                .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?
                 .clone()
         };
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
@@ -85,39 +62,38 @@ pub fn portforward_start(
         "Service" | "service" => PFType::Service,
         other => {
             return Err(mlua::Error::RuntimeError(format!(
-                "Invalid pf_type string: {} (expected Pod|Service)",
-                other
+                "Invalid pf_type: {other} (expected Pod|Service)"
             )))
         }
     };
 
     let id = PF_COUNTER.fetch_add(1, Ordering::SeqCst);
-    let addr = format!("{}:{}", bind_address, local_port);
+    let bind_addr = format!("{bind_host}:{local_port}");
 
-    let listener = match rt.block_on(async { TcpListener::bind(&addr).await }) {
+    let listener = match rt.block_on(async { TcpListener::bind(&bind_addr).await }) {
         Ok(l) => {
-            info!("Portforward listening on {}", addr);
+            info!("pf#{id}: listening on {bind_addr}");
             l
         }
         Err(e) => {
-            error!("Failed to bind to {}: {}", addr, e);
+            error!("pf#{id}: bind {bind_addr} failed: {e}");
             return Err(mlua::Error::RuntimeError(format!(
-                "bind {} failed: {}",
-                addr, e
+                "bind {bind_addr} failed: {e}"
             )));
         }
     };
 
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
 
-    let handle = rt.spawn(run_port_forward(
+    let handle = rt.spawn(run_forward(
         client.clone(),
         pf_type,
         name.clone(),
         namespace.clone(),
-        listener, // <-- already bound
+        listener,
         remote_port,
         cancel_rx,
+        id,
     ));
 
     let pf_data = PFData {
@@ -126,209 +102,17 @@ pub fn portforward_start(
         pf_type,
         name,
         namespace,
-        host: bind_address,
+        host: bind_host,
         local_port,
         remote_port,
     };
+
     let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
     rt.block_on(async {
         pf_map.lock().await.insert(id, pf_data);
     });
 
     Ok(id)
-}
-
-async fn run_port_forward(
-    client: Client,
-    pf_type: PFType,
-    name: String,
-    namespace: String,
-    listener: TcpListener,
-    remote_port: u16,
-    mut cancel_rx: oneshot::Receiver<()>,
-) {
-    let listener_addr = listener.local_addr().ok();
-    if let Some(addr) = listener_addr {
-        info!("Portforward {}: accept loop on {}", name, addr);
-    }
-
-    loop {
-        tokio::select! {
-            _ = &mut cancel_rx => {
-                info!("Portforward {} canceled; closing listener", name);
-                break;
-            }
-            accept_res = listener.accept() => {
-                match accept_res {
-                    Ok((sock, peer)) => {
-                        debug!(%peer, "accepted local connection");
-                        let _ = sock.set_nodelay(true);
-
-                        let c = client.clone();
-                        let n = name.clone();
-                        let ns = namespace.clone();
-                        tokio::spawn(async move {
-                            if let Err(e) = handle_single_connection(c, pf_type, ns, n, remote_port, sock).await {
-                                warn!("connection ended with error: {}", e);
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        warn!("accept error: {} (will retry)", e);
-                        time::sleep(std::time::Duration::from_millis(200)).await;
-                    }
-                }
-            }
-        }
-    }
-
-    info!("Portforward {} stopped", name);
-}
-
-async fn handle_single_connection(
-    client: Client,
-    pf_type: PFType,
-    namespace: String,
-    name: String,
-    remote_port: u16,
-    mut local_sock: TcpStream,
-) -> Result<(), PFError> {
-    let pod_name = match pf_type {
-        PFType::Pod => name.clone(),
-        PFType::Service => resolve_pod_for_service(&client, &namespace, &name).await?,
-    };
-
-    const MAX_TRIES: usize = 3;
-    let api: Api<Pod> = Api::namespaced(client.clone(), &namespace);
-    let mut attempt = 0usize;
-    let mut last_err: Option<PFError> = None;
-
-    while attempt < MAX_TRIES {
-        attempt += 1;
-        match api.portforward(&pod_name, &[remote_port]).await {
-            Ok(mut pf) => {
-                if let Some(mut remote_stream) = pf.take_stream(remote_port) {
-                    debug!(pod=%pod_name, "port-forward stream established");
-                    proxy_bidirectional(&mut local_sock, &mut remote_stream).await?;
-                    debug!("io proxy completed");
-                    return Ok(());
-                } else {
-                    last_err = Some(PFError::Msg(format!(
-                        "no stream for remote port {}",
-                        remote_port
-                    )));
-                }
-            }
-            Err(e) => {
-                last_err = Some(PFError::from(e));
-            }
-        }
-
-        if attempt < MAX_TRIES {
-            let backoff = 50u64 * (1 << (attempt - 1)); // 50ms, 100ms
-            debug!(attempt, backoff, "retrying portforward creation");
-            time::sleep(std::time::Duration::from_millis(backoff)).await;
-        }
-    }
-
-    Err(last_err.unwrap_or_else(|| PFError::Msg("unknown portforward error".to_string())))
-}
-
-async fn proxy_bidirectional(
-    local: &mut TcpStream,
-    remote: &mut (impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin),
-) -> Result<(), PFError> {
-    use tokio::io::AsyncWriteExt;
-
-    tokio::io::copy_bidirectional(local, remote)
-        .await
-        .map_err(PFError::from)?;
-    let _ = local.shutdown().await;
-    let _ = remote.shutdown().await;
-    Ok(())
-}
-
-async fn resolve_pod_for_service(
-    client: &Client,
-    namespace: &str,
-    svc_name: &str,
-) -> Result<String, PFError> {
-    let eps_api: Api<Endpoints> = Api::namespaced(client.clone(), namespace);
-    if let Ok(eps) = eps_api.get(svc_name).await {
-        if let Some(subsets) = eps.subsets {
-            for ss in subsets {
-                if let Some(addresses) = ss.addresses {
-                    for addr in addresses {
-                        if let Some(tref) = addr.target_ref {
-                            if tref.kind.as_deref() == Some("Pod") {
-                                if let Some(pod_name) = tref.name {
-                                    debug!(service=%svc_name, pod=%pod_name, "resolved via Endpoints");
-                                    return Ok(pod_name);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    let svc_api: Api<Service> = Api::namespaced(client.clone(), namespace);
-    let service = svc_api.get(svc_name).await.map_err(PFError::from)?;
-
-    let selector = service
-        .spec
-        .as_ref()
-        .and_then(|spec| spec.selector.clone())
-        .ok_or_else(|| PFError::Msg(format!("service {} has no selector", svc_name)))?;
-
-    if selector.is_empty() {
-        return Err(PFError::Msg(format!(
-            "service {} has empty selector",
-            svc_name
-        )));
-    }
-
-    let selector_str = selector
-        .into_iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let pod_api: Api<Pod> = Api::namespaced(client.clone(), namespace);
-    let pods = pod_api
-        .list(&ListParams::default().labels(&selector_str))
-        .await
-        .map_err(PFError::from)?
-        .items;
-
-    for p in &pods {
-        if is_pod_ready(p) {
-            if let Some(n) = p.metadata.name.clone() {
-                debug!(service=%svc_name, pod=%n, "resolved via selector (Ready)");
-                return Ok(n);
-            }
-        }
-    }
-
-    Err(PFError::Msg(format!(
-        "no Ready pods found for service {} ({} pods matched)",
-        svc_name,
-        pods.len()
-    )))
-}
-
-fn is_pod_ready(p: &Pod) -> bool {
-    p.status
-        .as_ref()
-        .and_then(|s| s.conditions.as_ref())
-        .and_then(|conds| {
-            conds
-                .iter()
-                .find(|c| c.type_ == "Ready")
-                .map(|c| c.status.as_str() == "True")
-        })
-        .unwrap_or(false)
 }
 
 pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
@@ -339,21 +123,21 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
     rt.block_on(async {
         let map = pf_map.lock().await;
         for (id, pf) in map.iter() {
-            let entry = lua.create_table()?;
-            entry.set("id", *id)?;
-            entry.set(
+            let row = lua.create_table()?;
+            row.set("id", *id)?;
+            row.set(
                 "type",
                 match pf.pf_type {
                     PFType::Pod => "pod",
                     PFType::Service => "service",
                 },
             )?;
-            entry.set("name", pf.name.clone())?;
-            entry.set("namespace", pf.namespace.clone())?;
-            entry.set("host", pf.host.clone())?;
-            entry.set("local_port", pf.local_port)?;
-            entry.set("remote_port", pf.remote_port)?;
-            table.set(*id, entry)?;
+            row.set("name", pf.name.clone())?;
+            row.set("namespace", pf.namespace.clone())?;
+            row.set("host", pf.host.clone())?;
+            row.set("local_port", pf.local_port)?;
+            row.set("remote_port", pf.remote_port)?;
+            table.set(*id, row)?;
         }
         Ok::<(), mlua::Error>(())
     })?;
@@ -379,4 +163,146 @@ pub fn portforward_stop(_lua: &Lua, id: usize) -> LuaResult<()> {
             )))
         }
     })
+}
+
+async fn run_forward(
+    client: Client,
+    pf_type: PFType,
+    name: String,
+    namespace: String,
+    listener: TcpListener,
+    remote_port: u16,
+    mut cancel_rx: oneshot::Receiver<()>,
+    id: usize,
+) {
+    if let Ok(addr) = listener.local_addr() {
+        info!("pf#{id}: accept loop on {}", addr);
+    }
+
+    loop {
+        tokio::select! {
+            _ = &mut cancel_rx => {
+                info!("pf#{id}: canceled");
+                break;
+            }
+            accepted = listener.accept() => {
+                match accepted {
+                    Ok((sock, peer)) => {
+                        debug!("pf#{id}: accepted {peer}");
+                        let _ = sock.set_nodelay(true);
+
+                        let c = client.clone();
+                        let n = name.clone();
+                        let ns = namespace.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = handle_connection(c, pf_type, ns, n, remote_port, sock).await {
+                                warn!("connection closed with error: {e}");
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        warn!("pf#{id}: accept error: {e} (retrying)");
+                        time::sleep(std::time::Duration::from_millis(200)).await;
+                    }
+                }
+            }
+        }
+    }
+
+    info!("pf#{id}: stopped");
+}
+
+async fn handle_connection(
+    client: Client,
+    pf_type: PFType,
+    namespace: String,
+    name: String,
+    remote_port: u16,
+    mut local: TcpStream,
+) -> PFResult<()> {
+    let pod = match pf_type {
+        PFType::Pod => name,
+        PFType::Service => resolve_pod_for_service(&client, &namespace, &name).await?,
+    };
+
+    let api: Api<Pod> = Api::namespaced(client, &namespace);
+    let mut last: Option<String> = None;
+    for backoff_ms in [0_u64, 75, 150] {
+        if backoff_ms > 0 {
+            time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+        }
+        match api.portforward(&pod, &[remote_port]).await {
+            Ok(mut pf) => {
+                if let Some(mut remote) = pf.take_stream(remote_port) {
+                    tokio::io::copy_bidirectional(&mut local, &mut remote)
+                        .await
+                        .map_err(err)?;
+                    let _ = local.shutdown().await;
+                    let _ = remote.shutdown().await;
+                    return Ok(());
+                } else {
+                    last = Some(format!("no stream for remote port {remote_port}"));
+                }
+            }
+            Err(e) => last = Some(err(e)),
+        }
+    }
+    Err(last.unwrap_or_else(|| "unknown port-forward error".into()))
+}
+
+async fn resolve_pod_for_service(client: &Client, ns: &str, svc: &str) -> PFResult<String> {
+    if let Ok(eps) = Api::<Endpoints>::namespaced(client.clone(), ns)
+        .get(svc)
+        .await
+    {
+        if let Some(pod) = pick_pod_from_endpoints(eps) {
+            debug!(service=%svc, pod=%pod, "resolved via Endpoints");
+            return Ok(pod);
+        }
+    }
+
+    let svc_api: Api<Service> = Api::namespaced(client.clone(), ns);
+    let svc_obj = svc_api.get(svc).await.map_err(err)?;
+    let selector = match svc_obj.spec.as_ref().and_then(|s| s.selector.clone()) {
+        Some(m) if !m.is_empty() => m,
+        Some(_) => return Err(format!("service {svc} has empty selector")),
+        None => return Err(format!("service {svc} has no selector")),
+    };
+
+    let selector_str = selector
+        .into_iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let pods = Api::<Pod>::namespaced(client.clone(), ns)
+        .list(&ListParams::default().labels(&selector_str))
+        .await
+        .map_err(err)?
+        .items;
+
+    let pod = pods
+        .into_iter()
+        .find(is_pod_ready)
+        .and_then(|p| p.metadata.name);
+
+    pod.ok_or_else(|| format!("no Ready pods found for service {svc}"))
+}
+
+fn pick_pod_from_endpoints(eps: Endpoints) -> Option<String> {
+    eps.subsets?
+        .into_iter()
+        .filter_map(|ss| ss.addresses)
+        .flatten()
+        .filter_map(|addr| addr.target_ref)
+        .find_map(|tr| (tr.kind.as_deref() == Some("Pod")).then_some(tr.name))
+        .flatten()
+}
+
+fn is_pod_ready(p: &Pod) -> bool {
+    p.status
+        .as_ref()
+        .and_then(|s| s.conditions.as_ref())
+        .and_then(|conds| conds.iter().find(|c| c.type_ == "Ready"))
+        .map_or(false, |c| c.status == "True")
 }
