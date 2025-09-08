@@ -52,10 +52,14 @@ impl fmt::Display for PFError {
 }
 
 impl From<std::io::Error> for PFError {
-    fn from(e: std::io::Error) -> Self { PFError::Io(e) }
+    fn from(e: std::io::Error) -> Self {
+        PFError::Io(e)
+    }
 }
 impl From<kube::Error> for PFError {
-    fn from(e: kube::Error) -> Self { PFError::Kube(e) }
+    fn from(e: kube::Error) -> Self {
+        PFError::Kube(e)
+    }
 }
 
 pub fn portforward_start(
@@ -111,7 +115,7 @@ pub fn portforward_start(
         pf_type,
         name.clone(),
         namespace.clone(),
-        listener,       // <-- already bound
+        listener, // <-- already bound
         remote_port,
         cancel_rx,
     ));
@@ -209,7 +213,10 @@ async fn handle_single_connection(
                     debug!("io proxy completed");
                     return Ok(());
                 } else {
-                    last_err = Some(PFError::Msg(format!("no stream for remote port {}", remote_port)));
+                    last_err = Some(PFError::Msg(format!(
+                        "no stream for remote port {}",
+                        remote_port
+                    )));
                 }
             }
             Err(e) => {
@@ -233,7 +240,9 @@ async fn proxy_bidirectional(
 ) -> Result<(), PFError> {
     use tokio::io::AsyncWriteExt;
 
-    tokio::io::copy_bidirectional(local, remote).await.map_err(PFError::from)?;
+    tokio::io::copy_bidirectional(local, remote)
+        .await
+        .map_err(PFError::from)?;
     let _ = local.shutdown().await;
     let _ = remote.shutdown().await;
     Ok(())
@@ -274,7 +283,10 @@ async fn resolve_pod_for_service(
         .ok_or_else(|| PFError::Msg(format!("service {} has no selector", svc_name)))?;
 
     if selector.is_empty() {
-        return Err(PFError::Msg(format!("service {} has empty selector", svc_name)));
+        return Err(PFError::Msg(format!(
+            "service {} has empty selector",
+            svc_name
+        )));
     }
 
     let selector_str = selector
