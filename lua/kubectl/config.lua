@@ -6,7 +6,13 @@ local M = {
 ---@alias AutoRefreshConfig { enabled: boolean, interval: number }
 ---@alias DiffConfig { bin: string }
 ---@alias KubectlCmd { cmd: string, env: table<string, string>, args: string[], persist_context_change: boolean }
----@alias HeadersConfig { enabled: boolean, blend: integer, hints: boolean, context: boolean, heartbeat: boolean, skew: SkewConfig }
+---@alias HeadersConfig {
+---enabled: boolean,
+---blend: integer,
+---hints: boolean,
+---context: boolean,
+---heartbeat: boolean,
+---skew: SkewConfig }
 ---@alias LineageConfig { enabled: boolean }
 ---@alias CompletionConfig { follow_cursor: boolean }
 ---@alias LogsConfig { prefix: boolean, timestamps: boolean, since: string }
