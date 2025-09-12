@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::{Endpoints, Pod, Service};
+use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::{api::ListParams, Api, Client};
 use mlua::prelude::*;
 use std::collections::HashMap;
@@ -8,8 +8,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::sync::{oneshot, Mutex};
+use tokio::task::JoinHandle;
 use tokio::time;
-use tracing::{debug, error, info, warn};
+use tracing::{error, warn};
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
@@ -71,10 +72,7 @@ pub fn portforward_start(
     let bind_addr = format!("{bind_host}:{local_port}");
 
     let listener = match rt.block_on(async { TcpListener::bind(&bind_addr).await }) {
-        Ok(l) => {
-            info!("pf#{id}: listening on {bind_addr}");
-            l
-        }
+        Ok(l) => l,
         Err(e) => {
             error!("pf#{id}: bind {bind_addr} failed: {e}");
             return Err(mlua::Error::RuntimeError(format!(
@@ -175,30 +173,31 @@ async fn run_forward(
     mut cancel_rx: oneshot::Receiver<()>,
     id: usize,
 ) {
-    if let Ok(addr) = listener.local_addr() {
-        info!("pf#{id}: accept loop on {}", addr);
-    }
+    let mut conn_tasks: Vec<JoinHandle<()>> = Vec::new();
 
     loop {
         tokio::select! {
             _ = &mut cancel_rx => {
-                info!("pf#{id}: canceled");
                 break;
             }
             accepted = listener.accept() => {
                 match accepted {
-                    Ok((sock, peer)) => {
-                        debug!("pf#{id}: accepted {peer}");
+                    Ok((sock, _peer)) => {
                         let _ = sock.set_nodelay(true);
 
                         let c = client.clone();
                         let n = name.clone();
                         let ns = namespace.clone();
-                        tokio::spawn(async move {
+                        let h = tokio::spawn(async move {
                             if let Err(e) = handle_connection(c, pf_type, ns, n, remote_port, sock).await {
-                                warn!("connection closed with error: {e}");
+                                warn!("pf#{id}: connection closed with error: {e}");
                             }
                         });
+                        conn_tasks.push(h);
+
+                        if conn_tasks.len() % 32 == 0 {
+                            conn_tasks.retain(|t| !t.is_finished());
+                        }
                     }
                     Err(e) => {
                         warn!("pf#{id}: accept error: {e} (retrying)");
@@ -208,8 +207,12 @@ async fn run_forward(
             }
         }
     }
-
-    info!("pf#{id}: stopped");
+    for h in &conn_tasks {
+        h.abort();
+    }
+    for h in conn_tasks {
+        let _ = h.await;
+    }
 }
 
 async fn handle_connection(
