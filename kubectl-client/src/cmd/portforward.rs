@@ -251,16 +251,6 @@ async fn handle_connection(
 }
 
 async fn resolve_pod_for_service(client: &Client, ns: &str, svc: &str) -> PFResult<String> {
-    if let Ok(eps) = Api::<Endpoints>::namespaced(client.clone(), ns)
-        .get(svc)
-        .await
-    {
-        if let Some(pod) = pick_pod_from_endpoints(eps) {
-            debug!(service=%svc, pod=%pod, "resolved via Endpoints");
-            return Ok(pod);
-        }
-    }
-
     let svc_api: Api<Service> = Api::namespaced(client.clone(), ns);
     let svc_obj = svc_api.get(svc).await.map_err(err)?;
     let selector = match svc_obj.spec.as_ref().and_then(|s| s.selector.clone()) {
@@ -289,20 +279,10 @@ async fn resolve_pod_for_service(client: &Client, ns: &str, svc: &str) -> PFResu
     pod.ok_or_else(|| format!("no Ready pods found for service {svc}"))
 }
 
-fn pick_pod_from_endpoints(eps: Endpoints) -> Option<String> {
-    eps.subsets?
-        .into_iter()
-        .filter_map(|ss| ss.addresses)
-        .flatten()
-        .filter_map(|addr| addr.target_ref)
-        .find_map(|tr| (tr.kind.as_deref() == Some("Pod")).then_some(tr.name))
-        .flatten()
-}
-
 fn is_pod_ready(p: &Pod) -> bool {
     p.status
         .as_ref()
         .and_then(|s| s.conditions.as_ref())
         .and_then(|conds| conds.iter().find(|c| c.type_ == "Ready"))
-        .map_or(false, |c| c.status == "True")
+        .is_some_and(|c| c.status == "True")
 }
