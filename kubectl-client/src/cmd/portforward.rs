@@ -4,9 +4,13 @@ use mlua::prelude::*;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
-use tokio::net::TcpListener;
+use tokio::io::AsyncWriteExt;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::sync::{oneshot, Mutex};
+use tokio::task::JoinHandle;
+use tokio::time;
+use tracing::{error, warn};
 
 use crate::{CLIENT_INSTANCE, RUNTIME};
 
@@ -19,7 +23,6 @@ pub enum PFType {
     Service,
 }
 
-#[allow(dead_code)]
 pub struct PFData {
     pub handle: tokio::task::JoinHandle<()>,
     pub cancel: Option<oneshot::Sender<()>>,
@@ -31,55 +34,73 @@ pub struct PFData {
     pub remote_port: u16,
 }
 
-#[tracing::instrument]
+type PFResult<T> = Result<T, String>;
+
+#[inline]
+fn err<E: std::fmt::Display>(e: E) -> String {
+    e.to_string()
+}
+
 pub fn portforward_start(
     _lua: &Lua,
     args: (String, String, String, String, u16, u16),
 ) -> LuaResult<usize> {
-    let (pf_type_str, name, namespace, bind_address, local_port, remote_port) = args;
+    let (pf_type_str, name, namespace, bind_host, local_port, remote_port) = args;
+
     let (client, rt) = {
         let client = {
-            let client_guard = CLIENT_INSTANCE.lock().unwrap();
-            client_guard
-                .as_ref()
-                .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".to_string()))?
+            let g = CLIENT_INSTANCE.lock().unwrap();
+            g.as_ref()
+                .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?
                 .clone()
         };
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
         (client, rt)
     };
 
-    let forward_type = match pf_type_str.as_str() {
-        "Pod" => PFType::Pod,
-        "Service" => PFType::Service,
-        _ => {
-            return Err(mlua::Error::RuntimeError(
-                "Invalid pf_type string".to_owned(),
-            ))
+    let pf_type = match pf_type_str.as_str() {
+        "Pod" | "pod" => PFType::Pod,
+        "Service" | "service" => PFType::Service,
+        other => {
+            return Err(mlua::Error::RuntimeError(format!(
+                "Invalid pf_type: {other} (expected Pod|Service)"
+            )))
         }
     };
 
     let id = PF_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let bind_addr = format!("{bind_host}:{local_port}");
+
+    let listener = match rt.block_on(async { TcpListener::bind(&bind_addr).await }) {
+        Ok(l) => l,
+        Err(e) => {
+            error!("pf#{id}: bind {bind_addr} failed: {e}");
+            return Err(mlua::Error::RuntimeError(format!(
+                "bind {bind_addr} failed: {e}"
+            )));
+        }
+    };
+
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
 
-    let spawn_handle = rt.spawn(run_port_forward(
+    let handle = rt.spawn(run_forward(
         client.clone(),
-        forward_type,
+        pf_type,
         name.clone(),
         namespace.clone(),
-        bind_address.clone(),
-        local_port,
+        listener,
         remote_port,
         cancel_rx,
+        id,
     ));
 
     let pf_data = PFData {
-        handle: spawn_handle,
+        handle,
         cancel: Some(cancel_tx),
-        pf_type: forward_type,
+        pf_type,
         name,
         namespace,
-        host: bind_address.clone(),
+        host: bind_host,
         local_port,
         remote_port,
     };
@@ -88,154 +109,8 @@ pub fn portforward_start(
     rt.block_on(async {
         pf_map.lock().await.insert(id, pf_data);
     });
+
     Ok(id)
-}
-
-#[tracing::instrument(skip(client))]
-async fn run_port_forward(
-    client: Client,
-    pf_type: PFType,
-    name: String,
-    namespace: String,
-    bind_address: String,
-    local_port: u16,
-    remote_port: u16,
-    mut cancel_rx: oneshot::Receiver<()>,
-) {
-    let listener_addr = format!("{}:{}", bind_address, local_port);
-    let listener = match TcpListener::bind(&listener_addr).await {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("Failed to bind to {}: {}", listener_addr, e);
-            return;
-        }
-    };
-
-    loop {
-        tokio::select! {
-            _ = &mut cancel_rx => {
-                break;
-            },
-            incoming = listener.accept() => {
-                let (sock, _) = match incoming {
-                    Ok(v) => v,
-                    Err(e) => {
-                        eprintln!("Accept error: {}", e);
-                        break;
-                    }
-                };
-                let c = client.clone();
-                let n = name.clone();
-                let ns = namespace.clone();
-                tokio::spawn(async move {
-                    match pf_type {
-                        PFType::Pod => forward_pod(c, ns, n, remote_port, sock).await,
-                        PFType::Service => forward_service(c, ns, n, remote_port, sock).await,
-                    }
-                });
-            }
-        }
-    }
-}
-
-#[tracing::instrument(skip(client))]
-async fn forward_pod(
-    client: Client,
-    namespace: String,
-    pod_name: String,
-    remote_port: u16,
-    local_sock: tokio::net::TcpStream,
-) {
-    let api: Api<Pod> = Api::namespaced(client, &namespace);
-    match api.portforward(&pod_name, &[remote_port]).await {
-        Ok(mut pf) => {
-            if let Some(stream) = pf.take_stream(remote_port) {
-                proxy_conn(local_sock, stream).await;
-            }
-        }
-        Err(e) => {
-            eprintln!("Pod portforward error for {}: {}", pod_name, e);
-        }
-    }
-}
-
-#[tracing::instrument(skip(client))]
-async fn forward_service(
-    client: Client,
-    namespace: String,
-    svc_name: String,
-    remote_port: u16,
-    local_sock: tokio::net::TcpStream,
-) {
-    let svc_api: Api<Service> = Api::namespaced(client.clone(), &namespace);
-    let service = match svc_api.get(&svc_name).await {
-        Ok(svc) => svc,
-        Err(e) => {
-            eprintln!("Failed to get service {}: {}", svc_name, e);
-            return;
-        }
-    };
-    let selector = match service.spec.and_then(|spec| spec.selector) {
-        Some(sel) if !sel.is_empty() => sel,
-        _ => {
-            eprintln!("Service {} has no valid selector", svc_name);
-            return;
-        }
-    };
-    let selector_str = selector
-        .into_iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<_>>()
-        .join(",");
-    let pod_api: Api<Pod> = Api::namespaced(client, &namespace);
-    let pods = match pod_api
-        .list(&ListParams::default().labels(&selector_str))
-        .await
-    {
-        Ok(list) => list.items,
-        Err(e) => {
-            eprintln!("Failed to list pods for service {}: {}", svc_name, e);
-            return;
-        }
-    };
-    let pod = match pods.first() {
-        Some(p) => p,
-        None => {
-            eprintln!("No pods found for service {}", svc_name);
-            return;
-        }
-    };
-    let pod_name = match &pod.metadata.name {
-        Some(n) => n.clone(),
-        None => {
-            eprintln!("Pod with no name in service {}", svc_name);
-            return;
-        }
-    };
-    forward_pod(
-        pod_api.into_client(),
-        namespace,
-        pod_name,
-        remote_port,
-        local_sock,
-    )
-    .await;
-}
-
-async fn proxy_conn<S>(local_sock: tokio::net::TcpStream, remote_stream: S)
-where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
-{
-    let (mut r_read, mut r_write) = tokio::io::split(remote_stream);
-    let (mut l_read, mut l_write) = tokio::io::split(local_sock);
-
-    let in_task = tokio::spawn(async move {
-        let _ = tokio::io::copy(&mut l_read, &mut r_write).await;
-    });
-    let out_task = tokio::spawn(async move {
-        let _ = tokio::io::copy(&mut r_read, &mut l_write).await;
-    });
-    let _ = tokio::join!(in_task, out_task);
 }
 
 pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
@@ -246,21 +121,21 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
     rt.block_on(async {
         let map = pf_map.lock().await;
         for (id, pf) in map.iter() {
-            let entry = lua.create_table()?;
-            entry.set("id", *id)?;
-            entry.set(
+            let row = lua.create_table()?;
+            row.set("id", *id)?;
+            row.set(
                 "type",
                 match pf.pf_type {
                     PFType::Pod => "pod",
                     PFType::Service => "service",
                 },
             )?;
-            entry.set("name", pf.name.clone())?;
-            entry.set("namespace", pf.namespace.clone())?;
-            entry.set("host", pf.host.clone())?;
-            entry.set("local_port", pf.local_port)?;
-            entry.set("remote_port", pf.remote_port)?;
-            table.set(*id, entry)?;
+            row.set("name", pf.name.clone())?;
+            row.set("namespace", pf.namespace.clone())?;
+            row.set("host", pf.host.clone())?;
+            row.set("local_port", pf.local_port)?;
+            row.set("remote_port", pf.remote_port)?;
+            table.set(*id, row)?;
         }
         Ok::<(), mlua::Error>(())
     })?;
@@ -268,7 +143,6 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
     Ok(table)
 }
 
-#[tracing::instrument]
 pub fn portforward_stop(_lua: &Lua, id: usize) -> LuaResult<()> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
     rt.block_on(async {
@@ -287,4 +161,131 @@ pub fn portforward_stop(_lua: &Lua, id: usize) -> LuaResult<()> {
             )))
         }
     })
+}
+
+async fn run_forward(
+    client: Client,
+    pf_type: PFType,
+    name: String,
+    namespace: String,
+    listener: TcpListener,
+    remote_port: u16,
+    mut cancel_rx: oneshot::Receiver<()>,
+    id: usize,
+) {
+    let mut conn_tasks: Vec<JoinHandle<()>> = Vec::new();
+
+    loop {
+        tokio::select! {
+            _ = &mut cancel_rx => {
+                break;
+            }
+            accepted = listener.accept() => {
+                match accepted {
+                    Ok((sock, _peer)) => {
+                        let _ = sock.set_nodelay(true);
+
+                        let c = client.clone();
+                        let n = name.clone();
+                        let ns = namespace.clone();
+                        let h = tokio::spawn(async move {
+                            if let Err(e) = handle_connection(c, pf_type, ns, n, remote_port, sock).await {
+                                warn!("pf#{id}: connection closed with error: {e}");
+                            }
+                        });
+                        conn_tasks.push(h);
+
+                        if conn_tasks.len() % 32 == 0 {
+                            conn_tasks.retain(|t| !t.is_finished());
+                        }
+                    }
+                    Err(e) => {
+                        warn!("pf#{id}: accept error: {e} (retrying)");
+                        time::sleep(std::time::Duration::from_millis(200)).await;
+                    }
+                }
+            }
+        }
+    }
+    for h in &conn_tasks {
+        h.abort();
+    }
+    for h in conn_tasks {
+        let _ = h.await;
+    }
+}
+
+async fn handle_connection(
+    client: Client,
+    pf_type: PFType,
+    namespace: String,
+    name: String,
+    remote_port: u16,
+    mut local: TcpStream,
+) -> PFResult<()> {
+    let pod = match pf_type {
+        PFType::Pod => name,
+        PFType::Service => resolve_pod_for_service(&client, &namespace, &name).await?,
+    };
+
+    let api: Api<Pod> = Api::namespaced(client, &namespace);
+    let mut last: Option<String> = None;
+    for backoff_ms in [0_u64, 75, 150] {
+        if backoff_ms > 0 {
+            time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+        }
+        match api.portforward(&pod, &[remote_port]).await {
+            Ok(mut pf) => {
+                if let Some(mut remote) = pf.take_stream(remote_port) {
+                    tokio::io::copy_bidirectional(&mut local, &mut remote)
+                        .await
+                        .map_err(err)?;
+                    let _ = local.shutdown().await;
+                    let _ = remote.shutdown().await;
+                    return Ok(());
+                } else {
+                    last = Some(format!("no stream for remote port {remote_port}"));
+                }
+            }
+            Err(e) => last = Some(err(e)),
+        }
+    }
+    Err(last.unwrap_or_else(|| "unknown port-forward error".into()))
+}
+
+async fn resolve_pod_for_service(client: &Client, ns: &str, svc: &str) -> PFResult<String> {
+    let svc_api: Api<Service> = Api::namespaced(client.clone(), ns);
+    let svc_obj = svc_api.get(svc).await.map_err(err)?;
+    let selector = match svc_obj.spec.as_ref().and_then(|s| s.selector.clone()) {
+        Some(m) if !m.is_empty() => m,
+        Some(_) => return Err(format!("service {svc} has empty selector")),
+        None => return Err(format!("service {svc} has no selector")),
+    };
+
+    let selector_str = selector
+        .into_iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let pods = Api::<Pod>::namespaced(client.clone(), ns)
+        .list(&ListParams::default().labels(&selector_str))
+        .await
+        .map_err(err)?
+        .items;
+
+    let pod = pods
+        .into_iter()
+        .find(is_pod_ready)
+        .and_then(|p| p.metadata.name);
+
+    pod.ok_or_else(|| format!("no Ready pods found for service {svc}"))
+}
+
+fn is_pod_ready(p: &Pod) -> bool {
+    p.status
+        .as_ref()
+        .and_then(|s| s.conditions.as_ref())
+        .and_then(|conds| conds.iter().find(|c| c.type_ == "Ready"))
+        .is_some_and(|c| c.status == "True")
 }

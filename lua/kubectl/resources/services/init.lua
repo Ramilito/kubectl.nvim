@@ -112,9 +112,10 @@ function M.PortForward(name, ns)
     builder.decodeJson()
     local ports = {}
     for _, port in ipairs(builder.data.spec.ports) do
+      local container_port = port.targetPort or port.port
       table.insert(ports, {
         name = { value = port.name, symbol = hl.symbols.pending },
-        port = { value = port.port, symbol = hl.symbols.success },
+        port = { value = container_port, symbol = hl.symbols.success },
         protocol = port.protocol,
       })
     end
