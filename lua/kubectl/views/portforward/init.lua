@@ -62,8 +62,8 @@ function M.setPortForwards(marks, data, port_forwards)
     end
 
     for row, line in ipairs(data) do
-      local col = line:find(pf.name.value, 1, true)
-      local ns = line:find(pf.ns.value, 1, true)
+      local col = line:find(pf.name.value .. " ", 1, true)
+      local ns = line:find(pf.ns.value .. " ", 1, true)
       if col and ns then
         local mark = {
           row = row - 1,
