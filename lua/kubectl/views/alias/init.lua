@@ -3,6 +3,7 @@ local cache = require("kubectl.cache")
 local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.alias.definition")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -61,8 +62,14 @@ M.View = function()
 
     table.insert(header, "History:")
     local headers_len = #header
-    for _, value in ipairs(state.alias_history) do
-      table.insert(header, headers_len + 1, value)
+    for i, value in ipairs(state.alias_history) do
+      table.insert(header, headers_len + 1, "  " .. value)
+      table.insert(marks, {
+        row = headers_len - 1 + i,
+        start_col = 0,
+        virt_text = { { ("%d"):format(i), hl.symbols.white } },
+        virt_text_pos = "overlay",
+      })
     end
     table.insert(header, "")
 
@@ -71,6 +78,31 @@ M.View = function()
 
     buffers.apply_marks(buf, marks, header)
     buffers.fit_to_content(buf, win, 1)
+
+    for i = 1, #state.alias_history, 1 do
+      vim.keymap.set("n", tostring(i), function()
+        local lnum = headers_len + i
+        local picked = vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or ""
+
+        local prompt = "% " .. vim.trim(picked)
+
+        vim.api.nvim_buf_set_lines(buf, -2, -1, false, { prompt })
+        vim.api.nvim_win_set_cursor(win, { 1, #prompt })
+        vim.cmd("startinsert!")
+
+        if config.options.alias.apply_on_select_from_history then
+          vim.schedule(function()
+            vim.api.nvim_input("<cr>")
+          end)
+        end
+      end, {
+        buffer = buf,
+        nowait = true,
+        silent = true,
+        noremap = true,
+        desc = "kubectl: select history #" .. i,
+      })
+    end
 
     vim.api.nvim_buf_set_keymap(buf, "n", "<Plug>(kubectl.refresh)", "", {
       noremap = true,
