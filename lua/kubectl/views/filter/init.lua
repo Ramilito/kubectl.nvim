@@ -78,13 +78,52 @@ function M.View()
   tables.generateDividerRow(header, marks)
 
   table.insert(header, "History:")
-  vim.list_extend(header, state.filter_history)
+
+  local headers_len = #header
+  local padding = #state.filter_history < 10 and 2 or 3
+
+  for i, value in ipairs(state.filter_history) do
+    table.insert(header, headers_len + 1, string.rep(" ", padding) .. value)
+    table.insert(marks, {
+      row = headers_len - 1 + i,
+      start_col = 0,
+      virt_text = { { ("%d"):format(i), hl.symbols.white } },
+      virt_text_pos = "overlay",
+    })
+  end
   table.insert(header, "")
 
   buffers.set_content(self.buf_nr, { header = { data = header }, content = {}, marks = {} })
+  vim.api.nvim_buf_set_lines(buf, #header, -1, false, { "Filter: " })
+
   buffers.apply_marks(self.buf_nr, marks, header)
-  buffers.fit_to_content(self.buf_nr, self.win_nr, 0)
+  buffers.fit_to_content(self.buf_nr, self.win_nr, 1)
   vim.api.nvim_win_set_cursor(self.win_nr, { 1, 0 })
+
+  for i = 1, #state.filter_history, 1 do
+    vim.keymap.set("n", tostring(i), function()
+      local lnum = headers_len + i
+      local picked = vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or ""
+
+      local prompt = "% " .. vim.trim(picked)
+
+      vim.api.nvim_buf_set_lines(buf, -2, -1, false, { prompt })
+      vim.api.nvim_win_set_cursor(win, { 1, #prompt })
+      vim.cmd("startinsert!")
+
+      if config.options.filter.apply_on_select_from_history then
+        vim.schedule(function()
+          vim.api.nvim_input("<cr>")
+        end)
+      end
+    end, {
+      buffer = buf,
+      nowait = true,
+      silent = true,
+      noremap = true,
+      desc = "kubectl: select history #" .. i,
+    })
+  end
 
   vim.keymap.set("n", "<Plug>(kubectl.select)", function()
     local current_line = vim.api.nvim_win_get_cursor(0)[1]

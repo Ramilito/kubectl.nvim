@@ -62,8 +62,10 @@ M.View = function()
 
     table.insert(header, "History:")
     local headers_len = #header
+    local padding = #state.alias_history < 10 and 2 or 3
+
     for i, value in ipairs(state.alias_history) do
-      table.insert(header, headers_len + 1, "  " .. value)
+      table.insert(header, headers_len + 1, string.rep(" ", padding) .. value)
       table.insert(marks, {
         row = headers_len - 1 + i,
         start_col = 0,
