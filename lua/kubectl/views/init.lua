@@ -50,7 +50,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_pv)", desc = "PersistentVolumes" },
     { key = "<Plug>(kubectl.view_pvc)", desc = "PersistentVolumeClaims" },
     { key = "<Plug>(kubectl.view_replicasets)", desc = "ReplicaSets" },
-    { key = "<Plug>(kubectl.view_sa)", desc = "ServiceAccounts" },
+    { key = "<Plug>(kubectl.view_serviceaccounts)", desc = "ServiceAccounts" },
     { key = "<Plug>(kubectl.view_secrets)", desc = "Secrets" },
     { key = "<Plug>(kubectl.view_services)", desc = "Services" },
     { key = "<Plug>(kubectl.view_statefulsets)", desc = "StatefulSets" },
