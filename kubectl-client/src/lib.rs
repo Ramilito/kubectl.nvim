@@ -108,11 +108,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
 
     let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
-        use futures::future::join;
+        use futures::future::try_join;
+        use tokio::time::{timeout, Duration};
 
         let store_future = async {
-            let store = get_store_map();
-            store.write().await.clear();
+            get_store_map().write().await.clear();
+            Ok::<(), LuaError>(())
         };
 
         let config_future = async {
@@ -135,6 +136,9 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
                 }
             }
 
+            base_cfg.connect_timeout = Some(Duration::from_secs(2));
+            base_cfg.write_timeout = Some(Duration::from_secs(10));
+
             let mut cfg_fast = base_cfg.clone();
             cfg_fast.read_timeout = Some(Duration::from_secs(20));
             let client_main = Client::try_from(cfg_fast).map_err(LuaError::external)?;
@@ -143,7 +147,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             cfg_long.read_timeout = Some(Duration::from_secs(295));
             let client_long = Client::try_from(cfg_long).map_err(LuaError::external)?;
 
-            Ok((client_main, client_long))
+            timeout(Duration::from_secs(3), client_main.apiserver_version())
+                .await
+                .map_err(|_| LuaError::external("API server connect timed out"))?
+                .map_err(LuaError::external)?;
+
+            Ok::<_, LuaError>((client_main, client_long))
         };
 
         {
@@ -153,8 +162,16 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             *ctx = context_name.clone();
         }
 
-        let ((), cli) = join(store_future, config_future).await;
-        cli
+        match timeout(
+            Duration::from_secs(5),
+            try_join(store_future, config_future),
+        )
+        .await
+        {
+            Ok(Ok((_, clients))) => Ok(clients),
+            Ok(Err(e)) => Err(e),
+            Err(_) => Err(LuaError::external("timed out initialising kube clients")),
+        }
     });
 
     let (client_main, client_long) = match cli_res {
