@@ -528,6 +528,7 @@ function M.get_mappings()
         if view.definition.child_view then
           if name then
             local child_view = require("kubectl.resources." .. view.definition.child_view.name)
+            state.filter = ""
             state.filter_key = view.definition.child_view.predicate(name, ns)
             child_view.View()
           end
