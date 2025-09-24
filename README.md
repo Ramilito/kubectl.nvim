@@ -234,7 +234,7 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "", "<Plug>(kubectl.view_persistentvolumes)", opts) -- PersistentVolumes view
     k("n", "", "<Plug>(kubectl.view_persistentvolumeclaims)", opts) -- PersistentVolumeClaims view
     k("n", "", "<Plug>(kubectl.view_replicasets)", opts) -- ReplicaSets view,
-    k("n", "", "<Plug>(kubectl.view_sa)", opts) -- ServiceAccounts view
+    k("n", "", "<Plug>(kubectl.view_serviceaccounts)", opts) -- ServiceAccounts view
     k("n", "", "<Plug>(kubectl.view_statefulsets)", opts) -- StatefulSets view
     k("n", "", "<Plug>(kubectl.view_storageclasses)", opts) -- StorageClasses view
     k("n", "", "<Plug>(kubectl.view_top_nodes)", opts) -- Top view for nodes
