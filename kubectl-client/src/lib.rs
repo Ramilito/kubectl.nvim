@@ -10,7 +10,6 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use std::time::Duration;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
@@ -108,11 +107,11 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
 
     let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
-        use futures::future::try_join;
-        use tokio::time::{timeout, Duration};
+        use tokio::time::Duration;
 
         let store_future = async {
-            get_store_map().write().await.clear();
+            let store = get_store_map();
+            store.write().await.clear();
             Ok::<(), LuaError>(())
         };
 
@@ -147,9 +146,9 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             cfg_long.read_timeout = Some(Duration::from_secs(295));
             let client_long = Client::try_from(cfg_long).map_err(LuaError::external)?;
 
-            timeout(Duration::from_secs(3), client_main.apiserver_version())
+            client_main
+                .apiserver_version()
                 .await
-                .map_err(|_| LuaError::external("API server connect timed out"))?
                 .map_err(LuaError::external)?;
 
             Ok::<_, LuaError>((client_main, client_long))
@@ -162,15 +161,9 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             *ctx = context_name.clone();
         }
 
-        match timeout(
-            Duration::from_secs(5),
-            try_join(store_future, config_future),
-        )
-        .await
-        {
-            Ok(Ok((_, clients))) => Ok(clients),
-            Ok(Err(e)) => Err(e),
-            Err(_) => Err(LuaError::external("timed out initialising kube clients")),
+        match tokio::try_join!(store_future, config_future) {
+            Ok((_, pair)) => Ok(pair),
+            Err(e) => Err(e),
         }
     });
 
