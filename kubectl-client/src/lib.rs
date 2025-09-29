@@ -135,9 +135,6 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
                 }
             }
 
-            base_cfg.connect_timeout = Some(Duration::from_secs(2));
-            base_cfg.write_timeout = Some(Duration::from_secs(10));
-
             let mut cfg_fast = base_cfg.clone();
             cfg_fast.read_timeout = Some(Duration::from_secs(20));
             let client_main = Client::try_from(cfg_fast).map_err(LuaError::external)?;
