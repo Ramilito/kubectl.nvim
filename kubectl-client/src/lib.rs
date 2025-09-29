@@ -10,7 +10,6 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use std::time::Duration;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
@@ -108,11 +107,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
 
     let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
-        use futures::future::join;
+        use tokio::time::Duration;
 
         let store_future = async {
             let store = get_store_map();
             store.write().await.clear();
+            Ok::<(), LuaError>(())
         };
 
         let config_future = async {
@@ -143,7 +143,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             cfg_long.read_timeout = Some(Duration::from_secs(295));
             let client_long = Client::try_from(cfg_long).map_err(LuaError::external)?;
 
-            Ok((client_main, client_long))
+            client_main
+                .apiserver_version()
+                .await
+                .map_err(LuaError::external)?;
+
+            Ok::<_, LuaError>((client_main, client_long))
         };
 
         {
@@ -153,8 +158,10 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             *ctx = context_name.clone();
         }
 
-        let ((), cli) = join(store_future, config_future).await;
-        cli
+        match tokio::try_join!(store_future, config_future) {
+            Ok((_, pair)) => Ok(pair),
+            Err(e) => Err(e),
+        }
     });
 
     let (client_main, client_long) = match cli_res {

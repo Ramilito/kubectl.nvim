@@ -19,7 +19,6 @@ function M.open()
 
   if not ok then
     vim.notify(result, vim.log.levels.ERROR)
-    return
   end
 
   hl.setup()

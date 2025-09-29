@@ -94,32 +94,34 @@ function M.change_context(cmd)
   loop.stop_all()
 
   M.clear_buffers(cmd)
-  local state = require("kubectl.state")
-  state.context["current-context"] = cmd
+  vim.schedule(function()
+    local state = require("kubectl.state")
+    state.context["current-context"] = cmd
 
-  local cache = require("kubectl.cache")
-  cache.clear_cache()
+    local cache = require("kubectl.cache")
+    cache.clear_cache()
 
-  local header = require("kubectl.views.header")
-  header.Close()
+    local header = require("kubectl.views.header")
+    header.Close()
 
-  local client = require("kubectl.client")
-  local ok, result = client.set_implementation()
-  if ok then
-    state.setup()
-    cache.loading = false
-    cache.LoadFallbackData()
-    local lineage = require("kubectl.views.lineage")
-    lineage.loaded = false
-    vim.api.nvim_exec_autocmds("User", {
-      pattern = "K8sContextChanged",
-      data = { context = cmd },
-    })
+    local client = require("kubectl.client")
+    local ok, result = client.set_implementation()
+    if ok then
+      state.setup()
+      cache.loading = false
+      cache.LoadFallbackData()
+      local lineage = require("kubectl.views.lineage")
+      lineage.loaded = false
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "K8sContextChanged",
+        data = { context = cmd },
+      })
 
-    header.View()
-  else
-    vim.notify(result, vim.log.levels.ERROR)
-  end
+      header.View()
+    else
+      vim.notify(result, vim.log.levels.ERROR)
+    end
+  end)
 end
 
 function M.clear_buffers(context)
