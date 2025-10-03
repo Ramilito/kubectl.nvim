@@ -14,9 +14,9 @@ function M.on_prompt_input(input)
   local exists = false
   for i = 1, math.min(history_size, #history) do
     if history[i] ~= input then
-      table.insert(result, history[i])
+      table.insert(result, vim.trim(history[i]))
     else
-      table.insert(result, 1, input)
+      table.insert(result, 1, vim.trim(input))
       exists = true
     end
   end
