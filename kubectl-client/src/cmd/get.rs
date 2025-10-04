@@ -346,12 +346,8 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
                                 format!("{}.{}", r.name, group_str)
                             };
 
-                            let mut names: HashSet<String> =
+                            let names: HashSet<String> =
                                 r.short_names.unwrap_or_default().into_iter().collect();
-                            if !r.singular_name.is_empty() {
-                                names.insert(r.singular_name.clone());
-                                names.insert(r.name.clone());
-                            }
                             sn_map.entry(key).or_default().extend(names);
                         }
                     }

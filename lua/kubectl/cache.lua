@@ -45,6 +45,7 @@ local function process_apis(resource, cached_api_resources)
     crd_name = name,
     namespaced = resource.namespaced,
     api_version = resource.api_version,
+    short_names = resource.short_names,
   }
 
   cached_api_resources.values[name] = value
