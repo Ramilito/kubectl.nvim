@@ -131,7 +131,7 @@ M.View = function()
         end
 
         local picked = vim.api.nvim_get_current_line()
-        local prompt = "% " .. picked
+        local prompt = "% " .. vim.trim(picked)
 
         vim.api.nvim_buf_set_lines(buf, -2, -1, false, { prompt })
         vim.api.nvim_win_set_cursor(win, { 1, #prompt })

@@ -14,7 +14,7 @@ use mlua::Either;
 use serde::Serialize;
 use serde_json::{json, to_string};
 use tokio::time::{timeout, Duration};
-use tracing::{trace_span, warn, Instrument};
+use tracing::{info, span, trace_span, warn, Instrument};
 
 use super::utils::{dynamic_api, resolve_api_resource};
 use crate::{
@@ -308,7 +308,6 @@ impl FallbackResource {
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(|client| async move {
         let discovery = Discovery::new(client.clone())
-            .exclude(&[r"metrics.k8s.io", r"events.k8s.io"])
             .run()
             .await
             .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
@@ -368,11 +367,8 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
         let resources: Vec<FallbackResource> = discovery
             .groups()
             .flat_map(|g| {
-                g.recommended_resources()
-                    .into_iter()
-                    .filter(|(ar, caps)| {
-                        caps.supports_operation(verbs::LIST) && ar.plural != "componentstatuses"
-                    })
+                g.versions()
+                    .flat_map(move |ver| g.versioned_resources(ver))
                     .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps, &sn_map))
             })
             .collect();
