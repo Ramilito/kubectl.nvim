@@ -39,6 +39,7 @@ function M.Draw(cancellationToken)
     builder.data = cached_resources.values
     builder.decodeJson()
     builder.process(definition.processRow, true)
+    builder.sort()
 
     local windows = buffers.get_windows_by_name(M.definition.resource)
     for _, win_id in ipairs(windows) do

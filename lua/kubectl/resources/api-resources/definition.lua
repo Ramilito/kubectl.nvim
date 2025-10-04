@@ -6,13 +6,21 @@ function M.processRow(rows)
     if type(v) == "string" then
       return
     end
-    table.insert(data, {
-      name = v.plural,
-      shortnames = "",
-      apiversion = v.api_version,
-      kind = v.gvk and v.gvk.k or "",
-      namespaced = v.namespaced,
-    })
+
+    if v.gvk then
+      local short_name = ""
+      if type(v.short_names) == "table" then
+        short_name = table.concat(v.short_names, ", ")
+      end
+
+      table.insert(data, {
+        name = v.plural,
+        shortnames = short_name,
+        apiversion = v.api_version,
+        kind = v.gvk and v.gvk.k or "",
+        namespaced = v.namespaced,
+      })
+    end
   end
   return data
 end
