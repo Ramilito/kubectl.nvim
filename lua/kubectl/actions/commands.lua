@@ -208,12 +208,14 @@ function M.await_all(cmds, callback, final_callback)
   local completed = 0
   local total = #cmds
   for idx, cmd in ipairs(cmds) do
-    M.run_async(cmd.cmd, cmd.args, function(res, err)
-      results[idx] = res
-      errors[idx] = err
+    local i = idx
+    local c = cmd
+    M.run_async(c.cmd, c.args, function(res, err)
+      results[i] = (res == nil) and vim.NIL or res
+      errors[i] = err
       completed = completed + 1
       if callback then
-        callback()
+        callback(i, res, err)
       end
       if completed == total then
         final_callback(results, errors)
@@ -223,14 +225,15 @@ function M.await_all(cmds, callback, final_callback)
 end
 
 function M.run_async(method_name, args, callback)
-  for k, v in pairs(args) do
+  local args_copy = vim.deepcopy(args or {})
+  for k, v in pairs(args_copy) do
     if v == nil then
-      args[k] = vim.NIL
+      args_copy[k] = vim.NIL
     end
   end
 
   local work
-  local payload = vim.json.encode(args, { luanil = { object = true, array = true } })
+  local payload = vim.json.encode(args_copy, { luanil = { object = true, array = true } })
 
   local function after_work_callback(results, err)
     callback(results, err)

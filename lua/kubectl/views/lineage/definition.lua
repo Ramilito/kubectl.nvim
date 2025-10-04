@@ -15,10 +15,11 @@ function M.processRow(rows, cached_api_resources, relationships)
   if not rows or type(rows) == "string" then
     return
   end
-
+  if type(rows) ~= "table" then
+    return
+  end
   for _, item in ipairs(rows) do
     if not item.kind then
-      vim.print(item)
       return
     end
 
