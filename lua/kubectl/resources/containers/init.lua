@@ -158,7 +158,6 @@ function M.debug(pod, ns, is_fullscreen)
   }
 
   builder.action_view(def, data, function(args)
-    vim.print(args)
     vim.schedule(function()
       local cmd_args = {
         name = args[1].value,
