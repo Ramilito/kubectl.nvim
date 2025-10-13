@@ -148,37 +148,23 @@ function M.debug(pod, ns, is_fullscreen)
     resource = "kubectl_debug",
     ft = "k8s_action",
     display = "Debug: " .. pod .. " - " .. M.selection .. " ?",
-    cmd = { "debug", pod, "-n", ns },
   }
 
   local builder = manager.get_or_create(def.resource)
 
   local data = {
-    { text = "name:", value = M.selection .. "-debug", cmd = "-c", type = "option" },
-    { text = "image:", value = "busybox", cmd = "--image", type = "option" },
-    { text = "stdin:", value = "true", cmd = "--stdin", type = "flag" },
-    { text = "tty:", value = "true", cmd = "--tty", type = "flag" },
-    {
-      text = "shell:",
-      value = "/bin/sh",
-      options = { "/bin/sh", "/bin/bash" },
-      cmd = "--",
-      type = "positional",
-    },
+    { text = "name:", value = M.selection .. "-debug", type = "option" },
+    { text = "image:", value = "busybox", type = "option" },
   }
 
-  builder.action_view(def, data, function(_args)
+  builder.action_view(def, data, function(args)
+    vim.print(args)
     vim.schedule(function()
-      spawn_terminal(
-        string.format("%s | %s: %s | %s", "container", pod, M.selection, ns),
-        "k8s_debug",
-        client.debug,
-        is_fullscreen,
-        ns,
-        pod,
-        "busybox",
-        M.selection
-      )
+      local cmd_args = {
+        name = args[1].value,
+        image = args[2].value,
+      }
+      spawn_terminal(cmd_args.name, "k8s_debug", client.debug, is_fullscreen, ns, pod, cmd_args.image, M.selection)
     end)
   end)
 end
