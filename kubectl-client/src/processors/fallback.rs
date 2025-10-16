@@ -3,7 +3,7 @@ use k8s_openapi::{
 };
 use kube::{
     api::{DynamicObject, GroupVersionKind, ListParams, ResourceExt},
-    discovery::{Discovery, Scope},
+    discovery::{pinned_kind, Scope},
     Api,
 };
 use mlua::prelude::*;
@@ -153,15 +153,10 @@ impl Processor for FallbackProcessor {
                 version: gvk.v,
                 kind: gvk.k.to_string(),
             };
-            let discovery = Discovery::new(client.clone())
-                .filter(&[&gvk.group])
-                .run()
+
+            let (ar, caps) = pinned_kind(&client, &gvk)
                 .await
                 .map_err(|e| LuaError::external(e.to_string()))?;
-
-            let (ar, caps) = discovery
-                .resolve_gvk(&gvk)
-                .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {gvk:?}")))?;
 
             let api: Api<DynamicObject> = dynamic_api(
                 ar.clone(),
