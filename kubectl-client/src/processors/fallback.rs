@@ -1,3 +1,4 @@
+use futures::future::try_join_all;
 use k8s_openapi::{
     apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition, serde_json,
 };
@@ -159,68 +160,96 @@ impl Processor for FallbackProcessor {
                 .await
                 .map_err(|e| LuaError::external(e.to_string()))?;
 
-            let (ar, caps) = discovery
-                .resolve_gvk(&gvk)
-                .ok_or_else(|| LuaError::external(format!("Unable to resolve GVK: {gvk:?}")))?;
+            let group = discovery
+                .get(&gvk.group)
+                .ok_or_else(|| LuaError::external(format!("Group not served: {}", gvk.group)))?;
 
-            let api: Api<DynamicObject> = dynamic_api(
-                ar.clone(),
-                caps.clone(),
-                client.clone(),
-                ns.as_deref(),
-                false,
-            );
-            let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
-            let crd_name = format!("{}.{}", ar.plural, gvk.group);
+            let rscs: Vec<(
+                kube::discovery::ApiResource,
+                kube::discovery::ApiCapabilities,
+            )> = group
+                .versions()
+                .flat_map(|ver| group.versioned_resources(ver))
+                .filter(|(ar, _)| ar.kind == gvk.kind)
+                .map(|(ar, caps)| (ar.clone(), caps.clone()))
+                .collect();
+
+            if rscs.is_empty() {
+                return Err(LuaError::external(format!(
+                    "Kind {} not served in group {}",
+                    gvk.kind, gvk.group
+                )));
+            }
+
+            let apis: Vec<Api<DynamicObject>> = rscs
+                .iter()
+                .map(|(ar, caps)| {
+                    dynamic_api(
+                        ar.clone(),
+                        caps.clone(),
+                        client.clone(),
+                        ns.as_deref(),
+                        false,
+                    )
+                })
+                .collect();
 
             let lp = ListParams::default();
-            let (crd_opt, list) = try_join!(crd_api.get_opt(&crd_name), api.list(&lp),)
-                .map_err(LuaError::external)?;
+            let lists = try_join_all(apis.into_iter().map(|api| {
+                let lp = lp.clone();
+                async move { api.list(&lp).await }
+            }))
+            .await
+            .map_err(LuaError::external)?;
 
-            let mut cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
-                crd.spec
-                    .versions
-                    .iter()
-                    .find(|v| v.served && v.name == gvk.version)
-                    .and_then(|v| v.additional_printer_columns.as_ref())
-                    .map(|v| {
-                        v.iter()
-                            .map(|c| PrinterCol {
-                                name: c.name.clone(),
-                                json_path: c.json_path.clone(),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            } else {
+            let items: Vec<DynamicObject> = lists.into_iter().flat_map(|l| l.items).collect();
+            let (ar0, caps0) = (&rscs[0].0, &rscs[0].1);
+
+            let mut cols: Vec<PrinterCol> = if gvk.group.is_empty() {
                 Vec::new()
+            } else {
+                let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+                let crd_name = format!("{}.{}", ar0.plural, gvk.group);
+                if let Some(crd) = crd_api
+                    .get_opt(&crd_name)
+                    .await
+                    .map_err(LuaError::external)?
+                {
+                    let mut seen = HashSet::new();
+                    crd.spec
+                        .versions
+                        .iter()
+                        .filter(|v| v.served)
+                        .filter_map(|v| v.additional_printer_columns.as_ref())
+                        .flat_map(|cols| cols.iter())
+                        .filter(|c| seen.insert((c.name.to_ascii_uppercase(), c.json_path.clone())))
+                        .map(|c| PrinterCol {
+                            name: c.name.clone(),
+                            json_path: c.json_path.clone(),
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
+                }
             };
 
-            let canonical: &[&str] = if matches!(caps.scope, Scope::Namespaced) {
+            let canonical: &[&str] = if matches!(caps0.scope, Scope::Namespaced) {
                 &["NAMESPACE", "NAME"]
             } else {
                 &["NAME"]
             };
 
-            let mut seen: HashSet<String> = canonical.iter().map(|s| s.to_string()).collect();
+            let mut seen = canonical
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<HashSet<_>>();
+            cols.retain(|c| seen.insert(c.name.to_ascii_uppercase()));
 
-            cols.retain(|c| {
-                let up = c.name.to_uppercase();
-                if seen.contains(&up) {
-                    false
-                } else {
-                    seen.insert(up);
-                    true
-                }
-            });
-
-            let items = list.items;
-            let namespaced = matches!(caps.scope, Scope::Namespaced);
+            let namespaced = matches!(caps0.scope, Scope::Namespaced);
             let runtime = RuntimeFallbackProcessor {
                 cols: cols.clone(),
                 namespaced,
             };
-
             let rows_vec = runtime.process(
                 &items,
                 sort_by.clone(),
@@ -232,7 +261,7 @@ impl Processor for FallbackProcessor {
             let rows_lua = lua.to_value(&rows_vec)?;
 
             let mut headers: Vec<String> = canonical.iter().map(|s| s.to_string()).collect();
-            headers.extend(cols.iter().map(|c| c.name.to_uppercase()));
+            headers.extend(cols.iter().map(|c| c.name.to_ascii_uppercase()));
 
             let headers_lua = lua.to_value(&headers)?;
             let tbl = lua.create_table()?;
