@@ -2,6 +2,7 @@ local config = require("kubectl.config")
 local ctx_view = require("kubectl.resources.contexts")
 local header = require("kubectl.views.header")
 local ns_view = require("kubectl.views.namespace")
+local splash = require("kubectl.splash")
 local state = require("kubectl.state")
 local statusline = require("kubectl.views.statusline")
 local view = require("kubectl.views")
@@ -14,27 +15,32 @@ local M = {
 --- Open the kubectl view
 function M.open()
   local hl = require("kubectl.actions.highlight")
-  local client = require("kubectl.client")
-  local ok, result = client.set_implementation()
 
-  if not ok then
-    vim.notify(result, vim.log.levels.ERROR)
-  end
-
-  hl.setup()
+  splash.show({ status = "Fetching current-context…" })
   vim.schedule(function()
-    state.setup()
+    local client = require("kubectl.client")
+    client.set_implementation(function(ok)
+      if ok then
+        splash.done("Context: " .. (state.context["current-context"] or ""))
+        hl.setup()
+        vim.schedule(function()
+          state.setup()
+        end)
+
+        if config.options.headers.enabled then
+          header.View()
+        end
+        if config.options.statusline.enabled then
+          statusline.View()
+        end
+
+        local queue = require("kubectl.event_queue")
+        queue.start(500)
+      else
+        splash.fail("error")
+      end
+    end)
   end)
-
-  if config.options.headers.enabled then
-    header.View()
-  end
-  if config.options.statusline.enabled then
-    statusline.View()
-  end
-
-  local queue = require("kubectl.event_queue")
-  queue.start(500)
 end
 
 function M.close()
@@ -73,6 +79,7 @@ function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
   local loop = require("kubectl.utils.loop")
+
   M.download_if_available(function(_)
     config.setup(options)
     state.setNS(config.options.namespace)

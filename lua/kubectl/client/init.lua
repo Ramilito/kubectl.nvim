@@ -1,3 +1,4 @@
+local commands = require("kubectl.actions.commands")
 local state = require("kubectl.state")
 
 --- @class kubectl.Client
@@ -6,14 +7,18 @@ local client = {
   implementation = require("kubectl.client.rust"),
 }
 
-function client.set_implementation()
+function client.set_implementation(callback)
   client.implementation = require("kubectl_client")
   client.implementation.init_logging(vim.fn.stdpath("log"))
-  local ok, result = client.implementation.init_runtime(state.context["current-context"])
-  if ok then
-    client.implementation.init_metrics()
-  end
-  return ok, result
+  client.implementation.init_runtime(state.context["current-context"])
+  commands.run_async("validate_kube_clients", {}, function(ok)
+    if ok then
+      client.implementation.init_metrics()
+    end
+    vim.schedule(function()
+      callback(ok)
+    end)
+  end)
 end
 
 function client.get_resource(...)

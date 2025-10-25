@@ -105,22 +105,23 @@ function M.change_context(cmd)
     header.Close()
 
     local client = require("kubectl.client")
-    local ok, result = client.set_implementation()
-    if ok then
-      state.setup()
-      cache.loading = false
-      cache.LoadFallbackData()
-      local lineage = require("kubectl.views.lineage")
-      lineage.loaded = false
-      vim.api.nvim_exec_autocmds("User", {
-        pattern = "K8sContextChanged",
-        data = { context = cmd },
-      })
+    client.set_implementation(function(ok)
+      if ok then
+        state.setup()
+        cache.loading = false
+        cache.LoadFallbackData()
+        local lineage = require("kubectl.views.lineage")
+        lineage.loaded = false
+        vim.api.nvim_exec_autocmds("User", {
+          pattern = "K8sContextChanged",
+          data = { context = cmd },
+        })
 
-      header.View()
-    else
-      vim.notify(result, vim.log.levels.ERROR)
-    end
+        header.View()
+      else
+        vim.notify("didnt' work", vim.log.levels.ERROR)
+      end
+    end)
   end)
 end
 
