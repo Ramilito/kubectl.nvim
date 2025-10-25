@@ -101,12 +101,47 @@ where
 }
 
 #[tracing::instrument]
+pub async fn validate_kube_clients(_lua: Lua, _args: String) -> LuaResult<bool> {
+    let mut ok = true;
+
+    if let Err(e) = with_client(|client| async move {
+        client
+            .apiserver_version()
+            .await
+            .map_err(LuaError::external)?;
+        Ok(())
+    }) {
+        ok = false;
+        tracing::warn!(error = %e, "kube client validation failed");
+    }
+
+    if let Err(e) = with_stream_client(|client| async move {
+        client
+            .apiserver_version()
+            .await
+            .map_err(LuaError::external)?;
+        Ok(())
+    }) {
+        ok = false;
+        tracing::warn!(error = %e, "kube stream client validation failed");
+    }
+
+    Ok(ok)
+}
+
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
     shutdown_pod_collector();
     shutdown_node_collector();
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
 
-    let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
+    {
+        let mut ctx = ACTIVE_CONTEXT
+            .write()
+            .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
+        *ctx = context_name.clone();
+    }
+
+    let init_res: LuaResult<(Client, Client)> = rt.block_on(async {
         use tokio::time::Duration;
 
         let store_future = async {
@@ -143,28 +178,13 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             cfg_long.read_timeout = Some(Duration::from_secs(295));
             let client_long = Client::try_from(cfg_long).map_err(LuaError::external)?;
 
-            client_main
-                .apiserver_version()
-                .await
-                .map_err(LuaError::external)?;
-
             Ok::<_, LuaError>((client_main, client_long))
         };
 
-        {
-            let mut ctx = ACTIVE_CONTEXT
-                .write()
-                .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
-            *ctx = context_name.clone();
-        }
-
-        match tokio::try_join!(store_future, config_future) {
-            Ok((_, pair)) => Ok(pair),
-            Err(e) => Err(e),
-        }
+        tokio::try_join!(store_future, config_future).map(|(_, pair)| pair)
     });
 
-    let (client_main, client_long) = match cli_res {
+    let (client_main, client_long) = match init_res {
         Ok(pair) => pair,
         Err(e) => {
             tracing::warn!(error = %e, "failed to initialise kube clients");
@@ -173,8 +193,8 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
     };
 
     {
-        *CLIENT_INSTANCE.lock().unwrap() = Some(client_main.clone());
-        *CLIENT_STREAM_INSTANCE.lock().unwrap() = Some(client_long.clone());
+        *CLIENT_INSTANCE.lock().unwrap() = Some(client_main);
+        *CLIENT_STREAM_INSTANCE.lock().unwrap() = Some(client_long);
     }
 
     Ok((true, String::new()))
@@ -362,6 +382,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         })?,
     )?;
 
+    exports.set(
+        "validate_kube_clients",
+        lua.create_async_function(validate_kube_clients)?,
+    )?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("init_metrics", lua.create_function(init_metrics)?)?;
     exports.set(
