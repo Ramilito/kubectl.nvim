@@ -18,15 +18,16 @@ function M.open()
 end
 
 function M.init()
-  local hl = require("kubectl.actions.highlight")
+  vim.defer_fn(function()
+    local hl = require("kubectl.actions.highlight")
     local client = require("kubectl.client")
     client.set_implementation(function(ok)
       if ok then
-        splash.done("Context: " .. (state.context["current-context"] or ""))
         local config = require("kubectl.config")
         local header = require("kubectl.views.header")
         local state = require("kubectl.state")
         local statusline = require("kubectl.views.statusline")
+        splash.done("Context: " .. (state.context["current-context"] or ""))
         hl.setup()
         vim.schedule(function()
           state.setup()
@@ -45,6 +46,7 @@ function M.init()
         splash.fail("error")
       end
     end)
+  end, 5)
 end
 
 function M.close()
