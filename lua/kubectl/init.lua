@@ -1,11 +1,4 @@
-local config = require("kubectl.config")
-local ctx_view = require("kubectl.resources.contexts")
-local header = require("kubectl.views.header")
-local ns_view = require("kubectl.views.namespace")
 local splash = require("kubectl.splash")
-local state = require("kubectl.state")
-local statusline = require("kubectl.views.statusline")
-local view = require("kubectl.views")
 
 local M = {
   is_open = false,
@@ -14,14 +7,26 @@ local M = {
 
 --- Open the kubectl view
 function M.open()
-  local hl = require("kubectl.actions.highlight")
-
-  splash.show({ status = "Fetching current-context…" })
+  splash.show({
+    context = "(resolving…)",
+    namespace = "(resolving…)",
+    position = "center",
+  })
   vim.schedule(function()
+    M.init()
+  end)
+end
+
+function M.init()
+  local hl = require("kubectl.actions.highlight")
     local client = require("kubectl.client")
     client.set_implementation(function(ok)
       if ok then
         splash.done("Context: " .. (state.context["current-context"] or ""))
+        local config = require("kubectl.config")
+        local header = require("kubectl.views.header")
+        local state = require("kubectl.state")
+        local statusline = require("kubectl.views.statusline")
         hl.setup()
         vim.schedule(function()
           state.setup()
@@ -40,11 +45,13 @@ function M.open()
         splash.fail("error")
       end
     end)
-  end)
 end
 
 function M.close()
   local win_config = vim.api.nvim_win_get_config(0)
+  local state = require("kubectl.state")
+  local statusline = require("kubectl.views.statusline")
+  local header = require("kubectl.views.header")
 
   if win_config.relative == "" then
     state.stop_livez()
@@ -79,6 +86,10 @@ function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
   local loop = require("kubectl.utils.loop")
+  local config = require("kubectl.config")
+  local state = require("kubectl.state")
+  local view = require("kubectl.views")
+  local ns_view = require("kubectl.views.namespace")
 
   M.download_if_available(function(_)
     config.setup(options)
@@ -148,6 +159,7 @@ function M.setup(options)
     complete = ns_view.listNamespaces,
   })
 
+  local ctx_view = require("kubectl.resources.contexts")
   vim.api.nvim_create_user_command("Kubectx", function(opts)
     if #opts.fargs == 0 then
       ctx_view.View()
