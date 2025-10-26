@@ -115,18 +115,20 @@ function M.change_context(cmd)
     local client = require("kubectl.client")
     client.set_implementation(function(ok)
       if ok then
-        splash.done("Context: " .. (state.context["current-context"] or ""))
-        state.setup()
-        cache.loading = false
-        cache.LoadFallbackData()
-        local lineage = require("kubectl.views.lineage")
-        lineage.loaded = false
-        vim.api.nvim_exec_autocmds("User", {
-          pattern = "K8sContextChanged",
-          data = { context = cmd },
-        })
+        vim.schedule(function()
+          splash.done("Context: " .. (state.context["current-context"] or ""))
+          state.setup()
+          cache.loading = false
+          cache.LoadFallbackData()
+          local lineage = require("kubectl.views.lineage")
+          lineage.loaded = false
+          vim.api.nvim_exec_autocmds("User", {
+            pattern = "K8sContextChanged",
+            data = { context = cmd },
+          })
 
-        header.View()
+          header.View()
+        end)
       else
         splash.fail("Failed to load context")
       end

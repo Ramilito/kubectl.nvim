@@ -284,6 +284,7 @@ function M.set_buffer_state(buf, filetype, open_func, args)
       and filetype ~= "k8s_aliases"
       and filetype ~= "k8s_filter"
       and filetype ~= "k8s_contexts"
+      and filetype ~= "k8s_splash"
       and not M.buffers[buf]
   end
 
