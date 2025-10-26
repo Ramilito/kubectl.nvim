@@ -3,6 +3,7 @@ local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
+local splash = require("kubectl.splash")
 
 local resource = "contexts"
 
@@ -94,6 +95,13 @@ function M.change_context(cmd)
   loop.stop_all()
 
   M.clear_buffers(cmd)
+
+  splash.show({
+    context = "(resolving…)",
+    namespace = "(resolving…)",
+    position = "center",
+  })
+
   vim.schedule(function()
     local state = require("kubectl.state")
     state.context["current-context"] = cmd
@@ -107,6 +115,7 @@ function M.change_context(cmd)
     local client = require("kubectl.client")
     client.set_implementation(function(ok)
       if ok then
+        splash.done("Context: " .. (state.context["current-context"] or ""))
         state.setup()
         cache.loading = false
         cache.LoadFallbackData()
@@ -119,7 +128,7 @@ function M.change_context(cmd)
 
         header.View()
       else
-        vim.notify("didnt' work", vim.log.levels.ERROR)
+        splash.fail("Failed to load context")
       end
     end)
   end)

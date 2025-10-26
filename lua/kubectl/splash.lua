@@ -189,7 +189,7 @@ local function create_window(opts)
   api.nvim_set_hl(0, "KubectlSplashTitle", { link = "Title", default = true })
   api.nvim_set_hl(0, "KubectlSplashMuted", { link = "Comment", default = true })
   api.nvim_set_hl(0, "KubectlSplashAccent", { link = "Constant", default = true })
-  api.nvim_set_hl(0, "KubectlSplashSuccess", { link = "DiagnosticOk", default = true }) -- fallback if theme lacks: DiagnosticOk
+  api.nvim_set_hl(0, "KubectlSplashSuccess", { link = "DiagnosticOk", default = true })
   api.nvim_set_hl(0, "KubectlSplashError", { link = "DiagnosticError", default = true })
 
   -- content
@@ -292,7 +292,7 @@ function Splash.done(msg)
 end
 
 function Splash.fail(msg)
-  finalize("err", msg, 1600)
+  finalize("err", msg, 2600)
 end
 
 function Splash.hide()

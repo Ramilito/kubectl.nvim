@@ -43,7 +43,7 @@ function M.init()
         local queue = require("kubectl.event_queue")
         queue.start(500)
       else
-        splash.fail("error")
+        splash.fail("Failed to load context")
       end
     end)
   end, 5)
