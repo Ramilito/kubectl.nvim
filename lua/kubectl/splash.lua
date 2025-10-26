@@ -1,4 +1,6 @@
+local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
+local manager = require("kubectl.resource_manager")
 
 ---@class KubectlSplash
 ---@field show fun(opts?: {status?: string, autohide?: boolean, timeout?: integer, title?: string, tips?: string[]})
@@ -154,49 +156,34 @@ local function close_window()
   state.status_lnum, state.tip_lnum = nil, nil
 end
 
-local function create_window(opts)
+local function create_window()
   if is_open() then
     return
   end
 
-  local columns = vim.o.columns
-  local lines = vim.o.lines - vim.o.cmdheight
-  local win_w = math.min(64, math.max(48, math.floor(columns * 0.5)))
-  local win_h = 12
+  local builder = manager.get("splash")
+  if not builder then
+    return
+  end
 
-  local row = math.floor((lines - win_h) / 2 - 1)
-  local col = math.floor((columns - win_w) / 2)
+  builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer(
+    "k8s_splash",
+    "kubectl_splash",
+    function() end,
+    { enter = false }
+  )
 
-  state.bufnr = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_option(state.bufnr, "bufhidden", "wipe")
-  api.nvim_buf_set_name(state.bufnr, "kubectl://splash")
-  -- Optional filetype for user custom highlights
-  pcall(api.nvim_buf_set_option, state.bufnr, "filetype", "kubectl_splash")
+  state.bufnr, state.winid = builder.buf_nr, builder.win_nr
 
-  state.winid = api.nvim_open_win(state.bufnr, false, {
-    relative = "editor",
-    width = win_w,
-    height = win_h,
-    row = row,
-    col = col,
-    style = "minimal",
-    border = "rounded",
-    title = " " .. (opts.title or "kubectl.nvim") .. " ",
-    title_pos = "center",
-    noautocmd = true,
-  })
-
-  -- content
-  local header = center_lines(k8s_logo, win_w - 2)
-  local lines_tbl = { "" } -- top padding (line 0)
-  vim.list_extend(lines_tbl, header) -- lines 1..#header
-  table.insert(lines_tbl, "") -- post-header pad
-  table.insert(lines_tbl, "") -- status line (will be filled)
-  table.insert(lines_tbl, "") -- tip line (will be filled)
+  local header = center_lines(k8s_logo, 100 - 2)
+  local lines_tbl = { "" }
+  vim.list_extend(lines_tbl, header)
+  table.insert(lines_tbl, "")
+  table.insert(lines_tbl, "")
+  table.insert(lines_tbl, "")
 
   api.nvim_buf_set_lines(state.bufnr, 0, -1, false, lines_tbl)
 
-  -- compute line numbers
   local top_pad = 1
   local header_h = #header
   state.status_lnum = top_pad + header_h + 1 -- after one blank pad (0-based)
@@ -206,23 +193,16 @@ local function create_window(opts)
   for i = 0, header_h - 1 do
     api.nvim_buf_add_highlight(state.bufnr, ns, hl.symbols.header, top_pad + i, 0, -1)
   end
-
-  -- always allow 'q' to close
-  vim.keymap.set("n", "q", function()
-    Splash.hide()
-  end, { buffer = state.bufnr, nowait = true, noremap = true, silent = true })
 end
 
--- ---------- public API ----------
-
---- Show splash while work is in progress.
 --- @param opts? { status?: string, autohide?: boolean, timeout?: integer, tips?: string[], title?: string }
 function Splash.show(opts)
   opts = opts or {}
   local timeout = type(opts.timeout) == "number" and opts.timeout or 30000
 
+  manager.get_or_create("splash")
   vim.schedule(function()
-    create_window(opts)
+    create_window()
     start_spinner(opts.status or state.spin_base)
     start_tips(opts.tips)
 
