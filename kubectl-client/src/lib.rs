@@ -1,5 +1,4 @@
 // lib.rs
-use ctor::dtor;
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::config::ExecInteractiveMode;
@@ -359,9 +358,8 @@ pub async fn get_statusline_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     })
 }
 
-/// Runs automatically when the cdylib is unloaded
-#[dtor]
-fn on_unload() {
+#[tracing::instrument]
+async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_pod_collector();
     shutdown_node_collector();
 
@@ -379,6 +377,8 @@ fn on_unload() {
             let _ = map;
         }
     }
+
+    Ok("Done".to_string())
 }
 
 #[tracing::instrument]
@@ -405,6 +405,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(start_reflector_async)?,
     )?;
 
+    exports.set("shutdown_async", lua.create_async_function(shutdown_async)?)?;
     exports.set("get_all", lua.create_function(get_all)?)?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(

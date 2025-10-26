@@ -116,6 +116,15 @@ function M.setup(options)
         end
       end,
     })
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+      group = group,
+      desc = "Best-effort, non-blocking shutdown of background tasks/clients",
+      callback = function()
+        pcall(function()
+          require("kubectl.client").shutdown_async()
+        end)
+      end,
+    })
     M.did_setup = true
   end)
 
