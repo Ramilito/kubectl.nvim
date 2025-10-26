@@ -10,11 +10,9 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use std::time::Instant;
 use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
-use tracing::{info, trace_span, Instrument};
 
 use crate::cmd::get::get_resources_async;
 use crate::processors::processor_for;
