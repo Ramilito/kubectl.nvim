@@ -102,7 +102,7 @@ where
 }
 
 #[tracing::instrument]
-pub async fn validate_kube_clients(_lua: Lua, _args: String) -> LuaResult<bool> {
+pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
     use tokio::time::Duration;
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
@@ -395,8 +395,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     )?;
 
     exports.set(
-        "validate_kube_clients",
-        lua.create_async_function(validate_kube_clients)?,
+        "init_client_async",
+        lua.create_async_function(init_client_async)?,
     )?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("init_metrics", lua.create_function(init_metrics)?)?;
