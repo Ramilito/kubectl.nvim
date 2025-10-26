@@ -18,7 +18,6 @@ function M.open()
 end
 
 function M.init()
-  vim.defer_fn(function()
     local hl = require("kubectl.actions.highlight")
     local client = require("kubectl.client")
     client.set_implementation(function(ok)
@@ -46,7 +45,6 @@ function M.init()
         splash.fail("Failed to load context")
       end
     end)
-  end, 5)
 end
 
 function M.close()
