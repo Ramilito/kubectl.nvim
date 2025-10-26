@@ -1,3 +1,5 @@
+local hl = require("kubectl.actions.highlight")
+
 ---@class KubectlSplash
 ---@field show fun(opts?: {status?: string, autohide?: boolean, timeout?: integer, title?: string, tips?: string[]})
 ---@field status fun(text: string)
@@ -58,7 +60,6 @@ local function stop_timer(name)
 end
 
 local function display_width(s)
-  -- Handles wide glyphs (spinner/emoji)
   return fn.strdisplaywidth(s)
 end
 
@@ -77,7 +78,7 @@ local function center_lines(lines, width)
   return out
 end
 
-local function set_status(text, hl)
+local function set_status(text, symbol)
   if not is_open() then
     return
   end
@@ -89,7 +90,7 @@ local function set_status(text, hl)
   -- clear old highlights on that line before writing
   api.nvim_buf_clear_namespace(state.bufnr, ns, state.status_lnum, state.status_lnum + 1)
   api.nvim_buf_set_lines(state.bufnr, state.status_lnum, state.status_lnum + 1, false, { centered })
-  api.nvim_buf_add_highlight(state.bufnr, ns, hl or "KubectlSplashTitle", state.status_lnum, 0, -1)
+  api.nvim_buf_add_highlight(state.bufnr, ns, symbol or hl.symbols.pending, state.status_lnum, 0, -1)
 end
 
 local function set_tip(text)
@@ -103,7 +104,7 @@ local function set_tip(text)
   local centered = center_line("💡 " .. text, win_w - 2)
   api.nvim_buf_clear_namespace(state.bufnr, ns, state.tip_lnum, state.tip_lnum + 1)
   api.nvim_buf_set_lines(state.bufnr, state.tip_lnum, state.tip_lnum + 1, false, { centered })
-  api.nvim_buf_add_highlight(state.bufnr, ns, "KubectlSplashMuted", state.tip_lnum, 0, -1)
+  api.nvim_buf_add_highlight(state.bufnr, ns, hl.symbols.info, state.tip_lnum, 0, -1)
 end
 
 local function start_spinner(base)
@@ -185,13 +186,6 @@ local function create_window(opts)
     noautocmd = true,
   })
 
-  -- highlight groups (default links keep user themes intact)
-  api.nvim_set_hl(0, "KubectlSplashTitle", { link = "Title", default = true })
-  api.nvim_set_hl(0, "KubectlSplashMuted", { link = "Comment", default = true })
-  api.nvim_set_hl(0, "KubectlSplashAccent", { link = "Constant", default = true })
-  api.nvim_set_hl(0, "KubectlSplashSuccess", { link = "DiagnosticOk", default = true })
-  api.nvim_set_hl(0, "KubectlSplashError", { link = "DiagnosticError", default = true })
-
   -- content
   local header = center_lines(k8s_logo, win_w - 2)
   local lines_tbl = { "" } -- top padding (line 0)
@@ -210,7 +204,7 @@ local function create_window(opts)
 
   -- accent the whole logo block
   for i = 0, header_h - 1 do
-    api.nvim_buf_add_highlight(state.bufnr, ns, "KubectlSplashAccent", top_pad + i, 0, -1)
+    api.nvim_buf_add_highlight(state.bufnr, ns, hl.symbols.header, top_pad + i, 0, -1)
   end
 
   -- always allow 'q' to close
@@ -273,9 +267,9 @@ local function finalize(kind, msg, delay_ms)
     stop_timer("guard_timer")
 
     local prefix = (kind == "ok") and "✔  " or "✖  "
-    local hl = (kind == "ok") and "KubectlSplashSuccess" or "KubectlSplashError"
+    local symbol = (kind == "ok") and hl.symbols.success or hl.symbols.error
     local text = prefix .. (msg and tostring(msg) or ((kind == "ok") and "Ready" or "Something went wrong"))
-    set_status(text, hl)
+    set_status(text, symbol)
 
     -- Close after a short delay so users can read the result.
     local t = uv.new_timer()

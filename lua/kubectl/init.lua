@@ -7,6 +7,8 @@ local M = {
 
 --- Open the kubectl view
 function M.open()
+  local hl = require("kubectl.actions.highlight")
+  hl.setup()
   splash.show({
     context = "(resolving…)",
     namespace = "(resolving…)",
@@ -18,7 +20,6 @@ function M.open()
 end
 
 function M.init()
-  local hl = require("kubectl.actions.highlight")
   local client = require("kubectl.client")
   client.set_implementation(function(ok)
     if ok then
@@ -29,7 +30,6 @@ function M.init()
       vim.schedule(function()
         splash.done("Context: " .. (state.context["current-context"] or ""))
 
-        hl.setup()
         vim.schedule(function()
           state.setup()
         end)
