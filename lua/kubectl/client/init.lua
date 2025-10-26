@@ -9,8 +9,8 @@ local client = {
 
 function client.set_implementation(callback)
   client.implementation = require("kubectl_client")
-	client.implementation.init_logging(vim.fn.stdpath("log"))
-	client.implementation.init_runtime(state.context["current-context"])
+  client.implementation.init_logging(vim.fn.stdpath("log"))
+  client.implementation.init_runtime(state.context["current-context"])
   commands.run_async("init_client_async", {}, function(ok)
     if ok then
       client.implementation.init_metrics()
