@@ -15,9 +15,7 @@ function client.set_implementation(callback)
     if ok then
       client.implementation.init_metrics()
     end
-    vim.schedule(function()
-      callback(ok)
-    end)
+    callback(ok)
   end)
 end
 
