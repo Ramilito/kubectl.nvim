@@ -1,5 +1,5 @@
 use crate::processors::processor::Processor;
-use crate::utils::{AccessorMode, FieldValue};
+use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::StatefulSet;
 use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
@@ -45,7 +45,10 @@ impl Processor for StatefulsetProcessor {
         Box::new(move |r, field| match field {
             "namespace" => Some(r.namespace.clone()),
             "name" => Some(r.name.clone()),
-            "ready" => Some(r.ready.value.clone()),
+            "ready" => match mode {
+                AccessorMode::Sort => r.ready.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(r.ready.value.clone()),
+            },
             "age" => match mode {
                 AccessorMode::Sort => r.age.sort_by.map(|v| v.to_string()),
                 AccessorMode::Filter => Some(r.age.value.clone()),

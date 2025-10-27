@@ -1,5 +1,5 @@
 use crate::processors::processor::Processor;
-use crate::utils::{AccessorMode, FieldValue};
+use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::DaemonSet;
 use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
@@ -95,7 +95,10 @@ impl Processor for DaemonsetProcessor {
             "name" => Some(row.name.clone()),
             "desired" => Some(row.desired.to_string()),
             "current" => Some(row.current.to_string()),
-            "ready" => Some(row.ready.value.clone()),
+            "ready" => match mode {
+                AccessorMode::Sort => row.ready.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(row.ready.value.clone()),
+            },
             "up-to-date" => Some(row.up_to_date.to_string()),
             "available" => Some(row.available.to_string()),
             "node selector" => Some(row.node_selector.to_string()),
