@@ -75,7 +75,6 @@ local function stop_timer(t)
   if t then
     pcall(t.stop, t)
     pcall(t.close, t)
-    t = nil
   end
 end
 
