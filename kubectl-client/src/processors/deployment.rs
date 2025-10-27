@@ -1,7 +1,7 @@
 use crate::processors::processor::Processor;
-use crate::utils::{AccessorMode, FieldValue};
+use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::Deployment;
-use k8s_openapi::serde_json::{to_value, from_value};
+use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -23,8 +23,8 @@ impl Processor for DeploymentProcessor {
     type Row = DeploymentProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let deployment: Deployment = from_value(to_value(obj).map_err(LuaError::external)?)
-            .map_err(LuaError::external)?;
+        let deployment: Deployment =
+            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
         let namespace = deployment.metadata.namespace.clone().unwrap_or_default();
         let name = deployment.metadata.name.clone().unwrap_or_default();
         let up_to_date = deployment
@@ -60,7 +60,10 @@ impl Processor for DeploymentProcessor {
         Box::new(move |res, field| match field {
             "namespace" => Some(res.namespace.clone()),
             "name" => Some(res.name.clone()),
-            "ready" => Some(res.ready.value.clone()),
+            "ready" => match mode {
+                AccessorMode::Sort => res.ready.sort_by.map(pad_key),
+                AccessorMode::Filter => Some(res.ready.value.clone()),
+            },
             "up-to-date" => Some(res.up_to_date.to_string()),
             "available" => Some(res.available.to_string()),
             "age" => match mode {
