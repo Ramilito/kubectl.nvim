@@ -428,6 +428,30 @@ As of `v2`, the plugin is in a stable state. No breaking changes are scheduled a
 
 If you have a Winbar plugin, such as `lualine` there will be conflicts with the winbar in this plugin. To solve this, you should add our filetypes to the exclude files table.
 
+## 🔥 Developers
+
+Instructions from here: [repro.lua](https://lazy.folke.io/developers#reprolua)
+
+```lua
+vim.env.LAZY_STDPATH = ".repro"
+load(vim.fn.system("curl -s https://raw.githubusercontent.com/folke/lazy.nvim/main/bootstrap.lua"))()
+
+require("lazy.minit").repro({
+	spec = {
+		{
+			"ramilito/kubectl.nvim",
+			keys = {
+				{ "K", '<cmd>lua require("kubectl").toggle({tab = true})<cr>', desc = "Join Toggle" },
+			},
+			-- version = "2.*",
+			build = "cargo build --release",
+			opts = {},
+			dependencies = "saghen/blink.download",
+		},
+	},
+})
+```
+
 ## 💪🏼 Motivation
 
 This plugins main purpose is to browse the kubernetes state using vim like
