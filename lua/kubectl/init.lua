@@ -9,11 +9,11 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   hl.setup()
-  splash.show({
-    context = "(resolving…)",
-    namespace = "(resolving…)",
-    position = "center",
-  })
+    splash.show({
+      context = "(resolving…)",
+      namespace = "(resolving…)",
+      position = "center",
+    })
   vim.schedule(function()
     M.init()
   end)
@@ -61,7 +61,7 @@ function M.close()
   end
   statusline.Close()
   header.Close()
-
+	splash.hide()
   local queue = require("kubectl.event_queue")
   queue.stop()
 

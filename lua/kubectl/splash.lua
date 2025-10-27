@@ -19,8 +19,6 @@ local fn = vim.fn
 local ns = api.nvim_create_namespace("kubectl_splash")
 
 local state = {
-  bufnr = nil,
-  winid = nil,
   spin_timer = nil,
   tip_timer = nil,
   guard_timer = nil,
@@ -48,7 +46,15 @@ local k8s_logo = {
 }
 
 local function is_open()
-  return state.bufnr and api.nvim_buf_is_valid(state.bufnr) and state.winid and api.nvim_win_is_valid(state.winid)
+  local builder = manager.get("splash")
+  if not builder then
+    return false
+  end
+  return builder
+    and builder.buf_nr
+    and api.nvim_buf_is_valid(builder.buf_nr)
+    and builder.win_id
+    and api.nvim_win_is_valid(builder.win_id)
 end
 
 local function stop_timer(name)
@@ -83,29 +89,37 @@ local function set_status(text, symbol)
   if not is_open() then
     return
   end
-  local ok, win_w = pcall(api.nvim_win_get_width, state.winid)
+  local builder = manager.get("splash")
+  if not builder then
+    return
+  end
+  local ok, win_w = pcall(api.nvim_win_get_width, builder.win_id)
   if not ok then
     return
   end
   local centered = center_line(text, win_w - 2)
   -- clear old highlights on that line before writing
-  api.nvim_buf_clear_namespace(state.bufnr, ns, state.status_lnum, state.status_lnum + 1)
-  api.nvim_buf_set_lines(state.bufnr, state.status_lnum, state.status_lnum + 1, false, { centered })
-  api.nvim_buf_add_highlight(state.bufnr, ns, symbol or hl.symbols.pending, state.status_lnum, 0, -1)
+  api.nvim_buf_clear_namespace(builder.buf_nr, ns, state.status_lnum, state.status_lnum + 1)
+  api.nvim_buf_set_lines(builder.buf_nr, state.status_lnum, state.status_lnum + 1, false, { centered })
+  api.nvim_buf_add_highlight(builder.buf_nr, ns, symbol or hl.symbols.pending, state.status_lnum, 0, -1)
 end
 
 local function set_tip(text)
   if not is_open() then
     return
   end
-  local ok, win_w = pcall(api.nvim_win_get_width, state.winid)
+  local builder = manager.get("splash")
+  if not builder then
+    return
+  end
+  local ok, win_w = pcall(api.nvim_win_get_width, builder.win_id)
   if not ok then
     return
   end
   local centered = center_line("💡 " .. text, win_w - 2)
-  api.nvim_buf_clear_namespace(state.bufnr, ns, state.tip_lnum, state.tip_lnum + 1)
-  api.nvim_buf_set_lines(state.bufnr, state.tip_lnum, state.tip_lnum + 1, false, { centered })
-  api.nvim_buf_add_highlight(state.bufnr, ns, hl.symbols.info, state.tip_lnum, 0, -1)
+  api.nvim_buf_clear_namespace(builder.buf_nr, ns, state.tip_lnum, state.tip_lnum + 1)
+  api.nvim_buf_set_lines(builder.buf_nr, state.tip_lnum, state.tip_lnum + 1, false, { centered })
+  api.nvim_buf_add_highlight(builder.buf_nr, ns, hl.symbols.info, state.tip_lnum, 0, -1)
 end
 
 local function start_spinner(base)
@@ -145,13 +159,16 @@ local function close_window()
   stop_timer("tip_timer")
   stop_timer("guard_timer")
 
-  if state.winid and api.nvim_win_is_valid(state.winid) then
-    pcall(api.nvim_win_close, state.winid, true)
+  local builder = manager.get("splash")
+  if not builder then
+    return
   end
-  if state.bufnr and api.nvim_buf_is_valid(state.bufnr) then
-    pcall(api.nvim_buf_delete, state.bufnr, { force = true })
+  if builder.win_id and api.nvim_win_is_valid(builder.win_id) then
+    pcall(api.nvim_win_close, builder.win_id, true)
   end
-  state.bufnr, state.winid = nil, nil
+  if builder.buf_nr and api.nvim_buf_is_valid(builder.buf_nr) then
+    pcall(api.nvim_buf_delete, builder.buf_nr, { force = true })
+  end
   state.status_lnum, state.tip_lnum = nil, nil
 end
 
@@ -168,7 +185,7 @@ local function create_window()
   builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer("", "", function() end, { enter = false })
 
   pcall(vim.api.nvim_set_option_value, "winbar", "", { scope = "local", win = builder.win_nr })
-  state.bufnr, state.winid = builder.buf_nr, builder.win_nr
+  builder.buf_nr, builder.win_id = builder.buf_nr, builder.win_nr
 
   local header = center_lines(k8s_logo, 100 - 2)
   local lines_tbl = { "" }
@@ -177,7 +194,7 @@ local function create_window()
   table.insert(lines_tbl, "")
   table.insert(lines_tbl, "")
 
-  api.nvim_buf_set_lines(state.bufnr, 0, -1, false, lines_tbl)
+  api.nvim_buf_set_lines(builder.buf_nr, 0, -1, false, lines_tbl)
 
   local top_pad = 1
   local header_h = #header
@@ -186,12 +203,15 @@ local function create_window()
 
   -- accent the whole logo block
   for i = 0, header_h - 1 do
-    api.nvim_buf_add_highlight(state.bufnr, ns, hl.symbols.header, top_pad + i, 0, -1)
+    api.nvim_buf_add_highlight(builder.buf_nr, ns, hl.symbols.header, top_pad + i, 0, -1)
   end
 end
 
 --- @param opts? { status?: string, autohide?: boolean, timeout?: integer, tips?: string[], title?: string }
 function Splash.show(opts)
+  if is_open() then
+    return
+  end
   opts = opts or {}
   local timeout = type(opts.timeout) == "number" and opts.timeout or 30000
 
