@@ -33,10 +33,9 @@ local state = {
 local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
 local default_tips = {
   "Use :Kubectl ns <name> to pin a namespace",
-  "Press ? in the view for keymaps",
-  "g? toggles wide table columns",
-  "Hint: kubectl -n kube-system get pods",
-  "Press r to refresh resources",
+  "Press g? in the view for keymaps",
+  "Hint: kubectl get pods",
+  "Press gr to refresh resources",
 }
 
 local k8s_logo = {
