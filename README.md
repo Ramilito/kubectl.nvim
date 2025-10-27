@@ -431,26 +431,7 @@ If you have a Winbar plugin, such as `lualine` there will be conflicts with the 
 ## 🔥 Developers
 
 Instructions from here: [repro.lua](https://lazy.folke.io/developers#reprolua)
-
-```lua
-vim.env.LAZY_STDPATH = ".repro"
-load(vim.fn.system("curl -s https://raw.githubusercontent.com/folke/lazy.nvim/main/bootstrap.lua"))()
-
-require("lazy.minit").repro({
-	spec = {
-		{
-			"ramilito/kubectl.nvim",
-			keys = {
-				{ "K", '<cmd>lua require("kubectl").toggle({tab = true})<cr>', desc = "Join Toggle" },
-			},
-			-- version = "2.*",
-			build = "cargo build --release",
-			opts = {},
-			dependencies = "saghen/blink.download",
-		},
-	},
-})
-```
+You can find one prepared here: ./repro.lua
 
 ## 💪🏼 Motivation
 
