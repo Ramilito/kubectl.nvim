@@ -7,7 +7,10 @@ luacheck:
 	luacheck lua
 
 stylua:
-	stylua lua
+	stylua --color always --check lua
+
+.PHONY: check
+check: llscheck luacheck stylua
 
 .PHONY: clean
 clean:

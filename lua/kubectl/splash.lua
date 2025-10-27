@@ -2,6 +2,11 @@ local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 
+---@class TimerHandle : userdata
+---@field start fun(self: TimerHandle, timeout: integer, repeat_: integer, callback: fun())
+---@field stop fun(self: TimerHandle)
+---@field close fun(self: TimerHandle)
+
 ---@class KubectlSplash
 ---@field show fun(opts?: {status?: string, autohide?: boolean, timeout?: integer, title?: string, tips?: string[]})
 ---@field status fun(text: string)
@@ -18,6 +23,14 @@ local fn = vim.fn
 
 local ns = api.nvim_create_namespace("kubectl_splash")
 
+---@class SplashState
+---@field spin_timer? TimerHandle
+---@field tip_timer? TimerHandle
+---@field guard_timer? TimerHandle
+---@field spinner_idx integer
+---@field spin_base string
+---@field status_lnum? integer  -- 0-based
+---@field tip_lnum? integer     -- 0-based
 local state = {
   spin_timer = nil,
   tip_timer = nil,
@@ -57,12 +70,12 @@ local function is_open()
     and api.nvim_win_is_valid(builder.win_id)
 end
 
-local function stop_timer(name)
-  local t = state[name]
+---@param t? TimerHandle
+local function stop_timer(t)
   if t then
     pcall(t.stop, t)
     pcall(t.close, t)
-    state[name] = nil
+    t = nil
   end
 end
 
@@ -123,15 +136,15 @@ local function set_tip(text)
 end
 
 local function start_spinner(base)
-  stop_timer("spin_timer")
+  stop_timer(state.spin_timer)
   if base and base ~= "" then
     state.spin_base = base
   end
-  state.spin_timer = uv.new_timer()
+  state.spin_timer = vim.uv.new_timer()
   state.spin_timer:start(0, 80, function()
     vim.schedule(function()
       if not is_open() then
-        stop_timer("spin_timer")
+        stop_timer(state.spin_timer)
         return
       end
       state.spinner_idx = (state.spinner_idx % #spinner) + 1
@@ -141,7 +154,7 @@ local function start_spinner(base)
 end
 
 local function start_tips(tips)
-  stop_timer("tip_timer")
+  stop_timer(state.tip_timer)
   tips = (type(tips) == "table" and #tips > 0) and tips or default_tips
   local idx = math.random(#tips)
   set_tip(tips[idx])
@@ -155,9 +168,9 @@ local function start_tips(tips)
 end
 
 local function close_window()
-  stop_timer("spin_timer")
-  stop_timer("tip_timer")
-  stop_timer("guard_timer")
+  stop_timer(state.spin_timer)
+  stop_timer(state.tip_timer)
+  stop_timer(state.guard_timer)
 
   local builder = manager.get("splash")
   if not builder then
@@ -222,7 +235,7 @@ function Splash.show(opts)
     start_tips(opts.tips)
 
     -- cancelable autohide guard
-    stop_timer("guard_timer")
+    stop_timer(state.guard_timer)
     if opts.autohide ~= false then
       state.guard_timer = uv.new_timer()
       state.guard_timer:start(timeout, 0, function()
@@ -231,7 +244,7 @@ function Splash.show(opts)
             Splash.fail("Timed out. Press q to close.")
           end
         end)
-        stop_timer("guard_timer")
+        stop_timer(state.guard_timer)
       end)
     end
   end)
@@ -257,9 +270,9 @@ local function finalize(kind, msg, delay_ms)
       return
     end
     -- Stop timers first so our message is not overwritten by the spinner.
-    stop_timer("spin_timer")
-    stop_timer("tip_timer")
-    stop_timer("guard_timer")
+    stop_timer(state.spin_timer)
+    stop_timer(state.tip_timer)
+    stop_timer(state.guard_timer)
 
     local prefix = (kind == "ok") and "✔  " or "✖  "
     local symbol = (kind == "ok") and hl.symbols.success or hl.symbols.error
@@ -268,11 +281,13 @@ local function finalize(kind, msg, delay_ms)
 
     -- Close after a short delay so users can read the result.
     local t = uv.new_timer()
-    t:start(delay_ms, 0, function()
-      vim.schedule(close_window)
-      pcall(t.stop, t)
-      pcall(t.close, t)
-    end)
+    if t then
+      t:start(delay_ms, 0, function()
+        vim.schedule(close_window)
+        pcall(t.stop, t)
+        pcall(t.close, t)
+      end)
+    end
   end)
 end
 
