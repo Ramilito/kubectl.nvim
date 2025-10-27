@@ -96,11 +96,7 @@ function M.change_context(cmd)
 
   M.clear_buffers(cmd)
 
-  splash.show({
-    context = "(resolving…)",
-    namespace = "(resolving…)",
-    position = "center",
-  })
+  splash.show()
 
   vim.schedule(function()
     local state = require("kubectl.state")
@@ -112,11 +108,11 @@ function M.change_context(cmd)
     local header = require("kubectl.views.header")
     header.Close()
 
+    splash.status("State reset ✔ ")
     local client = require("kubectl.client")
     client.set_implementation(function(ok)
       if ok then
         vim.schedule(function()
-          splash.done("Context: " .. (state.context["current-context"] or ""))
           state.setup()
           cache.loading = false
           cache.LoadFallbackData()
@@ -128,6 +124,7 @@ function M.change_context(cmd)
           })
 
           header.View()
+          splash.done("Context: " .. (state.context["current-context"] or ""))
         end)
       else
         splash.fail("Failed to load context")
