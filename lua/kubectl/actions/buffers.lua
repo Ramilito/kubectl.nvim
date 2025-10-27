@@ -269,7 +269,7 @@ end
 --- @param filetype string: The filetype of the buffer.
 --- @param title string|nil: The filetype of the buffer.
 --- @param callback function|nil: The callback function.
---- @param opts { header: { data: table }, prompt: boolean, syntax: string}|nil: Options for the buffer.
+--- @param opts { header: { data: table }, prompt: boolean, syntax: string, enter: boolean, relative: string}|nil: Options for the buffer.
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
   local bufname = filetype or "dynamic_float"
@@ -283,7 +283,12 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     end
   end
 
-  local win = layout.float_dynamic_layout(buf, opts.syntax or filetype, title or "")
+  local win = layout.float_dynamic_layout(
+    buf,
+    opts.syntax or filetype,
+    title or "",
+    { relative = opts.relative, enter = opts.enter }
+  )
 
   if opts.prompt then
     vim.fn.prompt_setcallback(buf, function(input)

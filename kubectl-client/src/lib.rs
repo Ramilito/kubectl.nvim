@@ -1,5 +1,4 @@
 // lib.rs
-use ctor::dtor;
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::config::ExecInteractiveMode;
@@ -50,6 +49,7 @@ static CLIENT_STREAM_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
 static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
 static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
+static BASE_CONFIG: Mutex<Option<Config>> = Mutex::new(None);
 
 pub fn pod_stats() -> &'static SharedPodStats {
     POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
@@ -101,14 +101,66 @@ where
 }
 
 #[tracing::instrument]
+pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
+    use tokio::time::Duration;
+    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+
+    let base_cfg = {
+        BASE_CONFIG.lock().unwrap().clone().ok_or_else(|| {
+            LuaError::RuntimeError("Base kube Config not prepared (call init_runtime first)".into())
+        })?
+    };
+
+    let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
+        let mut cfg_fast = base_cfg.clone();
+        cfg_fast.read_timeout = Some(Duration::from_secs(20));
+        let mut cfg_long = base_cfg.clone();
+        cfg_long.read_timeout = Some(Duration::from_secs(295));
+
+        let fast_task = tokio::spawn(async move { Client::try_from(cfg_fast) });
+        let long_task = tokio::spawn(async move { Client::try_from(cfg_long) });
+
+        let (client_main_res, client_long_res) = tokio::try_join!(fast_task, long_task)
+            .map_err(|e| LuaError::RuntimeError(format!("join error building clients: {e}")))?;
+
+        let client_main = client_main_res.map_err(LuaError::external)?;
+        let client_long = client_long_res.map_err(LuaError::external)?;
+
+        client_main
+            .apiserver_version()
+            .await
+            .map_err(LuaError::external)?;
+        Ok::<_, LuaError>((client_main, client_long))
+    });
+
+    let (client_main, client_long) = match cli_res {
+        Ok(pair) => pair,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to initialise kube clients");
+            return Ok(false);
+        }
+    };
+
+    *CLIENT_INSTANCE.lock().unwrap() = Some(client_main.clone());
+    *CLIENT_STREAM_INSTANCE.lock().unwrap() = Some(client_long.clone());
+
+    Ok(true)
+}
+
+#[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
     shutdown_pod_collector();
     shutdown_node_collector();
+
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
+    {
+        let mut ctx = ACTIVE_CONTEXT
+            .write()
+            .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
+        *ctx = context_name.clone();
+    }
 
-    let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
-        use tokio::time::Duration;
-
+    let init_res: LuaResult<()> = rt.block_on(async {
         let store_future = async {
             let store = get_store_map();
             store.write().await.clear();
@@ -135,46 +187,25 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
                 }
             }
 
-            let mut cfg_fast = base_cfg.clone();
-            cfg_fast.read_timeout = Some(Duration::from_secs(20));
-            let client_main = Client::try_from(cfg_fast).map_err(LuaError::external)?;
+            {
+                let mut slot = BASE_CONFIG.lock().unwrap();
+                *slot = Some(base_cfg);
+            }
 
-            let mut cfg_long = base_cfg;
-            cfg_long.read_timeout = Some(Duration::from_secs(295));
-            let client_long = Client::try_from(cfg_long).map_err(LuaError::external)?;
+            {
+                *CLIENT_INSTANCE.lock().unwrap() = None;
+                *CLIENT_STREAM_INSTANCE.lock().unwrap() = None;
+            }
 
-            client_main
-                .apiserver_version()
-                .await
-                .map_err(LuaError::external)?;
-
-            Ok::<_, LuaError>((client_main, client_long))
+            Ok::<(), LuaError>(())
         };
 
-        {
-            let mut ctx = ACTIVE_CONTEXT
-                .write()
-                .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
-            *ctx = context_name.clone();
-        }
-
-        match tokio::try_join!(store_future, config_future) {
-            Ok((_, pair)) => Ok(pair),
-            Err(e) => Err(e),
-        }
+        tokio::try_join!(store_future, config_future).map(|_| ())
     });
 
-    let (client_main, client_long) = match cli_res {
-        Ok(pair) => pair,
-        Err(e) => {
-            tracing::warn!(error = %e, "failed to initialise kube clients");
-            return Ok((false, e.to_string()));
-        }
-    };
-
-    {
-        *CLIENT_INSTANCE.lock().unwrap() = Some(client_main.clone());
-        *CLIENT_STREAM_INSTANCE.lock().unwrap() = Some(client_long.clone());
+    if let Err(e) = init_res {
+        tracing::warn!(error = %e, "failed to prepare kube config");
+        return Ok((false, e.to_string()));
     }
 
     Ok((true, String::new()))
@@ -327,9 +358,8 @@ pub async fn get_statusline_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     })
 }
 
-/// Runs automatically when the cdylib is unloaded
-#[dtor]
-fn on_unload() {
+#[tracing::instrument]
+async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_pod_collector();
     shutdown_node_collector();
 
@@ -347,6 +377,8 @@ fn on_unload() {
             let _ = map;
         }
     }
+
+    Ok("Done".to_string())
 }
 
 #[tracing::instrument]
@@ -362,6 +394,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         })?,
     )?;
 
+    exports.set(
+        "init_client_async",
+        lua.create_async_function(init_client_async)?,
+    )?;
     exports.set("init_runtime", lua.create_function(init_runtime)?)?;
     exports.set("init_metrics", lua.create_function(init_metrics)?)?;
     exports.set(
@@ -369,6 +405,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(start_reflector_async)?,
     )?;
 
+    exports.set("shutdown_async", lua.create_async_function(shutdown_async)?)?;
     exports.set("get_all", lua.create_function(get_all)?)?;
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(

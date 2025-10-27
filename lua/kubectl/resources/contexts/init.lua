@@ -3,6 +3,7 @@ local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
+local splash = require("kubectl.splash")
 
 local resource = "contexts"
 
@@ -94,6 +95,9 @@ function M.change_context(cmd)
   loop.stop_all()
 
   M.clear_buffers(cmd)
+
+  splash.show()
+
   vim.schedule(function()
     local state = require("kubectl.state")
     state.context["current-context"] = cmd
@@ -104,23 +108,28 @@ function M.change_context(cmd)
     local header = require("kubectl.views.header")
     header.Close()
 
+    splash.status("State reset ✔ ")
     local client = require("kubectl.client")
-    local ok, result = client.set_implementation()
-    if ok then
-      state.setup()
-      cache.loading = false
-      cache.LoadFallbackData()
-      local lineage = require("kubectl.views.lineage")
-      lineage.loaded = false
-      vim.api.nvim_exec_autocmds("User", {
-        pattern = "K8sContextChanged",
-        data = { context = cmd },
-      })
+    client.set_implementation(function(ok)
+      if ok then
+        vim.schedule(function()
+          state.setup()
+          cache.loading = false
+          cache.LoadFallbackData()
+          local lineage = require("kubectl.views.lineage")
+          lineage.loaded = false
+          vim.api.nvim_exec_autocmds("User", {
+            pattern = "K8sContextChanged",
+            data = { context = cmd },
+          })
 
-      header.View()
-    else
-      vim.notify(result, vim.log.levels.ERROR)
-    end
+          header.View()
+          splash.done("Context: " .. (state.context["current-context"] or ""))
+        end)
+      else
+        splash.fail("Failed to load context")
+      end
+    end)
   end)
 end
 

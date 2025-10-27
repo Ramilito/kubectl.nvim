@@ -43,18 +43,20 @@ end
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
 --- @param title string|nil: The title for the buffer (optional).
---- @param opts { relative: string|nil }|nil: The options for the float layout (optional).
+--- @param opts { relative: string|nil, enter: boolean? }|nil: The options for the float layout (optional).
 --- @return integer: The window number.
 function M.float_dynamic_layout(buf, filetype, title, opts)
   opts = opts or {}
+  local enter = opts.enter ~= false -- default to true unless explicitly false
+  local relative = opts.relative or "editor"
   if filetype ~= "" then
     title = filetype .. " - " .. (title or "")
   end
 
   local width, height = M.get_editor_dimensions()
   local win_width, win_height = 100, 15 -- Define the floating window size
-  local win = api.nvim_open_win(buf, true, {
-    relative = opts.relative or "editor",
+  local win = api.nvim_open_win(buf, enter, {
+    relative = relative,
     style = "minimal",
     width = 100,
     height = 5,

@@ -1,10 +1,4 @@
-local config = require("kubectl.config")
-local ctx_view = require("kubectl.resources.contexts")
-local header = require("kubectl.views.header")
-local ns_view = require("kubectl.views.namespace")
-local state = require("kubectl.state")
-local statusline = require("kubectl.views.statusline")
-local view = require("kubectl.views")
+local splash = require("kubectl.splash")
 
 local M = {
   is_open = false,
@@ -14,38 +8,55 @@ local M = {
 --- Open the kubectl view
 function M.open()
   local hl = require("kubectl.actions.highlight")
-  local client = require("kubectl.client")
-  local ok, result = client.set_implementation()
-
-  if not ok then
-    vim.notify(result, vim.log.levels.ERROR)
-  end
-
   hl.setup()
+  splash.show()
   vim.schedule(function()
-    state.setup()
+    M.init()
   end)
+end
 
-  if config.options.headers.enabled then
-    header.View()
-  end
-  if config.options.statusline.enabled then
-    statusline.View()
-  end
+function M.init()
+  local client = require("kubectl.client")
+  splash.status("Client module loaded ✔ ")
+  client.set_implementation(function(ok)
+    if ok then
+      splash.status("Client ininitalized ✔ ")
+      local config = require("kubectl.config")
+      local header = require("kubectl.views.header")
+      local state = require("kubectl.state")
+      local statusline = require("kubectl.views.statusline")
+      vim.schedule(function()
+        state.setup()
 
-  local queue = require("kubectl.event_queue")
-  queue.start(500)
+        if config.options.headers.enabled then
+          header.View()
+        end
+        if config.options.statusline.enabled then
+          statusline.View()
+        end
+
+        local queue = require("kubectl.event_queue")
+        queue.start(500)
+        splash.done("Context: " .. (state.context["current-context"] or ""))
+      end)
+    else
+      splash.fail("Failed to load context")
+    end
+  end)
 end
 
 function M.close()
   local win_config = vim.api.nvim_win_get_config(0)
+  local state = require("kubectl.state")
+  local statusline = require("kubectl.views.statusline")
+  local header = require("kubectl.views.header")
 
   if win_config.relative == "" then
     state.stop_livez()
   end
   statusline.Close()
   header.Close()
-
+  splash.hide()
   local queue = require("kubectl.event_queue")
   queue.stop()
 
@@ -73,6 +84,11 @@ function M.setup(options)
   local completion = require("kubectl.completion")
   local mappings = require("kubectl.mappings")
   local loop = require("kubectl.utils.loop")
+  local config = require("kubectl.config")
+  local state = require("kubectl.state")
+  local view = require("kubectl.views")
+  local ns_view = require("kubectl.views.namespace")
+
   M.download_if_available(function(_)
     config.setup(options)
     state.setNS(config.options.namespace)
@@ -93,6 +109,15 @@ function M.setup(options)
             vim.opt_local.foldmethod = "manual"
           end
         end
+      end,
+    })
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+      group = group,
+      desc = "Best-effort, non-blocking shutdown of background tasks/clients",
+      callback = function()
+        pcall(function()
+          require("kubectl.client").shutdown_async()
+        end)
       end,
     })
     M.did_setup = true
@@ -141,6 +166,7 @@ function M.setup(options)
     complete = ns_view.listNamespaces,
   })
 
+  local ctx_view = require("kubectl.resources.contexts")
   vim.api.nvim_create_user_command("Kubectx", function(opts)
     if #opts.fargs == 0 then
       ctx_view.View()
