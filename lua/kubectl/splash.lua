@@ -114,7 +114,10 @@ local function set_status(text, symbol)
   -- clear old highlights on that line before writing
   api.nvim_buf_clear_namespace(builder.buf_nr, ns, state.status_lnum, state.status_lnum + 1)
   api.nvim_buf_set_lines(builder.buf_nr, state.status_lnum, state.status_lnum + 1, false, { centered })
-  api.nvim_buf_add_highlight(builder.buf_nr, ns, symbol or hl.symbols.pending, state.status_lnum, 0, -1)
+  api.nvim_buf_set_extmark(builder.buf_nr, ns, state.status_lnum, 0, {
+    end_row = state.status_lnum + 1,
+    hl_group = symbol or hl.symbols.pending,
+  })
 end
 
 local function set_tip(text)
@@ -132,7 +135,11 @@ local function set_tip(text)
   local centered = center_line("💡 " .. text, win_w - 2)
   api.nvim_buf_clear_namespace(builder.buf_nr, ns, state.tip_lnum, state.tip_lnum + 1)
   api.nvim_buf_set_lines(builder.buf_nr, state.tip_lnum, state.tip_lnum + 1, false, { centered })
-  api.nvim_buf_add_highlight(builder.buf_nr, ns, hl.symbols.info, state.tip_lnum, 0, -1)
+  api.nvim_buf_set_extmark(builder.buf_nr, ns, state.tip_lnum, 0, {
+    end_row = state.tip_lnum + 1,
+    hl_group = hl.symbols.info,
+    hl_eol = true,
+  })
 end
 
 local function start_spinner(base)
@@ -216,7 +223,13 @@ local function create_window()
 
   -- accent the whole logo block
   for i = 0, header_h - 1 do
-    api.nvim_buf_add_highlight(builder.buf_nr, ns, hl.symbols.header, top_pad + i, 0, -1)
+    api.nvim_buf_set_extmark(
+      builder.buf_nr,
+      ns,
+      top_pad + i,
+      0,
+      { end_row = top_pad + i + 1, hl_group = hl.symbols.header }
+    )
   end
 end
 
