@@ -166,13 +166,9 @@ local function create_window()
     return
   end
 
-  builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer(
-    "k8s_splash",
-    "kubectl_splash",
-    function() end,
-    { enter = false }
-  )
+  builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer("", "", function() end, { enter = false })
 
+  pcall(vim.api.nvim_set_option_value, "winbar", "", { scope = "local", win = builder.win_nr })
   state.bufnr, state.winid = builder.buf_nr, builder.win_nr
 
   local header = center_lines(k8s_logo, 100 - 2)
