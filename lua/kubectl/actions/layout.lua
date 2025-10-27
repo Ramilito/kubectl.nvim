@@ -47,7 +47,7 @@ end
 --- @return integer: The window number.
 function M.float_dynamic_layout(buf, filetype, title, opts)
   opts = opts or {}
-  local enter    = opts.enter ~= false   -- default to true unless explicitly false
+  local enter = opts.enter ~= false -- default to true unless explicitly false
   local relative = opts.relative or "editor"
   if filetype ~= "" then
     title = filetype .. " - " .. (title or "")
