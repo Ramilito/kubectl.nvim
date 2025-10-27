@@ -17,17 +17,16 @@ end
 
 function M.init()
   local client = require("kubectl.client")
+  splash.status("Client module loaded ✔ ")
   client.set_implementation(function(ok)
-    splash.status("Client ininitalized")
     if ok then
+      splash.status("Client ininitalized ✔ ")
       local config = require("kubectl.config")
       local header = require("kubectl.views.header")
       local state = require("kubectl.state")
       local statusline = require("kubectl.views.statusline")
       vim.schedule(function()
-        vim.schedule(function()
-          state.setup()
-        end)
+        state.setup()
 
         if config.options.headers.enabled then
           header.View()
