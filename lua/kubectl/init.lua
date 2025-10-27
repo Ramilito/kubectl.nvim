@@ -9,11 +9,7 @@ local M = {
 function M.open()
   local hl = require("kubectl.actions.highlight")
   hl.setup()
-  splash.show({
-    context = "(resolving…)",
-    namespace = "(resolving…)",
-    position = "center",
-  })
+  splash.show()
   vim.schedule(function()
     M.init()
   end)
@@ -22,14 +18,13 @@ end
 function M.init()
   local client = require("kubectl.client")
   client.set_implementation(function(ok)
+    splash.status("Client ininitalized")
     if ok then
       local config = require("kubectl.config")
       local header = require("kubectl.views.header")
       local state = require("kubectl.state")
       local statusline = require("kubectl.views.statusline")
       vim.schedule(function()
-        splash.done("Context: " .. (state.context["current-context"] or ""))
-
         vim.schedule(function()
           state.setup()
         end)
@@ -43,6 +38,7 @@ function M.init()
 
         local queue = require("kubectl.event_queue")
         queue.start(500)
+        splash.done("Context: " .. (state.context["current-context"] or ""))
       end)
     else
       splash.fail("Failed to load context")
