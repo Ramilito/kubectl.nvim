@@ -11,7 +11,7 @@ require("lazy.minit").repro({
 				{ "K", '<cmd>lua require("kubectl").toggle({tab = true})<cr>', desc = "Join Toggle" },
 			},
 			-- version = "2.*",
-			build = "cargo build --release",
+			build = "make build",
 			opts = {},
 			dependencies = "saghen/blink.download",
 		},
