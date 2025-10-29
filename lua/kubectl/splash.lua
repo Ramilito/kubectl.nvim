@@ -105,11 +105,11 @@ local function set_status(text, symbol)
   if not builder then
     return
   end
-  local ok, win_w = pcall(api.nvim_win_get_width, builder.win_id)
-  if not ok then
+  local ok, win_config = pcall(vim.api.nvim_win_get_config, builder.win_id)
+  if not ok or win_config.relative == "" then
     return
   end
-  local centered = center_line(text, win_w - 2)
+  local centered = center_line(text, win_config.width - 2)
   -- clear old highlights on that line before writing
   api.nvim_buf_clear_namespace(builder.buf_nr, ns, state.status_lnum, state.status_lnum + 1)
   api.nvim_buf_set_lines(builder.buf_nr, state.status_lnum, state.status_lnum + 1, false, { centered })
@@ -127,11 +127,12 @@ local function set_tip(text)
   if not builder then
     return
   end
-  local ok, win_w = pcall(api.nvim_win_get_width, builder.win_id)
-  if not ok then
+
+  local ok, win_config = pcall(vim.api.nvim_win_get_config, builder.win_id)
+  if not ok or win_config.relative == "" then
     return
   end
-  local centered = center_line("💡 " .. text, win_w - 2)
+  local centered = center_line("💡 " .. text, win_config.width - 2)
   api.nvim_buf_clear_namespace(builder.buf_nr, ns, state.tip_lnum, state.tip_lnum + 1)
   api.nvim_buf_set_lines(builder.buf_nr, state.tip_lnum, state.tip_lnum + 1, false, { centered })
   api.nvim_buf_set_extmark(builder.buf_nr, ns, state.tip_lnum, 0, {
@@ -139,6 +140,8 @@ local function set_tip(text)
     hl_group = hl.symbols.info,
     hl_eol = true,
   })
+
+  api.nvim_set_option_value("modified", false, { buf = builder.buf_nr })
 end
 
 local function start_spinner(base)
