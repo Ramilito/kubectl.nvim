@@ -152,7 +152,7 @@ impl Processor for PodProcessor {
             "ready" => Some(pod.ready.value.clone()),
             "status" => Some(pod.status.value.clone()),
             "restarts" => match mode {
-                AccessorMode::Sort => pod.restarts.sort_by.map(|v| v.to_string()),
+                AccessorMode::Sort => pod.restarts.sort_by.map(pad_key),
                 AccessorMode::Filter => Some(pod.restarts.value.clone()),
             },
             "ip" => match mode {
