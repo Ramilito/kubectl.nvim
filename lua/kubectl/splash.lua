@@ -216,7 +216,7 @@ local function create_window()
   table.insert(lines_tbl, "")
   table.insert(lines_tbl, "")
 
-  api.nvim_buf_set_lines(builder.buf_nr, 0, -1, false, lines_tbl)
+  pcall(api.nvim_buf_set_lines, builder.buf_nr, 0, -1, false, lines_tbl)
 
   local top_pad = 1
   local header_h = #header
@@ -225,7 +225,8 @@ local function create_window()
 
   -- accent the whole logo block
   for i = 0, header_h - 1 do
-    api.nvim_buf_set_extmark(
+    pcall(
+      api.nvim_buf_set_extmark,
       builder.buf_nr,
       ns,
       top_pad + i,
