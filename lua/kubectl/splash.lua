@@ -204,7 +204,7 @@ local function create_window()
     return
   end
 
-  builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer("", "", function() end, { enter = false })
+  builder.buf_nr, builder.win_nr = buffers.floating_dynamic_buffer("k8s_splash", "Loading...", function() end, { enter = false })
 
   pcall(vim.api.nvim_set_option_value, "winbar", "", { scope = "local", win = builder.win_nr })
   builder.buf_nr, builder.win_id = builder.buf_nr, builder.win_nr
