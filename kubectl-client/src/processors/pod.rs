@@ -265,41 +265,42 @@ pub fn percent(used: u64, limit: u64) -> u64 {
 }
 
 fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> FieldValue {
-    let mut restarts = FieldValue {
-        value: "0".to_string(),
-        ..Default::default()
-    };
+    let total_restarts: usize = pod
+        .status
+        .as_ref()
+        .and_then(|s| s.container_statuses.as_ref())
+        .map(|statuses| statuses.iter().map(|cs| cs.restart_count as usize).sum())
+        .unwrap_or(0);
 
-    if let Some(status) = &pod.status {
-        if let Some(container_statuses) = &status.container_statuses {
-            // Sum restart counts from all container statuses.
-            let total_restarts: usize = container_statuses
-                .iter()
-                .map(|cs| cs.restart_count as usize)
-                .sum();
-
-            // Find the last finished timestamp among container statuses.
-            let last_finished = container_statuses
+    let last_finished: Option<DateTime<Utc>> = pod
+        .status
+        .as_ref()
+        .and_then(|s| s.container_statuses.as_ref())
+        .and_then(|statuses| {
+            statuses
                 .iter()
                 .filter_map(|cs| {
                     cs.last_state
                         .as_ref()
                         .and_then(|ls| ls.terminated.as_ref())
                         .and_then(|t| t.finished_at.as_ref())
+                        .map(|t| t.0)
                 })
-                .next_back()
-                .map(|time| time_since(&time.0.to_rfc3339()));
+                .max()
+        });
 
-            if let Some(lf) = last_finished {
-                restarts.value = format!("{} ({} ago)", total_restarts, lf);
-                restarts.sort_by = Some(total_restarts);
-                if total_restarts > 0 {
-                    restarts.symbol = Some(color_status("Yellow"));
-                }
-            } else {
-                restarts.value = total_restarts.to_string();
-            }
-        }
+    let mut restarts = FieldValue {
+        value: total_restarts.to_string(),
+        sort_by: Some(total_restarts),
+        ..Default::default()
+    };
+
+    if let Some(ts) = last_finished {
+        restarts.value = format!("{} ({} ago)", total_restarts, time_since(&ts.to_rfc3339()));
+    }
+
+    if total_restarts > 0 {
+        restarts.symbol = Some(color_status("Yellow"));
     }
 
     restarts
