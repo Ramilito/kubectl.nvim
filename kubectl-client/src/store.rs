@@ -24,15 +24,21 @@ pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObjec
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
 
+fn map_key(kind: &String, ns: &Option<String>) -> String {
+    let ns_key = ns.clone().unwrap_or_else(|| "*".into());
+    format!("{}@{}", kind, ns_key)
+}
+
 #[tracing::instrument(skip(client))]
 pub async fn init_reflector_for_kind(
     client: Client,
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let key = map_key(&gvk.kind, &namespace);
     {
         let map = get_store_map().read().await;
-        if map.contains_key(&gvk.kind) {
+        if map.contains_key(&key) {
             return Ok(());
         }
     }
@@ -101,7 +107,7 @@ pub async fn init_reflector_for_kind(
 
     let _ = reader.wait_until_ready().await;
     let mut map = get_store_map().write().await;
-    map.insert(gvk.kind.to_string(), reader);
+    map.insert(key, reader);
 
     Ok(())
 }
@@ -109,7 +115,8 @@ pub async fn init_reflector_for_kind(
 #[tracing::instrument]
 pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-    let store = match map.get(&kind.to_string()) {
+    let key = map_key(&kind.to_string(), &namespace);
+    let store = match map.get(&key) {
         Some(store) => store,
         None => return Ok(Vec::new()),
     };
@@ -140,9 +147,9 @@ pub async fn get_single(
     name: &str,
 ) -> Result<Option<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-
+    let key = map_key(&kind.to_string(), &namespace);
     let store = map
-        .get(&kind.to_string())
+        .get(&key)
         .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
 
     let result = store
