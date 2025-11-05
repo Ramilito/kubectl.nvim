@@ -1,16 +1,18 @@
 use futures::StreamExt;
 use k8s_openapi::serde_json::{self, json};
-use kube::api::TypeMeta;
-use kube::runtime::reflector::store::Writer;
-use kube::runtime::watcher::Event;
-use kube::runtime::{watcher, WatchStreamExt};
 use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, ResourceExt},
+    discovery::Scope,
+    runtime::{
+        reflector::{store::Writer, Store},
+        watcher,
+        watcher::Event,
+        WatchStreamExt,
+    },
     Client,
 };
 use rayon::prelude::*;
 
-use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
@@ -20,13 +22,22 @@ use crate::event_queue::notify_named;
 type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
 pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
 
-pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
+pub fn get_store_map() -> &'static StoreMap {
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
 
-fn map_key(kind: &String, ns: &Option<String>) -> String {
-    let ns_key = ns.clone().unwrap_or_else(|| "*".into());
-    format!("{}@{}", kind, ns_key)
+type HandleMap = Arc<RwLock<HashMap<String, tokio::task::JoinHandle<()>>>>;
+pub static HANDLE_MAP: OnceLock<HandleMap> = OnceLock::new();
+
+fn get_handle_map() -> &'static HandleMap {
+    HANDLE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
+}
+
+fn scoped_key(kind: &str, ns: &Option<String>, scope: Scope) -> String {
+    match scope {
+        Scope::Cluster => format!("{kind}@*"),
+        Scope::Namespaced => format!("{kind}@{}", ns.clone().unwrap_or_else(|| "*".into())),
+    }
 }
 
 #[tracing::instrument(skip(client))]
@@ -35,18 +46,51 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let key = map_key(&gvk.kind, &namespace);
+    let kind = gvk.kind.clone();
+
+    let (_ar, caps) = kube::discovery::pinned_kind(&client.clone(), &gvk).await?;
+    let scope = caps.scope.clone();
+
+    let requested_key = scoped_key(&kind, &namespace, scope.clone());
+    let cluster_key = scoped_key(&kind, &None, scope.clone());
+
     {
         let map = get_store_map().read().await;
-        if map.contains_key(&key) {
+
+        if map.contains_key(&cluster_key) {
+            return Ok(());
+        }
+        if map.contains_key(&requested_key) {
             return Ok(());
         }
     }
+    if matches!(scope, Scope::Cluster)
+        || (matches!(scope, Scope::Namespaced) && namespace.is_none())
+    {
+        let mut stores = get_store_map().write().await;
+        let mut handles = get_handle_map().write().await;
+
+        let prefix = format!("{kind}@");
+        let keys_to_remove: Vec<String> = stores
+            .keys()
+            .filter(|k| k.starts_with(&prefix) && **k != cluster_key)
+            .cloned()
+            .collect();
+
+        for k in keys_to_remove {
+            stores.remove(&k);
+            if let Some(h) = handles.remove(&k) {
+                h.abort();
+            }
+        }
+        drop(stores);
+        drop(handles);
+    }
 
     let ar = ApiResource::from_gvk(&gvk);
-    let api: Api<DynamicObject> = match namespace {
-        Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),
-        None => Api::all_with(client.clone(), &ar),
+    let api: Api<DynamicObject> = match (scope.clone(), namespace.as_deref()) {
+        (Scope::Namespaced, Some(ns)) => Api::namespaced_with(client.clone(), ns, &ar),
+        _ => Api::all_with(client.clone(), &ar),
     };
 
     let config = watcher::Config::default().page_size(10500).timeout(20);
@@ -62,7 +106,7 @@ pub async fn init_reflector_for_kind(
             resource.managed_fields_mut().clear();
             resource.data["api_version"] = json!(ar_api_version.clone());
             if resource.types.is_none() {
-                resource.types = Some(TypeMeta {
+                resource.types = Some(kube::api::TypeMeta {
                     kind: ar_kind.clone(),
                     api_version: ar_api_version.clone(),
                 });
@@ -101,13 +145,20 @@ pub async fn init_reflector_for_kind(
         })
         .reflect(writer);
 
-    tokio::spawn(async move {
+    let join = tokio::spawn(async move {
         stream.for_each(|_| futures::future::ready(())).await;
     });
 
     let _ = reader.wait_until_ready().await;
-    let mut map = get_store_map().write().await;
-    map.insert(key, reader);
+
+    {
+        let mut stores = get_store_map().write().await;
+        stores.insert(requested_key.clone(), reader);
+    }
+    {
+        let mut handles = get_handle_map().write().await;
+        handles.insert(requested_key, join);
+    }
 
     Ok(())
 }
@@ -115,10 +166,13 @@ pub async fn init_reflector_for_kind(
 #[tracing::instrument]
 pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-    let key = map_key(&kind.to_string(), &namespace);
-    let store = match map.get(&key) {
-        Some(store) => store,
-        None => return Ok(Vec::new()),
+
+    let key_ns = format!("{kind}@{}", namespace.clone().unwrap_or_else(|| "*".into()));
+    let key_all = format!("{kind}@*");
+
+    let store = map.get(&key_ns).or_else(|| map.get(&key_all));
+    let Some(store) = store else {
+        return Ok(Vec::new());
     };
 
     let result: Vec<DynamicObject> = store
@@ -147,9 +201,13 @@ pub async fn get_single(
     name: &str,
 ) -> Result<Option<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-    let key = map_key(&kind.to_string(), &namespace);
+
+    let key_ns = format!("{kind}@{}", namespace.clone().unwrap_or_else(|| "*".into()));
+    let key_all = format!("{kind}@*");
+
     let store = map
-        .get(&key)
+        .get(&key_ns)
+        .or_else(|| map.get(&key_all))
         .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
 
     let result = store
@@ -164,5 +222,6 @@ pub async fn get_single(
                 }
         })
         .map(|arc_obj| arc_obj.as_ref().clone());
+
     Ok(result)
 }
