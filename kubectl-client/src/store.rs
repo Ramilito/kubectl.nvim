@@ -40,62 +40,41 @@ fn scoped_key(kind: &str, ns: &Option<String>, scope: Scope) -> String {
     }
 }
 
-#[tracing::instrument(skip(client))]
-pub async fn init_reflector_for_kind(
-    client: Client,
-    gvk: GroupVersionKind,
-    namespace: Option<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let kind = gvk.kind.clone();
-
-    let (_ar, caps) = kube::discovery::pinned_kind(&client.clone(), &gvk).await?;
-    let scope = caps.scope.clone();
-
-    let requested_key = scoped_key(&kind, &namespace, scope.clone());
-    let cluster_key = scoped_key(&kind, &None, scope.clone());
+async fn cleanup_kind_except(kind: &str, keep_key: &str) {
+    let prefix = format!("{kind}@");
 
     {
-        let map = get_store_map().read().await;
-
-        if map.contains_key(&cluster_key) {
-            return Ok(());
-        }
-        if map.contains_key(&requested_key) {
-            return Ok(());
-        }
-    }
-    if matches!(scope, Scope::Cluster)
-        || (matches!(scope, Scope::Namespaced) && namespace.is_none())
-    {
-        let mut stores = get_store_map().write().await;
         let mut handles = get_handle_map().write().await;
-
-        let prefix = format!("{kind}@");
-        let keys_to_remove: Vec<String> = stores
-            .keys()
-            .filter(|k| k.starts_with(&prefix) && **k != cluster_key)
-            .cloned()
-            .collect();
-
-        for k in keys_to_remove {
-            stores.remove(&k);
-            if let Some(h) = handles.remove(&k) {
+        handles.retain(|k, h| {
+            let keep = !k.starts_with(&prefix) || k == keep_key;
+            if !keep {
                 h.abort();
             }
-        }
-        drop(stores);
-        drop(handles);
+            keep
+        });
     }
 
-    let ar = ApiResource::from_gvk(&gvk);
-    let api: Api<DynamicObject> = match (scope.clone(), namespace.as_deref()) {
-        (Scope::Namespaced, Some(ns)) => Api::namespaced_with(client.clone(), ns, &ar),
-        _ => Api::all_with(client.clone(), &ar),
+    {
+        let mut stores = get_store_map().write().await;
+        stores.retain(|k, _| !k.starts_with(&prefix) || k == keep_key);
+    }
+}
+
+async fn spawn_reflector_with_ar(
+    client: Client,
+    gvk: GroupVersionKind,
+    ar: kube::api::ApiResource,
+    namespace: Option<String>,
+    requested_key: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let api: kube::Api<kube::api::DynamicObject> = match namespace.as_deref() {
+        Some(ns) => kube::Api::namespaced_with(client.clone(), ns, &ar),
+        None => kube::Api::all_with(client.clone(), &ar),
     };
 
     let config = watcher::Config::default().page_size(10500).timeout(20);
-    let writer: Writer<DynamicObject> = Writer::new(ar.clone());
-    let reader: Store<DynamicObject> = writer.as_reader();
+    let writer: Writer<kube::api::DynamicObject> = Writer::new(ar.clone());
+    let reader: Store<kube::api::DynamicObject> = writer.as_reader();
 
     let ar_api_version = ar.api_version.clone();
     let ar_kind = ar.kind.clone();
@@ -103,7 +82,9 @@ pub async fn init_reflector_for_kind(
 
     let stream = watcher(api, config)
         .modify(move |resource| {
+            // If not available in your kube version, use: resource.metadata.managed_fields = None;
             resource.managed_fields_mut().clear();
+            // If this indexing doesn't compile on your version, use: resource.data.insert("api_version".into(), json!(...));
             resource.data["api_version"] = json!(ar_api_version.clone());
             if resource.types.is_none() {
                 resource.types = Some(kube::api::TypeMeta {
@@ -118,25 +99,24 @@ pub async fn init_reflector_for_kind(
                 let mut payload = json!({"event": "", "metadata": ""});
                 match event {
                     Event::Apply(obj) => {
-                        payload["event"] = serde_json::Value::from("MODIFIED");
+                        payload["event"] = "MODIFIED".into();
                         payload["metadata"] =
                             serde_json::to_value(&obj.metadata).unwrap_or(serde_json::Value::Null);
-
                         if let Ok(payload) = serde_json::to_string(&payload) {
                             let _ = notify_named(kind_for_emit.clone(), payload);
                         }
                     }
                     Event::Delete(obj) => {
-                        payload["event"] = serde_json::Value::from("DELETED");
+                        payload["event"] = "DELETED".into();
                         payload["metadata"] =
                             serde_json::to_value(&obj.metadata).unwrap_or(serde_json::Value::Null);
-
                         if let Ok(payload) = serde_json::to_string(&payload) {
                             let _ = notify_named(kind_for_emit.clone(), payload);
                         }
                     }
                     _ => {}
                 }
+                // If you don't want a second emit, remove this:
                 if let Ok(payload) = serde_json::to_string(&payload) {
                     let _ = notify_named(kind_for_emit.clone(), payload);
                 }
@@ -161,6 +141,48 @@ pub async fn init_reflector_for_kind(
     }
 
     Ok(())
+}
+
+#[tracing::instrument(skip(client))]
+pub async fn init_reflector_for_kind(
+    client: Client,
+    gvk: GroupVersionKind,
+    namespace: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use kube::discovery::{pinned_kind, Scope};
+
+    let kind = gvk.kind.clone();
+    let cluster_key = format!("{kind}@*");
+
+    {
+        let map = get_store_map().read().await;
+        if map.contains_key(&cluster_key) {
+            return Ok(());
+        }
+        if let Some(ns) = namespace.as_ref() {
+            let requested_key = format!("{kind}@{ns}");
+            if map.contains_key(&requested_key) {
+                return Ok(());
+            }
+        }
+    }
+    let (ar, caps) = pinned_kind(&client, &gvk).await?;
+
+    if namespace.is_none() {
+        cleanup_kind_except(&kind, &cluster_key).await;
+        return spawn_reflector_with_ar(client, gvk, ar, None, cluster_key).await;
+    }
+
+    match caps.scope {
+        Scope::Cluster => {
+            cleanup_kind_except(&kind, &cluster_key).await;
+            spawn_reflector_with_ar(client, gvk, ar, None, cluster_key).await
+        }
+        Scope::Namespaced => {
+            let requested_key = format!("{kind}@{}", namespace.as_deref().unwrap());
+            spawn_reflector_with_ar(client, gvk, ar, namespace, requested_key).await
+        }
+    }
 }
 
 #[tracing::instrument]
