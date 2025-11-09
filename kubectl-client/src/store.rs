@@ -11,7 +11,7 @@ use kube::{
 use rayon::prelude::*;
 
 use kube::runtime::reflector::Store;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -33,6 +33,39 @@ pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
 
 pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, KindState>>> {
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum StoreKey {
+    All { kind: String },
+    Ns { kind: String, ns: String },
+}
+
+impl StoreKey {
+    pub fn kind(&self) -> &str {
+        match self {
+            StoreKey::All { kind } => kind,
+            StoreKey::Ns { kind, .. } => kind,
+        }
+    }
+    pub fn ns(&self) -> Option<&str> {
+        match self {
+            StoreKey::All { .. } => None,
+            StoreKey::Ns { ns, .. } => Some(ns.as_str()),
+        }
+    }
+}
+
+pub fn store_key(kind: &str, namespace: Option<&str>) -> StoreKey {
+    match namespace {
+        None => StoreKey::All {
+            kind: kind.to_string(),
+        },
+        Some(ns) => StoreKey::Ns {
+            kind: kind.to_string(),
+            ns: ns.to_string(),
+        },
+    }
 }
 
 async fn start_watcher_for(
@@ -121,27 +154,22 @@ pub async fn init_reflector_for_kind(
         by_ns: HashMap::new(),
     });
 
-    // Fast path: if an "all-namespaces" watcher already exists, it covers any request.
     if entry.all.is_some() {
         return Ok(());
     }
 
     match namespace {
         None => {
-            // Switching to all namespaces: dispose of any existing ns-scoped watchers.
-            for (_ns, e) in entry.by_ns.drain() {
+            for (_, e) in entry.by_ns.drain() {
                 e.handle.abort();
             }
-            // Start the single all-namespaces watcher.
             let new_entry = start_watcher_for(client.clone(), gvk.clone(), None).await?;
             entry.all = Some(new_entry);
         }
         Some(ns) => {
-            // If a watcher for this ns already exists, do nothing.
             if entry.by_ns.contains_key(&ns) {
                 return Ok(());
             }
-            // Otherwise start a new namespaced watcher (only valid if no "all" watcher exists).
             let new_entry =
                 start_watcher_for(client.clone(), gvk.clone(), Some(ns.as_str())).await?;
             entry.by_ns.insert(ns, new_entry);
@@ -152,15 +180,15 @@ pub async fn init_reflector_for_kind(
 }
 
 #[tracing::instrument]
-pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
+pub async fn get_by_key(key: &StoreKey) -> Result<Vec<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-    let state = match map.get(kind) {
+    let state = match map.get(key.kind()) {
         Some(s) => s,
         None => return Ok(Vec::new()),
     };
 
-    // Prefer the "all" watcher when present (fast, no extra watchers needed).
     if let Some(all) = &state.all {
+        let ns = key.ns().map(|s| s.to_string());
         let result: Vec<DynamicObject> = all
             .store
             .state()
@@ -170,7 +198,7 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
                 if obj.namespace().is_none() {
                     return true;
                 }
-                match &namespace {
+                match &ns {
                     Some(ns) => obj.namespace().as_deref() == Some(ns.as_str()),
                     None => true,
                 }
@@ -180,10 +208,8 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
         return Ok(result);
     }
 
-    // Otherwise, we are in "by-ns" mode.
-    match namespace.as_deref() {
-        // Specific ns: use that store if available, else (rare) merge everything and filter.
-        Some(ns) => {
+    match key {
+        StoreKey::Ns { ns, .. } => {
             if let Some(entry) = state.by_ns.get(ns) {
                 let result: Vec<DynamicObject> = entry
                     .store
@@ -193,34 +219,89 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
                     .collect();
                 return Ok(result);
             }
+            return Ok(Vec::new());
         }
-        None => {
-            // No ns requested and we don't have an "all" watcher: merge across all known ns watchers.
+        StoreKey::All { .. } => {
+            // Merge across all ns stores (dedup by (ns,name,uid)).
+            let mut seen: HashSet<(String, String, String)> = HashSet::new();
+            let mut out = Vec::new();
+            for entry in state.by_ns.values() {
+                for arc_obj in entry.store.state().iter() {
+                    let obj = arc_obj.as_ref();
+                    let key = (
+                        obj.namespace().unwrap_or_default(),
+                        obj.name_any(),
+                        obj.uid().unwrap_or_default(),
+                    );
+                    if seen.insert(key) {
+                        out.push(obj.clone());
+                    }
+                }
+            }
+            return Ok(out);
         }
+    }
+}
+
+#[tracing::instrument]
+pub async fn get_single_by_key(
+    key: &StoreKey,
+    name: &str,
+) -> Result<Option<DynamicObject>, mlua::Error> {
+    let map = get_store_map().read().await;
+    let state = match map.get(key.kind()) {
+        Some(s) => s,
+        None => return Ok(None),
+    };
+
+    if let Some(all) = &state.all {
+        let ns = key.ns().map(|s| s.to_string());
+        let items = all.store.state();
+        let found = items.into_iter().find(|arc_obj| {
+            let obj = arc_obj.as_ref();
+            obj.name_any() == name
+                && match &ns {
+                    Some(ns) => {
+                        // cluster-scoped visible for any ns
+                        obj.namespace().is_none() || obj.namespace().as_deref() == Some(ns.as_str())
+                    }
+                    None => true,
+                }
+        });
+        return Ok(found.map(|arc_obj| arc_obj.as_ref().clone()));
     }
 
-    // Fallback: merge across all ns stores (dedup by (ns,name,uid)).
-    let mut seen = std::collections::HashSet::new();
-    let mut out = Vec::new();
-    for entry in state.by_ns.values() {
-        for arc_obj in entry.store.state().iter() {
-            let obj = arc_obj.as_ref();
-            // key: (ns, name, uid)
-            let key = (
-                obj.namespace().unwrap_or_default(),
-                obj.name_any(),
-                obj.uid().unwrap_or_default(),
-            );
-            if seen.insert(key)
-                && namespace
-                    .as_deref()
-                    .is_none_or(|ns| obj.namespace().as_deref() == Some(ns))
-            {
-                out.push(obj.clone());
+    match key {
+        StoreKey::Ns { ns, .. } => {
+            if let Some(entry) = state.by_ns.get(ns) {
+                let items = entry.store.state();
+                let found = items.into_iter().find(|arc_obj| {
+                    let obj = arc_obj.as_ref();
+                    obj.name_any() == name && obj.namespace().as_deref() == Some(ns.as_str())
+                });
+                return Ok(found.map(|arc_obj| arc_obj.as_ref().clone()));
             }
+            Ok(None)
+        }
+        StoreKey::All { .. } => {
+            // Search across all ns stores.
+            for entry in state.by_ns.values() {
+                if let Some(hit) = entry.store.state().iter().find_map(|arc_obj| {
+                    let obj = arc_obj.as_ref();
+                    (obj.name_any() == name).then(|| obj.clone())
+                }) {
+                    return Ok(Some(hit));
+                }
+            }
+            Ok(None)
         }
     }
-    Ok(out)
+}
+
+#[tracing::instrument]
+pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
+    let key = store_key(kind, namespace.as_deref());
+    get_by_key(&key).await
 }
 
 #[tracing::instrument]
@@ -229,54 +310,6 @@ pub async fn get_single(
     namespace: Option<String>,
     name: &str,
 ) -> Result<Option<DynamicObject>, mlua::Error> {
-    let map = get_store_map().read().await;
-    let state = match map.get(kind) {
-        Some(s) => s,
-        None => return Ok(None),
-    };
-
-    // Prefer the "all" watcher when present.
-    if let Some(all) = &state.all {
-        // 1) Bind the temporary so it outlives the iterator/closure.
-        let items = all.store.state(); // Vec<Arc<DynamicObject>>
-                                       // 2) Search the owned Vec (no borrowed-from-temporary).
-        let found = items.into_iter().find(|arc_obj| {
-            let obj = arc_obj.as_ref();
-            obj.name_any() == name
-                && match &namespace {
-                    Some(ns) => obj.namespace().as_deref() == Some(ns.as_str()),
-                    None => true,
-                }
-        });
-        // 3) Map Arc<DynamicObject> -> DynamicObject by cloning the inner value.
-        return Ok(found.map(|arc_obj| arc_obj.as_ref().clone()));
-    }
-
-    // Otherwise, look in the relevant ns store first (if specified).
-    if let Some(ns) = namespace.as_deref() {
-        if let Some(entry) = state.by_ns.get(ns) {
-            let items = entry.store.state(); // Vec<Arc<DynamicObject>>
-            let found = items.into_iter().find(|arc_obj| {
-                let obj = arc_obj.as_ref();
-                obj.name_any() == name && obj.namespace().as_deref() == Some(ns)
-            });
-            return Ok(found.map(|arc_obj| arc_obj.as_ref().clone()));
-        }
-    }
-
-    // Fallback: scan all ns stores.
-    for entry in state.by_ns.values() {
-        if let Some(found) = entry.store.state().iter().find_map(|arc_obj| {
-            let obj = arc_obj.as_ref();
-            (obj.name_any() == name
-                && namespace
-                    .as_deref()
-                    .is_none_or(|ns| obj.namespace().as_deref() == Some(ns)))
-            .then(|| obj.clone())
-        }) {
-            return Ok(Some(found));
-        }
-    }
-
-    Ok(None)
+    let key = store_key(kind, namespace.as_deref());
+    get_single_by_key(&key, name).await
 }
