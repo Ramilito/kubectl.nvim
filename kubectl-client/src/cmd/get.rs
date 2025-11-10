@@ -308,6 +308,7 @@ impl FallbackResource {
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(|client| async move {
         let discovery = Discovery::new(client.clone())
+            .exclude(&[r"metrics.k8s.io", r"events.k8s.io"])
             .run()
             .await
             .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
