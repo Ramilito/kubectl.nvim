@@ -22,10 +22,9 @@ M.View = function()
     { title = "Aliases - " .. vim.tbl_count(self.data), header = { data = {} }, suggestions = self.data }
   )
 
-  -- autocmd for KubectlCacheLoaded
   local group = vim.api.nvim_create_augroup("kubectl_cacheloaded", { clear = true })
   vim.api.nvim_create_autocmd({ "User" }, {
-    pattern = "KubectlCacheLoaded",
+    pattern = "K8sCacheLoaded",
     group = group,
     callback = function()
       -- check if win and buf are valid
@@ -113,7 +112,7 @@ M.View = function()
         require("kubectl.cache").LoadFallbackData(true)
 
         vim.api.nvim_create_autocmd("User", {
-          pattern = "KubectlCacheLoaded",
+          pattern = "K8sCacheLoaded",
           callback = function()
             vim.notify("Refreshing aliases completed")
           end,

@@ -79,7 +79,9 @@ function M.load_cache(cached_api_resources)
     M.loading = false
     M.timestamp = os.time()
     vim.schedule(function()
-      vim.cmd("doautocmd User KubectlCacheLoaded")
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "K8sCacheLoaded",
+      })
       local ctx = state.context["current-context"]
       local ok, msg = commands.save_file("api_resources/" .. ctx .. ".json", cached_api_resources)
       if not ok then
