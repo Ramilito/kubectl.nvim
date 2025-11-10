@@ -383,7 +383,8 @@ We trigger events that you can use to run custom logic:
 | Name                | When                          | Data |
 | ------------------- | ----------------------------- | ----------------------------- |
 | K8sResourceSelected | On main views, when selecting a resource unless overriden (like pod view) | kind, name, ns |
-| K8sContextChanged | After context change | context |
+| K8sContextChanged   | After context change | context |
+| K8sCacheLoaded      | After api-resources cache is loaded | - |
 
 Example: saving session on context change
 
