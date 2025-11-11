@@ -154,7 +154,7 @@ function M.Picker()
         state.buffers[bufnr] = nil
         pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
         local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-        pcall(vim.api.nvim_buf_set_lines, bufnr, row, row + 1, false, {})
+        pcall(vim.api.nvim_buf_set_lines, 0, row, row + 1, false, {})
       end
     end,
   })
