@@ -14,6 +14,7 @@ use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+use tracing::{span, Level};
 
 use crate::event_queue::notify_named;
 
@@ -24,22 +25,80 @@ pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObjec
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
 
+type StoreNamespaceMap = Arc<RwLock<HashMap<String, Option<String>>>>;
+pub static STORE_NAMESPACE_MAP: OnceLock<StoreNamespaceMap> = OnceLock::new();
+
+pub fn get_store_namespace_map() -> &'static StoreNamespaceMap {
+    STORE_NAMESPACE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
+}
+
 #[tracing::instrument(skip(client))]
 pub async fn init_reflector_for_kind(
     client: Client,
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let kind_key = gvk.kind.clone();
+
     {
-        let map = get_store_map().read().await;
-        if map.contains_key(&gvk.kind) {
-            return Ok(());
+        let ns_map = get_store_namespace_map().read().await;
+        if let Some(current_ns) = ns_map.get(&kind_key) {
+            let current_ns = current_ns.clone(); // Option<String>
+
+            match (current_ns.as_deref(), namespace.as_deref()) {
+                // Already watching ALL namespaces -> treat as hit for any request
+                (None, requested) => {
+                    let _span = span!(
+                        Level::INFO,
+                        "init_reflector_for_kind.store_hit",
+                        kind = %kind_key,
+                        current = "<all>",
+                        requested = requested.unwrap_or("<all>"),
+                    )
+                    .entered();
+                    return Ok(());
+                }
+                // Same concrete namespace -> hit
+                (Some(curr), Some(req)) if curr == req => {
+                    let _span = span!(
+                        Level::INFO,
+                        "init_reflector_for_kind.store_hit",
+                        kind = %kind_key,
+                        current = %curr,
+                        requested = %req,
+                    )
+                    .entered();
+                    return Ok(());
+                }
+                // Namespace changed -> miss, we’ll recreate watcher
+                (curr, req) => {
+                    let _span = span!(
+                        Level::INFO,
+                        "init_reflector_for_kind.store_miss",
+                        kind = %kind_key,
+                        current = curr.unwrap_or("<all>"),
+                        requested = req.unwrap_or("<all>"),
+                    )
+                    .entered();
+                    // fall through
+                }
+            }
+        } else {
+            let _span = span!(
+                Level::INFO,
+                "init_reflector_for_kind.store_miss",
+                kind = %kind_key,
+                current = "<none>",
+                requested = namespace.as_deref().unwrap_or("<all>"),
+            )
+            .entered();
+            // fall through
         }
     }
 
     let ar = ApiResource::from_gvk(&gvk);
-    let api: Api<DynamicObject> = match namespace {
-        Some(ns) => Api::namespaced_with(client.clone(), &ns, &ar),
+    let api: Api<DynamicObject> = match &namespace {
+        Some(ns) => Api::namespaced_with(client.clone(), ns, &ar),
         None => Api::all_with(client.clone(), &ar),
     };
 
@@ -99,9 +158,26 @@ pub async fn init_reflector_for_kind(
         stream.for_each(|_| futures::future::ready(())).await;
     });
 
-    let _ = reader.wait_until_ready().await;
-    let mut map = get_store_map().write().await;
-    map.insert(gvk.kind.to_string(), reader);
+    {
+        let _loading_span = span!(
+            Level::INFO,
+            "init_reflector_for_kind.watcher_initial_sync",
+            kind = %kind_key,
+            namespace = namespace.as_deref().unwrap_or("<all>"),
+        )
+        .entered();
+
+        let _ = reader.wait_until_ready().await;
+    }
+
+    {
+        let mut map = get_store_map().write().await;
+        map.insert(kind_key.clone(), reader);
+    }
+    {
+        let mut ns_map = get_store_namespace_map().write().await;
+        ns_map.insert(kind_key, namespace);
+    }
 
     Ok(())
 }
