@@ -14,6 +14,7 @@ use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+use tokio::task::JoinHandle;
 use tracing::{span, Level};
 
 use crate::event_queue::notify_named;
@@ -31,6 +32,21 @@ pub static STORE_NAMESPACE_MAP: OnceLock<StoreNamespaceMap> = OnceLock::new();
 pub fn get_store_namespace_map() -> &'static StoreNamespaceMap {
     STORE_NAMESPACE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
+type KindKey = String;
+type NamespaceKey = Option<String>; // None == ALL namespaces
+
+#[derive(Debug)]
+struct WatcherEntry {
+    store: Store<DynamicObject>,
+    task: JoinHandle<()>,
+}
+
+static WATCHER_MAP: OnceLock<RwLock<HashMap<(KindKey, NamespaceKey), WatcherEntry>>> =
+    OnceLock::new();
+
+fn get_watcher_map() -> &'static RwLock<HashMap<(KindKey, NamespaceKey), WatcherEntry>> {
+    WATCHER_MAP.get_or_init(|| RwLock::new(HashMap::new()))
+}
 
 #[tracing::instrument(skip(client))]
 pub async fn init_reflector_for_kind(
@@ -38,64 +54,75 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    use tracing::{span, Level};
+
     let kind_key = gvk.kind.clone();
+    let requested_label = namespace.as_deref().unwrap_or("<all>");
 
     {
-        let ns_map = get_store_namespace_map().read().await;
-        if let Some(current_ns) = ns_map.get(&kind_key) {
-            let current_ns = current_ns.clone(); // Option<String>
+        let watcher_map = get_watcher_map().read().await;
 
-            match (current_ns.as_deref(), namespace.as_deref()) {
-                // Already watching ALL namespaces -> treat as hit for any request
-                (None, requested) => {
-                    let _span = span!(
-                        Level::INFO,
-                        "init_reflector_for_kind.store_hit",
-                        kind = %kind_key,
-                        current = "<all>",
-                        requested = requested.unwrap_or("<all>"),
-                    )
-                    .entered();
-                    return Ok(());
-                }
-                // Same concrete namespace -> hit
-                (Some(curr), Some(req)) if curr == req => {
-                    let _span = span!(
-                        Level::INFO,
-                        "init_reflector_for_kind.store_hit",
-                        kind = %kind_key,
-                        current = %curr,
-                        requested = %req,
-                    )
-                    .entered();
-                    return Ok(());
-                }
-                // Namespace changed -> miss, we’ll recreate watcher
-                (curr, req) => {
-                    let _span = span!(
-                        Level::INFO,
-                        "init_reflector_for_kind.store_miss",
-                        kind = %kind_key,
-                        current = curr.unwrap_or("<all>"),
-                        requested = req.unwrap_or("<all>"),
-                    )
-                    .entered();
-                    // fall through
-                }
-            }
-        } else {
+        // Prefer an ALL-namespaces watcher if one exists for this kind
+        if let Some(entry) = watcher_map.get(&(kind_key.clone(), None)) {
             let _span = span!(
                 Level::INFO,
-                "init_reflector_for_kind.store_miss",
+                "init_reflector_for_kind.store_hit",
                 kind = %kind_key,
-                current = "<none>",
-                requested = namespace.as_deref().unwrap_or("<all>"),
+                current = "<all>",
+                requested = requested_label,
             )
             .entered();
-            // fall through
+
+            // Update the "active" store + namespace for this kind
+            {
+                let mut map = get_store_map().write().await;
+                map.insert(kind_key.clone(), entry.store.clone());
+            }
+            {
+                let mut ns_map = get_store_namespace_map().write().await;
+                ns_map.insert(kind_key.clone(), None);
+            }
+
+            return Ok(());
         }
+
+        // Otherwise, see if there's an existing watcher for exactly this namespace
+        if let Some(ns) = namespace.as_ref() {
+            if let Some(entry) = watcher_map.get(&(kind_key.clone(), Some(ns.clone()))) {
+                let _span = span!(
+                    Level::INFO,
+                    "init_reflector_for_kind.store_hit",
+                    kind = %kind_key,
+                    current = %ns,
+                    requested = %ns,
+                )
+                .entered();
+
+                {
+                    let mut map = get_store_map().write().await;
+                    map.insert(kind_key.clone(), entry.store.clone());
+                }
+                {
+                    let mut ns_map = get_store_namespace_map().write().await;
+                    ns_map.insert(kind_key.clone(), Some(ns.clone()));
+                }
+
+                return Ok(());
+            }
+        }
+
+        let _span = span!(
+            Level::INFO,
+            "init_reflector_for_kind.store_miss",
+            kind = %kind_key,
+            current = "<none>",
+            requested = requested_label,
+        )
+        .entered();
+        // fall through and actually create a watcher
     }
 
+    // 2) Build the watcher as you did before
     let ar = ApiResource::from_gvk(&gvk);
     let api: Api<DynamicObject> = match &namespace {
         Some(ns) => Api::namespaced_with(client.clone(), ns, &ar),
@@ -154,7 +181,8 @@ pub async fn init_reflector_for_kind(
         })
         .reflect(writer);
 
-    tokio::spawn(async move {
+    // Keep the JoinHandle so we can abort the watcher later
+    let handle = tokio::spawn(async move {
         stream.for_each(|_| futures::future::ready(())).await;
     });
 
@@ -163,13 +191,43 @@ pub async fn init_reflector_for_kind(
             Level::INFO,
             "init_reflector_for_kind.watcher_initial_sync",
             kind = %kind_key,
-            namespace = namespace.as_deref().unwrap_or("<all>"),
+            namespace = requested_label,
         )
         .entered();
 
         let _ = reader.wait_until_ready().await;
     }
 
+    // 3) Register this watcher in the registry
+    {
+        let mut watcher_map = get_watcher_map().write().await;
+
+        if namespace.is_none() {
+            // We're creating an ALL-namespaces watcher.
+            // Kill any existing per-namespace (or older ALL) watchers for this kind.
+            let keys_to_remove: Vec<_> = watcher_map
+                .keys()
+                .filter(|(k, _)| k == &kind_key)
+                .cloned()
+                .collect();
+
+            for key in keys_to_remove {
+                if let Some(entry) = watcher_map.remove(&key) {
+                    entry.task.abort();
+                }
+            }
+        }
+
+        watcher_map.insert(
+            (kind_key.clone(), namespace.clone()),
+            WatcherEntry {
+                store: reader.clone(),
+                task: handle,
+            },
+        );
+    }
+
+    // 4) Update the "active" store + namespace for this kind (same as before)
     {
         let mut map = get_store_map().write().await;
         map.insert(kind_key.clone(), reader);
