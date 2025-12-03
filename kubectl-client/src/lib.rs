@@ -16,7 +16,7 @@ use tokio::runtime::Runtime;
 use crate::cmd::get::get_resources_async;
 use crate::processors::processor_for;
 use crate::statusline::get_statusline;
-use crate::store::get_store_map;
+use crate::store::{get_store_map, get_store_namespace_map, get_watcher_map};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -164,6 +164,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
         let store_future = async {
             let store = get_store_map();
             store.write().await.clear();
+
+            let store_ns = get_store_namespace_map();
+            store_ns.write().await.clear();
+
+            let store_watcher = get_watcher_map();
+            store_watcher.write().await.clear();
             Ok::<(), LuaError>(())
         };
 

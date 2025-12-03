@@ -28,25 +28,25 @@ pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObjec
 
 type StoreNamespaceMap = Arc<RwLock<HashMap<String, Option<String>>>>;
 pub static STORE_NAMESPACE_MAP: OnceLock<StoreNamespaceMap> = OnceLock::new();
+pub static WATCHER_MAP: OnceLock<RwLock<HashMap<(KindKey, NamespaceKey), WatcherEntry>>> =
+    OnceLock::new();
 
 pub fn get_store_namespace_map() -> &'static StoreNamespaceMap {
     STORE_NAMESPACE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
-type KindKey = String;
-type NamespaceKey = Option<String>; // None == ALL namespaces
 
 #[derive(Debug)]
-struct WatcherEntry {
+pub struct WatcherEntry {
     store: Store<DynamicObject>,
     task: JoinHandle<()>,
 }
 
-static WATCHER_MAP: OnceLock<RwLock<HashMap<(KindKey, NamespaceKey), WatcherEntry>>> =
-    OnceLock::new();
-
-fn get_watcher_map() -> &'static RwLock<HashMap<(KindKey, NamespaceKey), WatcherEntry>> {
+pub fn get_watcher_map() -> &'static RwLock<HashMap<(KindKey, NamespaceKey), WatcherEntry>> {
     WATCHER_MAP.get_or_init(|| RwLock::new(HashMap::new()))
 }
+
+type KindKey = String;
+type NamespaceKey = Option<String>; // None == ALL namespaces
 
 #[tracing::instrument(skip(client))]
 pub async fn init_reflector_for_kind(
