@@ -16,7 +16,7 @@ use tokio::runtime::Runtime;
 use crate::cmd::get::get_resources_async;
 use crate::processors::processor_for;
 use crate::statusline::get_statusline;
-use crate::store::{get_store_map, get_store_namespace_map, get_watcher_map};
+use crate::store::{get_store_map, get_store_namespace_map, get_watcher_map, shutdown_store};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -379,9 +379,7 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     }
 
     {
-        if let Some(map) = STORE_MAP.get() {
-            let _ = map;
-        }
+        shutdown_store().await;
     }
 
     Ok("Done".to_string())
