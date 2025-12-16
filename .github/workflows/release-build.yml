@@ -115,7 +115,8 @@ jobs:
         if: contains(matrix.os, 'windows')
         run: |
           PREBUILT_GO_LIB="$(pwd)/prebuilt_go_lib" cargo build --release --target ${{ matrix.target }}
-          mv "${{ matrix.artifact_name }}" "${{ matrix.target }}.dll"
+          # blink.download doesn't support gnu target so we are doing a hack here
+          mv "${{ matrix.artifact_name }}" "x86_64-pc-windows-msvc.dll"
         shell: bash
 
       - name: Upload artifacts
