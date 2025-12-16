@@ -52,7 +52,7 @@ jobs:
           # Windows builds
           - os: windows-latest
             target: x86_64-pc-windows-gnu 
-            artifact_name: target/x86_64-pc-windows-gnu/release/libkubectl_client.dll
+            artifact_name: target/x86_64-pc-windows-gnu/release/kubectl_client.dll
             go_os: windows
             go_arch: amd64
 
