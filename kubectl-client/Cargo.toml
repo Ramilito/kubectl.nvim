@@ -3,8 +3,8 @@ name = "kubectl-client"
 version = "0.1.0"
 edition = "2021"
 
-
 [features]
+default = ["kube/socks5"]
 telemetry = ["kubectl-telemetry"]
 
 [lib]

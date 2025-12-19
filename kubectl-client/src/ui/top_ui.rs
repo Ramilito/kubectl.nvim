@@ -51,6 +51,8 @@ impl TopViewState {
     pub fn next_tab(&mut self) {
         self.selected_tab = (self.selected_tab + 1) % 2;
     }
+
+    #[allow(dead_code)]
     pub fn prev_tab(&mut self) {
         self.selected_tab = if self.selected_tab == 0 { 1 } else { 0 };
     }
