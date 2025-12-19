@@ -30,6 +30,10 @@ build_dev: build_go
 build_release: build_go
 	@cargo build --release --features telemetry
 
+.PHONY: build_windows
+build_windows: build_go
+	cargo build --release --target x86_64-pc-windows-gnu 
+
 .PHONY: build
 build: build_go
 	cargo build --release
