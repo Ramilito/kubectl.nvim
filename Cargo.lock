@@ -92,6 +92,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-socks5"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8da2537846e16b96d2972ee52a3b355663872a1a687ce6d57a3b6f6b6a181c89"
+dependencies = [
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1104,6 +1114,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper-socks2"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51c227614c208f7e7c2e040526912604a1a957fe467c9c2f5b06c5d032337dab"
+dependencies = [
+ "async-socks5",
+ "http",
+ "hyper",
+ "hyper-util",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower-service",
+]
+
+[[package]]
 name = "hyper-timeout"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1440,6 +1465,7 @@ dependencies = [
  "hyper",
  "hyper-http-proxy",
  "hyper-rustls",
+ "hyper-socks2",
  "hyper-timeout",
  "hyper-util",
  "jsonpath-rust",
