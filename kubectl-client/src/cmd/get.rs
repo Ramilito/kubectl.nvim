@@ -200,7 +200,8 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
 
 #[tracing::instrument]
 pub async fn get_server_raw_async(_lua: Lua, json: String) -> LuaResult<String> {
-    let args: GetServerRawArgs = k8s_openapi::serde_json::from_str(&json).unwrap();
+    let args: GetServerRawArgs = k8s_openapi::serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("invalid JSON in get_server_raw_async: {e}")))?;
 
     with_client(move |client| async move {
         let full_url_str = format!("/{}", args.path.trim_start_matches('/'));
@@ -232,7 +233,7 @@ pub async fn get_raw_async(_lua: Lua, args: (String, Option<String>, bool)) -> L
                 http::header::ACCEPT,
                 "application/json;as=Table;g=meta.k8s.io;v=v1"
                     .parse()
-                    .unwrap(),
+                    .map_err(|e| LuaError::external(format!("invalid header value: {e}")))?,
             );
         }
 

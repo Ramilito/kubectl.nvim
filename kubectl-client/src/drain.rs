@@ -48,8 +48,10 @@ pub async fn drain_node_async(_lua: Lua, json: String) -> LuaResult<String> {
     let timeout: i32 = args.timeout.parse().unwrap_or(30);
 
     let fut = async move {
-        let node_c = CString::new(args.node).expect("Failed to convert name to CString");
-        let ctx_c = CString::new(args.context).expect("Failed to convert context to CString");
+        let node_c = CString::new(args.node)
+            .map_err(|e| LuaError::RuntimeError(format!("invalid node name (null byte): {e}")))?;
+        let ctx_c = CString::new(args.context)
+            .map_err(|e| LuaError::RuntimeError(format!("invalid context name (null byte): {e}")))?;
 
         let res_ptr = unsafe {
             DrainNode(

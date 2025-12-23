@@ -67,8 +67,11 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
         };
         simulated.managed_fields_mut().clear();
 
-        let changed =
-            serde_json::to_value(&live).unwrap() != serde_json::to_value(&simulated).unwrap();
+        let live_val = serde_json::to_value(&live)
+            .map_err(|e| mlua::Error::RuntimeError(format!("failed to serialize live object: {e}")))?;
+        let simulated_val = serde_json::to_value(&simulated)
+            .map_err(|e| mlua::Error::RuntimeError(format!("failed to serialize simulated object: {e}")))?;
+        let changed = live_val != simulated_val;
 
         if !changed {
             return Ok(format!("no changes detected for {}/{}", ar.plural, name));

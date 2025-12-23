@@ -9,7 +9,6 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 
@@ -106,9 +105,15 @@ pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let base_cfg = {
-        BASE_CONFIG.lock().unwrap().clone().ok_or_else(|| {
-            LuaError::RuntimeError("Base kube Config not prepared (call init_runtime first)".into())
-        })?
+        BASE_CONFIG
+            .lock()
+            .map_err(|_| LuaError::RuntimeError("poisoned BASE_CONFIG lock".into()))?
+            .clone()
+            .ok_or_else(|| {
+                LuaError::RuntimeError(
+                    "Base kube Config not prepared (call init_runtime first)".into(),
+                )
+            })?
     };
 
     let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
@@ -141,8 +146,14 @@ pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
         }
     };
 
-    *CLIENT_INSTANCE.lock().unwrap() = Some(client_main.clone());
-    *CLIENT_STREAM_INSTANCE.lock().unwrap() = Some(client_long.clone());
+    *CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))? =
+        Some(client_main.clone());
+    *CLIENT_STREAM_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into()))? =
+        Some(client_long.clone());
 
     Ok(true)
 }
@@ -188,13 +199,22 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             }
 
             {
-                let mut slot = BASE_CONFIG.lock().unwrap();
+                let mut slot = BASE_CONFIG
+                    .lock()
+                    .map_err(|_| LuaError::RuntimeError("poisoned BASE_CONFIG lock".into()))?;
                 *slot = Some(base_cfg);
             }
 
             {
-                *CLIENT_INSTANCE.lock().unwrap() = None;
-                *CLIENT_STREAM_INSTANCE.lock().unwrap() = None;
+                *CLIENT_INSTANCE
+                    .lock()
+                    .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))? =
+                    None;
+                *CLIENT_STREAM_INSTANCE
+                    .lock()
+                    .map_err(|_| {
+                        LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into())
+                    })? = None;
             }
 
             Ok::<(), LuaError>(())
@@ -221,8 +241,9 @@ fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
 }
 
 #[tracing::instrument]
-fn get_all(lua: &Lua, json: String) -> LuaResult<String> {
-    let args: GetAllArgs = serde_json::from_str(&json).unwrap();
+fn get_all(_lua: &Lua, json: String) -> LuaResult<String> {
+    let args: GetAllArgs = serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("invalid JSON in get_all: {e}")))?;
     with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
@@ -248,7 +269,8 @@ fn get_all(lua: &Lua, json: String) -> LuaResult<String> {
 //TODO: Should be combined with get_table_async with a pretty output param
 #[tracing::instrument]
 async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
-    let args: GetAllArgs = serde_json::from_str(&json).unwrap();
+    let args: GetAllArgs = serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("invalid JSON in get_all_async: {e}")))?;
     with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
@@ -273,7 +295,8 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
 
 #[tracing::instrument]
 async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
-    let args: StartReflectorArgs = serde_json::from_str(&json).unwrap();
+    let args: StartReflectorArgs = serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("invalid JSON in start_reflector_async: {e}")))?;
 
     with_client(move |client| async move {
         let gvk = GroupVersionKind::gvk(&args.gvk.g, &args.gvk.v, &args.gvk.k);
@@ -309,8 +332,7 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
 
     let pod = store::get_single(&args.gvk.k, args.namespace.clone(), &args.name)
         .await
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
-        .unwrap();
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
     let vec = match pod {
         Some(p) => vec![p],
@@ -364,18 +386,19 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_node_collector();
 
     {
-        *CLIENT_INSTANCE.lock().unwrap() = None;
-        *CLIENT_STREAM_INSTANCE.lock().unwrap() = None;
+        *CLIENT_INSTANCE
+            .lock()
+            .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))? = None;
+        *CLIENT_STREAM_INSTANCE
+            .lock()
+            .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into()))? =
+            None;
     }
     {
-        let mut ctx = ACTIVE_CONTEXT.write().unwrap();
+        let mut ctx = ACTIVE_CONTEXT
+            .write()
+            .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
         *ctx = None;
-    }
-
-    {
-        if let Some(map) = STORE_MAP.get() {
-            let _ = map;
-        }
     }
 
     Ok("Done".to_string())
