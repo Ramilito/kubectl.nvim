@@ -30,6 +30,14 @@ pub trait View: Send {
         // Default implementation does nothing
         false
     }
+
+    /// Returns the required content height for the current state.
+    ///
+    /// Used to dynamically size the buffer for native Neovim scrolling.
+    /// Returns `None` to use the default/window height.
+    fn content_height(&self) -> Option<u16> {
+        None
+    }
 }
 
 /// Creates a view by name.

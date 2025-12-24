@@ -162,6 +162,58 @@ impl View for TopView {
     fn draw(&mut self, f: &mut Frame, area: Rect) {
         draw(f, area, &mut self.state);
     }
+
+    fn content_height(&self) -> Option<u16> {
+        // Header area: tabs (1) + blank (1) + header row (1) = 3 lines
+        const HEADER_LINES: u16 = 3;
+
+        if self.state.selected_tab == 0 {
+            // Nodes tab: one line per node
+            let node_count = node_stats()
+                .lock()
+                .map(|guard| guard.len())
+                .unwrap_or(0) as u16;
+            Some(HEADER_LINES + node_count * CARD_HEIGHT)
+        } else {
+            // Pods tab: calculate based on namespaces and pods
+            let pod_snapshot: Vec<crate::metrics::pods::PodStat> = pod_stats()
+                .lock()
+                .map(|guard| guard.values().cloned().collect())
+                .unwrap_or_default();
+
+            // Filter pods (same logic as draw)
+            let filtered: Vec<&crate::metrics::pods::PodStat> = if self.state.filter.is_empty() {
+                pod_snapshot.iter().collect()
+            } else {
+                let needle = self.state.filter.to_lowercase();
+                pod_snapshot
+                    .iter()
+                    .filter(|p| {
+                        let hay = format!("{}/{}", p.namespace, p.name).to_lowercase();
+                        hay.contains(&needle)
+                    })
+                    .collect()
+            };
+
+            // Group by namespace
+            let mut grouped: std::collections::BTreeMap<&str, Vec<&crate::metrics::pods::PodStat>> =
+                std::collections::BTreeMap::new();
+            for p in &filtered {
+                grouped.entry(p.namespace.as_str()).or_default().push(p);
+            }
+
+            // Calculate height: NS_HEADER_H per namespace + ROW_H per pod in expanded ns
+            let mut height = HEADER_LINES;
+            for (ns, ns_pods) in &grouped {
+                height += NS_HEADER_H;
+                if !self.state.is_namespace_collapsed(ns) {
+                    height += ns_pods.len() as u16 * ROW_H;
+                }
+            }
+
+            Some(height)
+        }
+    }
 }
 
 /// Main draw function for the Top view.

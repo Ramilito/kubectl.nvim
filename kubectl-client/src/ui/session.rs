@@ -182,7 +182,13 @@ async fn run_buffer_ui(
     time::sleep(Duration::from_millis(50)).await;
 
     let initial_w = cols.load(Ordering::Acquire);
-    let initial_h = rows.load(Ordering::Acquire);
+    let base_h = rows.load(Ordering::Acquire);
+
+    // Create view first so we can query content height
+    let mut view = make_view(&view_name);
+
+    // Use content height if available, otherwise use base height from Lua
+    let initial_h = view.content_height().unwrap_or(base_h).max(base_h);
 
     let backend = NeovimBackend::new(initial_w, initial_h, tx_out.clone());
 
@@ -196,7 +202,6 @@ async fn run_buffer_ui(
 
     term.clear().ok();
 
-    let mut view = make_view(&view_name);
     let mut tick = time::interval(Duration::from_millis(2_000));
 
     // Initial draw (after receiving dimensions)
@@ -223,9 +228,10 @@ async fn run_buffer_ui(
                         };
 
                         if needs_redraw {
-                            // Check for resize
+                            // Get width from Lua, but use content height if available
                             let new_w = cols.load(Ordering::Acquire);
-                            let new_h = rows.load(Ordering::Acquire);
+                            let base_h = rows.load(Ordering::Acquire);
+                            let new_h = view.content_height().unwrap_or(base_h).max(base_h);
                             let current_size = term.backend().size().unwrap_or_default();
 
                             if new_w != current_size.width || new_h != current_size.height {
@@ -250,9 +256,10 @@ async fn run_buffer_ui(
                     break;
                 }
 
-                // Check for resize
+                // Get width from Lua, but use content height if available
                 let new_w = cols.load(Ordering::Acquire);
-                let new_h = rows.load(Ordering::Acquire);
+                let base_h = rows.load(Ordering::Acquire);
+                let new_h = view.content_height().unwrap_or(base_h).max(base_h);
                 let current_size = term.backend().size().unwrap_or_default();
 
                 if new_w != current_size.width || new_h != current_size.height {
