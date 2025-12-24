@@ -14,14 +14,34 @@ use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 
 use crate::event_queue::notify_named;
 
-type StoreMap = Arc<RwLock<HashMap<String, Store<DynamicObject>>>>;
+pub struct ReflectorData {
+    pub store: Store<DynamicObject>,
+    /// Kept to prevent the task from being dropped; aborted via cancel token
+    #[allow(dead_code)]
+    pub handle: JoinHandle<()>,
+    pub cancel: CancellationToken,
+}
+
+type StoreMap = Arc<RwLock<HashMap<String, ReflectorData>>>;
 pub static STORE_MAP: OnceLock<StoreMap> = OnceLock::new();
 
-pub fn get_store_map() -> &'static Arc<RwLock<HashMap<String, Store<DynamicObject>>>> {
+pub fn get_store_map() -> &'static StoreMap {
     STORE_MAP.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
+}
+
+#[tracing::instrument]
+pub async fn shutdown_all_reflectors() {
+    let map = get_store_map();
+    let mut guard = map.write().await;
+    for (kind, data) in guard.drain() {
+        tracing::debug!("Shutting down reflector for {}", kind);
+        data.cancel.cancel();
+    }
 }
 
 #[tracing::instrument(skip(client))]
@@ -30,11 +50,10 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    {
-        let map = get_store_map().read().await;
-        if map.contains_key(&gvk.kind) {
-            return Ok(());
-        }
+    // Use write lock for the entire check-and-insert to prevent TOCTOU race
+    let mut map = get_store_map().write().await;
+    if map.contains_key(&gvk.kind) {
+        return Ok(());
     }
 
     let ar = ApiResource::from_gvk(&gvk);
@@ -50,6 +69,10 @@ pub async fn init_reflector_for_kind(
     let ar_api_version = ar.api_version.clone();
     let ar_kind = ar.kind.clone();
     let kind_for_emit = gvk.kind.clone();
+
+    // Create cancellation token for this reflector
+    let cancel = CancellationToken::new();
+    let cancel_clone = cancel.clone();
 
     let stream = watcher(api, config)
         .modify(move |resource| {
@@ -93,15 +116,25 @@ pub async fn init_reflector_for_kind(
             }
             res
         })
-        .reflect(writer);
+        .reflect(writer)
+        .take_until(cancel_clone.cancelled_owned());
 
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         stream.for_each(|_| futures::future::ready(())).await;
     });
 
-    let _ = reader.wait_until_ready().await;
-    let mut map = get_store_map().write().await;
-    map.insert(gvk.kind.to_string(), reader);
+    let reader_clone = reader.clone();
+    map.insert(
+        gvk.kind.to_string(),
+        ReflectorData {
+            store: reader,
+            handle,
+            cancel,
+        },
+    );
+    drop(map);
+
+    let _ = reader_clone.wait_until_ready().await;
 
     Ok(())
 }
@@ -109,12 +142,13 @@ pub async fn init_reflector_for_kind(
 #[tracing::instrument]
 pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
-    let store = match map.get(&kind.to_string()) {
-        Some(store) => store,
+    let data = match map.get(&kind.to_string()) {
+        Some(data) => data,
         None => return Ok(Vec::new()),
     };
 
-    let result: Vec<DynamicObject> = store
+    let result: Vec<DynamicObject> = data
+        .store
         .state()
         .par_iter()
         .filter(|arc_obj| {
@@ -141,11 +175,12 @@ pub async fn get_single(
 ) -> Result<Option<DynamicObject>, mlua::Error> {
     let map = get_store_map().read().await;
 
-    let store = map
+    let data = map
         .get(&kind.to_string())
         .ok_or_else(|| mlua::Error::RuntimeError("No store found for kind".into()))?;
 
-    let result = store
+    let result = data
+        .store
         .state()
         .iter()
         .find(|arc_obj| {

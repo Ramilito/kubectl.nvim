@@ -15,7 +15,7 @@ use tokio::runtime::Runtime;
 use crate::cmd::get::get_resources_async;
 use crate::processors::processor_for;
 use crate::statusline::get_statusline;
-use crate::store::get_store_map;
+use crate::store::shutdown_all_reflectors;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -173,8 +173,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
 
     let init_res: LuaResult<()> = rt.block_on(async {
         let store_future = async {
-            let store = get_store_map();
-            store.write().await.clear();
+            shutdown_all_reflectors().await;
             Ok::<(), LuaError>(())
         };
 
@@ -384,6 +383,7 @@ pub async fn get_statusline_async(_lua: Lua, _args: ()) -> LuaResult<String> {
 async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_pod_collector();
     shutdown_node_collector();
+    shutdown_all_reflectors().await;
 
     {
         *CLIENT_INSTANCE
