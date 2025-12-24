@@ -78,7 +78,14 @@ pub fn draw_help_overlay(
     let popup_width = max_line_width + 4; // +4 for borders and padding
     let popup_height = lines.len() as u16 + 2; // +2 for borders
 
-    let popup_area = centered_rect(popup_width, popup_height, area);
+    // For centering, use a reasonable visible area height (cap at 40 lines)
+    // This ensures the overlay appears near the top where the user is looking,
+    // even when the content area is very tall for scrolling.
+    let visible_area = Rect {
+        height: area.height.min(40),
+        ..area
+    };
+    let popup_area = centered_rect(popup_width, popup_height, visible_area);
 
     // Build block with optional footer
     let mut block = Block::new()

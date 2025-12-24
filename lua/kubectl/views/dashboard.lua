@@ -215,6 +215,18 @@ local function setup_keymaps(buf, win, sess)
     { key = "<Space>", desc = "Toggle namespace" },
   }
 
+  -- Helper to poll for frame with retries
+  local function poll_frame(attempts)
+    local frame = sess:read_frame()
+    if frame then
+      apply_frame(buf, frame)
+    elseif attempts > 0 then
+      vim.defer_fn(function()
+        poll_frame(attempts - 1)
+      end, 5)
+    end
+  end
+
   for _, mapping in ipairs(cursor_actions) do
     vim.keymap.set("n", mapping.key, function()
       -- First sync cursor position
@@ -222,12 +234,9 @@ local function setup_keymaps(buf, win, sess)
       -- Then send the action
       local bytes = vim.api.nvim_replace_termcodes(mapping.key, true, true, true)
       sess:write(bytes)
-      -- Refresh immediately
+      -- Poll for frame with retries
       vim.defer_fn(function()
-        local frame = sess:read_frame()
-        if frame then
-          apply_frame(buf, frame)
-        end
+        poll_frame(5)
       end, 10)
     end, opts)
   end
@@ -236,12 +245,9 @@ local function setup_keymaps(buf, win, sess)
   local function send_and_refresh(key)
     local bytes = vim.api.nvim_replace_termcodes(key, true, true, true)
     sess:write(bytes)
-    -- Wait a tiny bit for Rust to process, then read frame
+    -- Poll for frame with retries
     vim.defer_fn(function()
-      local frame = sess:read_frame()
-      if frame then
-        apply_frame(buf, frame)
-      end
+      poll_frame(5)
     end, 10)
   end
 
