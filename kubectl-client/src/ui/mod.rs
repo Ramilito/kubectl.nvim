@@ -1,14 +1,15 @@
 //! UI module for the kubectl dashboard.
 //!
-//! This module provides a terminal UI for displaying Kubernetes cluster metrics
-//! and information. It's designed to work with Neovim via the Lua FFI.
+//! This module provides a ratatui-based UI for displaying Kubernetes cluster
+//! metrics and information. It renders to native Neovim buffers via a custom
+//! backend that outputs structured data (lines + extmarks).
 //!
 //! ## Architecture
 //!
 //! ```text
 //! ┌─────────────────────────────────────────────────────────────────┐
 //! │                         session.rs                              │
-//! │  Session (Lua FFI) ─── run_ui ─── Terminal<CrosstermBackend>   │
+//! │  BufferSession (Lua FFI) ─── run_buffer_ui ─── NeovimBackend   │
 //! └───────────────────────────────┬─────────────────────────────────┘
 //!                                 │
 //!                                 ▼
@@ -28,7 +29,7 @@
 //!
 //! ## Modules
 //!
-//! - `session` - Session management and Lua FFI bindings
+//! - `session` - BufferSession management and Lua FFI bindings
 //! - `views` - View trait and implementations (Top, Overview)
 //! - `components` - Reusable UI widgets (Gauge, HelpOverlay, Header)
 //! - `events` - Event parsing and scroll handling
@@ -42,5 +43,5 @@ pub mod neovim_backend;
 pub mod session;
 pub mod views;
 
-// Re-export main session types for FFI registration
-pub use session::{BufferSession, Session};
+// Re-export main session type for FFI registration
+pub use session::BufferSession;

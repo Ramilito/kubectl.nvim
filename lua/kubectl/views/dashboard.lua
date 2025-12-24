@@ -317,15 +317,21 @@ function M.open(view_name, title)
     return
   end
 
+  -- For "top" view, use a large height so all content renders and Neovim can scroll
+  -- For "overview", use actual window height for percentage-based layouts
+  local buffer_height = view_name == "top" and 500 or win_height
+
   -- Send initial size immediately
-  sess:resize(win_width, win_height)
+  sess:resize(win_width, buffer_height)
 
   -- Helper to push size on resize
   local function push_size()
     if vim.api.nvim_win_is_valid(win) then
       local w = vim.api.nvim_win_get_width(win)
       local h = vim.api.nvim_win_get_height(win)
-      sess:resize(w, h)
+      -- Use large height for top view to enable scrolling
+      local buf_h = view_name == "top" and 500 or h
+      sess:resize(w, buf_h)
     end
   end
 

@@ -454,10 +454,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     )?;
 
     exports.set(
-        "start_dashboard",
-        lua.create_function(|_, view_name: String| ui::Session::new(view_name))?,
-    )?;
-    exports.set(
         "start_buffer_dashboard",
         lua.create_function(|_, view_name: String| ui::BufferSession::new(view_name))?,
     )?;

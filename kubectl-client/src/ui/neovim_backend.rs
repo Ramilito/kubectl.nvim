@@ -70,94 +70,6 @@ impl BufferState {
     fn clear(&mut self) {
         self.cells.fill(Cell::default());
     }
-
-    /// Convert buffer state to lines and extmarks.
-    /// Trims trailing empty lines to produce minimal output.
-    /// Uses byte positions for extmarks (required by Neovim).
-    fn to_render_frame(&self) -> RenderFrame {
-        let mut lines = Vec::with_capacity(self.height as usize);
-        let mut marks = Vec::new();
-
-        for y in 0..self.height {
-            let mut line = String::with_capacity(self.width as usize);
-            let mut current_hl: Option<String> = None;
-            let mut hl_start_byte: u16 = 0;
-            let mut current_byte: u16 = 0;
-            let mut row_marks: Vec<ExtmarkData> = Vec::new();
-
-            for x in 0..self.width {
-                let idx = self.index(x, y);
-                let cell = &self.cells[idx];
-
-                // Build line content
-                let symbol = if cell.symbol().is_empty() {
-                    " "
-                } else {
-                    cell.symbol()
-                };
-                let symbol_bytes = symbol.len() as u16;
-
-                // Track highlight spans using byte positions
-                let cell_hl = cell_to_hl_group(cell);
-
-                if cell_hl != current_hl {
-                    // Close previous span
-                    if let Some(ref hl) = current_hl {
-                        row_marks.push(ExtmarkData {
-                            row: y,
-                            start_col: hl_start_byte,
-                            end_col: current_byte,
-                            hl_group: Some(hl.clone()),
-                        });
-                    }
-                    // Start new span
-                    current_hl = cell_hl;
-                    hl_start_byte = current_byte;
-                }
-
-                line.push_str(symbol);
-                current_byte += symbol_bytes;
-            }
-
-            // Close final span for this line
-            if let Some(ref hl) = current_hl {
-                row_marks.push(ExtmarkData {
-                    row: y,
-                    start_col: hl_start_byte,
-                    end_col: current_byte,
-                    hl_group: Some(hl.clone()),
-                });
-            }
-
-            // Trim trailing spaces and get actual byte length
-            let trimmed = line.trim_end().to_string();
-            let line_byte_len = trimmed.len() as u16;
-
-            // Clamp extmarks to actual line byte length and filter empty spans
-            for mut mark in row_marks {
-                if mark.start_col >= line_byte_len {
-                    continue; // Skip marks entirely beyond content
-                }
-                mark.end_col = mark.end_col.min(line_byte_len);
-                if mark.start_col < mark.end_col {
-                    marks.push(mark);
-                }
-            }
-
-            lines.push(trimmed);
-        }
-
-        // Trim trailing empty lines
-        while lines.last().map(|s| s.is_empty()).unwrap_or(false) {
-            lines.pop();
-        }
-
-        // Filter marks to only include those within content bounds
-        let line_count = lines.len() as u16;
-        marks.retain(|m| m.row < line_count);
-
-        RenderFrame { lines, marks }
-    }
 }
 
 /// Convert ratatui's Buffer directly to a RenderFrame.
@@ -335,12 +247,6 @@ impl NeovimBackend {
     /// Resize the internal buffer.
     pub fn resize(&mut self, width: u16, height: u16) {
         self.buffer.resize(width, height);
-    }
-
-    /// Send the current buffer state to Neovim.
-    fn send_frame(&self) {
-        let frame = self.buffer.to_render_frame();
-        let _ = self.frame_tx.send(frame);
     }
 
     /// Send a pre-built frame directly to Neovim.
