@@ -25,7 +25,7 @@ use crate::{
     metrics::nodes::NodeStat,
     node_stats,
     ui::{
-        components::{make_gauge, GaugeStyle},
+        components::{draw_help_overlay, make_gauge, overview_help_items, GaugeStyle},
         events::{handle_scroll_key, Scrollable},
         views::View,
     },
@@ -42,17 +42,34 @@ pub struct OverviewView {
 impl View for OverviewView {
     fn on_event(&mut self, ev: &Event) -> bool {
         match ev {
-            Event::Key(k) => match k.code {
-                KeyCode::Tab => {
-                    self.state.focus_next();
-                    true
+            Event::Key(k) => {
+                // Help overlay intercepts most keys
+                if self.state.is_help_visible() {
+                    match k.code {
+                        KeyCode::Char('?') | KeyCode::Esc => {
+                            self.state.toggle_help();
+                            return true;
+                        }
+                        _ => return true, // Consume all keys when help is open
+                    }
                 }
-                KeyCode::BackTab => {
-                    self.state.focus_prev();
-                    true
+
+                match k.code {
+                    KeyCode::Char('?') => {
+                        self.state.toggle_help();
+                        true
+                    }
+                    KeyCode::Tab => {
+                        self.state.focus_next();
+                        true
+                    }
+                    KeyCode::BackTab => {
+                        self.state.focus_prev();
+                        true
+                    }
+                    other => handle_scroll_key(&mut self.state, other),
                 }
-                other => handle_scroll_key(&mut self.state, other),
-            },
+            }
             Event::Mouse(m) => match m.kind {
                 MouseEventKind::ScrollDown => {
                     self.state.scroll_down();
@@ -193,6 +210,11 @@ fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         Color::Yellow,
         focus_events,
     );
+
+    // Help overlay
+    if st.show_help {
+        draw_help_overlay(f, area, "Help", &overview_help_items(), Some("Press ? to close"));
+    }
 }
 
 /// Draws a scrollable list of text lines with selection.

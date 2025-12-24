@@ -275,6 +275,9 @@ fn draw_pods_tab(
 ) {
     use crate::ui::layout::calculate_name_width;
 
+    // Update visible height for scroll tracking
+    state.update_visible_height(body_area.height);
+
     // Filter pods
     let filtered: Vec<&PodStat> = if state.filter.is_empty() {
         pods.iter().collect()
@@ -307,14 +310,17 @@ fn draw_pods_tab(
     // Header row
     draw_header(f, hdr_area, title_w);
 
-    // Calculate content height
+    // Calculate content height and track namespace positions
     let mut content_h: u16 = 0;
+    let mut ns_positions: Vec<u16> = Vec::new();
     for (ns, ns_pods) in &grouped {
+        ns_positions.push(content_h);
         content_h += NS_HEADER_H;
         if !state.is_namespace_collapsed(ns) {
             content_h += ns_pods.len() as u16 * ROW_H;
         }
     }
+    state.update_ns_positions(ns_positions);
 
     let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
 

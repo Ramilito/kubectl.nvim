@@ -37,6 +37,10 @@ pub struct TopViewState {
     ns_order: Vec<String>,
     /// Whether the help overlay is visible.
     pub show_help: bool,
+    /// Y-positions of namespace headers (updated during render).
+    ns_y_positions: Vec<u16>,
+    /// Visible height of the body area (updated during render).
+    visible_height: u16,
 }
 
 impl TopViewState {
@@ -132,16 +136,18 @@ impl TopViewState {
 
     // ─── Namespace Selection ──────────────────────────────────────────────
 
-    /// Selects the next namespace.
+    /// Selects the next namespace and scrolls to keep it visible.
     pub fn select_next_ns(&mut self) {
         if !self.ns_order.is_empty() {
             self.selected_ns_idx = (self.selected_ns_idx + 1).min(self.ns_order.len() - 1);
+            self.ensure_selection_visible();
         }
     }
 
-    /// Selects the previous namespace.
+    /// Selects the previous namespace and scrolls to keep it visible.
     pub fn select_prev_ns(&mut self) {
         self.selected_ns_idx = self.selected_ns_idx.saturating_sub(1);
+        self.ensure_selection_visible();
     }
 
     /// Toggles the currently selected namespace.
@@ -164,6 +170,45 @@ impl TopViewState {
             self.selected_ns_idx = namespaces.len() - 1;
         }
         self.ns_order = namespaces;
+    }
+
+    // ─── Scroll Management ───────────────────────────────────────────────
+
+    /// Updates the Y-positions of namespace headers (called during render).
+    pub fn update_ns_positions(&mut self, positions: Vec<u16>) {
+        self.ns_y_positions = positions;
+    }
+
+    /// Updates the visible height of the body area (called during render).
+    pub fn update_visible_height(&mut self, height: u16) {
+        self.visible_height = height;
+    }
+
+    /// Ensures the selected namespace is visible by adjusting scroll.
+    fn ensure_selection_visible(&mut self) {
+        if self.ns_y_positions.is_empty() || self.visible_height == 0 {
+            return;
+        }
+
+        if let Some(&selected_y) = self.ns_y_positions.get(self.selected_ns_idx) {
+            let current_offset = self.pod_scroll.offset().y;
+            let visible_end = current_offset + self.visible_height;
+
+            // If selection is above viewport, scroll up
+            if selected_y < current_offset {
+                let diff = current_offset - selected_y;
+                for _ in 0..diff {
+                    self.pod_scroll.scroll_up();
+                }
+            }
+            // If selection is below viewport, scroll down
+            else if selected_y >= visible_end {
+                let diff = selected_y - visible_end + 1;
+                for _ in 0..diff {
+                    self.pod_scroll.scroll_down();
+                }
+            }
+        }
     }
 }
 

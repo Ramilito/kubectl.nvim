@@ -9,4 +9,4 @@ mod help_overlay;
 
 pub use gauge::{make_gauge, GaugeStyle};
 pub use header::draw_header;
-pub use help_overlay::{draw_help_overlay, top_view_help_items};
+pub use help_overlay::{draw_help_overlay, overview_help_items, top_view_help_items};

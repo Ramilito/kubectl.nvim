@@ -92,6 +92,8 @@ pub struct OverviewState {
     pub top_cpu: PaneState,
     pub top_mem: PaneState,
     pub events: PaneState,
+    /// Whether the help overlay is visible.
+    pub show_help: bool,
 }
 
 impl OverviewState {
@@ -108,6 +110,16 @@ impl OverviewState {
     /// Returns true if the given pane is focused.
     pub fn is_focused(&self, pane: Pane) -> bool {
         self.focus == pane
+    }
+
+    /// Toggles the help overlay visibility.
+    pub fn toggle_help(&mut self) {
+        self.show_help = !self.show_help;
+    }
+
+    /// Returns true if the help overlay is visible.
+    pub fn is_help_visible(&self) -> bool {
+        self.show_help
     }
 
     /// Returns a mutable reference to the focused pane's state.
