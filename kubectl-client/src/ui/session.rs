@@ -4,7 +4,11 @@
 //! terminal setup, and the main UI event loop.
 
 use crate::RUNTIME;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::{
+    cursor::{MoveTo, Show},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
+};
 use mlua::{prelude::*, UserData, UserDataMethods};
 use ratatui::{
     backend::CrosstermBackend, layout::Rect, Frame, Terminal, TerminalOptions, Viewport,
@@ -142,7 +146,12 @@ async fn run_ui(
 ) {
     enable_raw_mode().ok();
 
-    let backend = CrosstermBackend::new(NvWriter(tx_out));
+    let mut writer = NvWriter(tx_out);
+
+    // Clear terminal on startup to remove any artifacts
+    let _ = execute!(writer, Clear(ClearType::All), MoveTo(0, 0));
+
+    let backend = CrosstermBackend::new(writer);
     let initial_w = cols.load(Ordering::Acquire);
     let initial_h = rows.load(Ordering::Acquire);
 
@@ -154,37 +163,54 @@ async fn run_ui(
     )
     .expect("terminal");
 
+    // Clear the terminal buffer
+    term.clear().ok();
+
     let mut view = make_view(&view_name);
     let mut tick = time::interval(Duration::from_millis(2_000));
 
     loop {
         tokio::select! {
             // Input from Neovim
-            Some(bytes) = rx_in.recv() => {
-                if let Some(ev) = bytes_to_event(&bytes) {
-                    if is_quit_event(&ev) {
+            msg = rx_in.recv() => {
+                match msg {
+                    Some(bytes) => {
+                        if let Some(ev) = bytes_to_event(&bytes) {
+                            if is_quit_event(&ev) {
+                                open.store(false, Ordering::Release);
+                                break;
+                            }
+                            if view.on_event(&ev) {
+                                draw(&mut term, &mut *view);
+                            }
+                        }
+                    }
+                    // Channel closed (window closed externally)
+                    None => {
                         open.store(false, Ordering::Release);
                         break;
-                    }
-                    if view.on_event(&ev) {
-                        draw(&mut term, &mut *view);
                     }
                 }
             }
 
             // Periodic refresh for live data
             _ = tick.tick() => {
+                // Check if session was closed externally
+                if !open.load(Ordering::Acquire) {
+                    break;
+                }
                 draw(&mut term, &mut *view);
-            }
-
-            // Handle resize updates
-            else => {
-                let w = cols.load(Ordering::Acquire);
-                let h = rows.load(Ordering::Acquire);
-                term.resize(Rect::new(0, 0, w, h)).ok();
             }
         }
     }
+
+    // Cleanup: clear screen, reset cursor, show cursor
+    let _ = execute!(
+        term.backend_mut(),
+        Clear(ClearType::All),
+        MoveTo(0, 0),
+        Show
+    );
 
     disable_raw_mode().ok();
 }

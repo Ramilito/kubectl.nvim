@@ -2,7 +2,7 @@ local buffers = require("kubectl.actions.buffers")
 local M = {}
 
 function M.View()
-  local buf, win = buffers.floating_buffer("k8s_graphs", "K8s graphs")
+  local buf, win = buffers.floating_buffer("k8s_top", "K8s Top")
 
   local client = require("kubectl.client")
   local ok, sess = pcall(client.start_dashboard, "top")
@@ -22,7 +22,11 @@ function M.View()
 
   push_size()
 
+  -- Create autocmd group for proper cleanup
+  local augroup = vim.api.nvim_create_augroup("KubectlTop_" .. buf, { clear = true })
+
   vim.api.nvim_create_autocmd("WinResized", {
+    group = augroup,
     callback = function()
       push_size()
     end,
@@ -34,6 +38,15 @@ function M.View()
     end,
   })
   vim.cmd.startinsert()
+
+  local function cleanup()
+    -- Delete autocmd group
+    pcall(vim.api.nvim_del_augroup_by_id, augroup)
+    -- Delete buffer to prevent artifacts on reopen
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+  end
 
   local timer = vim.uv.new_timer()
   timer:start(
@@ -51,13 +64,27 @@ function M.View()
         if not timer:is_closing() then
           timer:close()
         end
-        vim.api.nvim_chan_send(chan, "\r\n[UI exited]\r\n")
         if vim.api.nvim_win_is_valid(win) then
           vim.api.nvim_win_close(win, true)
         end
+        cleanup()
       end
     end)
   )
+
+  -- Also cleanup when window is closed manually
+  vim.api.nvim_create_autocmd("WinClosed", {
+    group = augroup,
+    pattern = tostring(win),
+    once = true,
+    callback = function()
+      timer:stop()
+      if not timer:is_closing() then
+        timer:close()
+      end
+      cleanup()
+    end,
+  })
 end
 
 return M
