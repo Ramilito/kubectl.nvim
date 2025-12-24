@@ -134,14 +134,6 @@ pub fn top_view_help_items() -> Vec<HelpItem> {
 /// Standard help items for the Overview view.
 pub fn overview_help_items() -> Vec<HelpItem> {
     vec![
-        HelpItem::Section("Navigation"),
-        HelpItem::Entry(HelpEntry::new("Tab", "Focus next pane")),
-        HelpItem::Entry(HelpEntry::new("Shift-Tab", "Focus previous pane")),
-        HelpItem::Entry(HelpEntry::new("j/↓", "Select next item")),
-        HelpItem::Entry(HelpEntry::new("k/↑", "Select previous item")),
-        HelpItem::Entry(HelpEntry::new("PgDn/PgUp", "Page down/up")),
-        HelpItem::Blank,
-        HelpItem::Section("Other"),
         HelpItem::Entry(HelpEntry::new("?", "Toggle this help")),
         HelpItem::Entry(HelpEntry::new("q", "Quit")),
     ]

@@ -1,6 +1,6 @@
 //! Event parsing and handling utilities.
 //!
-//! Provides byte-to-event conversion and shared scroll handling logic.
+//! Provides byte-to-event conversion for Neovim input.
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
@@ -66,41 +66,6 @@ pub fn bytes_to_event(bytes: &[u8]) -> Option<Event> {
     }
 }
 
-/// Trait for types that support scrolling.
-///
-/// Provides a unified interface for scroll operations across different views.
-pub trait Scrollable {
-    fn scroll_down(&mut self);
-    fn scroll_up(&mut self);
-    fn scroll_page_down(&mut self);
-    fn scroll_page_up(&mut self);
-}
-
-/// Handles scroll navigation keys for any Scrollable type.
-///
-/// Returns `true` if the key was handled, `false` otherwise.
-pub fn handle_scroll_key<S: Scrollable>(state: &mut S, key: KeyCode) -> bool {
-    match key {
-        KeyCode::Down | KeyCode::Char('j') => {
-            state.scroll_down();
-            true
-        }
-        KeyCode::Up | KeyCode::Char('k') => {
-            state.scroll_up();
-            true
-        }
-        KeyCode::PageDown => {
-            state.scroll_page_down();
-            true
-        }
-        KeyCode::PageUp => {
-            state.scroll_page_up();
-            true
-        }
-        _ => false,
-    }
-}
-
 /// Checks if the event is a quit command.
 pub fn is_quit_event(event: &Event) -> bool {
     matches!(
@@ -159,44 +124,5 @@ mod tests {
 
         let not_quit = Event::Key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
         assert!(!is_quit_event(&not_quit));
-    }
-
-    struct MockScrollable {
-        down_count: usize,
-        up_count: usize,
-    }
-
-    impl Scrollable for MockScrollable {
-        fn scroll_down(&mut self) {
-            self.down_count += 1;
-        }
-        fn scroll_up(&mut self) {
-            self.up_count += 1;
-        }
-        fn scroll_page_down(&mut self) {
-            self.down_count += 10;
-        }
-        fn scroll_page_up(&mut self) {
-            self.up_count += 10;
-        }
-    }
-
-    #[test]
-    fn test_handle_scroll_key() {
-        let mut state = MockScrollable {
-            down_count: 0,
-            up_count: 0,
-        };
-
-        assert!(handle_scroll_key(&mut state, KeyCode::Down));
-        assert_eq!(state.down_count, 1);
-
-        assert!(handle_scroll_key(&mut state, KeyCode::Char('j')));
-        assert_eq!(state.down_count, 2);
-
-        assert!(handle_scroll_key(&mut state, KeyCode::Up));
-        assert_eq!(state.up_count, 1);
-
-        assert!(!handle_scroll_key(&mut state, KeyCode::Char('x')));
     }
 }
