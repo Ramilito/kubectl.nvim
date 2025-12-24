@@ -267,53 +267,102 @@ fn draw_pods_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, pods: &[PodStat
                 name_col,
             );
 
-            // Sparklines with current value labels
-            let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width.saturating_sub(8));
-            let mem_data = deque_to_vec(&p.mem_history, mem_col.width.saturating_sub(10));
+            // Sparklines with current value and delta
+            let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width.saturating_sub(12));
+            let mem_data = deque_to_vec(&p.mem_history, mem_col.width.saturating_sub(12));
+            let cpu_delta = calc_delta(p.cpu_m, &p.cpu_history);
+            let mem_delta = calc_delta(p.mem_mi, &p.mem_history);
 
-            // CPU sparkline with value label
-            let cpu_label = format!("{}m", p.cpu_m);
+            // CPU sparkline
             f.render_widget(
                 Sparkline::default()
                     .data(&cpu_data)
                     .style(Style::default().fg(tailwind::GREEN.c500)),
                 Rect {
-                    width: cpu_col.width.saturating_sub(cpu_label.len() as u16 + 1),
+                    width: cpu_col.width.saturating_sub(12),
                     ..cpu_col
                 },
             );
+
+            // Label area for current value and delta (right side, doesn't overlap sparkline)
+            let label_width = 12u16;
+            let cpu_label_area = Rect {
+                x: cpu_col.x + cpu_col.width.saturating_sub(label_width),
+                y: cpu_col.y,
+                width: label_width.min(cpu_col.width),
+                height: 1,
+            };
+
+            // CPU current value
+            let cpu_label = format!("{}m", p.cpu_m);
             f.render_widget(
                 Paragraph::new(cpu_label)
                     .alignment(Alignment::Right)
-                    .style(
-                        Style::default()
-                            .fg(tailwind::GREEN.c300)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                cpu_col,
+                    .style(Style::default().fg(tailwind::GREEN.c300).add_modifier(Modifier::BOLD)),
+                cpu_label_area,
             );
 
-            // MEM sparkline with value label
-            let mem_label = format!("{} MiB", p.mem_mi);
+            // CPU delta line
+            if let Some((delta, is_up)) = cpu_delta {
+                if delta > 0 {
+                    let delta_label = if is_up {
+                        format!("↑{}m", delta)
+                    } else {
+                        format!("↓{}m", delta)
+                    };
+                    f.render_widget(
+                        Paragraph::new(delta_label)
+                            .alignment(Alignment::Right)
+                            .style(Style::default().fg(tailwind::GRAY.c500)),
+                        Rect { y: cpu_label_area.y + 1, ..cpu_label_area },
+                    );
+                }
+            }
+
+            // MEM sparkline
             f.render_widget(
                 Sparkline::default()
                     .data(&mem_data)
                     .style(Style::default().fg(tailwind::ORANGE.c400)),
                 Rect {
-                    width: mem_col.width.saturating_sub(mem_label.len() as u16 + 1),
+                    width: mem_col.width.saturating_sub(12),
                     ..mem_col
                 },
             );
+
+            // Label area for MEM current value and delta (right side, doesn't overlap sparkline)
+            let mem_label_area = Rect {
+                x: mem_col.x + mem_col.width.saturating_sub(label_width),
+                y: mem_col.y,
+                width: label_width.min(mem_col.width),
+                height: 1,
+            };
+
+            // MEM current value
+            let mem_label = format!("{} MiB", p.mem_mi);
             f.render_widget(
                 Paragraph::new(mem_label)
                     .alignment(Alignment::Right)
-                    .style(
-                        Style::default()
-                            .fg(tailwind::ORANGE.c300)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                mem_col,
+                    .style(Style::default().fg(tailwind::ORANGE.c300).add_modifier(Modifier::BOLD)),
+                mem_label_area,
             );
+
+            // MEM delta line
+            if let Some((delta, is_up)) = mem_delta {
+                if delta > 0 {
+                    let delta_label = if is_up {
+                        format!("↑{} MiB", delta)
+                    } else {
+                        format!("↓{} MiB", delta)
+                    };
+                    f.render_widget(
+                        Paragraph::new(delta_label)
+                            .alignment(Alignment::Right)
+                            .style(Style::default().fg(tailwind::GRAY.c500)),
+                        Rect { y: mem_label_area.y + 1, ..mem_label_area },
+                    );
+                }
+            }
 
             y += ROW_H;
         }
@@ -335,7 +384,25 @@ fn draw_pods_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, pods: &[PodStat
 }
 
 /// Converts a VecDeque to a Vec, taking at most `max_w` elements.
+/// Reverses the order so oldest is first (left) and newest is last (right).
 fn deque_to_vec(data: &std::collections::VecDeque<u64>, max_w: u16) -> Vec<u64> {
     let w = max_w as usize;
-    data.iter().take(w).copied().collect()
+    let mut v: Vec<u64> = data.iter().take(w).copied().collect();
+    v.reverse();
+    v
+}
+
+/// Calculate delta from previous value in history.
+/// Returns (delta, is_increase) or None if not enough history.
+fn calc_delta(current: u64, history: &std::collections::VecDeque<u64>) -> Option<(u64, bool)> {
+    // history[0] is current, history[1] is previous sample
+    if history.len() < 2 {
+        return None;
+    }
+    let prev = history.get(1)?;
+    if current >= *prev {
+        Some((current - *prev, true))
+    } else {
+        Some((*prev - current, false))
+    }
 }
