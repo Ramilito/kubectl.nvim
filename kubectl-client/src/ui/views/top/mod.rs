@@ -93,7 +93,7 @@ impl View for TopView {
             Some(HEADER_LINES + count * CARD_HEIGHT)
         } else {
             // Pods: worst case is all expanded
-            // Each unique namespace = 1 line, each pod = ROW_H lines
+            // Each namespace = header (1) + separator (1), each pod = ROW_H lines
             let (ns_count, pod_count) = pod_stats()
                 .lock()
                 .map(|g| {
@@ -104,7 +104,7 @@ impl View for TopView {
                     (namespaces.len(), g.len())
                 })
                 .unwrap_or((0, 0));
-            Some(HEADER_LINES + ns_count as u16 + pod_count as u16 * ROW_H)
+            Some(HEADER_LINES + ns_count as u16 * 2 + pod_count as u16 * ROW_H)
         }
     }
 }
@@ -317,6 +317,20 @@ fn draw_pods_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, pods: &[PodStat
 
             y += ROW_H;
         }
+
+        // Add separator line after namespace group
+        let sep_rect = Rect {
+            x: body_area.x,
+            y,
+            width: body_area.width,
+            height: 1,
+        };
+        let separator = "─".repeat(body_area.width as usize);
+        f.render_widget(
+            Paragraph::new(separator).style(Style::default().fg(tailwind::GRAY.c600)),
+            sep_rect,
+        );
+        y += 1;
     }
 }
 
