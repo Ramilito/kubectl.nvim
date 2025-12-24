@@ -19,7 +19,7 @@ use ratatui::{
     widgets::{Block, Borders},
     Frame,
 };
-use tui_widgets::scrollview::{ScrollView, ScrollViewState};
+use tui_widgets::scrollview::ScrollView;
 
 use crate::{
     metrics::nodes::NodeStat,
@@ -31,7 +31,7 @@ use crate::{
     },
 };
 
-pub use state::OverviewState;
+pub use state::{OverviewState, Pane, PaneState};
 
 /// Overview view displaying a 6-pane cluster dashboard.
 #[derive(Default)]
@@ -112,22 +112,48 @@ fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         .map(|i| Line::from(format!("event #{i} happened …")))
         .collect();
 
+    let info_lines = vec![
+        Line::from(format!("Nodes: {}", node_snapshot.len())),
+        Line::from("TAB / Shift-TAB – cycle focus"),
+        Line::from("↑/↓, PgUp/PgDn  – scroll pane"),
+        Line::from("q – quit"),
+    ];
+
+    // Update item counts
+    st.info.set_item_count(info_lines.len());
+    st.nodes.set_item_count(node_snapshot.len());
+    st.namespace.set_item_count(namespaces.len());
+    st.top_cpu.set_item_count(by_cpu.len().min(30));
+    st.top_mem.set_item_count(by_mem.len().min(30));
+    st.events.set_item_count(events.len());
+
+    // Evaluate focus state before borrowing pane states mutably
+    let focus_info = st.is_focused(Pane::Info);
+    let focus_nodes = st.is_focused(Pane::Nodes);
+    let focus_namespace = st.is_focused(Pane::Namespace);
+    let focus_top_cpu = st.is_focused(Pane::TopCpu);
+    let focus_top_mem = st.is_focused(Pane::TopMem);
+    let focus_events = st.is_focused(Pane::Events);
+
     // Top row
     draw_text_list(
         f,
         cols_top[0],
         " Info ",
-        &[
-            Line::from(format!("Nodes: {}", node_snapshot.len())),
-            Line::from("TAB / Shift-TAB – cycle focus"),
-            Line::from("↑/↓, PgUp/PgDn  – scroll pane"),
-            Line::from("q – quit"),
-        ],
+        &info_lines,
         &mut st.info,
         Color::Blue,
+        focus_info,
     );
 
-    draw_nodes_table(f, cols_top[1], " Nodes ", &node_snapshot, &mut st.nodes);
+    draw_nodes_table(
+        f,
+        cols_top[1],
+        " Nodes ",
+        &node_snapshot,
+        &mut st.nodes,
+        focus_nodes,
+    );
 
     draw_text_list(
         f,
@@ -136,6 +162,7 @@ fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         &namespaces,
         &mut st.namespace,
         Color::Magenta,
+        focus_namespace,
     );
 
     // Bottom row
@@ -145,6 +172,7 @@ fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         " Top-CPU ",
         &by_cpu[..by_cpu.len().min(30)],
         &mut st.top_cpu,
+        focus_top_cpu,
     );
 
     draw_nodes_table(
@@ -153,6 +181,7 @@ fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         " Top-MEM ",
         &by_mem[..by_mem.len().min(30)],
         &mut st.top_mem,
+        focus_top_mem,
     );
 
     draw_text_list(
@@ -162,22 +191,33 @@ fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         &events,
         &mut st.events,
         Color::Yellow,
+        focus_events,
     );
 }
 
-/// Draws a scrollable list of text lines.
+/// Draws a scrollable list of text lines with selection.
 fn draw_text_list(
     f: &mut Frame,
     area: Rect,
     title: &str,
     lines: &[Line],
-    sv_state: &mut ScrollViewState,
+    pane_state: &mut PaneState,
     accent: Color,
+    is_focused: bool,
 ) {
+    // Border style changes based on focus
+    let border_style = if is_focused {
+        Style::default()
+            .fg(tailwind::YELLOW.c400)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(accent).add_modifier(Modifier::BOLD)
+    };
+
     let border = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(accent).add_modifier(Modifier::BOLD));
+        .border_style(border_style);
     f.render_widget(border, area);
 
     let inner = area.inner(Margin {
@@ -188,8 +228,24 @@ fn draw_text_list(
     let mut sv = ScrollView::new(Size::new(inner.width, lines.len() as u16));
 
     for (i, l) in lines.iter().enumerate() {
+        let is_selected = is_focused && i == pane_state.selected;
+        let style = if is_selected {
+            Style::default()
+                .bg(tailwind::GRAY.c700)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+
+        // Create a styled line
+        let styled_line = if is_selected {
+            Line::from(Span::styled(format!("{}", l), style))
+        } else {
+            l.clone()
+        };
+
         sv.render_widget(
-            l.clone(),
+            styled_line,
             Rect {
                 x: 0,
                 y: i as u16,
@@ -199,25 +255,33 @@ fn draw_text_list(
         );
     }
 
-    f.render_stateful_widget(sv, inner, sv_state);
+    f.render_stateful_widget(sv, inner, &mut pane_state.scroll);
 }
 
-/// Draws a scrollable table of node statistics.
+/// Draws a scrollable table of node statistics with selection.
 fn draw_nodes_table(
     f: &mut Frame,
     area: Rect,
     title: &str,
     stats: &[NodeStat],
-    sv_state: &mut ScrollViewState,
+    pane_state: &mut PaneState,
+    is_focused: bool,
 ) {
+    // Border style changes based on focus
+    let border_style = if is_focused {
+        Style::default()
+            .fg(tailwind::YELLOW.c400)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    };
+
     let border = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        );
+        .border_style(border_style);
     f.render_widget(border, area);
 
     let inner = area.inner(Margin {
@@ -236,6 +300,8 @@ fn draw_nodes_table(
     let mut sv = ScrollView::new(Size::new(inner.width, stats.len() as u16));
 
     for (row, n) in stats.iter().enumerate() {
+        let is_selected = is_focused && row == pane_state.selected;
+
         let cols = Layout::horizontal([
             Constraint::Length(max_name),
             Constraint::Percentage(50),
@@ -248,15 +314,19 @@ fn draw_nodes_table(
             height: 1,
         });
 
-        sv.render_widget(
-            Span::styled(
-                n.name.clone(),
-                Style::default()
-                    .fg(tailwind::BLUE.c400)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            cols[0],
-        );
+        // Name style with selection highlight
+        let name_style = if is_selected {
+            Style::default()
+                .fg(tailwind::YELLOW.c300)
+                .bg(tailwind::GRAY.c700)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(tailwind::BLUE.c400)
+                .add_modifier(Modifier::BOLD)
+        };
+
+        sv.render_widget(Span::styled(n.name.clone(), name_style), cols[0]);
         sv.render_widget(make_gauge("CPU", n.cpu_pct, GaugeStyle::Cpu), cols[1]);
         sv.render_widget(
             make_gauge("MEM", n.mem_pct, GaugeStyle::Custom(tailwind::EMERALD.c400)),
@@ -264,5 +334,5 @@ fn draw_nodes_table(
         );
     }
 
-    f.render_stateful_widget(sv, inner, sv_state);
+    f.render_stateful_widget(sv, inner, &mut pane_state.scroll);
 }
