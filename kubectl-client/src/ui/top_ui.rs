@@ -7,6 +7,7 @@ use ratatui::{
     text::Line,
     widgets::{Block, Borders, Gauge, Padding, Paragraph, Sparkline, Tabs},
 };
+use std::collections::{BTreeMap, HashSet};
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -23,8 +24,9 @@ use crate::{
 const CARD_HEIGHT: u16 = 1; // one line per node
 const GRAPH_H: u16 = 3; // graph rows (with label overlay)
 const ROW_H: u16 = GRAPH_H + 1; // +1 blank spacer row
+const NS_HEADER_H: u16 = 1; // namespace header row
 const MAX_TITLE_WIDTH: u16 = 100;
-const OVERSCAN_ROWS: u16 = 2;
+const COL_GAP: u16 = 2; // gap between CPU and MEM columns
 
 /* ---------------------------------------------------------------------- */
 /*  VIEW STATE + key handling                                             */
@@ -44,6 +46,12 @@ pub struct TopViewState {
     pod_scroll: ScrollViewState,
     filter: String,
     pub input_mode: InputMode,
+    collapsed_namespaces: HashSet<String>,
+    known_namespaces: HashSet<String>,
+    /// Currently selected namespace index (for Pods tab)
+    selected_ns_idx: usize,
+    /// Ordered list of namespace names (updated each draw)
+    ns_order: Vec<String>,
 }
 
 impl TopViewState {
@@ -55,6 +63,10 @@ impl TopViewState {
     #[allow(dead_code)]
     pub fn prev_tab(&mut self) {
         self.selected_tab = if self.selected_tab == 0 { 1 } else { 0 };
+    }
+
+    pub fn is_pods_tab(&self) -> bool {
+        self.selected_tab == 1
     }
 
     /* scrolling helpers -------------------------------------------------- */
@@ -113,6 +125,61 @@ impl TopViewState {
             },
         }
     }
+
+    /* namespace collapse ------------------------------------------------- */
+    fn toggle_namespace(&mut self, ns: &str) {
+        if self.collapsed_namespaces.contains(ns) {
+            self.collapsed_namespaces.remove(ns);
+        } else {
+            self.collapsed_namespaces.insert(ns.to_string());
+        }
+    }
+
+    pub fn is_namespace_collapsed(&self, ns: &str) -> bool {
+        self.collapsed_namespaces.contains(ns)
+    }
+
+    pub fn expand_all(&mut self) {
+        self.collapsed_namespaces.clear();
+    }
+
+    pub fn collapse_all(&mut self) {
+        self.collapsed_namespaces = self.known_namespaces.clone();
+    }
+
+    pub fn update_known_namespaces(&mut self, namespaces: impl Iterator<Item = String>) {
+        self.known_namespaces.extend(namespaces);
+    }
+
+    /* namespace selection ------------------------------------------------ */
+    pub fn select_next_ns(&mut self) {
+        if !self.ns_order.is_empty() {
+            self.selected_ns_idx = (self.selected_ns_idx + 1).min(self.ns_order.len() - 1);
+        }
+    }
+
+    pub fn select_prev_ns(&mut self) {
+        self.selected_ns_idx = self.selected_ns_idx.saturating_sub(1);
+    }
+
+    pub fn toggle_selected_ns(&mut self) {
+        if let Some(ns) = self.ns_order.get(self.selected_ns_idx) {
+            let ns = ns.clone();
+            self.toggle_namespace(&ns);
+        }
+    }
+
+    pub fn selected_namespace(&self) -> Option<&str> {
+        self.ns_order.get(self.selected_ns_idx).map(|s| s.as_str())
+    }
+
+    pub fn update_ns_order(&mut self, namespaces: Vec<String>) {
+        // Clamp selection if list shrinks
+        if !namespaces.is_empty() && self.selected_ns_idx >= namespaces.len() {
+            self.selected_ns_idx = namespaces.len() - 1;
+        }
+        self.ns_order = namespaces;
+    }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -122,14 +189,6 @@ impl TopViewState {
 fn deque_to_vec(data: &std::collections::VecDeque<u64>, max_w: u16) -> Vec<u64> {
     let w = max_w as usize;
     data.iter().take(w).copied().collect()
-}
-
-fn visible_rows(offset_px: u16, row_h: u16, view_h: u16, overscan: u16) -> (usize, usize) {
-    let first = offset_px / row_h;
-    let visible = (view_h / row_h) + 1;
-    let start = first.saturating_sub(overscan);
-    let end = first + visible + overscan;
-    (start as usize, (end - start) as usize)
 }
 
 /* ---------------------------------------------------------------------- */
@@ -218,7 +277,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
                 height: CARD_HEIGHT,
             };
 
-            let [name_col, cpu_col, mem_col] = column_split(card, title_w);
+            let [name_col, cpu_col, _gap, mem_col] = column_split(card, title_w);
 
             sv.render_widget(
                 Block::new()
@@ -254,13 +313,23 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
             .collect()
     };
 
-    /* 1 ▸ column widths ------------------------------------------------- */
+    /* 1 ▸ group by namespace -------------------------------------------- */
+    let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
+    for p in &filtered {
+        grouped.entry(p.namespace.as_str()).or_default().push(p);
+    }
+
+    /* track known namespaces for collapse_all --------------------------- */
+    state.update_known_namespaces(grouped.keys().map(|s| s.to_string()));
+
+    /* update ordered namespace list for selection ------------------------ */
+    let ns_list: Vec<String> = grouped.keys().map(|s| s.to_string()).collect();
+    state.update_ns_order(ns_list);
+
+    /* 2 ▸ column widths ------------------------------------------------- */
     let title_w = filtered
         .iter()
-        .map(|p| {
-            let full = format!("{}/{}", p.namespace, p.name);
-            Line::from(full).width() as u16 + 1
-        })
+        .map(|p| Line::from(p.name.clone()).width() as u16 + 3) // +3 for indent
         .max()
         .unwrap_or(1)
         .clamp(1, MAX_TITLE_WIDTH);
@@ -268,51 +337,133 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     /* header row -------------------------------------------------------- */
     draw_header(f, hdr_area, title_w);
 
-    /* 2 ▸ virtual-window ------------------------------------------------ */
-    let content_h = filtered.len() as u16 * ROW_H;
-    let offset_px = state.pod_scroll.offset().y;
-    let (first, count) = visible_rows(offset_px, ROW_H, body_area.height, OVERSCAN_ROWS);
-    let last = (first + count).min(filtered.len());
-    let slice = &filtered[first..last];
+    /* 3 ▸ calculate content height with namespace headers --------------- */
+    let mut content_h: u16 = 0;
+    for (ns, pods) in &grouped {
+        content_h += NS_HEADER_H; // namespace header
+        if !state.is_namespace_collapsed(ns) {
+            content_h += pods.len() as u16 * ROW_H;
+        }
+    }
 
     let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
 
-    /* 3 ▸ render slice -------------------------------------------------- */
-    for (idx, p) in slice.iter().enumerate() {
-        let y_graph = ((first + idx) as u16) * ROW_H;
-        let graph_rect = Rect {
+    /* 4 ▸ render grouped pods ------------------------------------------- */
+    let mut y: u16 = 0;
+    let selected_ns = state.selected_namespace();
+
+    for (_ns_idx, (ns, pods)) in grouped.iter().enumerate() {
+        let is_collapsed = state.is_namespace_collapsed(ns);
+        let is_selected = selected_ns == Some(*ns);
+        let indicator = if is_collapsed { "▶" } else { "▼" };
+        let ns_total_cpu: u64 = pods.iter().map(|p| p.cpu_m).sum();
+        let ns_total_mem: u64 = pods.iter().map(|p| p.mem_mi).sum();
+
+        /* namespace header ----------------------------------------------- */
+        let ns_header_rect = Rect {
             x: 0,
-            y: y_graph,
+            y,
             width: body_area.width,
-            height: GRAPH_H,
+            height: NS_HEADER_H,
         };
 
-        let [name_col, cpu_col, mem_col] = column_split(graph_rect, title_w);
-
-        /* name column ---------------------------------------------------- */
-        sv.render_widget(
-            Block::new()
-                .borders(Borders::NONE)
-                .title(format!("{}/{}", p.namespace, p.name))
-                .fg(tailwind::BLUE.c400),
-            name_col,
+        let selection_indicator = if is_selected { ">" } else { " " };
+        let ns_title = format!(
+            "{}{} {} ({}) - CPU: {}m | MEM: {} MiB",
+            selection_indicator,
+            indicator,
+            ns,
+            pods.len(),
+            ns_total_cpu,
+            ns_total_mem
         );
 
-        /* spark bars ----------------------------------------------------- */
-        let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width);
-        let mem_data = deque_to_vec(&p.mem_history, mem_col.width);
-        sv.render_widget(
-            Sparkline::default()
-                .data(&cpu_data)
-                .style(Style::default().fg(tailwind::GREEN.c500)),
-            cpu_col,
-        );
-        sv.render_widget(
-            Sparkline::default()
-                .data(&mem_data)
-                .style(Style::default().fg(tailwind::ORANGE.c400)),
-            mem_col,
-        );
+        let ns_style = if is_selected {
+            Style::default()
+                .fg(tailwind::YELLOW.c400)
+                .bg(tailwind::GRAY.c800)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(tailwind::CYAN.c400)
+                .add_modifier(Modifier::BOLD)
+        };
+
+        sv.render_widget(Paragraph::new(ns_title).style(ns_style), ns_header_rect);
+        y += NS_HEADER_H;
+
+        if is_collapsed {
+            continue;
+        }
+
+        /* render pods in namespace --------------------------------------- */
+        for p in pods {
+            let graph_rect = Rect {
+                x: 0,
+                y,
+                width: body_area.width,
+                height: GRAPH_H,
+            };
+
+            let [name_col, cpu_col, _gap, mem_col] = column_split(graph_rect, title_w);
+
+            /* name column (indented) ------------------------------------- */
+            sv.render_widget(
+                Block::new()
+                    .borders(Borders::NONE)
+                    .title(format!("  {}", p.name))
+                    .fg(tailwind::BLUE.c400),
+                name_col,
+            );
+
+            /* spark bars with current value labels ----------------------- */
+            let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width.saturating_sub(8));
+            let mem_data = deque_to_vec(&p.mem_history, mem_col.width.saturating_sub(10));
+
+            // CPU sparkline with value label
+            let cpu_label = format!("{}m", p.cpu_m);
+            sv.render_widget(
+                Sparkline::default()
+                    .data(&cpu_data)
+                    .style(Style::default().fg(tailwind::GREEN.c500)),
+                Rect {
+                    width: cpu_col.width.saturating_sub(cpu_label.len() as u16 + 1),
+                    ..cpu_col
+                },
+            );
+            sv.render_widget(
+                Paragraph::new(cpu_label).alignment(Alignment::Right).style(
+                    Style::default()
+                        .fg(tailwind::GREEN.c300)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                cpu_col,
+            );
+
+            // MEM sparkline with value label
+            let mem_label = format!("{} MiB", p.mem_mi);
+            sv.render_widget(
+                Sparkline::default()
+                    .data(&mem_data)
+                    .style(Style::default().fg(tailwind::ORANGE.c400)),
+                Rect {
+                    width: mem_col.width.saturating_sub(mem_label.len() as u16 + 1),
+                    ..mem_col
+                },
+            );
+            sv.render_widget(
+                Paragraph::new(mem_label)
+                    .alignment(Alignment::Right)
+                    .style(
+                        Style::default()
+                            .fg(tailwind::ORANGE.c300)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                mem_col,
+            );
+
+            y += ROW_H;
+        }
     }
 
     f.render_stateful_widget(sv, body_area, &mut state.pod_scroll);
@@ -322,31 +473,32 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
 /*  SMALL UTILS                                                           */
 /* ---------------------------------------------------------------------- */
 
-fn column_split(card: Rect, name_w: u16) -> [Rect; 3] {
+fn column_split(card: Rect, name_w: u16) -> [Rect; 4] {
     Layout::horizontal([
         Constraint::Length(name_w),
         Constraint::Percentage(50),
+        Constraint::Length(COL_GAP),
         Constraint::Percentage(50),
     ])
     .areas(card)
 }
 
 fn draw_header(f: &mut Frame, hdr_area: Rect, name_w: u16) {
-    let cols = column_split(hdr_area, name_w);
+    let [name_col, cpu_col, _gap, mem_col] = column_split(hdr_area, name_w);
     let style = Style::default()
         .fg(tailwind::GRAY.c300)
         .add_modifier(Modifier::BOLD);
-    f.render_widget(Paragraph::new("NAME").style(style), cols[0]);
+    f.render_widget(Paragraph::new("NAME").style(style), name_col);
     f.render_widget(
         Paragraph::new("CPU")
             .alignment(Alignment::Center)
             .style(style),
-        cols[1],
+        cpu_col,
     );
     f.render_widget(
         Paragraph::new("MEM")
             .alignment(Alignment::Center)
             .style(style),
-        cols[2],
+        mem_col,
     );
 }

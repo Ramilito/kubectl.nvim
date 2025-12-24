@@ -221,16 +221,67 @@ impl View for TopView {
                         self.state.next_tab();
                         true
                     }
-                    other => scroll_nav!(self.state, other),
+                    KeyCode::Char('e') => {
+                        self.state.expand_all();
+                        true
+                    }
+                    KeyCode::Char('E') => {
+                        self.state.collapse_all();
+                        true
+                    }
+                    // Namespace selection (Pods tab only)
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        if self.state.is_pods_tab() {
+                            self.state.select_next_ns();
+                        } else {
+                            self.state.scroll_down();
+                        }
+                        true
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        if self.state.is_pods_tab() {
+                            self.state.select_prev_ns();
+                        } else {
+                            self.state.scroll_up();
+                        }
+                        true
+                    }
+                    // Toggle selected namespace
+                    KeyCode::Enter | KeyCode::Char(' ') => {
+                        if self.state.is_pods_tab() {
+                            self.state.toggle_selected_ns();
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    // Page scroll still works normally
+                    KeyCode::PageDown => {
+                        self.state.scroll_page_down();
+                        true
+                    }
+                    KeyCode::PageUp => {
+                        self.state.scroll_page_up();
+                        true
+                    }
+                    _ => false,
                 }
             }
             Event::Mouse(m) => match m.kind {
                 MouseEventKind::ScrollDown => {
-                    self.state.scroll_down();
+                    if self.state.is_pods_tab() {
+                        self.state.select_next_ns();
+                    } else {
+                        self.state.scroll_down();
+                    }
                     true
                 }
                 MouseEventKind::ScrollUp => {
-                    self.state.scroll_up();
+                    if self.state.is_pods_tab() {
+                        self.state.select_prev_ns();
+                    } else {
+                        self.state.scroll_up();
+                    }
                     true
                 }
                 _ => false,
