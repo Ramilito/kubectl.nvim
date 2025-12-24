@@ -27,7 +27,7 @@ use crate::{
     },
 };
 
-pub use state::{InputMode, TopViewState};
+pub use state::TopViewState;
 
 /// Height constants for layout calculations.
 const CARD_HEIGHT: u16 = 1; // One line per node
@@ -61,17 +61,6 @@ impl View for TopView {
                     }
                 }
 
-                // Filter prompt handles its own keys
-                self.state.handle_key(*k);
-                let is_filter_key = matches!(
-                    k.code,
-                    KeyCode::Char('/') | KeyCode::Esc | KeyCode::Enter | KeyCode::Backspace
-                );
-                if is_filter_key || self.state.input_mode == InputMode::Filtering {
-                    return true;
-                }
-
-                // Navigation and actions
                 match k.code {
                     KeyCode::Char('?') => {
                         self.state.toggle_help();
@@ -142,12 +131,7 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     .areas(area);
 
     // Tab bar
-    let pods_title = if state.filter.is_empty() {
-        Line::from("Pods")
-    } else {
-        Line::from(format!("Pods (filter: {})", state.filter))
-    };
-    let tabs = Tabs::new(vec![Line::from("Nodes"), pods_title])
+    let tabs = Tabs::new(vec![Line::from("Nodes"), Line::from("Pods")])
         .select(state.selected_tab)
         .style(Style::default().fg(Color::White))
         .highlight_style(
@@ -161,7 +145,7 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     if state.selected_tab == 0 {
         draw_nodes_tab(f, hdr_area, body_area, &node_snapshot);
     } else {
-        draw_pods_tab(f, hdr_area, body_area, &pod_snapshot, &state.filter);
+        draw_pods_tab(f, hdr_area, body_area, &pod_snapshot);
     }
 
     // Help overlay
@@ -217,36 +201,17 @@ fn draw_nodes_tab(
 
 /// Draws the Pods tab content.
 /// Renders directly to frame - Neovim handles scrolling and folding natively.
-fn draw_pods_tab(
-    f: &mut Frame,
-    hdr_area: Rect,
-    body_area: Rect,
-    pods: &[PodStat],
-    filter: &str,
-) {
+fn draw_pods_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, pods: &[PodStat]) {
     use crate::ui::layout::calculate_name_width;
-
-    // Filter pods
-    let filtered: Vec<&PodStat> = if filter.is_empty() {
-        pods.iter().collect()
-    } else {
-        let needle = filter.to_lowercase();
-        pods.iter()
-            .filter(|p| {
-                let hay = format!("{}/{}", p.namespace, p.name).to_lowercase();
-                hay.contains(&needle)
-            })
-            .collect()
-    };
 
     // Group by namespace
     let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
-    for p in &filtered {
+    for p in pods {
         grouped.entry(p.namespace.as_str()).or_default().push(p);
     }
 
     // Column widths
-    let title_w = calculate_name_width(filtered.iter().map(|p| p.name.as_str()), 3); // +3 for indent
+    let title_w = calculate_name_width(pods.iter().map(|p| p.name.as_str()), 3); // +3 for indent
 
     // Header row
     draw_header(f, hdr_area, title_w);

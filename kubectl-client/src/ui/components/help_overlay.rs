@@ -126,7 +126,6 @@ pub fn top_view_help_items() -> Vec<HelpItem> {
         HelpItem::Entry(HelpEntry::new("zR/zM", "Open/close all folds")),
         HelpItem::Blank,
         HelpItem::Section("Other"),
-        HelpItem::Entry(HelpEntry::new("f", "Filter pods")),
         HelpItem::Entry(HelpEntry::new("?", "Toggle this help")),
         HelpItem::Entry(HelpEntry::new("q", "Quit")),
     ]

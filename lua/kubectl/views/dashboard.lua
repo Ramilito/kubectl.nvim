@@ -226,24 +226,6 @@ local function setup_keymaps(buf, sess)
     sess:write("q")
     sess:close()
   end, opts)
-
-  -- Filter with f - use vim's input
-  vim.keymap.set("n", "f", function()
-    vim.ui.input({ prompt = "Filter: " }, function(input)
-      if input then
-        sess:write("/")
-        sess:write(input)
-        sess:write("\r")
-        -- Poll for updated frame after filter
-        vim.defer_fn(function()
-          local frame = sess:read_frame()
-          if frame then
-            apply_frame(buf, frame)
-          end
-        end, 50)
-      end
-    end)
-  end, opts)
 end
 
 --- Create a dashboard view with native buffer rendering.
@@ -271,8 +253,14 @@ function M.open(view_name, title)
   -- Enable cursorline for visual selection feedback
   vim.api.nvim_set_option_value("cursorline", true, { win = win })
 
-  -- Enable native vim folding (pods are indented under namespaces)
-  vim.api.nvim_set_option_value("foldmethod", "indent", { win = win })
+  -- Enable native vim folding with custom foldexpr
+  -- Namespace headers (no leading space) start folds, indented lines are fold content
+  vim.api.nvim_set_option_value("foldmethod", "expr", { win = win })
+  vim.api.nvim_set_option_value(
+    "foldexpr",
+    "getline(v:lnum)=~'^\\s'?1:getline(v:lnum)=~'^$'?'=':'>1'",
+    { win = win }
+  )
   vim.api.nvim_set_option_value("foldlevel", 99, { win = win }) -- Start fully expanded
   vim.api.nvim_set_option_value("foldminlines", 1, { win = win })
 
