@@ -6,7 +6,6 @@ use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
 };
-use tracing::info;
 
 #[link(name = "kubectl_go")]
 extern "C" {
@@ -38,8 +37,6 @@ pub async fn drain_node_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdDrainArgs =
         serde_json::from_str(&json).map_err(|e| LuaError::external(format!("bad json: {e}")))?;
 
-    info!("{:?}", args);
-
     let grace: i32 = args.grace.parse().unwrap_or(-1);
     let timeout: i32 = args.timeout.parse().unwrap_or(30);
 
@@ -48,8 +45,6 @@ pub async fn drain_node_async(_lua: Lua, json: String) -> LuaResult<String> {
     let ctx_c = CString::new(args.context)
         .map_err(|e| LuaError::RuntimeError(format!("invalid context name (null byte): {e}")))?;
 
-    // FFI call is inherently blocking - call directly
-    // The async fn signature is for mlua API compatibility
     let res_ptr = unsafe {
         DrainNode(
             node_c.as_ptr(),
