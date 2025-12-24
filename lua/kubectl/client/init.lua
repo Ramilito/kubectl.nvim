@@ -87,6 +87,10 @@ function client.start_dashboard(view_name)
   return client.implementation.start_dashboard(view_name)
 end
 
+function client.start_buffer_dashboard(view_name)
+  return client.implementation.start_buffer_dashboard(view_name)
+end
+
 function client.get_config()
   return client.implementation.get_config()
 end

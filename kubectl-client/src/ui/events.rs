@@ -4,6 +4,33 @@
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
+/// Parsed message from Neovim
+pub enum ParsedMessage {
+    /// Regular input event
+    Event(Event),
+    /// Cursor line sync from Neovim (0-indexed)
+    CursorLine(u16),
+}
+
+/// Parse bytes that might be a cursor sync message or regular input.
+pub fn parse_message(bytes: &[u8]) -> Option<ParsedMessage> {
+    // Check for cursor sync message: \x00CURSOR:<line>\x00
+    // Using NUL bytes as delimiters since they won't appear in normal input
+    if bytes.starts_with(b"\x00CURSOR:") {
+        let content = &bytes[8..]; // Skip "\x00CURSOR:"
+        if let Some(end_pos) = content.iter().position(|&b| b == 0x00) {
+            let line_str = std::str::from_utf8(&content[..end_pos]).ok()?;
+            let line: u16 = line_str.parse().ok()?;
+            tracing::debug!("Parsed cursor line: {}", line);
+            return Some(ParsedMessage::CursorLine(line));
+        }
+        tracing::debug!("Failed to parse cursor message: {:?}", bytes);
+    }
+
+    // Otherwise try to parse as regular input
+    bytes_to_event(bytes).map(ParsedMessage::Event)
+}
+
 /// Converts raw bytes from Neovim into crossterm Events.
 ///
 /// Handles ANSI escape sequences for special keys.

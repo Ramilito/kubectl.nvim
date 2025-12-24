@@ -8,15 +8,15 @@ mod state;
 
 use crossterm::event::{Event, KeyCode, MouseEventKind};
 use ratatui::{
-    layout::{Alignment, Constraint, Layout, Margin, Rect, Size},
+    layout::{Alignment, Constraint, Layout, Rect},
     prelude::*,
     style::{palette::tailwind, Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, Padding, Paragraph, Sparkline, Tabs},
+    widgets::{Block, Borders, Paragraph, Sparkline, Tabs},
     Frame,
 };
 use std::collections::BTreeMap;
-use tui_widgets::scrollview::{ScrollView, ScrollViewState};
+use tui_widgets::scrollview::ScrollViewState;
 
 use crate::{
     metrics::{nodes::NodeStat, pods::PodStat},
@@ -44,6 +44,18 @@ pub struct TopView {
 }
 
 impl View for TopView {
+    fn set_cursor_line(&mut self, line: u16) -> bool {
+        // Only sync cursor for Pods tab
+        if self.state.is_pods_tab() {
+            let changed = self.state.set_cursor_line(line);
+            tracing::debug!("TopView set_cursor_line({}) -> changed={}", line, changed);
+            changed
+        } else {
+            tracing::debug!("TopView set_cursor_line({}) -> not pods tab", line);
+            false
+        }
+    }
+
     fn on_event(&mut self, ev: &Event) -> bool {
         match ev {
             Event::Key(k) => {
@@ -164,32 +176,14 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
         .map(|guard| guard.clone())
         .unwrap_or_default();
 
-    // Outer frame
-    f.render_widget(
-        Block::new()
-            .title(" Top (live) ")
-            .title_bottom(
-                Line::from(" Press ? for help ")
-                    .style(Style::default().fg(tailwind::GRAY.c500))
-                    .right_aligned(),
-            )
-            .borders(Borders::ALL)
-            .border_style(
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        area,
-    );
-
-    // Layout: tabs - header - scrollable body
-    let inner = area.inner(Margin::new(1, 1));
-    let [tabs_area, hdr_area, body_area] = Layout::vertical([
+    // Layout: tabs - blank line - header - body
+    let [tabs_area, _blank_area, hdr_area, body_area] = Layout::vertical([
         Constraint::Length(1),
+        Constraint::Length(1), // Blank separator
         Constraint::Length(1),
         Constraint::Min(0),
     ])
-    .areas(inner);
+    .areas(area);
 
     // Tab bar
     let pods_title = if state.filter.is_empty() {
@@ -221,12 +215,13 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
 }
 
 /// Draws the Nodes tab content.
+/// Renders directly to frame without ScrollView for native buffer scrolling.
 fn draw_nodes_tab(
     f: &mut Frame,
     hdr_area: Rect,
     body_area: Rect,
     nodes: &[NodeStat],
-    scroll_state: &mut ScrollViewState,
+    _scroll_state: &mut ScrollViewState,
 ) {
     use crate::ui::layout::calculate_name_width;
 
@@ -235,14 +230,17 @@ fn draw_nodes_tab(
     // Header row
     draw_header(f, hdr_area, title_w);
 
-    // Scroll view
-    let content_h = nodes.len() as u16 * CARD_HEIGHT;
-    let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
-
+    // Render nodes directly (no ScrollView - let Neovim handle scrolling)
     for (idx, node) in nodes.iter().enumerate() {
-        let y = idx as u16 * CARD_HEIGHT;
+        let y = body_area.y + idx as u16 * CARD_HEIGHT;
+
+        // Skip if outside visible area (frame will clip anyway)
+        if y >= body_area.y + body_area.height {
+            continue;
+        }
+
         let card = Rect {
-            x: 0,
+            x: body_area.x,
             y,
             width: body_area.width,
             height: CARD_HEIGHT,
@@ -250,22 +248,20 @@ fn draw_nodes_tab(
 
         let [name_col, cpu_col, _gap, mem_col] = column_split(card, title_w);
 
-        sv.render_widget(
+        f.render_widget(
             Block::new()
                 .borders(Borders::NONE)
-                .padding(Padding::vertical(1))
                 .title(node.name.clone())
                 .fg(tailwind::BLUE.c400),
             name_col,
         );
-        sv.render_widget(make_gauge("CPU", node.cpu_pct, GaugeStyle::Cpu), cpu_col);
-        sv.render_widget(make_gauge("MEM", node.mem_pct, GaugeStyle::Memory), mem_col);
+        f.render_widget(make_gauge("CPU", node.cpu_pct, GaugeStyle::Cpu), cpu_col);
+        f.render_widget(make_gauge("MEM", node.mem_pct, GaugeStyle::Memory), mem_col);
     }
-
-    f.render_stateful_widget(sv, body_area, scroll_state);
 }
 
 /// Draws the Pods tab content.
+/// Renders directly to frame without ScrollView for native buffer scrolling.
 fn draw_pods_tab(
     f: &mut Frame,
     hdr_area: Rect,
@@ -274,9 +270,6 @@ fn draw_pods_tab(
     state: &mut TopViewState,
 ) {
     use crate::ui::layout::calculate_name_width;
-
-    // Update visible height for scroll tracking
-    state.update_visible_height(body_area.height);
 
     // Filter pods
     let filtered: Vec<&PodStat> = if state.filter.is_empty() {
@@ -310,43 +303,38 @@ fn draw_pods_tab(
     // Header row
     draw_header(f, hdr_area, title_w);
 
-    // Calculate content height and track namespace positions
-    let mut content_h: u16 = 0;
+    // Calculate namespace positions for cursor mapping
     let mut ns_positions: Vec<u16> = Vec::new();
+    let mut pos: u16 = 0;
     for (ns, ns_pods) in &grouped {
-        ns_positions.push(content_h);
-        content_h += NS_HEADER_H;
+        ns_positions.push(pos);
+        pos += NS_HEADER_H;
         if !state.is_namespace_collapsed(ns) {
-            content_h += ns_pods.len() as u16 * ROW_H;
+            pos += ns_pods.len() as u16 * ROW_H;
         }
     }
     state.update_ns_positions(ns_positions);
 
-    let mut sv = ScrollView::new(Size::new(body_area.width, content_h));
-
-    // Render grouped pods
-    let mut y: u16 = 0;
-    let selected_ns = state.selected_namespace();
+    // Render grouped pods directly to frame (no ScrollView)
+    let mut y: u16 = body_area.y;
 
     for (ns, ns_pods) in grouped.iter() {
         let is_collapsed = state.is_namespace_collapsed(ns);
-        let is_selected = selected_ns == Some(*ns);
-        let indicator = if is_collapsed { "▶" } else { "▼" };
+        // Use ASCII indicators to avoid multi-byte UTF-8 alignment issues
+        let indicator = if is_collapsed { ">" } else { "v" };
         let ns_total_cpu: u64 = ns_pods.iter().map(|p| p.cpu_m).sum();
         let ns_total_mem: u64 = ns_pods.iter().map(|p| p.mem_mi).sum();
 
         // Namespace header
         let ns_header_rect = Rect {
-            x: 0,
+            x: body_area.x,
             y,
             width: body_area.width,
             height: NS_HEADER_H,
         };
 
-        let selection_indicator = if is_selected { ">" } else { " " };
         let ns_title = format!(
-            "{}{} {} ({}) - CPU: {}m | MEM: {} MiB",
-            selection_indicator,
+            "{} {} ({}) - CPU: {}m | MEM: {} MiB",
             indicator,
             ns,
             ns_pods.len(),
@@ -354,18 +342,11 @@ fn draw_pods_tab(
             ns_total_mem
         );
 
-        let ns_style = if is_selected {
-            Style::default()
-                .fg(tailwind::YELLOW.c400)
-                .bg(tailwind::GRAY.c800)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-                .fg(tailwind::CYAN.c400)
-                .add_modifier(Modifier::BOLD)
-        };
+        let ns_style = Style::default()
+            .fg(tailwind::CYAN.c400)
+            .add_modifier(Modifier::BOLD);
 
-        sv.render_widget(Paragraph::new(ns_title).style(ns_style), ns_header_rect);
+        f.render_widget(Paragraph::new(ns_title).style(ns_style), ns_header_rect);
         y += NS_HEADER_H;
 
         if is_collapsed {
@@ -375,7 +356,7 @@ fn draw_pods_tab(
         // Render pods in namespace
         for p in ns_pods {
             let graph_rect = Rect {
-                x: 0,
+                x: body_area.x,
                 y,
                 width: body_area.width,
                 height: GRAPH_H,
@@ -384,7 +365,7 @@ fn draw_pods_tab(
             let [name_col, cpu_col, _gap, mem_col] = column_split(graph_rect, title_w);
 
             // Name column (indented)
-            sv.render_widget(
+            f.render_widget(
                 Block::new()
                     .borders(Borders::NONE)
                     .title(format!("  {}", p.name))
@@ -398,7 +379,7 @@ fn draw_pods_tab(
 
             // CPU sparkline with value label
             let cpu_label = format!("{}m", p.cpu_m);
-            sv.render_widget(
+            f.render_widget(
                 Sparkline::default()
                     .data(&cpu_data)
                     .style(Style::default().fg(tailwind::GREEN.c500)),
@@ -407,7 +388,7 @@ fn draw_pods_tab(
                     ..cpu_col
                 },
             );
-            sv.render_widget(
+            f.render_widget(
                 Paragraph::new(cpu_label)
                     .alignment(Alignment::Right)
                     .style(
@@ -420,7 +401,7 @@ fn draw_pods_tab(
 
             // MEM sparkline with value label
             let mem_label = format!("{} MiB", p.mem_mi);
-            sv.render_widget(
+            f.render_widget(
                 Sparkline::default()
                     .data(&mem_data)
                     .style(Style::default().fg(tailwind::ORANGE.c400)),
@@ -429,7 +410,7 @@ fn draw_pods_tab(
                     ..mem_col
                 },
             );
-            sv.render_widget(
+            f.render_widget(
                 Paragraph::new(mem_label)
                     .alignment(Alignment::Right)
                     .style(
@@ -443,8 +424,6 @@ fn draw_pods_tab(
             y += ROW_H;
         }
     }
-
-    f.render_stateful_widget(sv, body_area, &mut state.pod_scroll);
 }
 
 /// Converts a VecDeque to a Vec, taking at most `max_w` elements.

@@ -22,6 +22,14 @@ pub trait View: Send {
 
     /// Renders the view to the given frame area.
     fn draw(&mut self, f: &mut Frame, area: Rect);
+
+    /// Sets the cursor line from Neovim for selection sync.
+    ///
+    /// The line is 0-indexed. Returns `true` if a redraw is needed.
+    fn set_cursor_line(&mut self, _line: u16) -> bool {
+        // Default implementation does nothing
+        false
+    }
 }
 
 /// Creates a view by name.

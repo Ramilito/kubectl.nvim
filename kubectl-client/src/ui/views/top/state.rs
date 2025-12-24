@@ -159,6 +159,7 @@ impl TopViewState {
     }
 
     /// Returns the currently selected namespace name.
+    #[allow(dead_code)]
     pub fn selected_namespace(&self) -> Option<&str> {
         self.ns_order.get(self.selected_ns_idx).map(|s| s.as_str())
     }
@@ -179,7 +180,45 @@ impl TopViewState {
         self.ns_y_positions = positions;
     }
 
+    /// Sets the selected namespace based on cursor line from Neovim.
+    ///
+    /// The line is the buffer line (0-indexed). We need to account for
+    /// the header rows (tabs, column header) and find which namespace
+    /// the cursor is on or near.
+    ///
+    /// Returns true if selection changed.
+    pub fn set_cursor_line(&mut self, line: u16) -> bool {
+        // Account for header: tabs (1) + separator (1) + header row (1) = 3 lines offset
+        const HEADER_OFFSET: u16 = 3;
+
+        if line < HEADER_OFFSET || self.ns_y_positions.is_empty() {
+            return false;
+        }
+
+        // Convert buffer line to content Y position
+        let content_y = line - HEADER_OFFSET;
+
+        // Find which namespace this Y falls into
+        // ns_y_positions contains the Y of each namespace header in the content area
+        let mut best_idx = 0;
+        for (idx, &ns_y) in self.ns_y_positions.iter().enumerate() {
+            if content_y >= ns_y {
+                best_idx = idx;
+            } else {
+                break;
+            }
+        }
+
+        if best_idx != self.selected_ns_idx {
+            self.selected_ns_idx = best_idx;
+            true
+        } else {
+            false
+        }
+    }
+
     /// Updates the visible height of the body area (called during render).
+    #[allow(dead_code)]
     pub fn update_visible_height(&mut self, height: u16) {
         self.visible_height = height;
     }

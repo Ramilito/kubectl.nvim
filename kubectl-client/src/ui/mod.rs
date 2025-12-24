@@ -33,12 +33,14 @@
 //! - `components` - Reusable UI widgets (Gauge, HelpOverlay, Header)
 //! - `events` - Event parsing and scroll handling
 //! - `layout` - Layout calculation utilities
+//! - `neovim_backend` - Custom backend for native Neovim buffer rendering
 
 pub mod components;
 pub mod events;
 pub mod layout;
+pub mod neovim_backend;
 pub mod session;
 pub mod views;
 
-// Re-export main types for convenience
-pub use session::Session;
+// Re-export main session types for FFI registration
+pub use session::{BufferSession, Session};
