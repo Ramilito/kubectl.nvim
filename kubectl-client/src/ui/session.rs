@@ -228,7 +228,7 @@ async fn run_buffer_ui(
                         };
 
                         if needs_redraw {
-                            // Get width from Lua, but use content height if available
+                            // Get width from Lua, height from content
                             let new_w = cols.load(Ordering::Acquire);
                             let base_h = rows.load(Ordering::Acquire);
                             let new_h = view.content_height().unwrap_or(base_h).max(base_h);
@@ -256,7 +256,7 @@ async fn run_buffer_ui(
                     break;
                 }
 
-                // Get width from Lua, but use content height if available
+                // Get width from Lua, height from content
                 let new_w = cols.load(Ordering::Acquire);
                 let base_h = rows.load(Ordering::Acquire);
                 let new_h = view.content_height().unwrap_or(base_h).max(base_h);

@@ -209,60 +209,38 @@ local function setup_keymaps(buf, win, sess)
     return 0
   end
 
-  -- Action keys that need cursor context - sync cursor before action
-  local cursor_actions = {
-    { key = "<CR>", desc = "Toggle/Select" },
-    { key = "<Space>", desc = "Toggle namespace" },
-  }
-
-  -- Helper to poll for frame with retries
-  local function poll_frame(attempts)
-    local frame = sess:read_frame()
-    if frame then
-      apply_frame(buf, frame)
-    elseif attempts > 0 then
-      vim.defer_fn(function()
-        poll_frame(attempts - 1)
-      end, 5)
-    end
+  -- Helper to send key and immediately poll for updated frame
+  local function send_key(key)
+    local bytes = vim.api.nvim_replace_termcodes(key, true, true, true)
+    sess:write(bytes)
+    -- Poll immediately, then retry if needed
+    vim.schedule(function()
+      -- Read all available frames, use latest
+      local frame
+      repeat
+        local new_frame = sess:read_frame()
+        if new_frame then
+          frame = new_frame
+        end
+      until not new_frame
+      if frame then
+        apply_frame(buf, frame)
+      end
+    end)
   end
 
-  for _, mapping in ipairs(cursor_actions) do
-    vim.keymap.set("n", mapping.key, function()
-      -- First sync cursor position
+  -- Actions that need cursor position (toggle uses cursor to know which namespace)
+  for _, key in ipairs({ "<CR>", "<Space>" }) do
+    vim.keymap.set("n", key, function()
       sess:set_cursor_line(get_cursor_line())
-      -- Then send the action
-      local bytes = vim.api.nvim_replace_termcodes(mapping.key, true, true, true)
-      sess:write(bytes)
-      -- Poll for frame with retries
-      vim.defer_fn(function()
-        poll_frame(5)
-      end, 10)
+      send_key(key)
     end, opts)
   end
 
-  -- Helper to send input and refresh immediately
-  local function send_and_refresh(key)
-    local bytes = vim.api.nvim_replace_termcodes(key, true, true, true)
-    sess:write(bytes)
-    -- Poll for frame with retries
-    vim.defer_fn(function()
-      poll_frame(5)
-    end, 10)
-  end
-
-  -- Simple action keys - no cursor context needed
-  local simple_actions = {
-    { key = "<Tab>", desc = "Switch tab" },
-    { key = "<S-Tab>", desc = "Switch tab back" },
-    { key = "e", desc = "Expand all" },
-    { key = "E", desc = "Collapse all" },
-    { key = "?", desc = "Toggle help" },
-  }
-
-  for _, mapping in ipairs(simple_actions) do
-    vim.keymap.set("n", mapping.key, function()
-      send_and_refresh(mapping.key)
+  -- Actions that don't need cursor position
+  for _, key in ipairs({ "<Tab>", "<S-Tab>", "e", "E", "?" }) do
+    vim.keymap.set("n", key, function()
+      send_key(key)
     end, opts)
   end
 
