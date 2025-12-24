@@ -190,20 +190,24 @@ impl TopViewState {
             return;
         }
 
+        // Buffer rows to keep visible above/below selection
+        const SCROLL_MARGIN: u16 = 6;
+
         if let Some(&selected_y) = self.ns_y_positions.get(self.selected_ns_idx) {
             let current_offset = self.pod_scroll.offset().y;
-            let visible_end = current_offset + self.visible_height;
+            let margin_top = current_offset.saturating_add(SCROLL_MARGIN);
+            let margin_bottom = current_offset + self.visible_height.saturating_sub(SCROLL_MARGIN);
 
-            // If selection is above viewport, scroll up
-            if selected_y < current_offset {
-                let diff = current_offset - selected_y;
+            // If selection is above viewport (with margin), scroll up
+            if selected_y < margin_top {
+                let diff = margin_top - selected_y;
                 for _ in 0..diff {
                     self.pod_scroll.scroll_up();
                 }
             }
-            // If selection is below viewport, scroll down
-            else if selected_y >= visible_end {
-                let diff = selected_y - visible_end + 1;
+            // If selection is below viewport (with margin), scroll down
+            else if selected_y >= margin_bottom {
+                let diff = selected_y - margin_bottom + 1;
                 for _ in 0..diff {
                     self.pod_scroll.scroll_down();
                 }
