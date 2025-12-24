@@ -194,51 +194,28 @@ local function apply_frame(buf, frame)
 end
 
 --- Create keymaps for dashboard navigation.
---- Let vim motions work naturally, send cursor line with actions.
+--- Uses native vim motions and folding - only special keys are mapped.
 ---@param buf number Buffer number
----@param win number Window number
 ---@param sess userdata Session object
-local function setup_keymaps(buf, win, sess)
+local function setup_keymaps(buf, sess)
   local opts = { buffer = buf, noremap = true, silent = true }
 
-  -- Helper to get current cursor line (0-indexed)
-  local function get_cursor_line()
-    if vim.api.nvim_win_is_valid(win) then
-      return vim.api.nvim_win_get_cursor(win)[1] - 1
-    end
-    return 0
-  end
-
-  -- Helper to send key and immediately poll for updated frame
+  -- Helper to send key to Rust and poll for frame update
   local function send_key(key)
     local bytes = vim.api.nvim_replace_termcodes(key, true, true, true)
     sess:write(bytes)
-    -- Poll immediately, then retry if needed
-    vim.schedule(function()
-      -- Read all available frames, use latest
-      local frame
-      repeat
-        local new_frame = sess:read_frame()
-        if new_frame then
-          frame = new_frame
-        end
-      until not new_frame
+
+    -- Poll for updated frame
+    vim.defer_fn(function()
+      local frame = sess:read_frame()
       if frame then
         apply_frame(buf, frame)
       end
-    end)
+    end, 10)
   end
 
-  -- Actions that need cursor position (toggle uses cursor to know which namespace)
-  for _, key in ipairs({ "<CR>", "<Space>" }) do
-    vim.keymap.set("n", key, function()
-      sess:set_cursor_line(get_cursor_line())
-      send_key(key)
-    end, opts)
-  end
-
-  -- Actions that don't need cursor position
-  for _, key in ipairs({ "<Tab>", "<S-Tab>", "e", "E", "?" }) do
+  -- Tab switching and help
+  for _, key in ipairs({ "<Tab>", "<S-Tab>", "?" }) do
     vim.keymap.set("n", key, function()
       send_key(key)
     end, opts)
@@ -250,13 +227,20 @@ local function setup_keymaps(buf, win, sess)
     sess:close()
   end, opts)
 
-  -- Filter with / - use vim's input
+  -- Filter with f - use vim's input
   vim.keymap.set("n", "f", function()
     vim.ui.input({ prompt = "Filter: " }, function(input)
       if input then
         sess:write("/")
         sess:write(input)
         sess:write("\r")
+        -- Poll for updated frame after filter
+        vim.defer_fn(function()
+          local frame = sess:read_frame()
+          if frame then
+            apply_frame(buf, frame)
+          end
+        end, 50)
       end
     end)
   end, opts)
@@ -287,6 +271,11 @@ function M.open(view_name, title)
   -- Enable cursorline for visual selection feedback
   vim.api.nvim_set_option_value("cursorline", true, { win = win })
 
+  -- Enable native vim folding (pods are indented under namespaces)
+  vim.api.nvim_set_option_value("foldmethod", "indent", { win = win })
+  vim.api.nvim_set_option_value("foldlevel", 99, { win = win }) -- Start fully expanded
+  vim.api.nvim_set_option_value("foldminlines", 1, { win = win })
+
   -- Get window dimensions first
   local win_width = vim.api.nvim_win_get_width(win)
   local win_height = vim.api.nvim_win_get_height(win)
@@ -313,8 +302,8 @@ function M.open(view_name, title)
     end
   end
 
-  -- Setup keymaps (pass win for cursor position)
-  setup_keymaps(buf, win, sess)
+  -- Setup keymaps
+  setup_keymaps(buf, sess)
 
   -- Create autocmd group for cleanup
   local augroup = vim.api.nvim_create_augroup("KubectlDashboard_" .. buf, { clear = true })

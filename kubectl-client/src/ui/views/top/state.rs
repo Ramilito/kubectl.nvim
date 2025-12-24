@@ -1,10 +1,6 @@
 //! State management for the Top view.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::collections::HashSet;
-use tui_widgets::scrollview::ScrollViewState;
-
-use crate::ui::events::Scrollable;
 
 /// Input mode for the Top view.
 #[derive(PartialEq, Eq, Default)]
@@ -19,28 +15,12 @@ pub enum InputMode {
 pub struct TopViewState {
     /// Currently selected tab (0 = Nodes, 1 = Pods).
     pub selected_tab: usize,
-    /// Scroll state for the Nodes tab.
-    pub node_scroll: ScrollViewState,
-    /// Scroll state for the Pods tab.
-    pub pod_scroll: ScrollViewState,
     /// Current filter string for pods.
     pub filter: String,
     /// Current input mode.
     pub input_mode: InputMode,
-    /// Set of collapsed namespace names.
-    collapsed_namespaces: HashSet<String>,
-    /// All known namespace names (for collapse_all).
-    known_namespaces: HashSet<String>,
-    /// Currently selected namespace index (for Pods tab).
-    selected_ns_idx: usize,
-    /// Ordered list of namespace names (updated each draw).
-    ns_order: Vec<String>,
     /// Whether the help overlay is visible.
     pub show_help: bool,
-    /// Y-positions of namespace headers (updated during render).
-    ns_y_positions: Vec<u16>,
-    /// Visible height of the body area (updated during render).
-    visible_height: u16,
 }
 
 impl TopViewState {
@@ -51,13 +31,8 @@ impl TopViewState {
         self.selected_tab = (self.selected_tab + 1) % 2;
     }
 
-    /// Switches to the previous tab.
-    #[allow(dead_code)]
-    pub fn prev_tab(&mut self) {
-        self.selected_tab = if self.selected_tab == 0 { 1 } else { 0 };
-    }
-
     /// Returns true if the Pods tab is selected.
+    #[allow(dead_code)]
     pub fn is_pods_tab(&self) -> bool {
         self.selected_tab == 1
     }
@@ -100,191 +75,6 @@ impl TopViewState {
                 }
                 _ => {}
             },
-        }
-    }
-
-    // ─── Namespace Collapse/Expand ────────────────────────────────────────
-
-    /// Toggles the collapsed state of a namespace.
-    fn toggle_namespace(&mut self, ns: &str) {
-        if self.collapsed_namespaces.contains(ns) {
-            self.collapsed_namespaces.remove(ns);
-        } else {
-            self.collapsed_namespaces.insert(ns.to_string());
-        }
-    }
-
-    /// Returns true if the namespace is collapsed.
-    pub fn is_namespace_collapsed(&self, ns: &str) -> bool {
-        self.collapsed_namespaces.contains(ns)
-    }
-
-    /// Expands all namespaces.
-    pub fn expand_all(&mut self) {
-        self.collapsed_namespaces.clear();
-    }
-
-    /// Collapses all known namespaces.
-    pub fn collapse_all(&mut self) {
-        self.collapsed_namespaces = self.known_namespaces.clone();
-    }
-
-    /// Updates the set of known namespaces.
-    pub fn update_known_namespaces(&mut self, namespaces: impl Iterator<Item = String>) {
-        self.known_namespaces.extend(namespaces);
-    }
-
-    // ─── Namespace Selection ──────────────────────────────────────────────
-
-    /// Selects the next namespace and scrolls to keep it visible.
-    pub fn select_next_ns(&mut self) {
-        if !self.ns_order.is_empty() {
-            self.selected_ns_idx = (self.selected_ns_idx + 1).min(self.ns_order.len() - 1);
-            self.ensure_selection_visible();
-        }
-    }
-
-    /// Selects the previous namespace and scrolls to keep it visible.
-    pub fn select_prev_ns(&mut self) {
-        self.selected_ns_idx = self.selected_ns_idx.saturating_sub(1);
-        self.ensure_selection_visible();
-    }
-
-    /// Toggles the currently selected namespace.
-    pub fn toggle_selected_ns(&mut self) {
-        if let Some(ns) = self.ns_order.get(self.selected_ns_idx) {
-            let ns = ns.clone();
-            self.toggle_namespace(&ns);
-        }
-    }
-
-    /// Returns the currently selected namespace name.
-    #[allow(dead_code)]
-    pub fn selected_namespace(&self) -> Option<&str> {
-        self.ns_order.get(self.selected_ns_idx).map(|s| s.as_str())
-    }
-
-    /// Updates the ordered list of namespaces.
-    pub fn update_ns_order(&mut self, namespaces: Vec<String>) {
-        // Clamp selection if list shrinks
-        if !namespaces.is_empty() && self.selected_ns_idx >= namespaces.len() {
-            self.selected_ns_idx = namespaces.len() - 1;
-        }
-        self.ns_order = namespaces;
-    }
-
-    // ─── Scroll Management ───────────────────────────────────────────────
-
-    /// Updates the Y-positions of namespace headers (called during render).
-    pub fn update_ns_positions(&mut self, positions: Vec<u16>) {
-        self.ns_y_positions = positions;
-    }
-
-    /// Sets the selected namespace based on cursor line from Neovim.
-    ///
-    /// The line is the buffer line (0-indexed). We need to account for
-    /// the header rows (tabs, column header) and find which namespace
-    /// the cursor is on or near.
-    ///
-    /// Returns true if selection changed.
-    pub fn set_cursor_line(&mut self, line: u16) -> bool {
-        // Account for header: tabs (1) + separator (1) + header row (1) = 3 lines offset
-        const HEADER_OFFSET: u16 = 3;
-
-        if line < HEADER_OFFSET || self.ns_y_positions.is_empty() {
-            return false;
-        }
-
-        // Convert buffer line to content Y position
-        let content_y = line - HEADER_OFFSET;
-
-        // Find which namespace this Y falls into
-        // ns_y_positions contains the Y of each namespace header in the content area
-        let mut best_idx = 0;
-        for (idx, &ns_y) in self.ns_y_positions.iter().enumerate() {
-            if content_y >= ns_y {
-                best_idx = idx;
-            } else {
-                break;
-            }
-        }
-
-        if best_idx != self.selected_ns_idx {
-            self.selected_ns_idx = best_idx;
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Updates the visible height of the body area (called during render).
-    #[allow(dead_code)]
-    pub fn update_visible_height(&mut self, height: u16) {
-        self.visible_height = height;
-    }
-
-    /// Ensures the selected namespace is visible by adjusting scroll.
-    fn ensure_selection_visible(&mut self) {
-        if self.ns_y_positions.is_empty() || self.visible_height == 0 {
-            return;
-        }
-
-        // Buffer rows to keep visible above/below selection
-        const SCROLL_MARGIN: u16 = 6;
-
-        if let Some(&selected_y) = self.ns_y_positions.get(self.selected_ns_idx) {
-            let current_offset = self.pod_scroll.offset().y;
-            let margin_top = current_offset.saturating_add(SCROLL_MARGIN);
-            let margin_bottom = current_offset + self.visible_height.saturating_sub(SCROLL_MARGIN);
-
-            // If selection is above viewport (with margin), scroll up
-            if selected_y < margin_top {
-                let diff = margin_top - selected_y;
-                for _ in 0..diff {
-                    self.pod_scroll.scroll_up();
-                }
-            }
-            // If selection is below viewport (with margin), scroll down
-            else if selected_y >= margin_bottom {
-                let diff = selected_y - margin_bottom + 1;
-                for _ in 0..diff {
-                    self.pod_scroll.scroll_down();
-                }
-            }
-        }
-    }
-}
-
-impl Scrollable for TopViewState {
-    fn scroll_down(&mut self) {
-        if self.selected_tab == 0 {
-            self.node_scroll.scroll_down();
-        } else {
-            self.pod_scroll.scroll_down();
-        }
-    }
-
-    fn scroll_up(&mut self) {
-        if self.selected_tab == 0 {
-            self.node_scroll.scroll_up();
-        } else {
-            self.pod_scroll.scroll_up();
-        }
-    }
-
-    fn scroll_page_down(&mut self) {
-        if self.selected_tab == 0 {
-            self.node_scroll.scroll_page_down();
-        } else {
-            self.pod_scroll.scroll_page_down();
-        }
-    }
-
-    fn scroll_page_up(&mut self) {
-        if self.selected_tab == 0 {
-            self.node_scroll.scroll_page_up();
-        } else {
-            self.pod_scroll.scroll_page_up();
         }
     }
 }
