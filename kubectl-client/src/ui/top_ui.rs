@@ -119,13 +119,9 @@ impl TopViewState {
 /*  HELPERS                                                               */
 /* ---------------------------------------------------------------------- */
 
-fn slice_to_width(data: &[u64], max_w: u16) -> &[u64] {
+fn deque_to_vec(data: &std::collections::VecDeque<u64>, max_w: u16) -> Vec<u64> {
     let w = max_w as usize;
-    if data.len() <= w {
-        data
-    } else {
-        &data[..w]
-    }
+    data.iter().take(w).copied().collect()
 }
 
 fn visible_rows(offset_px: u16, row_h: u16, view_h: u16, overscan: u16) -> (usize, usize) {
@@ -142,8 +138,14 @@ fn visible_rows(offset_px: u16, row_h: u16, view_h: u16, overscan: u16) -> (usiz
 
 pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     /* snapshot ----------------------------------------------------------- */
-    let pod_snapshot: Vec<PodStat> = { pod_stats().lock().unwrap().clone() };
-    let node_snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
+    let pod_snapshot: Vec<PodStat> = pod_stats()
+        .lock()
+        .map(|guard| guard.values().cloned().collect())
+        .unwrap_or_default();
+    let node_snapshot: Vec<NodeStat> = node_stats()
+        .lock()
+        .map(|guard| guard.clone())
+        .unwrap_or_default();
 
     /* outer frame -------------------------------------------------------- */
     f.render_widget(
@@ -297,17 +299,17 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
         );
 
         /* spark bars ----------------------------------------------------- */
-        let cpu_data = slice_to_width(&p.cpu_history, cpu_col.width);
-        let mem_data = slice_to_width(&p.mem_history, mem_col.width);
+        let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width);
+        let mem_data = deque_to_vec(&p.mem_history, mem_col.width);
         sv.render_widget(
             Sparkline::default()
-                .data(cpu_data)
+                .data(&cpu_data)
                 .style(Style::default().fg(tailwind::GREEN.c500)),
             cpu_col,
         );
         sv.render_widget(
             Sparkline::default()
-                .data(mem_data)
+                .data(&mem_data)
                 .style(Style::default().fg(tailwind::ORANGE.c400)),
             mem_col,
         );

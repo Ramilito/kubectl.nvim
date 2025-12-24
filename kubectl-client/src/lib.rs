@@ -4,7 +4,8 @@ use kube::api::DynamicObject;
 use kube::config::ExecInteractiveMode;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use metrics::nodes::{shutdown_node_collector, spawn_node_collector, NodeStat, SharedNodeStats};
-use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodStat, SharedPodStats};
+use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodKey, PodStat, SharedPodStats};
+use std::collections::HashMap;
 use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
@@ -51,7 +52,7 @@ static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
 static BASE_CONFIG: Mutex<Option<Config>> = Mutex::new(None);
 
 pub fn pod_stats() -> &'static SharedPodStats {
-    POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
+    POD_STATS.get_or_init(|| Arc::new(Mutex::new(HashMap::<PodKey, PodStat>::new())))
 }
 
 pub fn node_stats() -> &'static SharedNodeStats {

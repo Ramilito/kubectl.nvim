@@ -62,7 +62,11 @@ impl Processor for ContainerProcessor {
         let ns = pod.metadata.namespace.clone().unwrap_or_default();
         let pod_name = pod.metadata.name.clone().unwrap_or_default();
 
-        let stats_guard = pod_stats().lock().unwrap();
+        let stats_guard = pod_stats()
+            .lock()
+            .map_err(|_| LuaError::RuntimeError("poisoned pod_stats lock".into()))?;
+
+        let pod_stats_entry = stats_guard.get(&(ns.clone(), pod_name.clone()));
 
         let build_row = |c_name: &str,
                          image: Option<&String>,
@@ -88,9 +92,7 @@ impl Processor for ContainerProcessor {
             let (req_cpu, req_mem) = resource_pair(res, true);
             let (lim_cpu, lim_mem) = resource_pair(res, false);
 
-            let (cpu_m, mem_mi) = stats_guard
-                .iter()
-                .find(|p| p.namespace == ns && p.name == pod_name)
+            let (cpu_m, mem_mi) = pod_stats_entry
                 .and_then(|p| p.containers.get(c_name).map(|c| (c.cpu_m, c.mem_mi)))
                 .unwrap_or((0, 0));
 

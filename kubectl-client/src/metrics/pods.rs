@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, VecDeque},
     sync::{Arc, Mutex, OnceLock},
     time::Duration,
 };
@@ -14,14 +14,17 @@ use crate::pod_stats;
 
 pub const HISTORY_LEN: usize = 60; // ≈ 30 s @ 500 ms tick or 30 min @ 30 s tick
 
+/// Key for pod stats: (namespace, name)
+pub type PodKey = (String, String);
+
 #[derive(Clone, Debug)]
 pub struct PodStat {
     pub namespace: String,
     pub name: String,
     pub cpu_m: u64,
     pub mem_mi: u64,
-    pub cpu_history: Vec<u64>,
-    pub mem_history: Vec<u64>,
+    pub cpu_history: VecDeque<u64>,
+    pub mem_history: VecDeque<u64>,
     pub containers: HashMap<String, ContainerSample>,
 }
 
@@ -39,8 +42,8 @@ impl PodStat {
             name,
             cpu_m: 0,
             mem_mi: 0,
-            cpu_history: Vec::with_capacity(HISTORY_LEN),
-            mem_history: Vec::with_capacity(HISTORY_LEN),
+            cpu_history: VecDeque::with_capacity(HISTORY_LEN),
+            mem_history: VecDeque::with_capacity(HISTORY_LEN),
             containers: HashMap::new(),
         }
     }
@@ -51,18 +54,22 @@ impl PodStat {
         self.mem_mi = mem_mi;
 
         if self.cpu_history.len() == HISTORY_LEN {
-            self.cpu_history.pop(); // drop oldest
+            self.cpu_history.pop_back();
         }
-        self.cpu_history.insert(0, cpu_m); // newest first
+        self.cpu_history.push_front(cpu_m);
 
         if self.mem_history.len() == HISTORY_LEN {
-            self.mem_history.pop();
+            self.mem_history.pop_back();
         }
-        self.mem_history.insert(0, mem_mi);
+        self.mem_history.push_front(mem_mi);
+    }
+
+    pub fn key(&self) -> PodKey {
+        (self.namespace.clone(), self.name.clone())
     }
 }
 
-pub type SharedPodStats = Arc<Mutex<Vec<PodStat>>>;
+pub type SharedPodStats = Arc<Mutex<HashMap<PodKey, PodStat>>>;
 const POLL_INTERVAL: Duration = Duration::from_secs(45);
 
 struct PodCollector {
@@ -88,25 +95,35 @@ impl PodCollector {
                     _ = tick.tick() => {
                         match metrics_api.list(&api::ListParams::default()).await {
                             Ok(metrics_list) => {
-                                let mut seen = HashSet::<String>::with_capacity(metrics_list.items.len());
-                                let mut guard = stats.lock().unwrap();
+                                // Take a snapshot of current stats outside the lock
+                                let mut current_stats = {
+                                    match stats.lock() {
+                                        Ok(guard) => guard.clone(),
+                                        Err(_) => {
+                                            warn!("poisoned pod_stats lock in collector");
+                                            continue;
+                                        }
+                                    }
+                                };
 
+                                // Track which pods we've seen this tick
+                                let mut seen_keys = Vec::with_capacity(metrics_list.items.len());
+
+                                // Process all metrics outside the lock
                                 for m in metrics_list {
-                                    let ns  = m.metadata.namespace.clone().unwrap_or_default();
+                                    let ns = m.metadata.namespace.clone().unwrap_or_default();
                                     let pod = m.metadata.name.clone().unwrap_or_default();
-                                    let key = format!("{ns}/{pod}");
-                                    seen.insert(key.clone());
+                                    let key: PodKey = (ns.clone(), pod.clone());
+                                    seen_keys.push(key.clone());
 
-                                    /* ---- aggregate ---- */
+                                    // Aggregate container metrics
                                     let mut agg_cpu = 0.0_f64;
                                     let mut agg_mem = 0_i64;
-
-                                    /* tmp map for this tick's container samples */
                                     let mut c_map: HashMap<String, ContainerSample> = HashMap::new();
 
                                     for c in m.containers {
-                                        let cpu_m  = (c.usage.cpu.to_f64().unwrap_or(0.0) * 1000.0).round() as u64;
-                                        let mem_mi = (c.usage.memory.to_memory().unwrap_or(0).max(0) as u64)/(1024*1024);
+                                        let cpu_m = (c.usage.cpu.to_f64().unwrap_or(0.0) * 1000.0).round() as u64;
+                                        let mem_mi = (c.usage.memory.to_memory().unwrap_or(0).max(0) as u64) / (1024 * 1024);
 
                                         agg_cpu += c.usage.cpu.to_f64().unwrap_or(0.0);
                                         agg_mem += c.usage.memory.to_memory().unwrap_or(0);
@@ -114,26 +131,31 @@ impl PodCollector {
                                         c_map.insert(c.name, ContainerSample { cpu_m, mem_mi });
                                     }
 
-                                    let agg_cpu_m  = (agg_cpu * 1000.0).round() as u64;
-                                    let agg_mem_mi = (agg_mem.max(0) as u64) / (1024*1024);
+                                    let agg_cpu_m = (agg_cpu * 1000.0).round() as u64;
+                                    let agg_mem_mi = (agg_mem.max(0) as u64) / (1024 * 1024);
 
                                     /* ---- upsert pod row ---- */
-                                    match guard.iter_mut().find(|p| p.namespace == ns && p.name == pod) {
-                                        Some(p) => {
+                                    current_stats
+                                        .entry(key)
+                                        .and_modify(|p| {
                                             p.push_sample(agg_cpu_m, agg_mem_mi);
-                                            p.containers = c_map;
-                                        }
-                                        None => {
-                                            let mut ps = PodStat::new(ns.clone(), pod.clone());
+                                            p.containers = c_map.clone();
+                                        })
+                                        .or_insert_with(|| {
+                                            let mut ps = PodStat::new(ns, pod);
                                             ps.push_sample(agg_cpu_m, agg_mem_mi);
                                             ps.containers = c_map;
-                                            guard.push(ps);
-                                        }
-                                    }
+                                            ps
+                                        });
                                 }
 
-                                /* drop pods that vanished */
-                                guard.retain(|p| seen.contains(&format!("{}/{}", p.namespace, p.name)));
+                                // Remove pods that vanished
+                                current_stats.retain(|k, _| seen_keys.contains(k));
+
+                                // Swap atomically - minimal lock time
+                                if let Ok(mut guard) = stats.lock() {
+                                    *guard = current_stats;
+                                }
                             }
                             Err(e) => warn!(error=%e, "failed to fetch pod metrics"),
                         }
