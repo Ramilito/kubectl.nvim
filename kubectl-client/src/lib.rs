@@ -9,14 +9,13 @@ use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 
 use crate::cmd::get::get_resources_async;
 use crate::processors::processor_for;
 use crate::statusline::get_statusline;
-use crate::store::get_store_map;
+use crate::store::reset_all_reflectors;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -162,8 +161,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
 
     let init_res: LuaResult<()> = rt.block_on(async {
         let store_future = async {
-            let store = get_store_map();
-            store.write().await.clear();
+            reset_all_reflectors().await;
             Ok::<(), LuaError>(())
         };
 
@@ -373,9 +371,7 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     }
 
     {
-        if let Some(map) = STORE_MAP.get() {
-            let _ = map;
-        }
+        reset_all_reflectors().await;
     }
 
     Ok("Done".to_string())
