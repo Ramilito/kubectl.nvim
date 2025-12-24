@@ -5,7 +5,7 @@ use ratatui::{
     prelude::*,
     style::palette::tailwind,
     text::Line,
-    widgets::{Block, Borders, Gauge, Padding, Paragraph, Sparkline, Tabs},
+    widgets::{Block, Borders, Clear, Gauge, Padding, Paragraph, Sparkline, Tabs},
 };
 use std::collections::{BTreeMap, HashSet};
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
@@ -52,6 +52,8 @@ pub struct TopViewState {
     selected_ns_idx: usize,
     /// Ordered list of namespace names (updated each draw)
     ns_order: Vec<String>,
+    /// Show help overlay
+    show_help: bool,
 }
 
 impl TopViewState {
@@ -67,6 +69,15 @@ impl TopViewState {
 
     pub fn is_pods_tab(&self) -> bool {
         self.selected_tab == 1
+    }
+
+    /* help toggle -------------------------------------------------------- */
+    pub fn toggle_help(&mut self) {
+        self.show_help = !self.show_help;
+    }
+
+    pub fn is_help_visible(&self) -> bool {
+        self.show_help
     }
 
     /* scrolling helpers -------------------------------------------------- */
@@ -210,6 +221,11 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     f.render_widget(
         Block::new()
             .title(" Top (live) ")
+            .title_bottom(
+                Line::from(" Press ? for help ")
+                    .style(Style::default().fg(tailwind::GRAY.c500))
+                    .right_aligned(),
+            )
             .borders(Borders::ALL)
             .border_style(
                 Style::default()
@@ -467,6 +483,95 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     }
 
     f.render_stateful_widget(sv, body_area, &mut state.pod_scroll);
+
+    /* ================================= HELP OVERLAY ==================== */
+    if state.show_help {
+        draw_help_overlay(f, area);
+    }
+}
+
+/* ---------------------------------------------------------------------- */
+/*  HELP OVERLAY                                                          */
+/* ---------------------------------------------------------------------- */
+
+fn draw_help_overlay(f: &mut Frame, area: Rect) {
+    let help_lines = vec![
+        Line::from(vec![
+            Span::styled("Tab", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("       Switch between Nodes/Pods tabs"),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled("── Navigation ──", Style::default().fg(tailwind::CYAN.c400))),
+        Line::from(vec![
+            Span::styled("j/↓", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("       Select next namespace"),
+        ]),
+        Line::from(vec![
+            Span::styled("k/↑", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("       Select previous namespace"),
+        ]),
+        Line::from(vec![
+            Span::styled("PgDn/PgUp", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw(" Scroll view"),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled("── Namespaces ──", Style::default().fg(tailwind::CYAN.c400))),
+        Line::from(vec![
+            Span::styled("Enter/Space", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("  Toggle selected namespace"),
+        ]),
+        Line::from(vec![
+            Span::styled("e", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("         Expand all namespaces"),
+        ]),
+        Line::from(vec![
+            Span::styled("E", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("         Collapse all namespaces"),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled("── Other ──", Style::default().fg(tailwind::CYAN.c400))),
+        Line::from(vec![
+            Span::styled("/", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("         Filter pods"),
+        ]),
+        Line::from(vec![
+            Span::styled("?", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("         Toggle this help"),
+        ]),
+        Line::from(vec![
+            Span::styled("q", Style::default().fg(tailwind::YELLOW.c400).add_modifier(Modifier::BOLD)),
+            Span::raw("         Quit"),
+        ]),
+    ];
+
+    let popup_width = 44;
+    let popup_height = help_lines.len() as u16 + 2; // +2 for borders
+
+    let popup_area = centered_rect(popup_width, popup_height, area);
+
+    f.render_widget(Clear, popup_area);
+    f.render_widget(
+        Paragraph::new(help_lines)
+            .block(
+                Block::new()
+                    .title(" Help ")
+                    .title_bottom(
+                        Line::from(" Press ? to close ")
+                            .style(Style::default().fg(tailwind::GRAY.c500))
+                            .centered(),
+                    )
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(tailwind::CYAN.c400)),
+            )
+            .style(Style::default().fg(tailwind::GRAY.c200)),
+        popup_area,
+    );
+}
+
+fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
+    let x = area.x + (area.width.saturating_sub(width)) / 2;
+    let y = area.y + (area.height.saturating_sub(height)) / 2;
+    Rect::new(x, y, width.min(area.width), height.min(area.height))
 }
 
 /* ---------------------------------------------------------------------- */

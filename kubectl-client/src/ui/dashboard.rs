@@ -206,6 +206,17 @@ impl View for TopView {
     fn on_event(&mut self, ev: &Event) -> bool {
         match ev {
             Event::Key(k) => {
+                /* 0 — help overlay intercepts most keys */
+                if self.state.is_help_visible() {
+                    match k.code {
+                        KeyCode::Char('?') | KeyCode::Esc => {
+                            self.state.toggle_help();
+                            return true;
+                        }
+                        _ => return true, // consume all other keys when help is open
+                    }
+                }
+
                 /* 1 — filter prompt eats its own keys */
                 self.state.handle_key(*k);
                 let is_filter_key = matches!(
@@ -217,6 +228,10 @@ impl View for TopView {
                 }
                 /* 2 — generic nav */
                 match k.code {
+                    KeyCode::Char('?') => {
+                        self.state.toggle_help();
+                        true
+                    }
                     KeyCode::Tab => {
                         self.state.next_tab();
                         true
