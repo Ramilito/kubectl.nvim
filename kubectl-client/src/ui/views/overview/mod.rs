@@ -1,111 +1,81 @@
-//! Six-pane OVERVIEW screen for the dashboard.
-//
-// Layout
-// ┌────────────┬──────────────┬──────────────┐
-// │  info       │   nodes      │  namespace   │
-// ├────────────┼──────────────┼──────────────┤
-// │  top-cpu    │   top-mem    │   events     │
-// └────────────┴──────────────┴──────────────┘
+//! Overview view - Six-pane cluster dashboard.
+//!
+//! Layout:
+//! ```text
+//! ┌────────────┬──────────────┬──────────────┐
+//! │   Info     │    Nodes     │  Namespace   │  (60%)
+//! ├────────────┼──────────────┼──────────────┤
+//! │  Top-CPU   │   Top-MEM    │   Events     │  (40%)
+//! └────────────┴──────────────┴──────────────┘
+//! ```
 
+mod state;
+
+use crossterm::event::{Event, KeyCode, MouseEventKind};
 use ratatui::{
-    layout::{Constraint, Layout, Margin, Rect},
-    prelude::*,
-    style::palette::tailwind,
+    layout::{Constraint, Layout, Margin, Rect, Size},
+    style::{palette::tailwind, Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Gauge},
+    widgets::{Block, Borders},
+    Frame,
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use crate::{metrics::nodes::NodeStat, node_stats};
+use crate::{
+    metrics::nodes::NodeStat,
+    node_stats,
+    ui::{
+        components::{make_gauge, GaugeStyle},
+        events::{handle_scroll_key, Scrollable},
+        views::View,
+    },
+};
 
-#[derive(Clone, Copy, Default)]
-enum Pane {
-    Info,
-    #[default]
-    Nodes,
-    Namespace,
-    TopCpu,
-    TopMem,
-    Events,
-}
+pub use state::OverviewState;
 
-impl Pane {
-    fn next(self) -> Self {
-        use Pane::*;
-        match self {
-            Info => Nodes,
-            Nodes => Namespace,
-            Namespace => TopCpu,
-            TopCpu => TopMem,
-            TopMem => Events,
-            Events => Info,
-        }
-    }
-    fn prev(self) -> Self {
-        use Pane::*;
-        match self {
-            Info => Events,
-            Events => TopMem,
-            TopMem => TopCpu,
-            TopCpu => Namespace,
-            Namespace => Nodes,
-            Nodes => Info,
-        }
-    }
-}
-
-/*────────────────────── Public state object ───────────────────────────*/
-
+/// Overview view displaying a 6-pane cluster dashboard.
 #[derive(Default)]
-pub struct OverviewState {
-    focus: Pane, // which pane currently receives scroll input?
-    pub info: ScrollViewState,
-    pub nodes: ScrollViewState,
-    pub namespace: ScrollViewState,
-    pub top_cpu: ScrollViewState,
-    pub top_mem: ScrollViewState,
-    pub events: ScrollViewState,
+pub struct OverviewView {
+    state: OverviewState,
 }
 
-impl OverviewState {
-    /* focus cycling (Tab / Shift-Tab) */
-    pub fn focus_next(&mut self) {
-        self.focus = self.focus.next();
-    }
-    pub fn focus_prev(&mut self) {
-        self.focus = self.focus.prev();
-    }
-
-    /* thin wrappers so caller doesn’t care which pane has focus */
-    pub fn scroll_down(&mut self) {
-        self.focus_mut().scroll_down();
-    }
-    pub fn scroll_up(&mut self) {
-        self.focus_mut().scroll_up();
-    }
-    pub fn scroll_page_down(&mut self) {
-        self.focus_mut().scroll_page_down();
-    }
-    pub fn scroll_page_up(&mut self) {
-        self.focus_mut().scroll_page_up();
-    }
-
-    fn focus_mut(&mut self) -> &mut ScrollViewState {
-        match self.focus {
-            Pane::Info => &mut self.info,
-            Pane::Nodes => &mut self.nodes,
-            Pane::Namespace => &mut self.namespace,
-            Pane::TopCpu => &mut self.top_cpu,
-            Pane::TopMem => &mut self.top_mem,
-            Pane::Events => &mut self.events,
+impl View for OverviewView {
+    fn on_event(&mut self, ev: &Event) -> bool {
+        match ev {
+            Event::Key(k) => match k.code {
+                KeyCode::Tab => {
+                    self.state.focus_next();
+                    true
+                }
+                KeyCode::BackTab => {
+                    self.state.focus_prev();
+                    true
+                }
+                other => handle_scroll_key(&mut self.state, other),
+            },
+            Event::Mouse(m) => match m.kind {
+                MouseEventKind::ScrollDown => {
+                    self.state.scroll_down();
+                    true
+                }
+                MouseEventKind::ScrollUp => {
+                    self.state.scroll_up();
+                    true
+                }
+                _ => false,
+            },
+            _ => false,
         }
     }
+
+    fn draw(&mut self, f: &mut Frame, area: Rect) {
+        draw(f, area, &mut self.state);
+    }
 }
 
-/*────────────────────── TOP-LEVEL DRAW FUNCTION ───────────────────────*/
-
-pub fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
-    /*────────────── split outer rect: 2 rows × 3 cols ──────────────*/
+/// Main draw function for the Overview view.
+fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
+    // Split into 2 rows × 3 columns
     let rows =
         Layout::vertical([Constraint::Percentage(60), Constraint::Percentage(40)]).split(area);
 
@@ -123,15 +93,17 @@ pub fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
     ])
     .split(rows[1]);
 
+    // Snapshot data
     let node_snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
-    /*─────────────── data prep (top-N lists etc.) ──────────────────*/
+
+    // Sort nodes by metrics for top-N lists
     let mut by_cpu = node_snapshot.to_vec();
     by_cpu.sort_by(|a, b| b.cpu_pct.total_cmp(&a.cpu_pct));
 
     let mut by_mem = node_snapshot.to_vec();
     by_mem.sort_by(|a, b| b.mem_pct.total_cmp(&a.mem_pct));
 
-    // demo placeholders – replace with real data later
+    // Demo placeholders - replace with real data later
     let namespaces: Vec<Line> = ["default", "kube-system", "monitoring"]
         .iter()
         .map(|s| Line::from(*s))
@@ -140,7 +112,7 @@ pub fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         .map(|i| Line::from(format!("event #{i} happened …")))
         .collect();
 
-    /*────────────────────── TOP ROW ───────────────────────────────*/
+    // Top row
     draw_text_list(
         f,
         cols_top[0],
@@ -166,7 +138,7 @@ pub fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
         Color::Magenta,
     );
 
-    /*────────────────────── BOTTOM ROW ────────────────────────────*/
+    // Bottom row
     draw_nodes_table(
         f,
         cols_bot[0],
@@ -193,8 +165,7 @@ pub fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
     );
 }
 
-/*──────────────────── helpers ──────────────────────────────────────────*/
-
+/// Draws a scrollable list of text lines.
 fn draw_text_list(
     f: &mut Frame,
     area: Rect,
@@ -231,6 +202,7 @@ fn draw_text_list(
     f.render_stateful_widget(sv, inner, sv_state);
 }
 
+/// Draws a scrollable table of node statistics.
 fn draw_nodes_table(
     f: &mut Frame,
     area: Rect,
@@ -253,21 +225,13 @@ fn draw_nodes_table(
         vertical: 1,
     });
 
-    // widest name for neat columns
+    // Calculate widest name for neat columns
     let max_name = stats
         .iter()
         .map(|n| Line::from(n.name.clone()).width() as u16 + 1)
         .max()
         .unwrap_or(1)
         .min(inner.width / 2);
-
-    let make_gauge = |lbl: &str, pct: f64, col: Color| {
-        Gauge::default()
-            .gauge_style(Style::default().fg(col).bg(tailwind::GRAY.c800))
-            .label(format!("{lbl}: {}", pct.round() as u16))
-            .use_unicode(true)
-            .percent(pct.clamp(0.0, 100.0) as u16)
-    };
 
     let mut sv = ScrollView::new(Size::new(inner.width, stats.len() as u16));
 
@@ -293,9 +257,9 @@ fn draw_nodes_table(
             ),
             cols[0],
         );
-        sv.render_widget(make_gauge("CPU", n.cpu_pct, tailwind::GREEN.c500), cols[1]);
+        sv.render_widget(make_gauge("CPU", n.cpu_pct, GaugeStyle::Cpu), cols[1]);
         sv.render_widget(
-            make_gauge("MEM", n.mem_pct, tailwind::EMERALD.c400),
+            make_gauge("MEM", n.mem_pct, GaugeStyle::Custom(tailwind::EMERALD.c400)),
             cols[2],
         );
     }
