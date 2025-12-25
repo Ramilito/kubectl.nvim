@@ -39,12 +39,38 @@ const NS_HEADER_H: u16 = 1; // Namespace header row
 const EXPANDED_H: u16 = 10;
 
 /// Top view displaying nodes and pods metrics.
-#[derive(Default)]
 pub struct TopView {
     state: TopViewState,
+    /// Cached pod stats to avoid cloning HashMap on every render
+    pod_cache: Vec<PodStat>,
+    /// Cached node stats to avoid cloning Vec on every render
+    node_cache: Vec<NodeStat>,
+}
+
+impl Default for TopView {
+    fn default() -> Self {
+        Self {
+            state: TopViewState::default(),
+            pod_cache: Vec::new(),
+            node_cache: Vec::new(),
+        }
+    }
 }
 
 impl TopView {
+    /// Refreshes the cached pod and node snapshots from the shared state.
+    /// Called once per render cycle to avoid repeated HashMap clones.
+    fn refresh_caches(&mut self) {
+        self.pod_cache = pod_stats()
+            .lock()
+            .map(|guard| guard.values().cloned().collect())
+            .unwrap_or_default();
+        self.node_cache = node_stats()
+            .lock()
+            .map(|guard| guard.clone())
+            .unwrap_or_default();
+    }
+
     /// Finds the pod at the current cursor line and toggles its expansion.
     fn toggle_pod_at_cursor(&mut self) {
         // Header offset: help_bar(1) + tabs(1) + blank(1) + header(1) = 4 lines
@@ -57,15 +83,9 @@ impl TopView {
 
         let body_line = cursor - HEADER_OFFSET;
 
-        // Get pod data and find which pod is at this line
-        let pod_snapshot: Vec<PodStat> = pod_stats()
-            .lock()
-            .map(|guard| guard.values().cloned().collect())
-            .unwrap_or_default();
-
-        // Group by namespace (same as in draw)
+        // Group by namespace using cached data (same as in draw)
         let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
-        for p in &pod_snapshot {
+        for p in &self.pod_cache {
             grouped.entry(p.namespace.as_str()).or_default().push(p);
         }
 
@@ -132,27 +152,23 @@ impl View for TopView {
     }
 
     fn draw(&mut self, f: &mut Frame, area: Rect) {
-        draw(f, area, &mut self.state);
+        // Refresh caches once per render cycle
+        self.refresh_caches();
+        draw_with_data(f, area, &mut self.state, &self.pod_cache, &self.node_cache);
     }
 
     fn content_height(&self) -> Option<u16> {
-        // Calculate height based on current data and expansion state
+        // Calculate height based on cached data and expansion state
         // help_bar(1) + tabs(1) + blank(1) + header(1) = 4 lines
         const HEADER_LINES: u16 = 4;
 
         if self.state.selected_tab == 0 {
-            // Nodes: 1 line each
-            let count = node_stats().lock().map(|g| g.len()).unwrap_or(0) as u16;
-            Some(HEADER_LINES + count * CARD_HEIGHT)
+            // Nodes: 1 line each (use cached data)
+            Some(HEADER_LINES + self.node_cache.len() as u16 * CARD_HEIGHT)
         } else {
-            // Pods: account for expanded pod if any
-            let pod_snapshot: Vec<PodStat> = pod_stats()
-                .lock()
-                .map(|guard| guard.values().cloned().collect())
-                .unwrap_or_default();
-
+            // Pods: account for expanded pod if any (use cached data)
             let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
-            for p in &pod_snapshot {
+            for p in &self.pod_cache {
                 grouped.entry(p.namespace.as_str()).or_default().push(p);
             }
 
@@ -173,18 +189,14 @@ impl View for TopView {
     }
 }
 
-/// Main draw function for the Top view.
-fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
-    // Snapshot data
-    let pod_snapshot: Vec<PodStat> = pod_stats()
-        .lock()
-        .map(|guard| guard.values().cloned().collect())
-        .unwrap_or_default();
-    let node_snapshot: Vec<NodeStat> = node_stats()
-        .lock()
-        .map(|guard| guard.clone())
-        .unwrap_or_default();
-
+/// Main draw function for the Top view using pre-cached data.
+fn draw_with_data(
+    f: &mut Frame,
+    area: Rect,
+    state: &mut TopViewState,
+    pods: &[PodStat],
+    nodes: &[NodeStat],
+) {
     // Layout: help bar - tabs - blank line - header - body
     let [help_area, tabs_area, _blank_area, hdr_area, body_area] = Layout::vertical([
         Constraint::Length(1), // Help bar
@@ -216,9 +228,9 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
 
     // Render appropriate tab content
     if state.selected_tab == 0 {
-        draw_nodes_tab(f, hdr_area, body_area, &node_snapshot);
+        draw_nodes_tab(f, hdr_area, body_area, nodes);
     } else {
-        draw_pods_tab(f, hdr_area, body_area, &pod_snapshot, state);
+        draw_pods_tab(f, hdr_area, body_area, pods, state);
     }
 }
 
