@@ -2,7 +2,7 @@
 
 use ratatui::{
     prelude::*,
-    style::{palette::tailwind, Modifier, Style},
+    style::{palette::tailwind, Color, Modifier, Style},
     text::{Line, Span},
     widgets::Paragraph,
     Frame,
@@ -23,7 +23,7 @@ pub fn draw_help_bar(f: &mut Frame, area: Rect, hints: &[(&str, &str)]) {
         spans.push(Span::styled(
             *key,
             Style::default()
-                .fg(tailwind::YELLOW.c400)
+                .fg(Color::Magenta)
                 .add_modifier(Modifier::BOLD),
         ));
         spans.push(Span::styled(

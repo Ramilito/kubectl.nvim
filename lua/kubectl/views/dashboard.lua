@@ -69,24 +69,24 @@ end
 ---@param name string
 ---@return string|nil
 function color_name_to_hex(name)
-  -- Basic colors
+  -- Colors synced with lua/kubectl/actions/highlight.lua
   local colors = {
     black = "#000000",
-    red = "#cc0000",
-    green = "#00cc00",
-    yellow = "#cccc00",
-    blue = "#0000cc",
-    magenta = "#cc00cc",
-    cyan = "#00cccc",
-    gray = "#808080",
+    red = "#D16969", -- KubectlError
+    green = "#608B4E", -- KubectlInfo
+    yellow = "#DCDCAA", -- KubectlDebug
+    blue = "#569CD6", -- KubectlHeader
+    magenta = "#C586C0", -- KubectlPending
+    cyan = "#4EC9B0", -- KubectlSuccess
+    gray = "#666666", -- KubectlGray
     darkgray = "#404040",
-    lightred = "#ff0000",
-    lightgreen = "#00ff00",
-    lightyellow = "#ffff00",
-    lightblue = "#5555ff",
-    lightmagenta = "#ff00ff",
-    lightcyan = "#00ffff",
-    white = "#ffffff",
+    lightred = "#D16969", -- Same as error
+    lightgreen = "#608B4E", -- Same as info
+    lightyellow = "#D19A66", -- KubectlWarning (orange)
+    lightblue = "#9CDCFE", -- KubectlNote
+    lightmagenta = "#C586C0", -- Same as pending
+    lightcyan = "#4EC9B0", -- Same as success
+    white = "#FFFFFF", -- KubectlWhite
   }
 
   if colors[name] then
