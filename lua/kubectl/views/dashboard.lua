@@ -1,8 +1,6 @@
 --- Dashboard view using native Neovim buffers instead of terminal.
 --- This provides live ratatui rendering with full vim motion support.
 local layout = require("kubectl.actions.layout")
-local state = require("kubectl.state")
-local hl = require("kubectl.actions.highlight")
 
 local M = {}
 
@@ -11,6 +9,95 @@ local ns_id = vim.api.nvim_create_namespace("__kubectl_dashboard")
 
 -- Cache for registered highlight groups
 local registered_hl_groups = {}
+
+--- Convert ANSI 256 color index to hex.
+---@param idx number
+---@return string
+local function ansi256_to_hex(idx)
+  -- Standard colors
+  local standard = {
+    [0] = "#000000",
+    [1] = "#800000",
+    [2] = "#008000",
+    [3] = "#808000",
+    [4] = "#000080",
+    [5] = "#800080",
+    [6] = "#008080",
+    [7] = "#c0c0c0",
+    [8] = "#808080",
+    [9] = "#ff0000",
+    [10] = "#00ff00",
+    [11] = "#ffff00",
+    [12] = "#0000ff",
+    [13] = "#ff00ff",
+    [14] = "#00ffff",
+    [15] = "#ffffff",
+  }
+
+  if standard[idx] then
+    return standard[idx]
+  end
+
+  -- 216 color cube (16-231)
+  if idx >= 16 and idx <= 231 then
+    local n = idx - 16
+    local b = (n % 6) * 51
+    local g = (math.floor(n / 6) % 6) * 51
+    local r = math.floor(n / 36) * 51
+    return string.format("#%02x%02x%02x", r, g, b)
+  end
+
+  -- Grayscale (232-255)
+  if idx >= 232 and idx <= 255 then
+    local gray = (idx - 232) * 10 + 8
+    return string.format("#%02x%02x%02x", gray, gray, gray)
+  end
+
+  return "#808080" -- fallback
+end
+
+--- Convert color name to hex value.
+---@param name string
+---@return string|nil
+local function color_name_to_hex(name)
+  -- Colors synced with lua/kubectl/actions/highlight.lua
+  local colors = {
+    black = "#000000",
+    red = "#D16969", -- KubectlError
+    green = "#608B4E", -- KubectlInfo
+    yellow = "#DCDCAA", -- KubectlDebug
+    blue = "#569CD6", -- KubectlHeader
+    magenta = "#C586C0", -- KubectlPending
+    cyan = "#4EC9B0", -- KubectlSuccess
+    gray = "#666666", -- KubectlGray
+    darkgray = "#404040",
+    lightred = "#D16969", -- Same as error
+    lightgreen = "#608B4E", -- Same as info
+    lightyellow = "#D19A66", -- KubectlWarning (orange)
+    lightblue = "#9CDCFE", -- KubectlNote
+    lightmagenta = "#C586C0", -- Same as pending
+    lightcyan = "#4EC9B0", -- Same as success
+    white = "#FFFFFF", -- KubectlWhite
+  }
+
+  if colors[name] then
+    return colors[name]
+  end
+
+  -- RGB hex (x followed by 6 hex chars)
+  local hex = name:match("^x(%x%x%x%x%x%x)$")
+  if hex then
+    return "#" .. hex
+  end
+
+  -- Indexed color (i followed by number)
+  local idx = name:match("^i(%d+)$")
+  if idx then
+    return ansi256_to_hex(tonumber(idx))
+  end
+
+  return nil
+end
 
 --- Register a highlight group for ratatui colors.
 --- Converts ratatui-style names like "Ratatui_cyan_bold" to actual highlights.
@@ -63,95 +150,6 @@ local function ensure_hl_group(hl_name)
   end
 
   registered_hl_groups[hl_name] = true
-end
-
---- Convert color name to hex value.
----@param name string
----@return string|nil
-function color_name_to_hex(name)
-  -- Colors synced with lua/kubectl/actions/highlight.lua
-  local colors = {
-    black = "#000000",
-    red = "#D16969", -- KubectlError
-    green = "#608B4E", -- KubectlInfo
-    yellow = "#DCDCAA", -- KubectlDebug
-    blue = "#569CD6", -- KubectlHeader
-    magenta = "#C586C0", -- KubectlPending
-    cyan = "#4EC9B0", -- KubectlSuccess
-    gray = "#666666", -- KubectlGray
-    darkgray = "#404040",
-    lightred = "#D16969", -- Same as error
-    lightgreen = "#608B4E", -- Same as info
-    lightyellow = "#D19A66", -- KubectlWarning (orange)
-    lightblue = "#9CDCFE", -- KubectlNote
-    lightmagenta = "#C586C0", -- Same as pending
-    lightcyan = "#4EC9B0", -- Same as success
-    white = "#FFFFFF", -- KubectlWhite
-  }
-
-  if colors[name] then
-    return colors[name]
-  end
-
-  -- RGB hex (x followed by 6 hex chars)
-  local hex = name:match("^x(%x%x%x%x%x%x)$")
-  if hex then
-    return "#" .. hex
-  end
-
-  -- Indexed color (i followed by number)
-  local idx = name:match("^i(%d+)$")
-  if idx then
-    return ansi256_to_hex(tonumber(idx))
-  end
-
-  return nil
-end
-
---- Convert ANSI 256 color index to hex.
----@param idx number
----@return string
-function ansi256_to_hex(idx)
-  -- Standard colors
-  local standard = {
-    [0] = "#000000",
-    [1] = "#800000",
-    [2] = "#008000",
-    [3] = "#808000",
-    [4] = "#000080",
-    [5] = "#800080",
-    [6] = "#008080",
-    [7] = "#c0c0c0",
-    [8] = "#808080",
-    [9] = "#ff0000",
-    [10] = "#00ff00",
-    [11] = "#ffff00",
-    [12] = "#0000ff",
-    [13] = "#ff00ff",
-    [14] = "#00ffff",
-    [15] = "#ffffff",
-  }
-
-  if standard[idx] then
-    return standard[idx]
-  end
-
-  -- 216 color cube (16-231)
-  if idx >= 16 and idx <= 231 then
-    local n = idx - 16
-    local b = (n % 6) * 51
-    local g = (math.floor(n / 6) % 6) * 51
-    local r = math.floor(n / 36) * 51
-    return string.format("#%02x%02x%02x", r, g, b)
-  end
-
-  -- Grayscale (232-255)
-  if idx >= 232 and idx <= 255 then
-    local gray = (idx - 232) * 10 + 8
-    return string.format("#%02x%02x%02x", gray, gray, gray)
-  end
-
-  return "#808080" -- fallback
 end
 
 --- Apply a rendered frame to a buffer.
@@ -269,11 +267,7 @@ function M.open(view_name, title)
   -- Enable native vim folding with custom foldexpr
   -- Namespace headers (no leading space) start folds, indented lines are fold content
   vim.api.nvim_set_option_value("foldmethod", "expr", { win = win })
-  vim.api.nvim_set_option_value(
-    "foldexpr",
-    "getline(v:lnum)=~'^\\s'?1:getline(v:lnum)=~'^$'?'=':'>1'",
-    { win = win }
-  )
+  vim.api.nvim_set_option_value("foldexpr", "getline(v:lnum)=~'^\\s'?1:getline(v:lnum)=~'^$'?'=':'>1'", { win = win })
   vim.api.nvim_set_option_value("foldlevel", 99, { win = win }) -- Start fully expanded
   vim.api.nvim_set_option_value("foldminlines", 1, { win = win })
 
