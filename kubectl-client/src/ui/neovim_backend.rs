@@ -129,8 +129,22 @@ pub fn buffer_to_render_frame(buffer: &ratatui::buffer::Buffer, area: ratatui::l
             });
         }
 
-        // Trim trailing spaces and get actual byte length
-        let trimmed = line.trim_end().to_string();
+        // Only trim trailing spaces that have no styling
+        // Find the last styled position (extmark end)
+        let last_styled_pos = row_marks
+            .iter()
+            .map(|m| m.end_col)
+            .max()
+            .unwrap_or(0);
+
+        // Trim trailing unstyled spaces only
+        let trimmed = if last_styled_pos as usize >= line.len() {
+            line.clone()
+        } else {
+            let keep = &line[..last_styled_pos as usize];
+            let rest = &line[last_styled_pos as usize..];
+            format!("{}{}", keep, rest.trim_end())
+        };
         let line_byte_len = trimmed.len() as u16;
 
         // Clamp extmarks to actual line byte length and filter empty spans

@@ -19,9 +19,9 @@ pub const MAX_TITLE_WIDTH: u16 = 100;
 pub fn column_split(area: Rect, name_width: u16) -> [Rect; 4] {
     Layout::horizontal([
         Constraint::Length(name_width),
-        Constraint::Percentage(50),
+        Constraint::Fill(1),
         Constraint::Length(COL_GAP),
-        Constraint::Percentage(50),
+        Constraint::Fill(1),
     ])
     .areas(area)
 }
