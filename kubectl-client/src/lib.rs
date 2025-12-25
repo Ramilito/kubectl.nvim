@@ -14,7 +14,7 @@ use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, Sta
 use tokio::runtime::Runtime;
 
 use crate::cmd::get::get_resources_async;
-use crate::processors::processor_for;
+use crate::processors::{processor_for, FilterParams};
 use crate::statusline::get_statusline;
 use crate::store::shutdown_all_reflectors;
 
@@ -311,16 +311,14 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     let proc = processor_for("fallback");
-    let processed = proc.process_fallback(
-        &lua,
-        args.gvk,
-        args.namespace,
-        args.sort_by,
-        args.sort_order,
-        args.filter,
-        args.filter_label,
-        args.filter_key,
-    )?;
+    let params = FilterParams {
+        sort_by: args.sort_by,
+        sort_order: args.sort_order,
+        filter: args.filter,
+        filter_label: args.filter_label,
+        filter_key: args.filter_key,
+    };
+    let processed = proc.process_fallback(&lua, args.gvk, args.namespace, &params)?;
 
     serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
 }
@@ -339,11 +337,7 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
         None => Vec::new(),
     };
     let proc = processor_for("container");
-    let processed = proc
-        .process(&lua, &vec, None, None, None, None, None)
-        .map_err(mlua::Error::external)?;
-
-    Ok(processed)
+    proc.process(&lua, &vec, &FilterParams::default())
 }
 
 #[tracing::instrument]
@@ -354,16 +348,14 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
         .await
         .unwrap_or_default();
     let proc = processor_for(&args.gvk.k.to_lowercase());
-
-    proc.process(
-        &lua,
-        &cached,
-        args.sort_by,
-        args.sort_order,
-        args.filter,
-        args.filter_label,
-        args.filter_key,
-    )
+    let params = FilterParams {
+        sort_by: args.sort_by,
+        sort_order: args.sort_order,
+        filter: args.filter,
+        filter_label: args.filter_label,
+        filter_key: args.filter_key,
+    };
+    proc.process(&lua, &cached, &params)
 }
 
 #[tracing::instrument]

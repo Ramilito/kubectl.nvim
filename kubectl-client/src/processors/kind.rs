@@ -15,7 +15,8 @@ use super::{
     fallback::FallbackProcessor, horizontalpodautoscaler::HorizontalPodAutoscalerProcessor,
     ingress::IngressProcessor, job::JobProcessor, namespace::NamespaceProcessor,
     node::NodeProcessor, persistentvolume::PersistentVolumeProcessor,
-    persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor, processor::Processor,
+    persistentvolumeclaim::PersistentVolumeClaimProcessor, pod::PodProcessor,
+    processor::{FilterParams, Processor},
     replicaset::ReplicaSetProcessor, secret::SecretProcessor, service::ServiceProcessor,
     serviceaccount::ServiceAccountProcessor, statefulset::StatefulsetProcessor,
     storageclass::StorageClassProcessor,
@@ -96,13 +97,9 @@ fn run<P: Processor>(
     proc_impl: &P,
     lua: &Lua,
     items: &[DynamicObject],
-    sort_by: Option<String>,
-    sort_order: Option<String>,
-    filter: Option<String>,
-    filter_label: Option<Vec<String>>,
-    filter_key: Option<String>,
+    params: &FilterParams,
 ) -> LuaResult<String> {
-    let rows = proc_impl.process(items, sort_by, sort_order, filter, filter_label, filter_key)?;
+    let rows = proc_impl.process(items, params)?;
 
     let json_span = span!(Level::INFO, "json_convert").entered();
 
@@ -121,67 +118,51 @@ impl ProcessorKind {
         lua: &Lua,
         gvk: Gvk,
         ns: Option<String>,
-        sort_by: Option<String>,
-        sort_order: Option<String>,
-        filter: Option<String>,
-        filter_label: Option<Vec<String>>,
-        filter_key: Option<String>,
+        params: &FilterParams,
     ) -> LuaResult<mlua::Value> {
-        use ProcessorKind::*;
         match self {
-            Fallback => FallbackProcessor.process_fallback(
-                lua,
-                gvk,
-                ns,
-                sort_by,
-                sort_order,
-                filter,
-                filter_label,
-                filter_key,
-            ),
+            ProcessorKind::Fallback => {
+                FallbackProcessor.process_fallback(lua, gvk, ns, params)
+            }
             _ => Err(mlua::Error::external(
                 "process_fallback is implemented only for the fallback processor",
             )),
         }
     }
-    #[rustfmt::skip]
+
     pub fn process(
         &self,
         lua: &Lua,
         items: &[DynamicObject],
-        sort_by: Option<String>,
-        sort_order: Option<String>,
-        filter: Option<String>,
-        filter_label: Option<Vec<String>>,
-        filter_key: Option<String>,
+        params: &FilterParams,
     ) -> LuaResult<String> {
         use ProcessorKind::*;
         match self {
-            ClusterRole=> run(&ClusterRoleProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Event=> run(&EventProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            ClusterRoleBinding => run(&ClusterRoleBindingProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            ConfigMap => run(&ConfigmapProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Container => run(&ContainerProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            CronJob => run(&CronJobProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            CustomResourceDefinition => run(&ClusterResourceDefinitionProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            DaemonSet => run(&DaemonsetProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Default => run(&DefaultProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Deployment => run(&DeploymentProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Fallback => run(&FallbackProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            HorizontalPodAutoscaler => run(&HorizontalPodAutoscalerProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Ingress => run(&IngressProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Job => run(&JobProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Node => run(&NodeProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Namespace => run(&NamespaceProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            PersistentVolume => run(&PersistentVolumeProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            PersistentVolumeClaim => run(&PersistentVolumeClaimProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Pod => run(&PodProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            ReplicaSet => run(&ReplicaSetProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Secret => run(&SecretProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            Service => run(&ServiceProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            ServiceAccount => run(&ServiceAccountProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            StatefulSet => run(&StatefulsetProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
-            StorageClass => run(&StorageClassProcessor, lua, items, sort_by, sort_order, filter, filter_label.clone(), filter_key.clone()),
+            ClusterRole => run(&ClusterRoleProcessor, lua, items, params),
+            ClusterRoleBinding => run(&ClusterRoleBindingProcessor, lua, items, params),
+            ConfigMap => run(&ConfigmapProcessor, lua, items, params),
+            Container => run(&ContainerProcessor, lua, items, params),
+            CronJob => run(&CronJobProcessor, lua, items, params),
+            CustomResourceDefinition => run(&ClusterResourceDefinitionProcessor, lua, items, params),
+            DaemonSet => run(&DaemonsetProcessor, lua, items, params),
+            Default => run(&DefaultProcessor, lua, items, params),
+            Deployment => run(&DeploymentProcessor, lua, items, params),
+            Event => run(&EventProcessor, lua, items, params),
+            Fallback => run(&FallbackProcessor, lua, items, params),
+            HorizontalPodAutoscaler => run(&HorizontalPodAutoscalerProcessor, lua, items, params),
+            Ingress => run(&IngressProcessor, lua, items, params),
+            Job => run(&JobProcessor, lua, items, params),
+            Namespace => run(&NamespaceProcessor, lua, items, params),
+            Node => run(&NodeProcessor, lua, items, params),
+            PersistentVolume => run(&PersistentVolumeProcessor, lua, items, params),
+            PersistentVolumeClaim => run(&PersistentVolumeClaimProcessor, lua, items, params),
+            Pod => run(&PodProcessor, lua, items, params),
+            ReplicaSet => run(&ReplicaSetProcessor, lua, items, params),
+            Secret => run(&SecretProcessor, lua, items, params),
+            Service => run(&ServiceProcessor, lua, items, params),
+            ServiceAccount => run(&ServiceAccountProcessor, lua, items, params),
+            StatefulSet => run(&StatefulsetProcessor, lua, items, params),
+            StorageClass => run(&StorageClassProcessor, lua, items, params),
         }
     }
 }
