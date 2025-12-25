@@ -592,65 +592,70 @@ fn get_limit_color(current: u64, limit: Option<u64>) -> Color {
     }
 }
 
-/// Formats time markers for the expanded sparkline view.
+/// Formats time markers for the expanded sparkline view as a visual timeline.
+/// Shows actual collected data range with "now" always at the right.
 fn format_time_markers(data_points: usize, width: u16) -> String {
-    // Assuming ~15 second intervals between data points
     let total_seconds = data_points * 15;
-    let total_minutes = total_seconds / 60;
+    let w = width as usize;
 
-    if total_minutes == 0 {
-        return format!("{:>width$}", "now", width = width as usize);
+    if w < 10 {
+        return "now".to_string();
     }
 
-    // Create evenly spaced markers
-    let markers = if total_minutes >= 10 {
-        vec![
-            format!("{}m ago", total_minutes),
-            format!("{}m", total_minutes / 2),
-            "now".to_string(),
-        ]
+    // Build the timeline base
+    let mut result: Vec<char> = vec!['─'; w];
+
+    // Always show "now" marker at the right with a bullet point
+    let now_label = "●now";
+    let now_pos = w.saturating_sub(now_label.chars().count());
+    for (i, c) in now_label.chars().enumerate() {
+        if now_pos + i < w {
+            result[now_pos + i] = c;
+        }
+    }
+
+    // Format the start time based on how much data we have
+    let start_label = if total_seconds == 0 {
+        "○".to_string() // Empty circle - no history yet
+    } else if total_seconds < 60 {
+        format!("{}s", total_seconds)
     } else {
-        vec![format!("{}m ago", total_minutes), "now".to_string()]
+        let minutes = total_seconds / 60;
+        format!("{}m", minutes)
     };
 
-    let w = width as usize;
-    if markers.len() == 3 {
-        let left = &markers[0];
-        let mid = &markers[1];
-        let right = &markers[2];
-        let mid_pos = w / 2;
-        let mid_start = mid_pos.saturating_sub(mid.len() / 2);
-        let right_start = w.saturating_sub(right.len());
-
-        let mut result = " ".repeat(w);
-        // Place left marker
-        for (i, c) in left.chars().enumerate() {
-            if i < result.len() {
-                result.replace_range(i..i + 1, &c.to_string());
-            }
+    // Place start label at the left
+    for (i, c) in start_label.chars().enumerate() {
+        if i < w.saturating_sub(now_label.chars().count() + 2) {
+            result[i] = c;
         }
-        // Place middle marker
-        for (i, c) in mid.chars().enumerate() {
-            let pos = mid_start + i;
-            if pos < result.len() {
-                result.replace_range(pos..pos + 1, &c.to_string());
-            }
-        }
-        // Place right marker
-        for (i, c) in right.chars().enumerate() {
-            let pos = right_start + i;
-            if pos < result.len() {
-                result.replace_range(pos..pos + 1, &c.to_string());
-            }
-        }
-        result
-    } else {
-        let left = &markers[0];
-        let right = &markers[1];
-        let right_start = w.saturating_sub(right.len());
-        let padding = right_start.saturating_sub(left.len());
-        format!("{}{:padding$}{}", left, "", right, padding = padding)
     }
+
+    // Add middle marker if we have enough space and time
+    let total_minutes = total_seconds / 60;
+    if total_minutes >= 2 && w > 30 {
+        let mid_label = format!("{}m", total_minutes / 2);
+        let mid_pos = w / 2 - mid_label.chars().count() / 2;
+
+        // Only place if it doesn't overlap with start or end
+        if mid_pos > start_label.chars().count() + 2
+            && mid_pos + mid_label.chars().count() + 2 < now_pos
+        {
+            // Add tick marks
+            if mid_pos > 0 {
+                result[mid_pos - 1] = '┤';
+            }
+            for (i, c) in mid_label.chars().enumerate() {
+                result[mid_pos + i] = c;
+            }
+            let end = mid_pos + mid_label.chars().count();
+            if end < w {
+                result[end] = '├';
+            }
+        }
+    }
+
+    result.into_iter().collect()
 }
 
 /// Converts a VecDeque to a Vec, taking at most `max_w` elements.
