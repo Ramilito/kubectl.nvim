@@ -93,7 +93,7 @@ local function color_name_to_hex(name)
   -- Indexed color (i followed by number)
   local idx = name:match("^i(%d+)$")
   if idx then
-    return ansi256_to_hex(tonumber(idx))
+    return ansi256_to_hex(tonumber(idx) --[[@as number]])
   end
 
   return nil
@@ -194,7 +194,7 @@ end
 --- Create keymaps for dashboard navigation.
 --- Uses native vim motions and folding - only special keys are mapped.
 ---@param buf number Buffer number
----@param sess userdata Session object
+---@param sess kubectl.DashboardSession Session object
 local function setup_keymaps(buf, sess)
   local opts = { buffer = buf, noremap = true, silent = true }
 
@@ -284,6 +284,7 @@ function M.open(view_name, title)
     vim.api.nvim_buf_delete(buf, { force = true })
     return
   end
+  ---@cast sess kubectl.DashboardSession
 
   -- Send initial size immediately (Rust will adjust height based on content)
   sess:resize(win_width, win_height)
