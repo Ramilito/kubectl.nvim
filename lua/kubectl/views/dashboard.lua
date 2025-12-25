@@ -214,6 +214,13 @@ local function setup_keymaps(buf, sess)
     end, 10)
   end
 
+  -- Helper to send cursor position to Rust (0-indexed)
+  local function send_cursor()
+    local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1 -- Convert to 0-indexed
+    local cursor_msg = string.format("\x00CURSOR:%d\x00", cursor_line)
+    sess:write(cursor_msg)
+  end
+
   -- Tab switching and help
   for _, key in ipairs({ "<Tab>", "<S-Tab>", "?" }) do
     vim.keymap.set("n", key, function()

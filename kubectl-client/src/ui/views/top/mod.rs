@@ -35,16 +35,77 @@ const GRAPH_H: u16 = 3; // Graph rows (with label overlay)
 const ROW_H: u16 = GRAPH_H + 1; // +1 blank spacer row
 const NS_HEADER_H: u16 = 1; // Namespace header row
 
+/// Height for expanded pod view.
+const EXPANDED_H: u16 = 10;
+
 /// Top view displaying nodes and pods metrics.
 #[derive(Default)]
 pub struct TopView {
     state: TopViewState,
 }
 
+impl TopView {
+    /// Finds the pod at the current cursor line and toggles its expansion.
+    fn toggle_pod_at_cursor(&mut self) {
+        // Header offset: tabs(1) + blank(1) + header(1) = 3 lines
+        const HEADER_OFFSET: u16 = 3;
+
+        let cursor = self.state.cursor_line;
+        if cursor < HEADER_OFFSET {
+            return;
+        }
+
+        let body_line = cursor - HEADER_OFFSET;
+
+        // Get pod data and find which pod is at this line
+        let pod_snapshot: Vec<PodStat> = pod_stats()
+            .lock()
+            .map(|guard| guard.values().cloned().collect())
+            .unwrap_or_default();
+
+        // Group by namespace (same as in draw)
+        let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
+        for p in &pod_snapshot {
+            grouped.entry(p.namespace.as_str()).or_default().push(p);
+        }
+
+        // Walk through layout to find pod at cursor line
+        let mut y: u16 = 0;
+        for (ns, ns_pods) in grouped.iter() {
+            // Namespace header
+            if body_line == y {
+                // Cursor on namespace header, ignore
+                return;
+            }
+            y += NS_HEADER_H;
+
+            // Pods in this namespace
+            for p in ns_pods {
+                let pod_height = if self.state.is_expanded(&p.namespace, &p.name) {
+                    EXPANDED_H
+                } else {
+                    ROW_H
+                };
+
+                if body_line >= y && body_line < y + pod_height {
+                    // Found the pod - toggle expansion
+                    self.state
+                        .toggle_expansion(ns.to_string(), p.name.clone());
+                    return;
+                }
+                y += pod_height;
+            }
+
+            // Separator line
+            y += 1;
+        }
+    }
+}
+
 impl View for TopView {
-    fn set_cursor_line(&mut self, _line: u16) -> bool {
-        // Neovim handles cursor position natively
-        false
+    fn set_cursor_line(&mut self, line: u16) -> bool {
+        self.state.set_cursor(line);
+        true
     }
 
     fn on_event(&mut self, ev: &Event) -> bool {
@@ -70,6 +131,15 @@ impl View for TopView {
                         self.state.next_tab();
                         true
                     }
+                    KeyCode::Char('j') => {
+                        // j - expand/collapse pod details
+                        if self.state.selected_tab == 1 {
+                            self.toggle_pod_at_cursor();
+                            true
+                        } else {
+                            false
+                        }
+                    }
                     _ => false,
                 }
             }
@@ -83,8 +153,7 @@ impl View for TopView {
     }
 
     fn content_height(&self) -> Option<u16> {
-        // Calculate maximum possible height based on current data
-        // This is fast: just count items, no filtering/grouping needed
+        // Calculate height based on current data and expansion state
         const HEADER_LINES: u16 = 3;
 
         if self.state.selected_tab == 0 {
@@ -92,19 +161,30 @@ impl View for TopView {
             let count = node_stats().lock().map(|g| g.len()).unwrap_or(0) as u16;
             Some(HEADER_LINES + count * CARD_HEIGHT)
         } else {
-            // Pods: worst case is all expanded
-            // Each namespace = header (1) + separator (1), each pod = ROW_H lines
-            let (ns_count, pod_count) = pod_stats()
+            // Pods: account for expanded pod if any
+            let pod_snapshot: Vec<PodStat> = pod_stats()
                 .lock()
-                .map(|g| {
-                    let mut namespaces = std::collections::HashSet::new();
-                    for key in g.keys() {
-                        namespaces.insert(&key.0); // key is (namespace, name) tuple
+                .map(|guard| guard.values().cloned().collect())
+                .unwrap_or_default();
+
+            let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
+            for p in &pod_snapshot {
+                grouped.entry(p.namespace.as_str()).or_default().push(p);
+            }
+
+            let mut height = HEADER_LINES;
+            for (_, ns_pods) in grouped.iter() {
+                height += NS_HEADER_H; // Namespace header
+                for p in ns_pods {
+                    if self.state.is_expanded(&p.namespace, &p.name) {
+                        height += EXPANDED_H;
+                    } else {
+                        height += ROW_H;
                     }
-                    (namespaces.len(), g.len())
-                })
-                .unwrap_or((0, 0));
-            Some(HEADER_LINES + ns_count as u16 * 2 + pod_count as u16 * ROW_H)
+                }
+                height += 1; // Separator
+            }
+            Some(height)
         }
     }
 }
@@ -145,7 +225,7 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
     if state.selected_tab == 0 {
         draw_nodes_tab(f, hdr_area, body_area, &node_snapshot);
     } else {
-        draw_pods_tab(f, hdr_area, body_area, &pod_snapshot);
+        draw_pods_tab(f, hdr_area, body_area, &pod_snapshot, state);
     }
 
     // Help overlay
@@ -201,7 +281,13 @@ fn draw_nodes_tab(
 
 /// Draws the Pods tab content.
 /// Renders directly to frame - Neovim handles scrolling and folding natively.
-fn draw_pods_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, pods: &[PodStat]) {
+fn draw_pods_tab(
+    f: &mut Frame,
+    hdr_area: Rect,
+    body_area: Rect,
+    pods: &[PodStat],
+    state: &TopViewState,
+) {
     use crate::ui::layout::calculate_name_width;
 
     // Group by namespace
@@ -249,122 +335,23 @@ fn draw_pods_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, pods: &[PodStat
 
         // Render pods in namespace
         for p in ns_pods {
+            let is_expanded = state.is_expanded(&p.namespace, &p.name);
+            let pod_height = if is_expanded { EXPANDED_H } else { GRAPH_H };
+
             let graph_rect = Rect {
                 x: body_area.x,
                 y,
                 width: body_area.width,
-                height: GRAPH_H,
+                height: pod_height,
             };
 
-            let [name_col, cpu_col, _gap, mem_col] = column_split(graph_rect, title_w);
-
-            // Name column (indented)
-            f.render_widget(
-                Block::new()
-                    .borders(Borders::NONE)
-                    .title(format!("  {}", p.name))
-                    .fg(tailwind::BLUE.c400),
-                name_col,
-            );
-
-            // Sparklines with current value and delta
-            let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width.saturating_sub(12));
-            let mem_data = deque_to_vec(&p.mem_history, mem_col.width.saturating_sub(12));
-            let cpu_delta = calc_delta(p.cpu_m, &p.cpu_history);
-            let mem_delta = calc_delta(p.mem_mi, &p.mem_history);
-
-            // CPU sparkline
-            f.render_widget(
-                Sparkline::default()
-                    .data(&cpu_data)
-                    .style(Style::default().fg(tailwind::GREEN.c500)),
-                Rect {
-                    width: cpu_col.width.saturating_sub(12),
-                    ..cpu_col
-                },
-            );
-
-            // Label area for current value and delta (right side, doesn't overlap sparkline)
-            let label_width = 12u16;
-            let cpu_label_area = Rect {
-                x: cpu_col.x + cpu_col.width.saturating_sub(label_width),
-                y: cpu_col.y,
-                width: label_width.min(cpu_col.width),
-                height: 1,
-            };
-
-            // CPU current value
-            let cpu_label = format!("{}m", p.cpu_m);
-            f.render_widget(
-                Paragraph::new(cpu_label)
-                    .alignment(Alignment::Right)
-                    .style(Style::default().fg(tailwind::GREEN.c300).add_modifier(Modifier::BOLD)),
-                cpu_label_area,
-            );
-
-            // CPU delta line
-            if let Some((delta, is_up)) = cpu_delta {
-                if delta > 0 {
-                    let delta_label = if is_up {
-                        format!("↑{}m", delta)
-                    } else {
-                        format!("↓{}m", delta)
-                    };
-                    f.render_widget(
-                        Paragraph::new(delta_label)
-                            .alignment(Alignment::Right)
-                            .style(Style::default().fg(tailwind::GRAY.c500)),
-                        Rect { y: cpu_label_area.y + 1, ..cpu_label_area },
-                    );
-                }
+            if is_expanded {
+                draw_expanded_pod(f, graph_rect, p, title_w);
+            } else {
+                draw_compact_pod(f, graph_rect, p, title_w);
             }
 
-            // MEM sparkline
-            f.render_widget(
-                Sparkline::default()
-                    .data(&mem_data)
-                    .style(Style::default().fg(tailwind::ORANGE.c400)),
-                Rect {
-                    width: mem_col.width.saturating_sub(12),
-                    ..mem_col
-                },
-            );
-
-            // Label area for MEM current value and delta (right side, doesn't overlap sparkline)
-            let mem_label_area = Rect {
-                x: mem_col.x + mem_col.width.saturating_sub(label_width),
-                y: mem_col.y,
-                width: label_width.min(mem_col.width),
-                height: 1,
-            };
-
-            // MEM current value
-            let mem_label = format!("{} MiB", p.mem_mi);
-            f.render_widget(
-                Paragraph::new(mem_label)
-                    .alignment(Alignment::Right)
-                    .style(Style::default().fg(tailwind::ORANGE.c300).add_modifier(Modifier::BOLD)),
-                mem_label_area,
-            );
-
-            // MEM delta line
-            if let Some((delta, is_up)) = mem_delta {
-                if delta > 0 {
-                    let delta_label = if is_up {
-                        format!("↑{} MiB", delta)
-                    } else {
-                        format!("↓{} MiB", delta)
-                    };
-                    f.render_widget(
-                        Paragraph::new(delta_label)
-                            .alignment(Alignment::Right)
-                            .style(Style::default().fg(tailwind::GRAY.c500)),
-                        Rect { y: mem_label_area.y + 1, ..mem_label_area },
-                    );
-                }
-            }
-
-            y += ROW_H;
+            y += if is_expanded { EXPANDED_H } else { ROW_H };
         }
 
         // Add separator line after namespace group
@@ -380,6 +367,301 @@ fn draw_pods_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, pods: &[PodStat
             sep_rect,
         );
         y += 1;
+    }
+}
+
+/// Draws a compact (non-expanded) pod row.
+fn draw_compact_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
+    let [name_col, cpu_col, _gap, mem_col] = column_split(area, title_w);
+
+    // Name column (indented)
+    f.render_widget(
+        Block::new()
+            .borders(Borders::NONE)
+            .title(format!("  {}", p.name))
+            .fg(tailwind::BLUE.c400),
+        name_col,
+    );
+
+    // Sparklines with current value and delta
+    let label_width = 12u16;
+    let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width.saturating_sub(label_width));
+    let mem_data = deque_to_vec(&p.mem_history, mem_col.width.saturating_sub(label_width));
+    let cpu_delta = calc_delta(p.cpu_m, &p.cpu_history);
+    let mem_delta = calc_delta(p.mem_mi, &p.mem_history);
+
+    // CPU sparkline
+    f.render_widget(
+        Sparkline::default()
+            .data(&cpu_data)
+            .style(Style::default().fg(tailwind::GREEN.c500)),
+        Rect {
+            width: cpu_col.width.saturating_sub(label_width),
+            ..cpu_col
+        },
+    );
+
+    // Label area for current value and delta (right side, doesn't overlap sparkline)
+    let cpu_label_area = Rect {
+        x: cpu_col.x + cpu_col.width.saturating_sub(label_width),
+        y: cpu_col.y,
+        width: label_width.min(cpu_col.width),
+        height: 1,
+    };
+
+    // CPU current value
+    let cpu_label = format!("{}m", p.cpu_m);
+    f.render_widget(
+        Paragraph::new(cpu_label)
+            .alignment(Alignment::Right)
+            .style(
+                Style::default()
+                    .fg(tailwind::GREEN.c300)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        cpu_label_area,
+    );
+
+    // CPU delta line
+    if let Some((delta, is_up)) = cpu_delta {
+        if delta > 0 {
+            let delta_label = if is_up {
+                format!("↑{}m", delta)
+            } else {
+                format!("↓{}m", delta)
+            };
+            f.render_widget(
+                Paragraph::new(delta_label)
+                    .alignment(Alignment::Right)
+                    .style(Style::default().fg(tailwind::GRAY.c500)),
+                Rect {
+                    y: cpu_label_area.y + 1,
+                    ..cpu_label_area
+                },
+            );
+        }
+    }
+
+    // MEM sparkline
+    f.render_widget(
+        Sparkline::default()
+            .data(&mem_data)
+            .style(Style::default().fg(tailwind::ORANGE.c400)),
+        Rect {
+            width: mem_col.width.saturating_sub(label_width),
+            ..mem_col
+        },
+    );
+
+    // Label area for MEM current value and delta (right side, doesn't overlap sparkline)
+    let mem_label_area = Rect {
+        x: mem_col.x + mem_col.width.saturating_sub(label_width),
+        y: mem_col.y,
+        width: label_width.min(mem_col.width),
+        height: 1,
+    };
+
+    // MEM current value
+    let mem_label = format!("{} MiB", p.mem_mi);
+    f.render_widget(
+        Paragraph::new(mem_label)
+            .alignment(Alignment::Right)
+            .style(
+                Style::default()
+                    .fg(tailwind::ORANGE.c300)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        mem_label_area,
+    );
+
+    // MEM delta line
+    if let Some((delta, is_up)) = mem_delta {
+        if delta > 0 {
+            let delta_label = if is_up {
+                format!("↑{} MiB", delta)
+            } else {
+                format!("↓{} MiB", delta)
+            };
+            f.render_widget(
+                Paragraph::new(delta_label)
+                    .alignment(Alignment::Right)
+                    .style(Style::default().fg(tailwind::GRAY.c500)),
+                Rect {
+                    y: mem_label_area.y + 1,
+                    ..mem_label_area
+                },
+            );
+        }
+    }
+}
+
+/// Draws an expanded pod view with larger sparklines and resource info.
+fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
+    // Layout (using same row 0 as compact view to avoid shifting):
+    // Row 0: ▼ pod-name    CPU: current/limit (%)    MEM: current/limit (%)
+    // Rows 1-(n-1): Sparklines
+    // Row n-1: Time markers (inside sparkline area)
+
+    let [name_col, cpu_col, _gap, mem_col] = column_split(area, title_w);
+
+    // Row 0: Pod name with expansion indicator
+    f.render_widget(
+        Paragraph::new(format!("▼ {}", p.name))
+            .style(Style::default().fg(tailwind::BLUE.c300).add_modifier(Modifier::BOLD)),
+        Rect { height: 1, ..name_col },
+    );
+
+    // Row 0 (right side): Resource summary
+    let cpu_summary = format_resource_summary_short(p.cpu_m, p.cpu_limit_m, "m");
+    let mem_summary = format_resource_summary_short(p.mem_mi, p.mem_limit_mi, " MiB");
+
+    let cpu_color = get_limit_color(p.cpu_m, p.cpu_limit_m);
+    let mem_color = get_limit_color(p.mem_mi, p.mem_limit_mi);
+
+    f.render_widget(
+        Paragraph::new(cpu_summary).style(Style::default().fg(cpu_color)),
+        Rect { x: cpu_col.x, y: area.y, width: cpu_col.width, height: 1 },
+    );
+    f.render_widget(
+        Paragraph::new(mem_summary).style(Style::default().fg(mem_color)),
+        Rect { x: mem_col.x, y: area.y, width: mem_col.width, height: 1 },
+    );
+
+    // Sparklines (rows 1 to n-1)
+    let sparkline_y = area.y + 1;
+    let sparkline_height = area.height.saturating_sub(2); // Row 0 for header, last row for time
+
+    let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width);
+    let mem_data = deque_to_vec(&p.mem_history, mem_col.width);
+
+    f.render_widget(
+        Sparkline::default()
+            .data(&cpu_data)
+            .style(Style::default().fg(tailwind::GREEN.c500)),
+        Rect {
+            x: cpu_col.x,
+            y: sparkline_y,
+            width: cpu_col.width,
+            height: sparkline_height,
+        },
+    );
+
+    f.render_widget(
+        Sparkline::default()
+            .data(&mem_data)
+            .style(Style::default().fg(tailwind::ORANGE.c400)),
+        Rect {
+            x: mem_col.x,
+            y: sparkline_y,
+            width: mem_col.width,
+            height: sparkline_height,
+        },
+    );
+
+    // Time markers on bottom row of sparkline area
+    let time_y = area.y + area.height - 1;
+    let history_len = p.cpu_history.len();
+
+    // Format time markers for each column's width separately
+    let cpu_time = format_time_markers(history_len, cpu_col.width);
+    let mem_time = format_time_markers(history_len, mem_col.width);
+
+    f.render_widget(
+        Paragraph::new(cpu_time).style(Style::default().fg(tailwind::GRAY.c500)),
+        Rect { x: cpu_col.x, y: time_y, width: cpu_col.width, height: 1 },
+    );
+    f.render_widget(
+        Paragraph::new(mem_time).style(Style::default().fg(tailwind::GRAY.c500)),
+        Rect { x: mem_col.x, y: time_y, width: mem_col.width, height: 1 },
+    );
+}
+
+/// Short format for resource summary: "250m/500m (50%)" or just "250m"
+fn format_resource_summary_short(current: u64, limit: Option<u64>, unit: &str) -> String {
+    match limit {
+        Some(lim) if lim > 0 => {
+            let pct = (current as f64 / lim as f64 * 100.0) as u64;
+            format!("{}{}/{}{} ({}%)", current, unit, lim, unit, pct)
+        }
+        _ => format!("{}{}", current, unit),
+    }
+}
+
+/// Returns color based on current usage vs limit percentage.
+fn get_limit_color(current: u64, limit: Option<u64>) -> Color {
+    match limit {
+        Some(lim) if lim > 0 => {
+            let pct = (current as f64 / lim as f64 * 100.0) as u64;
+            if pct > 90 {
+                tailwind::RED.c400
+            } else if pct > 70 {
+                tailwind::YELLOW.c400
+            } else {
+                tailwind::GREEN.c400
+            }
+        }
+        _ => tailwind::GRAY.c300,
+    }
+}
+
+/// Formats time markers for the expanded sparkline view.
+fn format_time_markers(data_points: usize, width: u16) -> String {
+    // Assuming ~15 second intervals between data points
+    let total_seconds = data_points * 15;
+    let total_minutes = total_seconds / 60;
+
+    if total_minutes == 0 {
+        return format!("{:>width$}", "now", width = width as usize);
+    }
+
+    // Create evenly spaced markers
+    let markers = if total_minutes >= 10 {
+        vec![
+            format!("{}m ago", total_minutes),
+            format!("{}m", total_minutes / 2),
+            "now".to_string(),
+        ]
+    } else {
+        vec![format!("{}m ago", total_minutes), "now".to_string()]
+    };
+
+    let w = width as usize;
+    if markers.len() == 3 {
+        let left = &markers[0];
+        let mid = &markers[1];
+        let right = &markers[2];
+        let mid_pos = w / 2;
+        let mid_start = mid_pos.saturating_sub(mid.len() / 2);
+        let right_start = w.saturating_sub(right.len());
+
+        let mut result = " ".repeat(w);
+        // Place left marker
+        for (i, c) in left.chars().enumerate() {
+            if i < result.len() {
+                result.replace_range(i..i + 1, &c.to_string());
+            }
+        }
+        // Place middle marker
+        for (i, c) in mid.chars().enumerate() {
+            let pos = mid_start + i;
+            if pos < result.len() {
+                result.replace_range(pos..pos + 1, &c.to_string());
+            }
+        }
+        // Place right marker
+        for (i, c) in right.chars().enumerate() {
+            let pos = right_start + i;
+            if pos < result.len() {
+                result.replace_range(pos..pos + 1, &c.to_string());
+            }
+        }
+        result
+    } else {
+        let left = &markers[0];
+        let right = &markers[1];
+        let right_start = w.saturating_sub(right.len());
+        let padding = right_start.saturating_sub(left.len());
+        format!("{}{:padding$}{}", left, "", right, padding = padding)
     }
 }
 
