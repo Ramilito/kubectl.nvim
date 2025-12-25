@@ -11,6 +11,7 @@ use tokio::{task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
+use super::mark_node_stats_dirty;
 use crate::{node_stats, processors::node::get_status};
 
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
@@ -120,6 +121,8 @@ impl NodeCollector {
                             }
                         }
                         *stats.lock().unwrap() = out;
+                        // Signal that new data is available
+                        mark_node_stats_dirty();
                     }
                     Err(e) => warn!(error=%e, "failed to fetch node metrics/capacity"),
                             }

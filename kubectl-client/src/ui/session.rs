@@ -7,7 +7,7 @@
 //! outputting structured data (lines + extmarks) that can be applied to a
 //! regular Neovim buffer using `nvim_buf_set_lines` and `nvim_buf_set_extmark`.
 
-use crate::RUNTIME;
+use crate::{metrics::take_metrics_dirty, RUNTIME};
 use mlua::{prelude::*, UserData, UserDataMethods};
 use ratatui::{
     backend::Backend,
@@ -250,10 +250,15 @@ async fn run_buffer_ui(
                 }
             }
 
-            // Periodic refresh
+            // Periodic refresh - only redraw if metrics data has changed
             _ = tick.tick() => {
                 if !open.load(Ordering::Acquire) {
                     break;
+                }
+
+                // Skip render if no new data available
+                if !take_metrics_dirty() {
+                    continue;
                 }
 
                 // Get width from Lua, height from content

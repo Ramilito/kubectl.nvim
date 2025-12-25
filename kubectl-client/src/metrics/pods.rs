@@ -10,6 +10,7 @@ use tokio::{task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
+use super::mark_pod_stats_dirty;
 use crate::{pod_stats, store};
 
 pub const HISTORY_LEN: usize = 60; // ≈ 30 s @ 500 ms tick or 30 min @ 30 s tick
@@ -326,6 +327,8 @@ impl PodCollector {
                                 if let Ok(mut guard) = stats.lock() {
                                     *guard = current_stats;
                                 }
+                                // Signal that new data is available
+                                mark_pod_stats_dirty();
                             }
                             Err(e) => warn!(error=%e, "failed to fetch pod metrics"),
                         }
