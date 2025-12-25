@@ -40,16 +40,17 @@ pub fn draw_help_bar(f: &mut Frame, area: Rect, hints: &[(&str, &str)]) {
 
 /// Help hints for TopView Nodes tab.
 pub fn top_nodes_hints() -> Vec<(&'static str, &'static str)> {
-    vec![("Tab", "switch"), ("j/k", "navigate"), ("q", "quit")]
+    vec![("Tab", "to pods"), ("q", "quit")]
 }
 
 /// Help hints for TopView Pods tab.
 pub fn top_pods_hints() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("Tab", "switch"),
-        ("j/k", "navigate"),
+        ("Tab", "to nodes"),
         ("K", "details"),
         ("za", "fold"),
+        ("zM", "fold all"),
+        ("zR", "fold open all"),
         ("q", "quit"),
     ]
 }
