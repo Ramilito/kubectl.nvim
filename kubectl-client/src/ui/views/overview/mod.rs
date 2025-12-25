@@ -12,7 +12,7 @@
 mod data;
 mod state;
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::Event;
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect, Size},
     style::{palette::tailwind, Color, Modifier, Style},
@@ -26,7 +26,7 @@ use crate::{
     metrics::nodes::NodeStat,
     node_stats,
     ui::{
-        components::{draw_help_overlay, make_gauge, overview_help_items, GaugeStyle},
+        components::{draw_help_bar, make_gauge, overview_hints, GaugeStyle},
         views::View,
     },
 };
@@ -42,30 +42,9 @@ pub struct OverviewView {
 }
 
 impl View for OverviewView {
-    fn on_event(&mut self, ev: &Event) -> bool {
-        match ev {
-            Event::Key(k) => {
-                // Help overlay intercepts most keys
-                if self.state.is_help_visible() {
-                    match k.code {
-                        KeyCode::Char('?') | KeyCode::Esc => {
-                            self.state.toggle_help();
-                            return true;
-                        }
-                        _ => return true, // Consume all keys when help is open
-                    }
-                }
-
-                match k.code {
-                    KeyCode::Char('?') => {
-                        self.state.toggle_help();
-                        true
-                    }
-                    _ => false,
-                }
-            }
-            _ => false,
-        }
+    fn on_event(&mut self, _ev: &Event) -> bool {
+        // No special key handling needed - help is always visible inline
+        false
     }
 
     fn draw(&mut self, f: &mut Frame, area: Rect) {
@@ -74,10 +53,20 @@ impl View for OverviewView {
 }
 
 /// Main draw function for the Overview view.
-fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
-    // Split into 2 rows × 3 columns
+fn draw(f: &mut Frame, area: Rect, _st: &mut OverviewState) {
+    // Layout: help bar at top, then 2 rows × 3 columns
+    let [help_area, content_area] = Layout::vertical([
+        Constraint::Length(1), // Help bar
+        Constraint::Min(0),    // Rest for content
+    ])
+    .areas(area);
+
+    // Draw help bar
+    draw_help_bar(f, help_area, &overview_hints());
+
+    // Split content into 2 rows × 3 columns
     let rows =
-        Layout::vertical([Constraint::Percentage(60), Constraint::Percentage(40)]).split(area);
+        Layout::vertical([Constraint::Percentage(60), Constraint::Percentage(40)]).split(content_area);
 
     let cols_top = Layout::horizontal([
         Constraint::Percentage(33),
@@ -200,11 +189,6 @@ fn draw(f: &mut Frame, area: Rect, st: &mut OverviewState) {
     draw_nodes_table(f, cols_bot[0], " Top-CPU ", &by_cpu[..by_cpu.len().min(30)]);
     draw_nodes_table(f, cols_bot[1], " Top-MEM ", &by_mem[..by_mem.len().min(30)]);
     draw_text_list(f, cols_bot[2], " Events ", &events, Color::Yellow);
-
-    // Help overlay
-    if st.show_help {
-        draw_help_overlay(f, area, "Help", &overview_help_items(), Some("Press ? to close"));
-    }
 }
 
 /// Draws a scrollable list of text lines.

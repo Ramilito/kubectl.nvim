@@ -21,7 +21,7 @@ use crate::{
     metrics::{nodes::NodeStat, pods::PodStat},
     node_stats, pod_stats,
     ui::{
-        components::{draw_header, draw_help_overlay, make_gauge, top_view_help_items, GaugeStyle},
+        components::{draw_header, draw_help_bar, make_gauge, top_nodes_hints, top_pods_hints, GaugeStyle},
         layout::column_split,
         views::View,
     },
@@ -47,8 +47,8 @@ pub struct TopView {
 impl TopView {
     /// Finds the pod at the current cursor line and toggles its expansion.
     fn toggle_pod_at_cursor(&mut self) {
-        // Header offset: tabs(1) + blank(1) + header(1) = 3 lines
-        const HEADER_OFFSET: u16 = 3;
+        // Header offset: help_bar(1) + tabs(1) + blank(1) + header(1) = 4 lines
+        const HEADER_OFFSET: u16 = 4;
 
         let cursor = self.state.cursor_line;
         if cursor < HEADER_OFFSET {
@@ -110,39 +110,22 @@ impl View for TopView {
 
     fn on_event(&mut self, ev: &Event) -> bool {
         match ev {
-            Event::Key(k) => {
-                // Help overlay intercepts most keys
-                if self.state.is_help_visible() {
-                    match k.code {
-                        KeyCode::Char('?') | KeyCode::Esc => {
-                            self.state.toggle_help();
-                            return true;
-                        }
-                        _ => return true, // Consume all keys when help is open
+            Event::Key(k) => match k.code {
+                KeyCode::Tab => {
+                    self.state.next_tab();
+                    true
+                }
+                KeyCode::Char('K') => {
+                    // K - expand/collapse pod details
+                    if self.state.selected_tab == 1 {
+                        self.toggle_pod_at_cursor();
+                        true
+                    } else {
+                        false
                     }
                 }
-
-                match k.code {
-                    KeyCode::Char('?') => {
-                        self.state.toggle_help();
-                        true
-                    }
-                    KeyCode::Tab => {
-                        self.state.next_tab();
-                        true
-                    }
-                    KeyCode::Char('K') => {
-                        // K - expand/collapse pod details
-                        if self.state.selected_tab == 1 {
-                            self.toggle_pod_at_cursor();
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                    _ => false,
-                }
-            }
+                _ => false,
+            },
             Event::Mouse(_) => false,
             _ => false,
         }
@@ -154,7 +137,8 @@ impl View for TopView {
 
     fn content_height(&self) -> Option<u16> {
         // Calculate height based on current data and expansion state
-        const HEADER_LINES: u16 = 3;
+        // help_bar(1) + tabs(1) + blank(1) + header(1) = 4 lines
+        const HEADER_LINES: u16 = 4;
 
         if self.state.selected_tab == 0 {
             // Nodes: 1 line each
@@ -201,14 +185,23 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
         .map(|guard| guard.clone())
         .unwrap_or_default();
 
-    // Layout: tabs - blank line - header - body
-    let [tabs_area, _blank_area, hdr_area, body_area] = Layout::vertical([
+    // Layout: help bar - tabs - blank line - header - body
+    let [help_area, tabs_area, _blank_area, hdr_area, body_area] = Layout::vertical([
+        Constraint::Length(1), // Help bar
         Constraint::Length(1),
         Constraint::Length(1), // Blank separator
         Constraint::Length(1),
         Constraint::Min(0),
     ])
     .areas(area);
+
+    // Context-aware help bar
+    let hints = if state.selected_tab == 0 {
+        top_nodes_hints()
+    } else {
+        top_pods_hints()
+    };
+    draw_help_bar(f, help_area, &hints);
 
     // Tab bar
     let tabs = Tabs::new(vec![Line::from("Nodes"), Line::from("Pods")])
@@ -226,11 +219,6 @@ fn draw(f: &mut Frame, area: Rect, state: &mut TopViewState) {
         draw_nodes_tab(f, hdr_area, body_area, &node_snapshot);
     } else {
         draw_pods_tab(f, hdr_area, body_area, &pod_snapshot, state);
-    }
-
-    // Help overlay
-    if state.show_help {
-        draw_help_overlay(f, area, "Help", &top_view_help_items(), Some("Press ? to close"));
     }
 }
 
