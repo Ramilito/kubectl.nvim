@@ -351,7 +351,7 @@ fn draw_pods_tab(
         };
         let separator = "─".repeat(body_area.width as usize);
         f.render_widget(
-            Paragraph::new(separator).style(Style::default().fg(tailwind::GRAY.c600)),
+            Paragraph::new(separator).style(Style::default().fg(Color::DarkGray)),
             sep_rect,
         );
         y += 1;
@@ -555,11 +555,11 @@ fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
     let mem_time = format_time_markers(history_len, mem_col.width);
 
     f.render_widget(
-        Paragraph::new(cpu_time).style(Style::default().fg(tailwind::GRAY.c500)),
+        Paragraph::new(cpu_time).style(Style::default().fg(Color::Gray)),
         Rect { x: cpu_col.x, y: time_y, width: cpu_col.width, height: 1 },
     );
     f.render_widget(
-        Paragraph::new(mem_time).style(Style::default().fg(tailwind::GRAY.c500)),
+        Paragraph::new(mem_time).style(Style::default().fg(Color::Gray)),
         Rect { x: mem_col.x, y: time_y, width: mem_col.width, height: 1 },
     );
 }
