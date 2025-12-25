@@ -228,6 +228,12 @@ local function setup_keymaps(buf, sess)
     end, opts)
   end
 
+  -- Pod expansion (needs cursor sync)
+  vim.keymap.set("n", "K", function()
+    send_cursor()
+    send_key("K")
+  end, opts)
+
   -- Quit with q
   vim.keymap.set("n", "q", function()
     sess:write("q")

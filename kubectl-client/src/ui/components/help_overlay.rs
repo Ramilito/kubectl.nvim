@@ -121,7 +121,7 @@ pub fn top_view_help_items() -> Vec<HelpItem> {
         HelpItem::Entry(HelpEntry::new("PgDn/PgUp", "Scroll view")),
         HelpItem::Blank,
         HelpItem::Section("Pod Details"),
-        HelpItem::Entry(HelpEntry::new("j", "Expand/collapse pod sparkline")),
+        HelpItem::Entry(HelpEntry::new("K", "Expand/collapse pod sparkline")),
         HelpItem::Blank,
         HelpItem::Section("Folding"),
         HelpItem::Entry(HelpEntry::new("za", "Toggle fold under cursor")),

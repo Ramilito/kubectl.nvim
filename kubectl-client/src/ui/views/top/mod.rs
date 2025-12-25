@@ -131,8 +131,8 @@ impl View for TopView {
                         self.state.next_tab();
                         true
                     }
-                    KeyCode::Char('j') => {
-                        // j - expand/collapse pod details
+                    KeyCode::Char('K') => {
+                        // K - expand/collapse pod details
                         if self.state.selected_tab == 1 {
                             self.toggle_pod_at_cursor();
                             true
