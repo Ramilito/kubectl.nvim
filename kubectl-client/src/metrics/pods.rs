@@ -232,7 +232,7 @@ impl PodStat {
 }
 
 pub type SharedPodStats = Arc<Mutex<HashMap<PodKey, PodStat>>>;
-const POLL_INTERVAL: Duration = Duration::from_secs(45);
+const POLL_INTERVAL: Duration = Duration::from_secs(30);
 
 struct PodCollector {
     handle: JoinHandle<()>,
