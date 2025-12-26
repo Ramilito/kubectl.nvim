@@ -1,6 +1,7 @@
 --- Dashboard view using native Neovim buffers instead of terminal.
 --- This provides live ratatui rendering with full vim motion support.
-local layout = require("kubectl.actions.layout")
+local buffers = require("kubectl.actions.buffers")
+local manager = require("kubectl.resource_manager")
 
 local M = {}
 
@@ -276,143 +277,138 @@ end
 ---@param view_name string The view name ("top" or "overview")
 ---@param title string|nil Optional title for the window
 function M.open(view_name, title)
-  title = title or ("K8s " .. view_name:gsub("^%l", string.upper))
+  local definition = {
+    display_name = view_name,
+    resource = "dashbaord",
+    ft = "k8s_" .. view_name,
+    syntax = "",
+    title = title or "dashboard",
+  }
 
-  -- Create buffer
-  local bufname = "k8s_dashboard_" .. view_name
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf, "kubectl://" .. bufname)
-
-  -- Set buffer options
-  vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(buf, "swapfile", false)
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
-  vim.api.nvim_buf_set_option(buf, "filetype", "k8s_" .. view_name .. "_native")
-
-  -- Create floating window
-  local win = layout.float_layout(buf, "k8s_" .. view_name, title)
-  layout.set_win_options(win)
-
-  -- Enable cursorline for visual selection feedback
-  vim.api.nvim_set_option_value("cursorline", true, { win = win })
+  local builder = manager.get_or_create(definition.resource)
+  builder.buf_nr, builder.win_nr =
+    buffers.floating_buffer(definition.ft, definition.title, definition.syntax, builder.win_nr)
 
   -- Enable native vim folding with custom foldexpr
   -- Namespace headers (no leading space) start folds, indented lines are fold content
-  vim.api.nvim_set_option_value("foldmethod", "expr", { win = win })
-  vim.api.nvim_set_option_value("foldexpr", "getline(v:lnum)=~'^\\s'?1:getline(v:lnum)=~'^$'?'=':'>1'", { win = win })
-  vim.api.nvim_set_option_value("foldlevel", 99, { win = win }) -- Start fully expanded
-  vim.api.nvim_set_option_value("foldminlines", 1, { win = win })
+  vim.api.nvim_set_option_value("foldmethod", "expr", { win = builder.win_nr })
+  vim.api.nvim_set_option_value(
+    "foldexpr",
+    "getline(v:lnum)=~'^\\s'?1:getline(v:lnum)=~'^$'?'=':'>1'",
+    { win = builder.win_nr }
+  )
+  vim.api.nvim_set_option_value("foldlevel", 99, { win = builder.win_nr }) -- Start fully expanded
+  vim.api.nvim_set_option_value("foldminlines", 1, { win = builder.win_nr })
 
-  -- Get window dimensions first
-  local win_width = vim.api.nvim_win_get_width(win)
-  local win_height = vim.api.nvim_win_get_height(win)
+  vim.schedule(function()
+    -- Get window dimensions first
+    local win_width = vim.api.nvim_win_get_width(builder.win_nr)
+    local win_height = vim.api.nvim_win_get_height(builder.win_nr)
 
-  -- Start the buffer-based dashboard session
-  local client = require("kubectl.client")
-  local ok, sess = pcall(client.start_buffer_dashboard, view_name)
+    -- Start the buffer-based dashboard session
+    local client = require("kubectl.client")
+    local ok, sess = pcall(client.start_buffer_dashboard, view_name)
 
-  if not ok then
-    vim.notify("Dashboard start failed: " .. tostring(sess), vim.log.levels.ERROR)
-    vim.api.nvim_buf_delete(buf, { force = true })
-    return
-  end
-  ---@cast sess kubectl.DashboardSession
-
-  -- Send initial size immediately (Rust will adjust height based on content)
-  sess:resize(win_width, win_height)
-
-  -- Helper to push size on resize
-  local function push_size()
-    if vim.api.nvim_win_is_valid(win) then
-      local w = vim.api.nvim_win_get_width(win)
-      local h = vim.api.nvim_win_get_height(win)
-      sess:resize(w, h)
+    if not ok then
+      vim.notify("Dashboard start failed: " .. tostring(sess), vim.log.levels.ERROR)
+      vim.api.nvim_buf_delete(builder.buf_nr, { force = true })
+      return
     end
-  end
+    ---@cast sess kubectl.DashboardSession
 
-  -- Setup keymaps
-  setup_keymaps(buf, sess)
+    -- Send initial size immediately (Rust will adjust height based on content)
+    sess:resize(win_width, win_height)
 
-  -- Create autocmd group for cleanup
-  local augroup = vim.api.nvim_create_augroup("KubectlDashboard_" .. buf, { clear = true })
-
-  -- Handle resize
-  vim.api.nvim_create_autocmd("WinResized", {
-    group = augroup,
-    callback = function()
-      push_size()
-    end,
-  })
-
-  -- Cleanup function
-  local function cleanup()
-    pcall(vim.api.nvim_del_augroup_by_id, augroup)
-    if vim.api.nvim_buf_is_valid(buf) then
-      vim.api.nvim_buf_delete(buf, { force = true })
-    end
-  end
-
-  -- Poll for frames (less frequently to reduce lag)
-  local timer = vim.uv.new_timer()
-  timer:start(
-    0,
-    100, -- 10fps - sufficient for live updates without lag
-    vim.schedule_wrap(function()
-      -- Read all available frames (use latest)
-      local frame
-      repeat
-        local new_frame = sess:read_frame()
-        if new_frame then
-          frame = new_frame
-        end
-      until not new_frame
-
-      -- Apply the latest frame
-      if frame then
-        apply_frame(buf, frame)
+    -- Helper to push size on resize
+    local function push_size()
+      if vim.api.nvim_win_is_valid(builder.win_nr) then
+        local w = vim.api.nvim_win_get_width(builder.win_nr)
+        local h = vim.api.nvim_win_get_height(builder.win_nr)
+        sess:resize(w, h)
       end
+    end
 
-      -- Check if session closed
-      if not sess:open() then
+    -- Setup keymaps
+    setup_keymaps(builder.buf_nr, sess)
+
+    -- Create autocmd group for cleanup
+    local augroup = vim.api.nvim_create_augroup("KubectlDashboard_" .. builder.buf_nr, { clear = true })
+
+    -- Handle resize
+    vim.api.nvim_create_autocmd("WinResized", {
+      group = augroup,
+      callback = function()
+        push_size()
+      end,
+    })
+
+    -- Cleanup function
+    local function cleanup()
+      pcall(vim.api.nvim_del_augroup_by_id, augroup)
+      if vim.api.nvim_buf_is_valid(builder.buf_nr) then
+        vim.api.nvim_buf_delete(builder.buf_nr, { force = true })
+      end
+    end
+
+    -- Poll for frames (less frequently to reduce lag)
+    local timer = vim.uv.new_timer()
+    timer:start(
+      0,
+      100, -- 10fps - sufficient for live updates without lag
+      vim.schedule_wrap(function()
+        -- Read all available frames (use latest)
+        local frame
+        repeat
+          local new_frame = sess:read_frame()
+          if new_frame then
+            frame = new_frame
+          end
+        until not new_frame
+
+        -- Apply the latest frame
+        if frame then
+          apply_frame(builder.buf_nr, frame)
+        end
+
+        -- Check if session closed
+        if not sess:open() then
+          timer:stop()
+          if not timer:is_closing() then
+            timer:close()
+          end
+          if vim.api.nvim_win_is_valid(builder.win_nr) then
+            vim.api.nvim_win_close(builder.win_nr, true)
+          end
+          cleanup()
+        end
+      end)
+    )
+
+    -- Handle manual window close
+    vim.api.nvim_create_autocmd("WinClosed", {
+      group = augroup,
+      pattern = tostring(builder.win_nr),
+      once = true,
+      callback = function()
+        sess:close()
         timer:stop()
         if not timer:is_closing() then
           timer:close()
         end
-        if vim.api.nvim_win_is_valid(win) then
-          vim.api.nvim_win_close(win, true)
-        end
         cleanup()
-      end
-    end)
-  )
+      end,
+    })
+  end)
 
-  -- Handle manual window close
-  vim.api.nvim_create_autocmd("WinClosed", {
-    group = augroup,
-    pattern = tostring(win),
-    once = true,
-    callback = function()
-      sess:close()
-      timer:stop()
-      if not timer:is_closing() then
-        timer:close()
-      end
-      cleanup()
-    end,
-  })
-
-  return buf, win
+  return builder.buf_nr, builder.win_nr
 end
 
---- Open the Top view with native buffer rendering.
 function M.top()
-  return M.open("top", "K8s Top (Native)")
+  return M.open("top", "K8s Top")
 end
 
---- Open the Overview with native buffer rendering.
 function M.overview()
-  return M.open("overview", "K8s Overview (Native)")
+  return M.open("overview", "K8s Overview")
 end
 
 return M
