@@ -1,5 +1,6 @@
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::chrono::{Duration, Utc};
 use kube::api::LogParams;
 use kube::{Api, Client};
 use mlua::{prelude::*, UserData, UserDataMethods};
@@ -26,6 +27,7 @@ impl LogSession {
         pod_name: String,
         container: Option<String>,
         timestamps: bool,
+        since: Option<String>,
     ) -> LuaResult<Self> {
         let (tx, rx) = mpsc::unbounded_channel::<String>();
         let open = Arc::new(AtomicBool::new(true));
@@ -65,6 +67,15 @@ impl LogSession {
             return Err(LuaError::external("No containers in pod"));
         }
 
+        // Parse since duration - if provided, get historical logs; otherwise start from now
+        let since_time = since
+            .as_deref()
+            .and_then(parse_duration)
+            .map(|d| Utc::now() - d);
+
+        // If no since provided, use since_seconds=1 to start from "now" (last 1 second only)
+        let since_seconds = if since_time.is_none() { Some(1) } else { None };
+
         // Determine if we need container prefixes (multi-container)
         let use_prefix = containers.len() > 1;
 
@@ -83,8 +94,8 @@ impl LogSession {
                 let lp = LogParams {
                     follow: true,
                     container: Some(container_name),
-                    // Start from now - only capture new logs, not historical
-                    since_seconds: Some(1),
+                    since_time,
+                    since_seconds,
                     timestamps,
                     ..LogParams::default()
                 };
@@ -174,6 +185,23 @@ fn decrement_and_check(active_count: &Arc<AtomicUsize>, open: &Arc<AtomicBool>) 
     }
 }
 
+fn parse_duration(s: &str) -> Option<Duration> {
+    if s == "0" || s.is_empty() {
+        return None;
+    }
+    if s.len() < 2 {
+        return None;
+    }
+    let (num_str, unit) = s.split_at(s.len() - 1);
+    let num: i64 = num_str.parse().ok()?;
+    match unit {
+        "s" => Some(Duration::seconds(num)),
+        "m" => Some(Duration::minutes(num)),
+        "h" => Some(Duration::hours(num)),
+        _ => None,
+    }
+}
+
 impl UserData for LogSession {
     fn add_methods<M: UserDataMethods<Self>>(m: &mut M) {
         m.add_method("read_chunk", |_, this, ()| this.read_chunk());
@@ -186,13 +214,13 @@ impl UserData for LogSession {
 }
 
 /// Creates a new log streaming session.
-/// Streams start from "now" - only new log entries are captured.
-/// For historical logs, use log_stream_async with the since parameter.
+/// If `since` is provided (e.g. "5m", "1h"), historical logs from that duration are included.
+/// If `since` is None, streaming starts from now (no historical logs).
 pub fn log_session(
     _lua: &mlua::Lua,
-    (ns, pod, container, timestamps): (String, String, Option<String>, bool),
+    (ns, pod, container, timestamps, since): (String, String, Option<String>, bool, Option<String>),
 ) -> LuaResult<LogSession> {
     crate::with_stream_client(|client| async move {
-        LogSession::new(client, ns, pod, container, timestamps)
+        LogSession::new(client, ns, pod, container, timestamps, since)
     })
 }

@@ -3,7 +3,9 @@
 ---@field show_log_prefix boolean|nil
 ---@field show_previous boolean
 ---@field show_timestamps boolean|nil
----@field tail_handle any|nil
+---@field session userdata|nil LogSession from Rust
+---@field timer userdata|nil vim.uv timer for polling
+---@field cleanup function|nil Cleanup function to stop session safely
 
 ---@class PodsModule : Module
 ---@field selection table<string, any>
