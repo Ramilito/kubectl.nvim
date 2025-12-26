@@ -221,16 +221,38 @@ impl View for TopView {
         const HEADER_LINES: u16 = 4; // help_bar + tabs + blank + header
 
         if self.state.selected_tab == 0 {
-            Some(HEADER_LINES + self.node_cache.len() as u16 * CARD_HEIGHT)
+            // Use live data to ensure buffer is sized correctly for new nodes
+            let node_count = node_stats()
+                .lock()
+                .map(|g| g.len())
+                .unwrap_or(self.node_cache.len());
+            Some(HEADER_LINES + node_count as u16 * CARD_HEIGHT)
         } else {
-            let mut height = HEADER_LINES;
-            for (ns, ns_pods) in &self.grouped_pods {
-                height += NS_HEADER_H + 1; // header + separator
-                for p in ns_pods {
-                    height += if self.state.is_expanded(ns, &p.name) { EXPANDED_H } else { ROW_H };
-                }
-            }
-            Some(height)
+            // Use live data to ensure buffer is sized correctly for new pods
+            // Must account for expanded pods which take more space
+            let pod_height: u16 = pod_stats()
+                .lock()
+                .map(|guard| {
+                    guard.iter().map(|((ns, name), _)| {
+                        if self.state.is_expanded(ns, name) { EXPANDED_H } else { ROW_H }
+                    }).sum::<u16>()
+                    + {
+                        // Add namespace headers - count unique namespaces
+                        let ns_count = guard.keys().map(|(ns, _)| ns.as_str()).collect::<std::collections::HashSet<_>>().len();
+                        ns_count as u16 * (NS_HEADER_H + 1) // header + separator per namespace
+                    }
+                })
+                .unwrap_or_else(|_| {
+                    // Fallback to cached data
+                    self.grouped_pods.iter().map(|(ns, ns_pods)| {
+                        let ns_header = NS_HEADER_H + 1;
+                        let pods_height: u16 = ns_pods.iter().map(|p| {
+                            if self.state.is_expanded(ns, &p.name) { EXPANDED_H } else { ROW_H }
+                        }).sum();
+                        ns_header + pods_height
+                    }).sum()
+                });
+            Some(HEADER_LINES + pod_height)
         }
     }
 
