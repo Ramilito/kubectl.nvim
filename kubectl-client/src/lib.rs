@@ -4,19 +4,19 @@ use kube::api::DynamicObject;
 use kube::config::ExecInteractiveMode;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
 use metrics::nodes::{shutdown_node_collector, spawn_node_collector, NodeStat, SharedNodeStats};
-use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodStat, SharedPodStats};
+use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodKey, PodStat, SharedPodStats};
+use std::collections::HashMap;
 use mlua::prelude::*;
 use mlua::Lua;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use store::STORE_MAP;
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
 use tokio::runtime::Runtime;
 
 use crate::cmd::get::get_resources_async;
-use crate::processors::processor_for;
+use crate::processors::{processor_for, FilterParams};
 use crate::statusline::get_statusline;
-use crate::store::get_store_map;
+use crate::store::shutdown_all_reflectors;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -52,11 +52,25 @@ static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
 static BASE_CONFIG: Mutex<Option<Config>> = Mutex::new(None);
 
 pub fn pod_stats() -> &'static SharedPodStats {
-    POD_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<PodStat>::new())))
+    POD_STATS.get_or_init(|| Arc::new(Mutex::new(HashMap::<PodKey, PodStat>::new())))
 }
 
 pub fn node_stats() -> &'static SharedNodeStats {
-    NODE_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<NodeStat>::new())))
+    NODE_STATS.get_or_init(|| Arc::new(Mutex::new(HashMap::<String, NodeStat>::new())))
+}
+
+/// Clears all cached pod metrics (called on context change)
+pub fn clear_pod_stats() {
+    if let Ok(mut guard) = pod_stats().lock() {
+        guard.clear();
+    }
+}
+
+/// Clears all cached node metrics (called on context change)
+pub fn clear_node_stats() {
+    if let Ok(mut guard) = node_stats().lock() {
+        guard.clear();
+    }
 }
 
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
@@ -106,9 +120,15 @@ pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
     let base_cfg = {
-        BASE_CONFIG.lock().unwrap().clone().ok_or_else(|| {
-            LuaError::RuntimeError("Base kube Config not prepared (call init_runtime first)".into())
-        })?
+        BASE_CONFIG
+            .lock()
+            .map_err(|_| LuaError::RuntimeError("poisoned BASE_CONFIG lock".into()))?
+            .clone()
+            .ok_or_else(|| {
+                LuaError::RuntimeError(
+                    "Base kube Config not prepared (call init_runtime first)".into(),
+                )
+            })?
     };
 
     let cli_res: LuaResult<(Client, Client)> = rt.block_on(async {
@@ -141,16 +161,25 @@ pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
         }
     };
 
-    *CLIENT_INSTANCE.lock().unwrap() = Some(client_main.clone());
-    *CLIENT_STREAM_INSTANCE.lock().unwrap() = Some(client_long.clone());
+    *CLIENT_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))? =
+        Some(client_main.clone());
+    *CLIENT_STREAM_INSTANCE
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into()))? =
+        Some(client_long.clone());
 
     Ok(true)
 }
 
 #[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
+    // Stop collectors and clear stale metrics from previous context
     shutdown_pod_collector();
     shutdown_node_collector();
+    clear_pod_stats();
+    clear_node_stats();
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
     {
@@ -162,8 +191,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
 
     let init_res: LuaResult<()> = rt.block_on(async {
         let store_future = async {
-            let store = get_store_map();
-            store.write().await.clear();
+            shutdown_all_reflectors().await;
             Ok::<(), LuaError>(())
         };
 
@@ -188,13 +216,22 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             }
 
             {
-                let mut slot = BASE_CONFIG.lock().unwrap();
+                let mut slot = BASE_CONFIG
+                    .lock()
+                    .map_err(|_| LuaError::RuntimeError("poisoned BASE_CONFIG lock".into()))?;
                 *slot = Some(base_cfg);
             }
 
             {
-                *CLIENT_INSTANCE.lock().unwrap() = None;
-                *CLIENT_STREAM_INSTANCE.lock().unwrap() = None;
+                *CLIENT_INSTANCE
+                    .lock()
+                    .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))? =
+                    None;
+                *CLIENT_STREAM_INSTANCE
+                    .lock()
+                    .map_err(|_| {
+                        LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into())
+                    })? = None;
             }
 
             Ok::<(), LuaError>(())
@@ -221,8 +258,9 @@ fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
 }
 
 #[tracing::instrument]
-fn get_all(lua: &Lua, json: String) -> LuaResult<String> {
-    let args: GetAllArgs = serde_json::from_str(&json).unwrap();
+fn get_all(_lua: &Lua, json: String) -> LuaResult<String> {
+    let args: GetAllArgs = serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("invalid JSON in get_all: {e}")))?;
     with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
@@ -248,7 +286,8 @@ fn get_all(lua: &Lua, json: String) -> LuaResult<String> {
 //TODO: Should be combined with get_table_async with a pretty output param
 #[tracing::instrument]
 async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
-    let args: GetAllArgs = serde_json::from_str(&json).unwrap();
+    let args: GetAllArgs = serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("invalid JSON in get_all_async: {e}")))?;
     with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
@@ -273,7 +312,8 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
 
 #[tracing::instrument]
 async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
-    let args: StartReflectorArgs = serde_json::from_str(&json).unwrap();
+    let args: StartReflectorArgs = serde_json::from_str(&json)
+        .map_err(|e| mlua::Error::external(format!("invalid JSON in start_reflector_async: {e}")))?;
 
     with_client(move |client| async move {
         let gvk = GroupVersionKind::gvk(&args.gvk.g, &args.gvk.v, &args.gvk.k);
@@ -288,16 +328,14 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     let proc = processor_for("fallback");
-    let processed = proc.process_fallback(
-        &lua,
-        args.gvk,
-        args.namespace,
-        args.sort_by,
-        args.sort_order,
-        args.filter,
-        args.filter_label,
-        args.filter_key,
-    )?;
+    let params = FilterParams {
+        sort_by: args.sort_by,
+        sort_order: args.sort_order,
+        filter: args.filter,
+        filter_label: args.filter_label,
+        filter_key: args.filter_key,
+    };
+    let processed = proc.process_fallback(&lua, args.gvk, args.namespace, &params)?;
 
     serde_json::to_string(&processed).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
 }
@@ -309,19 +347,14 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
 
     let pod = store::get_single(&args.gvk.k, args.namespace.clone(), &args.name)
         .await
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))
-        .unwrap();
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
     let vec = match pod {
         Some(p) => vec![p],
         None => Vec::new(),
     };
     let proc = processor_for("container");
-    let processed = proc
-        .process(&lua, &vec, None, None, None, None, None)
-        .map_err(mlua::Error::external)?;
-
-    Ok(processed)
+    proc.process(&lua, &vec, &FilterParams::default())
 }
 
 #[tracing::instrument]
@@ -332,16 +365,14 @@ async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
         .await
         .unwrap_or_default();
     let proc = processor_for(&args.gvk.k.to_lowercase());
-
-    proc.process(
-        &lua,
-        &cached,
-        args.sort_by,
-        args.sort_order,
-        args.filter,
-        args.filter_label,
-        args.filter_key,
-    )
+    let params = FilterParams {
+        sort_by: args.sort_by,
+        sort_order: args.sort_order,
+        filter: args.filter,
+        filter_label: args.filter_label,
+        filter_key: args.filter_key,
+    };
+    proc.process(&lua, &cached, &params)
 }
 
 #[tracing::instrument]
@@ -362,20 +393,22 @@ pub async fn get_statusline_async(_lua: Lua, _args: ()) -> LuaResult<String> {
 async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_pod_collector();
     shutdown_node_collector();
+    shutdown_all_reflectors().await;
 
     {
-        *CLIENT_INSTANCE.lock().unwrap() = None;
-        *CLIENT_STREAM_INSTANCE.lock().unwrap() = None;
+        *CLIENT_INSTANCE
+            .lock()
+            .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))? = None;
+        *CLIENT_STREAM_INSTANCE
+            .lock()
+            .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into()))? =
+            None;
     }
     {
-        let mut ctx = ACTIVE_CONTEXT.write().unwrap();
+        let mut ctx = ACTIVE_CONTEXT
+            .write()
+            .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
         *ctx = None;
-    }
-
-    {
-        if let Some(map) = STORE_MAP.get() {
-            let _ = map;
-        }
     }
 
     Ok("Done".to_string())
@@ -430,8 +463,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     )?;
 
     exports.set(
-        "start_dashboard",
-        lua.create_function(|_, view_name: String| ui::dashboard::Session::new(view_name))?,
+        "start_buffer_dashboard",
+        lua.create_function(|_, view_name: String| ui::BufferSession::new(view_name))?,
     )?;
     exports.set(
         "describe_async",

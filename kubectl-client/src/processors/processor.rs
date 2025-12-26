@@ -14,6 +14,42 @@ use crate::{
 
 type FieldAccessorFn<'a, R> = Box<dyn Fn(&R, &str) -> Option<String> + 'a>;
 
+/// Parameters for filtering and sorting resource rows.
+/// Consolidates 5 separate parameters into a single struct.
+#[derive(Debug, Clone, Default)]
+pub struct FilterParams {
+    pub sort_by: Option<String>,
+    pub sort_order: Option<String>,
+    pub filter: Option<String>,
+    pub filter_label: Option<Vec<String>>,
+    pub filter_key: Option<String>,
+}
+
+impl FilterParams {
+    /// Parse label filters from "key=value" strings into tuples.
+    pub fn parse_label_filters(&self) -> Vec<(&str, &str)> {
+        self.filter_label
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|s| s.split_once('='))
+            .collect()
+    }
+
+    /// Parse key filters from comma/space-separated "path=value" string.
+    pub fn parse_key_filters(&self) -> Vec<(String, String)> {
+        self.filter_key
+            .as_deref()
+            .map(|s| {
+                s.split([',', ' '])
+                    .filter_map(|kv| kv.split_once('='))
+                    .map(|(p, v)| (p.to_string(), v.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
+
 pub trait Processor: Debug + Send + Sync {
     type Row: Debug + Clone + Send + Sync + serde::Serialize;
 
@@ -67,52 +103,26 @@ pub trait Processor: Debug + Send + Sync {
     }
 
     #[tracing::instrument(skip(self, items), fields(item_count = items.len()))]
-    fn process(
-        &self,
-        items: &[DynamicObject],
-        sort_by: Option<String>,
-        sort_order: Option<String>,
-        filter: Option<String>,
-        filter_label: Option<Vec<String>>,
-        filter_key: Option<String>,
-    ) -> LuaResult<Vec<Self::Row>> {
-        let parsed: Vec<(&str, &str)> = filter_label
-            .as_deref()
-            .unwrap_or(&[])
-            .iter()
-            .filter_map(|s| s.split_once('='))
-            .collect();
-
-        let key_filters: Vec<(String, String)> = filter_key
-            .as_deref()
-            .map(|s| {
-                s.split([',', ' '])
-                    .filter_map(|kv| kv.split_once('='))
-                    .map(|(p, v)| (p.to_string(), v.to_string()))
-                    .collect()
-            })
-            .unwrap_or_default();
+    fn process(&self, items: &[DynamicObject], params: &FilterParams) -> LuaResult<Vec<Self::Row>> {
+        let label_filters = params.parse_label_filters();
+        let key_filters = params.parse_key_filters();
 
         let mut rows: Vec<Self::Row> = items
             .par_iter()
-            .filter(|obj| Self::labels_match(obj, &parsed))
-            .filter(|obj| {
-                key_filters.iter().all(|(path, expect)| {
-                    Self::json_value_at(obj, path).is_some_and(|v| v == expect)
-                })
-            })
+            .filter(|obj| Self::labels_match(obj, &label_filters))
+            .filter(|obj| Self::key_filters_match(obj, &key_filters))
             .map(|obj| self.build_row(obj).map_err(|e| e.to_string()))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LuaError::external)?;
 
         sort_dynamic(
             &mut rows,
-            sort_by,
-            sort_order,
+            params.sort_by.clone(),
+            params.sort_order.clone(),
             self.field_accessor(AccessorMode::Sort),
         );
 
-        if let Some(ref query) = filter {
+        if let Some(ref query) = params.filter {
             rows = filter_dynamic(
                 &rows,
                 query,
@@ -125,6 +135,12 @@ pub trait Processor: Debug + Send + Sync {
         }
 
         Ok(rows)
+    }
+
+    fn key_filters_match(obj: &DynamicObject, filters: &[(String, String)]) -> bool {
+        filters
+            .iter()
+            .all(|(path, expect)| Self::json_value_at(obj, path).is_some_and(|v| v == expect))
     }
 
     fn get_age(&self, obj: &DynamicObject) -> FieldValue {
@@ -163,11 +179,7 @@ pub trait Processor: Debug + Send + Sync {
         _lua: &Lua,
         _gvk: Gvk,
         _ns: Option<String>,
-        _sort_by: Option<String>,
-        _sort_order: Option<String>,
-        _filter: Option<String>,
-        _filter_label: Option<Vec<String>>,
-        _filter_key: Option<String>,
+        _params: &FilterParams,
     ) -> LuaResult<mlua::Value> {
         Err(LuaError::external("Not implemented for this processor"))
     }

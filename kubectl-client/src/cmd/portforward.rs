@@ -49,7 +49,9 @@ pub fn portforward_start(
 
     let (client, rt) = {
         let client = {
-            let g = CLIENT_INSTANCE.lock().unwrap();
+            let g = CLIENT_INSTANCE
+                .lock()
+                .map_err(|_| mlua::Error::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))?;
             g.as_ref()
                 .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?
                 .clone()
@@ -195,7 +197,7 @@ async fn run_forward(
                         });
                         conn_tasks.push(h);
 
-                        if conn_tasks.len() % 32 == 0 {
+                        if conn_tasks.len() >= 8 {
                             conn_tasks.retain(|t| !t.is_finished());
                         }
                     }

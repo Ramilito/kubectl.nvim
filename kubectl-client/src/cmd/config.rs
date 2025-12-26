@@ -97,9 +97,10 @@ pub fn get_config(lua: &Lua, args: ()) -> LuaResult<String> {
 
 #[tracing::instrument]
 pub async fn get_config_async(_lua: Lua, _args: ()) -> LuaResult<String> {
-    let config = Kubeconfig::read().expect("Failed to load kubeconfig");
-    let json =
-        serde_json::to_string(&config).unwrap_or_else(|e| format!("JSON formatting error: {}", e));
+    let config = Kubeconfig::read()
+        .map_err(|e| LuaError::external(format!("failed to load kubeconfig: {e}")))?;
+    let json = serde_json::to_string(&config)
+        .map_err(|e| LuaError::external(format!("failed to serialize kubeconfig: {e}")))?;
 
     Ok(json)
 }

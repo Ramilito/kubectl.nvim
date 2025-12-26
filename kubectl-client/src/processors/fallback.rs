@@ -11,7 +11,7 @@ use serde_json_path::JsonPath;
 use std::collections::{HashMap, HashSet};
 use tokio::try_join;
 
-use super::processor::Processor;
+use super::processor::{FilterParams, Processor};
 use crate::{
     cmd::utils::dynamic_api,
     structs::Gvk,
@@ -126,11 +126,7 @@ impl Processor for FallbackProcessor {
     fn process(
         &self,
         _items: &[DynamicObject],
-        _sort_by: Option<String>,
-        _sort_order: Option<String>,
-        _filter: Option<String>,
-        _filter_label: Option<Vec<String>>,
-        _filter_key: Option<String>,
+        _params: &FilterParams,
     ) -> LuaResult<Vec<Self::Row>> {
         Err(LuaError::external("use process_fallback"))
     }
@@ -141,12 +137,9 @@ impl Processor for FallbackProcessor {
         lua: &Lua,
         gvk: Gvk,
         ns: Option<String>,
-        sort_by: Option<String>,
-        sort_order: Option<String>,
-        filter: Option<String>,
-        filter_label: Option<Vec<String>>,
-        filter_key: Option<String>,
+        params: &FilterParams,
     ) -> LuaResult<mlua::Value> {
+        let params = params.clone();
         with_client(move |client| async move {
             let gvk = GroupVersionKind {
                 group: gvk.g,
@@ -216,14 +209,7 @@ impl Processor for FallbackProcessor {
                 namespaced,
             };
 
-            let rows_vec = runtime.process(
-                &items,
-                sort_by.clone(),
-                sort_order.clone(),
-                filter.clone(),
-                filter_label.clone(),
-                filter_key.clone(),
-            )?;
+            let rows_vec = runtime.process(&items, &params)?;
             let rows_lua = lua.to_value(&rows_vec)?;
 
             let mut headers: Vec<String> = canonical.iter().map(|s| s.to_string()).collect();

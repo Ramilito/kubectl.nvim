@@ -16,7 +16,9 @@ pub async fn apply_async(_lua: Lua, args: Option<String>) -> LuaResult<()> {
 
     let (client, rt_handle) = {
         let client = {
-            let client_guard = CLIENT_INSTANCE.lock().unwrap();
+            let client_guard = CLIENT_INSTANCE
+                .lock()
+                .map_err(|_| mlua::Error::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))?;
             client_guard
                 .as_ref()
                 .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?
@@ -37,7 +39,9 @@ pub async fn apply_async(_lua: Lua, args: Option<String>) -> LuaResult<()> {
     })?;
 
     let ssapply = PatchParams::apply("kubectl-light").force();
-    let pth = path.clone().expect("apply needs a -f file supplied");
+    let pth = path
+        .clone()
+        .ok_or_else(|| mlua::Error::RuntimeError("apply requires a file path (-f)".into()))?;
     let yaml = std::fs::read_to_string(&pth).map_err(mlua::Error::external)?;
 
     for doc in multidoc_deserialize(&yaml)? {

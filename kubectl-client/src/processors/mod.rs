@@ -28,3 +28,4 @@ pub mod storageclass;
 mod kind;
 
 pub use kind::processor_for;
+pub use processor::FilterParams;

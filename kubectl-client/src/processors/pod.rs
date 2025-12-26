@@ -58,10 +58,12 @@ impl Processor for PodProcessor {
         let name = pod.metadata.name.clone().unwrap_or_default();
 
         let (cpu_m, mem_mi) = {
-            let guard = pod_stats().lock().unwrap();
+            let guard = match pod_stats().lock() {
+                Ok(g) => g,
+                Err(_) => return Err(LuaError::RuntimeError("poisoned pod_stats lock".into())),
+            };
             guard
-                .iter()
-                .find(|s| s.namespace == namespace && s.name == name)
+                .get(&(namespace.clone(), name.clone()))
                 .map(|s| (s.cpu_m, s.mem_mi))
                 .unwrap_or((0, 0))
         };

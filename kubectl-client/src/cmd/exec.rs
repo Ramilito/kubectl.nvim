@@ -64,7 +64,8 @@ pub fn open_debug(
         ectr.target_container_name = Some(t);
     }
     let patch: Pod =
-        serde_json::from_value(json!({ "spec": { "ephemeralContainers": [ ectr ] }})).unwrap();
+        serde_json::from_value(json!({ "spec": { "ephemeralContainers": [ ectr ] }}))
+            .map_err(|e| LuaError::external(format!("failed to build debug patch: {e}")))?;
     block_on(async {
         let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
 
@@ -239,13 +240,12 @@ impl Session {
     }
 
     // ---------- Lua‑visible helpers ------------------------------------------
-    fn read_chunk(&self) -> Option<String> {
-        self.rx_out
+    fn read_chunk(&self) -> LuaResult<Option<String>> {
+        let mut guard = self
+            .rx_out
             .lock()
-            .unwrap()
-            .try_recv()
-            .ok()
-            .map(|v| String::from_utf8_lossy(&v).into_owned())
+            .map_err(|_| LuaError::RuntimeError("poisoned rx_out lock".into()))?;
+        Ok(guard.try_recv().ok().map(|v| String::from_utf8_lossy(&v).into_owned()))
     }
 
     fn write(&self, s: &str) {
@@ -261,7 +261,7 @@ impl Session {
 
 impl UserData for Session {
     fn add_methods<M: UserDataMethods<Self>>(m: &mut M) {
-        m.add_method("read_chunk", |_, this, ()| Ok(this.read_chunk()));
+        m.add_method("read_chunk", |_, this, ()| this.read_chunk());
         m.add_method("write", |_, this, s: String| {
             this.write(&s);
             Ok(())
