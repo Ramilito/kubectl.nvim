@@ -169,6 +169,27 @@ impl UserData for BufferSession {
     }
 }
 
+/// Resizes terminal if dimensions changed, returns true if resized.
+fn maybe_resize(
+    term: &mut Terminal<NeovimBackend>,
+    view: &dyn View,
+    cols: &AtomicU16,
+    rows: &AtomicU16,
+) -> bool {
+    let new_w = cols.load(Ordering::Acquire);
+    let base_h = rows.load(Ordering::Acquire);
+    let new_h = view.content_height().unwrap_or(base_h).max(base_h);
+    let current = term.backend().size().unwrap_or_default();
+
+    if new_w != current.width || new_h != current.height {
+        term.backend_mut().resize(new_w, new_h);
+        let _ = term.resize(Rect::new(0, 0, new_w, new_h));
+        true
+    } else {
+        false
+    }
+}
+
 /// Main UI event loop for buffer-based rendering.
 async fn run_buffer_ui(
     view_name: String,
@@ -178,22 +199,17 @@ async fn run_buffer_ui(
     cols: Arc<AtomicU16>,
     rows: Arc<AtomicU16>,
 ) {
-    // Wait a moment for Lua to send the correct dimensions
     time::sleep(Duration::from_millis(50)).await;
 
-    let initial_w = cols.load(Ordering::Acquire);
-    let base_h = rows.load(Ordering::Acquire);
-
-    // Create view first so we can query content height
     let mut view = make_view(&view_name);
-
-    // Use content height if available, otherwise use base height from Lua
-    let initial_h = view.content_height().unwrap_or(base_h).max(base_h);
-
-    let backend = NeovimBackend::new(initial_w, initial_h, tx_out.clone());
+    let initial_w = cols.load(Ordering::Acquire);
+    let initial_h = view
+        .content_height()
+        .unwrap_or_else(|| rows.load(Ordering::Acquire))
+        .max(rows.load(Ordering::Acquire));
 
     let mut term = Terminal::with_options(
-        backend,
+        NeovimBackend::new(initial_w, initial_h, tx_out.clone()),
         TerminalOptions {
             viewport: Viewport::Fixed(Rect::new(0, 0, initial_w, initial_h)),
         },
@@ -201,15 +217,12 @@ async fn run_buffer_ui(
     .expect("terminal");
 
     term.clear().ok();
+    draw_buffer(&mut term, &mut *view);
 
     let mut tick = time::interval(Duration::from_millis(2_000));
 
-    // Initial draw (after receiving dimensions)
-    draw_buffer(&mut term, &mut *view);
-
     loop {
         tokio::select! {
-            // Input from Neovim
             msg = rx_in.recv() => {
                 match msg {
                     Some(bytes) => {
@@ -221,28 +234,15 @@ async fn run_buffer_ui(
                                 }
                                 view.on_event(&ev)
                             }
-                            Some(ParsedMessage::CursorLine(line)) => {
-                                view.set_cursor_line(line)
-                            }
+                            Some(ParsedMessage::CursorLine(line)) => view.set_cursor_line(line),
                             None => false,
                         };
 
                         if needs_redraw {
-                            // Get width from Lua, height from content
-                            let new_w = cols.load(Ordering::Acquire);
-                            let base_h = rows.load(Ordering::Acquire);
-                            let new_h = view.content_height().unwrap_or(base_h).max(base_h);
-                            let current_size = term.backend().size().unwrap_or_default();
-
-                            if new_w != current_size.width || new_h != current_size.height {
-                                term.backend_mut().resize(new_w, new_h);
-                                let _ = term.resize(Rect::new(0, 0, new_w, new_h));
-                            }
-
+                            maybe_resize(&mut term, &*view, &cols, &rows);
                             draw_buffer(&mut term, &mut *view);
                         }
                     }
-                    // Channel closed
                     None => {
                         open.store(false, Ordering::Release);
                         break;
@@ -250,28 +250,11 @@ async fn run_buffer_ui(
                 }
             }
 
-            // Periodic refresh - only redraw if metrics data has changed
             _ = tick.tick() => {
-                if !open.load(Ordering::Acquire) {
-                    break;
-                }
-
-                // Skip render if no new data available
-                if !take_metrics_dirty() {
+                if !open.load(Ordering::Acquire) || !take_metrics_dirty() {
                     continue;
                 }
-
-                // Get width from Lua, height from content
-                let new_w = cols.load(Ordering::Acquire);
-                let base_h = rows.load(Ordering::Acquire);
-                let new_h = view.content_height().unwrap_or(base_h).max(base_h);
-                let current_size = term.backend().size().unwrap_or_default();
-
-                if new_w != current_size.width || new_h != current_size.height {
-                    term.backend_mut().resize(new_w, new_h);
-                    let _ = term.resize(Rect::new(0, 0, new_w, new_h));
-                }
-
+                maybe_resize(&mut term, &*view, &cols, &rows);
                 draw_buffer(&mut term, &mut *view);
             }
         }

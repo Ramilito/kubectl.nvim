@@ -192,27 +192,29 @@ fn cell_to_hl_group(cell: &Cell) -> Option<String> {
 }
 
 /// Convert ratatui Color to a short name for highlight groups.
-fn color_to_name(color: Color) -> String {
+/// Uses Cow to avoid allocations for static color names.
+fn color_to_name(color: Color) -> std::borrow::Cow<'static, str> {
+    use std::borrow::Cow;
     match color {
-        Color::Reset => "reset".to_string(),
-        Color::Black => "black".to_string(),
-        Color::Red => "red".to_string(),
-        Color::Green => "green".to_string(),
-        Color::Yellow => "yellow".to_string(),
-        Color::Blue => "blue".to_string(),
-        Color::Magenta => "magenta".to_string(),
-        Color::Cyan => "cyan".to_string(),
-        Color::Gray => "gray".to_string(),
-        Color::DarkGray => "darkgray".to_string(),
-        Color::LightRed => "lightred".to_string(),
-        Color::LightGreen => "lightgreen".to_string(),
-        Color::LightYellow => "lightyellow".to_string(),
-        Color::LightBlue => "lightblue".to_string(),
-        Color::LightMagenta => "lightmagenta".to_string(),
-        Color::LightCyan => "lightcyan".to_string(),
-        Color::White => "white".to_string(),
-        Color::Rgb(r, g, b) => format!("x{:02x}{:02x}{:02x}", r, g, b),
-        Color::Indexed(i) => format!("i{}", i),
+        Color::Reset => Cow::Borrowed("reset"),
+        Color::Black => Cow::Borrowed("black"),
+        Color::Red => Cow::Borrowed("red"),
+        Color::Green => Cow::Borrowed("green"),
+        Color::Yellow => Cow::Borrowed("yellow"),
+        Color::Blue => Cow::Borrowed("blue"),
+        Color::Magenta => Cow::Borrowed("magenta"),
+        Color::Cyan => Cow::Borrowed("cyan"),
+        Color::Gray => Cow::Borrowed("gray"),
+        Color::DarkGray => Cow::Borrowed("darkgray"),
+        Color::LightRed => Cow::Borrowed("lightred"),
+        Color::LightGreen => Cow::Borrowed("lightgreen"),
+        Color::LightYellow => Cow::Borrowed("lightyellow"),
+        Color::LightBlue => Cow::Borrowed("lightblue"),
+        Color::LightMagenta => Cow::Borrowed("lightmagenta"),
+        Color::LightCyan => Cow::Borrowed("lightcyan"),
+        Color::White => Cow::Borrowed("white"),
+        Color::Rgb(r, g, b) => Cow::Owned(format!("x{:02x}{:02x}{:02x}", r, g, b)),
+        Color::Indexed(i) => Cow::Owned(format!("i{}", i)),
     }
 }
 

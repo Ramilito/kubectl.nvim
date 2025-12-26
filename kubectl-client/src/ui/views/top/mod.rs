@@ -58,15 +58,7 @@ fn render_sparkline_with_label(
     unit: &str,
 ) {
     // Sparkline (left portion)
-    f.render_widget(
-        Sparkline::default()
-            .data(data)
-            .style(Style::default().fg(sparkline_color)),
-        Rect {
-            width: area.width.saturating_sub(LABEL_WIDTH),
-            ..area
-        },
-    );
+    render_sparkline(f, Rect { width: area.width.saturating_sub(LABEL_WIDTH), ..area }, data, sparkline_color);
 
     // Label area (right portion)
     let label_area = Rect {
@@ -98,12 +90,26 @@ fn render_sparkline_with_label(
     }
 }
 
+/// Renders a basic sparkline widget.
+#[inline]
+fn render_sparkline(f: &mut Frame, area: Rect, data: &[u64], color: Color) {
+    f.render_widget(
+        Sparkline::default()
+            .data(data)
+            .style(Style::default().fg(color)),
+        area,
+    );
+}
+
+/// Pods grouped by namespace (sorted by namespace name).
+type GroupedPods = BTreeMap<String, Vec<PodStat>>;
+
 /// Top view displaying nodes and pods metrics.
 pub struct TopView {
     state: TopViewState,
-    /// Cached pod stats to avoid cloning HashMap on every render
-    pod_cache: Vec<PodStat>,
-    /// Cached node stats to avoid cloning Vec on every render
+    /// Cached pods grouped by namespace
+    grouped_pods: GroupedPods,
+    /// Cached node stats
     node_cache: Vec<NodeStat>,
 }
 
@@ -111,26 +117,26 @@ impl Default for TopView {
     fn default() -> Self {
         Self {
             state: TopViewState::default(),
-            pod_cache: Vec::new(),
+            grouped_pods: BTreeMap::new(),
             node_cache: Vec::new(),
         }
     }
 }
 
 impl TopView {
-    /// Refreshes the cached pod and node snapshots from the shared state.
-    /// Called once per render cycle to avoid repeated HashMap clones.
-    /// Also makes VecDeques contiguous for zero-copy slice access during rendering.
+    /// Refreshes caches from shared state. Called once per render cycle.
     fn refresh_caches(&mut self) {
-        self.pod_cache = pod_stats()
-            .lock()
-            .map(|guard| guard.values().cloned().collect())
-            .unwrap_or_default();
-
-        // Make history VecDeques contiguous for efficient slice access
-        for pod in &mut self.pod_cache {
-            pod.cpu_history.make_contiguous();
-            pod.mem_history.make_contiguous();
+        // Group pods by namespace
+        self.grouped_pods.clear();
+        if let Ok(guard) = pod_stats().lock() {
+            for mut pod in guard.values().cloned() {
+                pod.cpu_history.make_contiguous();
+                pod.mem_history.make_contiguous();
+                self.grouped_pods
+                    .entry(pod.namespace.clone())
+                    .or_default()
+                    .push(pod);
+            }
         }
 
         self.node_cache = node_stats()
@@ -141,8 +147,7 @@ impl TopView {
 
     /// Finds the pod at the current cursor line and toggles its expansion.
     fn toggle_pod_at_cursor(&mut self) {
-        // Header offset: help_bar(1) + tabs(1) + blank(1) + header(1) = 4 lines
-        const HEADER_OFFSET: u16 = 4;
+        const HEADER_OFFSET: u16 = 4; // help_bar + tabs + blank + header
 
         let cursor = self.state.cursor_line;
         if cursor < HEADER_OFFSET {
@@ -150,42 +155,23 @@ impl TopView {
         }
 
         let body_line = cursor - HEADER_OFFSET;
-
-        // Group by namespace using cached data (same as in draw)
-        let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
-        for p in &self.pod_cache {
-            grouped.entry(p.namespace.as_str()).or_default().push(p);
-        }
-
-        // Walk through layout to find pod at cursor line
         let mut y: u16 = 0;
-        for (ns, ns_pods) in grouped.iter() {
-            // Namespace header
+
+        for (ns, ns_pods) in &self.grouped_pods {
             if body_line == y {
-                // Cursor on namespace header, ignore
-                return;
+                return; // Cursor on namespace header
             }
             y += NS_HEADER_H;
 
-            // Pods in this namespace
             for p in ns_pods {
-                let pod_height = if self.state.is_expanded(&p.namespace, &p.name) {
-                    EXPANDED_H
-                } else {
-                    ROW_H
-                };
-
-                if body_line >= y && body_line < y + pod_height {
-                    // Found the pod - toggle expansion
-                    self.state
-                        .toggle_expansion(ns.to_string(), p.name.clone());
+                let pod_h = if self.state.is_expanded(ns, &p.name) { EXPANDED_H } else { ROW_H };
+                if body_line >= y && body_line < y + pod_h {
+                    self.state.toggle_expansion(ns.clone(), p.name.clone());
                     return;
                 }
-                y += pod_height;
+                y += pod_h;
             }
-
-            // Separator line
-            y += 1;
+            y += 1; // Separator
         }
     }
 }
@@ -220,37 +206,22 @@ impl View for TopView {
     }
 
     fn draw(&mut self, f: &mut Frame, area: Rect) {
-        // Refresh caches once per render cycle
         self.refresh_caches();
-        draw_with_data(f, area, &mut self.state, &self.pod_cache, &self.node_cache);
+        draw_with_data(f, area, &mut self.state, &self.grouped_pods, &self.node_cache);
     }
 
     fn content_height(&self) -> Option<u16> {
-        // Calculate height based on cached data and expansion state
-        // help_bar(1) + tabs(1) + blank(1) + header(1) = 4 lines
-        const HEADER_LINES: u16 = 4;
+        const HEADER_LINES: u16 = 4; // help_bar + tabs + blank + header
 
         if self.state.selected_tab == 0 {
-            // Nodes: 1 line each (use cached data)
             Some(HEADER_LINES + self.node_cache.len() as u16 * CARD_HEIGHT)
         } else {
-            // Pods: account for expanded pod if any (use cached data)
-            let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
-            for p in &self.pod_cache {
-                grouped.entry(p.namespace.as_str()).or_default().push(p);
-            }
-
             let mut height = HEADER_LINES;
-            for (_, ns_pods) in grouped.iter() {
-                height += NS_HEADER_H; // Namespace header
+            for (ns, ns_pods) in &self.grouped_pods {
+                height += NS_HEADER_H + 1; // header + separator
                 for p in ns_pods {
-                    if self.state.is_expanded(&p.namespace, &p.name) {
-                        height += EXPANDED_H;
-                    } else {
-                        height += ROW_H;
-                    }
+                    height += if self.state.is_expanded(ns, &p.name) { EXPANDED_H } else { ROW_H };
                 }
-                height += 1; // Separator
             }
             Some(height)
         }
@@ -262,7 +233,7 @@ fn draw_with_data(
     f: &mut Frame,
     area: Rect,
     state: &mut TopViewState,
-    pods: &[PodStat],
+    grouped_pods: &GroupedPods,
     nodes: &[NodeStat],
 ) {
     // Layout: help bar - tabs - blank line - header - body
@@ -298,7 +269,7 @@ fn draw_with_data(
     if state.selected_tab == 0 {
         draw_nodes_tab(f, hdr_area, body_area, nodes);
     } else {
-        draw_pods_tab(f, hdr_area, body_area, pods, state);
+        draw_pods_tab(f, hdr_area, body_area, grouped_pods, state);
     }
 }
 
@@ -348,91 +319,56 @@ fn draw_nodes_tab(
 }
 
 /// Draws the Pods tab content.
-/// Renders directly to frame - Neovim handles scrolling and folding natively.
 fn draw_pods_tab(
     f: &mut Frame,
     hdr_area: Rect,
     body_area: Rect,
-    pods: &[PodStat],
+    grouped: &GroupedPods,
     state: &TopViewState,
 ) {
     use crate::ui::layout::calculate_name_width;
 
-    // Group by namespace
-    let mut grouped: BTreeMap<&str, Vec<&PodStat>> = BTreeMap::new();
-    for p in pods {
-        grouped.entry(p.namespace.as_str()).or_default().push(p);
-    }
+    // Calculate max name width across all pods
+    let title_w = calculate_name_width(
+        grouped.values().flatten().map(|p| p.name.as_str()),
+        3, // +3 for indent
+    );
 
-    // Column widths
-    let title_w = calculate_name_width(pods.iter().map(|p| p.name.as_str()), 3); // +3 for indent
-
-    // Header row
     draw_header(f, hdr_area, title_w);
 
-    // Render grouped pods directly to frame (no ScrollView)
-    // Always render all content - Neovim handles folding natively
-    let mut y: u16 = body_area.y;
+    let mut y = body_area.y;
+    let separator = "─".repeat(body_area.width as usize);
 
-    for (ns, ns_pods) in grouped.iter() {
-        let ns_total_cpu: u64 = ns_pods.iter().map(|p| p.cpu_m).sum();
-        let ns_total_mem: u64 = ns_pods.iter().map(|p| p.mem_mi).sum();
+    for (ns, ns_pods) in grouped {
+        // Namespace header with totals
+        let cpu_total: u64 = ns_pods.iter().map(|p| p.cpu_m).sum();
+        let mem_total: u64 = ns_pods.iter().map(|p| p.mem_mi).sum();
 
-        // Namespace header (no indent - serves as fold marker)
-        let ns_header_rect = Rect {
-            x: body_area.x,
-            y,
-            width: body_area.width,
-            height: NS_HEADER_H,
-        };
-
-        let ns_title = format!(
-            "{} ({}) - CPU: {}m | MEM: {} MiB",
-            ns,
-            ns_pods.len(),
-            ns_total_cpu,
-            ns_total_mem
+        f.render_widget(
+            Paragraph::new(format!("{} ({}) - CPU: {}m | MEM: {} MiB", ns, ns_pods.len(), cpu_total, mem_total))
+                .style(Style::default().fg(colors::SUCCESS).add_modifier(Modifier::BOLD)),
+            Rect { x: body_area.x, y, width: body_area.width, height: 1 },
         );
-
-        let ns_style = Style::default()
-            .fg(colors::SUCCESS)
-            .add_modifier(Modifier::BOLD);
-
-        f.render_widget(Paragraph::new(ns_title).style(ns_style), ns_header_rect);
         y += NS_HEADER_H;
 
-        // Render pods in namespace
+        // Pods
         for p in ns_pods {
-            let is_expanded = state.is_expanded(&p.namespace, &p.name);
-            let pod_height = if is_expanded { EXPANDED_H } else { GRAPH_H };
+            let expanded = state.is_expanded(ns, &p.name);
+            let h = if expanded { EXPANDED_H } else { GRAPH_H };
+            let rect = Rect { x: body_area.x, y, width: body_area.width, height: h };
 
-            let graph_rect = Rect {
-                x: body_area.x,
-                y,
-                width: body_area.width,
-                height: pod_height,
-            };
-
-            if is_expanded {
-                draw_expanded_pod(f, graph_rect, p, title_w);
+            if expanded {
+                draw_expanded_pod(f, rect, p, title_w);
             } else {
-                draw_compact_pod(f, graph_rect, p, title_w);
+                draw_compact_pod(f, rect, p, title_w);
             }
-
-            y += if is_expanded { EXPANDED_H } else { ROW_H };
+            y += if expanded { EXPANDED_H } else { ROW_H };
         }
 
-        // Add separator line after namespace group
-        let sep_rect = Rect {
-            x: body_area.x,
-            y,
-            width: body_area.width,
-            height: 1,
-        };
-        let separator = "─".repeat(body_area.width as usize);
+        // Separator
         f.render_widget(
-            Paragraph::new(separator).style(Style::default().fg(Color::DarkGray)),
-            sep_rect,
+            Paragraph::new(separator.clone()).style(Style::default().fg(Color::DarkGray)),
+            Rect { x: body_area.x, y, width: body_area.width, height: 1 },
         );
         y += 1;
     }
@@ -500,53 +436,28 @@ fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
         Rect { x: mem_col.x, y: area.y, width: mem_col.width, height: 1 },
     );
 
-    // Sparklines (rows 1 to n-1)
+    // Sparklines (rows 1 to n-2) + time markers (row n-1)
     let sparkline_y = area.y + 1;
-    let sparkline_height = area.height.saturating_sub(2); // Row 0 for header, last row for time
-
-    let cpu_data = history_slice(&p.cpu_history, cpu_col.width);
-    let mem_data = history_slice(&p.mem_history, mem_col.width);
-
-    f.render_widget(
-        Sparkline::default()
-            .data(cpu_data)
-            .style(Style::default().fg(colors::INFO)),
-        Rect {
-            x: cpu_col.x,
-            y: sparkline_y,
-            width: cpu_col.width,
-            height: sparkline_height,
-        },
-    );
-
-    f.render_widget(
-        Sparkline::default()
-            .data(mem_data)
-            .style(Style::default().fg(colors::WARNING)),
-        Rect {
-            x: mem_col.x,
-            y: sparkline_y,
-            width: mem_col.width,
-            height: sparkline_height,
-        },
-    );
-
-    // Time markers on bottom row of sparkline area
+    let sparkline_h = area.height.saturating_sub(2); // Row 0 header, last row time
     let time_y = area.y + area.height - 1;
-    let history_len = p.cpu_history.len();
 
-    // Format time markers for each column's width separately
-    let cpu_time = format_time_markers(history_len, cpu_col.width);
-    let mem_time = format_time_markers(history_len, mem_col.width);
+    // Helper to render sparkline + time markers for a column
+    let render_col = |f: &mut Frame, col: Rect, history: &std::collections::VecDeque<u64>, color: Color| {
+        render_sparkline(
+            f,
+            Rect { x: col.x, y: sparkline_y, width: col.width, height: sparkline_h },
+            history_slice(history, col.width),
+            color,
+        );
+        f.render_widget(
+            Paragraph::new(format_time_markers(history.len(), col.width))
+                .style(Style::default().fg(Color::Gray)),
+            Rect { x: col.x, y: time_y, width: col.width, height: 1 },
+        );
+    };
 
-    f.render_widget(
-        Paragraph::new(cpu_time).style(Style::default().fg(Color::Gray)),
-        Rect { x: cpu_col.x, y: time_y, width: cpu_col.width, height: 1 },
-    );
-    f.render_widget(
-        Paragraph::new(mem_time).style(Style::default().fg(Color::Gray)),
-        Rect { x: mem_col.x, y: time_y, width: mem_col.width, height: 1 },
-    );
+    render_col(f, cpu_col, &p.cpu_history, colors::INFO);
+    render_col(f, mem_col, &p.mem_history, colors::WARNING);
 }
 
 /// Short format for resource summary: "250m/500m (50%)" or just "250m"
