@@ -211,20 +211,25 @@ impl PodStat {
         self.mem_limit_mi = resources.mem_limit_mi;
     }
 
+    /// Pushes a new sample to the history.
+    /// History is stored oldest-first (index 0 = oldest, last = newest)
+    /// for efficient slice access during rendering.
     #[tracing::instrument]
     pub fn push_sample(&mut self, cpu_m: u64, mem_mi: u64) {
         self.cpu_m = cpu_m;
         self.mem_mi = mem_mi;
 
+        // Remove oldest (front) if at capacity
         if self.cpu_history.len() == HISTORY_LEN {
-            self.cpu_history.pop_back();
+            self.cpu_history.pop_front();
         }
-        self.cpu_history.push_front(cpu_m);
+        // Add newest to back
+        self.cpu_history.push_back(cpu_m);
 
         if self.mem_history.len() == HISTORY_LEN {
-            self.mem_history.pop_back();
+            self.mem_history.pop_front();
         }
-        self.mem_history.push_front(mem_mi);
+        self.mem_history.push_back(mem_mi);
     }
 
     pub fn key(&self) -> PodKey {

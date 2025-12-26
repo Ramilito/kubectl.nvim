@@ -60,11 +60,19 @@ impl Default for TopView {
 impl TopView {
     /// Refreshes the cached pod and node snapshots from the shared state.
     /// Called once per render cycle to avoid repeated HashMap clones.
+    /// Also makes VecDeques contiguous for zero-copy slice access during rendering.
     fn refresh_caches(&mut self) {
         self.pod_cache = pod_stats()
             .lock()
             .map(|guard| guard.values().cloned().collect())
             .unwrap_or_default();
+
+        // Make history VecDeques contiguous for efficient slice access
+        for pod in &mut self.pod_cache {
+            pod.cpu_history.make_contiguous();
+            pod.mem_history.make_contiguous();
+        }
+
         self.node_cache = node_stats()
             .lock()
             .map(|guard| guard.clone())
@@ -385,15 +393,15 @@ fn draw_compact_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
 
     // Sparklines with current value and delta
     let label_width = 12u16;
-    let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width.saturating_sub(label_width));
-    let mem_data = deque_to_vec(&p.mem_history, mem_col.width.saturating_sub(label_width));
+    let cpu_data = history_slice(&p.cpu_history, cpu_col.width.saturating_sub(label_width));
+    let mem_data = history_slice(&p.mem_history, mem_col.width.saturating_sub(label_width));
     let cpu_delta = calc_delta(p.cpu_m, &p.cpu_history);
     let mem_delta = calc_delta(p.mem_mi, &p.mem_history);
 
     // CPU sparkline
     f.render_widget(
         Sparkline::default()
-            .data(&cpu_data)
+            .data(cpu_data)
             .style(Style::default().fg(tailwind::GREEN.c500)),
         Rect {
             width: cpu_col.width.saturating_sub(label_width),
@@ -445,7 +453,7 @@ fn draw_compact_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
     // MEM sparkline
     f.render_widget(
         Sparkline::default()
-            .data(&mem_data)
+            .data(mem_data)
             .style(Style::default().fg(tailwind::ORANGE.c400)),
         Rect {
             width: mem_col.width.saturating_sub(label_width),
@@ -531,12 +539,12 @@ fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
     let sparkline_y = area.y + 1;
     let sparkline_height = area.height.saturating_sub(2); // Row 0 for header, last row for time
 
-    let cpu_data = deque_to_vec(&p.cpu_history, cpu_col.width);
-    let mem_data = deque_to_vec(&p.mem_history, mem_col.width);
+    let cpu_data = history_slice(&p.cpu_history, cpu_col.width);
+    let mem_data = history_slice(&p.mem_history, mem_col.width);
 
     f.render_widget(
         Sparkline::default()
-            .data(&cpu_data)
+            .data(cpu_data)
             .style(Style::default().fg(tailwind::GREEN.c500)),
         Rect {
             x: cpu_col.x,
@@ -548,7 +556,7 @@ fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
 
     f.render_widget(
         Sparkline::default()
-            .data(&mem_data)
+            .data(mem_data)
             .style(Style::default().fg(tailwind::ORANGE.c400)),
         Rect {
             x: mem_col.x,
@@ -670,23 +678,27 @@ fn format_time_markers(data_points: usize, width: u16) -> String {
     result.into_iter().collect()
 }
 
-/// Converts a VecDeque to a Vec, taking at most `max_w` elements.
-/// Reverses the order so oldest is first (left) and newest is last (right).
-fn deque_to_vec(data: &std::collections::VecDeque<u64>, max_w: u16) -> Vec<u64> {
-    let w = max_w as usize;
-    let mut v: Vec<u64> = data.iter().take(w).copied().collect();
-    v.reverse();
-    v
+/// Returns a slice of the history for sparkline rendering.
+/// Takes the most recent `max_w` elements (oldest-first order for display).
+/// Zero-copy: returns a slice directly from the contiguous VecDeque.
+#[inline]
+fn history_slice(data: &std::collections::VecDeque<u64>, max_w: u16) -> &[u64] {
+    // VecDeque is made contiguous in refresh_caches(), so first slice has all data
+    let (slice, _) = data.as_slices();
+    // Take the last max_w elements (most recent data points)
+    let start = slice.len().saturating_sub(max_w as usize);
+    &slice[start..]
 }
 
 /// Calculate delta from previous value in history.
 /// Returns (delta, is_increase) or None if not enough history.
+/// History is stored oldest-first, so last element is current, second-to-last is previous.
 fn calc_delta(current: u64, history: &std::collections::VecDeque<u64>) -> Option<(u64, bool)> {
-    // history[0] is current, history[1] is previous sample
     if history.len() < 2 {
         return None;
     }
-    let prev = history.get(1)?;
+    // Second-to-last element is the previous sample
+    let prev = history.get(history.len() - 2)?;
     if current >= *prev {
         Some((current - *prev, true))
     } else {
