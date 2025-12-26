@@ -14,7 +14,7 @@ mod data;
 use crossterm::event::Event;
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect, Size},
-    style::{palette::tailwind, Color, Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders},
     Frame,
@@ -31,6 +31,19 @@ use crate::{
 };
 
 use data::{fetch_cluster_stats, fetch_events, fetch_namespaces};
+
+/// Kubectl highlight colors (must match lua/kubectl/actions/highlight.lua).
+mod colors {
+    use ratatui::style::Color;
+    pub const INFO: Color = Color::Rgb(0x60, 0x8B, 0x4E);      // green
+    pub const WARNING: Color = Color::Rgb(0xD1, 0x9A, 0x66);   // orange
+    pub const ERROR: Color = Color::Rgb(0xD1, 0x69, 0x69);     // red
+    pub const DEBUG: Color = Color::Rgb(0xDC, 0xDC, 0xAA);     // yellow
+    pub const HEADER: Color = Color::Rgb(0x56, 0x9C, 0xD6);    // blue
+    pub const SUCCESS: Color = Color::Rgb(0x4E, 0xC9, 0xB0);   // cyan
+    pub const GRAY: Color = Color::Rgb(0x66, 0x66, 0x66);
+    pub const PENDING: Color = Color::Rgb(0xC5, 0x86, 0xC0);   // purple
+}
 
 /// Overview view displaying a 6-pane cluster dashboard.
 #[derive(Default)]
@@ -92,12 +105,12 @@ fn draw(f: &mut Frame, area: Rect) {
         .iter()
         .map(|ns| {
             let status_color = match ns.status.as_str() {
-                "Active" => tailwind::GREEN.c400,
-                "Terminating" => tailwind::RED.c400,
-                _ => tailwind::GRAY.c400,
+                "Active" => colors::INFO,
+                "Terminating" => colors::ERROR,
+                _ => colors::GRAY,
             };
             Line::from(vec![
-                Span::styled(&ns.name, Style::default().fg(tailwind::BLUE.c300)),
+                Span::styled(&ns.name, Style::default().fg(colors::HEADER)),
                 Span::raw(" "),
                 Span::styled(&ns.status, Style::default().fg(status_color)),
             ])
@@ -110,9 +123,9 @@ fn draw(f: &mut Frame, area: Rect) {
         .iter()
         .map(|ev| {
             let type_color = match ev.type_.as_str() {
-                "Warning" => tailwind::YELLOW.c400,
-                "Error" => tailwind::RED.c400,
-                _ => tailwind::GREEN.c400,
+                "Warning" => colors::DEBUG, // yellow
+                "Error" => colors::ERROR,
+                _ => colors::INFO,
             };
             let count_str = if ev.count > 1 {
                 format!("({}x) ", ev.count)
@@ -134,11 +147,11 @@ fn draw(f: &mut Frame, area: Rect) {
             Line::from(vec![
                 Span::styled(&ev.type_, Style::default().fg(type_color)),
                 Span::raw(" "),
-                Span::styled(count_str, Style::default().fg(tailwind::GRAY.c500)),
-                Span::styled(format!("{}/", ns), Style::default().fg(tailwind::GRAY.c400)),
-                Span::styled(&ev.object, Style::default().fg(tailwind::BLUE.c300)),
+                Span::styled(count_str, Style::default().fg(colors::GRAY)),
+                Span::styled(format!("{}/", ns), Style::default().fg(colors::GRAY)),
+                Span::styled(&ev.object, Style::default().fg(colors::HEADER)),
                 Span::raw(" "),
-                Span::styled(&ev.reason, Style::default().fg(tailwind::CYAN.c300).add_modifier(Modifier::BOLD)),
+                Span::styled(&ev.reason, Style::default().fg(colors::SUCCESS).add_modifier(Modifier::BOLD)),
                 Span::raw(": "),
                 Span::raw(msg),
             ])
@@ -151,25 +164,25 @@ fn draw(f: &mut Frame, area: Rect) {
 
     let info_lines = vec![
         Line::from(vec![
-            Span::styled("Nodes: ", Style::default().fg(tailwind::GRAY.c400)),
+            Span::styled("Nodes: ", Style::default().fg(colors::GRAY)),
             Span::styled(
                 format!("{}/{}", stats.ready_node_count, stats.node_count),
-                Style::default().fg(tailwind::GREEN.c400).add_modifier(Modifier::BOLD),
+                Style::default().fg(colors::INFO).add_modifier(Modifier::BOLD),
             ),
             Span::raw(" ready"),
         ]),
         Line::from(vec![
-            Span::styled("Pods: ", Style::default().fg(tailwind::GRAY.c400)),
+            Span::styled("Pods: ", Style::default().fg(colors::GRAY)),
             Span::styled(
                 stats.pod_count.to_string(),
-                Style::default().fg(tailwind::BLUE.c400).add_modifier(Modifier::BOLD),
+                Style::default().fg(colors::HEADER).add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(vec![
-            Span::styled("Namespaces: ", Style::default().fg(tailwind::GRAY.c400)),
+            Span::styled("Namespaces: ", Style::default().fg(colors::GRAY)),
             Span::styled(
                 stats.namespace_count.to_string(),
-                Style::default().fg(tailwind::FUCHSIA.c400).add_modifier(Modifier::BOLD),
+                Style::default().fg(colors::PENDING).add_modifier(Modifier::BOLD),
             ),
         ]),
     ];
@@ -252,15 +265,12 @@ fn draw_nodes_table(f: &mut Frame, area: Rect, title: &str, stats: &[NodeStat]) 
         });
 
         let name_style = Style::default()
-            .fg(tailwind::BLUE.c400)
+            .fg(colors::HEADER)
             .add_modifier(Modifier::BOLD);
 
         sv.render_widget(Span::styled(n.name.clone(), name_style), cols[0]);
         sv.render_widget(make_gauge("CPU", n.cpu_pct, GaugeStyle::Cpu), cols[1]);
-        sv.render_widget(
-            make_gauge("MEM", n.mem_pct, GaugeStyle::Custom(tailwind::EMERALD.c400)),
-            cols[2],
-        );
+        sv.render_widget(make_gauge("MEM", n.mem_pct, GaugeStyle::Memory), cols[2]);
     }
 
     f.render_stateful_widget(sv, inner, &mut Default::default());

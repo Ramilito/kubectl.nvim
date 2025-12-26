@@ -11,19 +11,6 @@ local ns_id = vim.api.nvim_create_namespace("__kubectl_dashboard")
 -- Cache for registered highlight groups
 local registered_hl_groups = {}
 
--- Explicit mapping from Ratatui Tailwind palette colors to plugin highlight groups.
--- This maps the RGB hex values from Rust (tailwind::*) to existing Kubectl* highlights.
--- Format: ["xRRGGBB"] = "KubectlHighlightGroup"
-local color_to_hl_group = {
-  -- CPU/Green: tailwind::GREEN.c500 (#22c55e), c400 (#4ade80), c300 (#86efac)
-  ["x22c55e"] = "KubectlInfo", -- GREEN.c500 (CPU sparkline/gauge)
-  ["x4ade80"] = "KubectlInfo", -- GREEN.c400 (status indicators)
-  ["x86efac"] = "KubectlInfo", -- GREEN.c300 (CPU label)
-  -- Memory/Orange: tailwind::ORANGE.c400 (#fb923c), c300 (#fdba74)
-  ["xfb923c"] = "KubectlWarning", -- ORANGE.c400 (MEM sparkline/gauge)
-  ["xfdba74"] = "KubectlWarning", -- ORANGE.c300 (MEM label)
-}
-
 --- Convert ANSI 256 color index to hex.
 ---@param idx number
 ---@return string
@@ -113,71 +100,37 @@ local function color_name_to_hex(name)
   return nil
 end
 
---- Register a highlight group for ratatui colors.
---- Converts ratatui-style names like "Ratatui_cyan_bold" to actual highlights.
---- Uses explicit color mapping to link to existing Kubectl* highlight groups when possible.
+--- Ensure a highlight group exists for dashboard rendering.
+---
+--- Native Kubectl* groups (emitted by Rust for common colors) are already
+--- defined by the plugin. Ratatui_* groups (fallback for unmapped colors)
+--- are created dynamically from parsed color names.
 ---@param hl_name string
 local function ensure_hl_group(hl_name)
   if registered_hl_groups[hl_name] then
     return
   end
 
-  -- Parse the highlight name: Ratatui_<fg>[_on_<bg>][_bold][_italic][_underline]
-  local fg, bg, bold, italic, underline
+  -- Native Kubectl* highlights are defined in highlight.lua (including Bold variants)
+  if hl_name:match("^Kubectl") then
+    registered_hl_groups[hl_name] = true
+    return
+  end
 
-  -- Extract foreground color
+  -- Parse Ratatui_<fg>[_on_<bg>][_bold][_italic][_underline] format
   local fg_match = hl_name:match("^Ratatui_([^_]+)")
-  if fg_match and fg_match ~= "reset" then
-    fg = color_name_to_hex(fg_match)
-  end
-
-  -- Extract background color
   local bg_match = hl_name:match("_on_([^_]+)")
-  if bg_match and bg_match ~= "reset" then
-    bg = color_name_to_hex(bg_match)
-  end
 
-  -- Extract modifiers
-  bold = hl_name:match("_bold") ~= nil
-  italic = hl_name:match("_italic") ~= nil
-  underline = hl_name:match("_underline") ~= nil
+  local fg = fg_match and fg_match ~= "reset" and color_name_to_hex(fg_match) or nil
+  local bg = bg_match and bg_match ~= "reset" and color_name_to_hex(bg_match) or nil
 
-  -- Check if foreground matches our color mapping
-  if fg_match then
-    local mapped_hl = color_to_hl_group[fg_match:lower()]
-    if mapped_hl then
-      -- Get the foreground color from the mapped highlight group
-      local base_hl = vim.api.nvim_get_hl(0, { name = mapped_hl })
-      local hl_opts = {
-        fg = base_hl.fg,
-        bg = bg and color_name_to_hex(bg_match) or base_hl.bg,
-        bold = bold or base_hl.bold,
-        italic = italic or base_hl.italic,
-        underline = underline or base_hl.underline,
-      }
-      vim.api.nvim_set_hl(0, hl_name, hl_opts)
-      registered_hl_groups[hl_name] = true
-      return
-    end
-  end
-
-  -- Create the highlight group from parsed colors
-  local hl_opts = {}
-  if fg then
-    hl_opts.fg = fg
-  end
-  if bg then
-    hl_opts.bg = bg
-  end
-  if bold then
-    hl_opts.bold = true
-  end
-  if italic then
-    hl_opts.italic = true
-  end
-  if underline then
-    hl_opts.underline = true
-  end
+  local hl_opts = {
+    fg = fg,
+    bg = bg,
+    bold = hl_name:match("_bold") ~= nil or nil,
+    italic = hl_name:match("_italic") ~= nil or nil,
+    underline = hl_name:match("_underline") ~= nil or nil,
+  }
 
   if next(hl_opts) then
     vim.api.nvim_set_hl(0, hl_name, hl_opts)

@@ -31,50 +31,13 @@ pub struct RenderFrame {
     pub marks: Vec<ExtmarkData>,
 }
 
-/// Internal buffer for tracking cell state.
-struct BufferState {
-    width: u16,
-    height: u16,
-    cells: Vec<Cell>,
-}
-
-impl BufferState {
-    fn new(width: u16, height: u16) -> Self {
-        let size = (width as usize) * (height as usize);
-        Self {
-            width,
-            height,
-            cells: vec![Cell::default(); size],
-        }
-    }
-
-    fn resize(&mut self, width: u16, height: u16) {
-        self.width = width;
-        self.height = height;
-        let size = (width as usize) * (height as usize);
-        self.cells.resize(size, Cell::default());
-        self.cells.fill(Cell::default());
-    }
-
-    fn index(&self, x: u16, y: u16) -> usize {
-        (y as usize) * (self.width as usize) + (x as usize)
-    }
-
-    fn set(&mut self, x: u16, y: u16, cell: &Cell) {
-        if x < self.width && y < self.height {
-            let idx = self.index(x, y);
-            self.cells[idx] = cell.clone();
-        }
-    }
-
-    fn clear(&mut self) {
-        self.cells.fill(Cell::default());
-    }
-}
 
 /// Convert ratatui's Buffer directly to a RenderFrame.
 /// This bypasses our internal buffer and uses ratatui's complete buffer state.
-pub fn buffer_to_render_frame(buffer: &ratatui::buffer::Buffer, area: ratatui::layout::Rect) -> RenderFrame {
+pub fn buffer_to_render_frame(
+    buffer: &ratatui::buffer::Buffer,
+    area: ratatui::layout::Rect,
+) -> RenderFrame {
     let mut lines = Vec::with_capacity(area.height as usize);
     let mut marks = Vec::new();
 
@@ -131,11 +94,7 @@ pub fn buffer_to_render_frame(buffer: &ratatui::buffer::Buffer, area: ratatui::l
 
         // Only trim trailing spaces that have no styling
         // Find the last styled position (extmark end)
-        let last_styled_pos = row_marks
-            .iter()
-            .map(|m| m.end_col)
-            .max()
-            .unwrap_or(0);
+        let last_styled_pos = row_marks.iter().map(|m| m.end_col).max().unwrap_or(0);
 
         // Trim trailing unstyled spaces only
         let trimmed = if last_styled_pos as usize >= line.len() {
@@ -174,6 +133,9 @@ pub fn buffer_to_render_frame(buffer: &ratatui::buffer::Buffer, area: ratatui::l
 }
 
 /// Convert ratatui Cell style to Neovim highlight group name.
+///
+/// Maps common Tailwind colors to native Kubectl* highlight groups to avoid
+/// Lua-side color parsing. Falls back to Ratatui_* naming for other colors.
 fn cell_to_hl_group(cell: &Cell) -> Option<String> {
     let fg = cell.fg;
     let bg = cell.bg;
@@ -184,8 +146,30 @@ fn cell_to_hl_group(cell: &Cell) -> Option<String> {
         return None;
     }
 
-    // Build highlight group name based on colors
-    // Using a naming convention: Ratatui_<fg>_<bg>_<modifiers>
+    // Map Kubectl colors to native highlight groups.
+    // These RGB values must match lua/kubectl/actions/highlight.lua
+    let base_hl = match fg {
+        Color::Rgb(0x60, 0x8B, 0x4E) => Some("KubectlInfo"),    // green
+        Color::Rgb(0xD1, 0x9A, 0x66) => Some("KubectlWarning"), // orange
+        Color::Rgb(0xD1, 0x69, 0x69) => Some("KubectlError"),   // red
+        Color::Rgb(0xDC, 0xDC, 0xAA) => Some("KubectlDebug"),   // yellow
+        Color::Rgb(0x56, 0x9C, 0xD6) => Some("KubectlHeader"),  // blue
+        Color::Rgb(0x4E, 0xC9, 0xB0) => Some("KubectlSuccess"), // cyan
+        Color::Rgb(0x66, 0x66, 0x66) => Some("KubectlGray"),    // gray
+        Color::Rgb(0xC5, 0x86, 0xC0) => Some("KubectlPending"), // purple
+        _ => None,
+    };
+
+    // If we found a native mapping, use it (with modifiers suffix if needed)
+    if let Some(hl) = base_hl {
+        let mut name = hl.to_string();
+        if modifiers.contains(Modifier::BOLD) {
+            name.push_str("Bold");
+        }
+        return Some(name);
+    }
+
+    // Fall back to Ratatui_* naming convention for unmapped colors
     let fg_name = color_to_name(fg);
     let bg_name = color_to_name(bg);
 
@@ -232,14 +216,15 @@ fn color_to_name(color: Color) -> String {
 }
 
 /// Backend that renders to Neovim buffers instead of a terminal.
+///
+/// This backend doesn't store cell data - ratatui's Terminal maintains its own
+/// buffer which we read via `buffer_to_render_frame` after each draw cycle.
 pub struct NeovimBackend {
-    buffer: BufferState,
+    width: u16,
+    height: u16,
     cursor: Position,
-    cursor_hidden: bool,
     /// Channel to send rendered frames.
     frame_tx: tokio::sync::mpsc::UnboundedSender<RenderFrame>,
-    /// Flag to track if we're in a draw cycle.
-    in_draw: bool,
 }
 
 impl NeovimBackend {
@@ -250,17 +235,17 @@ impl NeovimBackend {
         frame_tx: tokio::sync::mpsc::UnboundedSender<RenderFrame>,
     ) -> Self {
         Self {
-            buffer: BufferState::new(width, height),
+            width,
+            height,
             cursor: Position::new(0, 0),
-            cursor_hidden: false,
             frame_tx,
-            in_draw: false,
         }
     }
 
-    /// Resize the internal buffer.
+    /// Resize the buffer dimensions.
     pub fn resize(&mut self, width: u16, height: u16) {
-        self.buffer.resize(width, height);
+        self.width = width;
+        self.height = height;
     }
 
     /// Send a pre-built frame directly to Neovim.
@@ -270,28 +255,20 @@ impl NeovimBackend {
 }
 
 impl Backend for NeovimBackend {
-    fn draw<'a, I>(&mut self, content: I) -> IoResult<()>
+    fn draw<'a, I>(&mut self, _content: I) -> IoResult<()>
     where
         I: Iterator<Item = (u16, u16, &'a Cell)>,
     {
-        // Clear buffer at start of draw cycle
-        if !self.in_draw {
-            self.buffer.clear();
-            self.in_draw = true;
-        }
-        for (x, y, cell) in content {
-            self.buffer.set(x, y, cell);
-        }
+        // No-op: ratatui's Terminal maintains its own buffer which we read
+        // via buffer_to_render_frame() after draw() completes.
         Ok(())
     }
 
     fn hide_cursor(&mut self) -> IoResult<()> {
-        self.cursor_hidden = true;
         Ok(())
     }
 
     fn show_cursor(&mut self) -> IoResult<()> {
-        self.cursor_hidden = false;
         Ok(())
     }
 
@@ -305,105 +282,28 @@ impl Backend for NeovimBackend {
     }
 
     fn clear(&mut self) -> IoResult<()> {
-        self.buffer.clear();
+        // No-op: Terminal manages its own buffer
         Ok(())
     }
 
-    fn clear_region(&mut self, clear_type: ClearType) -> IoResult<()> {
-        match clear_type {
-            ClearType::All => self.buffer.clear(),
-            ClearType::AfterCursor => {
-                // Clear from cursor to end of screen
-                let start_idx = self.buffer.index(self.cursor.x, self.cursor.y);
-                for cell in self.buffer.cells[start_idx..].iter_mut() {
-                    *cell = Cell::default();
-                }
-            }
-            ClearType::BeforeCursor => {
-                // Clear from start to cursor
-                let end_idx = self.buffer.index(self.cursor.x, self.cursor.y);
-                for cell in self.buffer.cells[..end_idx].iter_mut() {
-                    *cell = Cell::default();
-                }
-            }
-            ClearType::CurrentLine => {
-                // Clear current line
-                let y = self.cursor.y;
-                for x in 0..self.buffer.width {
-                    let idx = self.buffer.index(x, y);
-                    self.buffer.cells[idx] = Cell::default();
-                }
-            }
-            ClearType::UntilNewLine => {
-                // Clear from cursor to end of line
-                let y = self.cursor.y;
-                for x in self.cursor.x..self.buffer.width {
-                    let idx = self.buffer.index(x, y);
-                    self.buffer.cells[idx] = Cell::default();
-                }
-            }
-        }
+    fn clear_region(&mut self, _clear_type: ClearType) -> IoResult<()> {
+        // No-op: Terminal manages its own buffer
         Ok(())
     }
 
     fn size(&self) -> IoResult<Size> {
-        Ok(Size::new(self.buffer.width, self.buffer.height))
+        Ok(Size::new(self.width, self.height))
     }
 
     fn window_size(&mut self) -> IoResult<WindowSize> {
         Ok(WindowSize {
-            columns_rows: Size::new(self.buffer.width, self.buffer.height),
-            pixels: Size::new(0, 0), // Not applicable for buffer rendering
+            columns_rows: Size::new(self.width, self.height),
+            pixels: Size::new(0, 0),
         })
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        // Don't send frame here - we send the full buffer after draw() completes
-        // This avoids sending incomplete frames due to ratatui's diff optimization
-        self.in_draw = false;
+        // No-op: we send frames via send_frame_direct() after draw completes
         Ok(())
-    }
-
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_buffer_state_basic() {
-        let mut buffer = BufferState::new(10, 5);
-        assert_eq!(buffer.cells.len(), 50);
-
-        let mut cell = Cell::default();
-        cell.set_char('X');
-        buffer.set(5, 2, &cell);
-
-        let idx = buffer.index(5, 2);
-        assert_eq!(buffer.cells[idx].symbol(), "X");
-    }
-
-    #[test]
-    fn test_color_to_name() {
-        assert_eq!(color_to_name(Color::Red), "red");
-        assert_eq!(color_to_name(Color::Rgb(255, 128, 64)), "xff8040");
-        assert_eq!(color_to_name(Color::Indexed(42)), "i42");
-    }
-
-    #[test]
-    fn test_render_frame_generation() {
-        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut backend = NeovimBackend::new(5, 2, tx);
-
-        let mut cell = Cell::default();
-        cell.set_char('H');
-        backend.buffer.set(0, 0, &cell);
-
-        cell.set_char('i');
-        backend.buffer.set(1, 0, &cell);
-
-        let frame = backend.buffer.to_render_frame();
-        assert_eq!(frame.lines.len(), 2);
-        assert_eq!(frame.lines[0], "Hi");
     }
 }

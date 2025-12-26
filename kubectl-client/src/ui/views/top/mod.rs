@@ -10,7 +10,7 @@ use crossterm::event::{Event, KeyCode};
 use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
     prelude::*,
-    style::{palette::tailwind, Color, Modifier, Style},
+    style::{Color, Modifier, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph, Sparkline, Tabs},
     Frame,
@@ -37,6 +37,76 @@ const NS_HEADER_H: u16 = 1; // Namespace header row
 
 /// Height for expanded pod view.
 const EXPANDED_H: u16 = 10;
+
+/// Label width for sparkline value/delta display.
+const LABEL_WIDTH: u16 = 12;
+
+/// Kubectl highlight colors (must match lua/kubectl/actions/highlight.lua).
+mod colors {
+    use ratatui::style::Color;
+    pub const INFO: Color = Color::Rgb(0x60, 0x8B, 0x4E);      // KubectlInfo - green
+    pub const WARNING: Color = Color::Rgb(0xD1, 0x9A, 0x66);   // KubectlWarning - orange
+    pub const ERROR: Color = Color::Rgb(0xD1, 0x69, 0x69);     // KubectlError - red
+    pub const DEBUG: Color = Color::Rgb(0xDC, 0xDC, 0xAA);     // KubectlDebug - yellow
+    pub const HEADER: Color = Color::Rgb(0x56, 0x9C, 0xD6);    // KubectlHeader - blue
+    pub const SUCCESS: Color = Color::Rgb(0x4E, 0xC9, 0xB0);   // KubectlSuccess - cyan
+    pub const GRAY: Color = Color::Rgb(0x66, 0x66, 0x66);      // KubectlGray
+}
+
+/// Renders a sparkline with value label and optional delta indicator.
+///
+/// Layout: [sparkline graph][label area]
+///         [              ][delta     ]
+fn render_sparkline_with_label(
+    f: &mut Frame,
+    area: Rect,
+    data: &[u64],
+    current: u64,
+    delta: Option<(u64, bool)>,
+    sparkline_color: Color,
+    label_color: Color,
+    unit: &str,
+) {
+    // Sparkline (left portion)
+    f.render_widget(
+        Sparkline::default()
+            .data(data)
+            .style(Style::default().fg(sparkline_color)),
+        Rect {
+            width: area.width.saturating_sub(LABEL_WIDTH),
+            ..area
+        },
+    );
+
+    // Label area (right portion)
+    let label_area = Rect {
+        x: area.x + area.width.saturating_sub(LABEL_WIDTH),
+        y: area.y,
+        width: LABEL_WIDTH.min(area.width),
+        height: 1,
+    };
+
+    // Current value
+    f.render_widget(
+        Paragraph::new(format!("{}{}", current, unit))
+            .alignment(Alignment::Right)
+            .style(Style::default().fg(label_color).add_modifier(Modifier::BOLD)),
+        label_area,
+    );
+
+    // Delta indicator
+    if let Some((delta_val, is_up)) = delta {
+        if delta_val > 0 {
+            let arrow = if is_up { "↑" } else { "↓" };
+            f.render_widget(
+                Paragraph::new(format!("{}{}{}", arrow, delta_val, unit))
+                    .alignment(Alignment::Right)
+                    .style(Style::default().fg(colors::GRAY)),
+                Rect { y: label_area.y + 1, ..label_area },
+            );
+        }
+    }
+}
 
 /// Top view displaying nodes and pods metrics.
 pub struct TopView {
@@ -279,7 +349,7 @@ fn draw_nodes_tab(
             Block::new()
                 .borders(Borders::NONE)
                 .title(node.name.clone())
-                .fg(tailwind::BLUE.c400),
+                .fg(colors::HEADER),
             name_col,
         );
         f.render_widget(make_gauge("CPU", node.cpu_pct, GaugeStyle::Cpu), cpu_col);
@@ -335,7 +405,7 @@ fn draw_pods_tab(
         );
 
         let ns_style = Style::default()
-            .fg(tailwind::CYAN.c400)
+            .fg(colors::SUCCESS)
             .add_modifier(Modifier::BOLD);
 
         f.render_widget(Paragraph::new(ns_title).style(ns_style), ns_header_rect);
@@ -387,120 +457,25 @@ fn draw_compact_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
         Block::new()
             .borders(Borders::NONE)
             .title(format!("  {}", p.name))
-            .fg(tailwind::BLUE.c400),
+            .fg(colors::HEADER),
         name_col,
     );
 
-    // Sparklines with current value and delta
-    let label_width = 12u16;
-    let cpu_data = history_slice(&p.cpu_history, cpu_col.width.saturating_sub(label_width));
-    let mem_data = history_slice(&p.mem_history, mem_col.width.saturating_sub(label_width));
+    // CPU sparkline with label
+    let cpu_data = history_slice(&p.cpu_history, cpu_col.width.saturating_sub(LABEL_WIDTH));
     let cpu_delta = calc_delta(p.cpu_m, &p.cpu_history);
+    render_sparkline_with_label(
+        f, cpu_col, cpu_data, p.cpu_m, cpu_delta,
+        colors::INFO, colors::INFO, "m",
+    );
+
+    // MEM sparkline with label
+    let mem_data = history_slice(&p.mem_history, mem_col.width.saturating_sub(LABEL_WIDTH));
     let mem_delta = calc_delta(p.mem_mi, &p.mem_history);
-
-    // CPU sparkline
-    f.render_widget(
-        Sparkline::default()
-            .data(cpu_data)
-            .style(Style::default().fg(tailwind::GREEN.c500)),
-        Rect {
-            width: cpu_col.width.saturating_sub(label_width),
-            ..cpu_col
-        },
+    render_sparkline_with_label(
+        f, mem_col, mem_data, p.mem_mi, mem_delta,
+        colors::WARNING, colors::WARNING, " MiB",
     );
-
-    // Label area for current value and delta (right side, doesn't overlap sparkline)
-    let cpu_label_area = Rect {
-        x: cpu_col.x + cpu_col.width.saturating_sub(label_width),
-        y: cpu_col.y,
-        width: label_width.min(cpu_col.width),
-        height: 1,
-    };
-
-    // CPU current value
-    let cpu_label = format!("{}m", p.cpu_m);
-    f.render_widget(
-        Paragraph::new(cpu_label)
-            .alignment(Alignment::Right)
-            .style(
-                Style::default()
-                    .fg(tailwind::GREEN.c300)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        cpu_label_area,
-    );
-
-    // CPU delta line
-    if let Some((delta, is_up)) = cpu_delta {
-        if delta > 0 {
-            let delta_label = if is_up {
-                format!("↑{}m", delta)
-            } else {
-                format!("↓{}m", delta)
-            };
-            f.render_widget(
-                Paragraph::new(delta_label)
-                    .alignment(Alignment::Right)
-                    .style(Style::default().fg(tailwind::GRAY.c500)),
-                Rect {
-                    y: cpu_label_area.y + 1,
-                    ..cpu_label_area
-                },
-            );
-        }
-    }
-
-    // MEM sparkline
-    f.render_widget(
-        Sparkline::default()
-            .data(mem_data)
-            .style(Style::default().fg(tailwind::ORANGE.c400)),
-        Rect {
-            width: mem_col.width.saturating_sub(label_width),
-            ..mem_col
-        },
-    );
-
-    // Label area for MEM current value and delta (right side, doesn't overlap sparkline)
-    let mem_label_area = Rect {
-        x: mem_col.x + mem_col.width.saturating_sub(label_width),
-        y: mem_col.y,
-        width: label_width.min(mem_col.width),
-        height: 1,
-    };
-
-    // MEM current value
-    let mem_label = format!("{} MiB", p.mem_mi);
-    f.render_widget(
-        Paragraph::new(mem_label)
-            .alignment(Alignment::Right)
-            .style(
-                Style::default()
-                    .fg(tailwind::ORANGE.c300)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        mem_label_area,
-    );
-
-    // MEM delta line
-    if let Some((delta, is_up)) = mem_delta {
-        if delta > 0 {
-            let delta_label = if is_up {
-                format!("↑{} MiB", delta)
-            } else {
-                format!("↓{} MiB", delta)
-            };
-            f.render_widget(
-                Paragraph::new(delta_label)
-                    .alignment(Alignment::Right)
-                    .style(Style::default().fg(tailwind::GRAY.c500)),
-                Rect {
-                    y: mem_label_area.y + 1,
-                    ..mem_label_area
-                },
-            );
-        }
-    }
 }
 
 /// Draws an expanded pod view with larger sparklines and resource info.
@@ -515,7 +490,7 @@ fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
     // Row 0: Pod name with expansion indicator
     f.render_widget(
         Paragraph::new(format!("▼ {}", p.name))
-            .style(Style::default().fg(tailwind::BLUE.c300).add_modifier(Modifier::BOLD)),
+            .style(Style::default().fg(colors::HEADER).add_modifier(Modifier::BOLD)),
         Rect { height: 1, ..name_col },
     );
 
@@ -545,7 +520,7 @@ fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
     f.render_widget(
         Sparkline::default()
             .data(cpu_data)
-            .style(Style::default().fg(tailwind::GREEN.c500)),
+            .style(Style::default().fg(colors::INFO)),
         Rect {
             x: cpu_col.x,
             y: sparkline_y,
@@ -557,7 +532,7 @@ fn draw_expanded_pod(f: &mut Frame, area: Rect, p: &PodStat, title_w: u16) {
     f.render_widget(
         Sparkline::default()
             .data(mem_data)
-            .style(Style::default().fg(tailwind::ORANGE.c400)),
+            .style(Style::default().fg(colors::WARNING)),
         Rect {
             x: mem_col.x,
             y: sparkline_y,
@@ -601,81 +576,59 @@ fn get_limit_color(current: u64, limit: Option<u64>) -> Color {
         Some(lim) if lim > 0 => {
             let pct = (current as f64 / lim as f64 * 100.0) as u64;
             if pct > 90 {
-                tailwind::RED.c400
+                colors::ERROR
             } else if pct > 70 {
-                tailwind::YELLOW.c400
+                colors::DEBUG // yellow
             } else {
-                tailwind::GREEN.c400
+                colors::INFO
             }
         }
-        _ => tailwind::GRAY.c300,
+        _ => colors::GRAY,
     }
 }
 
-/// Formats time markers for the expanded sparkline view as a visual timeline.
-/// Shows actual collected data range with "now" always at the right.
+/// Formats time markers for the expanded sparkline view.
+/// Shows time range from start to "now" with optional middle marker.
 fn format_time_markers(data_points: usize, width: u16) -> String {
-    let total_seconds = data_points * 15;
     let w = width as usize;
-
     if w < 10 {
         return "now".to_string();
     }
 
-    // Build the timeline base
-    let mut result: Vec<char> = vec!['─'; w];
-
-    // Always show "now" marker at the right with a bullet point
-    let now_label = "●now";
-    let now_pos = w.saturating_sub(now_label.chars().count());
-    for (i, c) in now_label.chars().enumerate() {
-        if now_pos + i < w {
-            result[now_pos + i] = c;
-        }
-    }
-
-    // Format the start time based on how much data we have
-    let start_label = if total_seconds == 0 {
-        "○".to_string() // Empty circle - no history yet
-    } else if total_seconds < 60 {
-        format!("{}s", total_seconds)
+    let total_secs = data_points * 15;
+    let start = if total_secs == 0 {
+        "○".to_string()
+    } else if total_secs < 60 {
+        format!("{}s", total_secs)
     } else {
-        let minutes = total_seconds / 60;
-        format!("{}m", minutes)
+        format!("{}m", total_secs / 60)
     };
 
-    // Place start label at the left
-    for (i, c) in start_label.chars().enumerate() {
-        if i < w.saturating_sub(now_label.chars().count() + 2) {
-            result[i] = c;
-        }
-    }
+    // Calculate middle section width and fill with timeline chars
+    let end = "●now";
+    let mid_width = w.saturating_sub(start.len() + end.len());
 
-    // Add middle marker if we have enough space and time
-    let total_minutes = total_seconds / 60;
-    if total_minutes >= 2 && w > 30 {
-        let mid_label = format!("{}m", total_minutes / 2);
-        let mid_pos = w / 2 - mid_label.chars().count() / 2;
+    // Add middle time marker if space permits (>30 chars and >2 min of data)
+    let mid = if mid_width > 10 && total_secs >= 120 {
+        let half_mins = total_secs / 120;
+        format!("┤{}m├", half_mins)
+    } else {
+        String::new()
+    };
 
-        // Only place if it doesn't overlap with start or end
-        if mid_pos > start_label.chars().count() + 2
-            && mid_pos + mid_label.chars().count() + 2 < now_pos
-        {
-            // Add tick marks
-            if mid_pos > 0 {
-                result[mid_pos - 1] = '┤';
-            }
-            for (i, c) in mid_label.chars().enumerate() {
-                result[mid_pos + i] = c;
-            }
-            let end = mid_pos + mid_label.chars().count();
-            if end < w {
-                result[end] = '├';
-            }
-        }
-    }
+    // Build: start + padding + mid + padding + end
+    let pad_total = mid_width.saturating_sub(mid.len());
+    let pad_left = pad_total / 2;
+    let pad_right = pad_total - pad_left;
 
-    result.into_iter().collect()
+    format!(
+        "{}{}{}{}{}",
+        start,
+        "─".repeat(pad_left),
+        mid,
+        "─".repeat(pad_right),
+        end
+    )
 }
 
 /// Returns a slice of the history for sparkline rendering.

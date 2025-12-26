@@ -1,9 +1,14 @@
 //! Reusable gauge widget factory.
 
 use ratatui::{
-    style::{palette::tailwind, Color, Style},
+    style::{Color, Style},
     widgets::Gauge,
 };
+
+/// Kubectl highlight colors (must match lua/kubectl/actions/highlight.lua).
+const INFO: Color = Color::Rgb(0x60, 0x8B, 0x4E);    // KubectlInfo - green
+const WARNING: Color = Color::Rgb(0xD1, 0x9A, 0x66); // KubectlWarning - orange
+const GRAY_BG: Color = Color::Rgb(0x3E, 0x44, 0x51); // KubectlPselect - for gauge bg
 
 /// Predefined gauge color schemes.
 #[derive(Clone, Copy)]
@@ -16,8 +21,8 @@ pub enum GaugeStyle {
 impl GaugeStyle {
     fn color(self) -> Color {
         match self {
-            GaugeStyle::Cpu => tailwind::GREEN.c500,
-            GaugeStyle::Memory => tailwind::ORANGE.c400,
+            GaugeStyle::Cpu => INFO,
+            GaugeStyle::Memory => WARNING,
             GaugeStyle::Custom(c) => c,
         }
     }
@@ -36,7 +41,7 @@ impl GaugeStyle {
 /// ```
 pub fn make_gauge(label: &str, percent: f64, style: GaugeStyle) -> Gauge<'static> {
     Gauge::default()
-        .gauge_style(Style::default().fg(style.color()).bg(tailwind::GRAY.c800))
+        .gauge_style(Style::default().fg(style.color()).bg(GRAY_BG))
         .label(format!("{label}: {}", percent.round() as u16))
         .use_unicode(true)
         .percent(percent.clamp(0.0, 100.0) as u16)
@@ -48,8 +53,8 @@ mod tests {
 
     #[test]
     fn test_gauge_style_colors() {
-        assert_eq!(GaugeStyle::Cpu.color(), tailwind::GREEN.c500);
-        assert_eq!(GaugeStyle::Memory.color(), tailwind::ORANGE.c400);
+        assert_eq!(GaugeStyle::Cpu.color(), INFO);
+        assert_eq!(GaugeStyle::Memory.color(), WARNING);
         assert_eq!(GaugeStyle::Custom(Color::Red).color(), Color::Red);
     }
 }

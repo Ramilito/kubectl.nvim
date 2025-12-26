@@ -2,11 +2,15 @@
 
 use ratatui::{
     prelude::*,
-    style::{palette::tailwind, Color, Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::Paragraph,
     Frame,
 };
+
+/// Kubectl highlight colors (must match lua/kubectl/actions/highlight.lua).
+const GRAY: Color = Color::Rgb(0x66, 0x66, 0x66);
+const PENDING: Color = Color::Rgb(0xC5, 0x86, 0xC0); // purple/magenta
 
 /// Draws a context-aware inline help bar at the given area.
 ///
@@ -14,7 +18,7 @@ use ratatui::{
 /// `key:desc │ key:desc │ ...`
 pub fn draw_help_bar(f: &mut Frame, area: Rect, hints: &[(&str, &str)]) {
     let mut spans = Vec::new();
-    let separator = Span::styled(" │ ", Style::default().fg(tailwind::GRAY.c600));
+    let separator = Span::styled(" │ ", Style::default().fg(GRAY));
 
     for (i, (key, desc)) in hints.iter().enumerate() {
         if i > 0 {
@@ -22,13 +26,11 @@ pub fn draw_help_bar(f: &mut Frame, area: Rect, hints: &[(&str, &str)]) {
         }
         spans.push(Span::styled(
             *key,
-            Style::default()
-                .fg(Color::Magenta)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(PENDING).add_modifier(Modifier::BOLD),
         ));
         spans.push(Span::styled(
             format!(":{}", desc),
-            Style::default().fg(tailwind::GRAY.c400),
+            Style::default().fg(GRAY),
         ));
     }
 
