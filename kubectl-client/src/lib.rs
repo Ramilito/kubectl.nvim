@@ -59,6 +59,20 @@ pub fn node_stats() -> &'static SharedNodeStats {
     NODE_STATS.get_or_init(|| Arc::new(Mutex::new(HashMap::<String, NodeStat>::new())))
 }
 
+/// Clears all cached pod metrics (called on context change)
+pub fn clear_pod_stats() {
+    if let Ok(mut guard) = pod_stats().lock() {
+        guard.clear();
+    }
+}
+
+/// Clears all cached node metrics (called on context change)
+pub fn clear_node_stats() {
+    if let Ok(mut guard) = node_stats().lock() {
+        guard.clear();
+    }
+}
+
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
     use tokio::{runtime::Handle, task};
     match Handle::try_current() {
@@ -161,8 +175,11 @@ pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
 
 #[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
+    // Stop collectors and clear stale metrics from previous context
     shutdown_pod_collector();
     shutdown_node_collector();
+    clear_pod_stats();
+    clear_node_stats();
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
     {
