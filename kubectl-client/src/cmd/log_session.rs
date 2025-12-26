@@ -28,6 +28,7 @@ impl LogSession {
         container: Option<String>,
         timestamps: bool,
         since: Option<String>,
+        follow: bool,
     ) -> LuaResult<Self> {
         let (tx, rx) = mpsc::unbounded_channel::<String>();
         let open = Arc::new(AtomicBool::new(true));
@@ -67,14 +68,19 @@ impl LogSession {
             return Err(LuaError::external("No containers in pod"));
         }
 
-        // Parse since duration - if provided, get historical logs; otherwise start from now
+        // Parse since duration
         let since_time = since
             .as_deref()
             .and_then(parse_duration)
             .map(|d| Utc::now() - d);
 
-        // If no since provided, use since_seconds=1 to start from "now" (last 1 second only)
-        let since_seconds = if since_time.is_none() { Some(1) } else { None };
+        // If following with no since, use since_seconds=1 to start from "now"
+        // If not following, since_time controls the history (None = all logs)
+        let since_seconds = if follow && since_time.is_none() {
+            Some(1)
+        } else {
+            None
+        };
 
         // Determine if we need container prefixes (multi-container)
         let use_prefix = containers.len() > 1;
@@ -92,7 +98,7 @@ impl LogSession {
 
             rt.spawn(async move {
                 let lp = LogParams {
-                    follow: true,
+                    follow,
                     container: Some(container_name),
                     since_time,
                     since_seconds,
@@ -213,14 +219,21 @@ impl UserData for LogSession {
     }
 }
 
-/// Creates a new log streaming session.
-/// If `since` is provided (e.g. "5m", "1h"), historical logs from that duration are included.
-/// If `since` is None, streaming starts from now (no historical logs).
+/// Creates a new log session.
+/// - `since`: Duration like "5m", "1h" for historical logs. None with follow=false means all logs.
+/// - `follow`: If true, streams continuously. If false, one-shot fetch then closes.
 pub fn log_session(
     _lua: &mlua::Lua,
-    (ns, pod, container, timestamps, since): (String, String, Option<String>, bool, Option<String>),
+    (ns, pod, container, timestamps, since, follow): (
+        String,
+        String,
+        Option<String>,
+        bool,
+        Option<String>,
+        bool,
+    ),
 ) -> LuaResult<LogSession> {
     crate::with_stream_client(|client| async move {
-        LogSession::new(client, ns, pod, container, timestamps, since)
+        LogSession::new(client, ns, pod, container, timestamps, since, follow)
     })
 }
