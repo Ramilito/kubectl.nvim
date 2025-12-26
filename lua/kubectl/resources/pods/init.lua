@@ -1,3 +1,4 @@
+local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
@@ -44,7 +45,8 @@ local M = {
     show_log_prefix = config.options.logs.prefix,
     show_previous = false,
     show_timestamps = config.options.logs.timestamps,
-    tail_handle = nil,
+    session = nil, -- LogSession userdata from Rust
+    timer = nil, -- vim.uv timer for polling
   },
 }
 
@@ -67,66 +69,105 @@ function M.TailLogs(pod, ns, container)
   pod = pod or M.selection.pod
   ns = ns or M.selection.ns
   container = container or M.selection.container
-  local ntfy = " tailing: " .. pod
 
-  local function stop_tailing()
-    if M.log.tail_handle and not M.log.tail_handle:is_closing() then
-      M.log.tail_handle:stop()
-      M.log.tail_handle:close()
-      vim.notify("Stopped" .. ntfy)
+  -- Toggle: stop existing session if running
+  if M.log.session then
+    local is_open = pcall(function()
+      return M.log.session:open()
+    end)
+    if is_open then
+      pcall(function()
+        M.log.session:close()
+      end)
     end
-  end
-  if M.log.tail_handle and not M.log.tail_handle:is_closing() then
-    stop_tailing()
+    M.log.session = nil
+    if M.log.timer and not M.log.timer:is_closing() then
+      M.log.timer:stop()
+      M.log.timer:close()
+    end
+    M.log.timer = nil
+    vim.notify("Stopped tailing: " .. pod)
     return
   end
 
-  local logs_win = vim.api.nvim_get_current_win()
-  local buf = vim.api.nvim_get_current_buf()
-
-  vim.api.nvim_win_set_cursor(logs_win, { vim.api.nvim_buf_line_count(buf), 0 })
-
-  local function fetch_logs()
-    commands.run_async("log_stream_async", {
-      name = pod,
-      namespace = ns,
-      container = container,
-      since_time_input = "1s",
-      previous = M.log.show_previous,
-      timestamps = M.log.show_timestamps,
-      prefix = M.log.show_log_prefix,
-    }, function(data)
-      vim.schedule(function()
-        if vim.api.nvim_buf_is_valid(buf) then
-          local line_count = vim.api.nvim_buf_line_count(buf)
-          vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, vim.split(data, "\n", { trimempty = true }))
-          vim.api.nvim_set_option_value("modified", false, { buf = buf })
-          if logs_win == vim.api.nvim_get_current_win() then
-            vim.api.nvim_win_set_cursor(0, { line_count, 0 })
-          end
-        end
-      end)
-    end)
+  -- Create new streaming session (starts from now, not historical)
+  local ok, sess = pcall(client.log_session, ns, pod, container, M.log.show_timestamps)
+  if not ok or not sess then
+    vim.notify("Failed to start log session: " .. tostring(sess), vim.log.levels.ERROR)
+    return
   end
+  M.log.session = sess
 
-  M.log.tail_handle = vim.uv.new_timer()
-  M.log.tail_handle:start(0, 1000, function()
-    fetch_logs()
-  end)
+  local buf = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
 
-  vim.schedule(function()
-    vim.notify("Started" .. ntfy)
-  end)
+  -- Move cursor to end
+  vim.api.nvim_win_set_cursor(win, { vim.api.nvim_buf_line_count(buf), 0 })
 
+  -- Poll for log output (50ms interval - lightweight, just checks channel)
+  local timer = vim.uv.new_timer()
+  timer:start(
+    0,
+    50,
+    vim.schedule_wrap(function()
+      -- Check if session is still open
+      local session_open = false
+      if M.log.session then
+        local check_ok, is_open = pcall(function()
+          return M.log.session:open()
+        end)
+        session_open = check_ok and is_open
+      end
+
+      if not session_open or not vim.api.nvim_buf_is_valid(buf) then
+        timer:stop()
+        timer:close()
+        M.log.session = nil
+        M.log.timer = nil
+        vim.notify("Log stream ended: " .. pod)
+        return
+      end
+
+      -- Read available log chunks
+      local read_ok, chunk = pcall(function()
+        return M.log.session:read_chunk()
+      end)
+      if read_ok and chunk then
+        local lines = vim.split(chunk, "\n", { trimempty = true })
+        local line_count = vim.api.nvim_buf_line_count(buf)
+        vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, lines)
+        vim.api.nvim_set_option_value("modified", false, { buf = buf })
+        -- Auto-scroll if user is still in the logs window
+        if win == vim.api.nvim_get_current_win() then
+          vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(buf), 0 })
+        end
+      end
+    end)
+  )
+
+  M.log.timer = timer
+  vim.notify("Started tailing: " .. pod)
+
+  -- Cleanup on buffer close
   local group = vim.api.nvim_create_augroup("__kubectl_tailing", { clear = false })
   vim.api.nvim_create_autocmd("BufWinLeave", {
     group = group,
     buffer = buf,
+    once = true,
     callback = function()
-      stop_tailing()
+      if M.log.session then
+        pcall(function()
+          M.log.session:close()
+        end)
+      end
+      if M.log.timer and not M.log.timer:is_closing() then
+        M.log.timer:stop()
+        M.log.timer:close()
+      end
+      M.log.session = nil
+      M.log.timer = nil
     end,
   })
-  -- end
 end
 
 function M.selectPod(pod, ns, container)
@@ -228,7 +269,6 @@ function M.PortForward(pod, ns)
       }
 
       pfBuilder.action_view(def, pf_data, function(args)
-        local client = require("kubectl.client")
         local address = args[1].value
         local local_port = args[2].value
         local remote_port = args[3].value

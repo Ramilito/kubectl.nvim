@@ -83,6 +83,10 @@ function client.exec(ns, pod, container, cmd)
   return client.implementation.exec(ns, pod, container, cmd)
 end
 
+function client.log_session(ns, pod, container, timestamps)
+  return client.implementation.log_session(ns, pod, container, timestamps)
+end
+
 --- @param view_name string
 --- @return kubectl.DashboardSession
 function client.start_buffer_dashboard(view_name)
