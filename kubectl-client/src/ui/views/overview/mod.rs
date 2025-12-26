@@ -10,7 +10,6 @@
 //! ```
 
 mod data;
-mod state;
 
 use crossterm::event::Event;
 use ratatui::{
@@ -33,27 +32,22 @@ use crate::{
 
 use data::{fetch_cluster_stats, fetch_events, fetch_namespaces};
 
-pub use state::OverviewState;
-
 /// Overview view displaying a 6-pane cluster dashboard.
 #[derive(Default)]
-pub struct OverviewView {
-    state: OverviewState,
-}
+pub struct OverviewView;
 
 impl View for OverviewView {
     fn on_event(&mut self, _ev: &Event) -> bool {
-        // No special key handling needed - help is always visible inline
         false
     }
 
     fn draw(&mut self, f: &mut Frame, area: Rect) {
-        draw(f, area, &mut self.state);
+        draw(f, area);
     }
 }
 
 /// Main draw function for the Overview view.
-fn draw(f: &mut Frame, area: Rect, _st: &mut OverviewState) {
+fn draw(f: &mut Frame, area: Rect) {
     // Layout: help bar at top, then 2 rows × 3 columns
     let [help_area, content_area] = Layout::vertical([
         Constraint::Length(1), // Help bar
