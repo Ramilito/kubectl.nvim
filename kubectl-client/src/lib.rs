@@ -56,7 +56,7 @@ pub fn pod_stats() -> &'static SharedPodStats {
 }
 
 pub fn node_stats() -> &'static SharedNodeStats {
-    NODE_STATS.get_or_init(|| Arc::new(Mutex::new(Vec::<NodeStat>::new())))
+    NODE_STATS.get_or_init(|| Arc::new(Mutex::new(HashMap::<String, NodeStat>::new())))
 }
 
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {

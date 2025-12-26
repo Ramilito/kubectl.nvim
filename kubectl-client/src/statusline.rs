@@ -21,7 +21,12 @@ pub struct Statusline {
     pub crit_events: u32,
 }
 pub async fn get_statusline(client: Client) -> Result<Statusline, Error> {
-    let snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
+    let snapshot: Vec<NodeStat> = {
+        node_stats()
+            .lock()
+            .map(|guard| guard.values().cloned().collect())
+            .unwrap_or_default()
+    };
 
     if snapshot.is_empty() {
         return Ok(Statusline::default());

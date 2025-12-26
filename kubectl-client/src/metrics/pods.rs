@@ -1,11 +1,11 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     sync::{Arc, Mutex, OnceLock},
     time::Duration,
 };
 
 use k8s_metrics::{v1beta1 as metricsv1, QuantityExt};
-use kube::{api, Api, Client};
+use kube::{api, Api, Client, ResourceExt};
 use tokio::{task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
@@ -261,82 +261,106 @@ impl PodCollector {
                 tokio::select! {
                     _ = child.cancelled() => break,
                     _ = tick.tick() => {
-                        match metrics_api.list(&api::ListParams::default()).await {
-                            Ok(metrics_list) => {
-                                // Take a snapshot of current stats outside the lock
-                                let mut current_stats = {
-                                    match stats.lock() {
-                                        Ok(guard) => guard.clone(),
-                                        Err(_) => {
-                                            warn!("poisoned pod_stats lock in collector");
-                                            continue;
-                                        }
-                                    }
-                                };
+                        // Batch fetch: get metrics and all pod specs in parallel
+                        let metrics_result = metrics_api.list(&api::ListParams::default()).await;
+                        let pods_result = store::get("Pod", None).await;
 
-                                // Track which pods we've seen this tick
-                                let mut seen_keys = Vec::with_capacity(metrics_list.items.len());
-
-                                // Process all metrics outside the lock
-                                for m in metrics_list {
-                                    let ns = m.metadata.namespace.clone().unwrap_or_default();
-                                    let pod = m.metadata.name.clone().unwrap_or_default();
-                                    let key: PodKey = (ns.clone(), pod.clone());
-                                    seen_keys.push(key.clone());
-
-                                    // Aggregate container metrics
-                                    let mut agg_cpu = 0.0_f64;
-                                    let mut agg_mem = 0_i64;
-                                    let mut c_map: HashMap<String, ContainerSample> = HashMap::new();
-
-                                    for c in m.containers {
-                                        let cpu_m = (c.usage.cpu.to_f64().unwrap_or(0.0) * 1000.0).round() as u64;
-                                        let mem_mi = (c.usage.memory.to_memory().unwrap_or(0).max(0) as u64) / (1024 * 1024);
-
-                                        agg_cpu += c.usage.cpu.to_f64().unwrap_or(0.0);
-                                        agg_mem += c.usage.memory.to_memory().unwrap_or(0);
-
-                                        c_map.insert(c.name, ContainerSample { cpu_m, mem_mi });
-                                    }
-
-                                    let agg_cpu_m = (agg_cpu * 1000.0).round() as u64;
-                                    let agg_mem_mi = (agg_mem.max(0) as u64) / (1024 * 1024);
-
-                                    // Fetch resource requests/limits from store
-                                    let resources = match store::get_single("Pod", Some(ns.clone()), &pod).await {
-                                        Ok(Some(pod_obj)) => extract_pod_resources(&pod_obj),
-                                        _ => PodResources::default(),
-                                    };
-
-                                    /* ---- upsert pod row ---- */
-                                    current_stats
-                                        .entry(key)
-                                        .and_modify(|p| {
-                                            p.push_sample(agg_cpu_m, agg_mem_mi);
-                                            p.containers = c_map.clone();
-                                            p.update_resources(resources.clone());
-                                        })
-                                        .or_insert_with(|| {
-                                            let mut ps = PodStat::new(ns, pod);
-                                            ps.push_sample(agg_cpu_m, agg_mem_mi);
-                                            ps.containers = c_map;
-                                            ps.update_resources(resources);
-                                            ps
-                                        });
-                                }
-
-                                // Remove pods that vanished
-                                current_stats.retain(|k, _| seen_keys.contains(k));
-
-                                // Swap atomically - minimal lock time
-                                if let Ok(mut guard) = stats.lock() {
-                                    *guard = current_stats;
-                                }
-                                // Signal that new data is available
-                                mark_pod_stats_dirty();
+                        let metrics_list = match metrics_result {
+                            Ok(list) => list,
+                            Err(e) => {
+                                warn!(error=%e, "failed to fetch pod metrics");
+                                continue;
                             }
-                            Err(e) => warn!(error=%e, "failed to fetch pod metrics"),
+                        };
+
+                        // Build pod resources lookup map: (namespace, name) -> PodResources
+                        let pod_resources_map: HashMap<PodKey, PodResources> = pods_result
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|pod| {
+                                let ns = pod.namespace().unwrap_or_default();
+                                let name = pod.name_any();
+                                let resources = extract_pod_resources(&pod);
+                                ((ns, name), resources)
+                            })
+                            .collect();
+
+                        // Take a snapshot of current stats outside the lock
+                        let mut current_stats = {
+                            match stats.lock() {
+                                Ok(guard) => guard.clone(),
+                                Err(poisoned) => {
+                                    warn!("poisoned pod_stats lock in collector, recovering");
+                                    poisoned.into_inner().clone()
+                                }
+                            }
+                        };
+
+                        // Track which pods we've seen this tick (HashSet for O(1) lookup)
+                        let mut seen_keys: HashSet<PodKey> = HashSet::with_capacity(metrics_list.items.len());
+
+                        // Process all metrics outside the lock
+                        for m in metrics_list {
+                            let ns = m.metadata.namespace.clone().unwrap_or_default();
+                            let pod = m.metadata.name.clone().unwrap_or_default();
+                            let key: PodKey = (ns.clone(), pod.clone());
+                            seen_keys.insert(key.clone());
+
+                            // Aggregate container metrics
+                            let mut agg_cpu = 0.0_f64;
+                            let mut agg_mem = 0_u64;
+                            let mut c_map: HashMap<String, ContainerSample> = HashMap::with_capacity(m.containers.len());
+
+                            for c in m.containers {
+                                let cpu_m = (c.usage.cpu.to_f64().unwrap_or(0.0) * 1000.0).round() as u64;
+                                let mem_bytes = c.usage.memory.to_memory().unwrap_or(0).max(0) as u64;
+                                let mem_mi = mem_bytes / (1024 * 1024);
+
+                                agg_cpu += c.usage.cpu.to_f64().unwrap_or(0.0);
+                                agg_mem += mem_bytes;
+
+                                c_map.insert(c.name, ContainerSample { cpu_m, mem_mi });
+                            }
+
+                            let agg_cpu_m = (agg_cpu * 1000.0).round() as u64;
+                            let agg_mem_mi = agg_mem / (1024 * 1024);
+
+                            // Look up pre-fetched resources (O(1) instead of async call per pod)
+                            let resources = pod_resources_map
+                                .get(&key)
+                                .cloned()
+                                .unwrap_or_default();
+
+                            // Upsert pod row
+                            current_stats
+                                .entry(key)
+                                .and_modify(|p| {
+                                    p.push_sample(agg_cpu_m, agg_mem_mi);
+                                    p.containers = c_map.clone();
+                                    p.update_resources(resources.clone());
+                                })
+                                .or_insert_with(|| {
+                                    let mut ps = PodStat::new(ns, pod);
+                                    ps.push_sample(agg_cpu_m, agg_mem_mi);
+                                    ps.containers = c_map;
+                                    ps.update_resources(resources);
+                                    ps
+                                });
                         }
+
+                        // Remove pods that vanished (O(1) lookup with HashSet)
+                        current_stats.retain(|k, _| seen_keys.contains(k));
+
+                        // Swap atomically - minimal lock time
+                        match stats.lock() {
+                            Ok(mut guard) => *guard = current_stats,
+                            Err(poisoned) => {
+                                warn!("poisoned pod_stats lock during update, recovering");
+                                *poisoned.into_inner() = current_stats;
+                            }
+                        }
+                        // Signal that new data is available
+                        mark_pod_stats_dirty();
                     }
                 }
             }

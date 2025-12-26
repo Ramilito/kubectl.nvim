@@ -141,7 +141,7 @@ impl TopView {
 
         self.node_cache = node_stats()
             .lock()
-            .map(|guard| guard.clone())
+            .map(|guard| guard.values().cloned().collect())
             .unwrap_or_default();
     }
 

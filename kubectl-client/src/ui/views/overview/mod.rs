@@ -78,8 +78,13 @@ fn draw(f: &mut Frame, area: Rect) {
     ])
     .split(rows[1]);
 
-    // Snapshot data
-    let node_snapshot: Vec<NodeStat> = { node_stats().lock().unwrap().clone() };
+    // Snapshot data (convert HashMap values to Vec)
+    let node_snapshot: Vec<NodeStat> = {
+        node_stats()
+            .lock()
+            .map(|guard| guard.values().cloned().collect())
+            .unwrap_or_default()
+    };
 
     // Sort nodes by metrics for top-N lists
     let mut by_cpu = node_snapshot.to_vec();
