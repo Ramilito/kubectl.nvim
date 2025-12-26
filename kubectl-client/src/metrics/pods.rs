@@ -301,10 +301,10 @@ impl PodCollector {
 
                         // Process all metrics outside the lock
                         for m in metrics_list {
-                            let ns = m.metadata.namespace.clone().unwrap_or_default();
-                            let pod = m.metadata.name.clone().unwrap_or_default();
+                            // Take ownership directly, avoiding unnecessary clones
+                            let ns = m.metadata.namespace.unwrap_or_default();
+                            let pod = m.metadata.name.unwrap_or_default();
                             let key: PodKey = (ns.clone(), pod.clone());
-                            seen_keys.insert(key.clone());
 
                             // Aggregate container metrics
                             let mut agg_cpu = 0.0_f64;
@@ -326,26 +326,31 @@ impl PodCollector {
                             let agg_mem_mi = agg_mem / (1024 * 1024);
 
                             // Look up pre-fetched resources (O(1) instead of async call per pod)
-                            let resources = pod_resources_map
-                                .get(&key)
-                                .cloned()
-                                .unwrap_or_default();
+                            let resources = pod_resources_map.get(&key).cloned();
 
-                            // Upsert pod row
-                            current_stats
-                                .entry(key)
-                                .and_modify(|p| {
+                            // Upsert pod row - use match to avoid cloning c_map and resources
+                            use std::collections::hash_map::Entry;
+                            match current_stats.entry(key.clone()) {
+                                Entry::Occupied(mut entry) => {
+                                    let p = entry.get_mut();
                                     p.push_sample(agg_cpu_m, agg_mem_mi);
-                                    p.containers = c_map.clone();
-                                    p.update_resources(resources.clone());
-                                })
-                                .or_insert_with(|| {
+                                    p.containers = c_map;
+                                    if let Some(res) = resources {
+                                        p.update_resources(res);
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
                                     let mut ps = PodStat::new(ns, pod);
                                     ps.push_sample(agg_cpu_m, agg_mem_mi);
                                     ps.containers = c_map;
-                                    ps.update_resources(resources);
-                                    ps
-                                });
+                                    if let Some(res) = resources {
+                                        ps.update_resources(res);
+                                    }
+                                    entry.insert(ps);
+                                }
+                            }
+
+                            seen_keys.insert(key);
                         }
 
                         // Remove pods that vanished (O(1) lookup with HashSet)

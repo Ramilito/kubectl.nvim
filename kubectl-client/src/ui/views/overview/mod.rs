@@ -86,11 +86,16 @@ fn draw(f: &mut Frame, area: Rect) {
             .unwrap_or_default()
     };
 
-    // Sort nodes by metrics for top-N lists
-    let mut by_cpu = node_snapshot.to_vec();
+    // Pre-calculate stats before sorting consumes the vectors
+    let total_nodes = node_snapshot.len();
+    let ready_nodes = node_snapshot.iter().filter(|n| n.status == "Ready").count();
+
+    // Sort nodes by metrics for top-N lists (one clone instead of two)
+    let mut by_cpu = node_snapshot.clone();
     by_cpu.sort_by(|a, b| b.cpu_pct.total_cmp(&a.cpu_pct));
 
-    let mut by_mem = node_snapshot.to_vec();
+    // Move ownership - node_snapshot consumed here
+    let mut by_mem = node_snapshot;
     by_mem.sort_by(|a, b| b.mem_pct.total_cmp(&a.mem_pct));
 
     // Fetch real namespace data
@@ -152,9 +157,8 @@ fn draw(f: &mut Frame, area: Rect) {
         })
         .collect();
 
-    // Fetch cluster stats
-    let ready_nodes = node_snapshot.iter().filter(|n| n.status == "Ready").count();
-    let stats = fetch_cluster_stats(node_snapshot.len(), ready_nodes);
+    // Fetch cluster stats (using pre-calculated values)
+    let stats = fetch_cluster_stats(total_nodes, ready_nodes);
 
     let info_lines = vec![
         Line::from(vec![
@@ -181,9 +185,9 @@ fn draw(f: &mut Frame, area: Rect) {
         ]),
     ];
 
-    // Top row
+    // Top row (use by_mem for Nodes since order doesn't matter and avoids extra clone)
     draw_text_list(f, cols_top[0], " Info ", &info_lines, Color::Blue);
-    draw_nodes_table(f, cols_top[1], " Nodes ", &node_snapshot);
+    draw_nodes_table(f, cols_top[1], " Nodes ", &by_mem);
     draw_text_list(f, cols_top[2], " Namespaces ", &namespaces, Color::Magenta);
 
     // Bottom row
