@@ -111,6 +111,8 @@ pub struct TopView {
     grouped_pods: GroupedPods,
     /// Cached node stats
     node_cache: Vec<NodeStat>,
+    /// Whether cached data needs refreshing
+    cache_dirty: bool,
 }
 
 impl Default for TopView {
@@ -119,19 +121,22 @@ impl Default for TopView {
             state: TopViewState::default(),
             grouped_pods: BTreeMap::new(),
             node_cache: Vec::new(),
+            cache_dirty: true, // Start dirty to load initial data
         }
     }
 }
 
 impl TopView {
-    /// Refreshes caches from shared state. Called once per render cycle.
+    /// Refreshes caches from shared state. Only called when cache is dirty.
     fn refresh_caches(&mut self) {
+        if !self.cache_dirty {
+            return;
+        }
+
         // Group pods by namespace
         self.grouped_pods.clear();
         if let Ok(guard) = pod_stats().lock() {
-            for mut pod in guard.values().cloned() {
-                pod.cpu_history.make_contiguous();
-                pod.mem_history.make_contiguous();
+            for pod in guard.values().cloned() {
                 self.grouped_pods
                     .entry(pod.namespace.clone())
                     .or_default()
@@ -143,6 +148,8 @@ impl TopView {
             .lock()
             .map(|guard| guard.values().cloned().collect())
             .unwrap_or_default();
+
+        self.cache_dirty = false;
     }
 
     /// Finds the pod at the current cursor line and toggles its expansion.
@@ -225,6 +232,10 @@ impl View for TopView {
             }
             Some(height)
         }
+    }
+
+    fn on_metrics_update(&mut self) {
+        self.cache_dirty = true;
     }
 }
 
@@ -534,10 +545,10 @@ fn format_time_markers(data_points: usize, width: u16) -> String {
 
 /// Returns a slice of the history for sparkline rendering.
 /// Takes the most recent `max_w` elements (oldest-first order for display).
-/// Zero-copy: returns a slice directly from the contiguous VecDeque.
+/// Note: Cloned VecDeques are contiguous, so first slice has all data.
 #[inline]
 fn history_slice(data: &std::collections::VecDeque<u64>, max_w: u16) -> &[u64] {
-    // VecDeque is made contiguous in refresh_caches(), so first slice has all data
+    // VecDeque clone produces contiguous data, so first slice contains everything
     let (slice, _) = data.as_slices();
     // Take the last max_w elements (most recent data points)
     let start = slice.len().saturating_sub(max_w as usize);

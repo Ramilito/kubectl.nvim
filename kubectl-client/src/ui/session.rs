@@ -254,6 +254,8 @@ async fn run_buffer_ui(
                 if !open.load(Ordering::Acquire) || !take_metrics_dirty() {
                     continue;
                 }
+                // Signal view that metrics have been updated
+                view.on_metrics_update();
                 maybe_resize(&mut term, &*view, &cols, &rows);
                 draw_buffer(&mut term, &mut *view);
             }

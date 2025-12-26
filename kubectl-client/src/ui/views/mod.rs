@@ -38,6 +38,13 @@ pub trait View: Send {
     fn content_height(&self) -> Option<u16> {
         None
     }
+
+    /// Signals that metrics data has been updated.
+    ///
+    /// Views should invalidate any cached metrics data and refresh on next draw.
+    fn on_metrics_update(&mut self) {
+        // Default implementation does nothing
+    }
 }
 
 /// Creates a view by name.
