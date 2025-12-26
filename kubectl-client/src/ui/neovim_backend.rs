@@ -13,6 +13,8 @@ use ratatui::{
 use serde::Serialize;
 use std::io::Result as IoResult;
 
+use super::colors;
+
 /// Highlight data for a single cell or range.
 #[derive(Debug, Clone, Serialize)]
 pub struct ExtmarkData {
@@ -147,16 +149,15 @@ fn cell_to_hl_group(cell: &Cell) -> Option<String> {
     }
 
     // Map Kubectl colors to native highlight groups.
-    // These RGB values must match lua/kubectl/actions/highlight.lua
     let base_hl = match fg {
-        Color::Rgb(0x60, 0x8B, 0x4E) => Some("KubectlInfo"),    // green
-        Color::Rgb(0xD1, 0x9A, 0x66) => Some("KubectlWarning"), // orange
-        Color::Rgb(0xD1, 0x69, 0x69) => Some("KubectlError"),   // red
-        Color::Rgb(0xDC, 0xDC, 0xAA) => Some("KubectlDebug"),   // yellow
-        Color::Rgb(0x56, 0x9C, 0xD6) => Some("KubectlHeader"),  // blue
-        Color::Rgb(0x4E, 0xC9, 0xB0) => Some("KubectlSuccess"), // cyan
-        Color::Rgb(0x66, 0x66, 0x66) => Some("KubectlGray"),    // gray
-        Color::Rgb(0xC5, 0x86, 0xC0) => Some("KubectlPending"), // purple
+        c if c == colors::INFO => Some("KubectlInfo"),
+        c if c == colors::WARNING => Some("KubectlWarning"),
+        c if c == colors::ERROR => Some("KubectlError"),
+        c if c == colors::DEBUG => Some("KubectlDebug"),
+        c if c == colors::HEADER => Some("KubectlHeader"),
+        c if c == colors::SUCCESS => Some("KubectlSuccess"),
+        c if c == colors::GRAY => Some("KubectlGray"),
+        c if c == colors::PENDING => Some("KubectlPending"),
         _ => None,
     };
 

@@ -41,17 +41,7 @@ const EXPANDED_H: u16 = 10;
 /// Label width for sparkline value/delta display.
 const LABEL_WIDTH: u16 = 12;
 
-/// Kubectl highlight colors (must match lua/kubectl/actions/highlight.lua).
-mod colors {
-    use ratatui::style::Color;
-    pub const INFO: Color = Color::Rgb(0x60, 0x8B, 0x4E);      // KubectlInfo - green
-    pub const WARNING: Color = Color::Rgb(0xD1, 0x9A, 0x66);   // KubectlWarning - orange
-    pub const ERROR: Color = Color::Rgb(0xD1, 0x69, 0x69);     // KubectlError - red
-    pub const DEBUG: Color = Color::Rgb(0xDC, 0xDC, 0xAA);     // KubectlDebug - yellow
-    pub const HEADER: Color = Color::Rgb(0x56, 0x9C, 0xD6);    // KubectlHeader - blue
-    pub const SUCCESS: Color = Color::Rgb(0x4E, 0xC9, 0xB0);   // KubectlSuccess - cyan
-    pub const GRAY: Color = Color::Rgb(0x66, 0x66, 0x66);      // KubectlGray
-}
+use crate::ui::colors;
 
 /// Renders a sparkline with value label and optional delta indicator.
 ///

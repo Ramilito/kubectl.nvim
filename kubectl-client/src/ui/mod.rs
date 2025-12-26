@@ -32,10 +32,12 @@
 //! - `session` - BufferSession management and Lua FFI bindings
 //! - `views` - View trait and implementations (Top, Overview)
 //! - `components` - Reusable UI widgets (Gauge, HelpOverlay, Header)
+//! - `colors` - Centralized Kubectl highlight colors
 //! - `events` - Event parsing and scroll handling
 //! - `layout` - Layout calculation utilities
 //! - `neovim_backend` - Custom backend for native Neovim buffer rendering
 
+pub mod colors;
 pub mod components;
 pub mod events;
 pub mod layout;

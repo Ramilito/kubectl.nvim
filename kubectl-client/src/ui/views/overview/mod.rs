@@ -32,18 +32,7 @@ use crate::{
 
 use data::{fetch_cluster_stats, fetch_events, fetch_namespaces};
 
-/// Kubectl highlight colors (must match lua/kubectl/actions/highlight.lua).
-mod colors {
-    use ratatui::style::Color;
-    pub const INFO: Color = Color::Rgb(0x60, 0x8B, 0x4E);      // green
-    pub const WARNING: Color = Color::Rgb(0xD1, 0x9A, 0x66);   // orange
-    pub const ERROR: Color = Color::Rgb(0xD1, 0x69, 0x69);     // red
-    pub const DEBUG: Color = Color::Rgb(0xDC, 0xDC, 0xAA);     // yellow
-    pub const HEADER: Color = Color::Rgb(0x56, 0x9C, 0xD6);    // blue
-    pub const SUCCESS: Color = Color::Rgb(0x4E, 0xC9, 0xB0);   // cyan
-    pub const GRAY: Color = Color::Rgb(0x66, 0x66, 0x66);
-    pub const PENDING: Color = Color::Rgb(0xC5, 0x86, 0xC0);   // purple
-}
+use crate::ui::colors;
 
 /// Overview view displaying a 6-pane cluster dashboard.
 #[derive(Default)]
