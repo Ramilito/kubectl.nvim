@@ -9,9 +9,6 @@ local tables = require("kubectl.utils.tables")
 
 local resource = "pods"
 
--- Namespace for log extmarks (highlighting)
-local log_ns_id = vim.api.nvim_create_namespace("__kubectl_log_highlights")
-
 ---@class PodsModule : Module
 local M = {
   definition = {
@@ -145,25 +142,14 @@ local function start_log_polling(buf, win)
         return
       end
 
-      -- Read available log chunks (now returns table with lines and marks)
-      local read_ok, chunk = pcall(function()
+      -- Read available log lines
+      local read_ok, lines = pcall(function()
         return M.log.session:read_chunk()
       end)
-      if read_ok and chunk and chunk.lines and #chunk.lines > 0 then
+      if read_ok and lines and #lines > 0 then
         local start_line = vim.api.nvim_buf_line_count(buf)
-        -- Append lines after last line
-        vim.api.nvim_buf_set_lines(buf, start_line, start_line, false, chunk.lines)
+        vim.api.nvim_buf_set_lines(buf, start_line, start_line, false, lines)
         vim.api.nvim_set_option_value("modified", false, { buf = buf })
-
-        -- Apply highlight extmarks
-        if chunk.marks then
-          for _, mark in ipairs(chunk.marks) do
-            pcall(vim.api.nvim_buf_set_extmark, buf, log_ns_id, start_line + mark.line_offset, mark.start_col, {
-              end_col = mark.end_col,
-              hl_group = mark.hl_group,
-            })
-          end
-        end
 
         -- Auto-scroll if user is still in the logs window
         if vim.api.nvim_win_is_valid(win) and win == vim.api.nvim_get_current_win() then
@@ -198,7 +184,7 @@ function M.Logs(reload)
     resource = "pod_logs",
     display_name = M.selection.pod .. " | " .. M.selection.ns,
     ft = "k8s_pod_logs",
-    syntax = "less",
+    syntax = "k8s_pod_logs",
     cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
