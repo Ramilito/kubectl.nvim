@@ -5,19 +5,32 @@ local str = require("kubectl.utils.string")
 
 local M = {}
 
---- Toggle JSON: expand or collapse based on current state
+--- Toggle JSON: expand/collapse with fold support
 local function toggle_json()
-  local bufnr = vim.api.nvim_get_current_buf()
-  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
+  local row = vim.api.nvim_win_get_cursor(0)[1]
 
+  -- If there's a fold at cursor, toggle it
+  if vim.fn.foldlevel(row) > 0 then
+    vim.cmd("normal! za")
+    return
+  end
+
+  local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
   local result = client.toggle_json(line)
   if not result then
     return vim.notify("No valid JSON found", vim.log.levels.WARN)
   end
 
   local content = line:sub(1, result.start_idx - 1) .. result.json .. line:sub(result.end_idx + 1)
-  vim.api.nvim_buf_set_lines(bufnr, row, row + 1, false, vim.split(content, "\n"))
+  local new_lines = vim.split(content, "\n")
+  vim.api.nvim_buf_set_lines(0, row - 1, row, false, new_lines)
+
+  -- Create open fold over expanded JSON
+  if #new_lines > 1 then
+    vim.wo.foldmethod = "manual"
+    vim.cmd(row .. "," .. (row + #new_lines - 1) .. "fold")
+    vim.cmd("normal! zo")
+  end
 end
 
 M.overrides = {
