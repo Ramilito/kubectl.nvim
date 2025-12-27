@@ -26,6 +26,10 @@ syn match kubectlLogIP /\<\d\{1,3}\.\d\{1,3}\.\d\{1,3}\.\d\{1,3}\(:\d\+\)\?\>/
 " URLs: http://... https://...
 syn match kubectlLogURL /https\?:\/\/[^ \t"'<>]\+/
 
+" Boolean and null values
+syn keyword kubectlLogBool true false
+syn keyword kubectlLogNull null nil
+
 " Link to highlight groups
 hi def link kubectlLogContainer KubectlPending
 hi def link kubectlLogTimestamp KubectlGray
@@ -36,5 +40,7 @@ hi def link kubectlLogDebug KubectlDebug
 hi def link kubectlLogUUID Identifier
 hi def link kubectlLogIP Constant
 hi def link kubectlLogURL Underlined
+hi def link kubectlLogBool Boolean
+hi def link kubectlLogNull Constant
 
 let b:current_syntax = "k8s_pod_logs"
