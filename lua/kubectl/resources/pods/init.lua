@@ -219,7 +219,7 @@ function M.Logs(reload)
       { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. tostring(M.log.show_timestamps) .. "]" },
       { key = "<Plug>(kubectl.wrap)", desc = "Wrap" },
       { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. tostring(M.log.show_previous) .. "]" },
-      { key = "<Plug>(kubectl.expand_json)", desc = "Expand JSON" },
+      { key = "<Plug>(kubectl.expand_json)", desc = "Toggle JSON" },
     },
   }
 

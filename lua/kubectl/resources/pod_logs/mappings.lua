@@ -5,33 +5,19 @@ local str = require("kubectl.utils.string")
 
 local M = {}
 
---- Expand JSON on current line into multiple formatted lines
-local function expand_json()
+--- Toggle JSON: expand or collapse based on current state
+local function toggle_json()
   local bufnr = vim.api.nvim_get_current_buf()
-  local row = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-indexed
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
 
-  if not line then
-    return
-  end
-
-  local result = client.format_json(line)
+  local result = client.toggle_json(line)
   if not result then
-    vim.notify("No valid JSON found on current line", vim.log.levels.WARN)
-    return
+    return vim.notify("No valid JSON found", vim.log.levels.WARN)
   end
 
-  local prefix = line:sub(1, result.start_idx - 1)
-  local suffix = line:sub(result.end_idx + 1)
-
-  local lines = vim.split(result.formatted, "\n")
-
-  -- Add prefix to first line, suffix to last line
-  lines[1] = prefix .. lines[1]
-  lines[#lines] = lines[#lines] .. suffix
-
-  -- Replace current line with formatted lines
-  vim.api.nvim_buf_set_lines(bufnr, row, row + 1, false, lines)
+  local content = line:sub(1, result.start_idx - 1) .. result.json .. line:sub(result.end_idx + 1)
+  vim.api.nvim_buf_set_lines(bufnr, row, row + 1, false, vim.split(content, "\n"))
 end
 
 M.overrides = {
@@ -116,8 +102,8 @@ M.overrides = {
   ["<Plug>(kubectl.expand_json)"] = {
     noremap = true,
     silent = true,
-    desc = "Expand JSON",
-    callback = expand_json,
+    desc = "Toggle JSON",
+    callback = toggle_json,
   },
 }
 

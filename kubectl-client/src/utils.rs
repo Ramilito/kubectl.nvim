@@ -61,47 +61,53 @@ pub fn time_since(ts_str: &str) -> String {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct FormattedJson {
-    pub formatted: String,
+#[derive(Debug, Clone)]
+pub struct ToggleJsonResult {
+    pub json: String,
     pub start_idx: usize,
     pub end_idx: usize,
 }
 
-/// Find and format JSON in a string.
-/// Returns formatted JSON with start/end indices, or None if no valid JSON found.
+/// Find JSON in a string and toggle between pretty/minified format.
 /// Indices are 1-based for Lua compatibility.
-pub fn format_json(input: &str) -> Option<FormattedJson> {
+pub fn toggle_json(input: &str) -> Option<ToggleJsonResult> {
     let bytes = input.as_bytes();
+    let mut depth = 0;
+    let mut start = None;
 
-    for (start, _) in bytes.iter().enumerate().filter(|(_, &b)| b == b'{') {
-        let mut depth = 0;
-        for (i, &b) in bytes[start..].iter().enumerate() {
-            match b {
-                b'{' => depth += 1,
-                b'}' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        let end = start + i + 1;
-                        let candidate = &input[start..end];
-
-                        if let Ok(value) = serde_json::from_str::<serde_json::Value>(candidate) {
-                            if let Ok(formatted) = serde_json::to_string_pretty(&value) {
-                                // Return 1-based indices for Lua
-                                return Some(FormattedJson {
-                                    formatted,
-                                    start_idx: start + 1,
-                                    end_idx: end,
-                                });
-                            }
-                        }
-                        break;
-                    }
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'{' => {
+                if depth == 0 {
+                    start = Some(i);
                 }
-                _ => {}
+                depth += 1;
             }
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Some(s) = start {
+                        let candidate = &input[s..=i];
+                        if let Ok(value) = serde_json::from_str::<serde_json::Value>(candidate) {
+                            let json = if candidate.contains('\n') {
+                                serde_json::to_string(&value)
+                            } else {
+                                serde_json::to_string_pretty(&value)
+                            }
+                            .ok()?;
+
+                            return Some(ToggleJsonResult {
+                                json,
+                                start_idx: s + 1,
+                                end_idx: i + 1,
+                            });
+                        }
+                    }
+                    start = None;
+                }
+            }
+            _ => {}
         }
     }
-
     None
 }
