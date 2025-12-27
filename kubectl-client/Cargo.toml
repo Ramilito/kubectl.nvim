@@ -38,4 +38,3 @@ tui-widgets = "0.4.1"
 tokio-util = "0.7.15"
 ctor = "0.4.2"
 uuid = { version = "1.17.0", features = ["v4"] }
-regex = "1.11"
