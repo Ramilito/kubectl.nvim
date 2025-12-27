@@ -1566,6 +1566,7 @@ dependencies = [
  "nix",
  "ratatui",
  "rayon",
+ "regex",
  "serde",
  "serde_json_path",
  "serde_yaml",

@@ -83,8 +83,8 @@ function client.exec(ns, pod, container, cmd)
   return client.implementation.exec(ns, pod, container, cmd)
 end
 
-function client.log_session(ns, pod, container, timestamps, since, follow)
-  return client.implementation.log_session(ns, pod, container, timestamps, since, follow)
+function client.log_session(ns, pod, container, timestamps, since, follow, previous, prefix)
+  return client.implementation.log_session(ns, pod, container, timestamps, since, follow, previous, prefix)
 end
 
 --- @param view_name string

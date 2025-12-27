@@ -9,6 +9,9 @@ local tables = require("kubectl.utils.tables")
 
 local resource = "pods"
 
+-- Namespace for log extmarks (highlighting)
+local log_ns_id = vim.api.nvim_create_namespace("__kubectl_log_highlights")
+
 ---@class PodsModule : Module
 local M = {
   definition = {
@@ -142,21 +145,29 @@ local function start_log_polling(buf, win)
         return
       end
 
-      -- Read available log chunks
+      -- Read available log chunks (now returns table with lines and marks)
       local read_ok, chunk = pcall(function()
         return M.log.session:read_chunk()
       end)
-      if read_ok and chunk and chunk ~= "" then
-        local lines = vim.split(chunk, "\n", { trimempty = true })
-        if #lines > 0 then
-          local line_count = vim.api.nvim_buf_line_count(buf)
-          -- Append after last line
-          vim.api.nvim_buf_set_lines(buf, line_count, line_count, false, lines)
-          vim.api.nvim_set_option_value("modified", false, { buf = buf })
-          -- Auto-scroll if user is still in the logs window
-          if vim.api.nvim_win_is_valid(win) and win == vim.api.nvim_get_current_win() then
-            pcall(vim.api.nvim_win_set_cursor, win, { vim.api.nvim_buf_line_count(buf), 0 })
+      if read_ok and chunk and chunk.lines and #chunk.lines > 0 then
+        local start_line = vim.api.nvim_buf_line_count(buf)
+        -- Append lines after last line
+        vim.api.nvim_buf_set_lines(buf, start_line, start_line, false, chunk.lines)
+        vim.api.nvim_set_option_value("modified", false, { buf = buf })
+
+        -- Apply highlight extmarks
+        if chunk.marks then
+          for _, mark in ipairs(chunk.marks) do
+            pcall(vim.api.nvim_buf_set_extmark, buf, log_ns_id, start_line + mark.line_offset, mark.start_col, {
+              end_col = mark.end_col,
+              hl_group = mark.hl_group,
+            })
           end
+        end
+
+        -- Auto-scroll if user is still in the logs window
+        if vim.api.nvim_win_is_valid(win) and win == vim.api.nvim_get_current_win() then
+          pcall(vim.api.nvim_win_set_cursor, win, { vim.api.nvim_buf_line_count(buf), 0 })
         end
       end
     end)
@@ -232,7 +243,17 @@ function M.TailLogs()
   local buf = vim.api.nvim_get_current_buf()
   local win = vim.api.nvim_get_current_win()
 
-  local ok, sess = pcall(client.log_session, ns, pod, container, M.log.show_timestamps, nil, true)
+  local ok, sess = pcall(
+    client.log_session,
+    ns,
+    pod,
+    container,
+    M.log.show_timestamps,
+    nil,
+    true,
+    false,
+    M.log.show_log_prefix and true or nil
+  )
   if not ok or not sess then
     vim.notify("Failed to start log session: " .. tostring(sess), vim.log.levels.ERROR)
     return
