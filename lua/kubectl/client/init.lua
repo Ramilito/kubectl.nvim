@@ -109,4 +109,8 @@ function client.emit(key, payload)
   return client.implementation.emit(key, payload)
 end
 
+function client.format_json(input)
+  return client.implementation.format_json(input)
+end
+
 return client

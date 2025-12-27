@@ -1,8 +1,38 @@
+local client = require("kubectl.client")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.resources.pods")
 local str = require("kubectl.utils.string")
 
 local M = {}
+
+--- Expand JSON on current line into multiple formatted lines
+local function expand_json()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-indexed
+  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
+
+  if not line then
+    return
+  end
+
+  local result = client.format_json(line)
+  if not result then
+    vim.notify("No valid JSON found on current line", vim.log.levels.WARN)
+    return
+  end
+
+  local prefix = line:sub(1, result.start_idx - 1)
+  local suffix = line:sub(result.end_idx + 1)
+
+  local lines = vim.split(result.formatted, "\n")
+
+  -- Add prefix to first line, suffix to last line
+  lines[1] = prefix .. lines[1]
+  lines[#lines] = lines[#lines] .. suffix
+
+  -- Replace current line with formatted lines
+  vim.api.nvim_buf_set_lines(bufnr, row, row + 1, false, lines)
+end
 
 M.overrides = {
   ["<Plug>(kubectl.follow)"] = {
@@ -83,6 +113,12 @@ M.overrides = {
       str.divider(0)
     end,
   },
+  ["<Plug>(kubectl.expand_json)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Expand JSON",
+    callback = expand_json,
+  },
 }
 
 function M.register()
@@ -93,6 +129,7 @@ function M.register()
   mappings.map_if_plug_not_set("n", "gh", "<Plug>(kubectl.history)")
   mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
   mappings.map_if_plug_not_set("n", "gpp", "<Plug>(kubectl.previous_logs)")
+  mappings.map_if_plug_not_set("n", "gj", "<Plug>(kubectl.expand_json)")
 end
 
 return M

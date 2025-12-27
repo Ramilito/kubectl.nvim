@@ -471,6 +471,22 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_async_function(describe::describe_async)?,
     )?;
 
+    exports.set(
+        "format_json",
+        lua.create_function(|lua, input: String| {
+            match utils::format_json(&input) {
+                Some(result) => {
+                    let tbl = lua.create_table()?;
+                    tbl.set("formatted", result.formatted)?;
+                    tbl.set("start_idx", result.start_idx)?;
+                    tbl.set("end_idx", result.end_idx)?;
+                    Ok(mlua::Value::Table(tbl))
+                }
+                None => Ok(mlua::Value::Nil),
+            }
+        })?,
+    )?;
+
     dao::install(lua, &exports)?;
     cmd::install(lua, &exports)?;
     event_queue::install(lua, &exports)?;
