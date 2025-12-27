@@ -116,7 +116,7 @@ local function start_log_polling(buf, win)
 
   timer:start(
     0,
-    100, -- 100ms polling interval
+    200, -- 200ms polling interval
     vim.schedule_wrap(function()
       if stopped then
         return

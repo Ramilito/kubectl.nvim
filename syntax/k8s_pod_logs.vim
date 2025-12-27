@@ -3,6 +3,9 @@ if exists("b:current_syntax")
   finish
 endif
 
+" Limit syntax sync scope for performance on large log buffers
+syn sync minlines=100
+
 " Container prefix: [container-name] at start of line
 syn match kubectlLogContainer /^\[[^\]]\+\]\s/
 

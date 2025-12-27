@@ -266,14 +266,16 @@ pub fn log_session(
 }
 
 /// One-shot async log fetch for initial view (non-streaming).
-/// Returns all logs as a single string. Supports multiple pods.
+/// Returns all logs as a JSON-encoded array of lines. Supports multiple pods.
+/// Note: Returns JSON string because vim.uv.new_work threads only support primitives.
 #[tracing::instrument]
 pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<String> {
     let args: CmdStreamArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     if args.pods.is_empty() {
-        return Ok("No pods specified".to_string());
+        return Ok(serde_json::to_string(&vec!["No pods specified"])
+            .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))?);
     }
 
     let since_time = args
@@ -297,10 +299,11 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
                     if multi_pod {
                         continue;
                     }
-                    return Ok(format!(
+                    return Ok(serde_json::to_string(&vec![format!(
                         "No pod named {} in {} found: {}",
                         pod_ref.name, pod_ref.namespace, e
-                    ));
+                    )])
+                    .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))?);
                 }
             };
 
@@ -356,17 +359,18 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
         }
 
         if all_streams.is_empty() {
-            return Ok("No logs found".to_string());
+            return Ok(serde_json::to_string(&vec!["No logs found"])
+                .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))?);
         }
 
         let mut combined = futures::stream::select_all(all_streams);
-        let mut collected_logs = String::new();
+        let mut collected_logs: Vec<String> = Vec::new();
 
         while let Some(line) = combined.try_next().await? {
-            collected_logs.push_str(&line);
-            collected_logs.push('\n');
+            collected_logs.push(line);
         }
 
-        Ok(collected_logs)
+        serde_json::to_string(&collected_logs)
+            .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))
     })
 }

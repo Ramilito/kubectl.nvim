@@ -92,3 +92,8 @@ Minimal C-compatible exports for specialized kubectl operations (describe, drain
 - `K8sResourceSelected` - Resource selected in view
 - `K8sContextChanged` - Kubernetes context switched
 - `K8sCacheLoaded` - API resources cache loaded
+
+## Denied Commands
+
+Do NOT run these commands:
+- `make build` - Takes too long, use `make build_dev` instead
