@@ -97,11 +97,16 @@ pub struct CmdDescribeArgs {
     pub gvk: Gvk,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct PodRef {
+    pub name: String,
+    pub namespace: String,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(default)]
 pub struct CmdStreamArgs {
-    pub name: String,
-    pub namespace: String,
+    pub pods: Vec<PodRef>,
     pub container: Option<String>,
     pub since_time_input: Option<String>,
     pub previous: Option<bool>,

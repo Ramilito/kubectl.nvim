@@ -176,13 +176,39 @@ function M.selectPod(pod, ns, container)
   M.selection = { pod = pod, ns = ns, container = container }
 end
 
+--- Build pods list from selections or single selection
+---@return table pods List of { name, namespace } entries
+---@return string display_name Display name for the view
+local function get_pods_for_logs()
+  local selections = state.getSelections()
+  local pods = {}
+
+  if #selections > 0 then
+    for _, sel in ipairs(selections) do
+      table.insert(pods, { name = sel.name, namespace = sel.namespace })
+    end
+    local display = #pods == 1 and pods[1].name or (#pods .. " pods")
+    return pods, display
+  end
+
+  -- Fall back to single selection
+  if M.selection.pod then
+    table.insert(pods, { name = M.selection.pod, namespace = M.selection.ns })
+    return pods, M.selection.pod .. " | " .. M.selection.ns
+  end
+
+  return pods, "No pods selected"
+end
+
 function M.Logs(reload)
   -- Stop any existing follow session
   stop_log_session()
 
+  local pods, display_name = get_pods_for_logs()
+
   local def = {
     resource = "pod_logs",
-    display_name = M.selection.pod .. " | " .. M.selection.ns,
+    display_name = display_name,
     ft = "k8s_pod_logs",
     syntax = "k8s_pod_logs",
     cmd = "log_stream_async",
@@ -201,8 +227,7 @@ function M.Logs(reload)
   logsBuilder.view_float(def, {
     reload = reload,
     args = {
-      name = M.selection.pod,
-      namespace = M.selection.ns,
+      pods = pods,
       container = M.selection.container,
       since_time_input = M.log.log_since,
       previous = M.log.show_previous,
@@ -214,14 +239,17 @@ end
 
 --- Toggle follow mode - stops current session or starts streaming from now
 function M.TailLogs()
-  local pod = M.selection.pod
-  local ns = M.selection.ns
-  local container = M.selection.container
+  local pods, display_name = get_pods_for_logs()
 
   -- If session exists and is following, stop it
   if M.log.session then
     stop_log_session()
-    vim.notify("Stopped following: " .. pod)
+    vim.notify("Stopped following: " .. display_name)
+    return
+  end
+
+  if #pods == 0 then
+    vim.notify("No pods selected", vim.log.levels.WARN)
     return
   end
 
@@ -231,9 +259,8 @@ function M.TailLogs()
 
   local ok, sess = pcall(
     client.log_session,
-    ns,
-    pod,
-    container,
+    pods,
+    M.selection.container,
     M.log.show_timestamps,
     nil,
     true,
@@ -252,7 +279,7 @@ function M.TailLogs()
 
   -- Start polling
   start_log_polling(buf, win)
-  vim.notify("Following: " .. pod)
+  vim.notify("Following: " .. display_name)
 end
 
 function M.PortForward(pod, ns)
