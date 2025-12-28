@@ -6,8 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **[CLAUDE-RUST.md](./.claude/CLAUDE-RUST.md)** - Rust codebase guidance (dylib constraints, mlua FFI, Tokio runtime)
 - **[CLAUDE-LUA.md](./.claude/CLAUDE-LUA.md)** - Lua/Neovim plugin guidance (resource pattern, factory, state management)
-- **[CLAUDE-CLEAN-CODE.md](./.claude/CLAUDE-CLEAN-CODE.md)** - Clean code principles (cognitive load, readability, function design)
 - **[CLAUDE-LOGS.md](./.claude/CLAUDE-LOGS.md)** - Pod logs feature (streaming, JSON toggle, histogram, mlua UserData)
+- **[CLAUDE-CODE-REVIEW.md](./.claude/CLAUDE-CODE-REVIEW.md)** - Targeted code review (post-edit, pre-commit, module modes)
+- **[CLAUDE-ARCHITECTURE-VERIFY.md](./.claude/CLAUDE-ARCHITECTURE-VERIFY.md)** - Architecture verification (dependency rules, pattern conformance)
+
+### Reference Documents
+
+- **[CLAUDE-CLEAN-CODE.md](./.claude/CLAUDE-CLEAN-CODE.md)** - Clean code principles (cognitive load, readability, function design)
+- **[ARCHITECTURE.md](./.claude/ARCHITECTURE.md)** - Architecture contract (layers, boundaries, dependency rules)
 
 ## Project Overview
 
