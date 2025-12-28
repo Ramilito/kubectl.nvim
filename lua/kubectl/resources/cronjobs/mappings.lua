@@ -1,24 +1,18 @@
-local cronjob_view = require("kubectl.resources.cronjobs")
-local mappings = require("kubectl.mappings")
-local err_msg = "Failed to extract cronjob name or namespace."
 local buffers = require("kubectl.actions.buffers")
+local cronjob_view = require("kubectl.resources.cronjobs")
+local mapping_helpers = require("kubectl.utils.mapping_helpers")
+local mappings = require("kubectl.mappings")
 local tables = require("kubectl.utils.tables")
 
 local M = {}
+local err_msg = "Failed to extract cronjob name or namespace."
 
 M.overrides = {
   ["<Plug>(kubectl.create_job)"] = {
     noremap = true,
     silent = true,
     desc = "Create job from cronjob",
-    callback = function()
-      local name, ns = cronjob_view.getCurrentSelection()
-      if not name or not ns then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      cronjob_view.create_from_cronjob(name, ns)
-    end,
+    callback = mapping_helpers.safe_callback(cronjob_view, cronjob_view.create_from_cronjob),
   },
   ["<Plug>(kubectl.suspend_cronjob)"] = {
     noremap = true,

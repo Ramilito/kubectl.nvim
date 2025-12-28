@@ -1,6 +1,6 @@
 local ingresses_view = require("kubectl.resources.ingresses")
+local mapping_helpers = require("kubectl.utils.mapping_helpers")
 local mappings = require("kubectl.mappings")
-local err_msg = "Failed to extract ingress name or namespace."
 
 local M = {}
 
@@ -9,15 +9,7 @@ M.overrides = {
     noremap = true,
     silent = true,
     desc = "Open host in browser",
-    callback = function()
-      local name, ns = ingresses_view.getCurrentSelection()
-
-      if not name or not ns then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      ingresses_view.OpenBrowser(name, ns)
-    end,
+    callback = mapping_helpers.safe_callback(ingresses_view, ingresses_view.OpenBrowser),
   },
 }
 function M.register()

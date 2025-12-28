@@ -1,69 +1,58 @@
+local BaseResource = require("kubectl.resources.base_resource")
 local client = require("kubectl.client")
-local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
+local pf_action = require("kubectl.actions.portforward")
 local pf_view = require("kubectl.views.portforward")
 local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 
 local resource = "pods"
 
----@class PodsModule : Module
-local M = {
-  definition = {
-    resource = resource,
-    display_name = string.upper(resource),
-    ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "Pod" },
-    hints = {
-      { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
-      { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
-      { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
-      { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },
-    },
-    headers = {
-      "NAMESPACE",
-      "NAME",
-      "READY",
-      "STATUS",
-      "RESTARTS",
-      "CPU",
-      "MEM",
-      "%CPU/R",
-      "%CPU/L",
-      "%MEM/R",
-      "%MEM/L",
-      "IP",
-      "NODE",
-      "AGE",
-    },
+local M = BaseResource.extend({
+  resource = resource,
+  display_name = string.upper(resource),
+  ft = "k8s_" .. resource,
+  gvk = { g = "", v = "v1", k = "Pod" },
+  hints = {
+    { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
+    { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
+    { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
+    { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },
   },
-  selection = {},
-  log = {
-    log_since = config.options.logs.since,
-    show_log_prefix = config.options.logs.prefix,
-    show_previous = false,
-    show_timestamps = config.options.logs.timestamps,
-    session = nil, ---@type kubectl.LogSession?
-    timer = nil, ---@type any
-    cleanup = nil, ---@type function?
+  headers = {
+    "NAMESPACE",
+    "NAME",
+    "READY",
+    "STATUS",
+    "RESTARTS",
+    "CPU",
+    "MEM",
+    "%CPU/R",
+    "%CPU/L",
+    "%MEM/R",
+    "%MEM/L",
+    "IP",
+    "NODE",
+    "AGE",
   },
+})
+
+-- Pod-specific state
+M.selection = {}
+M.log = {
+  log_since = config.options.logs.since,
+  show_log_prefix = config.options.logs.prefix,
+  show_previous = false,
+  show_timestamps = config.options.logs.timestamps,
+  session = nil, ---@type kubectl.LogSession?
+  timer = nil, ---@type any
+  cleanup = nil, ---@type function?
 }
 
-function M.View(cancellationToken)
-  local builder = manager.get_or_create(M.definition.resource)
-  builder.view(M.definition, cancellationToken)
-end
-
-function M.Draw(cancellationToken)
-  local builder = manager.get(M.definition.resource)
-  if builder then
-    local pfs = pf_view.getPFRows(string.lower(M.definition.gvk.k))
-    builder.extmarks_extra = {}
-    pf_view.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
-    builder.draw(cancellationToken)
-  end
+function M.onBeforeDraw(builder)
+  local pfs = pf_view.getPFRows(string.lower(M.definition.gvk.k))
+  builder.extmarks_extra = {}
+  pf_view.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
 end
 
 --- Stop any existing log session and timer
@@ -282,100 +271,7 @@ function M.TailLogs()
 end
 
 function M.PortForward(pod, ns)
-  local def = {
-    resource = "pod_pf",
-    display = "PF: " .. pod .. "-" .. "?",
-    ft = "k8s_action",
-    ns = ns,
-    group = M.definition.group,
-    version = M.definition.version,
-  }
-
-  commands.run_async("get_single_async", {
-    gvk = M.definition.gvk,
-    name = pod,
-    namespace = ns,
-    output = def.syntax,
-  }, function(data)
-    local containers = {}
-    local pfBuilder = manager.get_or_create(def.resource)
-    pfBuilder.data = data
-    pfBuilder.decodeJson()
-    for _, container in ipairs(pfBuilder.data.spec.containers) do
-      if container.ports then
-        for _, port in ipairs(container.ports) do
-          local name
-          if port.name and container.name then
-            name = container.name .. "::(" .. port.name .. ")"
-          elseif container.name then
-            name = container.name
-          else
-            name = nil
-          end
-
-          table.insert(containers, {
-            name = { value = name, symbol = hl.symbols.pending },
-            port = { value = port.containerPort, symbol = hl.symbols.success },
-            protocol = port.protocol,
-          })
-        end
-      end
-    end
-
-    if next(containers) == nil then
-      containers[1] = { port = { value = "" }, name = { value = "" } }
-    end
-
-    vim.schedule(function()
-      pfBuilder.data, pfBuilder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
-      table.insert(pfBuilder.data, " ")
-
-      local pf_data = {
-        {
-          text = "address:",
-          value = "localhost",
-          options = { "localhost", "0.0.0.0" },
-          cmd = "",
-          type = "positional",
-        },
-        { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
-        { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
-      }
-
-      pfBuilder.action_view(def, pf_data, function(args)
-        local address = args[1].value
-        local local_port = args[2].value
-        local remote_port = args[3].value
-        client.portforward_start(M.definition.gvk.k, pod, ns, address, local_port, remote_port)
-      end)
-    end)
-  end)
-end
-
-function M.Desc(name, ns, reload)
-  local def = {
-    resource = M.definition.resource .. "_desc",
-    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
-    ft = "k8s_desc",
-    syntax = "yaml",
-    cmd = "describe_async",
-  }
-  local builder = manager.get_or_create(def.resource)
-  builder.view_float(def, {
-    args = {
-      context = state.context["current-context"],
-      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
-      namespace = ns,
-      name = name,
-    },
-    reload = reload,
-  })
-end
-
---- Get current selection for view
----@return string|nil
-function M.getCurrentSelection()
-  return tables.getCurrentSelection(2, 1)
+  pf_action.portforward("pod", M.definition.gvk, pod, ns)
 end
 
 return M

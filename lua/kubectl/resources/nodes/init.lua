@@ -1,52 +1,37 @@
+local BaseResource = require("kubectl.resources.base_resource")
 local commands = require("kubectl.actions.commands")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 
 local resource = "nodes"
 
----@class Module
-local M = {
-  definition = {
-    resource = resource,
-    display_name = string.upper(resource),
-    ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "Node" },
-    child_view = {
-      name = "pods",
-      predicate = function(name)
-        return "spec.nodeName=" .. name
-      end,
-    },
-    hints = {
-      { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
-      { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },
-      { key = "<Plug>(kubectl.drain)", desc = "drain", long_desc = "Drain selected node" },
-    },
-    headers = {
-      "NAME",
-      "STATUS",
-      "ROLES",
-      "AGE",
-      "VERSION",
-      "INTERNAL-IP",
-      "EXTERNAL-IP",
-      "OS-IMAGE",
-    },
+local M = BaseResource.extend({
+  resource = resource,
+  display_name = string.upper(resource),
+  ft = "k8s_" .. resource,
+  gvk = { g = "", v = "v1", k = "Node" },
+  child_view = {
+    name = "pods",
+    predicate = function(name)
+      return "spec.nodeName=" .. name
+    end,
   },
-}
-
-function M.View(cancellationToken)
-  local builder = manager.get_or_create(M.definition.resource)
-  builder.view(M.definition, cancellationToken)
-end
-
-function M.Draw(cancellationToken)
-  local builder = manager.get(M.definition.resource)
-  if builder then
-    builder.draw(cancellationToken)
-  end
-end
+  hints = {
+    { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
+    { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },
+    { key = "<Plug>(kubectl.drain)", desc = "drain", long_desc = "Drain selected node" },
+  },
+  headers = {
+    "NAME",
+    "STATUS",
+    "ROLES",
+    "AGE",
+    "VERSION",
+    "INTERNAL-IP",
+    "EXTERNAL-IP",
+    "OS-IMAGE",
+  },
+})
 
 function M.Drain(node)
   local builder = manager.get(M.definition.resource)
@@ -98,33 +83,6 @@ function M.Cordon(node)
   vim.schedule(function()
     vim.notify(ok, vim.log.levels.INFO)
   end)
-end
-
-function M.Desc(node, _, reload)
-  local def = {
-    resource = M.definition.resource .. "_desc",
-    display_name = M.definition.resource .. " |" .. node,
-    ft = "k8s_desc",
-    syntax = "yaml",
-    cmd = "describe_async",
-  }
-
-  local builder = manager.get_or_create(def.resource)
-  builder.view_float(def, {
-    args = {
-      context = state.context["current-context"],
-      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
-      namespace = nil,
-      name = node,
-    },
-    reload = reload,
-  })
-end
-
---- Get current seletion for view
----@return string|nil
-function M.getCurrentSelection()
-  return tables.getCurrentSelection(1)
 end
 
 return M
