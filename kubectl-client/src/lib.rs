@@ -39,6 +39,7 @@ mod processors;
 mod sort;
 mod statusline;
 mod store;
+mod streaming;
 mod structs;
 mod ui;
 mod utils;
@@ -469,6 +470,22 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "describe_async",
         lua.create_async_function(describe::describe_async)?,
+    )?;
+
+    exports.set(
+        "toggle_json",
+        lua.create_function(|lua, input: String| {
+            match cmd::log_session::toggle_json(&input) {
+                Some(result) => {
+                    let tbl = lua.create_table()?;
+                    tbl.set("json", result.json)?;
+                    tbl.set("start_idx", result.start_idx)?;
+                    tbl.set("end_idx", result.end_idx)?;
+                    Ok(mlua::Value::Table(tbl))
+                }
+                None => Ok(mlua::Value::Nil),
+            }
+        })?,
     )?;
 
     dao::install(lua, &exports)?;

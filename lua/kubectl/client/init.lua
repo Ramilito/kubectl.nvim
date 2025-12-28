@@ -83,6 +83,22 @@ function client.exec(ns, pod, container, cmd)
   return client.implementation.exec(ns, pod, container, cmd)
 end
 
+--- @class kubectl.LogConfig
+--- @field pods table[] Array of {name, namespace} tables
+--- @field container? string Target container name
+--- @field timestamps? boolean Include timestamps in output
+--- @field since? string Duration like "5m", "1h"
+--- @field follow? boolean Stream continuously
+--- @field previous? boolean Fetch from previous container instance
+--- @field prefix? boolean Force prefix behavior
+
+--- Create a log streaming session
+--- @param config kubectl.LogConfig
+--- @return kubectl.LogSession
+function client.log_session(config)
+  return client.implementation.log_session(config)
+end
+
 --- @param view_name string
 --- @return kubectl.DashboardSession
 function client.start_buffer_dashboard(view_name)
@@ -103,6 +119,10 @@ end
 
 function client.emit(key, payload)
   return client.implementation.emit(key, payload)
+end
+
+function client.toggle_json(input)
+  return client.implementation.toggle_json(input)
 end
 
 return client

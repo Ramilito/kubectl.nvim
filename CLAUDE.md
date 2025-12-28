@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **[CLAUDE-RUST.md](./.claude/CLAUDE-RUST.md)** - Rust codebase guidance (dylib constraints, mlua FFI, Tokio runtime)
 - **[CLAUDE-LUA.md](./.claude/CLAUDE-LUA.md)** - Lua/Neovim plugin guidance (resource pattern, factory, state management)
 - **[CLAUDE-CLEAN-CODE.md](./.claude/CLAUDE-CLEAN-CODE.md)** - Clean code principles (cognitive load, readability, function design)
+- **[CLAUDE-LOGS.md](./.claude/CLAUDE-LOGS.md)** - Pod logs feature (streaming, JSON toggle, histogram, mlua UserData)
 
 ## Project Overview
 
@@ -92,3 +93,8 @@ Minimal C-compatible exports for specialized kubectl operations (describe, drain
 - `K8sResourceSelected` - Resource selected in view
 - `K8sContextChanged` - Kubernetes context switched
 - `K8sCacheLoaded` - API resources cache loaded
+
+## Denied Commands
+
+Do NOT run these commands:
+- `make build` - Takes too long, use `make build_dev` instead

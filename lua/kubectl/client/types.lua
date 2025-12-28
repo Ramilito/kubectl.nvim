@@ -5,6 +5,11 @@
 --- @field open fun(self: kubectl.DashboardSession): boolean
 --- @field close fun(self: kubectl.DashboardSession)
 
+--- @class kubectl.LogSession
+--- @field open fun(self: kubectl.LogSession): boolean
+--- @field close fun(self: kubectl.LogSession)
+--- @field read_chunk fun(self: kubectl.LogSession): string[]?
+
 --- @class kubectl.ClientImplementation
 --- @field init_runtime fun(context_name: string)
 --- @field init_logging fun(filepath: string)
@@ -32,3 +37,10 @@
 --- @field setup_queue fun()
 --- @field pop_queue fun()
 --- @field emit fun(key, payload)
+--- @field log_session fun(pods: table[], container: string?, ...): kubectl.LogSession
+--- @field toggle_json fun(input: string): kubectl.ToggleJsonResult?
+
+--- @class kubectl.ToggleJsonResult
+--- @field json string
+--- @field start_idx integer
+--- @field end_idx integer

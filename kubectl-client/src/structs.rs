@@ -97,16 +97,68 @@ pub struct CmdDescribeArgs {
     pub gvk: Gvk,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
-#[serde(default)]
-pub struct CmdStreamArgs {
+#[derive(Debug, Clone, Deserialize)]
+pub struct PodRef {
     pub name: String,
     pub namespace: String,
+}
+
+/// Unified configuration for log streaming and fetching.
+/// Used by both real-time streaming (follow mode) and one-shot fetches.
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct LogConfig {
+    /// Target pods to fetch logs from
+    pub pods: Vec<PodRef>,
+    /// Target container name (None = all containers)
     pub container: Option<String>,
-    pub since_time_input: Option<String>,
+    /// Duration string like "5m", "1h" for historical logs
+    pub since: Option<String>,
+    /// If true, fetch logs from the previous container instance
     pub previous: Option<bool>,
+    /// Include timestamps in log output
     pub timestamps: Option<bool>,
+    /// Force prefix behavior: Some(true) = always, Some(false) = never, None = auto
     pub prefix: Option<bool>,
+    /// If true, streams continuously; if false, one-shot fetch
+    pub follow: Option<bool>,
+    /// Number of histogram buckets (for one-shot fetch display)
+    pub histogram_width: Option<usize>,
+}
+
+impl FromLua for LogConfig {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::Table(t) => {
+                let pods: Vec<mlua::Table> = t.get("pods")?;
+                let pods = pods
+                    .into_iter()
+                    .map(|p| {
+                        Ok(PodRef {
+                            name: p.get("name")?,
+                            namespace: p.get("namespace")?,
+                        })
+                    })
+                    .collect::<LuaResult<Vec<_>>>()?;
+
+                Ok(LogConfig {
+                    pods,
+                    container: t.get("container")?,
+                    since: t.get("since")?,
+                    previous: t.get("previous")?,
+                    timestamps: t.get("timestamps")?,
+                    prefix: t.get("prefix")?,
+                    follow: t.get("follow")?,
+                    histogram_width: t.get("histogram_width")?,
+                })
+            }
+            _ => Err(mlua::Error::FromLuaConversionError {
+                from: value.type_name(),
+                to: "LogConfig".to_string(),
+                message: Some("expected table".to_string()),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

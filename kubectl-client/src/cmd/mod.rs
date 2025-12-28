@@ -10,10 +10,10 @@ use crate::cmd::exec::{open_debug, Session};
 use crate::cmd::get::{
     get_api_resources_async, get_raw_async, get_server_raw_async, get_single, get_single_async,
 };
+use crate::cmd::log_session::{fetch_logs_async, log_session};
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
-use crate::cmd::stream::log_stream_async;
 use crate::with_stream_client;
 
 pub mod apply;
@@ -22,10 +22,10 @@ pub mod delete;
 pub mod edit;
 pub mod exec;
 pub mod get;
+pub mod log_session;
 pub mod portforward;
 pub mod restart;
 pub mod scale;
-pub mod stream;
 pub mod utils;
 
 pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
@@ -89,8 +89,9 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
     )?;
     exports.set(
         "log_stream_async",
-        lua.create_async_function(log_stream_async)?,
+        lua.create_async_function(fetch_logs_async)?,
     )?;
+    exports.set("log_session", lua.create_function(log_session)?)?;
 
     Ok(())
 }

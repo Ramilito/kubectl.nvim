@@ -1,4 +1,5 @@
 use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::serde_json;
 
 #[derive(Debug, Clone, Copy)]
 pub enum AccessorMode {
