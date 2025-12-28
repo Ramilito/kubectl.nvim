@@ -16,7 +16,7 @@ syn match kubectlLogTimestamp /\d\{4}-\d\{2}-\d\{2}T\d\{2}:\d\{2}:\d\{2}\(\.\d\+
 syn case ignore
 syn keyword kubectlLogError ERROR FATAL PANIC CRITICAL
 syn keyword kubectlLogWarn WARN WARNING
-syn keyword kubectlLogInfo INFO 
+syn keyword kubectlLogInfo INFO
 syn keyword kubectlLogDebug DEBUG TRACE LOG
 syn case match
 

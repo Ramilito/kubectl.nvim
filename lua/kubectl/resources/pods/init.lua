@@ -200,13 +200,14 @@ local function get_pods_for_logs()
   return pods, "No pods selected"
 end
 
-function M.Logs(reload)
-  -- Stop any existing follow session
+function M.Logs(_reload)
   stop_log_session()
 
   local pods, display_name = get_pods_for_logs()
+  local width = math.floor(config.options.float_size.width * vim.o.columns) - 4
 
-  local def = {
+  local builder = manager.get_or_create("pod_logs")
+  builder.view_float({
     resource = "pod_logs",
     display_name = display_name,
     ft = "k8s_pod_logs",
@@ -221,12 +222,7 @@ function M.Logs(reload)
       { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. tostring(M.log.show_previous) .. "]" },
       { key = "<Plug>(kubectl.expand_json)", desc = "Toggle JSON" },
     },
-  }
-
-  local logsBuilder = manager.get_or_create("pod_logs")
-
-  logsBuilder.view_float(def, {
-    reload = reload,
+  }, {
     args = {
       pods = pods,
       container = M.selection.container,
@@ -234,6 +230,7 @@ function M.Logs(reload)
       previous = M.log.show_previous,
       timestamps = M.log.show_timestamps,
       prefix = M.log.show_log_prefix,
+      width = width,
     },
   })
 end

@@ -13,6 +13,120 @@ use tokio::sync::mpsc;
 
 use crate::structs::{CmdStreamArgs, PodRef};
 use crate::{block_on, with_client, RUNTIME};
+use k8s_openapi::chrono::DateTime;
+
+/// Unicode block characters for histogram (9 levels: 0-8)
+const BAR_CHARS: [char; 9] = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
+/// Try to find and parse a K8s timestamp (2024-01-15T10:30:45.123Z format)
+fn find_timestamp(line: &str) -> Option<DateTime<Utc>> {
+    // Look for pattern: YYYY-MM-DDTHH:MM:SS
+    for (i, _) in line.match_indices('T') {
+        // Need at least 10 chars before T (YYYY-MM-DD) and 8 after (HH:MM:SS)
+        if i < 10 || i + 9 > line.len() {
+            continue;
+        }
+
+        let start = i - 10;
+        // Find end - look for Z or end of timestamp
+        let rest = &line[i + 1..];
+        let end = if let Some(z_pos) = rest.find('Z') {
+            i + 1 + z_pos + 1
+        } else {
+            continue;
+        };
+
+        let candidate = &line[start..end];
+        if let Ok(ts) = candidate.parse::<DateTime<Utc>>() {
+            return Some(ts);
+        }
+    }
+    None
+}
+
+/// Format a timestamp label based on the time range duration.
+fn format_time_label(ts: DateTime<Utc>, total_hours: i64) -> String {
+    if total_hours < 24 {
+        // Less than a day: just show time
+        ts.format("%H:%M").to_string()
+    } else if total_hours < 24 * 7 {
+        // Less than a week: show day and time
+        ts.format("%d %H:%M").to_string()
+    } else {
+        // Week or more: show month-day
+        ts.format("%m-%d").to_string()
+    }
+}
+
+/// Build and render histogram as bar chart lines.
+fn render_histogram(
+    lines: &[String],
+    since_duration: Option<Duration>,
+    bucket_count: usize,
+) -> Vec<String> {
+    if bucket_count == 0 {
+        return Vec::new();
+    }
+
+    // Collect all timestamps
+    let timestamps: Vec<DateTime<Utc>> = lines.iter().filter_map(|l| find_timestamp(l)).collect();
+
+    if timestamps.is_empty() {
+        return Vec::new();
+    }
+
+    // Determine time range
+    let now = Utc::now();
+    let start_time = if let Some(dur) = since_duration {
+        now - dur
+    } else if let Some(min_ts) = timestamps.iter().min() {
+        *min_ts
+    } else {
+        return Vec::new();
+    };
+    let end_time = now;
+
+    let total_duration = end_time.signed_duration_since(start_time);
+    if total_duration.num_seconds() <= 0 {
+        return Vec::new();
+    }
+
+    let bucket_duration_secs = total_duration.num_seconds() as f64 / bucket_count as f64;
+
+    // Initialize and fill buckets
+    let mut buckets = vec![0usize; bucket_count];
+    for ts in &timestamps {
+        let offset = ts.signed_duration_since(start_time).num_seconds() as f64;
+        let bucket_idx = (offset / bucket_duration_secs) as usize;
+        let bucket_idx = bucket_idx.min(bucket_count - 1);
+        buckets[bucket_idx] += 1;
+    }
+
+    let max_count = *buckets.iter().max().unwrap_or(&1).max(&1);
+
+    // Build bar line
+    let mut bar_line = String::from("│");
+    for count in &buckets {
+        let level = ((*count as f64 / max_count as f64) * 8.0 + 0.5) as usize;
+        let level = level.min(8);
+        bar_line.push(BAR_CHARS[level]);
+    }
+    bar_line.push('│');
+
+    // Build label line
+    let total_hours = total_duration.num_hours();
+    let first_label = format_time_label(start_time, total_hours);
+    let last_label = format_time_label(end_time, total_hours);
+    let padding = bucket_count.saturating_sub(first_label.len() + last_label.len()).max(1);
+    let label_line = format!(
+        " {}{}{}",
+        first_label,
+        "─".repeat(padding),
+        last_label
+    );
+
+    vec![bar_line, label_line]
+}
 
 /// A streaming log session that follows pod logs in real-time.
 /// Supports multiple pods.
@@ -266,23 +380,20 @@ pub fn log_session(
 }
 
 /// One-shot async log fetch for initial view (non-streaming).
-/// Returns all logs as a JSON-encoded array of lines. Supports multiple pods.
-/// Note: Returns JSON string because vim.uv.new_work threads only support primitives.
+/// Returns JSON array of lines (histogram bar lines prepended to log lines).
 #[tracing::instrument]
 pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<String> {
     let args: CmdStreamArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     if args.pods.is_empty() {
-        return Ok(serde_json::to_string(&vec!["No pods specified"])
-            .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))?);
+        return serde_json::to_string(&vec!["No pods specified".to_string()])
+            .map_err(|e| mlua::Error::external(format!("json encode error: {e}")));
     }
 
-    let since_time = args
-        .since_time_input
-        .as_deref()
-        .and_then(parse_duration)
-        .map(|d| Utc::now() - d);
+    let since_duration = args.since_time_input.as_deref().and_then(parse_duration);
+    let since_time = since_duration.map(|d| Utc::now() - d);
+    let bucket_count = args.width.unwrap_or(50);
 
     let multi_pod = args.pods.len() > 1;
     let show_prefix = args.prefix.unwrap_or(multi_pod);
@@ -299,11 +410,11 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
                     if multi_pod {
                         continue;
                     }
-                    return Ok(serde_json::to_string(&vec![format!(
+                    return serde_json::to_string(&vec![format!(
                         "No pod named {} in {} found: {}",
                         pod_ref.name, pod_ref.namespace, e
                     )])
-                    .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))?);
+                    .map_err(|e| mlua::Error::external(format!("json encode error: {e}")));
                 }
             };
 
@@ -359,8 +470,8 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
         }
 
         if all_streams.is_empty() {
-            return Ok(serde_json::to_string(&vec!["No logs found"])
-                .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))?);
+            return serde_json::to_string(&vec!["No logs found".to_string()])
+                .map_err(|e| mlua::Error::external(format!("json encode error: {e}")));
         }
 
         let mut combined = futures::stream::select_all(all_streams);
@@ -370,7 +481,11 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
             collected_logs.push(line);
         }
 
-        serde_json::to_string(&collected_logs)
+        // Render histogram and prepend to logs
+        let mut result = render_histogram(&collected_logs, since_duration, bucket_count);
+        result.append(&mut collected_logs);
+
+        serde_json::to_string(&result)
             .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))
     })
 }

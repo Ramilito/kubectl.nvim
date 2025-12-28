@@ -112,6 +112,7 @@ pub struct CmdStreamArgs {
     pub previous: Option<bool>,
     pub timestamps: Option<bool>,
     pub prefix: Option<bool>,
+    pub width: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
