@@ -2,220 +2,37 @@ local M = {
   config_did_setup = false,
 }
 
---- Schema definition for config validation
---- Each field can have: type, enum, min, max, schema (for nested tables)
----@alias SchemaField { type: string, enum: table?, min: number?, max: number?, schema: table?, optional: boolean? }
----@alias Schema table<string, SchemaField>
-
----@type Schema
-local schema = {
-  log_level = {
-    type = "number",
-    enum = {
-      vim.log.levels.DEBUG,
-      vim.log.levels.ERROR,
-      vim.log.levels.INFO,
-      vim.log.levels.OFF,
-      vim.log.levels.TRACE,
-      vim.log.levels.WARN,
-    },
-  },
-  auto_refresh = {
-    type = "table",
-    schema = {
-      enabled = { type = "boolean" },
-      interval = { type = "number", min = 100 },
-    },
-  },
-  diff = {
-    type = "table",
-    schema = {
-      bin = { type = "string" },
-    },
-  },
-  kubectl_cmd = {
-    type = "table",
-    schema = {
-      cmd = { type = "string" },
-      env = { type = "table" },
-      args = { type = "table" },
-      persist_context_change = { type = "boolean" },
-    },
-  },
-  terminal_cmd = { type = "string", optional = true },
-  namespace = { type = "string" },
-  namespace_fallback = { type = "table" },
-  headers = {
-    type = "table",
-    schema = {
-      enabled = { type = "boolean" },
-      hints = { type = "boolean" },
-      context = { type = "boolean" },
-      heartbeat = { type = "boolean" },
-      blend = { type = "number", min = 0, max = 100 },
-      skew = {
-        type = "table",
-        schema = {
-          enabled = { type = "boolean" },
-          log_level = {
-            type = "number",
-            enum = {
-              vim.log.levels.DEBUG,
-              vim.log.levels.ERROR,
-              vim.log.levels.INFO,
-              vim.log.levels.OFF,
-              vim.log.levels.TRACE,
-              vim.log.levels.WARN,
-            },
-          },
-        },
-      },
-    },
-  },
-  lineage = {
-    type = "table",
-    schema = {
-      enabled = { type = "boolean" },
-    },
-  },
-  completion = {
-    type = "table",
-    schema = {
-      follow_cursor = { type = "boolean" },
-    },
-  },
-  logs = {
-    type = "table",
-    schema = {
-      prefix = { type = "boolean" },
-      timestamps = { type = "boolean" },
-      since = { type = "string" },
-    },
-  },
-  alias = {
-    type = "table",
-    schema = {
-      apply_on_select_from_history = { type = "boolean" },
-      max_history = { type = "number", min = 0 },
-    },
-  },
-  filter = {
-    type = "table",
-    schema = {
-      apply_on_select_from_history = { type = "boolean" },
-      max_history = { type = "number", min = 0 },
-    },
-  },
-  filter_label = {
-    type = "table",
-    schema = {
-      max_history = { type = "number", min = 0 },
-    },
-  },
-  float_size = {
-    type = "table",
-    schema = {
-      width = { type = "number", min = 0 },
-      height = { type = "number", min = 0 },
-      col = { type = "number", min = 0 },
-      row = { type = "number", min = 0 },
-    },
-  },
-  statusline = {
-    type = "table",
-    schema = {
-      enabled = { type = "boolean" },
-    },
-  },
-  obj_fresh = { type = "number", min = 0 },
-  api_resources_cache_ttl = { type = "number", min = 0 },
-}
-
---- Validate a config value against a schema field
----@param value any The value to validate
----@param field_schema SchemaField The schema for this field
----@param path string The path to this field (for error messages)
----@return string[] errors List of validation errors
-local function validate_field(value, field_schema, path)
-  local errors = {}
-
-  -- Handle nil values - not an error, will use default value
-  if value == nil then
-    return errors
+--- Validate user config using vim.validate
+---@param opts table? The user-provided config options
+---@return boolean ok
+---@return string? err
+local function validate_config(opts)
+  if opts == nil then
+    return true
   end
 
-  -- Type validation
-  local actual_type = type(value)
-  if actual_type ~= field_schema.type then
-    table.insert(errors, string.format("%s: expected %s, got %s", path, field_schema.type, actual_type))
-    return errors -- Skip further validation if type is wrong
-  end
+  local ok, err = pcall(vim.validate, {
+    log_level = { opts.log_level, "number", true },
+    auto_refresh = { opts.auto_refresh, "table", true },
+    diff = { opts.diff, "table", true },
+    kubectl_cmd = { opts.kubectl_cmd, "table", true },
+    terminal_cmd = { opts.terminal_cmd, "string", true },
+    namespace = { opts.namespace, "string", true },
+    namespace_fallback = { opts.namespace_fallback, "table", true },
+    headers = { opts.headers, "table", true },
+    lineage = { opts.lineage, "table", true },
+    completion = { opts.completion, "table", true },
+    logs = { opts.logs, "table", true },
+    alias = { opts.alias, "table", true },
+    filter = { opts.filter, "table", true },
+    filter_label = { opts.filter_label, "table", true },
+    float_size = { opts.float_size, "table", true },
+    statusline = { opts.statusline, "table", true },
+    obj_fresh = { opts.obj_fresh, "number", true },
+    api_resources_cache_ttl = { opts.api_resources_cache_ttl, "number", true },
+  })
 
-  -- Enum validation
-  if field_schema.enum then
-    local valid = false
-    for _, enum_val in ipairs(field_schema.enum) do
-      if value == enum_val then
-        valid = true
-        break
-      end
-    end
-    if not valid then
-      local enum_str = table.concat(vim.tbl_map(tostring, field_schema.enum), ", ")
-      table.insert(errors, string.format("%s: invalid value %s, expected one of: %s", path, tostring(value), enum_str))
-    end
-  end
-
-  -- Number range validation
-  if field_schema.type == "number" then
-    if field_schema.min and value < field_schema.min then
-      table.insert(errors, string.format("%s: value %s is below minimum %s", path, value, field_schema.min))
-    end
-    if field_schema.max and value > field_schema.max then
-      table.insert(errors, string.format("%s: value %s is above maximum %s", path, value, field_schema.max))
-    end
-  end
-
-  -- Nested table validation
-  if field_schema.type == "table" and field_schema.schema then
-    for key, nested_schema in pairs(field_schema.schema) do
-      local nested_errors = validate_field(value[key], nested_schema, path .. "." .. key)
-      for _, err in ipairs(nested_errors) do
-        table.insert(errors, err)
-      end
-    end
-  end
-
-  return errors
-end
-
---- Validate user config against the schema
----@param options table? The user-provided config options
----@return boolean valid Whether the config is valid
----@return string[] errors List of validation errors
-local function validate_config(options)
-  if options == nil then
-    return true, {}
-  end
-
-  if type(options) ~= "table" then
-    return false, { "config: expected table, got " .. type(options) }
-  end
-
-  local errors = {}
-
-  for key, value in pairs(options) do
-    local field_schema = schema[key]
-    if field_schema then
-      local field_errors = validate_field(value, field_schema, key)
-      for _, err in ipairs(field_errors) do
-        table.insert(errors, err)
-      end
-    end
-    -- Note: unknown keys are allowed (for forward compatibility)
-  end
-
-  return #errors == 0, errors
+  return ok, err
 end
 
 ---@alias SkewConfig { enabled: boolean, log_level: number }
@@ -327,16 +144,9 @@ M.options = vim.deepcopy(defaults)
 --- Setup kubectl options
 ---@param options KubectlOptions? The configuration options for kubectl (optional)
 function M.setup(options)
-  -- Validate config before merging
-  local valid, errors = validate_config(options)
-  if not valid then
-    local msg = "kubectl.nvim: Invalid config:\n  " .. table.concat(errors, "\n  ")
-    vim.notify(msg, vim.log.levels.ERROR)
-    -- Continue with defaults for invalid fields - they won't be merged
-  elseif #errors > 0 then
-    -- Warnings (if we add warning-level validations in the future)
-    local msg = "kubectl.nvim: Config warnings:\n  " .. table.concat(errors, "\n  ")
-    vim.notify(msg, vim.log.levels.WARN)
+  local ok, err = validate_config(options)
+  if not ok then
+    vim.notify("kubectl.nvim: Invalid config: " .. (err or "unknown error"), vim.log.levels.ERROR)
   end
 
   ---@diagnostic disable-next-line: undefined-field
