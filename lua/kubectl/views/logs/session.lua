@@ -5,7 +5,7 @@ local config = require("kubectl.config")
 
 ---@class kubectl.LogSessionManager
 ---@field private _sessions table<integer, kubectl.LogSessionInstance> Buffer-keyed sessions
----@field private _global_options kubectl.LogSessionOptions Global options that persist across sessions
+---@field private _global_options kubectl.LogSessionOptions? Global options that persist across sessions
 local LogSessionManager = {
   _sessions = {},
   _global_options = nil, -- Lazy initialized
@@ -19,7 +19,6 @@ local LogSessionManager = {
 
 ---@class kubectl.LogSessionInstance
 ---@field rust_session kubectl.LogSession? The Rust log session
----@field timer userdata? The uv timer
 ---@field options kubectl.LogSessionOptions Session options
 ---@field buf integer Buffer number
 ---@field win integer Window number
