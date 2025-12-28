@@ -39,6 +39,7 @@ mod processors;
 mod sort;
 mod statusline;
 mod store;
+mod streaming;
 mod structs;
 mod ui;
 mod utils;

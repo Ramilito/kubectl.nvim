@@ -7,21 +7,13 @@
 //! outputting structured data (lines + extmarks) that can be applied to a
 //! regular Neovim buffer using `nvim_buf_set_lines` and `nvim_buf_set_extmark`.
 
+use crate::streaming::BidirectionalSession;
 use crate::{metrics::take_metrics_dirty, RUNTIME};
 use mlua::{prelude::*, UserData, UserDataMethods};
-use ratatui::{
-    backend::Backend,
-    layout::Rect,
-    Frame, Terminal, TerminalOptions, Viewport,
-};
-use std::sync::{
-    atomic::{AtomicBool, AtomicU16, Ordering},
-    Arc, Mutex,
-};
-use tokio::{
-    sync::mpsc,
-    time::{self, Duration},
-};
+use ratatui::{backend::Backend, layout::Rect, Frame, Terminal, TerminalOptions, Viewport};
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::Arc;
+use tokio::time::{self, Duration};
 
 use crate::ui::{
     events::{is_quit_event, parse_message, ParsedMessage},
@@ -34,12 +26,8 @@ use crate::ui::{
 /// Outputs structured data (lines + extmarks) that can be applied to a
 /// regular Neovim buffer, enabling native vim motions, search, yank, etc.
 pub struct BufferSession {
-    /// Channel for sending input from Neovim to UI.
-    tx_in: mpsc::UnboundedSender<Vec<u8>>,
-    /// Channel for receiving rendered frames from UI to Neovim.
-    rx_out: Mutex<mpsc::UnboundedReceiver<RenderFrame>>,
-    /// Flag indicating if the session is still active.
-    open: Arc<AtomicBool>,
+    /// Bidirectional communication channel.
+    session: BidirectionalSession<Vec<u8>, RenderFrame>,
     /// Current buffer width.
     cols: Arc<AtomicU16>,
     /// Current buffer height.
@@ -52,28 +40,34 @@ impl BufferSession {
     /// # Arguments
     /// * `view_name` - Name of the view to display ("top" or "overview")
     pub fn new(view_name: String) -> LuaResult<Self> {
-        // Shared flags and dimensions
-        let open = Arc::new(AtomicBool::new(true));
         let cols = Arc::new(AtomicU16::new(80));
         let rows = Arc::new(AtomicU16::new(24));
 
-        // Communication channels
-        let (tx_in, rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
-        let (tx_out, rx_out) = mpsc::unbounded_channel::<RenderFrame>();
+        let mut session = BidirectionalSession::<Vec<u8>, RenderFrame>::new();
+
+        // Take the input receiver before spawning the task
+        let input_receiver = session
+            .take_input_receiver()
+            .ok_or_else(|| LuaError::runtime("Failed to take input receiver"))?;
 
         // Spawn UI task on the Tokio runtime
         let rt = RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().unwrap());
-        let ui_open = open.clone();
+        let task_handle = session.task_handle();
+        let output_sender = session.output_sender();
         let ui_cols = cols.clone();
         let ui_rows = rows.clone();
+
         rt.spawn(run_buffer_ui(
-            view_name, rx_in, tx_out, ui_open, ui_cols, ui_rows,
+            view_name,
+            input_receiver,
+            output_sender,
+            task_handle,
+            ui_cols,
+            ui_rows,
         ));
 
         Ok(Self {
-            tx_in,
-            rx_out: Mutex::new(rx_out),
-            open,
+            session,
             cols,
             rows,
         })
@@ -81,17 +75,17 @@ impl BufferSession {
 
     /// Reads a rendered frame from the UI (non-blocking).
     fn read_frame(&self) -> Option<RenderFrame> {
-        self.rx_out.lock().unwrap().try_recv().ok()
+        self.session.try_recv_output().ok().flatten()
     }
 
     /// Sends input to the UI.
     fn write(&self, s: &str) {
-        let _ = self.tx_in.send(s.as_bytes().to_vec());
+        let _ = self.session.send_input(s.as_bytes().to_vec());
     }
 
     /// Returns whether the session is still open.
     fn is_open(&self) -> bool {
-        self.open.load(Ordering::Acquire)
+        self.session.is_open()
     }
 
     /// Updates the buffer dimensions.
@@ -102,7 +96,7 @@ impl BufferSession {
 
     /// Closes the session.
     fn close(&self) {
-        self.open.store(false, Ordering::Release);
+        self.session.close();
     }
 }
 
@@ -163,7 +157,7 @@ impl UserData for BufferSession {
             // Send cursor line as a special message with simple prefix
             // Using 0x00 as prefix since it won't appear in normal input
             let msg = format!("\x00CURSOR:{}\x00", line);
-            let _ = this.tx_in.send(msg.into_bytes());
+            let _ = this.session.send_input(msg.into_bytes());
             Ok(())
         });
     }
@@ -193,12 +187,15 @@ fn maybe_resize(
 /// Main UI event loop for buffer-based rendering.
 async fn run_buffer_ui(
     view_name: String,
-    mut rx_in: mpsc::UnboundedReceiver<Vec<u8>>,
-    tx_out: mpsc::UnboundedSender<RenderFrame>,
-    open: Arc<AtomicBool>,
+    mut input_receiver: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
+    output_sender: tokio::sync::mpsc::UnboundedSender<RenderFrame>,
+    task_handle: crate::streaming::TaskHandle,
     cols: Arc<AtomicU16>,
     rows: Arc<AtomicU16>,
 ) {
+    // Task guard ensures session is marked inactive when this task exits
+    let _guard = task_handle.guard();
+
     time::sleep(Duration::from_millis(50)).await;
 
     let mut view = make_view(&view_name);
@@ -209,7 +206,7 @@ async fn run_buffer_ui(
         .max(rows.load(Ordering::Acquire));
 
     let mut term = Terminal::with_options(
-        NeovimBackend::new(initial_w, initial_h, tx_out.clone()),
+        NeovimBackend::new(initial_w, initial_h, output_sender.clone()),
         TerminalOptions {
             viewport: Viewport::Fixed(Rect::new(0, 0, initial_w, initial_h)),
         },
@@ -223,13 +220,12 @@ async fn run_buffer_ui(
 
     loop {
         tokio::select! {
-            msg = rx_in.recv() => {
+            msg = input_receiver.recv() => {
                 match msg {
                     Some(bytes) => {
                         let needs_redraw = match parse_message(&bytes) {
                             Some(ParsedMessage::Event(ev)) => {
                                 if is_quit_event(&ev) {
-                                    open.store(false, Ordering::Release);
                                     break;
                                 }
                                 view.on_event(&ev)
@@ -244,14 +240,13 @@ async fn run_buffer_ui(
                         }
                     }
                     None => {
-                        open.store(false, Ordering::Release);
                         break;
                     }
                 }
             }
 
             _ = tick.tick() => {
-                if !open.load(Ordering::Acquire) || !take_metrics_dirty() {
+                if !task_handle.is_active() || !take_metrics_dirty() {
                     continue;
                 }
                 // Signal view that metrics have been updated

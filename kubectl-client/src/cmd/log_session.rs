@@ -5,12 +5,9 @@ use k8s_openapi::serde_json;
 use kube::api::LogParams;
 use kube::{Api, Client};
 use mlua::{prelude::*, UserData, UserDataMethods};
-use std::sync::{
-    atomic::{AtomicBool, AtomicUsize, Ordering},
-    Arc, Mutex,
-};
 use tokio::sync::mpsc;
 
+use crate::streaming::{StreamingSession, TaskHandle};
 use crate::structs::{LogConfig, PodRef};
 use crate::{block_on, with_client, RUNTIME};
 
@@ -248,8 +245,7 @@ const MAX_CHUNK_SIZE: usize = 100;
 
 /// A streaming log session that follows pod logs in real-time.
 pub struct LogSession {
-    log_receiver: Mutex<mpsc::UnboundedReceiver<String>>,
-    is_streaming: Arc<AtomicBool>,
+    session: StreamingSession<String>,
 }
 
 impl LogSession {
@@ -270,10 +266,7 @@ impl LogSession {
             return Err(LuaError::external("No containers found"));
         }
 
-        let (log_sender, log_receiver) = mpsc::unbounded_channel::<String>();
-        let is_streaming = Arc::new(AtomicBool::new(true));
-        let active_task_count = Arc::new(AtomicUsize::new(0));
-
+        let session = StreamingSession::new();
         let runtime = RUNTIME
             .get()
             .ok_or_else(|| LuaError::runtime("Tokio runtime not initialized"))?;
@@ -288,44 +281,34 @@ impl LogSession {
             None
         };
 
+        let params = ContainerLogParams {
+            follow,
+            since_time,
+            since_seconds,
+            timestamps: config.timestamps.unwrap_or(false),
+            previous: config.previous.unwrap_or(false),
+            use_prefix: targets.use_prefix,
+            is_multi_container: targets.is_multi_container,
+        };
+
         for target in targets.containers {
             spawn_container_log_task(
                 runtime,
                 target,
-                log_sender.clone(),
-                is_streaming.clone(),
-                active_task_count.clone(),
-                ContainerLogParams {
-                    follow,
-                    since_time,
-                    since_seconds,
-                    timestamps: config.timestamps.unwrap_or(false),
-                    previous: config.previous.unwrap_or(false),
-                    use_prefix: targets.use_prefix,
-                    is_multi_container: targets.is_multi_container,
-                },
+                session.sender(),
+                session.task_handle(),
+                params,
             );
         }
 
-        Ok(LogSession {
-            log_receiver: Mutex::new(log_receiver),
-            is_streaming,
-        })
+        Ok(LogSession { session })
     }
 
     fn read_chunk(&self) -> LuaResult<Option<Vec<String>>> {
-        let mut receiver = self
-            .log_receiver
-            .lock()
-            .map_err(|_| LuaError::runtime("poisoned log_receiver lock"))?;
-
-        let mut lines = Vec::new();
-        while let Ok(line) = receiver.try_recv() {
-            lines.push(line);
-            if lines.len() >= MAX_CHUNK_SIZE {
-                break;
-            }
-        }
+        let lines = self
+            .session
+            .try_recv_batch(MAX_CHUNK_SIZE)
+            .map_err(|e| LuaError::runtime(e.to_string()))?;
 
         if lines.is_empty() {
             Ok(None)
@@ -335,11 +318,11 @@ impl LogSession {
     }
 
     fn is_open(&self) -> bool {
-        self.is_streaming.load(Ordering::Acquire)
+        self.session.is_open()
     }
 
     fn close(&self) {
-        self.is_streaming.store(false, Ordering::Release);
+        self.session.close();
     }
 }
 
@@ -371,13 +354,16 @@ fn spawn_container_log_task(
     runtime: &tokio::runtime::Runtime,
     target: ResolvedContainer,
     log_sender: mpsc::UnboundedSender<String>,
-    is_streaming: Arc<AtomicBool>,
-    active_task_count: Arc<AtomicUsize>,
+    task_handle: TaskHandle,
     params: ContainerLogParams,
 ) {
-    active_task_count.fetch_add(1, Ordering::SeqCst);
+    // Guard automatically decrements task count when dropped
+    let _guard = task_handle.guard();
 
     runtime.spawn(async move {
+        // Move guard into async block so it's dropped when task completes
+        let _guard = _guard;
+
         let log_params = LogParams {
             follow: params.follow,
             container: Some(target.container_name.clone()),
@@ -392,14 +378,13 @@ fn spawn_container_log_task(
             Ok(stream) => stream,
             Err(e) => {
                 let _ = log_sender.send(format!("[{}] Error: {}", target.pod_name, e));
-                decrement_task_count(&active_task_count, &is_streaming);
                 return;
             }
         };
 
         let mut lines = log_stream.lines();
         loop {
-            if !is_streaming.load(Ordering::Acquire) {
+            if !task_handle.is_active() {
                 break;
             }
 
@@ -423,16 +408,7 @@ fn spawn_container_log_task(
                 }
             }
         }
-
-        decrement_task_count(&active_task_count, &is_streaming);
     });
-}
-
-fn decrement_task_count(active_count: &Arc<AtomicUsize>, is_streaming: &Arc<AtomicBool>) {
-    let remaining = active_count.fetch_sub(1, Ordering::SeqCst) - 1;
-    if remaining == 0 {
-        is_streaming.store(false, Ordering::Release);
-    }
 }
 
 // ============================================================================

@@ -1,3 +1,4 @@
+use crate::streaming::BidirectionalSession;
 use crate::{block_on, RUNTIME};
 use k8s_openapi::{
     api::core::v1::{EphemeralContainer, Pod},
@@ -8,15 +9,10 @@ use kube::{
     Client, Error as KubeError,
 };
 use mlua::{prelude::*, UserData, UserDataMethods};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
-};
 use std::time::Duration;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     runtime::Runtime,
-    sync::mpsc,
     time::{sleep, timeout},
 };
 
@@ -128,9 +124,7 @@ async fn await_status_or_timeout(mut proc: AttachedProcess) -> Result<AttachedPr
 }
 
 pub struct Session {
-    tx_in: mpsc::UnboundedSender<Vec<u8>>,
-    rx_out: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>,
-    open: Arc<AtomicBool>,
+    session: BidirectionalSession<Vec<u8>, Vec<u8>>,
 }
 
 impl Session {
@@ -150,112 +144,86 @@ impl Session {
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
-        // ---- wire channels ----------------------------------------------------
-        let (tx_in, mut rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
-        let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
-        let open = Arc::new(AtomicBool::new(true));
+        let mut session = BidirectionalSession::new();
 
-        // writer
-        if let Some(mut stdin) = proc.stdin() {
-            let flag = open.clone();
-            rt.spawn(async move {
-                while let Some(buf) = rx_in.recv().await {
-                    if stdin.write_all(&buf).await.is_err() {
-                        break;
-                    }
-                }
-                flag.store(false, Ordering::Release);
-            });
-        }
+        spawn_io_tasks(rt, &mut proc, &mut session);
 
-        // single reader (stdout + merged‑stderr)
-        if let Some(mut stdout) = proc.stdout() {
-            let flag = open.clone();
-            rt.spawn(async move {
-                let mut buf = [0u8; 4096];
-                loop {
-                    match stdout.read(&mut buf).await {
-                        Ok(0) | Err(_) => break,
-                        Ok(n) => {
-                            let _ = tx_out.send(buf[..n].to_vec());
-                        }
-                    }
-                }
-                flag.store(false, Ordering::Release);
-            });
-        }
-
-        Ok(Self {
-            tx_in,
-            rx_out: Mutex::new(rx_out),
-            open,
-        })
+        Ok(Self { session })
     }
+
     pub fn from_attached(mut proc: AttachedProcess) -> Self {
-        use tokio::{
-            io::{AsyncReadExt, AsyncWriteExt},
-            sync::mpsc,
-        };
-
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
-        let (tx_in, mut rx_in) = mpsc::unbounded_channel::<Vec<u8>>();
-        let (tx_out, rx_out) = mpsc::unbounded_channel::<Vec<u8>>();
-        let open = Arc::new(AtomicBool::new(true));
+        let mut session = BidirectionalSession::new();
 
-        // stdin writer task
-        if let Some(mut stdin) = proc.stdin() {
-            let flag = open.clone();
-            rt.spawn(async move {
-                while let Some(buf) = rx_in.recv().await {
-                    if stdin.write_all(&buf).await.is_err() {
-                        break;
-                    }
-                }
-                flag.store(false, Ordering::Release);
-            });
-        }
+        spawn_io_tasks(rt, &mut proc, &mut session);
 
-        // stdout (merged stderr) reader task
-        if let Some(mut stdout) = proc.stdout() {
-            let flag = open.clone();
-            rt.spawn(async move {
-                let mut buf = [0u8; 4096];
-                loop {
-                    match stdout.read(&mut buf).await {
-                        Ok(0) | Err(_) => break,
-                        Ok(n) => {
-                            let _ = tx_out.send(buf[..n].to_vec());
-                        }
-                    }
-                }
-                flag.store(false, Ordering::Release);
-            });
-        }
-
-        Session {
-            tx_in,
-            rx_out: Mutex::new(rx_out),
-            open,
-        }
+        Session { session }
     }
 
-    // ---------- Lua‑visible helpers ------------------------------------------
     fn read_chunk(&self) -> LuaResult<Option<String>> {
-        let mut guard = self
-            .rx_out
-            .lock()
-            .map_err(|_| LuaError::RuntimeError("poisoned rx_out lock".into()))?;
-        Ok(guard.try_recv().ok().map(|v| String::from_utf8_lossy(&v).into_owned()))
+        match self.session.try_recv_output() {
+            Ok(Some(bytes)) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
+            Ok(None) => Ok(None),
+            Err(e) => Err(LuaError::RuntimeError(e.to_string())),
+        }
     }
 
     fn write(&self, s: &str) {
-        let _ = self.tx_in.send(s.as_bytes().to_vec());
+        let _ = self.session.send_input(s.as_bytes().to_vec());
     }
+
     fn is_open(&self) -> bool {
-        self.open.load(Ordering::Acquire)
+        self.session.is_open()
     }
+
     fn close(&self) {
-        self.open.store(false, Ordering::Release);
+        self.session.close();
+    }
+}
+
+/// Spawn stdin writer and stdout reader tasks for an attached process.
+fn spawn_io_tasks(
+    rt: &Runtime,
+    proc: &mut AttachedProcess,
+    session: &mut BidirectionalSession<Vec<u8>, Vec<u8>>,
+) {
+    let task_handle = session.task_handle();
+
+    // stdin writer task
+    if let Some(mut stdin) = proc.stdin() {
+        if let Some(mut input_receiver) = session.take_input_receiver() {
+            let handle = task_handle.clone();
+            let _guard = handle.guard();
+            rt.spawn(async move {
+                let _guard = _guard;
+                while let Some(buf) = input_receiver.recv().await {
+                    if stdin.write_all(&buf).await.is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+    }
+
+    // stdout reader task
+    if let Some(mut stdout) = proc.stdout() {
+        let output_sender = session.output_sender();
+        let handle = task_handle.clone();
+        let _guard = handle.guard();
+        rt.spawn(async move {
+            let _guard = _guard;
+            let mut buf = [0u8; 4096];
+            loop {
+                match stdout.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        if output_sender.send(buf[..n].to_vec()).is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 
