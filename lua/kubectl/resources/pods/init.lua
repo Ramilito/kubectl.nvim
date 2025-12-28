@@ -1,12 +1,10 @@
 local BaseResource = require("kubectl.resources.base_resource")
 local client = require("kubectl.client")
-local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
-local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
+local pf_action = require("kubectl.actions.portforward")
 local pf_view = require("kubectl.views.portforward")
 local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 
 local resource = "pods"
 
@@ -273,74 +271,7 @@ function M.TailLogs()
 end
 
 function M.PortForward(pod, ns)
-  local def = {
-    resource = "pod_pf",
-    display = "PF: " .. pod .. "-" .. "?",
-    ft = "k8s_action",
-    ns = ns,
-    group = M.definition.group,
-    version = M.definition.version,
-  }
-
-  commands.run_async("get_single_async", {
-    gvk = M.definition.gvk,
-    name = pod,
-    namespace = ns,
-    output = def.syntax,
-  }, function(data)
-    local containers = {}
-    local pfBuilder = manager.get_or_create(def.resource)
-    pfBuilder.data = data
-    pfBuilder.decodeJson()
-    for _, container in ipairs(pfBuilder.data.spec.containers) do
-      if container.ports then
-        for _, port in ipairs(container.ports) do
-          local name
-          if port.name and container.name then
-            name = container.name .. "::(" .. port.name .. ")"
-          elseif container.name then
-            name = container.name
-          else
-            name = nil
-          end
-
-          table.insert(containers, {
-            name = { value = name, symbol = hl.symbols.pending },
-            port = { value = port.containerPort, symbol = hl.symbols.success },
-            protocol = port.protocol,
-          })
-        end
-      end
-    end
-
-    if next(containers) == nil then
-      containers[1] = { port = { value = "" }, name = { value = "" } }
-    end
-
-    vim.schedule(function()
-      pfBuilder.data, pfBuilder.extmarks = tables.pretty_print(containers, { "NAME", "PORT", "PROTOCOL" })
-      table.insert(pfBuilder.data, " ")
-
-      local pf_data = {
-        {
-          text = "address:",
-          value = "localhost",
-          options = { "localhost", "0.0.0.0" },
-          cmd = "",
-          type = "positional",
-        },
-        { text = "local:", value = tostring(containers[1].port.value), cmd = "", type = "positional" },
-        { text = "container port:", value = tostring(containers[1].port.value), cmd = ":", type = "merge_above" },
-      }
-
-      pfBuilder.action_view(def, pf_data, function(args)
-        local address = args[1].value
-        local local_port = args[2].value
-        local remote_port = args[3].value
-        client.portforward_start(M.definition.gvk.k, pod, ns, address, local_port, remote_port)
-      end)
-    end)
-  end)
+  pf_action.portforward("pod", M.definition.gvk, pod, ns)
 end
 
 return M
