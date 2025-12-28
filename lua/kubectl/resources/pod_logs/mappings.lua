@@ -1,4 +1,5 @@
 local client = require("kubectl.client")
+local log_session = require("kubectl.views.logs.session")
 local mappings = require("kubectl.mappings")
 local pod_view = require("kubectl.resources.pods")
 local str = require("kubectl.utils.string")
@@ -33,6 +34,22 @@ local function toggle_json()
   end
 end
 
+--- Get current options and update session manager
+---@param key string Option key to toggle
+---@param value any New value (or nil to toggle boolean)
+---@return kubectl.LogSessionOptions Updated options
+local function update_option(key, value)
+  local opts = log_session.get_options()
+  if value ~= nil then
+    opts[key] = value
+  else
+    opts[key] = not opts[key]
+  end
+  -- Update the global options in the session manager
+  log_session.set_options(opts)
+  return opts
+end
+
 M.overrides = {
   ["<Plug>(kubectl.follow)"] = {
     noremap = true,
@@ -48,11 +65,7 @@ M.overrides = {
     silent = true,
     desc = "Previous logs",
     callback = function()
-      if pod_view.log.show_previous == true then
-        pod_view.log.show_previous = false
-      else
-        pod_view.log.show_previous = true
-      end
+      update_option("previous")
       pod_view.Logs(false)
     end,
   },
@@ -71,11 +84,7 @@ M.overrides = {
     silent = true,
     desc = "Toggle timestamps",
     callback = function()
-      if pod_view.log.show_timestamps == true then
-        pod_view.log.show_timestamps = false
-      else
-        pod_view.log.show_timestamps = true
-      end
+      update_option("timestamps")
       pod_view.Logs(false)
     end,
   },
@@ -85,8 +94,11 @@ M.overrides = {
     silent = true,
     desc = "Log history",
     callback = function()
-      vim.ui.input({ prompt = "Since (5s, 2m, 3h)=", default = pod_view.log.log_since }, function(input)
-        pod_view.log.log_since = input or pod_view.log.log_since
+      local opts = log_session.get_options()
+      vim.ui.input({ prompt = "Since (5s, 2m, 3h)=", default = opts.since }, function(input)
+        if input then
+          update_option("since", input)
+        end
         pod_view.Logs(false)
       end)
     end,
@@ -96,11 +108,7 @@ M.overrides = {
     silent = true,
     desc = "Toggle prefix",
     callback = function()
-      if pod_view.log.show_log_prefix == true then
-        pod_view.log.show_log_prefix = false
-      else
-        pod_view.log.show_log_prefix = true
-      end
+      update_option("prefix")
       pod_view.Logs(false)
     end,
   },
