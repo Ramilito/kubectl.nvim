@@ -2,25 +2,17 @@ local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.resources.deployments")
 local manager = require("kubectl.resource_manager")
+local mapping_helpers = require("kubectl.utils.mapping_helpers")
 local mappings = require("kubectl.mappings")
 
 local M = {}
-local err_msg = "Failed to extract pod name or namespace."
 
 M.overrides = {
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,
     desc = "Set image",
-    callback = function()
-      local name, ns = deployment_view.getCurrentSelection()
-
-      if not name or not ns then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      deployment_view.SetImage(name, ns)
-    end,
+    callback = mapping_helpers.safe_callback(deployment_view, deployment_view.SetImage),
   },
 
   ["<Plug>(kubectl.scale)"] = {

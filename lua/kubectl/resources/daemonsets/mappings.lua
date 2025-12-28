@@ -1,24 +1,17 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.resources.daemonsets")
+local mapping_helpers = require("kubectl.utils.mapping_helpers")
 local mappings = require("kubectl.mappings")
 
 local M = {}
-local err_msg = "Failed to extract pod name or namespace."
 
 M.overrides = {
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,
     desc = "Set image",
-    callback = function()
-      local name, ns = daemonset_view.getCurrentSelection()
-      if not name or not ns then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      daemonset_view.SetImage(name, ns)
-    end,
+    callback = mapping_helpers.safe_callback(daemonset_view, daemonset_view.SetImage),
   },
 
   ["<Plug>(kubectl.rollout_restart)"] = {
