@@ -1,6 +1,6 @@
+local mapping_helpers = require("kubectl.utils.mapping_helpers")
 local mappings = require("kubectl.mappings")
 local node_view = require("kubectl.resources.nodes")
-local err_msg = "Failed to extract node name."
 
 local M = {}
 
@@ -9,40 +9,19 @@ M.overrides = {
     noremap = true,
     silent = true,
     desc = "Drain node",
-    callback = function()
-      local name = node_view.getCurrentSelection()
-      if not name then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      node_view.Drain(name)
-    end,
+    callback = mapping_helpers.safe_callback(node_view, node_view.Drain, true),
   },
   ["<Plug>(kubectl.uncordon)"] = {
     noremap = true,
     silent = true,
     desc = "UnCordon node",
-    callback = function()
-      local name = node_view.getCurrentSelection()
-      if not name then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      node_view.UnCordon(name)
-    end,
+    callback = mapping_helpers.safe_callback(node_view, node_view.UnCordon, true),
   },
   ["<Plug>(kubectl.cordon)"] = {
     noremap = true,
     silent = true,
     desc = "Cordon node",
-    callback = function()
-      local name = node_view.getCurrentSelection()
-      if not name then
-        vim.notify(err_msg, vim.log.levels.ERROR)
-        return
-      end
-      node_view.Cordon(name)
-    end,
+    callback = mapping_helpers.safe_callback(node_view, node_view.Cordon, true),
   },
 }
 
