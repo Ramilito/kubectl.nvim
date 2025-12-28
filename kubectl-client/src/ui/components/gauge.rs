@@ -12,7 +12,6 @@ use crate::ui::colors;
 pub enum GaugeStyle {
     Cpu,
     Memory,
-    Custom(Color),
 }
 
 impl GaugeStyle {
@@ -20,7 +19,6 @@ impl GaugeStyle {
         match self {
             GaugeStyle::Cpu => colors::INFO,
             GaugeStyle::Memory => colors::WARNING,
-            GaugeStyle::Custom(c) => c,
         }
     }
 }
@@ -52,6 +50,5 @@ mod tests {
     fn test_gauge_style_colors() {
         assert_eq!(GaugeStyle::Cpu.color(), colors::INFO);
         assert_eq!(GaugeStyle::Memory.color(), colors::WARNING);
-        assert_eq!(GaugeStyle::Custom(Color::Red).color(), Color::Red);
     }
 }
