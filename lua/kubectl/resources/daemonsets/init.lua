@@ -1,63 +1,49 @@
+local BaseResource = require("kubectl.resources.base_resource")
 local commands = require("kubectl.actions.commands")
 local manager = require("kubectl.resource_manager")
-local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 
 local resource = "daemonsets"
 local gvk = { g = "apps", v = "v1", k = "DaemonSet" }
-local M = {
-  definition = {
-    resource = resource,
-    display_name = string.upper(resource),
-    ft = "k8s_" .. resource,
-    gvk = gvk,
-    child_view = {
-      name = "pods",
-      predicate = function(name, ns)
-        local client = require("kubectl.client")
-        local deploy = client.get_single(vim.json.encode({ gvk = gvk, namespace = ns, name = name, output = "Json" }))
 
-        local deploy_decoded = vim.json.decode(deploy)
+local M = BaseResource.extend({
+  resource = resource,
+  display_name = string.upper(resource),
+  ft = "k8s_" .. resource,
+  gvk = gvk,
+  child_view = {
+    name = "pods",
+    predicate = function(name, ns)
+      local client = require("kubectl.client")
+      local deploy = client.get_single(vim.json.encode({ gvk = gvk, namespace = ns, name = name, output = "Json" }))
 
-        local labels = deploy_decoded.spec.selector.matchLabels
-        local parts = {}
-        for k, v in pairs(labels) do
-          table.insert(parts, ("metadata.labels.%s=%s"):format(k, v))
-        end
+      local deploy_decoded = vim.json.decode(deploy)
 
-        return table.concat(parts, ",")
-      end,
-    },
-    hints = {
-      { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected daemonset" },
-      { key = "<Plug>(kubectl.set_image)", desc = "image", long_desc = "Set image" },
-      { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
-    },
-    headers = {
-      "NAMESPACE",
-      "NAME",
-      "DESIRED",
-      "CURRENT",
-      "READY",
-      "UP-TO-DATE",
-      "AVAILABLE",
-      "NODE SELECTOR",
-      "AGE",
-    },
+      local labels = deploy_decoded.spec.selector.matchLabels
+      local parts = {}
+      for k, v in pairs(labels) do
+        table.insert(parts, ("metadata.labels.%s=%s"):format(k, v))
+      end
+
+      return table.concat(parts, ",")
+    end,
   },
-}
-
-function M.View(cancellationToken)
-  local builder = manager.get_or_create(M.definition.resource)
-  builder.view(M.definition, cancellationToken)
-end
-
-function M.Draw(cancellationToken)
-  local builder = manager.get(M.definition.resource)
-  if builder then
-    builder.draw(cancellationToken)
-  end
-end
+  hints = {
+    { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected daemonset" },
+    { key = "<Plug>(kubectl.set_image)", desc = "image", long_desc = "Set image" },
+    { key = "<Plug>(kubectl.select)", desc = "pods", long_desc = "Opens pods view" },
+  },
+  headers = {
+    "NAMESPACE",
+    "NAME",
+    "DESIRED",
+    "CURRENT",
+    "READY",
+    "UP-TO-DATE",
+    "AVAILABLE",
+    "NODE SELECTOR",
+    "AGE",
+  },
+})
 
 function M.SetImage(name, ns)
   local def = {
@@ -125,34 +111,6 @@ function M.SetImage(name, ns)
       end)
     end
   )
-end
-
-function M.Desc(name, ns, reload)
-  local def = {
-    resource = M.definition.resource .. "_desc",
-    display_name = "daemonsets | " .. name .. " | " .. ns,
-    ft = "k8s_desc",
-    url = { "describe", "daemonset", name, "-n", ns },
-    syntax = "yaml",
-    cmd = "describe_async",
-  }
-
-  local builder = manager.get_or_create(def.resource)
-  builder.view_float(def, {
-    args = {
-      context = state.context["current-context"],
-      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
-      namespace = ns,
-      name = name,
-    },
-    reload = reload,
-  })
-end
-
---- Get current seletion for view
----@return string|nil
-function M.getCurrentSelection()
-  return tables.getCurrentSelection(2, 1)
 end
 
 return M

@@ -1,3 +1,4 @@
+local BaseResource = require("kubectl.resources.base_resource")
 local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
@@ -9,61 +10,51 @@ local tables = require("kubectl.utils.tables")
 
 local resource = "pods"
 
----@class PodsModule : Module
-local M = {
-  definition = {
-    resource = resource,
-    display_name = string.upper(resource),
-    ft = "k8s_" .. resource,
-    gvk = { g = "", v = "v1", k = "Pod" },
-    hints = {
-      { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
-      { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
-      { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
-      { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },
-    },
-    headers = {
-      "NAMESPACE",
-      "NAME",
-      "READY",
-      "STATUS",
-      "RESTARTS",
-      "CPU",
-      "MEM",
-      "%CPU/R",
-      "%CPU/L",
-      "%MEM/R",
-      "%MEM/L",
-      "IP",
-      "NODE",
-      "AGE",
-    },
+local M = BaseResource.extend({
+  resource = resource,
+  display_name = string.upper(resource),
+  ft = "k8s_" .. resource,
+  gvk = { g = "", v = "v1", k = "Pod" },
+  hints = {
+    { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Shows logs for all containers in pod" },
+    { key = "<Plug>(kubectl.select)", desc = "containers", long_desc = "Opens container view" },
+    { key = "<Plug>(kubectl.portforward)", desc = "PF", long_desc = "View active Port forwards" },
+    { key = "<Plug>(kubectl.kill)", desc = "delete pod", long_desc = "Delete pod" },
   },
-  selection = {},
-  log = {
-    log_since = config.options.logs.since,
-    show_log_prefix = config.options.logs.prefix,
-    show_previous = false,
-    show_timestamps = config.options.logs.timestamps,
-    session = nil, ---@type kubectl.LogSession?
-    timer = nil, ---@type any
-    cleanup = nil, ---@type function?
+  headers = {
+    "NAMESPACE",
+    "NAME",
+    "READY",
+    "STATUS",
+    "RESTARTS",
+    "CPU",
+    "MEM",
+    "%CPU/R",
+    "%CPU/L",
+    "%MEM/R",
+    "%MEM/L",
+    "IP",
+    "NODE",
+    "AGE",
   },
+})
+
+-- Pod-specific state
+M.selection = {}
+M.log = {
+  log_since = config.options.logs.since,
+  show_log_prefix = config.options.logs.prefix,
+  show_previous = false,
+  show_timestamps = config.options.logs.timestamps,
+  session = nil, ---@type kubectl.LogSession?
+  timer = nil, ---@type any
+  cleanup = nil, ---@type function?
 }
 
-function M.View(cancellationToken)
-  local builder = manager.get_or_create(M.definition.resource)
-  builder.view(M.definition, cancellationToken)
-end
-
-function M.Draw(cancellationToken)
-  local builder = manager.get(M.definition.resource)
-  if builder then
-    local pfs = pf_view.getPFRows(string.lower(M.definition.gvk.k))
-    builder.extmarks_extra = {}
-    pf_view.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
-    builder.draw(cancellationToken)
-  end
+function M.onBeforeDraw(builder)
+  local pfs = pf_view.getPFRows(string.lower(M.definition.gvk.k))
+  builder.extmarks_extra = {}
+  pf_view.setPortForwards(builder.extmarks_extra, builder.prettyData, pfs)
 end
 
 --- Stop any existing log session and timer
@@ -350,32 +341,6 @@ function M.PortForward(pod, ns)
       end)
     end)
   end)
-end
-
-function M.Desc(name, ns, reload)
-  local def = {
-    resource = M.definition.resource .. "_desc",
-    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
-    ft = "k8s_desc",
-    syntax = "yaml",
-    cmd = "describe_async",
-  }
-  local builder = manager.get_or_create(def.resource)
-  builder.view_float(def, {
-    args = {
-      context = state.context["current-context"],
-      gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
-      namespace = ns,
-      name = name,
-    },
-    reload = reload,
-  })
-end
-
---- Get current selection for view
----@return string|nil
-function M.getCurrentSelection()
-  return tables.getCurrentSelection(2, 1)
 end
 
 return M
