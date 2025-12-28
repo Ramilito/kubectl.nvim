@@ -45,8 +45,9 @@ local M = {
     show_log_prefix = config.options.logs.prefix,
     show_previous = false,
     show_timestamps = config.options.logs.timestamps,
-    session = nil, -- LogSession userdata from Rust
-    timer = nil, -- vim.uv timer for polling
+    session = nil, ---@type kubectl.LogSession?
+    timer = nil, ---@type any
+    cleanup = nil, ---@type function?
   },
 }
 
@@ -77,13 +78,14 @@ local function stop_log_session()
   -- Fallback cleanup
   if M.log.session then
     pcall(function()
-      M.log.session:close()
+      M.log.session:close() ---@diagnostic disable-line: undefined-field
     end)
     M.log.session = nil
   end
+  ---@diagnostic disable-next-line: undefined-field
   if M.log.timer and not M.log.timer:is_closing() then
-    M.log.timer:stop()
-    M.log.timer:close()
+    M.log.timer:stop() ---@diagnostic disable-line: undefined-field
+    M.log.timer:close() ---@diagnostic disable-line: undefined-field
   end
   M.log.timer = nil
 end
@@ -102,12 +104,12 @@ local function start_log_polling(buf, win)
     stopped = true
     if M.log.session then
       pcall(function()
-        M.log.session:close()
+        M.log.session:close() ---@diagnostic disable-line: undefined-field
       end)
     end
-    if timer and not timer:is_closing() then
-      timer:stop()
-      timer:close()
+    if timer and not timer:is_closing() then ---@diagnostic disable-line: undefined-field
+      timer:stop() ---@diagnostic disable-line: undefined-field
+      timer:close() ---@diagnostic disable-line: undefined-field
     end
     M.log.session = nil
     M.log.timer = nil
@@ -132,7 +134,7 @@ local function start_log_polling(buf, win)
       local session_open = false
       if M.log.session then
         local check_ok, is_open = pcall(function()
-          return M.log.session:open()
+          return M.log.session:open() ---@diagnostic disable-line: undefined-field
         end)
         session_open = check_ok and is_open
       end
@@ -144,7 +146,7 @@ local function start_log_polling(buf, win)
 
       -- Read available log lines
       local read_ok, lines = pcall(function()
-        return M.log.session:read_chunk()
+        return M.log.session:read_chunk() ---@diagnostic disable-line: undefined-field
       end)
       if read_ok and lines and #lines > 0 then
         local start_line = vim.api.nvim_buf_line_count(buf)
@@ -255,6 +257,7 @@ function M.TailLogs()
   local buf = vim.api.nvim_get_current_buf()
   local win = vim.api.nvim_get_current_win()
 
+  ---@type boolean, kubectl.LogSession?
   local ok, sess = pcall(
     client.log_session,
     pods,
@@ -269,7 +272,7 @@ function M.TailLogs()
     vim.notify("Failed to start log session: " .. tostring(sess), vim.log.levels.ERROR)
     return
   end
-  M.log.session = sess
+  M.log.session = sess ---@diagnostic disable-line: assign-type-mismatch
 
   -- Move cursor to end
   local line_count = vim.api.nvim_buf_line_count(buf)
