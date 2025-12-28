@@ -338,7 +338,7 @@ fn parse_duration(s: &str) -> Option<Duration> {
 
 impl UserData for LogSession {
     fn add_methods<M: UserDataMethods<Self>>(m: &mut M) {
-        m.add_method("read_chunk", |_, this, ()| Ok(this.read_chunk()?));
+        m.add_method("read_chunk", |_, this, ()| this.read_chunk());
         m.add_method("open", |_, this, ()| Ok(this.is_open()));
         m.add_method("close", |_, this, ()| {
             this.close();
@@ -488,4 +488,55 @@ pub async fn log_stream_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
         serde_json::to_string(&result)
             .map_err(|e| mlua::Error::external(format!("json encode error: {e}")))
     })
+}
+
+#[derive(Debug, Clone)]
+pub struct ToggleJsonResult {
+    pub json: String,
+    pub start_idx: usize,
+    pub end_idx: usize,
+}
+
+/// Find JSON in a string and toggle between pretty/minified format.
+/// Indices are 1-based for Lua compatibility.
+pub fn toggle_json(input: &str) -> Option<ToggleJsonResult> {
+    let bytes = input.as_bytes();
+    let mut depth = 0;
+    let mut start = None;
+
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'{' => {
+                if depth == 0 {
+                    start = Some(i);
+                }
+                depth += 1;
+            }
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Some(s) = start {
+                        let candidate = &input[s..=i];
+                        if let Ok(value) = serde_json::from_str::<serde_json::Value>(candidate) {
+                            let json = if candidate.contains('\n') {
+                                serde_json::to_string(&value)
+                            } else {
+                                serde_json::to_string_pretty(&value)
+                            }
+                            .ok()?;
+
+                            return Some(ToggleJsonResult {
+                                json,
+                                start_idx: s + 1,
+                                end_idx: i + 1,
+                            });
+                        }
+                    }
+                    start = None;
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }

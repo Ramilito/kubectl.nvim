@@ -474,7 +474,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "toggle_json",
         lua.create_function(|lua, input: String| {
-            match utils::toggle_json(&input) {
+            match cmd::log_session::toggle_json(&input) {
                 Some(result) => {
                     let tbl = lua.create_table()?;
                     tbl.set("json", result.json)?;

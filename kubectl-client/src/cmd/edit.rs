@@ -90,8 +90,7 @@ fn normalize_finalizers_for_ssa(obj: &mut DynamicObject, live: &DynamicObject) {
     let live_has_finalizers = live
         .metadata
         .finalizers
-        .as_ref()
-        .map_or(false, |v| !v.is_empty());
+        .as_ref().is_some_and(|v| !v.is_empty());
 
     if user_removed_field && live_has_finalizers {
         obj.metadata.finalizers = Some(Vec::new());
