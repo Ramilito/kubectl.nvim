@@ -228,11 +228,11 @@ function M.Logs(_reload)
     args = {
       pods = pods,
       container = M.selection.container,
-      since_time_input = M.log.log_since,
+      since = M.log.log_since,
       previous = M.log.show_previous,
       timestamps = M.log.show_timestamps,
       prefix = M.log.show_log_prefix,
-      width = width,
+      histogram_width = width,
     },
   })
 end
@@ -258,16 +258,14 @@ function M.TailLogs()
   local win = vim.api.nvim_get_current_win()
 
   ---@type boolean, kubectl.LogSession?
-  local ok, sess = pcall(
-    client.log_session,
-    pods,
-    M.selection.container,
-    M.log.show_timestamps,
-    nil,
-    true,
-    false,
-    M.log.show_log_prefix and true or nil
-  )
+  local ok, sess = pcall(client.log_session, {
+    pods = pods,
+    container = M.selection.container,
+    timestamps = M.log.show_timestamps,
+    follow = true,
+    previous = false,
+    prefix = M.log.show_log_prefix and true or nil,
+  })
   if not ok or not sess then
     vim.notify("Failed to start log session: " .. tostring(sess), vim.log.levels.ERROR)
     return
