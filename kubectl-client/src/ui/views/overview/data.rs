@@ -3,13 +3,9 @@
 //! Provides functions to fetch cluster data from the store.
 
 use kube::api::{DynamicObject, GroupVersionKind, ResourceExt};
-use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::{runtime::Handle, task};
 
 use crate::{store, with_client};
-
-/// Track whether we've initialized the overview reflectors.
-static REFLECTORS_INIT: AtomicBool = AtomicBool::new(false);
 
 /// Namespace information for display.
 #[derive(Clone)]
@@ -49,41 +45,31 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
     }
 }
 
-/// Resets the overview initialization state (called on context change).
-pub fn reset_overview_state() {
-    REFLECTORS_INIT.store(false, Ordering::Release);
-}
-
 /// Ensures reflectors for Namespace and Event are initialized.
+/// The store handles idempotency - safe to call multiple times.
 fn ensure_reflectors() {
-    // Use compare_exchange to atomically check and set
-    if REFLECTORS_INIT
-        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-        .is_ok()
-    {
-        block_on(async {
-            // Initialize Namespace reflector (core/v1)
-            let ns_gvk = GroupVersionKind::gvk("", "v1", "Namespace");
-            let _ = with_client(|client| async move {
-                store::init_reflector_for_kind(client.clone(), ns_gvk, None).await.ok();
-                Ok::<(), mlua::Error>(())
-            });
-
-            // Initialize Event reflector (events.k8s.io/v1)
-            let event_gvk = GroupVersionKind::gvk("events.k8s.io", "v1", "Event");
-            let _ = with_client(|client| async move {
-                store::init_reflector_for_kind(client.clone(), event_gvk, None).await.ok();
-                Ok::<(), mlua::Error>(())
-            });
-
-            // Initialize Pod reflector for stats (core/v1)
-            let pod_gvk = GroupVersionKind::gvk("", "v1", "Pod");
-            let _ = with_client(|client| async move {
-                store::init_reflector_for_kind(client.clone(), pod_gvk, None).await.ok();
-                Ok::<(), mlua::Error>(())
-            });
+    block_on(async {
+        // Initialize Namespace reflector (core/v1)
+        let ns_gvk = GroupVersionKind::gvk("", "v1", "Namespace");
+        let _ = with_client(|client| async move {
+            store::init_reflector_for_kind(client.clone(), ns_gvk, None).await.ok();
+            Ok::<(), mlua::Error>(())
         });
-    }
+
+        // Initialize Event reflector (events.k8s.io/v1)
+        let event_gvk = GroupVersionKind::gvk("events.k8s.io", "v1", "Event");
+        let _ = with_client(|client| async move {
+            store::init_reflector_for_kind(client.clone(), event_gvk, None).await.ok();
+            Ok::<(), mlua::Error>(())
+        });
+
+        // Initialize Pod reflector for stats (core/v1)
+        let pod_gvk = GroupVersionKind::gvk("", "v1", "Pod");
+        let _ = with_client(|client| async move {
+            store::init_reflector_for_kind(client.clone(), pod_gvk, None).await.ok();
+            Ok::<(), mlua::Error>(())
+        });
+    });
 }
 
 /// Fetches all namespaces from the store.
