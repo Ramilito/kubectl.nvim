@@ -516,11 +516,15 @@ function M.get_mappings()
       desc = "Clear selection",
       callback = function()
         local state = require("kubectl.state")
+        if vim.tbl_count(state.selections) == 0 then
+          return
+        end
+
         local view = require("kubectl.views")
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local current_view, _ = view.resource_and_definition(string.lower(vim.trim(buf_name)))
 
-        if vim.tbl_count(state.selections) > 0 then
+        if current_view then
           state.selections = {}
           current_view.Draw()
         end
