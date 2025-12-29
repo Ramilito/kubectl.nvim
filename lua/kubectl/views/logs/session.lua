@@ -72,10 +72,12 @@ local function create_session(buf, win, options)
       self.rust_session = nil
     end
 
+    ---@diagnostic disable: undefined-field
     if self.timer and not self.timer:is_closing() then
       self.timer:stop()
       self.timer:close()
     end
+    ---@diagnostic enable: undefined-field
     self.timer = nil
 
     -- Remove from manager

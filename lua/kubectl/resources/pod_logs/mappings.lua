@@ -66,7 +66,7 @@ M.overrides = {
     desc = "Previous logs",
     callback = function()
       update_option("previous")
-      pod_view.Logs(false)
+      pod_view.Logs()
     end,
   },
 
@@ -85,7 +85,7 @@ M.overrides = {
     desc = "Toggle timestamps",
     callback = function()
       update_option("timestamps")
-      pod_view.Logs(false)
+      pod_view.Logs()
     end,
   },
 
@@ -99,7 +99,7 @@ M.overrides = {
         if input then
           update_option("since", input)
         end
-        pod_view.Logs(false)
+        pod_view.Logs()
       end)
     end,
   },
@@ -109,7 +109,7 @@ M.overrides = {
     desc = "Toggle prefix",
     callback = function()
       update_option("prefix")
-      pod_view.Logs(false)
+      pod_view.Logs()
     end,
   },
   ["<Plug>(kubectl.select)"] = {
