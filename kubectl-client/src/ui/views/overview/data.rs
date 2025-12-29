@@ -3,13 +3,9 @@
 //! Provides functions to fetch cluster data from the store.
 
 use kube::api::{DynamicObject, GroupVersionKind, ResourceExt};
-use std::sync::OnceLock;
 use tokio::{runtime::Handle, task};
 
 use crate::{store, with_client};
-
-/// Track whether we've initialized the overview reflectors.
-static REFLECTORS_INIT: OnceLock<()> = OnceLock::new();
 
 /// Namespace information for display.
 #[derive(Clone)]
@@ -50,29 +46,28 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
 }
 
 /// Ensures reflectors for Namespace and Event are initialized.
+/// The store handles idempotency - safe to call multiple times.
 fn ensure_reflectors() {
-    REFLECTORS_INIT.get_or_init(|| {
-        block_on(async {
-            // Initialize Namespace reflector (core/v1)
-            let ns_gvk = GroupVersionKind::gvk("", "v1", "Namespace");
-            let _ = with_client(|client| async move {
-                store::init_reflector_for_kind(client.clone(), ns_gvk, None).await.ok();
-                Ok::<(), mlua::Error>(())
-            });
+    block_on(async {
+        // Initialize Namespace reflector (core/v1)
+        let ns_gvk = GroupVersionKind::gvk("", "v1", "Namespace");
+        let _ = with_client(|client| async move {
+            store::init_reflector_for_kind(client.clone(), ns_gvk, None).await.ok();
+            Ok::<(), mlua::Error>(())
+        });
 
-            // Initialize Event reflector (events.k8s.io/v1)
-            let event_gvk = GroupVersionKind::gvk("events.k8s.io", "v1", "Event");
-            let _ = with_client(|client| async move {
-                store::init_reflector_for_kind(client.clone(), event_gvk, None).await.ok();
-                Ok::<(), mlua::Error>(())
-            });
+        // Initialize Event reflector (events.k8s.io/v1)
+        let event_gvk = GroupVersionKind::gvk("events.k8s.io", "v1", "Event");
+        let _ = with_client(|client| async move {
+            store::init_reflector_for_kind(client.clone(), event_gvk, None).await.ok();
+            Ok::<(), mlua::Error>(())
+        });
 
-            // Initialize Pod reflector for stats (core/v1)
-            let pod_gvk = GroupVersionKind::gvk("", "v1", "Pod");
-            let _ = with_client(|client| async move {
-                store::init_reflector_for_kind(client.clone(), pod_gvk, None).await.ok();
-                Ok::<(), mlua::Error>(())
-            });
+        // Initialize Pod reflector for stats (core/v1)
+        let pod_gvk = GroupVersionKind::gvk("", "v1", "Pod");
+        let _ = with_client(|client| async move {
+            store::init_reflector_for_kind(client.clone(), pod_gvk, None).await.ok();
+            Ok::<(), mlua::Error>(())
         });
     });
 }
@@ -96,7 +91,7 @@ pub fn fetch_namespaces() -> Vec<NamespaceInfo> {
     namespaces
 }
 
-/// Fetches recent events from the store.
+/// Fetches recent events from the store (Warning and Error only).
 pub fn fetch_events() -> Vec<EventInfo> {
     ensure_reflectors();
     let objects = block_on(async { store::get("Event", None).await.unwrap_or_default() });
@@ -104,6 +99,8 @@ pub fn fetch_events() -> Vec<EventInfo> {
     let mut events: Vec<EventInfo> = objects
         .iter()
         .filter_map(|obj| extract_event_info(obj))
+        // Only show Warning and Error events
+        .filter(|ev| ev.type_ == "Warning" || ev.type_ == "Error")
         .collect();
 
     // Sort by count (descending) - most frequent events first
