@@ -511,6 +511,21 @@ function M.get_mappings()
         end
       end,
     },
+    ["<Plug>(kubectl.clear_selection)"] = {
+      mode = "n",
+      desc = "Clear selection",
+      callback = function()
+        local state = require("kubectl.state")
+        local view = require("kubectl.views")
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local current_view, _ = view.resource_and_definition(string.lower(vim.trim(buf_name)))
+
+        if vim.tbl_count(state.selections) > 0 then
+          state.selections = {}
+          current_view.Draw()
+        end
+      end,
+    },
     ["<Plug>(kubectl.select)"] = {
       noremap = true,
       silent = true,
@@ -592,6 +607,7 @@ function M.register()
     M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
     M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
     M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
+    M.map_if_plug_not_set("n", "<S-Tab>", "<Plug>(kubectl.clear_selection)")
     M.map_if_plug_not_set("n", "<M-h>", "<Plug>(kubectl.toggle_headers)")
   else
     local opts = { noremap = true, silent = true, callback = nil }

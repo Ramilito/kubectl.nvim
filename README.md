@@ -198,8 +198,8 @@ vim.api.nvim_create_autocmd("FileType", {
     k("n", "<BS>", "<Plug>(kubectl.go_up)", opts) -- Go back to previous view
     k("v", "<C-f>", "<Plug>(kubectl.filter_term)", opts) -- Filter selected text
     k("n", "<CR>", "<Plug>(kubectl.select)", opts) -- Resource select action (different on each view)
-    k("n", "<Tab>", "<Plug>(kubectl.tab)", opts) -- Tab completion (ascending, when applicable)
-    k("n", "<S-Tab>", "<Plug>(kubectl.shift_tab)", opts) -- Tab completion (descending, when applicable)
+    k("n", "<Tab>", "<Plug>(kubectl.tab)", opts) -- Select resource
+    k("n", "<S-Tab>", "<Plug>(kubectl.clear_selection)", opts) -- Clear selection
     k("n", "", "<Plug>(kubectl.quit)", opts) -- Close view (when applicable)
     k("n", "gk", "<Plug>(kubectl.kill)", opts) -- Pod/portforward kill
     k("n", "<M-h>", "<Plug>(kubectl.toggle_headers)", opts) -- Toggle headers
