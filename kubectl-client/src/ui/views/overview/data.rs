@@ -96,7 +96,7 @@ pub fn fetch_namespaces() -> Vec<NamespaceInfo> {
     namespaces
 }
 
-/// Fetches recent events from the store.
+/// Fetches recent events from the store (Warning and Error only).
 pub fn fetch_events() -> Vec<EventInfo> {
     ensure_reflectors();
     let objects = block_on(async { store::get("Event", None).await.unwrap_or_default() });
@@ -104,6 +104,8 @@ pub fn fetch_events() -> Vec<EventInfo> {
     let mut events: Vec<EventInfo> = objects
         .iter()
         .filter_map(|obj| extract_event_info(obj))
+        // Only show Warning and Error events
+        .filter(|ev| ev.type_ == "Warning" || ev.type_ == "Error")
         .collect();
 
     // Sort by count (descending) - most frequent events first

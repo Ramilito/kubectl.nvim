@@ -13,17 +13,16 @@ mod data;
 
 use crossterm::event::Event;
 use ratatui::{
-    layout::{Constraint, Layout, Margin, Rect, Size},
+    layout::{Constraint, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders},
     Frame,
 };
-use tui_widgets::scrollview::ScrollView;
 
 use crate::{
-    metrics::nodes::NodeStat,
-    node_stats,
+    metrics::{nodes::NodeStat, pods::PodStat},
+    node_stats, pod_stats,
     ui::{
         components::{draw_help_bar, make_gauge, overview_hints, GaugeStyle},
         views::View,
@@ -34,9 +33,69 @@ use data::{fetch_cluster_stats, fetch_events, fetch_namespaces};
 
 use crate::ui::colors;
 
+/// Border overhead for each panel (top + bottom border)
+const PANEL_BORDER: u16 = 2;
+/// Fixed height for info panel (3 lines)
+const INFO_LINES: u16 = 3;
+/// Fixed height for pod panels (top 10)
+const POD_LINES: u16 = 15;
+
 /// Overview view displaying a 6-pane cluster dashboard.
-#[derive(Default)]
-pub struct OverviewView;
+pub struct OverviewView {
+    /// Cached node count
+    node_count: usize,
+    /// Cached namespace count
+    namespace_count: usize,
+    /// Cached event count
+    event_count: usize,
+    /// Whether cache needs refresh
+    cache_dirty: bool,
+}
+
+impl Default for OverviewView {
+    fn default() -> Self {
+        Self {
+            node_count: 0,
+            namespace_count: 0,
+            event_count: 0,
+            cache_dirty: true,
+        }
+    }
+}
+
+impl OverviewView {
+    /// Refresh cached counts from live data
+    fn refresh_cache(&mut self) {
+        if !self.cache_dirty {
+            return;
+        }
+
+        self.node_count = node_stats()
+            .lock()
+            .map(|g| g.len())
+            .unwrap_or(0);
+
+        self.namespace_count = fetch_namespaces().len();
+        self.event_count = fetch_events().len();
+        self.cache_dirty = false;
+    }
+
+    /// Calculate height needed for top row (max of Info, Nodes, Namespaces)
+    fn top_row_height(&self) -> u16 {
+        let info_h = INFO_LINES + PANEL_BORDER;
+        let nodes_h = self.node_count as u16 + PANEL_BORDER;
+        let ns_h = self.namespace_count as u16 + PANEL_BORDER;
+        info_h.max(nodes_h).max(ns_h)
+    }
+
+    /// Calculate height needed for bottom row (max of Top-CPU, Top-MEM, Events)
+    fn bottom_row_height(&self) -> u16 {
+        let pods_h = POD_LINES + PANEL_BORDER;
+        // Events take 2 lines each (header + message)
+        let events_h = (self.event_count * 2) as u16 + PANEL_BORDER;
+        pods_h.max(events_h)
+    }
+}
 
 impl View for OverviewView {
     fn on_event(&mut self, _ev: &Event) -> bool {
@@ -44,12 +103,39 @@ impl View for OverviewView {
     }
 
     fn draw(&mut self, f: &mut Frame, area: Rect) {
-        draw(f, area);
+        self.refresh_cache();
+        draw(f, area, self.top_row_height(), self.bottom_row_height());
+    }
+
+    fn content_height(&self) -> Option<u16> {
+        // Get live counts for accurate height calculation
+        let node_count = node_stats()
+            .lock()
+            .map(|g| g.len())
+            .unwrap_or(self.node_count);
+        let namespace_count = fetch_namespaces().len();
+        let event_count = fetch_events().len();
+
+        let top_h = (INFO_LINES + PANEL_BORDER)
+            .max(node_count as u16 + PANEL_BORDER)
+            .max(namespace_count as u16 + PANEL_BORDER);
+
+        // Events take 2 lines each (header + message)
+        let event_lines = (event_count * 2) as u16;
+        let bot_h = (POD_LINES + PANEL_BORDER)
+            .max(event_lines + PANEL_BORDER);
+
+        // 1 for help bar + top row + bottom row
+        Some(1 + top_h + bot_h)
+    }
+
+    fn on_metrics_update(&mut self) {
+        self.cache_dirty = true;
     }
 }
 
 /// Main draw function for the Overview view.
-fn draw(f: &mut Frame, area: Rect) {
+fn draw(f: &mut Frame, area: Rect, top_row_h: u16, bot_row_h: u16) {
     // Layout: help bar at top, then 2 rows × 3 columns
     let [help_area, content_area] = Layout::vertical([
         Constraint::Length(1), // Help bar
@@ -60,9 +146,12 @@ fn draw(f: &mut Frame, area: Rect) {
     // Draw help bar
     draw_help_bar(f, help_area, &overview_hints());
 
-    // Split content into 2 rows × 3 columns
-    let rows =
-        Layout::vertical([Constraint::Percentage(60), Constraint::Percentage(40)]).split(content_area);
+    // Split content into 2 rows with calculated heights
+    let rows = Layout::vertical([
+        Constraint::Length(top_row_h),
+        Constraint::Length(bot_row_h),
+    ])
+    .split(content_area);
 
     let cols_top = Layout::horizontal([
         Constraint::Percentage(33),
@@ -78,7 +167,7 @@ fn draw(f: &mut Frame, area: Rect) {
     ])
     .split(rows[1]);
 
-    // Snapshot data (convert HashMap values to Vec)
+    // Snapshot node data (convert HashMap values to Vec)
     let node_snapshot: Vec<NodeStat> = {
         node_stats()
             .lock()
@@ -90,13 +179,25 @@ fn draw(f: &mut Frame, area: Rect) {
     let total_nodes = node_snapshot.len();
     let ready_nodes = node_snapshot.iter().filter(|n| n.status == "Ready").count();
 
-    // Sort nodes by metrics for top-N lists (one clone instead of two)
-    let mut by_cpu = node_snapshot.clone();
-    by_cpu.sort_by(|a, b| b.cpu_pct.total_cmp(&a.cpu_pct));
-
-    // Move ownership - node_snapshot consumed here
+    // Sort nodes by memory for the Nodes panel
     let mut by_mem = node_snapshot;
     by_mem.sort_by(|a, b| b.mem_pct.total_cmp(&a.mem_pct));
+
+    // Snapshot pod data for Top-CPU/Top-MEM panels
+    let pod_snapshot: Vec<PodStat> = {
+        pod_stats()
+            .lock()
+            .map(|guard| guard.values().cloned().collect())
+            .unwrap_or_default()
+    };
+
+    // Sort pods by CPU (millicores, descending)
+    let mut pods_by_cpu = pod_snapshot.clone();
+    pods_by_cpu.sort_by(|a, b| b.cpu_m.cmp(&a.cpu_m));
+
+    // Sort pods by memory (MiB, descending)
+    let mut pods_by_mem = pod_snapshot;
+    pods_by_mem.sort_by(|a, b| b.mem_mi.cmp(&a.mem_mi));
 
     // Fetch real namespace data
     let ns_data = fetch_namespaces();
@@ -116,11 +217,11 @@ fn draw(f: &mut Frame, area: Rect) {
         })
         .collect();
 
-    // Fetch real event data
+    // Fetch real event data - each event becomes 2 lines (header + message)
     let event_data = fetch_events();
     let events: Vec<Line> = event_data
         .iter()
-        .map(|ev| {
+        .flat_map(|ev| {
             let type_color = match ev.type_.as_str() {
                 "Warning" => colors::DEBUG, // yellow
                 "Error" => colors::ERROR,
@@ -131,19 +232,14 @@ fn draw(f: &mut Frame, area: Rect) {
             } else {
                 String::new()
             };
-            // Truncate message if too long
-            let msg = if ev.message.len() > 30 {
-                format!("{}...", &ev.message[..27])
-            } else {
-                ev.message.clone()
-            };
             // Format namespace (truncate if needed)
             let ns = if ev.namespace.len() > 12 {
                 format!("{}…", &ev.namespace[..11])
             } else {
                 ev.namespace.clone()
             };
-            Line::from(vec![
+            // Line 1: Header with type, count, object, reason
+            let header = Line::from(vec![
                 Span::styled(&ev.type_, Style::default().fg(type_color)),
                 Span::raw(" "),
                 Span::styled(count_str, Style::default().fg(colors::GRAY)),
@@ -151,9 +247,13 @@ fn draw(f: &mut Frame, area: Rect) {
                 Span::styled(&ev.object, Style::default().fg(colors::HEADER)),
                 Span::raw(" "),
                 Span::styled(&ev.reason, Style::default().fg(colors::SUCCESS).add_modifier(Modifier::BOLD)),
-                Span::raw(": "),
-                Span::raw(msg),
-            ])
+            ]);
+            // Line 2: Message (indented)
+            let message = Line::from(vec![
+                Span::raw("  "),
+                Span::styled(&ev.message, Style::default().fg(colors::GRAY)),
+            ]);
+            vec![header, message]
         })
         .collect();
 
@@ -190,13 +290,13 @@ fn draw(f: &mut Frame, area: Rect) {
     draw_nodes_table(f, cols_top[1], " Nodes ", &by_mem);
     draw_text_list(f, cols_top[2], " Namespaces ", &namespaces, Color::Magenta);
 
-    // Bottom row
-    draw_nodes_table(f, cols_bot[0], " Top-CPU ", &by_cpu[..by_cpu.len().min(30)]);
-    draw_nodes_table(f, cols_bot[1], " Top-MEM ", &by_mem[..by_mem.len().min(30)]);
+    // Bottom row - show top pods by CPU and memory
+    draw_pods_table(f, cols_bot[0], " Top-CPU ", &pods_by_cpu, true);
+    draw_pods_table(f, cols_bot[1], " Top-MEM ", &pods_by_mem, false);
     draw_text_list(f, cols_bot[2], " Events ", &events, Color::Yellow);
 }
 
-/// Draws a scrollable list of text lines.
+/// Draws a list of text lines.
 fn draw_text_list(f: &mut Frame, area: Rect, title: &str, lines: &[Line], accent: Color) {
     let border = Block::default()
         .title(title)
@@ -209,24 +309,23 @@ fn draw_text_list(f: &mut Frame, area: Rect, title: &str, lines: &[Line], accent
         vertical: 1,
     });
 
-    let mut sv = ScrollView::new(Size::new(inner.width, lines.len() as u16));
-
     for (i, l) in lines.iter().enumerate() {
-        sv.render_widget(
+        if i as u16 >= inner.height {
+            break;
+        }
+        f.render_widget(
             l.clone(),
             Rect {
-                x: 0,
-                y: i as u16,
+                x: inner.x,
+                y: inner.y + i as u16,
                 width: inner.width,
                 height: 1,
             },
         );
     }
-
-    f.render_stateful_widget(sv, inner, &mut Default::default());
 }
 
-/// Draws a scrollable table of node statistics.
+/// Draws a table of node statistics. Renders directly without ScrollView.
 fn draw_nodes_table(f: &mut Frame, area: Rect, title: &str, stats: &[NodeStat]) {
     let border = Block::default()
         .title(title)
@@ -247,29 +346,105 @@ fn draw_nodes_table(f: &mut Frame, area: Rect, title: &str, stats: &[NodeStat]) 
         .unwrap_or(1)
         .min(inner.width / 2);
 
-    let mut sv = ScrollView::new(Size::new(inner.width, stats.len() as u16));
-
     for (row, n) in stats.iter().enumerate() {
+        if row as u16 >= inner.height {
+            break;
+        }
+
+        let row_rect = Rect {
+            x: inner.x,
+            y: inner.y + row as u16,
+            width: inner.width,
+            height: 1,
+        };
+
         let cols = Layout::horizontal([
             Constraint::Length(max_name),
             Constraint::Percentage(50),
             Constraint::Percentage(50),
         ])
-        .split(Rect {
-            x: 0,
-            y: row as u16,
-            width: inner.width,
-            height: 1,
-        });
+        .split(row_rect);
 
         let name_style = Style::default()
             .fg(colors::HEADER)
             .add_modifier(Modifier::BOLD);
 
-        sv.render_widget(Span::styled(n.name.clone(), name_style), cols[0]);
-        sv.render_widget(make_gauge("CPU", n.cpu_pct, GaugeStyle::Cpu), cols[1]);
-        sv.render_widget(make_gauge("MEM", n.mem_pct, GaugeStyle::Memory), cols[2]);
+        f.render_widget(Span::styled(n.name.clone(), name_style), cols[0]);
+        f.render_widget(make_gauge("CPU", n.cpu_pct, GaugeStyle::Cpu), cols[1]);
+        f.render_widget(make_gauge("MEM", n.mem_pct, GaugeStyle::Memory), cols[2]);
     }
+}
 
-    f.render_stateful_widget(sv, inner, &mut Default::default());
+/// Draws a table of top pod statistics (CPU or memory focused).
+/// Shows just numbers, no gauges. Renders directly without ScrollView.
+fn draw_pods_table(f: &mut Frame, area: Rect, title: &str, stats: &[PodStat], show_cpu: bool) {
+    let border = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    f.render_widget(border, area);
+
+    let inner = area.inner(Margin {
+        horizontal: 1,
+        vertical: 1,
+    });
+
+    // Limit to top 15
+    let display_stats = &stats[..stats.len().min(15)];
+
+    // Calculate widest name for neat columns (namespace/name format)
+    let max_name = display_stats
+        .iter()
+        .map(|p| {
+            let display_name = format!("{}/{}", p.namespace, p.name);
+            Line::from(display_name).width() as u16 + 1
+        })
+        .max()
+        .unwrap_or(1)
+        .min(inner.width.saturating_sub(12)); // Leave room for value column
+
+    for (row, p) in display_stats.iter().enumerate() {
+        if row as u16 >= inner.height {
+            break;
+        }
+
+        let row_rect = Rect {
+            x: inner.x,
+            y: inner.y + row as u16,
+            width: inner.width,
+            height: 1,
+        };
+
+        let cols = Layout::horizontal([
+            Constraint::Length(max_name),
+            Constraint::Min(10),
+        ])
+        .split(row_rect);
+
+        let name_style = Style::default()
+            .fg(colors::HEADER)
+            .add_modifier(Modifier::BOLD);
+
+        // Format: namespace/name (truncated if needed)
+        let display_name = format!("{}/{}", p.namespace, p.name);
+        let truncated_name = if display_name.len() > max_name as usize {
+            format!("{}…", &display_name[..max_name.saturating_sub(1) as usize])
+        } else {
+            display_name
+        };
+
+        f.render_widget(Span::styled(truncated_name, name_style), cols[0]);
+
+        // Show just the value as text
+        let value_text = if show_cpu {
+            format!("{}m", p.cpu_m)
+        } else {
+            format!("{}Mi", p.mem_mi)
+        };
+
+        f.render_widget(
+            Span::styled(value_text, Style::default().fg(colors::INFO)),
+            cols[1],
+        );
+    }
 }
