@@ -11,6 +11,8 @@
 
 mod data;
 
+pub use data::reset_overview_state;
+
 use crossterm::event::Event;
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},

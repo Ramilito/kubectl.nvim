@@ -17,6 +17,7 @@ use crate::cmd::get::get_resources_async;
 use crate::processors::{processor_for, FilterParams};
 use crate::statusline::get_statusline;
 use crate::store::shutdown_all_reflectors;
+use crate::ui::views::reset_overview_state;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "telemetry")] {
@@ -176,11 +177,12 @@ pub async fn init_client_async(_lua: Lua, _args: String) -> LuaResult<bool> {
 
 #[tracing::instrument]
 fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, String)> {
-    // Stop collectors and clear stale metrics from previous context
+    // Stop collectors and clear stale metrics/state from previous context
     shutdown_pod_collector();
     shutdown_node_collector();
     clear_pod_stats();
     clear_node_stats();
+    reset_overview_state();
 
     let rt = RUNTIME.get_or_init(|| Runtime::new().expect("create Tokio runtime"));
     {

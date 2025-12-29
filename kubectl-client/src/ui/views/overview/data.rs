@@ -3,13 +3,13 @@
 //! Provides functions to fetch cluster data from the store.
 
 use kube::api::{DynamicObject, GroupVersionKind, ResourceExt};
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::{runtime::Handle, task};
 
 use crate::{store, with_client};
 
 /// Track whether we've initialized the overview reflectors.
-static REFLECTORS_INIT: OnceLock<()> = OnceLock::new();
+static REFLECTORS_INIT: AtomicBool = AtomicBool::new(false);
 
 /// Namespace information for display.
 #[derive(Clone)]
@@ -49,9 +49,18 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
     }
 }
 
+/// Resets the overview initialization state (called on context change).
+pub fn reset_overview_state() {
+    REFLECTORS_INIT.store(false, Ordering::Release);
+}
+
 /// Ensures reflectors for Namespace and Event are initialized.
 fn ensure_reflectors() {
-    REFLECTORS_INIT.get_or_init(|| {
+    // Use compare_exchange to atomically check and set
+    if REFLECTORS_INIT
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+    {
         block_on(async {
             // Initialize Namespace reflector (core/v1)
             let ns_gvk = GroupVersionKind::gvk("", "v1", "Namespace");
@@ -74,7 +83,7 @@ fn ensure_reflectors() {
                 Ok::<(), mlua::Error>(())
             });
         });
-    });
+    }
 }
 
 /// Fetches all namespaces from the store.

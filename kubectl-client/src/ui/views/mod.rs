@@ -8,6 +8,7 @@ mod top;
 use crossterm::event::Event;
 use ratatui::{layout::Rect, Frame};
 
+pub use overview::reset_overview_state;
 pub use overview::OverviewView;
 pub use top::TopView;
 
