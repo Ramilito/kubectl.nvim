@@ -1,33 +1,49 @@
--- FILE: builder_manager.lua
-local ResourceBuilder = require("kubectl.resource_factory") -- Adjust the path
+local ResourceBuilder = require("kubectl.resource_factory")
 local manager = {}
 
--- We store them by resource name for easy retrieval
-manager.builders = {}
+-- Storage for all managed instances (builders, sessions, etc.)
+manager.instances = {}
 
---- Get or create a builder for the given resource
----@param resource string
----@return table builder
-function manager.get_or_create(resource)
-  if manager.builders[resource] then
-    return manager.builders[resource]
+--- Get or create an instance for the given key
+---@param key any String or number key
+---@param factory? fun(key: any): any Optional factory (defaults to ResourceBuilder.new)
+---@return any instance
+function manager.get_or_create(key, factory)
+  if manager.instances[key] then
+    return manager.instances[key]
   end
-  local b = ResourceBuilder.new(resource)
-  manager.builders[resource] = b
-  return b
+  local instance
+  if factory then
+    instance = factory(key)
+  else
+    instance = ResourceBuilder.new(key)
+  end
+  manager.instances[key] = instance
+  return instance
 end
 
---- Get an existing builder (no creation)
----@param resource string
----@return table|nil builder
-function manager.get(resource)
-  return manager.builders[resource]
+--- Get an existing instance (no creation)
+---@param key any
+---@return any|nil
+function manager.get(key)
+  return manager.instances[key]
 end
 
---- Remove a builder from the manager
----@param resource string
-function manager.remove(resource)
-  manager.builders[resource] = nil
+--- Remove an instance
+---@param key any
+function manager.remove(key)
+  manager.instances[key] = nil
+end
+
+--- Iterate all instances matching a prefix
+---@param prefix string
+---@param fn fun(key: any, instance: any)
+function manager.foreach(prefix, fn)
+  for key, instance in pairs(manager.instances) do
+    if type(key) == "string" and key:find("^" .. prefix) then
+      fn(key, instance)
+    end
+  end
 end
 
 return manager

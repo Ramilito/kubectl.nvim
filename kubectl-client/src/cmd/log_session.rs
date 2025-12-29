@@ -25,7 +25,6 @@ struct ResolvedContainer {
 /// Result of resolving log targets from pods.
 struct ResolvedTargets {
     containers: Vec<ResolvedContainer>,
-    is_multi_pod: bool,
     is_multi_container: bool,
     use_prefix: bool,
 }
@@ -84,7 +83,6 @@ async fn resolve_log_targets(
 
     Ok(ResolvedTargets {
         containers,
-        is_multi_pod,
         is_multi_container,
         use_prefix,
     })

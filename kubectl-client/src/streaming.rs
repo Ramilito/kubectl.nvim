@@ -37,11 +37,6 @@ impl<T: Send + 'static> StreamingSession<T> {
         self.sender.clone()
     }
 
-    /// Get the active flag for use in async tasks.
-    pub fn active_flag(&self) -> Arc<AtomicBool> {
-        self.is_active.clone()
-    }
-
     /// Get a task handle for spawning tracked async tasks.
     pub fn task_handle(&self) -> TaskHandle {
         TaskHandle {
@@ -122,11 +117,6 @@ impl TaskHandle {
     /// Check if the session is still active.
     pub fn is_active(&self) -> bool {
         self.is_active.load(Ordering::Acquire)
-    }
-
-    /// Mark the session as inactive.
-    pub fn set_inactive(&self) {
-        self.is_active.store(false, Ordering::Release);
     }
 
     /// Increment the active task count.

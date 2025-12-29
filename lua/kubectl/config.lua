@@ -2,6 +2,39 @@ local M = {
   config_did_setup = false,
 }
 
+--- Validate user config using vim.validate
+---@param opts table? The user-provided config options
+---@return boolean ok
+---@return string? err
+local function validate_config(opts)
+  if opts == nil then
+    return true
+  end
+
+  local ok, err = pcall(vim.validate, {
+    log_level = { opts.log_level, "number", true },
+    auto_refresh = { opts.auto_refresh, "table", true },
+    diff = { opts.diff, "table", true },
+    kubectl_cmd = { opts.kubectl_cmd, "table", true },
+    terminal_cmd = { opts.terminal_cmd, "string", true },
+    namespace = { opts.namespace, "string", true },
+    namespace_fallback = { opts.namespace_fallback, "table", true },
+    headers = { opts.headers, "table", true },
+    lineage = { opts.lineage, "table", true },
+    completion = { opts.completion, "table", true },
+    logs = { opts.logs, "table", true },
+    alias = { opts.alias, "table", true },
+    filter = { opts.filter, "table", true },
+    filter_label = { opts.filter_label, "table", true },
+    float_size = { opts.float_size, "table", true },
+    statusline = { opts.statusline, "table", true },
+    obj_fresh = { opts.obj_fresh, "number", true },
+    api_resources_cache_ttl = { opts.api_resources_cache_ttl, "number", true },
+  })
+
+  return ok, err
+end
+
 ---@alias SkewConfig { enabled: boolean, log_level: number }
 ---@alias AutoRefreshConfig { enabled: boolean, interval: number }
 ---@alias DiffConfig { bin: string }
@@ -111,6 +144,11 @@ M.options = vim.deepcopy(defaults)
 --- Setup kubectl options
 ---@param options KubectlOptions? The configuration options for kubectl (optional)
 function M.setup(options)
+  local ok, err = validate_config(options)
+  if not ok then
+    vim.notify("kubectl.nvim: Invalid config: " .. (err or "unknown error"), vim.log.levels.ERROR)
+  end
+
   ---@diagnostic disable-next-line: undefined-field
   if options and options.mappings and options.mappings.exit then
     vim.notify("Warning: mappings.exit is deprecated. Please use own mapping to call require('kubectl').close()")
