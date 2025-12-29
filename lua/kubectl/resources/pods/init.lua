@@ -74,13 +74,7 @@ local function get_pods_for_logs()
   return pods, "No pods selected"
 end
 
---- Get log options from session manager (for hint display)
----@return kubectl.LogSessionOptions
-function M.getLogOptions()
-  return log_session.get_options()
-end
-
-function M.Logs(_reload)
+function M.Logs()
   -- Stop any active session on current buffer
   local current_buf = vim.api.nvim_get_current_buf()
   log_session.stop(current_buf)
