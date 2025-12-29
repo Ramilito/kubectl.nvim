@@ -101,6 +101,7 @@ fn get_container_names(spec: &PodSpec, target: Option<&str>) -> Vec<String> {
 }
 
 /// Format a log line with optional pod/container prefix.
+/// Strips ANSI escape codes from the input line.
 fn format_log_line(
     line: &str,
     pod_name: &str,
@@ -108,13 +109,14 @@ fn format_log_line(
     use_prefix: bool,
     is_multi_container: bool,
 ) -> String {
+    let clean_line = String::from_utf8_lossy(&strip_ansi_escapes::strip(line)).into_owned();
     if !use_prefix {
-        return line.to_string();
+        return clean_line;
     }
     if is_multi_container {
-        format!("[{}/{}] {}", pod_name, container_name, line)
+        format!("[{}/{}] {}", pod_name, container_name, clean_line)
     } else {
-        format!("[{}] {}", pod_name, line)
+        format!("[{}] {}", pod_name, clean_line)
     }
 }
 
