@@ -51,10 +51,22 @@ function M.selectPod(pod, ns, container)
 end
 
 --- Build pods list from selections or single selection
+---@param force_refresh boolean|nil If true, always get fresh selections
 ---@return table pods List of { name, namespace } entries
 ---@return string display_name Display name for the view
-local function get_pods_for_logs()
-  local selections = state.getSelections()
+local function get_pods_for_logs(force_refresh)
+  local current_buf = vim.api.nvim_get_current_buf()
+  local current_ft = vim.api.nvim_get_option_value("filetype", { buf = current_buf })
+
+  -- If we're in the logs view and have cached pods, reuse them
+  local cached_pods, cached_display, cached_source = log_session.get_cached_pods()
+  if not force_refresh and current_ft == "k8s_pod_logs" and cached_pods and #cached_pods > 0 and cached_display then
+    return cached_pods, cached_display
+  end
+
+  -- Get fresh selections from the source buffer (pods buffer)
+  local source_buf = current_ft == "k8s_pod_logs" and cached_source or current_buf
+  local selections = state.getSelections(source_buf)
   local pods = {}
 
   if #selections > 0 then
@@ -77,9 +89,22 @@ end
 function M.Logs()
   -- Stop any active session on current buffer
   local current_buf = vim.api.nvim_get_current_buf()
+  local current_ft = vim.api.nvim_get_option_value("filetype", { buf = current_buf })
   log_session.stop(current_buf)
 
+  -- If called from pods buffer, this is a fresh log view
+  local source_buf = current_buf
+  if current_ft == "k8s_pod_logs" then
+    -- Reusing existing log view, get source from cache
+    local _, _, cached_source = log_session.get_cached_pods()
+    source_buf = cached_source or current_buf
+  end
+
   local pods, display_name = get_pods_for_logs()
+
+  -- Cache pods list for option changes (gh, gp, gt, etc.)
+  log_session.set_cached_pods(pods, display_name, source_buf)
+
   local width = math.floor(config.options.float_size.width * vim.o.columns) - 4
 
   -- Get current options for display

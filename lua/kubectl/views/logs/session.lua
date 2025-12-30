@@ -18,6 +18,11 @@ local KEY_PREFIX = "log_session:"
 -- Global options persist across sessions
 local global_options = nil
 
+-- Cached pods for log view (persists across option changes like gh, gp, gt)
+local cached_pods = nil
+local cached_display_name = nil
+local cached_source_buf = nil
+
 local function get_default_options()
   return {
     since = config.options.logs.since,
@@ -248,6 +253,31 @@ end
 --- Reset global options to defaults
 function M.reset_options()
   global_options = get_default_options()
+end
+
+--- Get cached pods for log view
+---@return table|nil pods Cached pods list
+---@return string|nil display_name Cached display name
+---@return number|nil source_buf Source buffer number
+function M.get_cached_pods()
+  return cached_pods, cached_display_name, cached_source_buf
+end
+
+--- Set cached pods for log view
+---@param pods table Pods list
+---@param display_name string Display name
+---@param source_buf number Source buffer number
+function M.set_cached_pods(pods, display_name, source_buf)
+  cached_pods = pods
+  cached_display_name = display_name
+  cached_source_buf = source_buf
+end
+
+--- Clear cached pods
+function M.clear_cached_pods()
+  cached_pods = nil
+  cached_display_name = nil
+  cached_source_buf = nil
 end
 
 return M
