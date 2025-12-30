@@ -20,7 +20,7 @@ function client.set_implementation(callback)
 end
 
 function client.shutdown_async()
-  commands.run_async("shutdown_async", {}, {})
+  commands.run_async("shutdown_async", {}, function() end)
 end
 
 function client.get_resource(...)
