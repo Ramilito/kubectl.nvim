@@ -77,11 +77,50 @@ local function set_buffer_lines(buf, header, content)
   end
 end
 
+--- Apply a single extmark to a buffer
+---@param bufnr integer Buffer number
+---@param ns_id integer Namespace ID
+---@param mark table Mark definition
+---@param row_offset number Row offset to apply
+---@return boolean ok Whether the mark was applied successfully
+---@return integer|nil extmark_id The extmark ID if successful
+local function apply_single_mark(bufnr, ns_id, mark, row_offset)
+  local row = mark.row + row_offset
+  return pcall(api.nvim_buf_set_extmark, bufnr, ns_id, row, mark.start_col, {
+    end_line = row,
+    end_col = mark.end_col,
+    hl_group = mark.hl_group,
+    hl_eol = mark.hl_eol,
+    hl_mode = mark.hl_mode,
+    line_hl_group = mark.line_hl_group,
+    virt_text = mark.virt_text,
+    virt_text_pos = mark.virt_text_pos,
+    virt_lines_above = mark.virt_lines_above,
+    virt_text_win_col = mark.virt_text_win_col,
+    right_gravity = mark.right_gravity,
+    sign_text = mark.sign_text,
+    sign_hl_group = mark.sign_hl_group,
+    ephemeral = mark.ephemeral,
+  })
+end
+
+--- Initialize buffer state for sorting support (main windows only).
+--- Tracks header column extmark IDs for click-to-sort functionality.
+---@param bufnr integer Buffer number
+---@param ns_id integer Namespace ID
+---@param header_row_offset integer Number of header lines (content starts after this)
+---@param header_mark_ids integer[] Extmark IDs for header columns
+function M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset, header_mark_ids)
+  local buf_state = state.get_buffer_state(bufnr)
+  buf_state.ns_id = ns_id
+  buf_state.header = header_mark_ids or {}
+  buf_state.content_row_start = header_row_offset + 1
+end
+
 --- Applies extmarks to a buffer for syntax highlighting and virtual text.
---- For main windows (no header hints), also tracks header marks for column sorting.
 ---@param bufnr integer Buffer number
 ---@param marks table|nil Content marks to apply
----@param header table|nil Header with { data: string[], marks: table[] } for float windows
+---@param header table|nil Header with { data: string[], marks: table[] }
 function M.apply_marks(bufnr, marks, header)
   if not bufnr then
     return
@@ -90,68 +129,29 @@ function M.apply_marks(bufnr, marks, header)
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
 
-  -- Float windows have header hints; main windows use winbar instead
   local header_data = header and header.data
-  local is_float = header_data and #header_data > 0
-  local header_row_offset = is_float and #header_data or 0
-
-  -- For main windows, initialize per-buffer state for sorting support
-  if not is_float then
-    local buf_state = state.get_buffer_state(bufnr)
-    buf_state.ns_id = ns_id
-    buf_state.header = {}
-  end
+  local header_row_offset = header_data and #header_data or 0
 
   vim.schedule(function()
-    -- Apply header hint marks (float windows only)
+    -- Apply header marks
     if header and header.marks then
       for _, mark in ipairs(header.marks) do
-        pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
-          end_line = mark.row,
-          end_col = mark.end_col,
-          hl_group = mark.hl_group,
-          hl_eol = mark.hl_eol,
-          virt_text = mark.virt_text,
-          virt_text_pos = mark.virt_text_pos,
-          virt_lines_above = mark.virt_lines_above,
-          virt_text_win_col = mark.virt_text_win_col,
-          ephemeral = mark.ephemeral,
-        })
+        apply_single_mark(bufnr, ns_id, mark, 0)
       end
     end
 
-    -- Apply content marks
-    if not marks then
-      return
-    end
-
-    local content_row_start_set = false
-    for _, mark in ipairs(marks) do
-      local row = mark.row + header_row_offset
-
-      local ok, extmark_id = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, row, mark.start_col, {
-        end_line = row,
-        end_col = mark.end_col,
-        hl_eol = mark.hl_eol,
-        hl_group = mark.hl_group,
-        hl_mode = mark.hl_mode,
-        line_hl_group = mark.line_hl_group,
-        virt_text = mark.virt_text,
-        virt_text_pos = mark.virt_text_pos,
-        right_gravity = mark.right_gravity,
-        sign_text = mark.sign_text,
-        sign_hl_group = mark.sign_hl_group,
-      })
-
-      -- For main windows, track header row marks for sorting detection
-      if not is_float and ok and mark.row == 0 then
-        state.add_header_mark(bufnr, extmark_id)
-        if not content_row_start_set then
-          state.set_content_row_start(bufnr, row + 1)
-          content_row_start_set = true
+    -- Apply content marks and collect header column IDs
+    local header_mark_ids = {}
+    if marks then
+      for _, mark in ipairs(marks) do
+        local ok, extmark_id = apply_single_mark(bufnr, ns_id, mark, header_row_offset)
+        if ok and mark.row == 0 then
+          table.insert(header_mark_ids, extmark_id)
         end
       end
     end
+
+    M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset, header_mark_ids)
   end)
 end
 
@@ -317,8 +317,8 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
 end
 
 --- Sets buffer content.
---- @param buf number: Buffer number
---- @param opts { content: table, marks: table,  header: { data: table }}
+---@param buf number Buffer number
+---@param opts { content: table, marks: table, header: { data: table } }
 function M.set_content(buf, opts)
   opts.header = opts.header or {}
   set_buffer_lines(buf, opts.header.data, opts.content)

@@ -308,31 +308,6 @@ function M.get_buffer_state(bufnr)
   return M.buffer_state[bufnr]
 end
 
---- Set marks (ns_id and header) for a buffer
----@param bufnr number Buffer number
----@param ns_id number Namespace ID for extmarks
-function M.set_marks(bufnr, ns_id)
-  local buf_state = M.get_buffer_state(bufnr)
-  buf_state.ns_id = ns_id
-  buf_state.header = {}
-end
-
---- Add a header mark ID for a buffer
----@param bufnr number Buffer number
----@param mark_id number Extmark ID
-function M.add_header_mark(bufnr, mark_id)
-  local buf_state = M.get_buffer_state(bufnr)
-  table.insert(buf_state.header, mark_id)
-end
-
---- Set content row start for a buffer
----@param bufnr number Buffer number
----@param row number Row number where content starts
-function M.set_content_row_start(bufnr, row)
-  local buf_state = M.get_buffer_state(bufnr)
-  buf_state.content_row_start = row
-end
-
 --- Get selections for a buffer
 ---@param bufnr number Buffer number
 ---@return table[] selections
