@@ -1,5 +1,5 @@
 --- DescribeSession manager
---- Uses resource_manager for instance lifecycle, adds polling-specific behavior
+--- Handles polling-based describe with auto-refresh toggle
 local buffers = require("kubectl.actions.buffers")
 local client = require("kubectl.client")
 local manager = require("kubectl.resource_manager")
@@ -8,17 +8,27 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
--- Key prefix for describe sessions in the manager
 local KEY_PREFIX = "describe_session:"
 
 local function session_key(buf)
   return KEY_PREFIX .. buf
 end
 
+--- Generate hints header with current auto-refresh state
+---@param is_running boolean
+---@return table header_lines, table header_marks
+local function generate_header(is_running)
+  local status = is_running and "on" or "off"
+  local hints = {
+    { key = "<Plug>(kubectl.refresh)", desc = "auto-refresh[" .. status .. "]" },
+  }
+  return tables.generateHeader(hints, false, false)
+end
+
 --- Create a new describe session instance
 ---@param buf integer Buffer number
 ---@param win integer Window number
----@param args table Describe arguments (name, namespace, gvk, context)
+---@param args table Describe arguments
 ---@return table session
 local function create_session(buf, win, args)
   local session = {
@@ -28,11 +38,10 @@ local function create_session(buf, win, args)
     win = win,
     args = args,
     stopped = false,
-    header_lines = nil, -- Hints header lines
-    header_marks = nil, -- Hints header extmarks
+    header_lines = nil,
+    header_marks = nil,
   }
 
-  --- Check if the session is currently active
   function session:is_active()
     if self.stopped or not self.rust_session then
       return false
@@ -43,7 +52,6 @@ local function create_session(buf, win, args)
     return ok and is_open
   end
 
-  --- Stop the session and clean up resources
   function session:stop()
     if self.stopped then
       return
@@ -66,24 +74,13 @@ local function create_session(buf, win, args)
     self.timer = nil
   end
 
-  --- Toggle the session on/off
-  ---@return boolean is_running Whether session is now running
-  function session:toggle()
-    if self.stopped then
-      self.stopped = false
-      self:start()
-      return true
-    else
-      self:stop()
-      return false
-    end
+  function session:update_header(is_running)
+    self.header_lines, self.header_marks = generate_header(is_running)
   end
 
-  --- Start the describe session
-  ---@return boolean success
   function session:start()
-    -- Reset stopped state when starting
     self.stopped = false
+    self:update_header(true)
 
     local ok, sess = pcall(client.describe_session, {
       name = self.args.name,
@@ -98,27 +95,16 @@ local function create_session(buf, win, args)
     end
 
     self.rust_session = sess
+    self.timer = vim.uv.new_timer()
 
-    local timer = vim.uv.new_timer()
-    self.timer = timer
-
-    -- Capture self for timer callback
     local this = self
-    timer:start(
+    self.timer:start(
       0,
-      200, -- Poll every 200ms for new content
+      200,
       vim.schedule_wrap(function()
-        if this.stopped then
-          return
-        end
-
-        if not vim.api.nvim_buf_is_valid(this.buf) then
+        if this.stopped or not vim.api.nvim_buf_is_valid(this.buf) or not this:is_active() then
           this:stop()
-          return
-        end
-
-        if not this:is_active() then
-          this:stop()
+          manager.remove(session_key(this.buf))
           return
         end
 
@@ -127,32 +113,50 @@ local function create_session(buf, win, args)
         end)
 
         if read_ok and content then
-          -- Replace buffer content with new describe output
           local lines = vim.split(content, "\n", { plain = true })
           buffers.set_content(this.buf, {
             content = lines,
-            header = {
-              data = this.header_lines,
-              marks = this.header_marks,
-            },
+            header = { data = this.header_lines, marks = this.header_marks },
           })
         end
       end)
     )
 
     -- Cleanup on buffer/window close
-    local group = vim.api.nvim_create_augroup("__kubectl_describe_session_" .. self.buf, { clear = true })
     vim.api.nvim_create_autocmd({ "BufUnload", "BufDelete", "BufWinLeave" }, {
-      group = group,
+      group = vim.api.nvim_create_augroup("__kubectl_describe_session_" .. self.buf, { clear = true }),
       buffer = self.buf,
       once = true,
       callback = function()
         this:stop()
-        manager.remove(session_key(self.buf))
+        manager.remove(session_key(this.buf))
       end,
     })
 
     return true
+  end
+
+  function session:toggle()
+    if self.stopped then
+      self:start()
+      return true
+    else
+      -- Update header before stopping so we can refresh display
+      local old_header_count = self.header_lines and #self.header_lines or 0
+      self:stop()
+      self:update_header(false)
+
+      -- Refresh display with paused header
+      if vim.api.nvim_buf_is_valid(self.buf) then
+        local current_lines = vim.api.nvim_buf_get_lines(self.buf, 0, -1, false)
+        local content = vim.list_slice(current_lines, old_header_count + 1)
+        buffers.set_content(self.buf, {
+          content = content,
+          header = { data = self.header_lines, marks = self.header_marks },
+        })
+      end
+      return false
+    end
   end
 
   return session
@@ -160,123 +164,41 @@ end
 
 -- Public API
 
---- Get or create a session for the given buffer
----@param buf integer Buffer number
----@param win integer Window number
----@param args table Describe arguments
----@return table session
-function M.get_or_create(buf, win, args)
-  local key = session_key(buf)
-  local existing = manager.get(key)
-  if existing and not existing.stopped then
-    return existing
-  end
-  return manager.get_or_create(key, function()
-    return create_session(buf, win, args)
-  end)
-end
-
---- Get an existing session for the buffer
----@param buf integer Buffer number
----@return table|nil session
-function M.get(buf)
-  return manager.get(session_key(buf))
-end
-
---- Stop and remove session for the buffer
----@param buf integer Buffer number
-function M.stop(buf)
-  local session = manager.get(session_key(buf))
-  if session then
-    session:stop()
-  end
-end
-
---- Stop all active describe sessions
-function M.stop_all()
-  manager.foreach(KEY_PREFIX, function(_, session)
-    session:stop()
-  end)
-end
-
---- Check if there's an active session for the buffer
----@param buf integer Buffer number
----@return boolean
-function M.is_active(buf)
-  local session = manager.get(session_key(buf))
-  return session ~= nil and session:is_active()
-end
-
---- Setup and start a describe session for a resource (low-level, expects buffer to exist)
----@param name string Resource name
----@param namespace string|nil Namespace
----@param gvk table GVK {k, g, v}
----@param buf integer Buffer number
----@param win integer Window number
----@param base_title? string Base title for window (without state indicator)
----@param header_lines? table Hints header lines
----@param header_marks? table Hints header extmarks
----@return boolean success
-function M.setup(name, namespace, gvk, buf, win, base_title, header_lines, header_marks)
-  -- Stop any existing session for this buffer
-  M.stop(buf)
-
-  local args = {
-    name = name,
-    namespace = namespace or "",
-    context = state.context["current-context"],
-    gvk = gvk,
-  }
-
-  local session = M.get_or_create(buf, win, args)
-  session.base_title = base_title
-  session.header_lines = header_lines
-  session.header_marks = header_marks
-  return session:start()
-end
-
---- Generate hints with current auto-refresh state
----@param is_running boolean Whether auto-refresh is running
----@return table hints, table header_lines, table header_marks
-local function generate_hints(is_running)
-  local status = is_running and "on" or "off"
-  local hints = {
-    { key = "<Plug>(kubectl.refresh)", desc = "auto-refresh[" .. status .. "]" },
-  }
-  local header_lines, header_marks = tables.generateHeader(hints, false, false)
-  return hints, header_lines, header_marks
-end
-
---- View describe output for a resource (handles buffer creation)
---- Creates the buffer, starts the session with auto-refresh
+--- View describe output for a resource
 ---@param resource string Resource type (e.g., "pods", "deployments")
 ---@param name string Resource name
 ---@param namespace string|nil Namespace (nil for cluster-scoped)
 ---@param gvk table GVK {k, g, v}
 function M.view(resource, name, namespace, gvk)
   local display_ns = namespace and (" | " .. namespace) or ""
-  local base_title = resource .. " | " .. name .. display_ns
+  local title = resource .. " | " .. name .. display_ns
 
   -- Get or reuse existing window
   local builder = manager.get(resource .. "_desc")
   local existing_win = builder and builder.win_nr or nil
 
-  -- Create floating buffer
-  local buf, win = buffers.floating_buffer("k8s_desc", base_title, "yaml", existing_win)
+  local buf, win = buffers.floating_buffer("k8s_desc", title, "yaml", existing_win)
 
-  -- Generate hints header with initial state (running)
-  local hints, header_lines, header_marks = generate_hints(true)
-
-  -- Store in manager for window reuse and set definition with hints
+  -- Store builder for window reuse
   local new_builder = manager.get_or_create(resource .. "_desc")
   new_builder.buf_nr = buf
   new_builder.win_nr = win
   new_builder.definition = {
     resource = resource .. "_desc",
-    hints = hints,
+    hints = { { key = "<Plug>(kubectl.refresh)", desc = "auto-refresh[on]" } },
   }
 
-  M.setup(name, namespace, gvk, buf, win, base_title, header_lines, header_marks)
+  -- Create and start session
+  local key = session_key(buf)
+  local session = manager.get_or_create(key, function()
+    return create_session(buf, win, {
+      name = name,
+      namespace = namespace or "",
+      context = state.context["current-context"],
+      gvk = gvk,
+    })
+  end)
+  session:start()
 end
 
 --- Toggle auto-refresh for the current buffer's describe session
@@ -284,30 +206,18 @@ end
 ---@return boolean|nil is_running Whether session is now running, nil if no session
 function M.toggle(buf)
   buf = buf or vim.api.nvim_get_current_buf()
-  local session = M.get(buf)
+  local session = manager.get(session_key(buf))
   if session then
-    local is_running = session:toggle()
-    -- Update hints to reflect new state
-    local old_header_count = session.header_lines and #session.header_lines or 0
-    local _, header_lines, header_marks = generate_hints(is_running)
-    session.header_lines = header_lines
-    session.header_marks = header_marks
-    -- Refresh buffer header immediately if paused (no timer running)
-    if not is_running and vim.api.nvim_buf_is_valid(session.buf) then
-      local current_lines = vim.api.nvim_buf_get_lines(session.buf, 0, -1, false)
-      -- Skip old header lines to get content
-      local content = vim.list_slice(current_lines, old_header_count + 1)
-      buffers.set_content(session.buf, {
-        content = content,
-        header = {
-          data = header_lines,
-          marks = header_marks,
-        },
-      })
-    end
-    return is_running
+    return session:toggle()
   end
   return nil
+end
+
+--- Stop all active describe sessions
+function M.stop_all()
+  manager.foreach(KEY_PREFIX, function(_, session)
+    session:stop()
+  end)
 end
 
 return M
