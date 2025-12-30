@@ -51,22 +51,23 @@ function M.selectPod(pod, ns, container)
 end
 
 --- Build pods list from selections or single selection
----@param force_refresh boolean|nil If true, always get fresh selections
 ---@return table pods List of { name, namespace } entries
 ---@return string display_name Display name for the view
-local function get_pods_for_logs(force_refresh)
+local function get_pods_for_logs()
   local current_buf = vim.api.nvim_get_current_buf()
   local current_ft = vim.api.nvim_get_option_value("filetype", { buf = current_buf })
 
-  -- If we're in the logs view and have cached pods, reuse them
-  local cached_pods, cached_display, cached_source = log_session.get_cached_pods()
-  if not force_refresh and current_ft == "k8s_pod_logs" and cached_pods and #cached_pods > 0 and cached_display then
-    return cached_pods, cached_display
+  -- If in logs view, get pods from buffer variable
+  if current_ft == "k8s_pod_logs" then
+    local ok, pods = pcall(vim.api.nvim_buf_get_var, current_buf, "kubectl_log_pods")
+    local ok2, display = pcall(vim.api.nvim_buf_get_var, current_buf, "kubectl_log_display")
+    if ok and ok2 and pods and #pods > 0 then
+      return pods, display
+    end
   end
 
-  -- Get fresh selections from the source buffer (pods buffer)
-  local source_buf = current_ft == "k8s_pod_logs" and cached_source or current_buf
-  local selections = state.getSelections(source_buf)
+  -- Get from selections
+  local selections = state.getSelections(current_buf)
   local pods = {}
 
   if #selections > 0 then
@@ -87,24 +88,10 @@ local function get_pods_for_logs(force_refresh)
 end
 
 function M.Logs()
-  -- Stop any active session on current buffer
   local current_buf = vim.api.nvim_get_current_buf()
-  local current_ft = vim.api.nvim_get_option_value("filetype", { buf = current_buf })
   log_session.stop(current_buf)
 
-  -- If called from pods buffer, this is a fresh log view
-  local source_buf = current_buf
-  if current_ft == "k8s_pod_logs" then
-    -- Reusing existing log view, get source from cache
-    local _, _, cached_source = log_session.get_cached_pods()
-    source_buf = cached_source or current_buf
-  end
-
   local pods, display_name = get_pods_for_logs()
-
-  -- Cache pods list for option changes (gh, gp, gt, etc.)
-  log_session.set_cached_pods(pods, display_name, source_buf)
-
   local width = math.floor(config.options.float_size.width * vim.o.columns) - 4
 
   -- Get current options for display
@@ -137,6 +124,10 @@ function M.Logs()
       histogram_width = width,
     },
   })
+
+  -- Store pods in buffer for option changes (gp, gt, gh, etc.)
+  vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_pods", pods)
+  vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_display", display_name)
 end
 
 --- Toggle follow mode - stops current session or starts streaming from now
