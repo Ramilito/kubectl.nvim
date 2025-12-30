@@ -27,7 +27,8 @@ M.overrides = {
       end
 
       local row = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-based
-      local ns_id = state.marks.ns_id
+      local buf_state = state.get_buffer_state(store.buf_nr)
+      local ns_id = buf_state.ns_id
 
       local ok, ext = pcall(
         vim.api.nvim_buf_get_extmarks,

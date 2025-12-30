@@ -77,77 +77,81 @@ local function set_buffer_lines(buf, header, content)
   end
 end
 
---- Applies marks to a buffer.
---- @param bufnr integer: The buffer number.
---- @param marks table|nil: The marks to apply (optional).
---- @param header table|nil: The header data (optional).
+--- Apply a single extmark to a buffer
+---@param bufnr integer Buffer number
+---@param ns_id integer Namespace ID
+---@param mark table Mark definition
+---@param row_offset number Row offset to apply
+---@return boolean ok Whether the mark was applied successfully
+---@return integer|nil extmark_id The extmark ID if successful
+local function apply_single_mark(bufnr, ns_id, mark, row_offset)
+  local row = mark.row + row_offset
+  return pcall(api.nvim_buf_set_extmark, bufnr, ns_id, row, mark.start_col, {
+    end_line = row,
+    end_col = mark.end_col,
+    hl_group = mark.hl_group,
+    hl_eol = mark.hl_eol,
+    hl_mode = mark.hl_mode,
+    line_hl_group = mark.line_hl_group,
+    virt_text = mark.virt_text,
+    virt_text_pos = mark.virt_text_pos,
+    virt_lines_above = mark.virt_lines_above,
+    virt_text_win_col = mark.virt_text_win_col,
+    right_gravity = mark.right_gravity,
+    sign_text = mark.sign_text,
+    sign_hl_group = mark.sign_hl_group,
+    ephemeral = mark.ephemeral,
+  })
+end
+
+--- Initialize buffer state for sorting support (main windows only).
+--- Tracks header column extmark IDs for click-to-sort functionality.
+---@param bufnr integer Buffer number
+---@param ns_id integer Namespace ID
+---@param header_row_offset integer Number of header lines (content starts after this)
+---@param header_mark_ids integer[] Extmark IDs for header columns
+function M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset, header_mark_ids)
+  local buf_state = state.get_buffer_state(bufnr)
+  buf_state.ns_id = ns_id
+  buf_state.header = header_mark_ids or {}
+  buf_state.content_row_start = header_row_offset + 1
+end
+
+--- Applies extmarks to a buffer for syntax highlighting and virtual text.
+---@param bufnr integer Buffer number
+---@param marks table|nil Content marks to apply
+---@param header table|nil Header with { data: string[], marks: table[] }
 function M.apply_marks(bufnr, marks, header)
   if not bufnr then
     return
   end
+
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
-  local local_marks = marks
-  local local_header = header
-  state.marks.ns_id = ns_id
 
-  local is_float = false
-  -- TODO: Extract column header management
-  local wins = vim.fn.win_findbuf(bufnr)
-  for _, win in ipairs(wins) do
-    local cfg = vim.api.nvim_win_get_config(win)
-    if cfg.relative ~= "" then
-      is_float = true
-    end
-  end
-  if not is_float then
-    state.marks.header = {}
-  end
+  local header_data = header and header.data
+  local header_row_offset = header_data and #header_data or 0
 
   vim.schedule(function()
-    if local_header and local_header.marks then
-      for _, mark in ipairs(local_header.marks) do
-        pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
-          end_line = mark.row,
-          end_col = mark.end_col,
-          hl_group = mark.hl_group,
-          hl_eol = mark.hl_eol or nil,
-          virt_text = mark.virt_text or nil,
-          virt_text_pos = mark.virt_text_pos or nil,
-          virt_lines_above = mark.virt_lines_above or nil,
-          virt_text_win_col = mark.virt_text_win_col or nil,
-          ephemeral = mark.ephemeral,
-        })
+    -- Apply header marks
+    if header and header.marks then
+      for _, mark in ipairs(header.marks) do
+        apply_single_mark(bufnr, ns_id, mark, 0)
       end
     end
-    if local_marks then
-      for _, mark in ipairs(local_marks) do
-        -- adjust for content not being at first row
-        local start_row = mark.row
-        if local_header and local_header.data then
-          start_row = start_row + #local_header.data
-        end
-        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
-          end_line = start_row,
-          end_col = mark.end_col or nil,
-          hl_eol = mark.hl_eol or nil,
-          hl_group = mark.hl_group or nil,
-          hl_mode = mark.hl_mode or nil,
-          line_hl_group = mark.line_hl_group or nil,
-          virt_text = mark.virt_text or nil,
-          virt_text_pos = mark.virt_text_pos or nil,
-          right_gravity = mark.right_gravity,
-          sign_text = mark.sign_text or nil,
-          sign_hl_group = mark.sign_hl_group or nil,
-        })
-        -- TODO: Extract column header management
-        -- the first row is always column headers, we save that so other content can use it
-        if not is_float and ok and mark.row == 0 then
-          state.content_row_start = start_row + 1
-          table.insert(state.marks.header, result)
+
+    -- Apply content marks and collect header column IDs
+    local header_mark_ids = {}
+    if marks then
+      for _, mark in ipairs(marks) do
+        local ok, extmark_id = apply_single_mark(bufnr, ns_id, mark, header_row_offset)
+        if ok and mark.row == 0 then
+          table.insert(header_mark_ids, extmark_id)
         end
       end
     end
+
+    M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset, header_mark_ids)
   end)
 end
 
@@ -308,13 +312,13 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_win_options(win)
   M.fit_to_content(buf, win, 2)
 
-  state.set_buffer_state(buf, filetype, M.floating_dynamic_buffer, { filetype, title, callback, opts })
+  state.register_buffer_for_restore(buf, filetype, M.floating_dynamic_buffer, { filetype, title, callback, opts })
   return buf, win
 end
 
 --- Sets buffer content.
---- @param buf number: Buffer number
---- @param opts { content: table, marks: table,  header: { data: table }}
+---@param buf number Buffer number
+---@param opts { content: table, marks: table, header: { data: table } }
 function M.set_content(buf, opts)
   opts.header = opts.header or {}
   set_buffer_lines(buf, opts.header.data, opts.content)
@@ -346,7 +350,7 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  state.set_buffer_state(buf, filetype, M.floating_buffer, { filetype, title, syntax, win })
+  state.register_buffer_for_restore(buf, filetype, M.floating_buffer, { filetype, title, syntax, win })
 
   return buf, win
 end

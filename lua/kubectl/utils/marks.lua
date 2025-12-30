@@ -3,8 +3,11 @@ local state = require("kubectl.state")
 local M = {}
 
 --- Get the current mark and the current word under the cursor
+---@param row number|nil Row number (1-indexed, optional)
+---@param bufnr number|nil Buffer number (optional, defaults to current buffer)
 ---@return table|nil, string
-function M.get_current_mark(row)
+function M.get_current_mark(row, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
   local cursor = vim.api.nvim_win_get_cursor(0)
   row = row or cursor[1]
   row = row - 1
@@ -12,9 +15,10 @@ function M.get_current_mark(row)
   local current_word = ""
   local mark = nil
 
+  local buf_state = state.get_buffer_state(bufnr)
   local line_marks = vim.api.nvim_buf_get_extmarks(
-    0,
-    state.marks.ns_id,
+    bufnr,
+    buf_state.ns_id,
     { row, 0 },
     { row, -1 },
     { details = true, overlap = true, type = "virt_text" }

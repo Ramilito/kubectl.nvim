@@ -25,12 +25,17 @@ M.filter_label_history = {}
 M.alias_history = {}
 ---@type string
 M.proxyUrl = ""
----@type number
-M.content_row_start = 0
----@type table
-M.marks = { ns_id = 0, header = {} }
----@type table
-M.selections = {}
+
+---------------------------------------------------------------------------
+-- Per-buffer state for split support
+-- Each buffer has its own marks, content_row_start, and selections
+---------------------------------------------------------------------------
+---@type table<number, { ns_id: number, header: number[], content_row_start: number, selections: table[] }>
+M.buffer_state = {}
+
+---------------------------------------------------------------------------
+-- Global state (shared across all buffers)
+---------------------------------------------------------------------------
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
@@ -64,6 +69,15 @@ end
 --- Setup the kubectl state
 function M.setup()
   vim.api.nvim_create_augroup("kubectl_session", { clear = true })
+
+  -- Clean up buffer state when buffer is deleted
+  vim.api.nvim_create_autocmd("BufDelete", {
+    group = "kubectl_session",
+    pattern = "kubectl://*",
+    callback = function(args)
+      M.clear_buffer_state(args.buf)
+    end,
+  })
 
   for k, _ in pairs(viewsTable) do
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
@@ -174,10 +188,11 @@ function M.getSessionFilterLabel()
   return M.filter_label_history
 end
 
---- Get the selections
+--- Get the selections for the current buffer
+--- @param bufnr number|nil Buffer number (optional, defaults to current buffer)
 --- @return table selections The selections
-function M.getSelections()
-  return M.selections
+function M.getSelections(bufnr)
+  return M.get_buffer_selections(bufnr or vim.api.nvim_get_current_buf())
 end
 
 --- Get the current URL
@@ -277,18 +292,65 @@ function M.restore_session()
   require("kubectl.views").resource_or_fallback(session_view)
 end
 
-function M.set_buffer_state(buf, filetype, open_func, args)
-  local function valid()
-    return filetype ~= "k8s_picker"
-      and filetype ~= "k8s_namespaces"
-      and filetype ~= "k8s_aliases"
-      and filetype ~= "k8s_filter"
-      and filetype ~= "k8s_contexts"
-      and filetype ~= "k8s_splash"
-      and not M.buffers[buf]
+--- Get buffer-specific state, creating if needed
+---@param bufnr number Buffer number
+---@return { ns_id: number, header: number[], content_row_start: number, selections: table[] }
+function M.get_buffer_state(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if not M.buffer_state[bufnr] then
+    M.buffer_state[bufnr] = {
+      ns_id = 0,
+      header = {},
+      content_row_start = 0,
+      selections = {},
+    }
   end
+  return M.buffer_state[bufnr]
+end
 
-  if not valid() then
+--- Get selections for a buffer
+---@param bufnr number Buffer number
+---@return table[] selections
+function M.get_buffer_selections(bufnr)
+  return M.get_buffer_state(bufnr).selections
+end
+
+--- Set selections for a buffer
+---@param bufnr number Buffer number
+---@param selections table[] Array of selection objects
+function M.set_buffer_selections(bufnr, selections)
+  local buf_state = M.get_buffer_state(bufnr)
+  buf_state.selections = selections
+end
+
+--- Clear buffer state when buffer is deleted
+---@param bufnr number Buffer number
+function M.clear_buffer_state(bufnr)
+  M.buffer_state[bufnr] = nil
+end
+
+---------------------------------------------------------------------------
+-- Buffer restore registration (for reopening buffers)
+-- This is separate from per-buffer state - it stores how to recreate a buffer
+---------------------------------------------------------------------------
+
+--- Register a buffer for potential restore (e.g., after tab switch)
+---@param buf number Buffer number
+---@param filetype string Filetype of the buffer
+---@param open_func function Function to call to reopen the buffer
+---@param args table Arguments to pass to open_func
+function M.register_buffer_for_restore(buf, filetype, open_func, args)
+  -- Skip ephemeral buffers that shouldn't be restored
+  local skip_filetypes = {
+    k8s_picker = true,
+    k8s_namespaces = true,
+    k8s_aliases = true,
+    k8s_filter = true,
+    k8s_contexts = true,
+    k8s_splash = true,
+  }
+
+  if skip_filetypes[filetype] or M.buffers[buf] then
     return
   end
 
