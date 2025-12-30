@@ -25,16 +25,17 @@ M.filter_label_history = {}
 M.alias_history = {}
 ---@type string
 M.proxyUrl = ""
----@type number
-M.content_row_start = 0
----@type table
-M.marks = { ns_id = 0, header = {} }
----@type table
-M.selections = {}
 
---- Per-buffer state for split support
+---------------------------------------------------------------------------
+-- Per-buffer state for split support
+-- Each buffer has its own marks, content_row_start, and selections
+---------------------------------------------------------------------------
 ---@type table<number, { ns_id: number, header: number[], content_row_start: number, selections: table[] }>
 M.buffer_state = {}
+
+---------------------------------------------------------------------------
+-- Global state (shared across all buffers)
+---------------------------------------------------------------------------
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
@@ -353,18 +354,28 @@ function M.clear_buffer_state(bufnr)
   M.buffer_state[bufnr] = nil
 end
 
-function M.set_buffer_state(buf, filetype, open_func, args)
-  local function valid()
-    return filetype ~= "k8s_picker"
-      and filetype ~= "k8s_namespaces"
-      and filetype ~= "k8s_aliases"
-      and filetype ~= "k8s_filter"
-      and filetype ~= "k8s_contexts"
-      and filetype ~= "k8s_splash"
-      and not M.buffers[buf]
-  end
+---------------------------------------------------------------------------
+-- Buffer restore registration (for reopening buffers)
+-- This is separate from per-buffer state - it stores how to recreate a buffer
+---------------------------------------------------------------------------
 
-  if not valid() then
+--- Register a buffer for potential restore (e.g., after tab switch)
+---@param buf number Buffer number
+---@param filetype string Filetype of the buffer
+---@param open_func function Function to call to reopen the buffer
+---@param args table Arguments to pass to open_func
+function M.register_buffer_for_restore(buf, filetype, open_func, args)
+  -- Skip ephemeral buffers that shouldn't be restored
+  local skip_filetypes = {
+    k8s_picker = true,
+    k8s_namespaces = true,
+    k8s_aliases = true,
+    k8s_filter = true,
+    k8s_contexts = true,
+    k8s_splash = true,
+  }
+
+  if skip_filetypes[filetype] or M.buffers[buf] then
     return
   end
 

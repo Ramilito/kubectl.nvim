@@ -77,74 +77,78 @@ local function set_buffer_lines(buf, header, content)
   end
 end
 
---- Applies marks to a buffer.
---- @param bufnr integer: The buffer number.
---- @param marks table|nil: The marks to apply (optional).
---- @param header table|nil: The header data (optional).
+--- Applies extmarks to a buffer for syntax highlighting and virtual text.
+--- For main windows (no header hints), also tracks header marks for column sorting.
+---@param bufnr integer Buffer number
+---@param marks table|nil Content marks to apply
+---@param header table|nil Header with { data: string[], marks: table[] } for float windows
 function M.apply_marks(bufnr, marks, header)
   if not bufnr then
     return
   end
+
   local ns_id = api.nvim_create_namespace("__kubectl_views")
   pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
-  local local_marks = marks
-  local local_header = header
 
-  -- Check if this buffer has header data (floats have hints, main windows don't)
-  local has_header_data = local_header and local_header.data and #local_header.data > 0
+  -- Float windows have header hints; main windows use winbar instead
+  local header_data = header and header.data
+  local is_float = header_data and #header_data > 0
+  local header_row_offset = is_float and #header_data or 0
 
-  -- For main windows (no header data), set up per-buffer state for sorting
-  if not has_header_data then
+  -- For main windows, initialize per-buffer state for sorting support
+  if not is_float then
     local buf_state = state.get_buffer_state(bufnr)
     buf_state.ns_id = ns_id
     buf_state.header = {}
   end
 
   vim.schedule(function()
-    if local_header and local_header.marks then
-      for _, mark in ipairs(local_header.marks) do
+    -- Apply header hint marks (float windows only)
+    if header and header.marks then
+      for _, mark in ipairs(header.marks) do
         pcall(api.nvim_buf_set_extmark, bufnr, ns_id, mark.row, mark.start_col, {
           end_line = mark.row,
           end_col = mark.end_col,
           hl_group = mark.hl_group,
-          hl_eol = mark.hl_eol or nil,
-          virt_text = mark.virt_text or nil,
-          virt_text_pos = mark.virt_text_pos or nil,
-          virt_lines_above = mark.virt_lines_above or nil,
-          virt_text_win_col = mark.virt_text_win_col or nil,
+          hl_eol = mark.hl_eol,
+          virt_text = mark.virt_text,
+          virt_text_pos = mark.virt_text_pos,
+          virt_lines_above = mark.virt_lines_above,
+          virt_text_win_col = mark.virt_text_win_col,
           ephemeral = mark.ephemeral,
         })
       end
     end
-    if local_marks then
-      -- Track if we've already set header marks for this buffer in this cycle
-      local header_marks_set = false
-      for _, mark in ipairs(local_marks) do
-        -- adjust for content not being at first row
-        local start_row = mark.row
-        if local_header and local_header.data then
-          start_row = start_row + #local_header.data
-        end
-        local ok, result = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, start_row, mark.start_col, {
-          end_line = start_row,
-          end_col = mark.end_col or nil,
-          hl_eol = mark.hl_eol or nil,
-          hl_group = mark.hl_group or nil,
-          hl_mode = mark.hl_mode or nil,
-          line_hl_group = mark.line_hl_group or nil,
-          virt_text = mark.virt_text or nil,
-          virt_text_pos = mark.virt_text_pos or nil,
-          right_gravity = mark.right_gravity,
-          sign_text = mark.sign_text or nil,
-          sign_hl_group = mark.sign_hl_group or nil,
-        })
-        -- For main windows, save header marks for sorting (only once per mark row)
-        if not has_header_data and ok and mark.row == 0 and not header_marks_set then
-          state.set_content_row_start(bufnr, start_row + 1)
-          state.add_header_mark(bufnr, result)
-          header_marks_set = true
-        elseif not has_header_data and ok and mark.row == 0 then
-          state.add_header_mark(bufnr, result)
+
+    -- Apply content marks
+    if not marks then
+      return
+    end
+
+    local content_row_start_set = false
+    for _, mark in ipairs(marks) do
+      local row = mark.row + header_row_offset
+
+      local ok, extmark_id = pcall(api.nvim_buf_set_extmark, bufnr, ns_id, row, mark.start_col, {
+        end_line = row,
+        end_col = mark.end_col,
+        hl_eol = mark.hl_eol,
+        hl_group = mark.hl_group,
+        hl_mode = mark.hl_mode,
+        line_hl_group = mark.line_hl_group,
+        virt_text = mark.virt_text,
+        virt_text_pos = mark.virt_text_pos,
+        right_gravity = mark.right_gravity,
+        sign_text = mark.sign_text,
+        sign_hl_group = mark.sign_hl_group,
+      })
+
+      -- For main windows, track header row marks for sorting detection
+      if not is_float and ok and mark.row == 0 then
+        state.add_header_mark(bufnr, extmark_id)
+        if not content_row_start_set then
+          state.set_content_row_start(bufnr, row + 1)
+          content_row_start_set = true
         end
       end
     end
@@ -308,7 +312,7 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
   layout.set_win_options(win)
   M.fit_to_content(buf, win, 2)
 
-  state.set_buffer_state(buf, filetype, M.floating_dynamic_buffer, { filetype, title, callback, opts })
+  state.register_buffer_for_restore(buf, filetype, M.floating_dynamic_buffer, { filetype, title, callback, opts })
   return buf, win
 end
 
@@ -346,7 +350,7 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  state.set_buffer_state(buf, filetype, M.floating_buffer, { filetype, title, syntax, win })
+  state.register_buffer_for_restore(buf, filetype, M.floating_buffer, { filetype, title, syntax, win })
 
   return buf, win
 end
