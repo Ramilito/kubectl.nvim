@@ -89,7 +89,6 @@ function M.apply_marks(bufnr, marks, header)
   pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
   local local_marks = marks
   local local_header = header
-  state.marks.ns_id = ns_id
 
   local is_float = false
   -- TODO: Extract column header management
@@ -101,7 +100,8 @@ function M.apply_marks(bufnr, marks, header)
     end
   end
   if not is_float then
-    state.marks.header = {}
+    -- Use per-buffer state instead of global
+    state.set_marks(bufnr, ns_id)
   end
 
   vim.schedule(function()
@@ -143,8 +143,9 @@ function M.apply_marks(bufnr, marks, header)
         -- TODO: Extract column header management
         -- the first row is always column headers, we save that so other content can use it
         if not is_float and ok and mark.row == 0 then
-          state.content_row_start = start_row + 1
-          table.insert(state.marks.header, result)
+          -- Use per-buffer state instead of global
+          state.set_content_row_start(bufnr, start_row + 1)
+          state.add_header_mark(bufnr, result)
         end
       end
     end

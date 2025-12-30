@@ -298,7 +298,8 @@ function M.generateDividerWinbar(divider, win)
   local resource = divider.resource or ""
   local count = divider.count or ""
   local filter = divider.filter or ""
-  local selected_count = vim.tbl_count(state.getSelections())
+  local bufnr = vim.api.nvim_win_get_buf(win)
+  local selected_count = vim.tbl_count(state.getSelections(bufnr))
 
   if selected_count > 0 then
     count = ("%d/%s"):format(selected_count, count)
@@ -500,7 +501,9 @@ function M.pretty_print(data, headers, sort_by, win)
   end
   table.insert(tbl, table.concat(header_line, ""))
 
-  local selections = state.selections
+  -- Get selections from per-buffer state
+  local bufnr = win and vim.api.nvim_win_get_buf(win) or vim.api.nvim_get_current_buf()
+  local selections = state.get_buffer_selections(bufnr)
   -- Create table rows
   for row_index, row in ipairs(data) do
     local is_selected = false
@@ -581,8 +584,10 @@ end
 ---@vararg number
 ---@return string|nil ...
 function M.getCurrentSelection(...)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local buf_state = state.get_buffer_state(bufnr)
   local line_number = vim.api.nvim_win_get_cursor(0)[1]
-  if line_number <= state.content_row_start then
+  if line_number <= buf_state.content_row_start then
     return nil
   end
   local line = vim.api.nvim_get_current_line()

@@ -6,8 +6,9 @@ local tables = require("kubectl.utils.tables")
 local M = {}
 
 local function get_values(definition, data)
-  local bufnr = 0
-  local ns = state.marks.ns_id
+  local bufnr = vim.api.nvim_get_current_buf()
+  local buf_state = state.get_buffer_state(bufnr)
+  local ns = buf_state.ns_id
 
   local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {
     details = true,

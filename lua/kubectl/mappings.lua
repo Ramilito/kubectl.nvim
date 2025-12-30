@@ -71,7 +71,8 @@ function M.get_mappings()
         end
 
         local state = require("kubectl.state")
-        local selections = state.getSelections()
+        local original_bufnr = vim.api.nvim_get_current_buf()
+        local selections = state.getSelections(original_bufnr)
 
         if vim.tbl_count(selections) == 0 then
           local name, ns = view.getCurrentSelection()
@@ -120,7 +121,7 @@ function M.get_mappings()
               end)
             end)
           end
-          state.selections = {}
+          state.set_buffer_selections(original_bufnr, {})
         end)
       end,
     },
@@ -210,7 +211,8 @@ function M.get_mappings()
       callback = function()
         local state = require("kubectl.state")
         state.reset_filters()
-        state.selections = {}
+        local bufnr = vim.api.nvim_get_current_buf()
+        state.set_buffer_selections(bufnr, {})
         if win_config.relative == "" then
           local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
           vim.notify("Reloading " .. buf_name, vim.log.levels.INFO)
@@ -406,13 +408,15 @@ function M.get_mappings()
         local state = require("kubectl.state")
         local find = require("kubectl.utils.find")
 
-        local mark, word = marks.get_current_mark(state.content_row_start)
+        local bufnr = vim.api.nvim_get_current_buf()
+        local buf_state = state.get_buffer_state(bufnr)
+        local mark, word = marks.get_current_mark(buf_state.content_row_start, bufnr)
 
         if not mark then
           return
         end
 
-        if not find.array(state.marks.header, mark[1]) then
+        if not find.array(buf_state.header, mark[1]) then
           return
         end
 
@@ -494,10 +498,13 @@ function M.get_mappings()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local current_view, _ = view.resource_and_definition(string.lower(vim.trim(buf_name)))
 
+        local bufnr = vim.api.nvim_get_current_buf()
+        local selections = state.get_buffer_selections(bufnr)
         local name, ns = current_view.getCurrentSelection()
-        for i, selection in ipairs(state.selections) do
+        for i, selection in ipairs(selections) do
           if selection.name == name and (ns and selection.namespace == ns or true) then
-            table.remove(state.selections, i)
+            table.remove(selections, i)
+            state.set_buffer_selections(bufnr, selections)
             vim.api.nvim_feedkeys("j", "n", true)
             current_view.Draw()
             return
@@ -505,7 +512,8 @@ function M.get_mappings()
         end
 
         if name then
-          table.insert(state.selections, { name = name, namespace = ns })
+          table.insert(selections, { name = name, namespace = ns })
+          state.set_buffer_selections(bufnr, selections)
           vim.api.nvim_feedkeys("j", "n", true)
           current_view.Draw()
         end
@@ -516,7 +524,9 @@ function M.get_mappings()
       desc = "Clear selection",
       callback = function()
         local state = require("kubectl.state")
-        if vim.tbl_count(state.selections) == 0 then
+        local bufnr = vim.api.nvim_get_current_buf()
+        local selections = state.get_buffer_selections(bufnr)
+        if vim.tbl_count(selections) == 0 then
           return
         end
 
@@ -525,7 +535,7 @@ function M.get_mappings()
         local current_view, _ = view.resource_and_definition(string.lower(vim.trim(buf_name)))
 
         if current_view then
-          state.selections = {}
+          state.set_buffer_selections(bufnr, {})
           current_view.Draw()
         end
       end,

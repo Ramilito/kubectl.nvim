@@ -31,6 +31,10 @@ M.content_row_start = 0
 M.marks = { ns_id = 0, header = {} }
 ---@type table
 M.selections = {}
+
+--- Per-buffer state for split support
+---@type table<number, { ns_id: number, header: number[], content_row_start: number, selections: table[] }>
+M.buffer_state = {}
 ---@type {[string]: { mark: table, current_word: string, order: "asc"|"desc" }}
 M.sortby = {}
 M.sortby_old = { current_word = "" }
@@ -64,6 +68,15 @@ end
 --- Setup the kubectl state
 function M.setup()
   vim.api.nvim_create_augroup("kubectl_session", { clear = true })
+
+  -- Clean up buffer state when buffer is deleted
+  vim.api.nvim_create_autocmd("BufDelete", {
+    group = "kubectl_session",
+    pattern = "kubectl://*",
+    callback = function(args)
+      M.clear_buffer_state(args.buf)
+    end,
+  })
 
   for k, _ in pairs(viewsTable) do
     M.sortby[k] = { mark = {}, current_word = "", order = "asc" }
@@ -174,10 +187,11 @@ function M.getSessionFilterLabel()
   return M.filter_label_history
 end
 
---- Get the selections
+--- Get the selections for the current buffer
+--- @param bufnr number|nil Buffer number (optional, defaults to current buffer)
 --- @return table selections The selections
-function M.getSelections()
-  return M.selections
+function M.getSelections(bufnr)
+  return M.get_buffer_selections(bufnr or vim.api.nvim_get_current_buf())
 end
 
 --- Get the current URL
@@ -275,6 +289,68 @@ function M.restore_session()
   end
 
   require("kubectl.views").resource_or_fallback(session_view)
+end
+
+--- Get buffer-specific state, creating if needed
+---@param bufnr number Buffer number
+---@return { ns_id: number, header: number[], content_row_start: number, selections: table[] }
+function M.get_buffer_state(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if not M.buffer_state[bufnr] then
+    M.buffer_state[bufnr] = {
+      ns_id = 0,
+      header = {},
+      content_row_start = 0,
+      selections = {},
+    }
+  end
+  return M.buffer_state[bufnr]
+end
+
+--- Set marks (ns_id and header) for a buffer
+---@param bufnr number Buffer number
+---@param ns_id number Namespace ID for extmarks
+function M.set_marks(bufnr, ns_id)
+  local buf_state = M.get_buffer_state(bufnr)
+  buf_state.ns_id = ns_id
+  buf_state.header = {}
+end
+
+--- Add a header mark ID for a buffer
+---@param bufnr number Buffer number
+---@param mark_id number Extmark ID
+function M.add_header_mark(bufnr, mark_id)
+  local buf_state = M.get_buffer_state(bufnr)
+  table.insert(buf_state.header, mark_id)
+end
+
+--- Set content row start for a buffer
+---@param bufnr number Buffer number
+---@param row number Row number where content starts
+function M.set_content_row_start(bufnr, row)
+  local buf_state = M.get_buffer_state(bufnr)
+  buf_state.content_row_start = row
+end
+
+--- Get selections for a buffer
+---@param bufnr number Buffer number
+---@return table[] selections
+function M.get_buffer_selections(bufnr)
+  return M.get_buffer_state(bufnr).selections
+end
+
+--- Set selections for a buffer
+---@param bufnr number Buffer number
+---@param selections table[] Array of selection objects
+function M.set_buffer_selections(bufnr, selections)
+  local buf_state = M.get_buffer_state(bufnr)
+  buf_state.selections = selections
+end
+
+--- Clear buffer state when buffer is deleted
+---@param bufnr number Buffer number
+function M.clear_buffer_state(bufnr)
+  M.buffer_state[bufnr] = nil
 end
 
 function M.set_buffer_state(buf, filetype, open_func, args)
