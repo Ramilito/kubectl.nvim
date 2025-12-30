@@ -79,6 +79,30 @@ function BaseResource.extend(definition, options)
     describe_session.start(name, namespace, gvk, buf, win)
   end
 
+  --- View YAML for a specific resource
+  ---@param name string Resource name
+  ---@param ns string|nil Namespace (nil for cluster-scoped)
+  function M.Yaml(name, ns)
+    local display_ns = ns and (" | " .. ns) or ""
+    local def = {
+      resource = M.definition.resource .. "_yaml",
+      display_name = M.definition.resource .. " | " .. name .. display_ns,
+      ft = "k8s_" .. M.definition.resource .. "_yaml",
+      syntax = "yaml",
+      cmd = "get_single_async",
+    }
+
+    local builder = manager.get_or_create(def.resource)
+    builder.view_float(def, {
+      args = {
+        gvk = M.definition.gvk,
+        namespace = M._options.is_cluster_scoped and nil or ns,
+        name = name,
+        output = "yaml",
+      },
+    })
+  end
+
   --- Get current selection from buffer
   ---@return string|nil ... Returns name and optionally namespace
   function M.getCurrentSelection()

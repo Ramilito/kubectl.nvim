@@ -138,32 +138,7 @@ function M.get_mappings()
         local name, ns = view.getCurrentSelection()
 
         if name then
-          if buf_name == "helm" then
-            local helm_view = require("kubectl.resources.helm")
-            helm_view.Yaml(name, ns)
-          else
-            local def = {
-              resource = view.definition.resource .. "_yaml",
-              gvk = view.definition.gvk,
-              display_name = view.definition.resource .. " | " .. name .. " | " .. (ns or ""),
-              ft = "k8s_yaml",
-              syntax = "yaml",
-              cmd = "get_single_async",
-            }
-            if ns then
-              def.display_name = def.display_name .. " | " .. ns
-            end
-
-            local builder = manager.get_or_create("yaml")
-            builder.view_float(def, {
-              args = {
-                gvk = def.gvk,
-                namespace = ns,
-                name = name,
-                output = "yaml",
-              },
-            })
-          end
+          view.Yaml(name, ns)
         end
       end,
     },
