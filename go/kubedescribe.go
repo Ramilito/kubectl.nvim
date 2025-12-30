@@ -1,10 +1,5 @@
 package main
 
-/*
-#include <stdlib.h>
-*/
-import "C"
-
 import (
 	"fmt"
 	"sync"
@@ -89,55 +84,4 @@ func getDescriber(flags *genericclioptions.ConfigFlags, mapping *meta.RESTMappin
 		return v.(describe.ResourceDescriber), nil
 	}
 	return d, nil
-}
-
-//export DescribeResource
-func DescribeResource(
-	cGroup, cVersion, cResource, cNamespace, cName, cContext *C.char,
-) *C.char {
-	/* -------- 1. Pull params from C heap ------------------------------ */
-	group     := C.GoString(cGroup)
-	version   := C.GoString(cVersion)
-	resource  := C.GoString(cResource)
-	namespace := C.GoString(cNamespace)
-	name      := C.GoString(cName)
-	ctxName   := C.GoString(cContext)
-
-	cfg, err := getRestConfig(ctxName)
-	if err != nil {
-		return cString(fmt.Sprintf("Error building rest.Config: %v", err))
-	}
-
-	flags := genericclioptions.NewConfigFlags(false)
-	flags.WrapConfigFn = func(*rest.Config) *rest.Config { return cfg }
-	flags.Namespace    = &namespace
-	flags.Context      = &ctxName
-
-	gvr   := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	rm, err := getMapper(cfg, ctxName, gvr)
-	var mapping *meta.RESTMapping
-	if err == nil {
-		if gvk, kerr := rm.KindFor(gvr); kerr == nil {
-			mapping, _ = rm.RESTMapping(gvk.GroupKind(), gvk.Version)
-		}
-	}
-	if mapping == nil {
-		mapping = &meta.RESTMapping{
-			Resource:         gvr,
-			GroupVersionKind: schema.GroupVersionKind{Group: group, Version: version, Kind: resource},
-			Scope:            meta.RESTScopeNamespace,
-		}
-	}
-
-	cacheKey := gvrKey(ctxName, gvr)
-	d, err := getDescriber(flags, mapping, cacheKey)
-	if err != nil || d == nil {
-		return cString(fmt.Sprintf("Unable to find describer for %s: %v", resource, err))
-	}
-
-	out, err := d.Describe(namespace, name, describe.DescriberSettings{ShowEvents: true})
-	if err != nil {
-		return cString(fmt.Sprintf("Error describing %s/%s: %v", resource, name, err))
-	}
-	return cString(out)
 }

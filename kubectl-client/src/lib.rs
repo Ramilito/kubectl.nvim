@@ -29,7 +29,6 @@ cfg_if::cfg_if! {
 
 mod cmd;
 mod dao;
-mod describe;
 mod describe_session;
 mod drain;
 mod event_queue;
@@ -467,10 +466,6 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "start_buffer_dashboard",
         lua.create_function(|_, view_name: String| ui::BufferSession::new(view_name))?,
-    )?;
-    exports.set(
-        "describe_async",
-        lua.create_async_function(describe::describe_async)?,
     )?;
     exports.set(
         "describe_session",
