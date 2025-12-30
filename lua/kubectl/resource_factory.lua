@@ -307,10 +307,29 @@ function M.new(resource)
             end
           end
           local windows = buffers.get_windows_by_name(resource)
-          for _, win_id in ipairs(windows) do
-            builder.prettyPrint(win_id).addDivider(true)
-            builder.displayContent(win_id, cancellationToken)
+          if #windows == 0 then
+            return
           end
+
+          -- Use first window for column width calculations
+          local primary_win = windows[1]
+          builder.prettyPrint(primary_win).addDivider(true)
+
+          -- Set content once (avoid clearing namespace multiple times)
+          builder.displayContent(primary_win, cancellationToken)
+
+          -- Update winbar for additional windows
+          for i = 2, #windows do
+            local win_id = windows[i]
+            local ok, win_config = pcall(vim.api.nvim_win_get_config, win_id)
+            if ok and win_config.relative == "" then
+              local winbar = builder.header.divider_winbar
+              vim.defer_fn(function()
+                pcall(vim.api.nvim_set_option_value, "winbar", winbar, { scope = "local", win = win_id })
+              end, 10)
+            end
+          end
+
           local loop = require("kubectl.utils.loop")
           loop.set_running(builder.buf_nr, false)
         end)

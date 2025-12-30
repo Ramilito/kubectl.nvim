@@ -90,18 +90,14 @@ function M.apply_marks(bufnr, marks, header)
   local local_marks = marks
   local local_header = header
 
-  local is_float = false
-  -- TODO: Extract column header management
-  local wins = vim.fn.win_findbuf(bufnr)
-  for _, win in ipairs(wins) do
-    local cfg = vim.api.nvim_win_get_config(win)
-    if cfg.relative ~= "" then
-      is_float = true
-    end
-  end
-  if not is_float then
-    -- Use per-buffer state instead of global
-    state.set_marks(bufnr, ns_id)
+  -- Check if this buffer has header data (floats have hints, main windows don't)
+  local has_header_data = local_header and local_header.data and #local_header.data > 0
+
+  -- For main windows (no header data), set up per-buffer state for sorting
+  if not has_header_data then
+    local buf_state = state.get_buffer_state(bufnr)
+    buf_state.ns_id = ns_id
+    buf_state.header = {}
   end
 
   vim.schedule(function()
@@ -121,6 +117,8 @@ function M.apply_marks(bufnr, marks, header)
       end
     end
     if local_marks then
+      -- Track if we've already set header marks for this buffer in this cycle
+      local header_marks_set = false
       for _, mark in ipairs(local_marks) do
         -- adjust for content not being at first row
         local start_row = mark.row
@@ -140,11 +138,12 @@ function M.apply_marks(bufnr, marks, header)
           sign_text = mark.sign_text or nil,
           sign_hl_group = mark.sign_hl_group or nil,
         })
-        -- TODO: Extract column header management
-        -- the first row is always column headers, we save that so other content can use it
-        if not is_float and ok and mark.row == 0 then
-          -- Use per-buffer state instead of global
+        -- For main windows, save header marks for sorting (only once per mark row)
+        if not has_header_data and ok and mark.row == 0 and not header_marks_set then
           state.set_content_row_start(bufnr, start_row + 1)
+          state.add_header_mark(bufnr, result)
+          header_marks_set = true
+        elseif not has_header_data and ok and mark.row == 0 then
           state.add_header_mark(bufnr, result)
         end
       end
