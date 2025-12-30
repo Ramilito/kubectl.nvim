@@ -126,12 +126,22 @@ function health.report_kubeconfig()
     return
   end
 
-  -- Try to get current context from kubeconfig using kubectl
-  local result = vim.fn.systemlist("kubectl config current-context 2>/dev/null")
-  if vim.v.shell_error == 0 and result[1] then
-    H.ok("Current context: " .. result[1])
+  -- Try to get current context from kubeconfig using native library
+  local ok, mod = pcall(require, "kubectl_client")
+  if ok then
+    local config_ok, config_json = pcall(mod.get_config)
+    if config_ok and config_json then
+      local config = vim.json.decode(config_json)
+      if config and config["current-context"] then
+        H.ok("Current context: " .. config["current-context"])
+      else
+        H.warn("Current context: not set in kubeconfig")
+      end
+    else
+      H.warn("Current context: unable to read kubeconfig")
+    end
   else
-    H.warn("Current context: unable to determine (is kubectl installed?)")
+    H.warn("Current context: native library not loaded")
   end
 end
 
