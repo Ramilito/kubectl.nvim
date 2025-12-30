@@ -173,35 +173,13 @@ function M.get_mappings()
       callback = function()
         local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
         local view_ok, view = pcall(require, "kubectl.resources." .. string.lower(vim.trim(buf_name)))
-        local interval = 2000
-        local timer = vim.uv.new_timer()
 
         if not view_ok then
           view = require("kubectl.resources.fallback")
         end
         local name, ns = view.getCurrentSelection()
         if name then
-          view.Desc(name, ns, true)
-
-          -- TODO: This is a temp fix for: https://github.com/Ramilito/kubectl.nvim/issues/635
-          if buf_name == "secrets" then
-            return
-          end
-
-          timer:start(
-            0,
-            interval,
-            vim.schedule_wrap(function()
-              view.Desc(name, ns, true)
-
-              vim.api.nvim_create_autocmd({ "QuitPre", "BufHidden", "BufUnload", "BufDelete" }, {
-                buffer = 0,
-                callback = function()
-                  timer:stop()
-                end,
-              })
-            end)
-          )
+          view.Desc(name, ns)
         end
       end,
     },

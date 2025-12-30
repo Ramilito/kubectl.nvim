@@ -1,5 +1,6 @@
+local buffers = require("kubectl.actions.buffers")
+local describe_session = require("kubectl.views.describe.session")
 local manager = require("kubectl.resource_manager")
-local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local BaseResource = {}
@@ -55,27 +56,27 @@ function BaseResource.extend(definition, options)
   --- Describe a specific resource
   ---@param name string Resource name
   ---@param ns string|nil Namespace (nil for cluster-scoped)
-  ---@param reload boolean|nil Whether to reload
-  function M.Desc(name, ns, reload)
+  ---@param _ boolean|nil Whether to reload (deprecated, kept for API compatibility)
+  function M.Desc(name, ns, _)
     local display_ns = ns and (" | " .. ns) or ""
-    local def = {
-      resource = M.definition.resource .. "_desc",
-      display_name = M.definition.resource .. " | " .. name .. display_ns,
-      ft = "k8s_desc",
-      syntax = "yaml",
-      cmd = "describe_async",
-    }
+    local title = M.definition.resource .. " | " .. name .. display_ns
 
-    local builder = manager.get_or_create(def.resource)
-    builder.view_float(def, {
-      args = {
-        context = state.context["current-context"],
-        gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
-        namespace = M._options.is_cluster_scoped and nil or ns,
-        name = name,
-      },
-      reload = reload,
-    })
+    -- Get or reuse existing window
+    local builder = manager.get(M.definition.resource .. "_desc")
+    local existing_win = builder and builder.win_nr or nil
+
+    -- Create floating buffer
+    local buf, win = buffers.floating_buffer("k8s_desc", title, "yaml", existing_win)
+
+    -- Store in manager for window reuse
+    local new_builder = manager.get_or_create(M.definition.resource .. "_desc")
+    new_builder.buf_nr = buf
+    new_builder.win_nr = win
+
+    -- Start the describe session (handles polling internally)
+    local gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v }
+    local namespace = M._options.is_cluster_scoped and nil or ns
+    describe_session.start(name, namespace, gvk, buf, win)
   end
 
   --- Get current selection from buffer

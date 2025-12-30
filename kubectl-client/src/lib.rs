@@ -30,6 +30,7 @@ cfg_if::cfg_if! {
 mod cmd;
 mod dao;
 mod describe;
+mod describe_session;
 mod drain;
 mod event_queue;
 mod events;
@@ -470,6 +471,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "describe_async",
         lua.create_async_function(describe::describe_async)?,
+    )?;
+    exports.set(
+        "describe_session",
+        lua.create_function(describe_session::describe_session)?,
     )?;
 
     exports.set(
