@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local describe_session = require("kubectl.views.describe.session")
 local manager = require("kubectl.resource_manager")
 local tables = require("kubectl.utils.tables")
@@ -58,25 +57,9 @@ function BaseResource.extend(definition, options)
   ---@param ns string|nil Namespace (nil for cluster-scoped)
   ---@param _ boolean|nil Whether to reload (deprecated, kept for API compatibility)
   function M.Desc(name, ns, _)
-    local display_ns = ns and (" | " .. ns) or ""
-    local title = M.definition.resource .. " | " .. name .. display_ns
-
-    -- Get or reuse existing window
-    local builder = manager.get(M.definition.resource .. "_desc")
-    local existing_win = builder and builder.win_nr or nil
-
-    -- Create floating buffer
-    local buf, win = buffers.floating_buffer("k8s_desc", title, "yaml", existing_win)
-
-    -- Store in manager for window reuse
-    local new_builder = manager.get_or_create(M.definition.resource .. "_desc")
-    new_builder.buf_nr = buf
-    new_builder.win_nr = win
-
-    -- Start the describe session (handles polling internally)
     local gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v }
     local namespace = M._options.is_cluster_scoped and nil or ns
-    describe_session.start(name, namespace, gvk, buf, win)
+    describe_session.view(M.definition.resource, name, namespace, gvk)
   end
 
   --- View YAML for a specific resource

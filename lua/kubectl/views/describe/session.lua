@@ -1,5 +1,6 @@
 --- DescribeSession manager
 --- Uses resource_manager for instance lifecycle, adds polling-specific behavior
+local buffers = require("kubectl.actions.buffers")
 local client = require("kubectl.client")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
@@ -192,7 +193,7 @@ function M.is_active(buf)
   return session ~= nil and session:is_active()
 end
 
---- Start a describe session for a resource
+--- Start a describe session for a resource (low-level, expects buffer to exist)
 ---@param name string Resource name
 ---@param namespace string|nil Namespace
 ---@param gvk table GVK {k, g, v}
@@ -212,6 +213,32 @@ function M.start(name, namespace, gvk, buf, win)
 
   local session = M.get_or_create(buf, win, args)
   return session:start()
+end
+
+--- View describe output for a resource (handles buffer creation)
+--- Similar to builder.view_float but for streaming describe sessions
+---@param resource string Resource type (e.g., "pods", "deployments")
+---@param name string Resource name
+---@param namespace string|nil Namespace (nil for cluster-scoped)
+---@param gvk table GVK {k, g, v}
+---@return boolean success
+function M.view(resource, name, namespace, gvk)
+  local display_ns = namespace and (" | " .. namespace) or ""
+  local title = resource .. " | " .. name .. display_ns
+
+  -- Get or reuse existing window
+  local builder = manager.get(resource .. "_desc")
+  local existing_win = builder and builder.win_nr or nil
+
+  -- Create floating buffer
+  local buf, win = buffers.floating_buffer("k8s_desc", title, "yaml", existing_win)
+
+  -- Store in manager for window reuse
+  local new_builder = manager.get_or_create(resource .. "_desc")
+  new_builder.buf_nr = buf
+  new_builder.win_nr = win
+
+  return M.start(name, namespace, gvk, buf, win)
 end
 
 return M
