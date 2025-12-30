@@ -610,8 +610,6 @@ function M.register()
     M.map_if_plug_not_set("n", "gy", "<Plug>(kubectl.yaml)")
     M.map_if_plug_not_set("n", "ge", "<Plug>(kubectl.edit)")
     M.map_if_plug_not_set("n", "gs", "<Plug>(kubectl.sort)")
-    M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
-    M.map_if_plug_not_set("n", "<S-Tab>", "<Plug>(kubectl.clear_selection)")
     M.map_if_plug_not_set("n", "<M-h>", "<Plug>(kubectl.toggle_headers)")
   else
     local opts = { noremap = true, silent = true, callback = nil }
@@ -621,6 +619,8 @@ function M.register()
     vim.api.nvim_buf_set_keymap(0, "n", "<f4>", "<Plug>(kubectl.toggle_fullscreen)", opts)
   end
 
+  M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
+  M.map_if_plug_not_set("n", "<S-Tab>", "<Plug>(kubectl.clear_selection)")
   M.map_if_plug_not_set("n", "gP", "<Plug>(kubectl.portforwards_view)")
   M.map_if_plug_not_set("n", "<C-a>", "<Plug>(kubectl.alias_view)")
   M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")

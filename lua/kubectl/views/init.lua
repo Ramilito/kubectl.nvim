@@ -30,6 +30,8 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.toggle_headers)", desc = "Toggle headers" },
     { key = "<Plug>(kubectl.lineage)", desc = "View Lineage" },
     { key = "<Plug>(kubectl.refresh)", desc = "Refresh view" },
+    { key = "<Plug>(kubectl.tab)", desc = "Select resource" },
+    { key = "<Plug>(kubectl.clear_selection)", desc = "Clear selections" },
 
     -- views
     { key = "<Plug>(kubectl.view_api_resources)", desc = "API-Resources" },
