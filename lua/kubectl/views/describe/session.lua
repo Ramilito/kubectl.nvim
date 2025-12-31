@@ -103,7 +103,13 @@ local function create_session(buf, win, args)
       0,
       200,
       vim.schedule_wrap(function()
-        if this.stopped or not vim.api.nvim_buf_is_valid(this.buf) or not this:is_active() then
+        -- If intentionally stopped by user toggle, just return without removing session
+        if this.stopped then
+          return
+        end
+
+        -- If buffer invalid or rust session closed, clean up fully
+        if not vim.api.nvim_buf_is_valid(this.buf) or not this:is_active() then
           this:stop()
           manager.remove(session_key(this.buf))
           return
