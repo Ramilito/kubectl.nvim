@@ -96,12 +96,6 @@ impl DriftView {
     fn result_at_cursor(&self) -> Option<(usize, usize)> {
         // Skip: help bar (1) + border top (1) = 2 lines
         let effective_line = self.cursor_line.saturating_sub(2);
-        tracing::debug!(
-            "result_at_cursor: cursor_line={}, effective_line={}, line_map={:?}",
-            self.cursor_line,
-            effective_line,
-            self.line_map
-        );
         self.line_map
             .get(effective_line as usize)
             .and_then(|(t, r)| r.map(|ri| (*t, ri)))
@@ -109,18 +103,7 @@ impl DriftView {
 
     /// Toggles expansion of the result at cursor.
     fn toggle_expand(&mut self) {
-        tracing::debug!(
-            "toggle_expand: cursor_line={}, line_map_len={}",
-            self.cursor_line,
-            self.line_map.len()
-        );
-
         if let Some((target_idx, result_idx)) = self.result_at_cursor() {
-            tracing::debug!(
-                "toggle_expand: target_idx={}, result_idx={}",
-                target_idx,
-                result_idx
-            );
             let flat_idx = self.results[..target_idx]
                 .iter()
                 .map(|t| t.results.len())
@@ -132,8 +115,6 @@ impl DriftView {
             } else {
                 self.expanded_idx = Some(flat_idx);
             }
-        } else {
-            tracing::debug!("toggle_expand: result_at_cursor returned None");
         }
     }
 
@@ -153,16 +134,13 @@ impl DriftView {
 
 impl View for DriftView {
     fn on_event(&mut self, ev: &Event) -> bool {
-        tracing::debug!("DriftView::on_event: {:?}", ev);
         match ev {
             Event::Key(k) => match k.code {
                 KeyCode::Char('r') => {
-                    tracing::debug!("DriftView: refresh key pressed");
                     self.refresh();
                     true
                 }
                 KeyCode::Enter => {
-                    tracing::debug!("DriftView: Enter key pressed");
                     self.toggle_expand();
                     true
                 }
