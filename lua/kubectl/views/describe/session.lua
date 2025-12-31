@@ -98,6 +98,7 @@ local function create_session(buf, win, args)
     self.timer = vim.uv.new_timer()
 
     local this = self
+    ---@diagnostic disable: undefined-field
     self.timer:start(
       0,
       200,
@@ -121,6 +122,7 @@ local function create_session(buf, win, args)
         end
       end)
     )
+    ---@diagnostic enable: undefined-field
 
     -- Cleanup on buffer/window close
     vim.api.nvim_create_autocmd({ "BufUnload", "BufDelete", "BufWinLeave" }, {
