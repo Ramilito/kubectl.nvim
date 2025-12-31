@@ -234,6 +234,7 @@ async fn run_buffer_ui(
                                 view.on_event(&ev)
                             }
                             Some(ParsedMessage::CursorLine(line)) => view.set_cursor_line(line),
+                            Some(ParsedMessage::SetPath(path)) => view.set_path(path),
                             None => false,
                         };
 

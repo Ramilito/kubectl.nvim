@@ -1,7 +1,7 @@
 //! Drift view - Shows differences between local manifests and deployed cluster state.
 //!
+//! Features a side-by-side layout with resource list and diff preview.
 //! Powered by kubediff library.
-//! Uses native vim folds for expanding/collapsing diffs.
 
 use crossterm::event::{Event, KeyCode};
 use kubediff::{DiffResult, Process, TargetResult};
@@ -9,7 +9,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::Paragraph,
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
 
@@ -24,7 +24,24 @@ const ICON_NO_CHANGE: &str = "✓";
 const ICON_CHANGED: &str = "~";
 const ICON_ERROR: &str = "✗";
 
-/// Drift view displaying kubediff results with inline diffs.
+/// Flattened resource entry for the list
+struct ResourceEntry {
+    target_idx: usize,
+    result_idx: usize,
+    kind: String,
+    name: String,
+    status: ResourceStatus,
+    diff_lines: i32,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum ResourceStatus {
+    Changed,
+    Unchanged,
+    Error,
+}
+
+/// Drift view with side-by-side layout.
 pub struct DriftView {
     /// Path to diff against cluster
     path: String,
@@ -34,6 +51,10 @@ pub struct DriftView {
     error: Option<String>,
     /// Filter: when true, hide unchanged resources
     hide_unchanged: bool,
+    /// Flattened list of resources for navigation
+    entries: Vec<ResourceEntry>,
+    /// List selection state
+    list_state: ListState,
 }
 
 /// Counts of resources by status
@@ -51,6 +72,8 @@ impl DriftView {
             results: Vec::new(),
             error: None,
             hide_unchanged: false,
+            entries: Vec::new(),
+            list_state: ListState::default(),
         };
         view.refresh();
         view
@@ -61,14 +84,57 @@ impl DriftView {
         self.error = None;
 
         if self.path.is_empty() {
-            self.error = Some("No path specified. Usage: :Kubectl drift <path>".to_string());
             self.results = Vec::new();
+            self.entries = Vec::new();
             return;
         }
 
         // Call kubediff to process the target
         let result = Process::process_target(&self.path);
         self.results = vec![result];
+        self.rebuild_entries();
+
+        // Select first item if available
+        if !self.entries.is_empty() {
+            self.list_state.select(Some(0));
+        }
+    }
+
+    /// Rebuilds the flattened entry list.
+    fn rebuild_entries(&mut self) {
+        self.entries.clear();
+
+        for (target_idx, target) in self.results.iter().enumerate() {
+            for (result_idx, result) in target.results.iter().enumerate() {
+                let status = if result.error.is_some() {
+                    ResourceStatus::Error
+                } else if result.diff.is_some() {
+                    ResourceStatus::Changed
+                } else {
+                    ResourceStatus::Unchanged
+                };
+
+                // Skip unchanged if filter active
+                if self.hide_unchanged && status == ResourceStatus::Unchanged {
+                    continue;
+                }
+
+                let diff_lines = result
+                    .diff
+                    .as_ref()
+                    .map(|d| d.lines().count() as i32)
+                    .unwrap_or(0);
+
+                self.entries.push(ResourceEntry {
+                    target_idx,
+                    result_idx,
+                    kind: result.kind.clone(),
+                    name: result.resource_name.clone(),
+                    status,
+                    diff_lines,
+                });
+            }
+        }
     }
 
     /// Counts resources by status.
@@ -97,15 +163,23 @@ impl DriftView {
     /// Toggles the filter to hide unchanged resources.
     fn toggle_filter(&mut self) {
         self.hide_unchanged = !self.hide_unchanged;
+        self.rebuild_entries();
+        // Reset selection
+        if !self.entries.is_empty() {
+            self.list_state.select(Some(0));
+        } else {
+            self.list_state.select(None);
+        }
     }
 
-    /// Checks if a result should be shown based on filter.
-    fn should_show(&self, result: &DiffResult) -> bool {
-        if !self.hide_unchanged {
-            return true;
-        }
-        // Show if changed or error
-        result.error.is_some() || result.diff.is_some()
+    /// Gets the currently selected resource's diff result.
+    fn selected_result(&self) -> Option<&DiffResult> {
+        let selected = self.list_state.selected()?;
+        let entry = self.entries.get(selected)?;
+        self.results
+            .get(entry.target_idx)?
+            .results
+            .get(entry.result_idx)
     }
 }
 
@@ -131,75 +205,89 @@ impl View for DriftView {
         let layouts = Layout::vertical([
             Constraint::Length(1), // Help bar
             Constraint::Length(1), // Summary line
-            Constraint::Min(0),    // Results with inline diffs
+            Constraint::Min(0),    // Main content (split pane)
         ])
         .split(area);
 
         // Help bar
         draw_help_bar(f, layouts[0], &drift_hints());
 
+        // If no path is set, show a prompt message
+        if self.path.is_empty() {
+            let msg = Paragraph::new(Line::from(vec![
+                Span::styled("Press ", Style::default().fg(colors::GRAY)),
+                Span::styled("p", Style::default().fg(colors::PENDING).add_modifier(Modifier::BOLD)),
+                Span::styled(" to select a path", Style::default().fg(colors::GRAY)),
+            ]))
+            .alignment(ratatui::layout::Alignment::Center);
+
+            // Center vertically
+            let vertical_center = layouts[2].y + layouts[2].height / 2;
+            let msg_area = Rect::new(layouts[2].x, vertical_center, layouts[2].width, 1);
+            f.render_widget(msg, msg_area);
+            return;
+        }
+
         // Summary line with path
         let counts = self.count_statuses();
         draw_summary(f, layouts[1], &counts, self.hide_unchanged, &self.path);
 
-        // Main content area with inline diffs
-        draw_results_with_diffs(
-            f,
-            layouts[2],
-            &self.results,
-            &self.error,
-            &self.path,
-            self.hide_unchanged,
-            self,
-        );
+        // Split pane: resource list | diff preview
+        let panes = Layout::horizontal([
+            Constraint::Percentage(35), // Resource list
+            Constraint::Percentage(65), // Diff preview
+        ])
+        .split(layouts[2]);
+
+        // Left pane: Resource list
+        draw_resource_list(f, panes[0], &self.entries);
+
+        // Right pane: Diff preview
+        draw_diff_preview(f, panes[1], self.selected_result());
     }
 
-    fn set_cursor_line(&mut self, _line: u16) -> bool {
-        // No longer needed - using native vim folds
+    fn set_cursor_line(&mut self, line: u16) -> bool {
+        // Map cursor line to list entry
+        // Layout: help bar (1) + summary (1) + border (1) + list items
+        // So list items start at line 3 (0-indexed)
+        let list_start = 3u16;
+        if line >= list_start {
+            let entry_idx = (line - list_start) as usize;
+            if entry_idx < self.entries.len() {
+                self.list_state.select(Some(entry_idx));
+                return true;
+            }
+        }
         false
     }
 
     fn content_height(&self) -> Option<u16> {
-        let mut height: u16 = 3; // Help bar + summary + border top
+        // Fixed height based on content
+        let list_height = self.entries.len() as u16 + 4; // entries + borders + header
+        let diff_height = self
+            .selected_result()
+            .and_then(|r| r.diff.as_ref())
+            .map(|d| d.lines().count() as u16 + 4)
+            .unwrap_or(10);
 
-        for target in &self.results {
-            if target.build_error.is_some() {
-                height += 1;
-                continue;
-            }
+        Some(list_height.max(diff_height).max(15))
+    }
 
-            height += 1; // Target header
-
-            for result in &target.results {
-                if !self.hide_unchanged || result.error.is_some() || result.diff.is_some() {
-                    height += 1; // Result line
-
-                    // Add diff lines
-                    if let Some(ref diff) = result.diff {
-                        height += diff.lines().count() as u16;
-                    }
-                    if let Some(ref err) = result.error {
-                        height += 1; // Error line
-                        let _ = err; // Suppress unused warning
-                    }
-                }
-            }
-
-            height += 1; // Blank after target
-        }
-
-        height += 1; // Border bottom
-
-        if self.error.is_some() {
-            height += 2;
-        }
-
-        Some(height.max(10))
+    fn set_path(&mut self, path: String) -> bool {
+        self.path = path;
+        self.refresh();
+        true
     }
 }
 
 /// Draws the summary line with status counts and path.
-fn draw_summary(f: &mut Frame, area: Rect, counts: &StatusCounts, filter_active: bool, path: &str) {
+fn draw_summary(
+    f: &mut Frame,
+    area: Rect,
+    counts: &StatusCounts,
+    filter_active: bool,
+    path: &str,
+) {
     let mut spans = vec![
         Span::styled(
             format!(" {} ", path),
@@ -238,204 +326,106 @@ fn draw_summary(f: &mut Frame, area: Rect, counts: &StatusCounts, filter_active:
     f.render_widget(Paragraph::new(summary), area);
 }
 
-/// Draws the results list with inline diffs.
-fn draw_results_with_diffs(
-    f: &mut Frame,
-    area: Rect,
-    results: &[TargetResult],
-    error: &Option<String>,
-    path: &str,
-    _hide_unchanged: bool,
-    view: &DriftView,
-) {
-    // No border - renders directly for clean fold detection
-    // Path is shown in the summary line instead
-    let _ = path; // Path shown elsewhere
-
-    let inner = area;
-    let mut y = 0u16;
-
-    // Show error if present
-    if let Some(err) = error {
-        let error_line = Line::from(vec![
-            Span::styled(ICON_ERROR, Style::default().fg(colors::ERROR)),
-            Span::raw(" "),
-            Span::styled(err, Style::default().fg(colors::ERROR)),
-        ]);
-        if y < inner.height {
-            f.render_widget(
-                Paragraph::new(error_line),
-                Rect {
-                    x: inner.x,
-                    y: inner.y + y,
-                    width: inner.width,
-                    height: 1,
-                },
-            );
-        }
-        return;
-    }
-
-    // Render each target and its results with inline diffs
-    for target in results {
-        // Build error if present
-        if let Some(ref build_err) = target.build_error {
-            let err_line = Line::from(vec![
-                Span::styled(ICON_ERROR, Style::default().fg(colors::ERROR)),
-                Span::raw(" Build error: "),
-                Span::styled(build_err, Style::default().fg(colors::ERROR)),
-            ]);
-            if y < inner.height {
-                f.render_widget(
-                    Paragraph::new(err_line),
-                    Rect {
-                        x: inner.x,
-                        y: inner.y + y,
-                        width: inner.width,
-                        height: 1,
-                    },
-                );
-            }
-            y += 1;
-            continue;
-        }
-
-        // Target header
-        let target_line = Line::from(vec![Span::styled(
-            format!("TARGET: {}", target.target),
-            Style::default()
-                .fg(colors::SUCCESS)
-                .add_modifier(Modifier::BOLD),
-        )]);
-        if y < inner.height {
-            f.render_widget(
-                Paragraph::new(target_line),
-                Rect {
-                    x: inner.x,
-                    y: inner.y + y,
-                    width: inner.width,
-                    height: 1,
-                },
-            );
-        }
-        y += 1;
-
-        // Results with inline diffs
-        for result in &target.results {
-            if y >= inner.height {
-                break;
-            }
-
-            // Skip unchanged if filter is active
-            if !view.should_show(result) {
-                continue;
-            }
-
-            let (icon, row_color, status) = if result.error.is_some() {
-                (ICON_ERROR, colors::ERROR, "error")
-            } else if result.diff.is_some() {
-                (ICON_CHANGED, colors::DEBUG, "changed")
-            } else {
-                (ICON_NO_CHANGE, colors::INFO, "no changes")
+/// Draws the resource list in the left pane.
+fn draw_resource_list(f: &mut Frame, area: Rect, entries: &[ResourceEntry]) {
+    let items: Vec<ListItem> = entries
+        .iter()
+        .map(|entry| {
+            let (icon, color) = match entry.status {
+                ResourceStatus::Changed => (ICON_CHANGED, colors::DEBUG),
+                ResourceStatus::Unchanged => (ICON_NO_CHANGE, colors::INFO),
+                ResourceStatus::Error => (ICON_ERROR, colors::ERROR),
             };
 
-            // Resource line with full row coloring (yellow for changed, red for error)
-            let result_line = Line::from(vec![
-                Span::styled(format!("{:<2}", icon), Style::default().fg(row_color)),
+            let diff_info = if entry.diff_lines > 0 {
+                format!(" ({})", entry.diff_lines)
+            } else {
+                String::new()
+            };
+
+            let line = Line::from(vec![
+                Span::styled(format!("{} ", icon), Style::default().fg(color)),
                 Span::styled(
-                    format!("{}/{}", result.kind, result.resource_name),
-                    Style::default().fg(row_color),
+                    format!("{}/{}", entry.kind, entry.name),
+                    Style::default().fg(color),
                 ),
-                Span::styled(format!(" ({})", status), Style::default().fg(row_color)),
+                Span::styled(diff_info, Style::default().fg(colors::GRAY)),
             ]);
 
-            f.render_widget(
-                Paragraph::new(result_line),
-                Rect {
-                    x: inner.x,
-                    y: inner.y + y,
-                    width: inner.width,
-                    height: 1,
-                },
-            );
-            y += 1;
+            ListItem::new(line)
+        })
+        .collect();
 
-            // Inline error message
+    let list = List::new(items).block(
+        Block::default()
+            .title(" Resources ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(colors::GRAY)),
+    );
+
+    f.render_widget(list, area);
+}
+
+/// Draws the diff preview in the right pane.
+fn draw_diff_preview(f: &mut Frame, area: Rect, result: Option<&DiffResult>) {
+    let block = Block::default()
+        .title(" Diff Preview ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(colors::GRAY));
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    match result {
+        None => {
+            let msg = Paragraph::new("Select a resource to view diff")
+                .style(Style::default().fg(colors::GRAY));
+            f.render_widget(msg, inner);
+        }
+        Some(result) => {
             if let Some(ref err) = result.error {
-                if y < inner.height {
-                    let err_line = Line::from(vec![
-                        Span::raw("    "),
-                        Span::styled(err, Style::default().fg(colors::ERROR)),
-                    ]);
-                    f.render_widget(
-                        Paragraph::new(err_line),
-                        Rect {
-                            x: inner.x,
-                            y: inner.y + y,
-                            width: inner.width,
-                            height: 1,
-                        },
-                    );
-                    y += 1;
-                }
-            }
-
-            // Inline diff content (for vim folds)
-            if let Some(ref diff) = result.diff {
-                for diff_line in diff.lines() {
-                    if y >= inner.height {
-                        break;
-                    }
-
-                    let style = if diff_line.starts_with('+') && !diff_line.starts_with("+++") {
-                        Style::default().fg(colors::INFO).bg(Color::Rgb(20, 40, 20))
-                    } else if diff_line.starts_with('-') && !diff_line.starts_with("---") {
+                let err_text = Paragraph::new(vec![
+                    Line::from(Span::styled(
+                        "Error:",
                         Style::default()
                             .fg(colors::ERROR)
-                            .bg(Color::Rgb(40, 20, 20))
-                    } else if diff_line.starts_with("@@") {
-                        Style::default().fg(colors::PENDING)
-                    } else {
-                        Style::default().fg(colors::GRAY)
-                    };
+                            .add_modifier(Modifier::BOLD),
+                    )),
+                    Line::from(Span::styled(err.as_str(), Style::default().fg(colors::ERROR))),
+                ])
+                .wrap(Wrap { trim: false });
+                f.render_widget(err_text, inner);
+            } else if let Some(ref diff) = result.diff {
+                let lines: Vec<Line> = diff
+                    .lines()
+                    .map(|line| {
+                        let style = if line.starts_with('+') && !line.starts_with("+++") {
+                            Style::default()
+                                .fg(colors::INFO)
+                                .bg(Color::Rgb(20, 40, 20))
+                        } else if line.starts_with('-') && !line.starts_with("---") {
+                            Style::default()
+                                .fg(colors::ERROR)
+                                .bg(Color::Rgb(40, 20, 20))
+                        } else if line.starts_with("@@") {
+                            Style::default().fg(colors::PENDING)
+                        } else {
+                            Style::default().fg(colors::GRAY)
+                        };
+                        Line::from(Span::styled(line, style))
+                    })
+                    .collect();
 
-                    // Indent diff lines
-                    let line = Line::from(vec![
-                        Span::raw("    "),
-                        Span::styled(diff_line, style),
-                    ]);
-
-                    f.render_widget(
-                        Paragraph::new(line),
-                        Rect {
-                            x: inner.x,
-                            y: inner.y + y,
-                            width: inner.width,
-                            height: 1,
-                        },
-                    );
-                    y += 1;
-                }
+                let diff_text = Paragraph::new(lines).wrap(Wrap { trim: false });
+                f.render_widget(diff_text, inner);
+            } else {
+                let msg = Paragraph::new(Line::from(vec![
+                    Span::styled(ICON_NO_CHANGE, Style::default().fg(colors::INFO)),
+                    Span::raw(" No differences"),
+                ]))
+                .style(Style::default().fg(colors::INFO));
+                f.render_widget(msg, inner);
             }
         }
-
-        y += 1; // Blank line after target
-    }
-
-    // Empty state
-    if results.is_empty() || results.iter().all(|t| t.results.is_empty()) {
-        let empty_line = Line::from(vec![Span::styled(
-            "No resources found to diff",
-            Style::default().fg(colors::GRAY),
-        )]);
-        f.render_widget(
-            Paragraph::new(empty_line),
-            Rect {
-                x: inner.x,
-                y: inner.y,
-                width: inner.width,
-                height: 1,
-            },
-        );
     }
 }

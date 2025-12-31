@@ -47,6 +47,14 @@ pub trait View: Send {
     fn on_metrics_update(&mut self) {
         // Default implementation does nothing
     }
+
+    /// Sets a new path and refreshes the view.
+    ///
+    /// Returns `true` if a redraw is needed.
+    fn set_path(&mut self, _path: String) -> bool {
+        // Default implementation does nothing
+        false
+    }
 }
 
 /// Creates a view by name.

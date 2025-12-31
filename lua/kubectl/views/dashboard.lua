@@ -374,7 +374,7 @@ function M.overview()
 end
 
 --- Open the drift view with the specified path.
----@param path string Path to diff against the cluster
+---@param path string|nil Path to diff against the cluster (nil to prompt for path)
 function M.drift(path)
   local definition = {
     display_name = "drift",
@@ -388,20 +388,7 @@ function M.drift(path)
   builder.buf_nr, builder.win_nr =
     buffers.floating_buffer(definition.ft, definition.title, definition.syntax, builder.win_nr)
 
-  -- Set up folding for inline diffs
-  -- Only create folds for resources that have diff content (next line starts with 4 spaces)
-  -- Diff content lines start with 4 spaces
-  vim.api.nvim_set_option_value("foldmethod", "expr", { win = builder.win_nr })
-  vim.api.nvim_set_option_value(
-    "foldexpr",
-    "getline(v:lnum)=~'^    '?1:(getline(v:lnum)=~'^[✓~✗]'&&getline(v:lnum+1)=~'^    '?'>1':0)",
-    { win = builder.win_nr }
-  )
-  vim.api.nvim_set_option_value("foldlevel", 0, { win = builder.win_nr }) -- Start folded
-  vim.api.nvim_set_option_value("foldminlines", 0, { win = builder.win_nr })
-  vim.api.nvim_set_option_value("foldenable", true, { win = builder.win_nr })
-
-  local captured_path = path
+  local captured_path = path or ""
   vim.schedule(function()
     local win_width = vim.api.nvim_win_get_width(builder.win_nr)
     local win_height = vim.api.nvim_win_get_height(builder.win_nr)
@@ -416,6 +403,9 @@ function M.drift(path)
       return
     end
     ---@cast sess kubectl.DashboardSession
+
+    -- Track current path for the path picker (closure variable, not on userdata)
+    local current_drift_path = captured_path
 
     -- Send initial size immediately
     sess:resize(win_width, win_height)
@@ -432,6 +422,32 @@ function M.drift(path)
     -- Setup keymaps
     setup_keymaps(builder.buf_nr, sess)
 
+    -- Drift-specific: path picker keymap
+    vim.keymap.set("n", "p", function()
+      vim.ui.input({
+        prompt = "Drift path: ",
+        default = current_drift_path,
+        completion = "file",
+      }, function(new_path)
+        if new_path and new_path ~= "" then
+          -- Expand vim shortcuts like %, %:h, ~
+          new_path = vim.fn.expand(new_path)
+          -- Update closure variable
+          current_drift_path = new_path
+          -- Send new path to Rust
+          local path_msg = string.format("\x00PATH:%s\x00", new_path)
+          sess:write(path_msg)
+          -- Poll for updated frame
+          vim.defer_fn(function()
+            local frame = sess:read_frame()
+            if frame then
+              apply_frame(builder.buf_nr, frame)
+            end
+          end, 50)
+        end
+      end)
+    end, { buffer = builder.buf_nr, noremap = true, silent = true })
+
     -- Create autocmd group for cleanup
     local augroup = vim.api.nvim_create_augroup("KubectlDrift_" .. builder.buf_nr, { clear = true })
 
@@ -440,6 +456,24 @@ function M.drift(path)
       group = augroup,
       callback = function()
         push_size()
+      end,
+    })
+
+    -- Sync cursor position on movement to update diff preview
+    vim.api.nvim_create_autocmd("CursorMoved", {
+      group = augroup,
+      buffer = builder.buf_nr,
+      callback = function()
+        local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-indexed
+        local cursor_msg = string.format("\x00CURSOR:%d\x00", cursor_line)
+        sess:write(cursor_msg)
+        -- Poll for updated frame
+        vim.defer_fn(function()
+          local frame = sess:read_frame()
+          if frame then
+            apply_frame(builder.buf_nr, frame)
+          end
+        end, 10)
       end,
     })
 

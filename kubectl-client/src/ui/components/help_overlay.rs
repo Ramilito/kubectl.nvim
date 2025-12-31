@@ -63,11 +63,9 @@ pub fn overview_hints() -> Vec<(&'static str, &'static str)> {
 /// Help hints for Drift view.
 pub fn drift_hints() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("r", "refresh"),
+        ("p", "path"),
         ("f", "filter"),
-        ("za", "fold"),
-        ("zM", "fold all"),
-        ("zR", "open all"),
+        ("r", "refresh"),
         ("q", "quit"),
     ]
 }

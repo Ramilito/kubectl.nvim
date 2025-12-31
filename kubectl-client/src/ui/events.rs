@@ -10,6 +10,8 @@ pub enum ParsedMessage {
     Event(Event),
     /// Cursor line sync from Neovim (0-indexed)
     CursorLine(u16),
+    /// Set path command (for drift view)
+    SetPath(String),
 }
 
 /// Parse bytes that might be a cursor sync message or regular input.
@@ -25,6 +27,17 @@ pub fn parse_message(bytes: &[u8]) -> Option<ParsedMessage> {
             return Some(ParsedMessage::CursorLine(line));
         }
         tracing::debug!("Failed to parse cursor message: {:?}", bytes);
+    }
+
+    // Check for path change message: \x00PATH:<path>\x00
+    if bytes.starts_with(b"\x00PATH:") {
+        let content = &bytes[6..]; // Skip "\x00PATH:"
+        if let Some(end_pos) = content.iter().position(|&b| b == 0x00) {
+            let path = std::str::from_utf8(&content[..end_pos]).ok()?;
+            tracing::debug!("Parsed path: {}", path);
+            return Some(ParsedMessage::SetPath(path.to_string()));
+        }
+        tracing::debug!("Failed to parse path message: {:?}", bytes);
     }
 
     // Otherwise try to parse as regular input
