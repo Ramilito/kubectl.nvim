@@ -18,12 +18,12 @@ local M = BaseResource.extend({
   },
 })
 
--- Override Desc with custom behavior for secrets (uses get_single_async instead of describe_async)
-function M.Desc(name, ns, reload)
+-- Override Yaml with hints for base64 decode
+function M.Yaml(name, ns)
   local def = {
-    resource = M.definition.resource .. "_desc",
+    resource = M.definition.resource .. "_yaml",
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
-    ft = "k8s_secret_desc",
+    ft = "k8s_" .. M.definition.resource .. "_yaml",
     syntax = "yaml",
     cmd = "get_single_async",
     hints = {
@@ -39,7 +39,6 @@ function M.Desc(name, ns, reload)
       name = name,
       output = def.syntax,
     },
-    reload = reload,
   })
 end
 

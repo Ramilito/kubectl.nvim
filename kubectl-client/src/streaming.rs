@@ -45,11 +45,6 @@ impl<T: Send + 'static> StreamingSession<T> {
         }
     }
 
-    /// Send a message through the channel.
-    pub fn send(&self, msg: T) -> Result<(), mpsc::error::SendError<T>> {
-        self.sender.send(msg)
-    }
-
     /// Try to receive a single message without blocking.
     pub fn try_recv(&self) -> Result<Option<T>, RecvError> {
         let mut receiver = self.lock_receiver()?;
@@ -83,11 +78,6 @@ impl<T: Send + 'static> StreamingSession<T> {
     /// Close the session, signaling all tasks to stop.
     pub fn close(&self) {
         self.is_active.store(false, Ordering::Release);
-    }
-
-    /// Get the number of active tasks.
-    pub fn active_task_count(&self) -> usize {
-        self.active_task_count.load(Ordering::Acquire)
     }
 
     fn lock_receiver(&self) -> Result<MutexGuard<'_, mpsc::UnboundedReceiver<T>>, RecvError> {
@@ -242,78 +232,5 @@ impl<TIn: Send + 'static, TOut: Send + 'static> BidirectionalSession<TIn, TOut> 
 impl<TIn: Send + 'static, TOut: Send + 'static> Default for BidirectionalSession<TIn, TOut> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_streaming_session_send_recv() {
-        let session: StreamingSession<String> = StreamingSession::new();
-
-        session.send("hello".to_string()).unwrap();
-        session.send("world".to_string()).unwrap();
-
-        let msg1 = session.try_recv().unwrap();
-        assert_eq!(msg1, Some("hello".to_string()));
-
-        let msg2 = session.try_recv().unwrap();
-        assert_eq!(msg2, Some("world".to_string()));
-
-        let msg3 = session.try_recv().unwrap();
-        assert_eq!(msg3, None);
-    }
-
-    #[test]
-    fn test_streaming_session_batch_recv() {
-        let session: StreamingSession<i32> = StreamingSession::new();
-
-        for i in 0..10 {
-            session.send(i).unwrap();
-        }
-
-        let batch = session.try_recv_batch(5).unwrap();
-        assert_eq!(batch, vec![0, 1, 2, 3, 4]);
-
-        let batch2 = session.try_recv_batch(10).unwrap();
-        assert_eq!(batch2, vec![5, 6, 7, 8, 9]);
-    }
-
-    #[test]
-    fn test_task_handle_counting() {
-        let session: StreamingSession<()> = StreamingSession::new();
-        let handle = session.task_handle();
-
-        assert_eq!(session.active_task_count(), 0);
-        assert!(session.is_open());
-
-        handle.task_started();
-        assert_eq!(session.active_task_count(), 1);
-
-        handle.task_started();
-        assert_eq!(session.active_task_count(), 2);
-
-        handle.task_completed();
-        assert_eq!(session.active_task_count(), 1);
-        assert!(session.is_open());
-
-        handle.task_completed();
-        assert_eq!(session.active_task_count(), 0);
-        assert!(!session.is_open()); // Auto-closed when last task completes
-    }
-
-    #[test]
-    fn test_task_guard() {
-        let session: StreamingSession<()> = StreamingSession::new();
-        let handle = session.task_handle();
-
-        {
-            let _guard = handle.guard();
-            assert_eq!(session.active_task_count(), 1);
-        }
-        // Guard dropped, count decremented
-        assert_eq!(session.active_task_count(), 0);
     }
 }

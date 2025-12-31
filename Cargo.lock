@@ -1569,6 +1569,7 @@ dependencies = [
  "serde",
  "serde_json_path",
  "serde_yaml",
+ "sha2",
  "strip-ansi-escapes",
  "tokio",
  "tokio-util",

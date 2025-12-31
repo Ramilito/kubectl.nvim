@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
 local commands = require("kubectl.actions.commands")
+local describe_session = require("kubectl.views.describe.session")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -99,28 +100,10 @@ function M.Draw(cancellationToken)
   end)
 end
 
-function M.Desc(name, ns, reload)
-  local def = {
-    resource = M.definition.resource .. " | " .. name,
-    ft = "k8s_desc",
-    syntax = "yaml",
-    cmd = "describe_async",
-  }
-
-  if ns then
-    def.resource = def.resource .. " | " .. ns
-  end
-
-  local builder = manager.get_or_create(def.resource)
-  builder.view_float(def, {
-    args = {
-      context = state.context["current-context"],
-      gvk = { k = M.definition.plural, g = M.definition.gvk.g, v = M.definition.gvk.v },
-      namespace = ns,
-      name = name,
-    },
-    reload = reload,
-  })
+function M.Desc(name, ns, _)
+  -- Use plural for the gvk.k as fallback resources need it
+  local gvk = { k = M.definition.plural, g = M.definition.gvk.g, v = M.definition.gvk.v }
+  describe_session.view(M.definition.resource, name, ns, gvk)
 end
 
 --- Get current seletion for view

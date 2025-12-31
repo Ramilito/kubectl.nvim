@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	cfgCache sync.Map
+	cfgCache    sync.Map
 	mapperCache sync.Map
-	descCache sync.Map 
+	descCache   sync.Map
 )
 
 func gvrKey(ctx string, gvr schema.GroupVersionResource) string {
@@ -35,9 +35,9 @@ func getRestConfig(ctx string) (*rest.Config, error) {
 		return v.(*rest.Config), nil
 	}
 
-	loadingRules    := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides       := &clientcmd.ConfigOverrides{CurrentContext: ctx}
-	clientConfig    := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	overrides := &clientcmd.ConfigOverrides{CurrentContext: ctx}
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
 	cfg, err := clientConfig.ClientConfig()
 	if err != nil {
 		return nil, err
@@ -95,13 +95,12 @@ func getDescriber(flags *genericclioptions.ConfigFlags, mapping *meta.RESTMappin
 func DescribeResource(
 	cGroup, cVersion, cResource, cNamespace, cName, cContext *C.char,
 ) *C.char {
-	/* -------- 1. Pull params from C heap ------------------------------ */
-	group     := C.GoString(cGroup)
-	version   := C.GoString(cVersion)
-	resource  := C.GoString(cResource)
+	group := C.GoString(cGroup)
+	version := C.GoString(cVersion)
+	resource := C.GoString(cResource)
 	namespace := C.GoString(cNamespace)
-	name      := C.GoString(cName)
-	ctxName   := C.GoString(cContext)
+	name := C.GoString(cName)
+	ctxName := C.GoString(cContext)
 
 	cfg, err := getRestConfig(ctxName)
 	if err != nil {
@@ -110,10 +109,10 @@ func DescribeResource(
 
 	flags := genericclioptions.NewConfigFlags(false)
 	flags.WrapConfigFn = func(*rest.Config) *rest.Config { return cfg }
-	flags.Namespace    = &namespace
-	flags.Context      = &ctxName
+	flags.Namespace = &namespace
+	flags.Context = &ctxName
 
-	gvr   := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
+	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
 	rm, err := getMapper(cfg, ctxName, gvr)
 	var mapping *meta.RESTMapping
 	if err == nil {

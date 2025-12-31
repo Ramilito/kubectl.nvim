@@ -99,6 +99,19 @@ function client.log_session(config)
   return client.implementation.log_session(config)
 end
 
+--- @class kubectl.DescribeConfig
+--- @field name string Resource name
+--- @field namespace? string Namespace
+--- @field context string Kubernetes context
+--- @field gvk table {k, g, v}
+
+--- Create a describe streaming session
+--- @param config kubectl.DescribeConfig
+--- @return kubectl.DescribeSession
+function client.describe_session(config)
+  return client.implementation.describe_session(config)
+end
+
 --- @param view_name string
 --- @return kubectl.DashboardSession
 function client.start_buffer_dashboard(view_name)

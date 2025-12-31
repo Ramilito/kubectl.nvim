@@ -1,5 +1,5 @@
+local describe_session = require("kubectl.views.describe.session")
 local manager = require("kubectl.resource_manager")
-local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
 local BaseResource = {}
@@ -55,26 +55,34 @@ function BaseResource.extend(definition, options)
   --- Describe a specific resource
   ---@param name string Resource name
   ---@param ns string|nil Namespace (nil for cluster-scoped)
-  ---@param reload boolean|nil Whether to reload
-  function M.Desc(name, ns, reload)
+  ---@param _ boolean|nil Whether to reload (deprecated, kept for API compatibility)
+  function M.Desc(name, ns, _)
+    local gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v }
+    local namespace = M._options.is_cluster_scoped and nil or ns
+    describe_session.view(M.definition.resource, name, namespace, gvk)
+  end
+
+  --- View YAML for a specific resource
+  ---@param name string Resource name
+  ---@param ns string|nil Namespace (nil for cluster-scoped)
+  function M.Yaml(name, ns)
     local display_ns = ns and (" | " .. ns) or ""
     local def = {
-      resource = M.definition.resource .. "_desc",
+      resource = M.definition.resource .. "_yaml",
       display_name = M.definition.resource .. " | " .. name .. display_ns,
-      ft = "k8s_desc",
+      ft = "k8s_" .. M.definition.resource .. "_yaml",
       syntax = "yaml",
-      cmd = "describe_async",
+      cmd = "get_single_async",
     }
 
     local builder = manager.get_or_create(def.resource)
     builder.view_float(def, {
       args = {
-        context = state.context["current-context"],
-        gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v },
+        gvk = M.definition.gvk,
         namespace = M._options.is_cluster_scoped and nil or ns,
         name = name,
+        output = "yaml",
       },
-      reload = reload,
     })
   end
 

@@ -1,6 +1,5 @@
 local BaseResource = require("kubectl.resources.base_resource")
-local manager = require("kubectl.resource_manager")
-local state = require("kubectl.state")
+local describe_session = require("kubectl.views.describe.session")
 
 local resource = "crds"
 
@@ -26,25 +25,9 @@ local M = BaseResource.extend({
 M.selection = {}
 
 -- Override Desc to use plural for the gvk.k
-function M.Desc(name, _, reload)
-  local def = {
-    resource = M.definition.resource .. "_desc",
-    display_name = M.definition.resource .. " | " .. name,
-    ft = "k8s_desc",
-    syntax = "yaml",
-    cmd = "describe_async",
-  }
-
-  local builder = manager.get_or_create(def.resource)
-  builder.view_float(def, {
-    args = {
-      context = state.context["current-context"],
-      gvk = { k = M.definition.plural, g = M.definition.gvk.g, v = M.definition.gvk.v },
-      namespace = nil,
-      name = name,
-    },
-    reload = reload,
-  })
+function M.Desc(name, _, _)
+  local gvk = { k = M.definition.plural, g = M.definition.gvk.g, v = M.definition.gvk.v }
+  describe_session.view(M.definition.resource, name, nil, gvk)
 end
 
 return M
