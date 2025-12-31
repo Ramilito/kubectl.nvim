@@ -21,7 +21,7 @@ extern "C" {
     ) -> *mut c_char;
 }
 
-const POLL_INTERVAL: Duration = Duration::from_secs(5);
+const POLL_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_RETRY_INTERVAL: Duration = Duration::from_secs(120);
 
 fn hash_content(s: &str) -> String {
