@@ -7,8 +7,11 @@ members = [
 resolver = "2"
 
 [profile.release]
-opt-level = "z"
+opt-level = "s"
 lto = "fat"
 strip = "symbols"
 codegen-units = 1
 panic = "unwind"
+overflow-checks = false
+debug = false
+incremental = false
