@@ -219,15 +219,13 @@ local function setup_keymaps(buf, sess)
     send_key("K")
   end, opts)
 
-  -- Drift: expand diff (needs cursor sync)
-  vim.keymap.set("n", "<CR>", function()
-    send_cursor()
-    send_key("<CR>")
-  end, opts)
-
-  -- Drift: refresh
+  -- Drift/general: refresh and filter
   vim.keymap.set("n", "r", function()
     send_key("r")
+  end, opts)
+
+  vim.keymap.set("n", "f", function()
+    send_key("f")
   end, opts)
 
   -- Quit with q
@@ -389,6 +387,19 @@ function M.drift(path)
   local builder = manager.get_or_create(definition.resource)
   builder.buf_nr, builder.win_nr =
     buffers.floating_buffer(definition.ft, definition.title, definition.syntax, builder.win_nr)
+
+  -- Set up folding for inline diffs
+  -- Only create folds for resources that have diff content (next line starts with 4 spaces)
+  -- Diff content lines start with 4 spaces
+  vim.api.nvim_set_option_value("foldmethod", "expr", { win = builder.win_nr })
+  vim.api.nvim_set_option_value(
+    "foldexpr",
+    "getline(v:lnum)=~'^    '?1:(getline(v:lnum)=~'^[✓~✗]'&&getline(v:lnum+1)=~'^    '?'>1':0)",
+    { win = builder.win_nr }
+  )
+  vim.api.nvim_set_option_value("foldlevel", 0, { win = builder.win_nr }) -- Start folded
+  vim.api.nvim_set_option_value("foldminlines", 0, { win = builder.win_nr })
+  vim.api.nvim_set_option_value("foldenable", true, { win = builder.win_nr })
 
   local captured_path = path
   vim.schedule(function()
