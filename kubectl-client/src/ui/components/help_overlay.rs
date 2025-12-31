@@ -59,3 +59,8 @@ pub fn top_pods_hints() -> Vec<(&'static str, &'static str)> {
 pub fn overview_hints() -> Vec<(&'static str, &'static str)> {
     vec![("q", "quit")]
 }
+
+/// Help hints for Drift view.
+pub fn drift_hints() -> Vec<(&'static str, &'static str)> {
+    vec![("r", "refresh"), ("Enter", "expand"), ("q", "quit")]
+}

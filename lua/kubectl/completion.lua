@@ -26,6 +26,7 @@ local top_level_commands = {
   "delete",
   "describe",
   "diff",
+  "drift",
   "drain",
   "edit",
   "events",

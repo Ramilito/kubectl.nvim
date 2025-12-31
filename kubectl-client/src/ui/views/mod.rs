@@ -2,12 +2,14 @@
 //!
 //! Each view is a self-contained unit with its own state and rendering logic.
 
+mod drift;
 mod overview;
 mod top;
 
 use crossterm::event::Event;
 use ratatui::{layout::Rect, Frame};
 
+pub use drift::DriftView;
 pub use overview::OverviewView;
 pub use top::TopView;
 
@@ -50,12 +52,14 @@ pub trait View: Send {
 /// Creates a view by name.
 ///
 /// # Arguments
-/// * `name` - View name: "top", "top_ui", "overview", or "overview_ui"
+/// * `name` - View name: "top", "top_ui", "overview", "overview_ui", or "drift"
+/// * `args` - Optional arguments for the view (e.g., path for drift view)
 ///
 /// # Returns
 /// Boxed view instance. Defaults to OverviewView for unknown names.
-pub fn make_view(name: &str) -> Box<dyn View> {
+pub fn make_view(name: &str, args: Option<&str>) -> Box<dyn View> {
     match name.to_ascii_lowercase().as_str() {
+        "drift" => Box::new(DriftView::new(args.unwrap_or("").to_string())),
         "top" | "top_ui" => Box::new(TopView::default()),
         "overview" | "overview_ui" => Box::new(OverviewView::default()),
         _ => Box::new(OverviewView::default()),

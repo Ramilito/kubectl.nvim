@@ -38,8 +38,9 @@ impl BufferSession {
     /// Creates a new buffer-based UI session with the specified view.
     ///
     /// # Arguments
-    /// * `view_name` - Name of the view to display ("top" or "overview")
-    pub fn new(view_name: String) -> LuaResult<Self> {
+    /// * `view_name` - Name of the view to display ("top", "overview", or "drift")
+    /// * `view_args` - Optional arguments for the view (e.g., path for drift view)
+    pub fn new(view_name: String, view_args: Option<String>) -> LuaResult<Self> {
         let cols = Arc::new(AtomicU16::new(80));
         let rows = Arc::new(AtomicU16::new(24));
 
@@ -59,6 +60,7 @@ impl BufferSession {
 
         rt.spawn(run_buffer_ui(
             view_name,
+            view_args,
             input_receiver,
             output_sender,
             task_handle,
@@ -187,6 +189,7 @@ fn maybe_resize(
 /// Main UI event loop for buffer-based rendering.
 async fn run_buffer_ui(
     view_name: String,
+    view_args: Option<String>,
     mut input_receiver: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
     output_sender: tokio::sync::mpsc::UnboundedSender<RenderFrame>,
     task_handle: crate::streaming::TaskHandle,
@@ -198,7 +201,7 @@ async fn run_buffer_ui(
 
     time::sleep(Duration::from_millis(50)).await;
 
-    let mut view = make_view(&view_name);
+    let mut view = make_view(&view_name, view_args.as_deref());
     let initial_w = cols.load(Ordering::Acquire);
     let initial_h = view
         .content_height()

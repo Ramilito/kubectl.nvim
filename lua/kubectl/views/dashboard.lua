@@ -219,6 +219,17 @@ local function setup_keymaps(buf, sess)
     send_key("K")
   end, opts)
 
+  -- Drift: expand diff (needs cursor sync)
+  vim.keymap.set("n", "<CR>", function()
+    send_cursor()
+    send_key("<CR>")
+  end, opts)
+
+  -- Drift: refresh
+  vim.keymap.set("n", "r", function()
+    send_key("r")
+  end, opts)
+
   -- Quit with q
   vim.keymap.set("n", "q", function()
     sess:write("q")
@@ -260,7 +271,7 @@ function M.open(view_name, title)
 
     -- Start the buffer-based dashboard session
     local client = require("kubectl.client")
-    local ok, sess = pcall(client.start_buffer_dashboard, view_name)
+    local ok, sess = pcall(client.start_buffer_dashboard, view_name, nil)
 
     if not ok then
       vim.notify("Dashboard start failed: " .. tostring(sess), vim.log.levels.ERROR)
@@ -362,6 +373,121 @@ end
 
 function M.overview()
   return M.open("overview", "K8s Overview")
+end
+
+--- Open the drift view with the specified path.
+---@param path string Path to diff against the cluster
+function M.drift(path)
+  local definition = {
+    display_name = "drift",
+    resource = "dashboard",
+    ft = "k8s_drift",
+    syntax = "",
+    title = "Drift",
+  }
+
+  local builder = manager.get_or_create(definition.resource)
+  builder.buf_nr, builder.win_nr =
+    buffers.floating_buffer(definition.ft, definition.title, definition.syntax, builder.win_nr)
+
+  local captured_path = path
+  vim.schedule(function()
+    local win_width = vim.api.nvim_win_get_width(builder.win_nr)
+    local win_height = vim.api.nvim_win_get_height(builder.win_nr)
+
+    -- Start the buffer-based dashboard session with path argument
+    local client = require("kubectl.client")
+    local ok, sess = pcall(client.start_buffer_dashboard, "drift", captured_path)
+
+    if not ok then
+      vim.notify("Drift view start failed: " .. tostring(sess), vim.log.levels.ERROR)
+      vim.api.nvim_buf_delete(builder.buf_nr, { force = true })
+      return
+    end
+    ---@cast sess kubectl.DashboardSession
+
+    -- Send initial size immediately
+    sess:resize(win_width, win_height)
+
+    -- Helper to push size on resize
+    local function push_size()
+      if vim.api.nvim_win_is_valid(builder.win_nr) then
+        local w = vim.api.nvim_win_get_width(builder.win_nr)
+        local h = vim.api.nvim_win_get_height(builder.win_nr)
+        sess:resize(w, h)
+      end
+    end
+
+    -- Setup keymaps
+    setup_keymaps(builder.buf_nr, sess)
+
+    -- Create autocmd group for cleanup
+    local augroup = vim.api.nvim_create_augroup("KubectlDrift_" .. builder.buf_nr, { clear = true })
+
+    -- Handle resize
+    vim.api.nvim_create_autocmd("WinResized", {
+      group = augroup,
+      callback = function()
+        push_size()
+      end,
+    })
+
+    -- Cleanup function
+    local function cleanup()
+      pcall(vim.api.nvim_del_augroup_by_id, augroup)
+      if vim.api.nvim_buf_is_valid(builder.buf_nr) then
+        vim.api.nvim_buf_delete(builder.buf_nr, { force = true })
+      end
+    end
+
+    -- Poll for frames
+    local timer = vim.uv.new_timer()
+    timer:start(
+      0,
+      100,
+      vim.schedule_wrap(function()
+        local frame
+        repeat
+          local new_frame = sess:read_frame()
+          if new_frame then
+            frame = new_frame
+          end
+        until not new_frame
+
+        if frame then
+          apply_frame(builder.buf_nr, frame)
+        end
+
+        if not sess:open() then
+          timer:stop()
+          if not timer:is_closing() then
+            timer:close()
+          end
+          if vim.api.nvim_win_is_valid(builder.win_nr) then
+            vim.api.nvim_win_close(builder.win_nr, true)
+          end
+          cleanup()
+        end
+      end)
+    )
+
+    -- Handle manual window close
+    vim.api.nvim_create_autocmd("WinClosed", {
+      group = augroup,
+      pattern = tostring(builder.win_nr),
+      once = true,
+      callback = function()
+        sess:close()
+        timer:stop()
+        if not timer:is_closing() then
+          timer:close()
+        end
+        cleanup()
+      end,
+    })
+  end)
+
+  return builder.buf_nr, builder.win_nr
 end
 
 return M
