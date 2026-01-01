@@ -237,7 +237,7 @@ local function open_dir_picker(cwd, on_select)
     table.insert(lines, " " .. current_dir)
     table.insert(marks, { row = 0, start_col = 0, end_col = #lines[1], hl_group = hl.symbols.header })
 
-    table.insert(lines, " <CR>:open  s:select  <BS>:up  q:cancel")
+    table.insert(lines, " <CR>:open dir/select file  <C-y>:select dir  <BS>:up  q:cancel")
     table.insert(marks, { row = 1, start_col = 0, end_col = #lines[2], hl_group = hl.symbols.gray })
 
     -- Parent directory
@@ -327,7 +327,7 @@ local function open_dir_picker(cwd, on_select)
   -- Map keys to Plug targets
   local map_opts = { noremap = true, silent = true }
   vim.api.nvim_buf_set_keymap(picker_buf, "n", "<CR>", "<Plug>(kubectl.dir_open)", map_opts)
-  vim.api.nvim_buf_set_keymap(picker_buf, "n", "s", "<Plug>(kubectl.dir_select)", map_opts)
+  vim.api.nvim_buf_set_keymap(picker_buf, "n", "<C-y>", "<Plug>(kubectl.dir_select)", map_opts)
   vim.api.nvim_buf_set_keymap(picker_buf, "n", "<BS>", "<Plug>(kubectl.dir_up)", map_opts)
   vim.api.nvim_buf_set_keymap(picker_buf, "n", "q", "<Plug>(kubectl.dir_cancel)", map_opts)
   vim.api.nvim_buf_set_keymap(picker_buf, "n", "<Esc>", "<Plug>(kubectl.dir_cancel)", map_opts)
