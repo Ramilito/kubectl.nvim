@@ -1634,7 +1634,9 @@ dependencies = [
 
 [[package]]
 name = "kubediff"
-version = "1.1.0"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41ae790ba6d2ff56e8c79d60a8b1b82a095e43db7447832e3b278a8ab47aec17"
 dependencies = [
  "anyhow",
  "dirs",
