@@ -26,7 +26,6 @@ local top_level_commands = {
   "delete",
   "describe",
   "diff",
-  "drift",
   "drain",
   "edit",
   "events",
@@ -54,30 +53,6 @@ local top_level_commands = {
   "wait",
 }
 
---- Get file/directory completions for a partial path
---- @param partial string The partial path to complete
---- @return string[] completions List of matching paths
-local function get_path_completions(partial)
-  -- Expand ~ to home directory for completion
-  local expanded = vim.fn.expand(partial)
-
-  -- If partial is empty, complete from cwd
-  if partial == "" then
-    expanded = "./"
-  end
-
-  -- Get file completions
-  local completions = vim.fn.getcompletion(expanded, "file")
-
-  -- Also add some useful shortcuts at the start
-  if partial == "" then
-    table.insert(completions, 1, "%") -- Current file
-    table.insert(completions, 2, "%:h") -- Current file's directory
-  end
-
-  return completions
-end
-
 --- User command completion
 --- @param _ any Unused parameter
 --- @param cmd string The command to complete
@@ -87,46 +62,17 @@ function M.user_command_completion(_, cmd)
   for part in string.gmatch(cmd, "%S+") do
     table.insert(parts, part)
   end
-
-  -- Check if we're still typing the command (ends with space = ready for next arg)
-  local ends_with_space = cmd:sub(-1) == " "
-
-  if #parts == 1 and not ends_with_space then
+  if #parts == 1 then
     return top_level_commands
-  elseif #parts == 1 and ends_with_space then
-    -- Just typed "Kubectl ", show subcommands
-    return top_level_commands
-  elseif parts[2] == "get" then
-    if #parts == 2 and ends_with_space then
-      local cache = require("kubectl.cache")
-      local data = {}
-      for _, res in pairs(cache.cached_api_resources.values) do
-        table.insert(data, res.name)
-      end
-      return data
-    elseif #parts == 3 and not ends_with_space then
-      -- Filtering resources
-      local cache = require("kubectl.cache")
-      local data = {}
-      for _, res in pairs(cache.cached_api_resources.values) do
-        table.insert(data, res.name)
-      end
-      return data
+  elseif #parts == 2 and parts[2] == "get" then
+    local cache = require("kubectl.cache")
+    local data = {}
+    for _, res in pairs(cache.cached_api_resources.values) do
+      table.insert(data, res.name)
     end
-  elseif parts[2] == "top" then
-    if #parts == 2 then
-      return { "pods", "nodes" }
-    end
-  elseif parts[2] == "drift" or parts[2] == "diff" then
-    -- Path completion for drift/diff commands
-    local partial = parts[3] or ""
-    if not ends_with_space and #parts == 3 then
-      -- User is typing a path, complete it
-      return get_path_completions(partial)
-    elseif ends_with_space and #parts == 2 then
-      -- Just typed "Kubectl drift ", show path completions
-      return get_path_completions("")
-    end
+    return data
+  elseif #parts == 2 and parts[2] == "top" then
+    return { "pods", "nodes" }
   end
 end
 

@@ -136,12 +136,6 @@ function M.setup(options)
       completion.diff(opts.fargs[2])
     elseif action == "apply" then
       completion.apply()
-    elseif action == "drift" then
-      local path = opts.fargs[2]
-      if path then
-        path = vim.fn.expand(path)
-      end
-      require("kubectl.views.drift").open(path)
     elseif action == "top" then
       local top_view
       if #opts.fargs == 2 then
