@@ -1,6 +1,9 @@
 --- Native Neovim drift view - no ratatui, pure Lua rendering.
 --- Compares local manifests against deployed cluster state.
 
+local buffers = require("kubectl.actions.buffers")
+local hl = require("kubectl.actions.highlight")
+
 local M = {}
 
 -- Namespace for extmarks
@@ -265,19 +268,137 @@ local function toggle_filter()
   update_diff_preview()
 end
 
---- Prompt for a new path.
+--- Simple directory picker using existing helpers.
+---@param cwd string
+---@param on_select fun(path: string|nil)
+local function open_dir_picker(cwd, on_select)
+  local current_dir = cwd
+  local entries = {}
+  local picker_buf, picker_win
+
+  local function render()
+    entries = {}
+    local lines = {}
+    local marks = {}
+
+    -- Header with current path and help
+    table.insert(lines, " " .. current_dir)
+    table.insert(marks, { row = 0, start_col = 0, end_col = #lines[1], hl_group = hl.symbols.header })
+
+    table.insert(lines, " <CR>:open  s:select  <BS>:up  q:cancel")
+    table.insert(marks, { row = 1, start_col = 0, end_col = #lines[2], hl_group = hl.symbols.gray })
+
+    -- Parent directory
+    table.insert(entries, { name = "..", path = vim.fn.fnamemodify(current_dir, ":h"), is_dir = true })
+    table.insert(lines, "  ../")
+    table.insert(marks, { row = 2, start_col = 0, end_col = #lines[3], hl_group = hl.symbols.pending })
+
+    -- List directory contents (directories first, then files)
+    local items = vim.fn.readdir(current_dir)
+    table.sort(items, function(a, b)
+      local a_is_dir = vim.fn.isdirectory(current_dir .. "/" .. a) == 1
+      local b_is_dir = vim.fn.isdirectory(current_dir .. "/" .. b) == 1
+      if a_is_dir ~= b_is_dir then
+        return a_is_dir
+      end
+      return a < b
+    end)
+
+    for _, name in ipairs(items) do
+      if name:sub(1, 1) ~= "." then
+        local full_path = current_dir .. "/" .. name
+        local is_dir = vim.fn.isdirectory(full_path) == 1
+        table.insert(entries, { name = name, path = full_path, is_dir = is_dir })
+        local display = is_dir and ("  " .. name .. "/") or ("  " .. name)
+        table.insert(lines, display)
+        table.insert(marks, {
+          row = #lines - 1,
+          start_col = 0,
+          end_col = #display,
+          hl_group = is_dir and hl.symbols.info or hl.symbols.gray,
+        })
+      end
+    end
+
+    buffers.set_content(picker_buf, { content = lines, marks = marks })
+    buffers.fit_to_content(picker_buf, picker_win, 2)
+
+    -- Position cursor on first entry (after header)
+    pcall(vim.api.nvim_win_set_cursor, picker_win, { 3, 0 })
+  end
+
+  local function get_selected_entry()
+    local cursor_line = vim.api.nvim_win_get_cursor(picker_win)[1]
+    local entry_idx = cursor_line - 2 -- Subtract header lines
+    return entries[entry_idx]
+  end
+
+  local function close_picker()
+    if vim.api.nvim_win_is_valid(picker_win) then
+      vim.api.nvim_win_close(picker_win, true)
+    end
+  end
+
+  -- Create buffer and window
+  picker_buf, picker_win = buffers.floating_dynamic_buffer("k8s_dir_picker", " Select Directory ", nil, {})
+
+  local opts = { buffer = picker_buf, noremap = true, silent = true }
+
+  -- Enter: navigate into directory or select file
+  vim.keymap.set("n", "<CR>", function()
+    local entry = get_selected_entry()
+    if not entry then
+      return
+    end
+    if entry.is_dir then
+      current_dir = entry.path
+      render()
+    else
+      close_picker()
+      on_select(entry.path)
+    end
+  end, opts)
+
+  -- Select current directory
+  vim.keymap.set("n", "s", function()
+    close_picker()
+    on_select(current_dir)
+  end, opts)
+
+  -- Backspace: go up
+  vim.keymap.set("n", "<BS>", function()
+    current_dir = vim.fn.fnamemodify(current_dir, ":h")
+    render()
+  end, opts)
+
+  -- Cancel
+  vim.keymap.set("n", "q", function()
+    close_picker()
+    on_select(nil)
+  end, opts)
+  vim.keymap.set("n", "<Esc>", function()
+    close_picker()
+    on_select(nil)
+  end, opts)
+
+  render()
+end
+
+--- Prompt for a directory path.
 local function pick_path()
   if not state then
     return
   end
 
-  vim.ui.input({
-    prompt = "Drift path: ",
-    default = state.path,
-    completion = "file",
-  }, function(new_path)
-    if new_path and new_path ~= "" then
-      state.path = vim.fn.expand(new_path)
+  local start_dir = state.path ~= "" and state.path or vim.fn.getcwd()
+  local original_win = state.list_win
+
+  open_dir_picker(start_dir, function(selected)
+    if vim.api.nvim_win_is_valid(original_win) then
+      vim.api.nvim_set_current_win(original_win)
+    end
+    if selected then
+      state.path = selected
       refresh()
     end
   end)
