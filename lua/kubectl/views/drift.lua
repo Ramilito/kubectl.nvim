@@ -36,7 +36,6 @@ local function get_diff_results(path)
   end
 
   local client = require("kubectl.client")
-  -- Call kubediff via Rust and get results as Lua table
   local ok, results = pcall(client.kubediff, path)
   if not ok then
     vim.notify("kubediff failed: " .. tostring(results), vim.log.levels.ERROR)

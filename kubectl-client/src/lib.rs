@@ -471,7 +471,13 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set(
         "kubediff",
         lua.create_function(|lua, path: String| {
-            let result = kubediff::Process::process_target(&path);
+            let result = block_on(async {
+                let client = kubediff::KubeClient::new()
+                    .await
+                    .map_err(|e| LuaError::RuntimeError(e.to_string()))?;
+                Ok::<_, LuaError>(kubediff::Process::process_target(&client, &path).await)
+            })?;
+
             let target_table = lua.create_table()?;
 
             let results_array = lua.create_table()?;
@@ -479,10 +485,10 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
                 let entry = lua.create_table()?;
                 entry.set("kind", diff_result.kind.as_str())?;
                 entry.set("resource_name", diff_result.resource_name.as_str())?;
-                if let Some(ref diff) = diff_result.diff {
+                if let Some(ref diff) = &diff_result.diff {
                     entry.set("diff", diff.as_str())?;
                 }
-                if let Some(ref err) = diff_result.error {
+                if let Some(ref err) = &diff_result.error {
                     entry.set("error", err.as_str())?;
                 }
                 results_array.set(i + 1, entry)?;
