@@ -34,7 +34,7 @@
 --- @field statefulset_set_images fun(name: string, ns: string, image_spec: {} )
 --- @field start_dashboard fun(view_name: string)
 --- @field start_buffer_dashboard fun(view_name: string): kubectl.DashboardSession
---- @field kubediff fun(path: string): table[]
+--- @field get_drift fun(path: string, hide_unchanged?: boolean): kubectl.DriftResult
 --- @field create_job_from_cronjob fun(j_name: string, ns: string, cj_name: string, dry_run: boolean )
 --- @field suspend_cronjob fun(cj_name: string, ns: string, suspend: boolean)
 --- @field uncordon_node fun(name: string)
@@ -51,3 +51,16 @@
 --- @field json string
 --- @field start_idx integer
 --- @field end_idx integer
+
+--- @class kubectl.DriftResult
+--- @field entries kubectl.DriftEntry[]
+--- @field counts {changed: integer, unchanged: integer, errors: integer}
+--- @field build_error string|nil
+
+--- @class kubectl.DriftEntry
+--- @field kind string
+--- @field name string
+--- @field status "changed"|"unchanged"|"error"
+--- @field diff string|nil
+--- @field error string|nil
+--- @field diff_lines integer

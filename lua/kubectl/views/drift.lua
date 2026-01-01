@@ -16,8 +16,8 @@ local ICON_ERROR = "✗"
 
 ---@class DriftState
 ---@field path string Current path
----@field results table[] Diff results from kubediff
 ---@field entries table[] Flattened resource entries
+---@field counts table Status counts {changed, unchanged, errors}
 ---@field hide_unchanged boolean Filter flag
 ---@field list_buf number Resource list buffer
 ---@field list_win number Resource list window
@@ -27,76 +27,27 @@ local ICON_ERROR = "✗"
 ---@type DriftState|nil
 local state = nil
 
---- Get diff results from Rust/kubediff.
+--- Get drift results from Rust.
 ---@param path string
----@return table[]
-local function get_diff_results(path)
+---@param hide_unchanged boolean
+---@return table {entries, counts, build_error}
+local function get_drift_results(path, hide_unchanged)
   if path == "" then
-    return {}
+    return { entries = {}, counts = { changed = 0, unchanged = 0, errors = 0 } }
   end
 
   local client = require("kubectl.client")
-  local ok, results = pcall(client.kubediff, path)
+  local ok, result = pcall(client.get_drift, path, hide_unchanged)
   if not ok then
-    vim.notify("kubediff failed: " .. tostring(results), vim.log.levels.ERROR)
-    return {}
-  end
-  return results or {}
-end
-
---- Build flattened entry list from results.
----@param results table[]
----@param hide_unchanged boolean
----@return table[]
-local function build_entries(results, hide_unchanged)
-  local entries = {}
-
-  for _, target in ipairs(results) do
-    for _, result in ipairs(target.results or {}) do
-      local status
-      if result.error then
-        status = "error"
-      elseif result.diff then
-        status = "changed"
-      else
-        status = "unchanged"
-      end
-
-      if not (hide_unchanged and status == "unchanged") then
-        table.insert(entries, {
-          kind = result.kind or "Unknown",
-          name = result.resource_name or "unknown",
-          status = status,
-          diff = result.diff,
-          error = result.error,
-          diff_lines = result.diff and #vim.split(result.diff, "\n") or 0,
-        })
-      end
-    end
+    vim.notify("get_drift failed: " .. tostring(result), vim.log.levels.ERROR)
+    return { entries = {}, counts = { changed = 0, unchanged = 0, errors = 0 } }
   end
 
-  return entries
-end
-
---- Count resources by status.
----@param results table[]
----@return table
-local function count_statuses(results)
-  local counts = { changed = 0, unchanged = 0, errors = 0 }
-
-  for _, target in ipairs(results) do
-    for _, result in ipairs(target.results or {}) do
-      if result.error then
-        counts.errors = counts.errors + 1
-      elseif result.diff then
-        counts.changed = counts.changed + 1
-      else
-        counts.unchanged = counts.unchanged + 1
-      end
-    end
+  if result.build_error then
+    vim.notify("Build error: " .. result.build_error, vim.log.levels.WARN)
   end
 
-  return counts
+  return result
 end
 
 --- Render the resource list buffer.
@@ -245,11 +196,11 @@ local function refresh()
     return
   end
 
-  state.results = get_diff_results(state.path)
-  state.entries = build_entries(state.results, state.hide_unchanged)
+  local result = get_drift_results(state.path, state.hide_unchanged)
+  state.entries = result.entries
+  state.counts = result.counts
 
-  local counts = count_statuses(state.results)
-  render_list(state.list_buf, state.entries, state.path, state.hide_unchanged, counts)
+  render_list(state.list_buf, state.entries, state.path, state.hide_unchanged, state.counts)
   update_diff_preview()
 end
 
@@ -260,10 +211,12 @@ local function toggle_filter()
   end
 
   state.hide_unchanged = not state.hide_unchanged
-  state.entries = build_entries(state.results, state.hide_unchanged)
 
-  local counts = count_statuses(state.results)
-  render_list(state.list_buf, state.entries, state.path, state.hide_unchanged, counts)
+  local result = get_drift_results(state.path, state.hide_unchanged)
+  state.entries = result.entries
+  state.counts = result.counts
+
+  render_list(state.list_buf, state.entries, state.path, state.hide_unchanged, state.counts)
   update_diff_preview()
 end
 
@@ -489,8 +442,8 @@ function M.open(path)
   -- Initialize state
   state = {
     path = path or "",
-    results = {},
     entries = {},
+    counts = { changed = 0, unchanged = 0, errors = 0 },
     hide_unchanged = false,
     list_buf = list_buf,
     list_win = list_win,
