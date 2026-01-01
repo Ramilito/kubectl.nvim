@@ -40,4 +40,4 @@ ctor = "0.4.2"
 uuid = { version = "1.17.0", features = ["v4"] }
 strip-ansi-escapes = "0.2"
 sha2 = "0.10"
-kubediff = { path = "../../kubediff" }
+kubediff = { path = "../../kubediff", default-features = false}
