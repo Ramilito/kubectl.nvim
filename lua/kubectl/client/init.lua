@@ -113,10 +113,9 @@ function client.describe_session(config)
 end
 
 --- @param view_name string
---- @param view_args? string Optional arguments (e.g., path for drift view)
 --- @return kubectl.DashboardSession
-function client.start_buffer_dashboard(view_name, view_args)
-  return client.implementation.start_buffer_dashboard(view_name, view_args)
+function client.start_buffer_dashboard(view_name)
+  return client.implementation.start_buffer_dashboard(view_name)
 end
 
 function client.get_config()

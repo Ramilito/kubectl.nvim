@@ -54,7 +54,7 @@ pub trait View: Send {
 ///
 /// # Returns
 /// Boxed view instance. Defaults to OverviewView for unknown names.
-pub fn make_view(name: &str, _args: Option<&str>) -> Box<dyn View> {
+pub fn make_view(name: &str) -> Box<dyn View> {
     match name.to_ascii_lowercase().as_str() {
         "top" | "top_ui" => Box::new(TopView::default()),
         "overview" | "overview_ui" => Box::new(OverviewView::default()),

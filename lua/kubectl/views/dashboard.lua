@@ -15,6 +15,7 @@ local registered_hl_groups = {}
 ---@param idx number
 ---@return string
 local function ansi256_to_hex(idx)
+  -- Standard colors
   local standard = {
     [0] = "#000000",
     [1] = "#800000",
@@ -38,6 +39,7 @@ local function ansi256_to_hex(idx)
     return standard[idx]
   end
 
+  -- 216 color cube (16-231)
   if idx >= 16 and idx <= 231 then
     local n = idx - 16
     local b = (n % 6) * 51
@@ -46,46 +48,50 @@ local function ansi256_to_hex(idx)
     return string.format("#%02x%02x%02x", r, g, b)
   end
 
+  -- Grayscale (232-255)
   if idx >= 232 and idx <= 255 then
     local gray = (idx - 232) * 10 + 8
     return string.format("#%02x%02x%02x", gray, gray, gray)
   end
 
-  return "#808080"
+  return "#808080" -- fallback
 end
 
 --- Convert color name to hex value.
 ---@param name string
 ---@return string|nil
 local function color_name_to_hex(name)
+  -- Colors synced with lua/kubectl/actions/highlight.lua
   local colors = {
     black = "#000000",
-    red = "#D16969",
-    green = "#608B4E",
-    yellow = "#DCDCAA",
-    blue = "#569CD6",
-    magenta = "#C586C0",
-    cyan = "#4EC9B0",
-    gray = "#666666",
+    red = "#D16969", -- KubectlError
+    green = "#608B4E", -- KubectlInfo
+    yellow = "#DCDCAA", -- KubectlDebug
+    blue = "#569CD6", -- KubectlHeader
+    magenta = "#C586C0", -- KubectlPending
+    cyan = "#4EC9B0", -- KubectlSuccess
+    gray = "#666666", -- KubectlGray
     darkgray = "#404040",
-    lightred = "#D16969",
-    lightgreen = "#608B4E",
-    lightyellow = "#D19A66",
-    lightblue = "#9CDCFE",
-    lightmagenta = "#C586C0",
-    lightcyan = "#4EC9B0",
-    white = "#FFFFFF",
+    lightred = "#D16969", -- Same as error
+    lightgreen = "#608B4E", -- Same as info
+    lightyellow = "#D19A66", -- KubectlWarning (orange)
+    lightblue = "#9CDCFE", -- KubectlNote
+    lightmagenta = "#C586C0", -- Same as pending
+    lightcyan = "#4EC9B0", -- Same as success
+    white = "#FFFFFF", -- KubectlWhite
   }
 
   if colors[name] then
     return colors[name]
   end
 
+  -- RGB hex (x followed by 6 hex chars)
   local hex = name:match("^x(%x%x%x%x%x%x)$")
   if hex then
     return "#" .. hex
   end
 
+  -- Indexed color (i followed by number)
   local idx = name:match("^i(%d+)$")
   if idx then
     return ansi256_to_hex(tonumber(idx) --[[@as number]])
@@ -95,17 +101,23 @@ local function color_name_to_hex(name)
 end
 
 --- Ensure a highlight group exists for dashboard rendering.
+---
+--- Native Kubectl* groups (emitted by Rust for common colors) are already
+--- defined by the plugin. Ratatui_* groups (fallback for unmapped colors)
+--- are created dynamically from parsed color names.
 ---@param hl_name string
 local function ensure_hl_group(hl_name)
   if registered_hl_groups[hl_name] then
     return
   end
 
+  -- Native Kubectl* highlights are defined in highlight.lua (including Bold variants)
   if hl_name:match("^Kubectl") then
     registered_hl_groups[hl_name] = true
     return
   end
 
+  -- Parse Ratatui_<fg>[_on_<bg>][_bold][_italic][_underline] format
   local fg_match = hl_name:match("^Ratatui_([^_]+)")
   local bg_match = hl_name:match("_on_([^_]+)")
 
@@ -135,6 +147,7 @@ local function apply_frame(buf, frame)
     return
   end
 
+  -- Convert frame.lines table to array if needed
   local lines = {}
   if frame.lines then
     for i = 1, #frame.lines do
@@ -142,15 +155,21 @@ local function apply_frame(buf, frame)
     end
   end
 
+  -- Set lines
   vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
+  -- Clear old extmarks
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
 
+  -- Apply new extmarks
   for _, mark in ipairs(frame.marks or {}) do
     if mark.hl_group then
+      -- Ensure the highlight group exists
       ensure_hl_group(mark.hl_group)
+
+      -- Apply the extmark
       pcall(vim.api.nvim_buf_set_extmark, buf, ns_id, mark.row, mark.start_col, {
         end_col = mark.end_col,
         hl_group = mark.hl_group,
@@ -159,38 +178,89 @@ local function apply_frame(buf, frame)
   end
 end
 
----@class DashboardOpts
----@field view_name string View name for the session
----@field view_args? string Optional arguments for the view
----@field title string Window title
----@field ft string Filetype for the buffer
----@field enable_folding? boolean Enable vim folding (default false)
+--- Create keymaps for dashboard navigation.
+--- Uses native vim motions and folding - only special keys are mapped.
+---@param buf number Buffer number
+---@param sess kubectl.DashboardSession Session object
+local function setup_keymaps(buf, sess)
+  local opts = { buffer = buf, noremap = true, silent = true }
 
---- Create a dashboard session with common boilerplate.
----@param opts DashboardOpts
----@return number buf_nr
----@return number win_nr
-local function create_dashboard(opts)
-  local builder = manager.get_or_create("dashboard")
-  builder.buf_nr, builder.win_nr = buffers.floating_buffer(opts.ft, opts.title, "", builder.win_nr)
+  -- Helper to send key to Rust and poll for frame update
+  local function send_key(key)
+    local bytes = vim.api.nvim_replace_termcodes(key, true, true, true)
+    sess:write(bytes)
 
-  if opts.enable_folding then
-    vim.api.nvim_set_option_value("foldmethod", "expr", { win = builder.win_nr })
-    vim.api.nvim_set_option_value(
-      "foldexpr",
-      "getline(v:lnum)=~'^\\s'?1:getline(v:lnum)=~'^$'?'=':'>1'",
-      { win = builder.win_nr }
-    )
-    vim.api.nvim_set_option_value("foldlevel", 99, { win = builder.win_nr })
-    vim.api.nvim_set_option_value("foldminlines", 1, { win = builder.win_nr })
+    -- Poll for updated frame
+    vim.defer_fn(function()
+      local frame = sess:read_frame()
+      if frame then
+        apply_frame(buf, frame)
+      end
+    end, 10)
   end
 
+  -- Helper to send cursor position to Rust (0-indexed)
+  local function send_cursor()
+    local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1 -- Convert to 0-indexed
+    local cursor_msg = string.format("\x00CURSOR:%d\x00", cursor_line)
+    sess:write(cursor_msg)
+  end
+
+  -- Tab switching and help
+  for _, key in ipairs({ "<Tab>", "<S-Tab>", "?" }) do
+    vim.keymap.set("n", key, function()
+      send_key(key)
+    end, opts)
+  end
+
+  -- Pod expansion (needs cursor sync)
+  vim.keymap.set("n", "K", function()
+    send_cursor()
+    send_key("K")
+  end, opts)
+
+  -- Quit with q
+  vim.keymap.set("n", "q", function()
+    sess:write("q")
+    sess:close()
+  end, opts)
+end
+
+--- Create a dashboard view with native buffer rendering.
+---@param view_name string The view name ("top" or "overview")
+---@param title string|nil Optional title for the window
+function M.open(view_name, title)
+  local definition = {
+    display_name = view_name,
+    resource = "dashbaord",
+    ft = "k8s_" .. view_name,
+    syntax = "",
+    title = title or "dashboard",
+  }
+
+  local builder = manager.get_or_create(definition.resource)
+  builder.buf_nr, builder.win_nr =
+    buffers.floating_buffer(definition.ft, definition.title, definition.syntax, builder.win_nr)
+
+  -- Enable native vim folding with custom foldexpr
+  -- Namespace headers (no leading space) start folds, indented lines are fold content
+  vim.api.nvim_set_option_value("foldmethod", "expr", { win = builder.win_nr })
+  vim.api.nvim_set_option_value(
+    "foldexpr",
+    "getline(v:lnum)=~'^\\s'?1:getline(v:lnum)=~'^$'?'=':'>1'",
+    { win = builder.win_nr }
+  )
+  vim.api.nvim_set_option_value("foldlevel", 99, { win = builder.win_nr }) -- Start fully expanded
+  vim.api.nvim_set_option_value("foldminlines", 1, { win = builder.win_nr })
+
   vim.schedule(function()
+    -- Get window dimensions first
     local win_width = vim.api.nvim_win_get_width(builder.win_nr)
     local win_height = vim.api.nvim_win_get_height(builder.win_nr)
 
+    -- Start the buffer-based dashboard session
     local client = require("kubectl.client")
-    local ok, sess = pcall(client.start_buffer_dashboard, opts.view_name, opts.view_args)
+    local ok, sess = pcall(client.start_buffer_dashboard, view_name)
 
     if not ok then
       vim.notify("Dashboard start failed: " .. tostring(sess), vim.log.levels.ERROR)
@@ -199,56 +269,29 @@ local function create_dashboard(opts)
     end
     ---@cast sess kubectl.DashboardSession
 
+    -- Send initial size immediately (Rust will adjust height based on content)
     sess:resize(win_width, win_height)
 
-    -- Setup common keymaps
-    local keymap_opts = { buffer = builder.buf_nr, noremap = true, silent = true }
-
-    local function send_key(key)
-      sess:write(vim.api.nvim_replace_termcodes(key, true, true, true))
-      vim.defer_fn(function()
-        local frame = sess:read_frame()
-        if frame then
-          apply_frame(builder.buf_nr, frame)
-        end
-      end, 10)
+    -- Helper to push size on resize
+    local function push_size()
+      if vim.api.nvim_win_is_valid(builder.win_nr) then
+        local w = vim.api.nvim_win_get_width(builder.win_nr)
+        local h = vim.api.nvim_win_get_height(builder.win_nr)
+        sess:resize(w, h)
+      end
     end
 
-    for _, key in ipairs({ "<Tab>", "<S-Tab>", "?" }) do
-      vim.keymap.set("n", key, function()
-        send_key(key)
-      end, keymap_opts)
-    end
+    -- Setup keymaps
+    setup_keymaps(builder.buf_nr, sess)
 
-    vim.keymap.set("n", "K", function()
-      local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1
-      sess:write(string.format("\x00CURSOR:%d\x00", cursor_line))
-      send_key("K")
-    end, keymap_opts)
-
-    vim.keymap.set("n", "r", function()
-      send_key("r")
-    end, keymap_opts)
-
-    vim.keymap.set("n", "f", function()
-      send_key("f")
-    end, keymap_opts)
-
-    vim.keymap.set("n", "q", function()
-      sess:write("q")
-      sess:close()
-    end, keymap_opts)
-
-    -- Create autocmd group
+    -- Create autocmd group for cleanup
     local augroup = vim.api.nvim_create_augroup("KubectlDashboard_" .. builder.buf_nr, { clear = true })
 
     -- Handle resize
     vim.api.nvim_create_autocmd("WinResized", {
       group = augroup,
       callback = function()
-        if vim.api.nvim_win_is_valid(builder.win_nr) then
-          sess:resize(vim.api.nvim_win_get_width(builder.win_nr), vim.api.nvim_win_get_height(builder.win_nr))
-        end
+        push_size()
       end,
     })
 
@@ -260,12 +303,13 @@ local function create_dashboard(opts)
       end
     end
 
-    -- Poll for frames
+    -- Poll for frames (less frequently to reduce lag)
     local timer = vim.uv.new_timer()
     timer:start(
       0,
-      100,
+      100, -- 10fps - sufficient for live updates without lag
       vim.schedule_wrap(function()
+        -- Read all available frames (use latest)
         local frame
         repeat
           local new_frame = sess:read_frame()
@@ -274,10 +318,12 @@ local function create_dashboard(opts)
           end
         until not new_frame
 
+        -- Apply the latest frame
         if frame then
           apply_frame(builder.buf_nr, frame)
         end
 
+        -- Check if session closed
         if not sess:open() then
           timer:stop()
           if not timer:is_closing() then
@@ -311,31 +357,11 @@ local function create_dashboard(opts)
 end
 
 function M.top()
-  return create_dashboard({
-    view_name = "top",
-    title = "K8s Top",
-    ft = "k8s_top",
-    enable_folding = true,
-  })
+  return M.open("top", "K8s Top")
 end
 
 function M.overview()
-  return create_dashboard({
-    view_name = "overview",
-    title = "K8s Overview",
-    ft = "k8s_overview",
-    enable_folding = true,
-  })
-end
-
--- Backwards compatibility
-M.open = function(view_name, title)
-  return create_dashboard({
-    view_name = view_name,
-    title = title or "dashboard",
-    ft = "k8s_" .. view_name,
-    enable_folding = true,
-  })
+  return M.open("overview", "K8s Overview")
 end
 
 return M

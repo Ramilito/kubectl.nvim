@@ -289,14 +289,16 @@ local function close()
     return
   end
 
-  if vim.api.nvim_win_is_valid(state.list_win) then
-    vim.api.nvim_win_close(state.list_win, true)
-  end
-  if vim.api.nvim_win_is_valid(state.diff_win) then
-    vim.api.nvim_win_close(state.diff_win, true)
-  end
-
+  local list_win = state.list_win
+  local diff_win = state.diff_win
   state = nil
+
+  if vim.api.nvim_win_is_valid(list_win) then
+    vim.api.nvim_win_close(list_win, true)
+  end
+  if vim.api.nvim_win_is_valid(diff_win) then
+    vim.api.nvim_win_close(diff_win, true)
+  end
 end
 
 --- Setup keymaps for the drift view.
