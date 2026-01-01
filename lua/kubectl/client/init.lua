@@ -123,6 +123,13 @@ function client.get_config()
   return client.implementation.get_config()
 end
 
+--- Run kubediff on a path and return results as a Lua table.
+--- @param path string Path to diff against the cluster
+--- @return table[] results Array of target results
+function client.kubediff(path)
+  return client.implementation.kubediff(path)
+end
+
 function client.setup_queue()
   return client.implementation.setup_queue()
 end

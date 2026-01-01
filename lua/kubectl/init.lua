@@ -138,11 +138,10 @@ function M.setup(options)
       completion.apply()
     elseif action == "drift" then
       local path = opts.fargs[2]
-      -- Expand shortcuts if path provided: % (current file), %:h (current dir), ~ (home)
       if path then
         path = vim.fn.expand(path)
       end
-      require("kubectl.views.dashboard").drift(path)
+      require("kubectl.views.drift").open(path)
     elseif action == "top" then
       local top_view
       if #opts.fargs == 2 then

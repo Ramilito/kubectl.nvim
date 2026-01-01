@@ -34,6 +34,7 @@
 --- @field statefulset_set_images fun(name: string, ns: string, image_spec: {} )
 --- @field start_dashboard fun(view_name: string)
 --- @field start_buffer_dashboard fun(view_name: string, view_args?: string): kubectl.DashboardSession
+--- @field kubediff fun(path: string): table[]
 --- @field create_job_from_cronjob fun(j_name: string, ns: string, cj_name: string, dry_run: boolean )
 --- @field suspend_cronjob fun(cj_name: string, ns: string, suspend: boolean)
 --- @field uncordon_node fun(name: string)

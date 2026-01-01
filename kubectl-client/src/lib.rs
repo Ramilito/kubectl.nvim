@@ -469,6 +469,34 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
             ui::BufferSession::new(view_name, view_args)
         })?,
     )?;
+
+    exports.set(
+        "kubediff",
+        lua.create_function(|lua, path: String| {
+            let result = kubediff::Process::process_target(&path);
+            let target_table = lua.create_table()?;
+
+            let results_array = lua.create_table()?;
+            for (i, diff_result) in result.results.iter().enumerate() {
+                let entry = lua.create_table()?;
+                entry.set("kind", diff_result.kind.as_str())?;
+                entry.set("resource_name", diff_result.resource_name.as_str())?;
+                if let Some(ref diff) = diff_result.diff {
+                    entry.set("diff", diff.as_str())?;
+                }
+                if let Some(ref err) = diff_result.error {
+                    entry.set("error", err.as_str())?;
+                }
+                results_array.set(i + 1, entry)?;
+            }
+
+            target_table.set("results", results_array)?;
+
+            let targets = lua.create_table()?;
+            targets.set(1, target_table)?;
+            Ok(targets)
+        })?,
+    )?;
     exports.set(
         "describe_session",
         lua.create_function(describe_session::describe_session)?,

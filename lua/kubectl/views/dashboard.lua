@@ -165,8 +165,6 @@ end
 ---@field title string Window title
 ---@field ft string Filetype for the buffer
 ---@field enable_folding? boolean Enable vim folding (default false)
----@field sync_cursor? boolean Sync cursor position to Rust (default false)
----@field on_setup? fun(buf: number, sess: kubectl.DashboardSession, state: table) Custom setup callback
 
 --- Create a dashboard session with common boilerplate.
 ---@param opts DashboardOpts
@@ -202,9 +200,6 @@ local function create_dashboard(opts)
     ---@cast sess kubectl.DashboardSession
 
     sess:resize(win_width, win_height)
-
-    -- Shared state for custom callbacks
-    local state = {}
 
     -- Setup common keymaps
     local keymap_opts = { buffer = builder.buf_nr, noremap = true, silent = true }
@@ -256,29 +251,6 @@ local function create_dashboard(opts)
         end
       end,
     })
-
-    -- Cursor sync for views that need it
-    if opts.sync_cursor then
-      vim.api.nvim_create_autocmd("CursorMoved", {
-        group = augroup,
-        buffer = builder.buf_nr,
-        callback = function()
-          local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1
-          sess:write(string.format("\x00CURSOR:%d\x00", cursor_line))
-          vim.defer_fn(function()
-            local frame = sess:read_frame()
-            if frame then
-              apply_frame(builder.buf_nr, frame)
-            end
-          end, 10)
-        end,
-      })
-    end
-
-    -- Custom setup callback
-    if opts.on_setup then
-      opts.on_setup(builder.buf_nr, sess, state)
-    end
 
     -- Cleanup function
     local function cleanup()
@@ -353,42 +325,6 @@ function M.overview()
     title = "K8s Overview",
     ft = "k8s_overview",
     enable_folding = true,
-  })
-end
-
---- Open the drift view.
----@param path string|nil Path to diff against the cluster
-function M.drift(path)
-  local current_path = path or ""
-
-  return create_dashboard({
-    view_name = "drift",
-    view_args = current_path,
-    title = "Drift",
-    ft = "k8s_drift",
-    sync_cursor = true,
-    on_setup = function(buf, sess, _)
-      -- Path picker keymap
-      vim.keymap.set("n", "p", function()
-        vim.ui.input({
-          prompt = "Drift path: ",
-          default = current_path,
-          completion = "file",
-        }, function(new_path)
-          if new_path and new_path ~= "" then
-            new_path = vim.fn.expand(new_path)
-            current_path = new_path
-            sess:write(string.format("\x00PATH:%s\x00", new_path))
-            vim.defer_fn(function()
-              local frame = sess:read_frame()
-              if frame then
-                apply_frame(buf, frame)
-              end
-            end, 50)
-          end
-        end)
-      end, { buffer = buf, noremap = true, silent = true })
-    end,
   })
 end
 

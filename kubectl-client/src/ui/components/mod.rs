@@ -9,4 +9,4 @@ mod help_overlay;
 
 pub use gauge::{make_gauge, GaugeStyle};
 pub use header::draw_header;
-pub use help_overlay::{draw_help_bar, drift_hints, overview_hints, top_nodes_hints, top_pods_hints};
+pub use help_overlay::{draw_help_bar, overview_hints, top_nodes_hints, top_pods_hints};

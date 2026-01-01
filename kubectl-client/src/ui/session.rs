@@ -38,8 +38,8 @@ impl BufferSession {
     /// Creates a new buffer-based UI session with the specified view.
     ///
     /// # Arguments
-    /// * `view_name` - Name of the view to display ("top", "overview", or "drift")
-    /// * `view_args` - Optional arguments for the view (e.g., path for drift view)
+    /// * `view_name` - Name of the view to display ("top" or "overview")
+    /// * `view_args` - Optional arguments for the view
     pub fn new(view_name: String, view_args: Option<String>) -> LuaResult<Self> {
         let cols = Arc::new(AtomicU16::new(80));
         let rows = Arc::new(AtomicU16::new(24));
@@ -234,7 +234,6 @@ async fn run_buffer_ui(
                                 view.on_event(&ev)
                             }
                             Some(ParsedMessage::CursorLine(line)) => view.set_cursor_line(line),
-                            Some(ParsedMessage::SetPath(path)) => view.set_path(path),
                             None => false,
                         };
 
