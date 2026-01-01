@@ -342,10 +342,8 @@ local function open_dir_picker(cwd, on_select)
   -- Create buffer and window
   picker_buf, picker_win = buffers.floating_dynamic_buffer("k8s_dir_picker", " Select Directory ", nil, {})
 
-  local opts = { buffer = picker_buf, noremap = true, silent = true }
-
-  -- Enter: navigate into directory or select file
-  vim.keymap.set("n", "<CR>", function()
+  -- Define Plug mappings
+  vim.keymap.set("n", "<Plug>(kubectl.dir_open)", function()
     local entry = get_selected_entry()
     if not entry then
       return
@@ -357,29 +355,30 @@ local function open_dir_picker(cwd, on_select)
       close_picker()
       on_select(entry.path)
     end
-  end, opts)
+  end, { buffer = picker_buf, noremap = true, silent = true, desc = "Open directory or select file" })
 
-  -- Select current directory
-  vim.keymap.set("n", "s", function()
+  vim.keymap.set("n", "<Plug>(kubectl.dir_select)", function()
     close_picker()
     on_select(current_dir)
-  end, opts)
+  end, { buffer = picker_buf, noremap = true, silent = true, desc = "Select current directory" })
 
-  -- Backspace: go up
-  vim.keymap.set("n", "<BS>", function()
+  vim.keymap.set("n", "<Plug>(kubectl.dir_up)", function()
     current_dir = vim.fn.fnamemodify(current_dir, ":h")
     render()
-  end, opts)
+  end, { buffer = picker_buf, noremap = true, silent = true, desc = "Go to parent directory" })
 
-  -- Cancel
-  vim.keymap.set("n", "q", function()
+  vim.keymap.set("n", "<Plug>(kubectl.dir_cancel)", function()
     close_picker()
     on_select(nil)
-  end, opts)
-  vim.keymap.set("n", "<Esc>", function()
-    close_picker()
-    on_select(nil)
-  end, opts)
+  end, { buffer = picker_buf, noremap = true, silent = true, desc = "Cancel" })
+
+  -- Map keys to Plug targets
+  local map_opts = { noremap = true, silent = true }
+  vim.api.nvim_buf_set_keymap(picker_buf, "n", "<CR>", "<Plug>(kubectl.dir_open)", map_opts)
+  vim.api.nvim_buf_set_keymap(picker_buf, "n", "s", "<Plug>(kubectl.dir_select)", map_opts)
+  vim.api.nvim_buf_set_keymap(picker_buf, "n", "<BS>", "<Plug>(kubectl.dir_up)", map_opts)
+  vim.api.nvim_buf_set_keymap(picker_buf, "n", "q", "<Plug>(kubectl.dir_cancel)", map_opts)
+  vim.api.nvim_buf_set_keymap(picker_buf, "n", "<Esc>", "<Plug>(kubectl.dir_cancel)", map_opts)
 
   render()
 end
