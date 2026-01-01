@@ -64,7 +64,7 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
   local marks = {}
 
   -- Help bar
-  local help = "p:path │ f:filter │ r:refresh │ q:quit"
+  local help = "p:path │ f:filter │ r:refresh │ <Tab>:switch pane │ q:quit"
   table.insert(lines, help)
   table.insert(marks, { row = 0, col = 0, end_col = #help, hl = "KubectlGray" })
 
@@ -373,14 +373,38 @@ local function close()
   end
 end
 
---- Setup keymaps for the drift view.
+--- Switch focus to the diff window.
+local function focus_diff()
+  if state and vim.api.nvim_win_is_valid(state.diff_win) then
+    vim.api.nvim_set_current_win(state.diff_win)
+  end
+end
+
+--- Switch focus to the list window.
+local function focus_list()
+  if state and vim.api.nvim_win_is_valid(state.list_win) then
+    vim.api.nvim_set_current_win(state.list_win)
+  end
+end
+
+--- Setup keymaps for the list buffer.
 ---@param buf number
-local function setup_keymaps(buf)
+local function setup_list_keymaps(buf)
   local opts = { buffer = buf, noremap = true, silent = true }
 
   vim.keymap.set("n", "p", pick_path, opts)
   vim.keymap.set("n", "f", toggle_filter, opts)
   vim.keymap.set("n", "r", refresh, opts)
+  vim.keymap.set("n", "q", close, opts)
+  vim.keymap.set("n", "<Tab>", focus_diff, opts)
+end
+
+--- Setup keymaps for the diff buffer.
+---@param buf number
+local function setup_diff_keymaps(buf)
+  local opts = { buffer = buf, noremap = true, silent = true }
+
+  vim.keymap.set("n", "<Tab>", focus_list, opts)
   vim.keymap.set("n", "q", close, opts)
 end
 
@@ -452,7 +476,8 @@ function M.open(path)
   }
 
   -- Setup keymaps
-  setup_keymaps(list_buf)
+  setup_list_keymaps(list_buf)
+  setup_diff_keymaps(diff_buf)
 
   -- Update diff on cursor move
   local augroup = vim.api.nvim_create_augroup("KubectlDriftNative", { clear = true })
