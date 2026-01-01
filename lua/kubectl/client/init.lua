@@ -122,6 +122,14 @@ function client.get_config()
   return client.implementation.get_config()
 end
 
+--- Get drift results comparing local manifests against cluster state.
+--- @param path string Path to diff against the cluster
+--- @param hide_unchanged? boolean Filter out unchanged resources
+--- @return {entries: table[], counts: {changed: integer, unchanged: integer, errors: integer}, build_error: string|nil}
+function client.get_drift(path, hide_unchanged)
+  return client.implementation.get_drift(path, hide_unchanged)
+end
+
 function client.setup_queue()
   return client.implementation.setup_queue()
 end

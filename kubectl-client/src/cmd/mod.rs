@@ -5,6 +5,7 @@ use crate::cmd::config::{
     get_config, get_config_async, get_minified_config_async, get_version_async,
 };
 use crate::cmd::delete::delete_async;
+use crate::cmd::drift::get_drift;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec::{open_debug, Session};
 use crate::cmd::get::{
@@ -19,6 +20,7 @@ use crate::with_stream_client;
 pub mod apply;
 pub mod config;
 pub mod delete;
+pub mod drift;
 pub mod edit;
 pub mod exec;
 pub mod get;
@@ -92,6 +94,7 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
         lua.create_async_function(fetch_logs_async)?,
     )?;
     exports.set("log_session", lua.create_function(log_session)?)?;
+    exports.set("get_drift", lua.create_function(get_drift)?)?;
 
     Ok(())
 }

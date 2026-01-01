@@ -59,6 +59,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_storageclasses)", desc = "StorageClasses" },
     { key = "<Plug>(kubectl.view_top_nodes)", desc = "Top Nodes" },
     { key = "<Plug>(kubectl.view_top_pods)", desc = "Top Pods" },
+    { key = "<Plug>(kubectl.view_drift)", desc = "Drift" },
   }
 
   local global_keymaps = tables.get_plug_mappings(globals)
