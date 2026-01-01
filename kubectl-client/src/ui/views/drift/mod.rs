@@ -9,7 +9,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame,
 };
 
@@ -47,14 +47,12 @@ pub struct DriftView {
     path: String,
     /// Cached results from kubediff
     results: Vec<TargetResult>,
-    /// Error message if refresh failed
-    error: Option<String>,
     /// Filter: when true, hide unchanged resources
     hide_unchanged: bool,
     /// Flattened list of resources for navigation
     entries: Vec<ResourceEntry>,
-    /// List selection state
-    list_state: ListState,
+    /// Current selection index (synced from vim cursor)
+    selected_idx: Option<usize>,
 }
 
 /// Counts of resources by status
@@ -70,10 +68,9 @@ impl DriftView {
         let mut view = Self {
             path,
             results: Vec::new(),
-            error: None,
             hide_unchanged: false,
             entries: Vec::new(),
-            list_state: ListState::default(),
+            selected_idx: None,
         };
         view.refresh();
         view
@@ -81,23 +78,22 @@ impl DriftView {
 
     /// Refreshes diff results from kubediff.
     fn refresh(&mut self) {
-        self.error = None;
-
         if self.path.is_empty() {
             self.results = Vec::new();
             self.entries = Vec::new();
             return;
         }
 
-        // Call kubediff to process the target
         let result = Process::process_target(&self.path);
         self.results = vec![result];
         self.rebuild_entries();
 
         // Select first item if available
-        if !self.entries.is_empty() {
-            self.list_state.select(Some(0));
-        }
+        self.selected_idx = if self.entries.is_empty() {
+            None
+        } else {
+            Some(0)
+        };
     }
 
     /// Rebuilds the flattened entry list.
@@ -164,18 +160,16 @@ impl DriftView {
     fn toggle_filter(&mut self) {
         self.hide_unchanged = !self.hide_unchanged;
         self.rebuild_entries();
-        // Reset selection
-        if !self.entries.is_empty() {
-            self.list_state.select(Some(0));
+        self.selected_idx = if self.entries.is_empty() {
+            None
         } else {
-            self.list_state.select(None);
-        }
+            Some(0)
+        };
     }
 
     /// Gets the currently selected resource's diff result.
     fn selected_result(&self) -> Option<&DiffResult> {
-        let selected = self.list_state.selected()?;
-        let entry = self.entries.get(selected)?;
+        let entry = self.entries.get(self.selected_idx?)?;
         self.results
             .get(entry.target_idx)?
             .results
@@ -254,7 +248,7 @@ impl View for DriftView {
         if line >= list_start {
             let entry_idx = (line - list_start) as usize;
             if entry_idx < self.entries.len() {
-                self.list_state.select(Some(entry_idx));
+                self.selected_idx = Some(entry_idx);
                 return true;
             }
         }
