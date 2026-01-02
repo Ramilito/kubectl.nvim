@@ -32,10 +32,19 @@ function M.View()
   builder.data = M.getPFRows()
   builder.extmarks = {}
   builder.header = { data = {}, marks = {} }
+
+  -- Add instruction note
+  local note = "PortForwards are automatically cleared when closing Neovim."
+  table.insert(builder.header.data, note)
+  table.insert(builder.header.marks, {
+    row = 0,
+    start_col = 0,
+    end_col = #note,
+    hl_group = hl.symbols.gray,
+  })
+
   local headers = { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" }
   builder.prettyData, builder.extmarks = tables.pretty_print(builder.data, headers)
-
-  tables.generateDividerRow(builder.header.data, builder.header.marks)
   builder.displayContent(builder.win_nr)
   buffers.fit_to_content(builder.buf_nr, builder.win_nr, 1)
 
