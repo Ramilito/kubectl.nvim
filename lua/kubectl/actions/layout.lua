@@ -161,9 +161,10 @@ end
 function M.float_framed_windows(bufs, opts)
   local width_ratio = opts.width or 0.8
   local height_ratio = opts.height or 0.8
+  local min_width = 100
 
   local editor_width, editor_height = M.get_editor_dimensions()
-  local total_width = math.floor(editor_width * width_ratio)
+  local total_width = math.max(math.floor(editor_width * width_ratio), min_width)
   local total_height = math.floor(editor_height * height_ratio)
   local col = math.floor((editor_width - total_width) / 2)
   local row = config.options.float_size.row
@@ -295,8 +296,9 @@ function M.fit_framed_to_content(frame, height_offset)
     return
   end
 
-  -- Calculate content dimensions
-  local dims = calc_content_dimensions(content_buf, height_offset, 0)
+  -- Calculate content dimensions with min_width to account for virtual text
+  local min_width = 100
+  local dims = calc_content_dimensions(content_buf, height_offset, min_width)
 
   -- Get current hints height
   local hints_height = 1

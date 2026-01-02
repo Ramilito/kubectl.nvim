@@ -24,7 +24,11 @@ local function get_values(definition, data)
     end
 
     for _, mark in ipairs(extmarks) do
-      local label = mark[4].virt_text[1][1]
+      local details = mark[4]
+      if not details.virt_text then
+        goto continue
+      end
+      local label = details.virt_text[1][1]
       local line_num = mark[2]
       local raw_line = vim.api.nvim_buf_get_lines(bufnr, line_num, line_num + 1, false)[1] or ""
       local value = vim.trim(raw_line)
@@ -48,10 +52,15 @@ local function get_values(definition, data)
           break
         end
       end
+      ::continue::
     end
   else
     for _, mark in ipairs(extmarks) do
-      local label = mark[4].virt_text[1][1]
+      local details = mark[4]
+      if not details.virt_text then
+        goto continue
+      end
+      local label = details.virt_text[1][1]
       local raw_line = vim.api.nvim_buf_get_lines(bufnr, mark[2], mark[2] + 1, false)[1] or ""
       local value = vim.trim(raw_line)
 
@@ -63,6 +72,7 @@ local function get_values(definition, data)
           break
         end
       end
+      ::continue::
     end
   end
 
@@ -70,47 +80,43 @@ local function get_values(definition, data)
 end
 
 function M.View(definition, data, callback)
-  local win_config
   local builder = manager.get_or_create("action_view")
 
-  builder.extmarks = {}
-  builder.data = {}
-  builder.header = {}
+  -- Build the framed view definition
+  local view_def = {
+    resource = "action_view",
+    ft = definition.ft,
+    title = definition.display,
+    hints = definition.hints,
+    panes = { { title = definition.display } },
+  }
+
+  builder.view_framed(view_def)
   builder.origin_data = data
 
-  builder.buf_nr, win_config = buffers.confirmation_buffer(definition.display, definition.ft, function(confirm)
-    local args = get_values(definition, builder.origin_data)
-    if confirm then
-      callback(args)
-    end
-  end)
+  local buf = builder.buf_nr
 
-  local add_divider = false
+  -- Build content
+  local content = {}
+  local marks = {}
 
-  if definition.hints then
-    add_divider = true
-    builder.addHints(definition.hints, false, false)
-  end
-
+  -- Add notes if present
   if definition.notes then
-    add_divider = true
-    table.insert(builder.header.data, definition.notes)
-    table.insert(builder.header.marks, {
-      row = #builder.header.data - 1,
+    table.insert(content, definition.notes)
+    table.insert(marks, {
+      row = #content - 1,
       start_col = 0,
-      end_col = #builder.header.data[#builder.header.data],
+      end_col = #definition.notes,
       hl_group = hl.symbols.gray,
     })
+    tables.generateDividerRow(content, marks)
   end
 
-  if add_divider then
-    tables.generateDividerRow(builder.header.data, builder.header.marks)
-  end
-
+  -- Add data items with inline virtual text labels
   for _, item in ipairs(data) do
-    table.insert(builder.data, item.value)
-    table.insert(builder.extmarks, {
-      row = #builder.data - 1,
+    table.insert(content, item.value)
+    table.insert(marks, {
+      row = #content - 1,
       start_col = 0,
       virt_text = { { item.text .. " ", "KubectlHeader" } },
       virt_text_pos = "inline",
@@ -118,28 +124,41 @@ function M.View(definition, data, callback)
     })
   end
 
-  table.insert(builder.data, "")
-  table.insert(builder.data, "")
-  table.insert(builder.data, "")
+  -- Add confirmation line (will add centered text after fitting)
+  table.insert(content, "")
+  table.insert(content, "")
 
-  local confirmation = "[y]es [n]o"
-  local padding = string.rep(" ", (win_config.width - #confirmation) / 2)
-  table.insert(builder.extmarks, {
-    row = #builder.data - 1,
-    start_col = 0,
-    virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
-    virt_text_pos = "inline",
-  })
-  M.Draw()
-end
+  -- Set content
+  buffers.set_content(buf, { content = content })
+  buffers.apply_marks(buf, marks, nil)
 
-function M.Draw()
-  local builder = manager.get("action_view")
-  if not builder then
-    return
-  end
+  -- Set up y/n keymaps
+  vim.keymap.set("n", "y", function()
+    local args = get_values(definition, builder.origin_data)
+    callback(args)
+    builder.frame.close()
+  end, { buffer = buf, noremap = true, silent = true })
 
-  builder.displayContentRaw()
+  vim.keymap.set("n", "n", function()
+    builder.frame.close()
+  end, { buffer = buf, noremap = true, silent = true })
+
+  -- Fit to content
+  builder.fitToContent(1)
+
+  -- Add centered confirmation text after fitting so we know the width
+  local win_width = vim.api.nvim_win_get_config(builder.win_nr).width or 100
+  local confirm_text = "[y]es [n]o"
+  local padding = string.rep(" ", math.floor((win_width - #confirm_text) / 2))
+  buffers.apply_marks(buf, {
+    {
+      row = #content - 1,
+      start_col = 0,
+      virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
+      virt_text_pos = "inline",
+    },
+  }, nil)
+
   vim.cmd([[syntax match KubectlPending /.*/]])
 end
 
