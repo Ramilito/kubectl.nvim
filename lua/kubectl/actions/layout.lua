@@ -135,6 +135,103 @@ function M.get_editor_dimensions()
   return width, height
 end
 
+---@class FramedPaneConfig
+---@field title string|nil Window title
+---@field width number|nil Width ratio (0-1) for multi-pane layouts, defaults to equal split
+
+---@class FramedLayoutConfig
+---@field title string|nil Main title for the frame (shown on hints bar)
+---@field panes FramedPaneConfig[] Pane configurations (1 or more)
+---@field width number|nil Overall width ratio (default 0.8)
+---@field height number|nil Overall height ratio (default 0.8)
+
+---@class FramedWindowResult
+---@field hints_win number Hints window
+---@field pane_wins number[] Array of pane window handles
+---@field dimensions { total_width: number, total_height: number, content_height: number }
+
+--- Create framed float windows with hints bar at top and content pane(s) below.
+--- This function only creates windows - buffer creation is handled by buffers.lua
+--- @param bufs { hints_buf: number, pane_bufs: number[] } Buffers to attach to windows
+--- @param opts FramedLayoutConfig
+--- @return FramedWindowResult
+function M.float_framed_windows(bufs, opts)
+  local width_ratio = opts.width or 0.8
+  local height_ratio = opts.height or 0.8
+
+  local editor_width, editor_height = M.get_editor_dimensions()
+  local total_width = math.floor(editor_width * width_ratio)
+  local total_height = math.floor(editor_height * height_ratio)
+  local col = math.floor((editor_width - total_width) / 2)
+  local row = math.floor((editor_height - total_height) / 2)
+
+  -- Hints bar: 1 line of content
+  local hints_height = 1
+  local content_height = total_height - hints_height - 2 -- subtract hints + border gap
+
+  -- Create hints window
+  local hints_win = api.nvim_open_win(bufs.hints_buf, false, {
+    relative = "editor",
+    width = total_width,
+    height = hints_height,
+    col = col,
+    row = row,
+    style = "minimal",
+    border = "rounded",
+    title = opts.title and (" " .. opts.title .. " ") or nil,
+    title_pos = "center",
+  })
+
+  -- Create content pane windows
+  local pane_wins = {}
+  local num_panes = #opts.panes
+  local pane_col = col
+  local content_row = row + hints_height + 2
+
+  for i, pane_config in ipairs(opts.panes) do
+    local pane_width
+    if num_panes == 1 then
+      pane_width = total_width
+    else
+      local width_frac = pane_config.width or (1 / num_panes)
+      pane_width = math.floor(total_width * width_frac)
+      if i == num_panes then
+        pane_width = total_width - (pane_col - col)
+      end
+    end
+
+    local is_first = i == 1
+    local pane_win = api.nvim_open_win(bufs.pane_bufs[i], is_first, {
+      relative = "editor",
+      width = pane_width,
+      height = content_height,
+      col = pane_col,
+      row = content_row,
+      style = "minimal",
+      border = "rounded",
+      title = pane_config.title and (" " .. pane_config.title .. " ") or nil,
+      title_pos = "center",
+    })
+
+    if is_first then
+      api.nvim_set_option_value("cursorline", true, { win = pane_win })
+    end
+
+    table.insert(pane_wins, pane_win)
+    pane_col = pane_col + pane_width + 1
+  end
+
+  return {
+    hints_win = hints_win,
+    pane_wins = pane_wins,
+    dimensions = {
+      total_width = total_width,
+      total_height = total_height,
+      content_height = content_height,
+    },
+  }
+end
+
 --- Fits content to window size
 --- @param buf_nr integer: The buffer number.
 --- @param height_offset integer: The height offset.

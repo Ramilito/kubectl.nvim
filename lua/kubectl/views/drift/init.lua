@@ -3,17 +3,25 @@
 
 local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
-local tables = require("kubectl.utils.tables")
+local manager = require("kubectl.resource_manager")
 
 local M = {}
 
--- Hints definition using standard Plug format
-local hints = {
-  { key = "<Plug>(kubectl.drift_path)", desc = "path" },
-  { key = "<Plug>(kubectl.drift_filter)", desc = "filter" },
-  { key = "<Plug>(kubectl.drift_refresh)", desc = "refresh" },
-  { key = "<Plug>(kubectl.drift_switch_pane)", desc = "switch pane" },
-  { key = "<Plug>(kubectl.drift_close)", desc = "quit" },
+M.definition = {
+  resource = "drift",
+  ft = "k8s_drift_native",
+  title = "Drift",
+  hints = {
+    { key = "<Plug>(kubectl.drift_path)", desc = "path" },
+    { key = "<Plug>(kubectl.drift_filter)", desc = "filter" },
+    { key = "<Plug>(kubectl.drift_refresh)", desc = "refresh" },
+    { key = "<Plug>(kubectl.drift_switch_pane)", desc = "switch pane" },
+    { key = "<Plug>(kubectl.drift_close)", desc = "quit" },
+  },
+  panes = {
+    { title = "Resources", width = 0.35 },
+    { title = "Diff Preview", width = 0.65 },
+  },
 }
 
 -- Namespace for extmarks
@@ -29,13 +37,11 @@ local ICON_ERROR = "✗"
 ---@field entries table[] Flattened resource entries
 ---@field counts table Status counts {changed, unchanged, errors}
 ---@field hide_unchanged boolean Filter flag
----@field hints_buf number Hints buffer (top bar)
----@field hints_win number Hints window (top bar)
+---@field builder table The resource builder
 ---@field list_buf number Resource list buffer
 ---@field list_win number Resource list window
 ---@field diff_buf number Diff preview buffer
 ---@field diff_win number Diff preview window
----@field header_row_count number Number of header lines
 
 ---@type DriftState|nil
 local state = nil
@@ -63,20 +69,6 @@ local function get_drift_results(path, hide_unchanged)
   return result
 end
 
---- Render the hints buffer (top bar spanning both panes).
----@param buf number
-local function render_hints(buf)
-  vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
-  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
-
-  local header_lines, header_marks = tables.generateHeader(hints, false, false)
-
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, header_lines)
-  buffers.apply_marks(buf, header_marks, {})
-
-  vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-end
-
 --- Render the resource list buffer.
 ---@param buf number
 ---@param entries table[]
@@ -89,9 +81,6 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
 
   local lines = {}
   local marks = {}
-
-  -- Track header line count (now 0 since hints are in separate window)
-  local header_row_count = 0
 
   -- Summary line
   local summary = string.format(
@@ -135,11 +124,6 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
     table.insert(lines, "")
     table.insert(lines, "        Press 'p' to select a path")
     table.insert(marks, { row = #lines - 1, start_col = 14, end_col = 17, hl_group = hl.symbols.pending })
-  end
-
-  -- Store header row count in state for cursor calculations
-  if state then
-    state.header_row_count = header_row_count
   end
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -207,10 +191,9 @@ local function update_diff_preview()
     return
   end
 
-  -- Get cursor line (1-indexed), subtract header lines + summary + empty line
+  -- Get cursor line (1-indexed), subtract summary + empty line (hints are in separate window)
   local cursor_line = vim.api.nvim_win_get_cursor(state.list_win)[1]
-  local header_offset = (state.header_row_count or 1) + 2 -- header lines + summary + empty line
-  local entry_idx = cursor_line - header_offset
+  local entry_idx = cursor_line - 2 -- summary line + empty line
 
   local entry = state.entries[entry_idx]
   render_diff(state.diff_buf, entry)
@@ -226,7 +209,7 @@ local function refresh()
   state.entries = result.entries
   state.counts = result.counts
 
-  render_hints(state.hints_buf)
+  state.builder.renderHints()
   render_list(state.list_buf, state.entries, state.path, state.hide_unchanged, state.counts)
   update_diff_preview()
 end
@@ -388,19 +371,10 @@ local function close()
     return
   end
 
-  local hints_win = state.hints_win
-  local list_win = state.list_win
-  local diff_win = state.diff_win
+  local builder = state.builder
   state = nil
-
-  if vim.api.nvim_win_is_valid(hints_win) then
-    vim.api.nvim_win_close(hints_win, true)
-  end
-  if vim.api.nvim_win_is_valid(list_win) then
-    vim.api.nvim_win_close(list_win, true)
-  end
-  if vim.api.nvim_win_is_valid(diff_win) then
-    vim.api.nvim_win_close(diff_win, true)
+  if builder.frame then
+    builder.frame.close()
   end
 end
 
@@ -466,70 +440,14 @@ function M.open(path)
     close()
   end
 
-  -- Create floating window for split layout
-  local width = math.floor(vim.o.columns * 0.8)
-  local total_height = math.floor(vim.o.lines * 0.8)
-  local col = math.floor((vim.o.columns - width) / 2)
-  local row = math.floor((vim.o.lines - total_height) / 2)
+  -- Create framed view using builder pattern
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view_framed(M.definition)
 
-  -- Hints bar height (1 line of content + border)
-  local hints_height = 1
-  local content_height = total_height - hints_height - 2 -- subtract hints + gap
-
-  -- Create hints buffer and window (top bar spanning full width)
-  local hints_buf = vim.api.nvim_create_buf(false, true)
-  local hints_win = vim.api.nvim_open_win(hints_buf, false, {
-    relative = "editor",
-    width = width,
-    height = hints_height,
-    col = col,
-    row = row,
-    style = "minimal",
-    border = "rounded",
-    title = " Drift ",
-    title_pos = "center",
-  })
-
-  -- Create list buffer and window (left pane, 35%)
-  local list_buf = vim.api.nvim_create_buf(false, true)
-  local list_width = math.floor(width * 0.35)
-  local list_win = vim.api.nvim_open_win(list_buf, true, {
-    relative = "editor",
-    width = list_width,
-    height = content_height,
-    col = col,
-    row = row + hints_height + 2, -- below hints + border
-    style = "minimal",
-    border = "rounded",
-    title = " Resources ",
-    title_pos = "center",
-  })
-
-  -- Create diff buffer and window (right pane, 65%)
-  local diff_buf = vim.api.nvim_create_buf(false, true)
-  local diff_width = width - list_width - 1
-  local diff_win = vim.api.nvim_open_win(diff_buf, false, {
-    relative = "editor",
-    width = diff_width,
-    height = content_height,
-    col = col + list_width + 1,
-    row = row + hints_height + 2,
-    style = "minimal",
-    border = "rounded",
-    title = " Diff Preview ",
-    title_pos = "center",
-  })
-
-  -- Set buffer options
-  for _, buf in ipairs({ hints_buf, list_buf, diff_buf }) do
-    vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
-    vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-    vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
-    vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-  end
-
-  vim.api.nvim_set_option_value("filetype", "k8s_drift_native", { buf = list_buf })
-  vim.api.nvim_set_option_value("cursorline", true, { win = list_win })
+  local list_buf = builder.frame.panes[1].buf
+  local list_win = builder.frame.panes[1].win
+  local diff_buf = builder.frame.panes[2].buf
+  local diff_win = builder.frame.panes[2].win
 
   -- Initialize state
   state = {
@@ -537,13 +455,11 @@ function M.open(path)
     entries = {},
     counts = { changed = 0, unchanged = 0, errors = 0 },
     hide_unchanged = false,
-    hints_buf = hints_buf,
-    hints_win = hints_win,
+    builder = builder,
     list_buf = list_buf,
     list_win = list_win,
     diff_buf = diff_buf,
     diff_win = diff_win,
-    header_row_count = 0, -- Now 0 since hints are in separate window
   }
 
   -- Setup keymaps
@@ -556,17 +472,6 @@ function M.open(path)
     group = augroup,
     buffer = list_buf,
     callback = update_diff_preview,
-  })
-
-  -- Cleanup on window close
-  vim.api.nvim_create_autocmd("WinClosed", {
-    group = augroup,
-    pattern = tostring(list_win),
-    once = true,
-    callback = function()
-      close()
-      pcall(vim.api.nvim_del_augroup_by_id, augroup)
-    end,
   })
 
   -- Initial render

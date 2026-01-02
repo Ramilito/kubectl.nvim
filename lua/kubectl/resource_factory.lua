@@ -409,6 +409,49 @@ function M.new(resource)
     return builder
   end
 
+  --- Create a framed floating view with hints bar and multiple panes.
+  --- @param definition table Definition with ft, hints, panes, title, width, height
+  --- @return table builder
+  function builder.view_framed(definition)
+    builder.definition = definition or {}
+
+    local frame = buffers.framed_buffer({
+      title = definition.title,
+      filetype = definition.ft,
+      panes = definition.panes,
+      width = definition.width,
+      height = definition.height,
+    })
+
+    builder.frame = frame
+    builder.buf_nr = frame.panes[1].buf
+    builder.win_nr = frame.panes[1].win
+
+    return builder
+  end
+
+  --- Render hints to the framed layout's hints buffer.
+  --- @return table builder
+  function builder.renderHints()
+    if not builder.frame then
+      return builder
+    end
+
+    local hints_buf = builder.frame.hints_buf
+    local definition = builder.definition or {}
+    local hints = definition.hints or {}
+
+    vim.api.nvim_set_option_value("modifiable", true, { buf = hints_buf })
+
+    local header_lines, header_marks = tables.generateHeader(hints, false, false)
+    vim.api.nvim_buf_set_lines(hints_buf, 0, -1, false, header_lines)
+    buffers.apply_marks(hints_buf, header_marks, {})
+
+    vim.api.nvim_set_option_value("modifiable", false, { buf = hints_buf })
+
+    return builder
+  end
+
   return builder
 end
 
