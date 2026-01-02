@@ -54,16 +54,15 @@ function M.float_dynamic_layout(buf, filetype, title, opts)
     title = filetype .. " - " .. (title or "")
   end
 
-  local editor_width, editor_height = M.get_editor_dimensions()
+  local editor_width, _ = M.get_editor_dimensions()
   local win_width = opts.width or 100
-  local win_height = opts.height or 15
   local win = api.nvim_open_win(buf, enter, {
     relative = relative,
     style = "minimal",
     width = win_width,
     height = opts.height or 5,
     col = (editor_width - win_width) * 0.5,
-    row = (editor_height - win_height) * 0.5,
+    row = config.options.float_size.row,
     border = "rounded",
     title = title,
   })
@@ -167,7 +166,7 @@ function M.float_framed_windows(bufs, opts)
   local total_width = math.floor(editor_width * width_ratio)
   local total_height = math.floor(editor_height * height_ratio)
   local col = math.floor((editor_width - total_width) / 2)
-  local row = math.floor((editor_height - total_height) / 2)
+  local row = config.options.float_size.row
 
   -- Hints bar: 1 line of content
   local hints_height = 1
@@ -305,12 +304,11 @@ function M.fit_framed_to_content(frame, height_offset)
     hints_height = vim.api.nvim_win_get_config(hints_win).height or 1
   end
 
-  -- Calculate centered position for the whole frame
+  -- Calculate position for the whole frame (fixed top offset, centered horizontally)
   local border_size = 2
-  local total_height = hints_height + border_size + dims.height + border_size
   local total_width = dims.width + border_size
   local col = math.floor((vim.o.columns - total_width) / 2)
-  local row = math.floor((vim.o.lines - vim.o.cmdheight - total_height) / 2)
+  local row = config.options.float_size.row
 
   -- Update hints window
   if vim.api.nvim_win_is_valid(hints_win) then
