@@ -3,8 +3,18 @@
 
 local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
+local tables = require("kubectl.utils.tables")
 
 local M = {}
+
+-- Hints definition using standard Plug format
+local hints = {
+  { key = "<Plug>(kubectl.drift_path)", desc = "path" },
+  { key = "<Plug>(kubectl.drift_filter)", desc = "filter" },
+  { key = "<Plug>(kubectl.drift_refresh)", desc = "refresh" },
+  { key = "<Plug>(kubectl.drift_switch_pane)", desc = "switch pane" },
+  { key = "<Plug>(kubectl.drift_close)", desc = "quit" },
+}
 
 -- Namespace for extmarks
 local ns_id = vim.api.nvim_create_namespace("kubectl_drift")
@@ -19,10 +29,13 @@ local ICON_ERROR = "✗"
 ---@field entries table[] Flattened resource entries
 ---@field counts table Status counts {changed, unchanged, errors}
 ---@field hide_unchanged boolean Filter flag
+---@field hints_buf number Hints buffer (top bar)
+---@field hints_win number Hints window (top bar)
 ---@field list_buf number Resource list buffer
 ---@field list_win number Resource list window
 ---@field diff_buf number Diff preview buffer
 ---@field diff_win number Diff preview window
+---@field header_row_count number Number of header lines
 
 ---@type DriftState|nil
 local state = nil
@@ -50,6 +63,20 @@ local function get_drift_results(path, hide_unchanged)
   return result
 end
 
+--- Render the hints buffer (top bar spanning both panes).
+---@param buf number
+local function render_hints(buf)
+  vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+
+  local header_lines, header_marks = tables.generateHeader(hints, false, false)
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, header_lines)
+  buffers.apply_marks(buf, header_marks, {})
+
+  vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+end
+
 --- Render the resource list buffer.
 ---@param buf number
 ---@param entries table[]
@@ -63,10 +90,8 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
   local lines = {}
   local marks = {}
 
-  -- Help bar
-  local help = "p:path │ f:filter │ r:refresh │ <Tab>:switch pane │ q:quit"
-  table.insert(lines, help)
-  table.insert(marks, { row = 0, col = 0, end_col = #help, hl = "KubectlGray" })
+  -- Track header line count (now 0 since hints are in separate window)
+  local header_row_count = 0
 
   -- Summary line
   local summary = string.format(
@@ -78,20 +103,20 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
     hide_unchanged and " │ [filtered]" or ""
   )
   table.insert(lines, summary)
-  table.insert(marks, { row = 1, col = 0, end_col = #path + 2, hl = "KubectlHeader" })
+  table.insert(marks, { row = #lines - 1, start_col = 0, end_col = #path + 2, hl_group = hl.symbols.header })
 
   -- Empty line
   table.insert(lines, "")
 
   -- Resource entries
   for _, entry in ipairs(entries) do
-    local icon, hl_group
+    local icon, entry_hl
     if entry.status == "changed" then
-      icon, hl_group = ICON_CHANGED, "KubectlDebug"
+      icon, entry_hl = ICON_CHANGED, hl.symbols.debug
     elseif entry.status == "error" then
-      icon, hl_group = ICON_ERROR, "KubectlError"
+      icon, entry_hl = ICON_ERROR, hl.symbols.error
     else
-      icon, hl_group = ICON_UNCHANGED, "KubectlInfo"
+      icon, entry_hl = ICON_UNCHANGED, hl.symbols.info
     end
 
     local diff_info = entry.diff_lines > 0 and string.format(" (%d)", entry.diff_lines) or ""
@@ -99,9 +124,9 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
     table.insert(lines, line)
 
     local row = #lines - 1
-    table.insert(marks, { row = row, col = 0, end_col = #line - #diff_info, hl = hl_group })
+    table.insert(marks, { row = row, start_col = 0, end_col = #line - #diff_info, hl_group = entry_hl })
     if diff_info ~= "" then
-      table.insert(marks, { row = row, col = #line - #diff_info, end_col = #line, hl = "KubectlGray" })
+      table.insert(marks, { row = row, start_col = #line - #diff_info, end_col = #line, hl_group = hl.symbols.gray })
     end
   end
 
@@ -109,18 +134,18 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
   if path == "" then
     table.insert(lines, "")
     table.insert(lines, "        Press 'p' to select a path")
-    table.insert(marks, { row = #lines - 1, col = 14, end_col = 17, hl = "KubectlPending" })
+    table.insert(marks, { row = #lines - 1, start_col = 14, end_col = 17, hl_group = hl.symbols.pending })
+  end
+
+  -- Store header row count in state for cursor calculations
+  if state then
+    state.header_row_count = header_row_count
   end
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-  -- Apply highlights
-  for _, mark in ipairs(marks) do
-    pcall(vim.api.nvim_buf_set_extmark, buf, ns_id, mark.row, mark.col, {
-      end_col = mark.end_col,
-      hl_group = mark.hl,
-    })
-  end
+  -- Apply highlights using buffers module for consistent handling
+  buffers.apply_marks(buf, marks, {})
 
   vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
@@ -182,9 +207,10 @@ local function update_diff_preview()
     return
   end
 
-  -- Get cursor line (0-indexed, subtract header lines)
+  -- Get cursor line (1-indexed), subtract header lines + summary + empty line
   local cursor_line = vim.api.nvim_win_get_cursor(state.list_win)[1]
-  local entry_idx = cursor_line - 3 -- Help + summary + empty line
+  local header_offset = (state.header_row_count or 1) + 2 -- header lines + summary + empty line
+  local entry_idx = cursor_line - header_offset
 
   local entry = state.entries[entry_idx]
   render_diff(state.diff_buf, entry)
@@ -200,6 +226,7 @@ local function refresh()
   state.entries = result.entries
   state.counts = result.counts
 
+  render_hints(state.hints_buf)
   render_list(state.list_buf, state.entries, state.path, state.hide_unchanged, state.counts)
   update_diff_preview()
 end
@@ -361,10 +388,14 @@ local function close()
     return
   end
 
+  local hints_win = state.hints_win
   local list_win = state.list_win
   local diff_win = state.diff_win
   state = nil
 
+  if vim.api.nvim_win_is_valid(hints_win) then
+    vim.api.nvim_win_close(hints_win, true)
+  end
   if vim.api.nvim_win_is_valid(list_win) then
     vim.api.nvim_win_close(list_win, true)
   end
@@ -373,39 +404,58 @@ local function close()
   end
 end
 
---- Switch focus to the diff window.
-local function focus_diff()
-  if state and vim.api.nvim_win_is_valid(state.diff_win) then
-    vim.api.nvim_set_current_win(state.diff_win)
+--- Switch focus to the other pane.
+local function switch_pane()
+  if not state then
+    return
   end
-end
-
---- Switch focus to the list window.
-local function focus_list()
-  if state and vim.api.nvim_win_is_valid(state.list_win) then
+  local current_win = vim.api.nvim_get_current_win()
+  if current_win == state.list_win and vim.api.nvim_win_is_valid(state.diff_win) then
+    vim.api.nvim_set_current_win(state.diff_win)
+  elseif current_win == state.diff_win and vim.api.nvim_win_is_valid(state.list_win) then
     vim.api.nvim_set_current_win(state.list_win)
   end
 end
 
+-- Export functions for mappings.lua
+M.pick_path = pick_path
+M.toggle_filter = toggle_filter
+M.refresh = refresh
+M.close = close
+M.switch_pane = switch_pane
+
 --- Setup keymaps for the list buffer.
 ---@param buf number
 local function setup_list_keymaps(buf)
-  local opts = { buffer = buf, noremap = true, silent = true }
+  local opts = { noremap = true, silent = true }
 
-  vim.keymap.set("n", "p", pick_path, opts)
-  vim.keymap.set("n", "f", toggle_filter, opts)
-  vim.keymap.set("n", "r", refresh, opts)
-  vim.keymap.set("n", "q", close, opts)
-  vim.keymap.set("n", "<Tab>", focus_diff, opts)
+  -- Define Plug mappings for this buffer
+  vim.keymap.set("n", "<Plug>(kubectl.drift_path)", pick_path, { buffer = buf, noremap = true, silent = true })
+  vim.keymap.set("n", "<Plug>(kubectl.drift_filter)", toggle_filter, { buffer = buf, noremap = true, silent = true })
+  vim.keymap.set("n", "<Plug>(kubectl.drift_refresh)", refresh, { buffer = buf, noremap = true, silent = true })
+  vim.keymap.set("n", "<Plug>(kubectl.drift_switch_pane)", switch_pane, { buffer = buf, noremap = true, silent = true })
+  vim.keymap.set("n", "<Plug>(kubectl.drift_close)", close, { buffer = buf, noremap = true, silent = true })
+
+  -- Map default keys to Plug targets on this specific buffer
+  vim.api.nvim_buf_set_keymap(buf, "n", "p", "<Plug>(kubectl.drift_path)", opts)
+  vim.api.nvim_buf_set_keymap(buf, "n", "f", "<Plug>(kubectl.drift_filter)", opts)
+  vim.api.nvim_buf_set_keymap(buf, "n", "r", "<Plug>(kubectl.drift_refresh)", opts)
+  vim.api.nvim_buf_set_keymap(buf, "n", "<Tab>", "<Plug>(kubectl.drift_switch_pane)", opts)
+  vim.api.nvim_buf_set_keymap(buf, "n", "q", "<Plug>(kubectl.drift_close)", opts)
 end
 
 --- Setup keymaps for the diff buffer.
 ---@param buf number
 local function setup_diff_keymaps(buf)
-  local opts = { buffer = buf, noremap = true, silent = true }
+  local opts = { noremap = true, silent = true }
 
-  vim.keymap.set("n", "<Tab>", focus_list, opts)
-  vim.keymap.set("n", "q", close, opts)
+  -- Define Plug mappings for this buffer
+  vim.keymap.set("n", "<Plug>(kubectl.drift_switch_pane)", switch_pane, { buffer = buf, noremap = true, silent = true })
+  vim.keymap.set("n", "<Plug>(kubectl.drift_close)", close, { buffer = buf, noremap = true, silent = true })
+
+  -- Map default keys to Plug targets on this specific buffer
+  vim.api.nvim_buf_set_keymap(buf, "n", "<Tab>", "<Plug>(kubectl.drift_switch_pane)", opts)
+  vim.api.nvim_buf_set_keymap(buf, "n", "q", "<Plug>(kubectl.drift_close)", opts)
 end
 
 --- Open the native drift view.
@@ -418,9 +468,27 @@ function M.open(path)
 
   -- Create floating window for split layout
   local width = math.floor(vim.o.columns * 0.8)
-  local height = math.floor(vim.o.lines * 0.8)
+  local total_height = math.floor(vim.o.lines * 0.8)
   local col = math.floor((vim.o.columns - width) / 2)
-  local row = math.floor((vim.o.lines - height) / 2)
+  local row = math.floor((vim.o.lines - total_height) / 2)
+
+  -- Hints bar height (1 line of content + border)
+  local hints_height = 1
+  local content_height = total_height - hints_height - 2 -- subtract hints + gap
+
+  -- Create hints buffer and window (top bar spanning full width)
+  local hints_buf = vim.api.nvim_create_buf(false, true)
+  local hints_win = vim.api.nvim_open_win(hints_buf, false, {
+    relative = "editor",
+    width = width,
+    height = hints_height,
+    col = col,
+    row = row,
+    style = "minimal",
+    border = "rounded",
+    title = " Drift ",
+    title_pos = "center",
+  })
 
   -- Create list buffer and window (left pane, 35%)
   local list_buf = vim.api.nvim_create_buf(false, true)
@@ -428,9 +496,9 @@ function M.open(path)
   local list_win = vim.api.nvim_open_win(list_buf, true, {
     relative = "editor",
     width = list_width,
-    height = height,
+    height = content_height,
     col = col,
-    row = row,
+    row = row + hints_height + 2, -- below hints + border
     style = "minimal",
     border = "rounded",
     title = " Resources ",
@@ -443,9 +511,9 @@ function M.open(path)
   local diff_win = vim.api.nvim_open_win(diff_buf, false, {
     relative = "editor",
     width = diff_width,
-    height = height,
+    height = content_height,
     col = col + list_width + 1,
-    row = row,
+    row = row + hints_height + 2,
     style = "minimal",
     border = "rounded",
     title = " Diff Preview ",
@@ -453,7 +521,7 @@ function M.open(path)
   })
 
   -- Set buffer options
-  for _, buf in ipairs({ list_buf, diff_buf }) do
+  for _, buf in ipairs({ hints_buf, list_buf, diff_buf }) do
     vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
     vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
     vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
@@ -469,10 +537,13 @@ function M.open(path)
     entries = {},
     counts = { changed = 0, unchanged = 0, errors = 0 },
     hide_unchanged = false,
+    hints_buf = hints_buf,
+    hints_win = hints_win,
     list_buf = list_buf,
     list_win = list_win,
     diff_buf = diff_buf,
     diff_win = diff_win,
+    header_row_count = 0, -- Now 0 since hints are in separate window
   }
 
   -- Setup keymaps
