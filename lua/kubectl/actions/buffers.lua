@@ -161,67 +161,10 @@ function M.fit_to_content(buf, win, offset)
 end
 
 --- Fit a framed layout (hints + content pane) to content size
---- Resizes and repositions both windows to stay aligned and centered
 ---@param frame table Frame object from view_framed (with hints_win, panes)
----@param offset? number Height offset for content pane (default 2)
+---@param offset? number Height offset for content pane (default 0)
 function M.fit_framed_to_content(frame, offset)
-  if not frame or not frame.panes or not frame.panes[1] then
-    return
-  end
-
-  local content_buf = frame.panes[1].buf
-  local content_win = frame.panes[1].win
-  local hints_win = frame.hints_win
-
-  if not vim.api.nvim_win_is_valid(content_win) then
-    return
-  end
-
-  -- Calculate content dimensions
-  local rows = vim.api.nvim_buf_line_count(content_buf)
-  local max_columns = 100
-  local lines = vim.api.nvim_buf_get_lines(content_buf, 0, rows, false)
-
-  for _, line in ipairs(lines) do
-    local line_width = vim.api.nvim_strwidth(line)
-    if line_width > max_columns then
-      max_columns = line_width
-    end
-  end
-
-  local content_height = rows + (offset or 2)
-  local new_width = max_columns + 2 -- Add padding for borders
-
-  -- Get hints window config for height
-  local hints_height = 1
-  if vim.api.nvim_win_is_valid(hints_win) then
-    local hints_config = vim.api.nvim_win_get_config(hints_win)
-    hints_height = hints_config.height or 1
-  end
-
-  -- Calculate centered position
-  local total_height = hints_height + 2 + content_height + 2 -- borders
-  local editor_width = vim.o.columns
-  local editor_height = vim.o.lines - vim.o.cmdheight
-  local col = math.floor((editor_width - new_width) / 2)
-  local row = math.floor((editor_height - total_height) / 2)
-
-  -- Update hints window
-  if vim.api.nvim_win_is_valid(hints_win) then
-    local hints_config = vim.api.nvim_win_get_config(hints_win)
-    hints_config.width = new_width
-    hints_config.col = col
-    hints_config.row = row
-    vim.api.nvim_win_set_config(hints_win, hints_config)
-  end
-
-  -- Update content window
-  local content_config = vim.api.nvim_win_get_config(content_win)
-  content_config.width = new_width
-  content_config.height = content_height
-  content_config.col = col
-  content_config.row = row + hints_height + 2 -- Below hints + border
-  vim.api.nvim_win_set_config(content_win, content_config)
+  layout.fit_framed_to_content(frame, offset)
 end
 
 --- Creates an alias buffer.
@@ -337,7 +280,8 @@ end
 --- @param filetype string: The filetype of the buffer.
 --- @param title string|nil: The filetype of the buffer.
 --- @param callback function|nil: The callback function.
---- @param opts { header: { data: table }, prompt: boolean, syntax: string, enter: boolean, relative: string}|nil: Options for the buffer.
+-- luacheck: no max line length
+--- @param opts { header: { data: table }, prompt: boolean, syntax: string, enter: boolean, relative: string, skip_fit: boolean, width: integer?, height: integer? }|nil
 function M.floating_dynamic_buffer(filetype, title, callback, opts)
   opts = opts or {}
   local bufname = filetype or "dynamic_float"
@@ -351,12 +295,13 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     end
   end
 
-  local win = layout.float_dynamic_layout(
-    buf,
-    opts.syntax or filetype,
-    title or "",
-    { relative = opts.relative, enter = opts.enter }
-  )
+  local win = layout.float_dynamic_layout(buf, opts.syntax or filetype, title or "", {
+    relative = opts.relative,
+    enter = opts.enter,
+    skip_fit = opts.skip_fit,
+    width = opts.width,
+    height = opts.height,
+  })
 
   if opts.prompt then
     vim.fn.prompt_setcallback(buf, function(input)
@@ -374,7 +319,9 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
 
   layout.set_buf_options(buf, filetype, "", bufname)
   layout.set_win_options(win)
-  M.fit_to_content(buf, win, 2)
+  if not opts.skip_fit then
+    M.fit_to_content(buf, win, 2)
+  end
 
   state.register_buffer_for_restore(buf, filetype, M.floating_dynamic_buffer, { filetype, title, callback, opts })
   return buf, win
@@ -501,6 +448,8 @@ end
 ---@field panes FramedPaneOpts[] Pane configurations
 ---@field width number|nil Overall width ratio (default 0.8)
 ---@field height number|nil Overall height ratio (default 0.8)
+---@field recreate_func function|nil Function to recreate the view for picker restoration
+---@field recreate_args table|nil Arguments to pass to recreate_func
 
 ---@class FramedBufferResult
 ---@field hints_buf number Hints buffer
@@ -583,8 +532,15 @@ function M.framed_buffer(opts)
   })
 
   -- Register for picker/restore (first pane only)
-  if opts.filetype and opts.title then
-    state.register_buffer_for_restore(pane_bufs[1], opts.filetype, M.framed_buffer, { opts.filetype, opts.title })
+  -- Views can provide recreate_func/recreate_args to properly recreate themselves
+  if opts.filetype and opts.title and opts.recreate_func then
+    state.register_buffer_for_restore(
+      pane_bufs[1],
+      opts.filetype,
+      opts.recreate_func,
+      opts.recreate_args or {},
+      opts.title
+    )
   end
 
   return {

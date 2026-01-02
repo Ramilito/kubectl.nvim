@@ -117,28 +117,51 @@ function M.Picker()
 
   local data = {}
   for id, value in pairs(state.buffers) do
-    local parts = vim.split(value.args[2], "|")
+    -- Use stored filetype and title (new format) or extract from args (old format)
+    local filetype = value.filetype
+    local title = value.title
+
+    -- Fallback to old format for backwards compatibility
+    if not filetype or not title then
+      if not value.args or #value.args == 0 or not value.args[1] then
+        goto continue
+      end
+      if type(value.args[1]) == "table" then
+        filetype = value.args[1].filetype
+        title = value.args[1].title
+      else
+        filetype = value.args[1]
+        title = value.args[2]
+      end
+    end
+
+    if not title or not filetype then
+      goto continue
+    end
+
+    local parts = vim.split(title, "|")
     local kind = vim.trim(parts[1])
     local resource = vim.trim(parts[2] or "")
     local namespace = vim.trim(parts[3] or "")
-    local type = value.args[1]:gsub("k8s_", "")
+    local buf_type = filetype:gsub("k8s_", "")
     local symbol = hl.symbols.success
 
-    if type == "exec" then
+    if buf_type == "exec" then
       symbol = hl.symbols.experimental
-    elseif type == "desc" then
+    elseif buf_type == "desc" then
       symbol = hl.symbols.debug
-    elseif type == "yaml" then
+    elseif buf_type == "yaml" then
       symbol = hl.symbols.header
     end
 
     table.insert(data, {
       id = { value = id, symbol = hl.symbols.gray },
       kind = { value = kind, symbol = symbol },
-      type = { value = type, symbol = symbol },
+      type = { value = buf_type, symbol = symbol },
       resource = { value = resource, symbol = symbol },
       namespace = { value = namespace, symbol = hl.symbols.gray },
     })
+    ::continue::
   end
 
   local function sort_by_id_value(tbl)
@@ -159,7 +182,7 @@ function M.Picker()
     marks = builder.extmarks,
     header = { data = {}, marks = {} },
   })
-  buffers.fit_framed_to_content(builder.frame, 1)
+  builder.fitToContent(1)
 
   vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
     noremap = true,

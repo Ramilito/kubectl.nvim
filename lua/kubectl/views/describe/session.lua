@@ -182,7 +182,10 @@ function M.view(resource, name, namespace, gvk)
   }
 
   local builder = manager.get_or_create(definition.resource)
-  builder.view_framed(definition)
+  builder.view_framed(definition, {
+    recreate_func = M.view,
+    recreate_args = { resource, name, namespace, gvk },
+  })
 
   -- Create and start session
   local key = session_key(builder.buf_nr)

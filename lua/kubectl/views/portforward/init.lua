@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local tables = require("kubectl.utils.tables")
@@ -43,7 +42,7 @@ function M.View()
   local headers = { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" }
   builder.prettyData, builder.extmarks = tables.pretty_print(builder.data, headers)
   builder.displayContent(builder.win_nr)
-  buffers.fit_framed_to_content(builder.frame, 1)
+  builder.fitToContent(1)
 
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = builder.buf_nr })

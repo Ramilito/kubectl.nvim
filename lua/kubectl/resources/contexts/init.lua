@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local hl = require("kubectl.actions.highlight")
@@ -64,7 +63,7 @@ function M.View()
 
     vim.schedule(function()
       builder.process(M.processRow, true).prettyPrint().displayContent(win)
-      buffers.fit_framed_to_content(builder.frame, 1)
+      builder.fitToContent(1)
 
       local list = {}
       M.contexts = {}

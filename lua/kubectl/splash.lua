@@ -208,7 +208,7 @@ local function create_window()
     "k8s_splash",
     "Loading...",
     function() end,
-    { enter = false }
+    { enter = false, skip_fit = true, height = 11 }
   )
 
   pcall(vim.api.nvim_set_option_value, "winbar", "", { scope = "local", win = builder.win_nr })

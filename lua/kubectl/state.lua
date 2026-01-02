@@ -339,7 +339,8 @@ end
 ---@param filetype string Filetype of the buffer
 ---@param open_func function Function to call to reopen the buffer
 ---@param args table Arguments to pass to open_func
-function M.register_buffer_for_restore(buf, filetype, open_func, args)
+---@param title string|nil Display title for picker
+function M.register_buffer_for_restore(buf, filetype, open_func, args, title)
   -- Skip ephemeral buffers that shouldn't be restored
   local skip_filetypes = {
     k8s_picker = true,
@@ -355,7 +356,7 @@ function M.register_buffer_for_restore(buf, filetype, open_func, args)
   end
 
   local current_tab = vim.api.nvim_get_current_tabpage()
-  M.buffers[buf] = { open = open_func, args = args, tab_id = current_tab }
+  M.buffers[buf] = { open = open_func, args = args, tab_id = current_tab, filetype = filetype, title = title }
 end
 
 return M

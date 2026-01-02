@@ -413,7 +413,7 @@ function M.new(resource)
   --- Automatically renders hints and sets syntax if provided.
   --- If cmd and args are provided in opts, runs async command and displays content.
   --- @param definition table Definition with ft, hints, panes, title, width, height, syntax, cmd
-  --- @param opts? { args: table } Optional args for async command
+  --- @param opts? { args: table, recreate_func: function, recreate_args: table } Options
   --- @return table builder
   function builder.view_framed(definition, opts)
     opts = opts or {}
@@ -425,6 +425,9 @@ function M.new(resource)
       panes = definition.panes,
       width = definition.width,
       height = definition.height,
+      -- For picker restoration - view provides function to recreate itself
+      recreate_func = opts.recreate_func,
+      recreate_args = opts.recreate_args,
     })
 
     builder.frame = frame
@@ -455,6 +458,19 @@ function M.new(resource)
       end)
     end
 
+    return builder
+  end
+
+  --- Fit the view to its content size.
+  --- Handles both framed layouts and regular windows.
+  --- @param offset? number Height offset (default 1)
+  --- @return table builder
+  function builder.fitToContent(offset)
+    if builder.frame then
+      buffers.fit_framed_to_content(builder.frame, offset or 1)
+    elseif builder.buf_nr and builder.win_nr then
+      buffers.fit_to_content(builder.buf_nr, builder.win_nr, offset or 1)
+    end
     return builder
   end
 

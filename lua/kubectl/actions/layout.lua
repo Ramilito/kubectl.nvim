@@ -43,7 +43,8 @@ end
 --- @param buf integer: The buffer number.
 --- @param filetype string: The filetype for the buffer.
 --- @param title string|nil: The title for the buffer (optional).
---- @param opts { relative: string|nil, enter: boolean? }|nil: The options for the float layout (optional).
+-- luacheck: no max line length
+--- @param opts { relative: string|nil, enter: boolean?, skip_fit: boolean?, width: integer?, height: integer? }|nil
 --- @return integer: The window number.
 function M.float_dynamic_layout(buf, filetype, title, opts)
   opts = opts or {}
@@ -53,33 +54,36 @@ function M.float_dynamic_layout(buf, filetype, title, opts)
     title = filetype .. " - " .. (title or "")
   end
 
-  local width, height = M.get_editor_dimensions()
-  local win_width, win_height = 100, 15 -- Define the floating window size
+  local editor_width, editor_height = M.get_editor_dimensions()
+  local win_width = opts.width or 100
+  local win_height = opts.height or 15
   local win = api.nvim_open_win(buf, enter, {
     relative = relative,
     style = "minimal",
-    width = 100,
-    height = 5,
-    col = (width - win_width) * 0.5,
-    row = (height - win_height) * 0.5,
+    width = win_width,
+    height = opts.height or 5,
+    col = (editor_width - win_width) * 0.5,
+    row = (editor_height - win_height) * 0.5,
     border = "rounded",
     title = title,
   })
 
-  vim.api.nvim_buf_attach(buf, false, {
-    on_lines = function(
-      _, -- use nil as first argument (since it is buffer handle)
-      buf_nr, -- buffer number
-      _, -- buffer changedtick
-      _, -- first line number of the change (0-indexed)
-      lastline, -- last line number of the change
-      new_lastline -- last line number after the change
-    )
-      if lastline ~= new_lastline then
-        M.win_size_fit_content(buf_nr, win, 2)
-      end
-    end,
-  })
+  if not opts.skip_fit then
+    vim.api.nvim_buf_attach(buf, false, {
+      on_lines = function(
+        _, -- use nil as first argument (since it is buffer handle)
+        buf_nr, -- buffer number
+        _, -- buffer changedtick
+        _, -- first line number of the change (0-indexed)
+        lastline, -- last line number of the change
+        new_lastline -- last line number after the change
+      )
+        if lastline ~= new_lastline then
+          M.win_size_fit_content(buf_nr, win, 2)
+        end
+      end,
+    })
+  end
 
   return win
 end
@@ -232,6 +236,30 @@ function M.float_framed_windows(bufs, opts)
 end
 
 --- Fits content to window size
+--- Calculate dimensions needed to fit buffer content
+--- @param buf_nr integer Buffer number
+--- @param height_offset? integer Height padding (default 0)
+--- @param min_width? integer Minimum width (default 0)
+--- @return { rows: number, width: number, height: number }
+local function calc_content_dimensions(buf_nr, height_offset, min_width)
+  local rows = vim.api.nvim_buf_line_count(buf_nr)
+  local max_width = 0
+  local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)
+
+  for _, line in ipairs(lines) do
+    local line_width = vim.api.nvim_strwidth(line)
+    if line_width > max_width then
+      max_width = line_width
+    end
+  end
+
+  return {
+    rows = rows,
+    width = math.max(max_width, min_width or 1, 1), -- Ensure at least 1
+    height = math.max(rows + (height_offset or 0), 1), -- Ensure at least 1
+  }
+end
+
 --- @param buf_nr integer: The buffer number.
 --- @param height_offset integer: The height offset.
 --- @param min_width integer|nil: The minimum width.
@@ -241,25 +269,65 @@ function M.win_size_fit_content(buf_nr, win_nr, height_offset, min_width)
     win_nr = vim.api.nvim_get_current_win()
   end
   local win_config = vim.api.nvim_win_get_config(win_nr)
+  local dims = calc_content_dimensions(buf_nr, height_offset, min_width)
 
-  local rows = vim.api.nvim_buf_line_count(buf_nr)
-  -- Calculate the maximum width (number of columns of the widest line)
-  local max_columns = 100
-  local lines = vim.api.nvim_buf_get_lines(buf_nr, 0, rows, false)
+  win_config.height = dims.height
+  win_config.width = dims.width
 
-  for _, line in ipairs(lines) do
-    local line_width = vim.api.nvim_strwidth(line)
-    if line_width > max_columns then
-      max_columns = line_width
-    end
-  end
-
-  win_config.height = rows + height_offset
-  win_config.width = math.max(max_columns, min_width or 0)
-
-  api.nvim_set_option_value("scrolloff", rows + height_offset, { win = win_nr })
+  api.nvim_set_option_value("scrolloff", dims.height, { win = win_nr })
   vim.api.nvim_win_set_config(win_nr, win_config)
   return win_config
+end
+
+--- Fit a framed layout (hints + content panes) to content size
+--- Resizes and repositions all windows to stay aligned and centered
+--- @param frame { hints_win: integer, panes: { buf: integer, win: integer }[] }
+--- @param height_offset? integer Height padding for content (default 0)
+function M.fit_framed_to_content(frame, height_offset)
+  if not frame or not frame.panes or not frame.panes[1] then
+    return
+  end
+
+  local content_buf = frame.panes[1].buf
+  local content_win = frame.panes[1].win
+  local hints_win = frame.hints_win
+
+  if not vim.api.nvim_win_is_valid(content_win) then
+    return
+  end
+
+  -- Calculate content dimensions
+  local dims = calc_content_dimensions(content_buf, height_offset, 0)
+
+  -- Get current hints height
+  local hints_height = 1
+  if vim.api.nvim_win_is_valid(hints_win) then
+    hints_height = vim.api.nvim_win_get_config(hints_win).height or 1
+  end
+
+  -- Calculate centered position for the whole frame
+  local border_size = 2
+  local total_height = hints_height + border_size + dims.height + border_size
+  local total_width = dims.width + border_size
+  local col = math.floor((vim.o.columns - total_width) / 2)
+  local row = math.floor((vim.o.lines - vim.o.cmdheight - total_height) / 2)
+
+  -- Update hints window
+  if vim.api.nvim_win_is_valid(hints_win) then
+    local hints_config = vim.api.nvim_win_get_config(hints_win)
+    hints_config.width = dims.width
+    hints_config.col = col
+    hints_config.row = row
+    vim.api.nvim_win_set_config(hints_win, hints_config)
+  end
+
+  -- Update content window
+  local content_config = vim.api.nvim_win_get_config(content_win)
+  content_config.width = dims.width
+  content_config.height = dims.height
+  content_config.col = col
+  content_config.row = row + hints_height + border_size
+  vim.api.nvim_win_set_config(content_win, content_config)
 end
 
 return M
