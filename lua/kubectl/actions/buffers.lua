@@ -426,10 +426,15 @@ function M.buffer(filetype, title)
   return buf, win
 end
 
+---@class FramedPaneOpts
+---@field title string|nil Window title
+---@field width number|nil Width ratio (0-1) for multi-pane layouts
+---@field prompt boolean|nil Whether this pane uses prompt buffer type
+
 ---@class FramedBufferConfig
 ---@field title string|nil Main title for the frame
 ---@field filetype string|nil Filetype for the first pane buffer
----@field panes { title: string|nil, width: number|nil }[] Pane configurations
+---@field panes FramedPaneOpts[] Pane configurations
 ---@field width number|nil Overall width ratio (default 0.8)
 ---@field height number|nil Overall height ratio (default 0.8)
 
@@ -447,8 +452,13 @@ function M.framed_buffer(opts)
   -- Create buffers
   local hints_buf = api.nvim_create_buf(false, true)
   local pane_bufs = {}
-  for i = 1, #opts.panes do
-    pane_bufs[i] = api.nvim_create_buf(false, true)
+  for i, pane_opts in ipairs(opts.panes) do
+    if pane_opts.prompt then
+      pane_bufs[i] = api.nvim_create_buf(false, true)
+      api.nvim_set_option_value("buftype", "prompt", { buf = pane_bufs[i] })
+    else
+      pane_bufs[i] = api.nvim_create_buf(false, true)
+    end
   end
 
   -- Create windows via layout
@@ -465,10 +475,14 @@ function M.framed_buffer(opts)
 
   -- Set buffer options for pane buffers
   for i, pane_buf in ipairs(pane_bufs) do
-    api.nvim_set_option_value("buftype", "nofile", { buf = pane_buf })
+    local pane_opts = opts.panes[i]
+    -- Don't override buftype for prompt buffers
+    if not pane_opts.prompt then
+      api.nvim_set_option_value("buftype", "nofile", { buf = pane_buf })
+      api.nvim_set_option_value("modifiable", false, { buf = pane_buf })
+    end
     api.nvim_set_option_value("bufhidden", "wipe", { buf = pane_buf })
     api.nvim_set_option_value("swapfile", false, { buf = pane_buf })
-    api.nvim_set_option_value("modifiable", false, { buf = pane_buf })
 
     if i == 1 and opts.filetype then
       api.nvim_set_option_value("filetype", opts.filetype, { buf = pane_buf })

@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
@@ -13,10 +12,14 @@ local M = {
     resource = "filter_label",
     display = "Filter on labels",
     ft = "k8s_filter_label",
+    title = "Filter on labels",
     hints = {
       { key = "<Plug>(kubectl.tab)", desc = "toggle label" },
       { key = "<Plug>(kubectl.add_label)", desc = "new label" },
       { key = "<Plug>(kubectl.delete_label)", desc = "delete label" },
+    },
+    panes = {
+      { title = "Labels" },
     },
     notes = "Select none to clear existing filters.",
   },
@@ -24,43 +27,42 @@ local M = {
   resource_definition = {},
 }
 
-local function display_float(builder)
-  builder.buf_nr, M.win_config = buffers.confirmation_buffer(
-    M.definition.display,
-    M.definition.ft,
-    -- on confirm (clicked y)
-    function(confirm)
-      if confirm then
-        local confirmed_labels = {}
-        local sess_labels = {}
-        for _, label in ipairs(builder.fl_content.existing_labels) do
-          if label.is_label then
-            table.insert(sess_labels, label.text)
-            if label.is_selected then
-              table.insert(confirmed_labels, label.text)
-            end
-          end
+local function on_confirm(builder, confirm)
+  if confirm then
+    local confirmed_labels = {}
+    local sess_labels = {}
+    for _, label in ipairs(builder.fl_content.existing_labels) do
+      if label.is_label then
+        table.insert(sess_labels, label.text)
+        if label.is_selected then
+          table.insert(confirmed_labels, label.text)
         end
-        for _, label in ipairs(builder.fl_content.res_labels) do
-          if label.is_label and label.is_selected then
-            table.insert(sess_labels, label.text)
-            table.insert(confirmed_labels, label.text)
-          end
-        end
-        state.filter_label = confirmed_labels
-        state.filter_label_history = sess_labels
-        utils.save_history()
       end
     end
-  )
+    for _, label in ipairs(builder.fl_content.res_labels) do
+      if label.is_label and label.is_selected then
+        table.insert(sess_labels, label.text)
+        table.insert(confirmed_labels, label.text)
+      end
+    end
+    state.filter_label = confirmed_labels
+    state.filter_label_history = sess_labels
+    utils.save_history()
+  end
+end
 
-  ------------
-  -- HEADER --
-  ------------
-  -- add hints
-  builder.addHints(M.definition.hints, false, false)
+local function display_float(builder)
+  builder.view_framed(M.definition)
 
-  -- add notes with extmark
+  local buf = builder.buf_nr
+  local win = builder.win_nr
+  M.win_config = win
+
+  -- Render hints
+  builder.renderHints()
+
+  -- Add notes with extmark
+  builder.header = { data = {}, marks = {} }
   table.insert(builder.header.data, M.definition.notes)
   table.insert(builder.header.marks, {
     row = #builder.header.data - 1,
@@ -69,12 +71,10 @@ local function display_float(builder)
     hl_group = hl.symbols.gray,
   })
 
-  -- add divider
+  -- Add divider
   tables.generateDividerRow(builder.header.data, builder.header.marks)
 
-  -------------
-  -- CONTENT --
-  -------------
+  -- Content setup
   builder.fl_content = {
     existing_labels = {},
     res_labels = {},
@@ -86,12 +86,33 @@ local function display_float(builder)
   utils.add_res_labels(builder, M.resource_definition.gvk.k)
   utils.add_confirmation(builder, M.win_config)
 
-  -- clear augroup
+  -- Set up y/n keymaps for confirmation
+  vim.api.nvim_buf_set_keymap(buf, "n", "y", "", {
+    noremap = true,
+    silent = true,
+    callback = function()
+      on_confirm(builder, true)
+      if builder.frame then
+        builder.frame.close()
+      end
+    end,
+  })
+  vim.api.nvim_buf_set_keymap(buf, "n", "n", "", {
+    noremap = true,
+    silent = true,
+    callback = function()
+      on_confirm(builder, false)
+      if builder.frame then
+        builder.frame.close()
+      end
+    end,
+  })
+
+  -- Clear augroup
   vim.api.nvim_clear_autocmds({ group = M.augroup })
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = M.augroup,
-    buffer = builder.buf_nr,
-    -- save the label on insert leave
+    buffer = buf,
     callback = function(ev)
       local lbl_type, lbl_idx = utils.get_row_data(builder)
       if not (lbl_type and lbl_idx) then

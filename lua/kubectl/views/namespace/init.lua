@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.namespace.definition")
@@ -12,18 +11,36 @@ local M = {
     resource = resource,
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
+    title = "Namespaces",
     gvk = { g = "", v = "v1", k = "Namespace" },
     headers = {
       "NAME",
       "STATUS",
       "AGE",
     },
+    hints = {
+      { key = "<Plug>(kubectl.select)", desc = "apply" },
+      { key = "<Plug>(kubectl.tab)", desc = "next" },
+      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+      { key = "<Plug>(kubectl.quit)", desc = "close" },
+    },
+    panes = {
+      { title = "Namespaces", prompt = true },
+    },
   },
   namespaces = { "All" },
 }
 
 function M.View()
-  local buf, win = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.definition = M.definition
+  builder.view_framed(M.definition)
+
+  local buf = builder.buf_nr
+
+  -- Set up prompt callback
+  vim.fn.prompt_setcallback(buf, function(input)
+    input = vim.trim(input)
     if vim.tbl_contains(M.namespaces, input) or input == "" then
       M.changeNamespace(input)
     else
@@ -31,12 +48,15 @@ function M.View()
         vim.notify("Not a valid namespace", vim.log.levels.ERROR)
       end)
     end
-  end, { header = { data = {} }, prompt = true })
+    vim.cmd("stopinsert")
+    vim.api.nvim_set_option_value("modified", false, { buf = buf })
+    vim.cmd.fclose()
+  end)
 
-  local builder = manager.get_or_create(M.definition.resource)
-  builder.definition = M.definition
-  builder.buf_nr = buf
-  builder.win_nr = win
+  vim.cmd("startinsert")
+
+  -- Render hints
+  builder.renderHints()
 
   commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = nil }, function(_, err)
     if err then
@@ -48,6 +68,7 @@ function M.View()
       vim.schedule(function()
         builder.process(definition.processRow, true).prettyPrint()
         builder.displayContent(builder.win_nr)
+
         local list = { { name = "All" } }
         for _, value in ipairs(builder.processedData) do
           if value.name.value then
