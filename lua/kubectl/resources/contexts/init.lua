@@ -64,7 +64,7 @@ function M.View()
 
     vim.schedule(function()
       builder.process(M.processRow, true).prettyPrint().displayContent(win)
-      buffers.fit_to_content(builder.buf_nr, win, 1)
+      buffers.fit_framed_to_content(builder.frame, 1)
 
       local list = {}
       M.contexts = {}

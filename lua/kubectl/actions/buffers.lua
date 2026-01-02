@@ -160,6 +160,70 @@ function M.fit_to_content(buf, win, offset)
   return win_config
 end
 
+--- Fit a framed layout (hints + content pane) to content size
+--- Resizes and repositions both windows to stay aligned and centered
+---@param frame table Frame object from view_framed (with hints_win, panes)
+---@param offset? number Height offset for content pane (default 2)
+function M.fit_framed_to_content(frame, offset)
+  if not frame or not frame.panes or not frame.panes[1] then
+    return
+  end
+
+  local content_buf = frame.panes[1].buf
+  local content_win = frame.panes[1].win
+  local hints_win = frame.hints_win
+
+  if not vim.api.nvim_win_is_valid(content_win) then
+    return
+  end
+
+  -- Calculate content dimensions
+  local rows = vim.api.nvim_buf_line_count(content_buf)
+  local max_columns = 100
+  local lines = vim.api.nvim_buf_get_lines(content_buf, 0, rows, false)
+
+  for _, line in ipairs(lines) do
+    local line_width = vim.api.nvim_strwidth(line)
+    if line_width > max_columns then
+      max_columns = line_width
+    end
+  end
+
+  local content_height = rows + (offset or 2)
+  local new_width = max_columns + 2 -- Add padding for borders
+
+  -- Get hints window config for height
+  local hints_height = 1
+  if vim.api.nvim_win_is_valid(hints_win) then
+    local hints_config = vim.api.nvim_win_get_config(hints_win)
+    hints_height = hints_config.height or 1
+  end
+
+  -- Calculate centered position
+  local total_height = hints_height + 2 + content_height + 2 -- borders
+  local editor_width = vim.o.columns
+  local editor_height = vim.o.lines - vim.o.cmdheight
+  local col = math.floor((editor_width - new_width) / 2)
+  local row = math.floor((editor_height - total_height) / 2)
+
+  -- Update hints window
+  if vim.api.nvim_win_is_valid(hints_win) then
+    local hints_config = vim.api.nvim_win_get_config(hints_win)
+    hints_config.width = new_width
+    hints_config.col = col
+    hints_config.row = row
+    vim.api.nvim_win_set_config(hints_win, hints_config)
+  end
+
+  -- Update content window
+  local content_config = vim.api.nvim_win_get_config(content_win)
+  content_config.width = new_width
+  content_config.height = content_height
+  content_config.col = col
+  content_config.row = row + hints_height + 2 -- Below hints + border
+  vim.api.nvim_win_set_config(content_win, content_config)
+end
+
 --- Creates an alias buffer.
 --- @param filetype string: The filetype of the buffer.
 --- @param opts { title: string|nil }: Options for the buffer.
@@ -517,6 +581,11 @@ function M.framed_buffer(opts)
       pcall(api.nvim_del_augroup_by_id, augroup)
     end,
   })
+
+  -- Register for picker/restore (first pane only)
+  if opts.filetype and opts.title then
+    state.register_buffer_for_restore(pane_bufs[1], opts.filetype, M.framed_buffer, { opts.filetype, opts.title })
+  end
 
   return {
     hints_buf = hints_buf,

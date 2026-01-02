@@ -135,7 +135,7 @@ local function display_float(builder)
   })
 
   M.Draw()
-  buffers.fit_to_content(buf, win, 1)
+  buffers.fit_framed_to_content(builder.frame, 1)
 end
 
 function M.View()

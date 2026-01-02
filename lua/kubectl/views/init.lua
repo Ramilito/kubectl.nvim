@@ -99,9 +99,23 @@ end
 function M.Picker()
   vim.cmd("fclose!")
 
-  local self = manager.get_or_create("Picker")
-  local data = {}
+  local def = {
+    resource = "Picker",
+    ft = "k8s_picker",
+    title = "Picker",
+    hints = {
+      { key = "<Plug>(kubectl.delete)", desc = "delete" },
+      { key = "<Plug>(kubectl.select)", desc = "select" },
+    },
+    panes = {
+      { title = "Picker" },
+    },
+  }
 
+  local builder = manager.get_or_create("Picker")
+  builder.view_framed(def)
+
+  local data = {}
   for id, value in pairs(state.buffers) do
     local parts = vim.split(value.args[2], "|")
     local kind = vim.trim(parts[1])
@@ -133,21 +147,21 @@ function M.Picker()
     end)
   end
   sort_by_id_value(data)
-  self.data = data
-  self.processedData = self.data
+  builder.data = data
+  builder.processedData = builder.data
 
-  self.addHints({
-    { key = "<Plug>(kubectl.delete)", desc = "delete" },
-    { key = "<Plug>(kubectl.select)", desc = "select" },
-  }, false, false, false)
+  local headers = { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
+  builder.prettyData, builder.extmarks =
+    tables.pretty_print(builder.processedData, headers, { current_word = "ID", order = "desc" })
 
-  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_picker", "Picker", nil, nil)
-  self.prettyData, self.extmarks = tables.pretty_print(
-    self.processedData,
-    { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" },
-    { current_word = "ID", order = "desc" }
-  )
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
+  buffers.set_content(builder.buf_nr, {
+    content = builder.prettyData,
+    marks = builder.extmarks,
+    header = { data = {}, marks = {} },
+  })
+  buffers.fit_framed_to_content(builder.frame, 1)
+
+  vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
     noremap = true,
     callback = function()
       local selection = tables.getCurrentSelection(1)
@@ -162,7 +176,7 @@ function M.Picker()
     end,
   })
 
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.select)", "", {
+  vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     callback = function()
       local bufnr = tables.getCurrentSelection(1)
@@ -183,7 +197,7 @@ function M.Picker()
       end
     end,
   })
-  self.displayContent(self.win_nr)
+
   vim.schedule(function()
     mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
   end)

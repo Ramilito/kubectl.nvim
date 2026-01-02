@@ -66,7 +66,7 @@ function M.View()
       vim.schedule(function()
         builder.process(definition.processRow, true).prettyPrint()
         builder.displayContent(builder.win_nr)
-        buffers.fit_to_content(builder.buf_nr, builder.win_nr, 1)
+        buffers.fit_framed_to_content(builder.frame, 1)
 
         local list = { { name = "All" } }
         for _, value in ipairs(builder.processedData) do

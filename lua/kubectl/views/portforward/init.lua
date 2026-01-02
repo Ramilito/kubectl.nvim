@@ -43,7 +43,7 @@ function M.View()
   local headers = { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" }
   builder.prettyData, builder.extmarks = tables.pretty_print(builder.data, headers)
   builder.displayContent(builder.win_nr)
-  buffers.fit_to_content(builder.buf_nr, builder.win_nr, 1)
+  buffers.fit_framed_to_content(builder.frame, 1)
 
   vim.keymap.set("n", "q", function()
     vim.api.nvim_set_option_value("modified", false, { buf = builder.buf_nr })
