@@ -409,6 +409,93 @@ function M.new(resource)
     return builder
   end
 
+  --- Create a framed floating view with hints bar and multiple panes.
+  --- Automatically renders hints and sets syntax if provided.
+  --- If cmd and args are provided in opts, runs async command and displays content.
+  --- @param definition table Definition with ft, hints, panes, title, width, height, syntax, cmd
+  --- @param opts? { args: table, recreate_func: function, recreate_args: table } Options
+  --- @return table builder
+  function builder.view_framed(definition, opts)
+    opts = opts or {}
+    builder.definition = definition or {}
+
+    local frame = buffers.framed_buffer({
+      title = definition.title,
+      filetype = definition.ft,
+      panes = definition.panes,
+      width = definition.width,
+      height = definition.height,
+      -- For picker restoration - view provides function to recreate itself
+      recreate_func = opts.recreate_func,
+      recreate_args = opts.recreate_args,
+    })
+
+    builder.frame = frame
+    builder.buf_nr = frame.panes[1].buf
+    builder.win_nr = frame.panes[1].win
+
+    -- Auto-render hints
+    builder.renderHints()
+
+    -- Set syntax if provided
+    if definition.syntax then
+      vim.api.nvim_set_option_value("syntax", definition.syntax, { buf = builder.buf_nr })
+    end
+
+    -- If cmd and args provided, run async and set content
+    if definition.cmd and opts.args then
+      commands.run_async(definition.cmd, opts.args, function(result)
+        if not result then
+          return
+        end
+        vim.schedule(function()
+          local lines = vim.split(result, "\n", { plain = true })
+          buffers.set_content(builder.buf_nr, {
+            content = lines,
+            header = { data = {}, marks = {} },
+          })
+        end)
+      end)
+    end
+
+    return builder
+  end
+
+  --- Fit the view to its content size.
+  --- Handles both framed layouts and regular windows.
+  --- @param offset? number Height offset (default 1)
+  --- @return table builder
+  function builder.fitToContent(offset)
+    if builder.frame then
+      buffers.fit_framed_to_content(builder.frame, offset or 1)
+    elseif builder.buf_nr and builder.win_nr then
+      buffers.fit_to_content(builder.buf_nr, builder.win_nr, offset or 1)
+    end
+    return builder
+  end
+
+  --- Render hints to the framed layout's hints buffer.
+  --- @return table builder
+  function builder.renderHints()
+    if not builder.frame then
+      return builder
+    end
+
+    local hints_buf = builder.frame.hints_buf
+    local definition = builder.definition or {}
+    local hints = definition.hints or {}
+
+    vim.api.nvim_set_option_value("modifiable", true, { buf = hints_buf })
+
+    local header_lines, header_marks = tables.generateHeader(hints, false, false)
+    vim.api.nvim_buf_set_lines(hints_buf, 0, -1, false, header_lines)
+    buffers.apply_marks(hints_buf, header_marks, {})
+
+    vim.api.nvim_set_option_value("modifiable", false, { buf = hints_buf })
+
+    return builder
+  end
+
   return builder
 end
 

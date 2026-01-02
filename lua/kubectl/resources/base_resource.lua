@@ -67,22 +67,30 @@ function BaseResource.extend(definition, options)
   ---@param ns string|nil Namespace (nil for cluster-scoped)
   function M.Yaml(name, ns)
     local display_ns = ns and (" | " .. ns) or ""
+    local title = M.definition.resource .. " | " .. name .. display_ns
+
     local def = {
       resource = M.definition.resource .. "_yaml",
-      display_name = M.definition.resource .. " | " .. name .. display_ns,
       ft = "k8s_" .. M.definition.resource .. "_yaml",
+      title = title,
       syntax = "yaml",
       cmd = "get_single_async",
+      hints = {},
+      panes = {
+        { title = "YAML" },
+      },
     }
 
     local builder = manager.get_or_create(def.resource)
-    builder.view_float(def, {
+    builder.view_framed(def, {
       args = {
         gvk = M.definition.gvk,
         namespace = M._options.is_cluster_scoped and nil or ns,
         name = name,
         output = "yaml",
       },
+      recreate_func = M.Yaml,
+      recreate_args = { name, ns },
     })
   end
 

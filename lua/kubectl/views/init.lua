@@ -2,8 +2,6 @@ local buffers = require("kubectl.actions.buffers")
 local find = require("kubectl.utils.find")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
-local mappings = require("kubectl.mappings")
-local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 local url = require("kubectl.utils.url")
 
@@ -94,99 +92,6 @@ function M.Hints(headers)
 
   local content = vim.split(table.concat(hints, ""), "\n")
   buffers.set_content(buf, { content = content, marks = marks })
-end
-
-function M.Picker()
-  vim.cmd("fclose!")
-
-  local self = manager.get_or_create("Picker")
-  local data = {}
-
-  for id, value in pairs(state.buffers) do
-    local parts = vim.split(value.args[2], "|")
-    local kind = vim.trim(parts[1])
-    local resource = vim.trim(parts[2] or "")
-    local namespace = vim.trim(parts[3] or "")
-    local type = value.args[1]:gsub("k8s_", "")
-    local symbol = hl.symbols.success
-
-    if type == "exec" then
-      symbol = hl.symbols.experimental
-    elseif type == "desc" then
-      symbol = hl.symbols.debug
-    elseif type == "yaml" then
-      symbol = hl.symbols.header
-    end
-
-    table.insert(data, {
-      id = { value = id, symbol = hl.symbols.gray },
-      kind = { value = kind, symbol = symbol },
-      type = { value = type, symbol = symbol },
-      resource = { value = resource, symbol = symbol },
-      namespace = { value = namespace, symbol = hl.symbols.gray },
-    })
-  end
-
-  local function sort_by_id_value(tbl)
-    table.sort(tbl, function(a, b)
-      return a.id.value > b.id.value
-    end)
-  end
-  sort_by_id_value(data)
-  self.data = data
-  self.processedData = self.data
-
-  self.addHints({
-    { key = "<Plug>(kubectl.delete)", desc = "delete" },
-    { key = "<Plug>(kubectl.select)", desc = "select" },
-  }, false, false, false)
-
-  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_picker", "Picker", nil, nil)
-  self.prettyData, self.extmarks = tables.pretty_print(
-    self.processedData,
-    { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" },
-    { current_word = "ID", order = "desc" }
-  )
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
-    noremap = true,
-    callback = function()
-      local selection = tables.getCurrentSelection(1)
-      local bufnr = tonumber(selection)
-
-      if bufnr then
-        state.buffers[bufnr] = nil
-        pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
-        local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-        pcall(vim.api.nvim_buf_set_lines, 0, row, row + 1, false, {})
-      end
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(self.buf_nr, "n", "<Plug>(kubectl.select)", "", {
-    noremap = true,
-    callback = function()
-      local bufnr = tables.getCurrentSelection(1)
-      local buffer = state.buffers[tonumber(bufnr)]
-
-      if buffer then
-        vim.cmd("fclose!")
-        vim.schedule(function()
-          if not vim.api.nvim_tabpage_is_valid(buffer.tab_id) then
-            vim.cmd("tabnew")
-            buffer.tab_id = vim.api.nvim_get_current_tabpage()
-          end
-          vim.schedule(function()
-            vim.api.nvim_set_current_tabpage(buffer.tab_id)
-            buffer.open(unpack(buffer.args))
-          end)
-        end)
-      end
-    end,
-  })
-  self.displayContent(self.win_nr)
-  vim.schedule(function()
-    mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
-  end)
 end
 
 --- Execute a user command and handle the response

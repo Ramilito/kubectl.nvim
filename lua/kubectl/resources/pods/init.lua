@@ -87,23 +87,39 @@ local function get_pods_for_logs()
   return pods, "No pods selected"
 end
 
-function M.Logs()
+--- Internal function that takes pods/display_name directly for recreation
+---@param pods table[] Array of {name, namespace} tables
+---@param display_name string Display name for the title
+---@param container string|nil Container name
+function M.LogsWithPods(pods, display_name, container)
+  local buffers = require("kubectl.actions.buffers")
+  local commands = require("kubectl.actions.commands")
+
   local current_buf = vim.api.nvim_get_current_buf()
   log_session.stop(current_buf)
 
-  local pods, display_name = get_pods_for_logs()
+  -- Close existing log frame if refreshing from within log view
+  local builder = manager.get_or_create("pod_logs")
+  if builder.frame then
+    if builder.frame.hints_win and vim.api.nvim_win_is_valid(builder.frame.hints_win) then
+      pcall(vim.api.nvim_win_close, builder.frame.hints_win, true)
+    end
+    for _, pane in ipairs(builder.frame.panes or {}) do
+      if pane.win and vim.api.nvim_win_is_valid(pane.win) then
+        pcall(vim.api.nvim_win_close, pane.win, true)
+      end
+    end
+  end
   local width = math.floor(config.options.float_size.width * vim.o.columns) - 4
 
   -- Get current options for display
   local opts = log_session.get_options()
 
-  local builder = manager.get_or_create("pod_logs")
-  builder.view_float({
+  local def = {
     resource = "pod_logs",
-    display_name = display_name,
     ft = "k8s_pod_logs",
+    title = display_name,
     syntax = "k8s_pod_logs",
-    cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. tostring(opts.since) .. "]" },
@@ -113,21 +129,47 @@ function M.Logs()
       { key = "<Plug>(kubectl.previous_logs)", desc = "Previous[" .. tostring(opts.previous) .. "]" },
       { key = "<Plug>(kubectl.expand_json)", desc = "Toggle JSON" },
     },
-  }, {
-    args = {
-      pods = pods,
-      container = M.selection.container,
-      since = opts.since,
-      previous = opts.previous,
-      timestamps = opts.timestamps,
-      prefix = opts.prefix,
-      histogram_width = width,
+    panes = {
+      { title = "Logs" },
     },
+  }
+
+  builder.view_framed(def, {
+    recreate_func = M.LogsWithPods,
+    recreate_args = { pods, display_name, container },
   })
 
   -- Store pods in buffer for option changes (gp, gt, gh, etc.)
   vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_pods", pods)
   vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_display", display_name)
+
+  -- Fetch initial logs (returns JSON-encoded array of strings)
+  commands.run_async("log_stream_async", {
+    pods = pods,
+    container = container,
+    since = opts.since,
+    previous = opts.previous,
+    timestamps = opts.timestamps,
+    prefix = opts.prefix,
+    histogram_width = width,
+  }, function(result)
+    if not result then
+      return
+    end
+    builder.data = result
+    builder.decodeJson()
+    vim.schedule(function()
+      buffers.set_content(builder.buf_nr, {
+        content = builder.data,
+        header = { data = {}, marks = {} },
+      })
+    end)
+  end)
+end
+
+function M.Logs()
+  local pods, display_name = get_pods_for_logs()
+  M.LogsWithPods(pods, display_name, M.selection.container)
 end
 
 --- Toggle follow mode - stops current session or starts streaming from now

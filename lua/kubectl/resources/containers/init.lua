@@ -14,6 +14,7 @@ local M = {
   definition = {
     resource = resource,
     ft = "k8s_" .. resource,
+    title = "Containers",
     gvk = { g = pod_view.definition.gvk.g, v = pod_view.definition.gvk.v, k = pod_view.definition.gvk.k },
     headers = {
       "NAME",
@@ -41,6 +42,9 @@ local M = {
       { key = "<Plug>(kubectl.select)", desc = "exec" },
       { key = "<Plug>(kubectl.select_fullscreen)", desc = "exec" },
     },
+    panes = {
+      { title = "Containers" },
+    },
   },
   log_since = config.options.logs.since,
   show_previous = "false",
@@ -54,7 +58,23 @@ function M.View(pod, ns)
   M.definition.display_name = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
   local builder = manager.get_or_create(M.definition.resource)
-  builder.view_float(M.definition, { args = { gvk = gvk, name = pod, namespace = ns } })
+  builder.view_framed(M.definition, {
+    recreate_func = M.View,
+    recreate_args = { pod, ns },
+  })
+
+  commands.run_async(M.definition.cmd, { gvk = gvk, name = pod, namespace = ns }, function(result)
+    builder.data = result
+    builder.decodeJson()
+    vim.schedule(function()
+      builder
+        .process(M.definition.processRow, true)
+        .sort()
+        .prettyPrint()
+        .addDivider(false)
+        .displayContent(builder.win_nr)
+    end)
+  end)
 
   queue.register(pod_view.definition.gvk.k, builder.buf_nr, function(payload)
     local ev = vim.json.decode(payload)
@@ -111,10 +131,10 @@ local function spawn_terminal(title, key, fn, is_fullscreen, ...)
   local state = require("kubectl.state")
   if is_fullscreen then
     buf, win = buffers.buffer(key, title)
-    state.register_buffer_for_restore(buf, title, buffers.buffer, { key, title })
+    state.picker_register(key, title, buffers.buffer, { key, title })
   else
     buf, win = buffers.floating_buffer(key, title)
-    state.register_buffer_for_restore(buf, title, buffers.floating_buffer, { key, title })
+    state.picker_register(key, title, buffers.floating_buffer, { key, title })
   end
 
   vim.api.nvim_set_current_buf(buf)

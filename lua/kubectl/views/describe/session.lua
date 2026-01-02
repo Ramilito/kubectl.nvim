@@ -4,7 +4,6 @@ local buffers = require("kubectl.actions.buffers")
 local client = require("kubectl.client")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
-local tables = require("kubectl.utils.tables")
 
 local M = {}
 
@@ -14,32 +13,31 @@ local function session_key(buf)
   return KEY_PREFIX .. buf
 end
 
---- Generate hints header with current auto-refresh state
+--- Generate hints for the framed layout
 ---@param is_running boolean
----@return table header_lines, table header_marks
-local function generate_header(is_running)
+---@return table hints
+local function get_hints(is_running)
   local status = is_running and "on" or "off"
-  local hints = {
+  return {
     { key = "<Plug>(kubectl.refresh)", desc = "auto-refresh[" .. status .. "]" },
   }
-  return tables.generateHeader(hints, false, false)
 end
 
 --- Create a new describe session instance
 ---@param buf integer Buffer number
 ---@param win integer Window number
 ---@param args table Describe arguments
+---@param builder table Resource builder
 ---@return table session
-local function create_session(buf, win, args)
+local function create_session(buf, win, args, builder)
   local session = {
     rust_session = nil,
     timer = nil,
     buf = buf,
     win = win,
     args = args,
+    builder = builder,
     stopped = false,
-    header_lines = nil,
-    header_marks = nil,
   }
 
   function session:is_active()
@@ -74,13 +72,16 @@ local function create_session(buf, win, args)
     self.timer = nil
   end
 
-  function session:update_header(is_running)
-    self.header_lines, self.header_marks = generate_header(is_running)
+  function session:update_hints(is_running)
+    if self.builder and self.builder.frame then
+      self.builder.definition.hints = get_hints(is_running)
+      self.builder.renderHints()
+    end
   end
 
   function session:start()
     self.stopped = false
-    self:update_header(true)
+    self:update_hints(true)
 
     local ok, sess = pcall(client.describe_session, {
       name = self.args.name,
@@ -123,7 +124,7 @@ local function create_session(buf, win, args)
           local lines = vim.split(content, "\n", { plain = true })
           buffers.set_content(this.buf, {
             content = lines,
-            header = { data = this.header_lines, marks = this.header_marks },
+            header = { data = {}, marks = {} },
           })
         end
       end)
@@ -149,20 +150,8 @@ local function create_session(buf, win, args)
       self:start()
       return true
     else
-      -- Update header before stopping so we can refresh display
-      local old_header_count = self.header_lines and #self.header_lines or 0
       self:stop()
-      self:update_header(false)
-
-      -- Refresh display with paused header
-      if vim.api.nvim_buf_is_valid(self.buf) then
-        local current_lines = vim.api.nvim_buf_get_lines(self.buf, 0, -1, false)
-        local content = vim.list_slice(current_lines, old_header_count + 1)
-        buffers.set_content(self.buf, {
-          content = content,
-          header = { data = self.header_lines, marks = self.header_marks },
-        })
-      end
+      self:update_hints(false)
       return false
     end
   end
@@ -181,30 +170,32 @@ function M.view(resource, name, namespace, gvk)
   local display_ns = namespace and (" | " .. namespace) or ""
   local title = resource .. " | " .. name .. display_ns
 
-  -- Get or reuse existing window
-  local builder = manager.get(resource .. "_desc")
-  local existing_win = builder and builder.win_nr or nil
-
-  local buf, win = buffers.floating_buffer("k8s_desc", title, "yaml", existing_win)
-
-  -- Store builder for window reuse
-  local new_builder = manager.get_or_create(resource .. "_desc")
-  new_builder.buf_nr = buf
-  new_builder.win_nr = win
-  new_builder.definition = {
+  local definition = {
     resource = resource .. "_desc",
-    hints = { { key = "<Plug>(kubectl.refresh)", desc = "auto-refresh[on]" } },
+    ft = "k8s_desc",
+    title = title,
+    syntax = "yaml",
+    hints = get_hints(true),
+    panes = {
+      { title = "Describe" },
+    },
   }
 
+  local builder = manager.get_or_create(definition.resource)
+  builder.view_framed(definition, {
+    recreate_func = M.view,
+    recreate_args = { resource, name, namespace, gvk },
+  })
+
   -- Create and start session
-  local key = session_key(buf)
+  local key = session_key(builder.buf_nr)
   local session = manager.get_or_create(key, function()
-    return create_session(buf, win, {
+    return create_session(builder.buf_nr, builder.win_nr, {
       name = name,
       namespace = namespace or "",
       context = state.context["current-context"],
       gvk = gvk,
-    })
+    }, builder)
   end)
   session:start()
 end

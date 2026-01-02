@@ -307,8 +307,8 @@ function M.get_mappings()
       mode = "n",
       desc = "Picker",
       callback = function()
-        local view = require("kubectl.views")
-        view.Picker()
+        local picker = require("kubectl.views.picker")
+        picker.View()
       end,
     },
     ["<Plug>(kubectl.filter_term)"] = {

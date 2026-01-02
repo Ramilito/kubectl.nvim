@@ -20,25 +20,32 @@ local M = BaseResource.extend({
 
 -- Override Yaml with hints for base64 decode
 function M.Yaml(name, ns)
+  local title = M.definition.resource .. " | " .. name .. " | " .. ns
+
   local def = {
     resource = M.definition.resource .. "_yaml",
-    display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_" .. M.definition.resource .. "_yaml",
+    title = title,
     syntax = "yaml",
     cmd = "get_single_async",
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "base64decode" },
     },
+    panes = {
+      { title = "YAML" },
+    },
   }
 
   local builder = manager.get_or_create(def.resource)
-  builder.view_float(def, {
+  builder.view_framed(def, {
     args = {
       gvk = M.definition.gvk,
       namespace = ns,
       name = name,
-      output = def.syntax,
+      output = "yaml",
     },
+    recreate_func = M.Yaml,
+    recreate_args = { name, ns },
   })
 end
 
