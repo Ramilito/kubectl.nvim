@@ -88,6 +88,9 @@ local function get_pods_for_logs()
 end
 
 function M.Logs()
+  local buffers = require("kubectl.actions.buffers")
+  local commands = require("kubectl.actions.commands")
+
   local current_buf = vim.api.nvim_get_current_buf()
   log_session.stop(current_buf)
 
@@ -102,7 +105,6 @@ function M.Logs()
     ft = "k8s_pod_logs",
     title = display_name,
     syntax = "k8s_pod_logs",
-    cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. tostring(opts.since) .. "]" },
@@ -118,21 +120,34 @@ function M.Logs()
   }
 
   local builder = manager.get_or_create("pod_logs")
-  builder.view_framed(def, {
-    args = {
-      pods = pods,
-      container = M.selection.container,
-      since = opts.since,
-      previous = opts.previous,
-      timestamps = opts.timestamps,
-      prefix = opts.prefix,
-      histogram_width = width,
-    },
-  })
+  builder.view_framed(def)
 
   -- Store pods in buffer for option changes (gp, gt, gh, etc.)
   vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_pods", pods)
   vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_display", display_name)
+
+  -- Fetch initial logs (returns JSON-encoded array of strings)
+  commands.run_async("log_stream_async", {
+    pods = pods,
+    container = M.selection.container,
+    since = opts.since,
+    previous = opts.previous,
+    timestamps = opts.timestamps,
+    prefix = opts.prefix,
+    histogram_width = width,
+  }, function(result)
+    if not result then
+      return
+    end
+    builder.data = result
+    builder.decodeJson()
+    vim.schedule(function()
+      buffers.set_content(builder.buf_nr, {
+        content = builder.data,
+        header = { data = {}, marks = {} },
+      })
+    end)
+  end)
 end
 
 --- Toggle follow mode - stops current session or starts streaming from now
