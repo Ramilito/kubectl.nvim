@@ -89,6 +89,8 @@ function BaseResource.extend(definition, options)
         name = name,
         output = "yaml",
       },
+      recreate_func = M.Yaml,
+      recreate_args = { name, ns },
     })
   end
 

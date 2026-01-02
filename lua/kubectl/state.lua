@@ -327,6 +327,7 @@ end
 ---@param bufnr number Buffer number
 function M.clear_buffer_state(bufnr)
   M.buffer_state[bufnr] = nil
+  M.buffers[bufnr] = nil
 end
 
 ---------------------------------------------------------------------------

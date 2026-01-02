@@ -87,14 +87,16 @@ local function get_pods_for_logs()
   return pods, "No pods selected"
 end
 
-function M.Logs()
+--- Internal function that takes pods/display_name directly for recreation
+---@param pods table[] Array of {name, namespace} tables
+---@param display_name string Display name for the title
+---@param container string|nil Container name
+function M.LogsWithPods(pods, display_name, container)
   local buffers = require("kubectl.actions.buffers")
   local commands = require("kubectl.actions.commands")
 
   local current_buf = vim.api.nvim_get_current_buf()
   log_session.stop(current_buf)
-
-  local pods, display_name = get_pods_for_logs()
 
   -- Close existing log frame if refreshing from within log view
   local builder = manager.get_or_create("pod_logs")
@@ -132,7 +134,10 @@ function M.Logs()
     },
   }
 
-  builder.view_framed(def)
+  builder.view_framed(def, {
+    recreate_func = M.LogsWithPods,
+    recreate_args = { pods, display_name, container },
+  })
 
   -- Store pods in buffer for option changes (gp, gt, gh, etc.)
   vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_pods", pods)
@@ -141,7 +146,7 @@ function M.Logs()
   -- Fetch initial logs (returns JSON-encoded array of strings)
   commands.run_async("log_stream_async", {
     pods = pods,
-    container = M.selection.container,
+    container = container,
     since = opts.since,
     previous = opts.previous,
     timestamps = opts.timestamps,
@@ -160,6 +165,11 @@ function M.Logs()
       })
     end)
   end)
+end
+
+function M.Logs()
+  local pods, display_name = get_pods_for_logs()
+  M.LogsWithPods(pods, display_name, M.selection.container)
 end
 
 --- Toggle follow mode - stops current session or starts streaming from now

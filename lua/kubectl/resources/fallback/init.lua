@@ -130,6 +130,8 @@ function M.Yaml(name, ns)
       name = name,
       output = "yaml",
     },
+    recreate_func = M.Yaml,
+    recreate_args = { name, ns },
   })
 end
 

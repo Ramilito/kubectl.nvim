@@ -58,7 +58,10 @@ function M.View(pod, ns)
   M.definition.display_name = "pods | " .. pod .. " | " .. ns
   local gvk = M.definition.gvk
   local builder = manager.get_or_create(M.definition.resource)
-  builder.view_framed(M.definition)
+  builder.view_framed(M.definition, {
+    recreate_func = M.View,
+    recreate_args = { pod, ns },
+  })
 
   commands.run_async(M.definition.cmd, { gvk = gvk, name = pod, namespace = ns }, function(result)
     builder.data = result

@@ -442,7 +442,10 @@ function M.open(path)
 
   -- Create framed view using builder pattern
   local builder = manager.get_or_create(M.definition.resource)
-  builder.view_framed(M.definition)
+  builder.view_framed(M.definition, {
+    recreate_func = M.open,
+    recreate_args = { path },
+  })
 
   local list_buf = builder.frame.panes[1].buf
   local list_win = builder.frame.panes[1].win
