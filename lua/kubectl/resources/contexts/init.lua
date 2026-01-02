@@ -13,35 +13,65 @@ local M = {
     display_name = string.upper(resource),
     ft = "k8s_" .. resource,
     url = { "config", "view", "-ojson" },
+    title = "Contexts",
     headers = {
       "NAME",
       "NAMESPACE",
       "CLUSTER",
       "USER",
     },
+    hints = {
+      { key = "<Plug>(kubectl.select)", desc = "apply" },
+      { key = "<Plug>(kubectl.tab)", desc = "next" },
+      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
+      { key = "<Plug>(kubectl.quit)", desc = "close" },
+    },
+    panes = {
+      { title = "Contexts", prompt = true },
+    },
   },
   contexts = {},
 }
 
 function M.View()
-  local buf, win = buffers.floating_dynamic_buffer(M.definition.ft, M.definition.display_name, function(input)
-    M.change_context(input)
-  end, { header = { data = {} }, prompt = true })
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.definition = M.definition
+  builder.view_framed(M.definition)
 
-  local self = manager.get_or_create(M.definition.resource)
-  self.definition = M.definition
+  local buf = builder.buf_nr
+  local win = builder.win_nr
+
+  -- Set up prompt callback
+  vim.fn.prompt_setcallback(buf, function(input)
+    input = vim.trim(input)
+    if vim.tbl_contains(M.contexts, input) or input == "" then
+      M.change_context(input)
+    else
+      vim.schedule(function()
+        vim.notify("Not a valid context", vim.log.levels.ERROR)
+      end)
+    end
+    vim.cmd("stopinsert")
+    vim.api.nvim_set_option_value("modified", false, { buf = buf })
+    vim.cmd.fclose()
+  end)
+
+  vim.cmd("startinsert")
+
+  -- Render hints
+  builder.renderHints()
 
   commands.run_async("get_config_async", {}, function(data)
-    self.data = data
-    self.decodeJson()
+    builder.data = data
+    builder.decodeJson()
 
     vim.schedule(function()
-      self.buf_nr = buf
-      self.process(M.processRow, true).prettyPrint().displayContent(win)
+      builder.process(M.processRow, true).prettyPrint().displayContent(win)
+      buffers.fit_to_content(builder.buf_nr, win, 1)
 
       local list = {}
       M.contexts = {}
-      for _, value in ipairs(self.processedData) do
+      for _, value in ipairs(builder.processedData) do
         if value.name.value then
           table.insert(M.contexts, value.name.value)
           table.insert(list, { name = value.name.value })

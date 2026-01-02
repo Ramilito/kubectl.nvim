@@ -5,28 +5,47 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
+M.definition = {
+  resource = "portforward",
+  ft = "k8s_portforward",
+  title = "Port Forwards",
+  hints = {
+    { key = "<Plug>(kubectl.delete)", desc = "Delete PF" },
+    { key = "<Plug>(kubectl.browse)", desc = "Open in browser" },
+    { key = "<Plug>(kubectl.quit)", desc = "close" },
+  },
+  panes = {
+    { title = "Port Forwards" },
+  },
+}
+
 --- PortForwards function retrieves port forwards and displays them in a float window.
 -- @function PortForwards
 -- @return nil
 function M.View()
-  local resource = "portforward"
-  local self = manager.get_or_create(resource)
-  self.buf_nr, self.win_nr = buffers.floating_dynamic_buffer("k8s_" .. resource, "Port forwards", nil, nil)
-  self.data = M.getPFRows()
-  self.extmarks = {}
-  self.prettyData, self.extmarks = tables.pretty_print(self.data, { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" })
-  self
-    .addHints({
-      { key = "<Plug>(kubectl.delete)", desc = "Delete PF" },
-      { key = "<Plug>(kubectl.browse)", desc = "Open in browser" },
-    }, false, false, false)
-    .displayContent(self.win_nr)
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view_framed(M.definition)
+
+  -- Render hints
+  builder.renderHints()
+
+  builder.data = M.getPFRows()
+  builder.extmarks = {}
+  builder.header = { data = {}, marks = {} }
+  local headers = { "ID", "TYPE", "NAME", "NS", "HOST", "PORT" }
+  builder.prettyData, builder.extmarks = tables.pretty_print(builder.data, headers)
+
+  tables.generateDividerRow(builder.header.data, builder.header.marks)
+  builder.displayContent(builder.win_nr)
+  buffers.fit_to_content(builder.buf_nr, builder.win_nr, 1)
 
   vim.keymap.set("n", "q", function()
-    vim.api.nvim_set_option_value("modified", false, { buf = self.buf_nr })
-    vim.cmd.fclose()
+    vim.api.nvim_set_option_value("modified", false, { buf = builder.buf_nr })
+    if builder.frame then
+      builder.frame.close()
+    end
     vim.api.nvim_input("<Plug>(kubectl.refresh)")
-  end, { buffer = self.buf_nr, silent = true })
+  end, { buffer = builder.buf_nr, silent = true })
 end
 
 function M.getPFRows(type)

@@ -178,8 +178,6 @@ function M.float_framed_windows(bufs, opts)
     row = row,
     style = "minimal",
     border = "rounded",
-    title = opts.title and (" " .. opts.title .. " ") or nil,
-    title_pos = "center",
     focusable = false,
   })
 

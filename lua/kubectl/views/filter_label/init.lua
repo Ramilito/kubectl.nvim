@@ -1,3 +1,4 @@
+local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
@@ -137,6 +138,7 @@ local function display_float(builder)
   })
 
   M.Draw()
+  buffers.fit_to_content(buf, win, 1)
 end
 
 function M.View()
