@@ -29,6 +29,8 @@ local ICON_ERROR = "✗"
 ---@field entries table[] Flattened resource entries
 ---@field counts table Status counts {changed, unchanged, errors}
 ---@field hide_unchanged boolean Filter flag
+---@field hints_buf number Hints buffer (top bar)
+---@field hints_win number Hints window (top bar)
 ---@field list_buf number Resource list buffer
 ---@field list_win number Resource list window
 ---@field diff_buf number Diff preview buffer
@@ -61,6 +63,20 @@ local function get_drift_results(path, hide_unchanged)
   return result
 end
 
+--- Render the hints buffer (top bar spanning both panes).
+---@param buf number
+local function render_hints(buf)
+  vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+
+  local header_lines, header_marks = tables.generateHeader(hints, false, false)
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, header_lines)
+  buffers.apply_marks(buf, header_marks, {})
+
+  vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+end
+
 --- Render the resource list buffer.
 ---@param buf number
 ---@param entries table[]
@@ -74,17 +90,8 @@ local function render_list(buf, entries, path, hide_unchanged, counts)
   local lines = {}
   local marks = {}
 
-  -- Generate hints using the standard header system
-  local header_lines, header_marks = tables.generateHeader(hints, false, false)
-  for _, line in ipairs(header_lines) do
-    table.insert(lines, line)
-  end
-  for _, mark in ipairs(header_marks) do
-    table.insert(marks, mark)
-  end
-
-  -- Track header line count for proper row calculation
-  local header_row_count = #lines
+  -- Track header line count (now 0 since hints are in separate window)
+  local header_row_count = 0
 
   -- Summary line
   local summary = string.format(
@@ -219,6 +226,7 @@ local function refresh()
   state.entries = result.entries
   state.counts = result.counts
 
+  render_hints(state.hints_buf)
   render_list(state.list_buf, state.entries, state.path, state.hide_unchanged, state.counts)
   update_diff_preview()
 end
@@ -380,10 +388,14 @@ local function close()
     return
   end
 
+  local hints_win = state.hints_win
   local list_win = state.list_win
   local diff_win = state.diff_win
   state = nil
 
+  if vim.api.nvim_win_is_valid(hints_win) then
+    vim.api.nvim_win_close(hints_win, true)
+  end
   if vim.api.nvim_win_is_valid(list_win) then
     vim.api.nvim_win_close(list_win, true)
   end
@@ -456,9 +468,27 @@ function M.open(path)
 
   -- Create floating window for split layout
   local width = math.floor(vim.o.columns * 0.8)
-  local height = math.floor(vim.o.lines * 0.8)
+  local total_height = math.floor(vim.o.lines * 0.8)
   local col = math.floor((vim.o.columns - width) / 2)
-  local row = math.floor((vim.o.lines - height) / 2)
+  local row = math.floor((vim.o.lines - total_height) / 2)
+
+  -- Hints bar height (1 line of content + border)
+  local hints_height = 1
+  local content_height = total_height - hints_height - 2 -- subtract hints + gap
+
+  -- Create hints buffer and window (top bar spanning full width)
+  local hints_buf = vim.api.nvim_create_buf(false, true)
+  local hints_win = vim.api.nvim_open_win(hints_buf, false, {
+    relative = "editor",
+    width = width,
+    height = hints_height,
+    col = col,
+    row = row,
+    style = "minimal",
+    border = "rounded",
+    title = " Drift ",
+    title_pos = "center",
+  })
 
   -- Create list buffer and window (left pane, 35%)
   local list_buf = vim.api.nvim_create_buf(false, true)
@@ -466,9 +496,9 @@ function M.open(path)
   local list_win = vim.api.nvim_open_win(list_buf, true, {
     relative = "editor",
     width = list_width,
-    height = height,
+    height = content_height,
     col = col,
-    row = row,
+    row = row + hints_height + 2, -- below hints + border
     style = "minimal",
     border = "rounded",
     title = " Resources ",
@@ -481,9 +511,9 @@ function M.open(path)
   local diff_win = vim.api.nvim_open_win(diff_buf, false, {
     relative = "editor",
     width = diff_width,
-    height = height,
+    height = content_height,
     col = col + list_width + 1,
-    row = row,
+    row = row + hints_height + 2,
     style = "minimal",
     border = "rounded",
     title = " Diff Preview ",
@@ -491,7 +521,7 @@ function M.open(path)
   })
 
   -- Set buffer options
-  for _, buf in ipairs({ list_buf, diff_buf }) do
+  for _, buf in ipairs({ hints_buf, list_buf, diff_buf }) do
     vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
     vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
     vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
@@ -507,11 +537,13 @@ function M.open(path)
     entries = {},
     counts = { changed = 0, unchanged = 0, errors = 0 },
     hide_unchanged = false,
+    hints_buf = hints_buf,
+    hints_win = hints_win,
     list_buf = list_buf,
     list_win = list_win,
     diff_buf = diff_buf,
     diff_win = diff_win,
-    header_row_count = 1, -- Will be updated on first render
+    header_row_count = 0, -- Now 0 since hints are in separate window
   }
 
   -- Setup keymaps
