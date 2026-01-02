@@ -10,4 +10,9 @@ fn main() {
     println!("cargo:rerun-if-changed={}", static_lib.display());
     println!("cargo:rustc-link-search=native={}", lib_path.display());
     println!("cargo:rustc-link-lib=static=kubectl_go");
+
+    // On macOS, Go's CGO net package uses the system resolver (libresolv).
+    // We must link it explicitly to satisfy symbols like res_9_nclose.
+    #[cfg(target_os = "macos")]
+    println!("cargo:rustc-link-lib=dylib=resolv");
 }
