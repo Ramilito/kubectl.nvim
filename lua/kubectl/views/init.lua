@@ -115,67 +115,43 @@ function M.Picker()
   local builder = manager.get_or_create("Picker")
   builder.view_framed(def)
 
+  -- Get sorted entries from state
+  local entries = state.picker_list()
+
+  -- Build display data
   local data = {}
-  for id, value in pairs(state.buffers) do
-    -- Use stored filetype and title (new format) or extract from args (old format)
-    local filetype = value.filetype
-    local title = value.title
-
-    -- Fallback to old format for backwards compatibility
-    if not filetype or not title then
-      if not value.args or #value.args == 0 or not value.args[1] then
-        goto continue
-      end
-      if type(value.args[1]) == "table" then
-        filetype = value.args[1].filetype
-        title = value.args[1].title
-      else
-        filetype = value.args[1]
-        title = value.args[2]
-      end
-    end
-
-    if not title or not filetype then
-      goto continue
-    end
-
-    local parts = vim.split(title, "|")
+  for i, entry in ipairs(entries) do
+    local parts = vim.split(entry.title, "|")
     local kind = vim.trim(parts[1])
     local resource = vim.trim(parts[2] or "")
     local namespace = vim.trim(parts[3] or "")
-    local buf_type = filetype:gsub("k8s_", "")
+    local view_type = entry.filetype:gsub("k8s_", "")
     local symbol = hl.symbols.success
 
-    if buf_type == "exec" then
+    if view_type == "exec" then
       symbol = hl.symbols.experimental
-    elseif buf_type == "desc" then
+    elseif view_type == "desc" then
       symbol = hl.symbols.debug
-    elseif buf_type == "yaml" then
+    elseif view_type:match("yaml") then
       symbol = hl.symbols.header
+    elseif view_type == "pod_logs" then
+      symbol = hl.symbols.note
     end
 
-    table.insert(data, {
-      id = { value = id, symbol = hl.symbols.gray },
+    data[i] = {
+      _entry = entry, -- Store reference for callbacks
       kind = { value = kind, symbol = symbol },
-      type = { value = buf_type, symbol = symbol },
+      type = { value = view_type, symbol = symbol },
       resource = { value = resource, symbol = symbol },
       namespace = { value = namespace, symbol = hl.symbols.gray },
-    })
-    ::continue::
+    }
   end
 
-  local function sort_by_id_value(tbl)
-    table.sort(tbl, function(a, b)
-      return a.id.value > b.id.value
-    end)
-  end
-  sort_by_id_value(data)
   builder.data = data
-  builder.processedData = builder.data
+  builder.processedData = data
 
-  local headers = { "ID", "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
-  builder.prettyData, builder.extmarks =
-    tables.pretty_print(builder.processedData, headers, { current_word = "ID", order = "desc" })
+  local headers = { "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
+  builder.prettyData, builder.extmarks = tables.pretty_print(data, headers)
 
   buffers.set_content(builder.buf_nr, {
     content = builder.prettyData,
@@ -187,14 +163,13 @@ function M.Picker()
   vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
     noremap = true,
     callback = function()
-      local selection = tables.getCurrentSelection(1)
-      local bufnr = tonumber(selection)
-
-      if bufnr then
-        state.buffers[bufnr] = nil
-        pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
-        local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-        pcall(vim.api.nvim_buf_set_lines, 0, row, row + 1, false, {})
+      local row = vim.api.nvim_win_get_cursor(0)[1]
+      local data_idx = row - 1 -- Account for header row
+      local item = data[data_idx]
+      if item and item._entry then
+        state.picker_remove(item._entry.key)
+        table.remove(data, data_idx)
+        pcall(vim.api.nvim_buf_set_lines, 0, row - 1, row, false, {})
       end
     end,
   })
@@ -202,22 +177,25 @@ function M.Picker()
   vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "<Plug>(kubectl.select)", "", {
     noremap = true,
     callback = function()
-      local bufnr = tables.getCurrentSelection(1)
-      local buffer = state.buffers[tonumber(bufnr)]
-
-      if buffer then
-        vim.cmd("fclose!")
-        vim.schedule(function()
-          if not vim.api.nvim_tabpage_is_valid(buffer.tab_id) then
-            vim.cmd("tabnew")
-            buffer.tab_id = vim.api.nvim_get_current_tabpage()
-          end
-          vim.schedule(function()
-            vim.api.nvim_set_current_tabpage(buffer.tab_id)
-            buffer.open(unpack(buffer.args))
-          end)
-        end)
+      local row = vim.api.nvim_win_get_cursor(0)[1]
+      local data_idx = row - 1 -- Account for header row
+      local item = data[data_idx]
+      if not item or not item._entry then
+        return
       end
+
+      local entry = item._entry
+      vim.cmd("fclose!")
+      vim.schedule(function()
+        if not vim.api.nvim_tabpage_is_valid(entry.tab_id) then
+          vim.cmd("tabnew")
+          entry.tab_id = vim.api.nvim_get_current_tabpage()
+        end
+        vim.schedule(function()
+          vim.api.nvim_set_current_tabpage(entry.tab_id)
+          entry.open(unpack(entry.args))
+        end)
+      end)
     end,
   })
 

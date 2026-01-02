@@ -327,37 +327,75 @@ end
 ---@param bufnr number Buffer number
 function M.clear_buffer_state(bufnr)
   M.buffer_state[bufnr] = nil
-  M.buffers[bufnr] = nil
 end
 
 ---------------------------------------------------------------------------
--- Buffer restore registration (for reopening buffers)
--- This is separate from per-buffer state - it stores how to recreate a buffer
+-- Picker Registry
+-- Stores view recreation info, keyed by filetype:title for uniqueness
 ---------------------------------------------------------------------------
 
---- Register a buffer for potential restore (e.g., after tab switch)
----@param buf number Buffer number
----@param filetype string Filetype of the buffer
----@param open_func function Function to call to reopen the buffer
----@param args table Arguments to pass to open_func
----@param title string|nil Display title for picker
-function M.register_buffer_for_restore(buf, filetype, open_func, args, title)
-  -- Skip ephemeral buffers that shouldn't be restored
-  local skip_filetypes = {
-    k8s_picker = true,
-    k8s_namespaces = true,
-    k8s_aliases = true,
-    k8s_filter = true,
-    k8s_contexts = true,
-    k8s_splash = true,
-  }
+local SKIP_FILETYPES = {
+  k8s_picker = true,
+  k8s_namespaces = true,
+  k8s_aliases = true,
+  k8s_filter = true,
+  k8s_filter_label = true,
+  k8s_contexts = true,
+  k8s_splash = true,
+}
 
-  if skip_filetypes[filetype] or M.buffers[buf] then
+--- Build unique key from filetype and title
+---@param filetype string
+---@param title string
+---@return string
+local function make_key(filetype, title)
+  return filetype .. ":" .. title
+end
+
+--- Register a view for the picker
+---@param filetype string Filetype (e.g., "k8s_desc", "k8s_pod_logs")
+---@param title string Display title (e.g., "pods | my-pod | default")
+---@param open_func function Function to recreate the view
+---@param args table Arguments for open_func
+function M.picker_register(filetype, title, open_func, args)
+  if not filetype or not title or not open_func then
+    return
+  end
+  if SKIP_FILETYPES[filetype] then
     return
   end
 
-  local current_tab = vim.api.nvim_get_current_tabpage()
-  M.buffers[buf] = { open = open_func, args = args, tab_id = current_tab, filetype = filetype, title = title }
+  local key = make_key(filetype, title)
+  local existing = M.buffers[key]
+
+  M.buffers[key] = {
+    key = key,
+    filetype = filetype,
+    title = title,
+    open = open_func,
+    args = args or {},
+    tab_id = vim.api.nvim_get_current_tabpage(),
+    created_at = existing and existing.created_at or os.time(),
+  }
+end
+
+--- Remove a view from the picker by key
+---@param key string The key (filetype:title)
+function M.picker_remove(key)
+  M.buffers[key] = nil
+end
+
+--- Get all picker entries sorted by creation time
+---@return table[] Array of entries
+function M.picker_list()
+  local entries = {}
+  for _, entry in pairs(M.buffers) do
+    table.insert(entries, entry)
+  end
+  table.sort(entries, function(a, b)
+    return (a.created_at or 0) < (b.created_at or 0)
+  end)
+  return entries
 end
 
 return M

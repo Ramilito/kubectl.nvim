@@ -45,8 +45,8 @@ end
 function M.get_buffer_by_name(bufname)
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     local name = vim.api.nvim_buf_get_name(buf)
-    -- Match full name or basename for backward compatibility
-    if name == bufname or vim.fs.basename(name) == bufname then
+    local filename = vim.fs.basename(name)
+    if filename == bufname then
       return buf
     end
   end
@@ -323,7 +323,9 @@ function M.floating_dynamic_buffer(filetype, title, callback, opts)
     M.fit_to_content(buf, win, 2)
   end
 
-  state.register_buffer_for_restore(buf, filetype, M.floating_dynamic_buffer, { filetype, title, callback, opts })
+  if title then
+    state.picker_register(filetype, title, M.floating_dynamic_buffer, { filetype, title, callback, opts })
+  end
   return buf, win
 end
 
@@ -361,7 +363,7 @@ function M.floating_buffer(filetype, title, syntax, win)
 
   layout.set_buf_options(buf, filetype, syntax or filetype, bufname)
 
-  state.register_buffer_for_restore(buf, filetype, M.floating_buffer, { filetype, title, syntax, win })
+  state.picker_register(filetype, bufname, M.floating_buffer, { filetype, title, syntax })
 
   return buf, win
 end
@@ -462,24 +464,11 @@ end
 --- @param opts FramedBufferConfig
 --- @return FramedBufferResult
 function M.framed_buffer(opts)
-  -- Try to reuse existing first pane buffer by title
-  local reused_buf = nil
-  if opts.title then
-    local bufname = "kubectl://framed/" .. opts.title
-    reused_buf = M.get_buffer_by_name(bufname)
-    if reused_buf and not api.nvim_buf_is_valid(reused_buf) then
-      reused_buf = nil
-    end
-  end
-
   -- Create buffers
   local hints_buf = api.nvim_create_buf(false, true)
   local pane_bufs = {}
   for i, pane_opts in ipairs(opts.panes) do
-    if i == 1 and reused_buf then
-      -- Reuse existing buffer for first pane
-      pane_bufs[i] = reused_buf
-    elseif pane_opts.prompt then
+    if pane_opts.prompt then
       pane_bufs[i] = api.nvim_create_buf(false, true)
       api.nvim_set_option_value("buftype", "prompt", { buf = pane_bufs[i] })
     else
@@ -506,19 +495,11 @@ function M.framed_buffer(opts)
     if not pane_opts.prompt then
       api.nvim_set_option_value("buftype", "nofile", { buf = pane_buf })
     end
+    api.nvim_set_option_value("bufhidden", "wipe", { buf = pane_buf })
     api.nvim_set_option_value("swapfile", false, { buf = pane_buf })
 
-    if i == 1 then
-      -- First pane: use "hide" so buffer can be reused, set name for lookup
-      api.nvim_set_option_value("bufhidden", "hide", { buf = pane_buf })
-      if opts.title and not reused_buf then
-        api.nvim_buf_set_name(pane_buf, "kubectl://framed/" .. opts.title)
-      end
-      if opts.filetype then
-        api.nvim_set_option_value("filetype", opts.filetype, { buf = pane_buf })
-      end
-    else
-      api.nvim_set_option_value("bufhidden", "wipe", { buf = pane_buf })
+    if i == 1 and opts.filetype then
+      api.nvim_set_option_value("filetype", opts.filetype, { buf = pane_buf })
     end
   end
 
@@ -552,16 +533,9 @@ function M.framed_buffer(opts)
     end,
   })
 
-  -- Register for picker/restore (first pane only, skip if reusing)
-  -- Views can provide recreate_func/recreate_args to properly recreate themselves
-  if not reused_buf and opts.filetype and opts.title and opts.recreate_func then
-    state.register_buffer_for_restore(
-      pane_bufs[1],
-      opts.filetype,
-      opts.recreate_func,
-      opts.recreate_args or {},
-      opts.title
-    )
+  -- Register for picker
+  if opts.filetype and opts.title and opts.recreate_func then
+    state.picker_register(opts.filetype, opts.title, opts.recreate_func, opts.recreate_args or {})
   end
 
   return {

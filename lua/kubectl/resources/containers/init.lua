@@ -131,10 +131,10 @@ local function spawn_terminal(title, key, fn, is_fullscreen, ...)
   local state = require("kubectl.state")
   if is_fullscreen then
     buf, win = buffers.buffer(key, title)
-    state.register_buffer_for_restore(buf, title, buffers.buffer, { key, title })
+    state.picker_register(key, title, buffers.buffer, { key, title })
   else
     buf, win = buffers.floating_buffer(key, title)
-    state.register_buffer_for_restore(buf, title, buffers.floating_buffer, { key, title })
+    state.picker_register(key, title, buffers.floating_buffer, { key, title })
   end
 
   vim.api.nvim_set_current_buf(buf)
