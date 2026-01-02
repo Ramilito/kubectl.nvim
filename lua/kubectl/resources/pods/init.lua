@@ -95,6 +95,19 @@ function M.Logs()
   log_session.stop(current_buf)
 
   local pods, display_name = get_pods_for_logs()
+
+  -- Close existing log frame if refreshing from within log view
+  local builder = manager.get_or_create("pod_logs")
+  if builder.frame then
+    if builder.frame.hints_win and vim.api.nvim_win_is_valid(builder.frame.hints_win) then
+      pcall(vim.api.nvim_win_close, builder.frame.hints_win, true)
+    end
+    for _, pane in ipairs(builder.frame.panes or {}) do
+      if pane.win and vim.api.nvim_win_is_valid(pane.win) then
+        pcall(vim.api.nvim_win_close, pane.win, true)
+      end
+    end
+  end
   local width = math.floor(config.options.float_size.width * vim.o.columns) - 4
 
   -- Get current options for display
@@ -119,7 +132,6 @@ function M.Logs()
     },
   }
 
-  local builder = manager.get_or_create("pod_logs")
   builder.view_framed(def)
 
   -- Store pods in buffer for option changes (gp, gt, gh, etc.)
