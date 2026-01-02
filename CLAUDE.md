@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Subagent Guides
 
+- **[CLAUDE-PLAN.md](./.claude/CLAUDE-PLAN.md)** - **INVOKE FIRST** for refactoring/pattern-following tasks. Plans minimal approach before any tool calls.
 - **[CLAUDE-RUST.md](./.claude/CLAUDE-RUST.md)** - Rust codebase guidance (dylib constraints, mlua FFI, Tokio runtime)
 - **[CLAUDE-LUA.md](./.claude/CLAUDE-LUA.md)** - Lua/Neovim plugin guidance (resource pattern, factory, state management)
 - **[CLAUDE-LOGS.md](./.claude/CLAUDE-LOGS.md)** - Pod logs feature (streaming, JSON toggle, histogram, mlua UserData)
@@ -104,3 +105,28 @@ Minimal C-compatible exports for specialized kubectl operations (describe, drain
 
 Do NOT run these commands:
 - `make build` - Takes too long, use `make build_dev` instead
+
+## Token Efficiency Rules
+
+Follow these rules to minimize token usage:
+
+**Before starting work:**
+1. **INVOKE [CLAUDE-PLAN.md](./.claude/CLAUDE-PLAN.md)** for any refactoring or pattern-following task
+2. Ask clarifying questions FIRST if the task involves patterns you need to understand
+3. Request the user paste relevant code snippets instead of exploring broadly
+4. For refactoring tasks, read ONLY the file being changed + ONE example of the target pattern
+
+**Planning:**
+1. Do NOT use TodoWrite for tasks with fewer than 4 steps
+2. Do NOT use Task/Explore agent when you can identify the specific file to read
+3. Plan the full approach before any edits - avoid creating files you'll delete
+
+**Editing:**
+1. Batch related changes into single Edit calls (aim for 1-3 edits per file)
+2. Do NOT read files after editing just to verify - the Edit tool shows the result
+3. Run `make check` only ONCE at the end, not after each change
+
+**Reading:**
+1. Use `offset` and `limit` parameters - don't read 500+ line files fully
+2. Use Grep with `-A`/`-B` context instead of reading entire files
+3. One good example file is enough - don't read 5 similar files to understand a pattern
