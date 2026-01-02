@@ -106,6 +106,33 @@ function M.Desc(name, ns, _)
   describe_session.view(M.definition.resource, name, ns, gvk)
 end
 
+function M.Yaml(name, ns)
+  local display_ns = ns and (" | " .. ns) or ""
+  local title = M.definition.resource .. " | " .. name .. display_ns
+
+  local def = {
+    resource = M.definition.resource .. "_yaml",
+    ft = "k8s_" .. M.definition.resource .. "_yaml",
+    title = title,
+    syntax = "yaml",
+    cmd = "get_single_async",
+    hints = {},
+    panes = {
+      { title = "YAML" },
+    },
+  }
+
+  local builder = manager.get_or_create(def.resource)
+  builder.view_framed(def, {
+    args = {
+      gvk = M.definition.gvk,
+      namespace = ns,
+      name = name,
+      output = "yaml",
+    },
+  })
+end
+
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
