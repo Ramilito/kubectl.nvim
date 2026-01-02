@@ -56,7 +56,7 @@ local function display_float(builder)
 
   local buf = builder.buf_nr
   local win = builder.win_nr
-  M.win_config = win
+  M.win_config = vim.api.nvim_win_get_config(win)
 
   -- Render hints
   builder.renderHints()

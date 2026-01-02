@@ -180,6 +180,7 @@ function M.float_framed_windows(bufs, opts)
     border = "rounded",
     title = opts.title and (" " .. opts.title .. " ") or nil,
     title_pos = "center",
+    focusable = false,
   })
 
   -- Create content pane windows

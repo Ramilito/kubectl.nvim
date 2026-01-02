@@ -479,7 +479,6 @@ function M.framed_buffer(opts)
     -- Don't override buftype for prompt buffers
     if not pane_opts.prompt then
       api.nvim_set_option_value("buftype", "nofile", { buf = pane_buf })
-      api.nvim_set_option_value("modifiable", false, { buf = pane_buf })
     end
     api.nvim_set_option_value("bufhidden", "wipe", { buf = pane_buf })
     api.nvim_set_option_value("swapfile", false, { buf = pane_buf })
