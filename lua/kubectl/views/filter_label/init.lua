@@ -59,9 +59,6 @@ local function display_float(builder)
   local win = builder.win_nr
   M.win_config = vim.api.nvim_win_get_config(win)
 
-  -- Render hints
-  builder.renderHints()
-
   -- Add notes with extmark
   builder.header = { data = {}, marks = {} }
   table.insert(builder.header.data, M.definition.notes)

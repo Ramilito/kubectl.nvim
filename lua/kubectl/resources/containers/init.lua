@@ -60,9 +60,6 @@ function M.View(pod, ns)
   local builder = manager.get_or_create(M.definition.resource)
   builder.view_framed(M.definition)
 
-  -- Render hints
-  builder.renderHints()
-
   commands.run_async(M.definition.cmd, { gvk = gvk, name = pod, namespace = ns }, function(result)
     builder.data = result
     builder.decodeJson()

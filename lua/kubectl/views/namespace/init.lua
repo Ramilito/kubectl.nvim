@@ -56,9 +56,6 @@ function M.View()
 
   vim.cmd("startinsert")
 
-  -- Render hints
-  builder.renderHints()
-
   commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = nil }, function(_, err)
     if err then
       return

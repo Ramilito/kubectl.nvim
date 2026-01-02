@@ -1,6 +1,4 @@
 local BaseResource = require("kubectl.resources.base_resource")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local log_session = require("kubectl.views.logs.session")
 local manager = require("kubectl.resource_manager")
@@ -104,6 +102,7 @@ function M.Logs()
     ft = "k8s_pod_logs",
     title = display_name,
     syntax = "k8s_pod_logs",
+    cmd = "log_stream_async",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. tostring(opts.since) .. "]" },
@@ -119,31 +118,17 @@ function M.Logs()
   }
 
   local builder = manager.get_or_create("pod_logs")
-  builder.view_framed(def)
-  builder.renderHints()
-
-  vim.api.nvim_set_option_value("syntax", "k8s_pod_logs", { buf = builder.buf_nr })
-
-  commands.run_async("log_stream_async", {
-    pods = pods,
-    container = M.selection.container,
-    since = opts.since,
-    previous = opts.previous,
-    timestamps = opts.timestamps,
-    prefix = opts.prefix,
-    histogram_width = width,
-  }, function(result)
-    if not result then
-      return
-    end
-    vim.schedule(function()
-      local lines = vim.split(result, "\n", { plain = true })
-      buffers.set_content(builder.buf_nr, {
-        content = lines,
-        header = { data = {}, marks = {} },
-      })
-    end)
-  end)
+  builder.view_framed(def, {
+    args = {
+      pods = pods,
+      container = M.selection.container,
+      since = opts.since,
+      previous = opts.previous,
+      timestamps = opts.timestamps,
+      prefix = opts.prefix,
+      histogram_width = width,
+    },
+  })
 
   -- Store pods in buffer for option changes (gp, gt, gh, etc.)
   vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_pods", pods)

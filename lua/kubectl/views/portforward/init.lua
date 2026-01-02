@@ -26,9 +26,6 @@ function M.View()
   local builder = manager.get_or_create(M.definition.resource)
   builder.view_framed(M.definition)
 
-  -- Render hints
-  builder.renderHints()
-
   builder.data = M.getPFRows()
   builder.extmarks = {}
   builder.header = { data = {}, marks = {} }

@@ -73,9 +73,6 @@ M.View = function()
   end)
 
   vim.schedule(function()
-    -- Render hints
-    builder.renderHints()
-
     -- Build content
     local content = {}
     local marks = {}

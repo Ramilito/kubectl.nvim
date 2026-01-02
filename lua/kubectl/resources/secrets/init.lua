@@ -1,6 +1,4 @@
 local BaseResource = require("kubectl.resources.base_resource")
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local manager = require("kubectl.resource_manager")
 
 local resource = "secrets"
@@ -29,6 +27,7 @@ function M.Yaml(name, ns)
     ft = "k8s_" .. M.definition.resource .. "_yaml",
     title = title,
     syntax = "yaml",
+    cmd = "get_single_async",
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "base64decode" },
     },
@@ -38,28 +37,14 @@ function M.Yaml(name, ns)
   }
 
   local builder = manager.get_or_create(def.resource)
-  builder.view_framed(def)
-  builder.renderHints()
-
-  vim.api.nvim_set_option_value("syntax", "yaml", { buf = builder.buf_nr })
-
-  commands.run_async("get_single_async", {
-    gvk = M.definition.gvk,
-    namespace = ns,
-    name = name,
-    output = "yaml",
-  }, function(result)
-    if not result then
-      return
-    end
-    vim.schedule(function()
-      local lines = vim.split(result, "\n", { plain = true })
-      buffers.set_content(builder.buf_nr, {
-        content = lines,
-        header = { data = {}, marks = {} },
-      })
-    end)
-  end)
+  builder.view_framed(def, {
+    args = {
+      gvk = M.definition.gvk,
+      namespace = ns,
+      name = name,
+      output = "yaml",
+    },
+  })
 end
 
 return M

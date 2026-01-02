@@ -410,9 +410,13 @@ function M.new(resource)
   end
 
   --- Create a framed floating view with hints bar and multiple panes.
-  --- @param definition table Definition with ft, hints, panes, title, width, height
+  --- Automatically renders hints and sets syntax if provided.
+  --- If cmd and args are provided in opts, runs async command and displays content.
+  --- @param definition table Definition with ft, hints, panes, title, width, height, syntax, cmd
+  --- @param opts? { args: table } Optional args for async command
   --- @return table builder
-  function builder.view_framed(definition)
+  function builder.view_framed(definition, opts)
+    opts = opts or {}
     builder.definition = definition or {}
 
     local frame = buffers.framed_buffer({
@@ -426,6 +430,30 @@ function M.new(resource)
     builder.frame = frame
     builder.buf_nr = frame.panes[1].buf
     builder.win_nr = frame.panes[1].win
+
+    -- Auto-render hints
+    builder.renderHints()
+
+    -- Set syntax if provided
+    if definition.syntax then
+      vim.api.nvim_set_option_value("syntax", definition.syntax, { buf = builder.buf_nr })
+    end
+
+    -- If cmd and args provided, run async and set content
+    if definition.cmd and opts.args then
+      commands.run_async(definition.cmd, opts.args, function(result)
+        if not result then
+          return
+        end
+        vim.schedule(function()
+          local lines = vim.split(result, "\n", { plain = true })
+          buffers.set_content(builder.buf_nr, {
+            content = lines,
+            header = { data = {}, marks = {} },
+          })
+        end)
+      end)
+    end
 
     return builder
   end

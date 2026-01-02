@@ -80,9 +80,6 @@ function M.View()
   end, state.filter_history)
   completion.with_completion(buf, items, nil, false)
 
-  -- Render hints
-  builder.renderHints()
-
   -- Build content
   local content = {}
   local marks = {}

@@ -183,9 +183,6 @@ function M.view(resource, name, namespace, gvk)
 
   local builder = manager.get_or_create(definition.resource)
   builder.view_framed(definition)
-  builder.renderHints()
-
-  vim.api.nvim_set_option_value("syntax", "yaml", { buf = builder.buf_nr })
 
   -- Create and start session
   local key = session_key(builder.buf_nr)

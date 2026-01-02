@@ -1,5 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
-local commands = require("kubectl.actions.commands")
 local describe_session = require("kubectl.views.describe.session")
 local manager = require("kubectl.resource_manager")
 local tables = require("kubectl.utils.tables")
@@ -76,6 +74,7 @@ function BaseResource.extend(definition, options)
       ft = "k8s_" .. M.definition.resource .. "_yaml",
       title = title,
       syntax = "yaml",
+      cmd = "get_single_async",
       hints = {},
       panes = {
         { title = "YAML" },
@@ -83,28 +82,14 @@ function BaseResource.extend(definition, options)
     }
 
     local builder = manager.get_or_create(def.resource)
-    builder.view_framed(def)
-    builder.renderHints()
-
-    vim.api.nvim_set_option_value("syntax", "yaml", { buf = builder.buf_nr })
-
-    commands.run_async("get_single_async", {
-      gvk = M.definition.gvk,
-      namespace = M._options.is_cluster_scoped and nil or ns,
-      name = name,
-      output = "yaml",
-    }, function(result)
-      if not result then
-        return
-      end
-      vim.schedule(function()
-        local lines = vim.split(result, "\n", { plain = true })
-        buffers.set_content(builder.buf_nr, {
-          content = lines,
-          header = { data = {}, marks = {} },
-        })
-      end)
-    end)
+    builder.view_framed(def, {
+      args = {
+        gvk = M.definition.gvk,
+        namespace = M._options.is_cluster_scoped and nil or ns,
+        name = name,
+        output = "yaml",
+      },
+    })
   end
 
   --- Get current selection from buffer

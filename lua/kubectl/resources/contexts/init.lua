@@ -58,9 +58,6 @@ function M.View()
 
   vim.cmd("startinsert")
 
-  -- Render hints
-  builder.renderHints()
-
   commands.run_async("get_config_async", {}, function(data)
     builder.data = data
     builder.decodeJson()
