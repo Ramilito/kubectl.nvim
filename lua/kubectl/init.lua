@@ -81,7 +81,7 @@ end
 --- Setup kubectl with options
 --- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
-  local commands = require("kubectl.commands")
+  local kubectl = require("kubectl.kubectl")
   local mappings = require("kubectl.mappings")
   local loop = require("kubectl.utils.loop")
   local config = require("kubectl.config")
@@ -91,9 +91,6 @@ function M.setup(options)
   M.download_if_available(function(_)
     config.setup(options)
     state.setNS(config.options.namespace)
-
-    -- Load command handlers
-    commands.load_commands()
 
     local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
     vim.api.nvim_create_autocmd("FileType", {
@@ -127,10 +124,10 @@ function M.setup(options)
   end)
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
-    commands.execute(opts.fargs)
+    kubectl.execute(opts.fargs)
   end, {
     nargs = "*",
-    complete = commands.complete,
+    complete = kubectl.complete,
   })
 
   vim.api.nvim_create_user_command("Kubens", function(opts)
