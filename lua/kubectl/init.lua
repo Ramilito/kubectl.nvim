@@ -130,6 +130,13 @@ function M.setup(options)
     complete = kubectl.complete,
   })
 
+  vim.api.nvim_create_user_command("k", function(opts)
+    kubectl.execute(opts.fargs)
+  end, {
+    nargs = "*",
+    complete = kubectl.complete,
+  })
+
   vim.api.nvim_create_user_command("Kubens", function(opts)
     if #opts.fargs == 0 then
       ns_view.View()
