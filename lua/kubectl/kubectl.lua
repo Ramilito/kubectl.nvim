@@ -73,14 +73,18 @@ local pod_commands = {
 
 --- Run kubectl synchronously and return output
 ---@param args string[]
----@return string[]
+---@return string[], string|nil  -- lines, error_message
 local function kubectl_sync(args)
   local cmd = vim.list_extend({ "kubectl" }, args)
   local result = vim.fn.systemlist(cmd)
-  if vim.v.shell_error ~= 0 then
-    return {}
+  local exit_code = vim.v.shell_error
+
+  if exit_code ~= 0 then
+    local err_msg = table.concat(result, "\n")
+    return {}, err_msg ~= "" and err_msg or "Command failed with exit code " .. exit_code
   end
-  return result
+
+  return result, nil
 end
 
 --- Get resource type names for completion
@@ -98,8 +102,8 @@ local function get_resource_types()
       return names
     end
   end
-  -- Fallback to kubectl
-  return kubectl_sync({ "api-resources", "-o", "name", "--no-headers" })
+  local lines = kubectl_sync({ "api-resources", "-o", "name", "--no-headers" }) or {}
+  return lines
 end
 
 --- Get resource instance names for completion
@@ -107,6 +111,7 @@ end
 ---@return string[]
 local function get_resource_names(resource_type)
   local lines = kubectl_sync({ "get", resource_type, "-o", "name", "--no-headers" })
+  ---@cast lines string[]
   local names = {}
   for _, line in ipairs(lines) do
     local name = line:gsub("^[^/]+/", "")
@@ -121,6 +126,7 @@ end
 ---@return string[]
 local function get_namespaces()
   local lines = kubectl_sync({ "get", "namespaces", "-o", "name", "--no-headers" })
+  ---@cast lines string[]
   local names = {}
   for _, line in ipairs(lines) do
     local name = line:gsub("^namespace/", "")
@@ -134,16 +140,42 @@ end
 --- Open output in a split buffer
 ---@param lines string[]
 ---@param title string
-local function open_split(lines, title)
-  vim.cmd("new")
+---@param args string[]
+local function open_split(lines, title, args)
+  vim.cmd("botright new")
   local buf = vim.api.nvim_get_current_buf()
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
   vim.api.nvim_buf_set_name(buf, title)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
   vim.bo[buf].buftype = "nofile"
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].swapfile = false
   vim.bo[buf].modifiable = false
-  vim.bo[buf].filetype = "kubectl"
+
+  local opts = { buffer = buf, silent = true }
+
+  vim.keymap.set("n", "q", function()
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end, opts)
+
+  vim.keymap.set("n", "R", function()
+    local new_output = kubectl_sync(args)
+    if #new_output > 0 then
+      vim.bo[buf].modifiable = true
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_output)
+      vim.bo[buf].modifiable = false
+      vim.notify("Refreshed", vim.log.levels.INFO)
+    end
+  end, opts)
+
+  vim.api.nvim_echo({
+    { "kubectl: ", "Title" },
+    { "q", "Keyword" },
+    { "=close  ", "Comment" },
+    { "R", "Keyword" },
+    { "=refresh  ", "Comment" },
+  }, false, {})
 end
 
 --- Execute a kubectl command
@@ -154,14 +186,6 @@ function M.execute(args)
   end
 
   local cmd = args[1]
-
-  -- Special case: "get <resource_type>" with no name opens interactive view
-  if cmd == "get" and #args == 2 then
-    local resource_type = args[2]
-    local view = require("kubectl.views")
-    view.resource_or_fallback(resource_type)
-    return
-  end
 
   -- Special case: "top" opens dashboard
   if cmd == "top" then
@@ -176,15 +200,19 @@ function M.execute(args)
     return
   end
 
-  -- Run kubectl and show output in split
-  local output = kubectl_sync(args)
+  -- Run kubectl and show output
+  local output, err = kubectl_sync(args)
+  if err then
+    vim.notify("kubectl error: " .. err, vim.log.levels.ERROR)
+    return
+  end
   if #output == 0 then
-    vim.notify("kubectl: command produced no output or failed", vim.log.levels.WARN)
+    vim.notify("kubectl: command produced no output", vim.log.levels.INFO)
     return
   end
 
   local title = "kubectl " .. table.concat(args, " ")
-  open_split(output, title)
+  open_split(output, title, args)
 end
 
 --- Complete kubectl command arguments
@@ -199,40 +227,34 @@ function M.complete(_, cmdline)
 
   local trailing_space = cmdline:match("%s$")
 
-  -- "Kubectl <TAB>" -> subcommands
   if #parts == 1 or (#parts == 2 and not trailing_space) then
     return subcommands
   end
 
   local cmd = parts[2]
 
-  -- "Kubectl get <TAB>" -> resource types
   if resource_commands[cmd] then
     if #parts == 2 and trailing_space then
       return get_resource_types()
     end
-    -- "Kubectl get pods <TAB>" -> resource names
     if #parts == 3 and trailing_space then
       local resource_type = parts[3]
       return get_resource_names(resource_type)
     end
   end
 
-  -- "Kubectl logs <TAB>" -> pod names
   if pod_commands[cmd] then
     if #parts == 2 and trailing_space then
       return get_resource_names("pods")
     end
   end
 
-  -- "Kubectl top <TAB>" -> pods/nodes
   if cmd == "top" then
     if #parts == 2 and trailing_space then
       return { "pods", "nodes" }
     end
   end
 
-  -- Flag completion
   local last = parts[#parts] or ""
   if last == "-n" or last == "--namespace" then
     if trailing_space then
