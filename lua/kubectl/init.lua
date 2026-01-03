@@ -81,17 +81,20 @@ end
 --- Setup kubectl with options
 --- @param options KubectlOptions The configuration options for kubectl
 function M.setup(options)
-  local completion = require("kubectl.completion")
+  local commands = require("kubectl.commands")
   local mappings = require("kubectl.mappings")
   local loop = require("kubectl.utils.loop")
   local config = require("kubectl.config")
   local state = require("kubectl.state")
-  local view = require("kubectl.views")
   local ns_view = require("kubectl.views.namespace")
 
   M.download_if_available(function(_)
     config.setup(options)
     state.setNS(config.options.namespace)
+
+    -- Load command handlers
+    commands.load_commands()
+
     local group = vim.api.nvim_create_augroup("Kubectl", { clear = true })
     vim.api.nvim_create_autocmd("FileType", {
       group = group,
@@ -124,35 +127,10 @@ function M.setup(options)
   end)
 
   vim.api.nvim_create_user_command("Kubectl", function(opts)
-    local action = opts.fargs[1]
-    if action == "get" then
-      if #opts.fargs == 2 then
-        local resource_type = opts.fargs[2]
-        view.resource_or_fallback(resource_type)
-      else
-        view.UserCmd(opts.fargs)
-      end
-    elseif action == "diff" then
-      completion.diff(opts.fargs[2])
-    elseif action == "apply" then
-      completion.apply()
-    elseif action == "top" then
-      local top_view
-      if #opts.fargs == 2 then
-        local top_type = opts.fargs[2]
-        top_view = require("kubectl.views.top-" .. top_type)
-      else
-        top_view = require("kubectl.views.top_pods")
-      end
-      top_view.View()
-    elseif action == "api-resources" then
-      require("kubectl.resources.api-resources").View()
-    else
-      view.UserCmd(opts.fargs)
-    end
+    commands.execute(opts.fargs)
   end, {
     nargs = "*",
-    complete = completion.user_command_completion,
+    complete = commands.complete,
   })
 
   vim.api.nvim_create_user_command("Kubens", function(opts)
