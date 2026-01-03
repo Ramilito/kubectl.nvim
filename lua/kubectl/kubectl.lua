@@ -215,6 +215,23 @@ function M.execute(args)
   open_split(output, title, args)
 end
 
+--- Filter completions by prefix
+---@param items string[]
+---@param prefix string
+---@return string[]
+local function filter_completions(items, prefix)
+  if not prefix or prefix == "" then
+    return items
+  end
+  local filtered = {}
+  for _, item in ipairs(items) do
+    if item:sub(1, #prefix) == prefix then
+      table.insert(filtered, item)
+    end
+  end
+  return filtered
+end
+
 --- Complete kubectl command arguments
 ---@param _ string
 ---@param cmdline string
@@ -227,31 +244,54 @@ function M.complete(_, cmdline)
 
   local trailing_space = cmdline:match("%s$")
 
-  if #parts == 1 or (#parts == 2 and not trailing_space) then
+  -- "Kubectl <TAB>" or "Kubectl g<TAB>" -> subcommands
+  if #parts == 1 then
     return subcommands
+  end
+  if #parts == 2 and not trailing_space then
+    return filter_completions(subcommands, parts[2])
   end
 
   local cmd = parts[2]
 
   if resource_commands[cmd] then
+    -- "Kubectl get <TAB>" -> all resource types
     if #parts == 2 and trailing_space then
       return get_resource_types()
     end
+    -- "Kubectl get p<TAB>" -> filtered resource types
+    if #parts == 3 and not trailing_space then
+      return filter_completions(get_resource_types(), parts[3])
+    end
+    -- "Kubectl get pods <TAB>" -> all resource names
     if #parts == 3 and trailing_space then
-      local resource_type = parts[3]
-      return get_resource_names(resource_type)
+      return get_resource_names(parts[3])
+    end
+    -- "Kubectl get pods my<TAB>" -> filtered resource names
+    if #parts == 4 and not trailing_space then
+      return filter_completions(get_resource_names(parts[3]), parts[4])
     end
   end
 
   if pod_commands[cmd] then
+    -- "Kubectl logs <TAB>" -> all pod names
     if #parts == 2 and trailing_space then
       return get_resource_names("pods")
+    end
+    -- "Kubectl logs my<TAB>" -> filtered pod names
+    if #parts == 3 and not trailing_space then
+      return filter_completions(get_resource_names("pods"), parts[3])
     end
   end
 
   if cmd == "top" then
+    -- "Kubectl top <TAB>" -> pods/nodes
     if #parts == 2 and trailing_space then
       return { "pods", "nodes" }
+    end
+    -- "Kubectl top p<TAB>" -> filtered
+    if #parts == 3 and not trailing_space then
+      return filter_completions({ "pods", "nodes" }, parts[3])
     end
   end
 
@@ -263,7 +303,10 @@ function M.complete(_, cmdline)
   end
 
   if last:match("^%-") and not trailing_space then
-    return { "-n", "--namespace", "-o", "--output", "-l", "--selector", "-A", "--all-namespaces" }
+    return filter_completions(
+      { "-n", "--namespace", "-o", "--output", "-l", "--selector", "-A", "--all-namespaces" },
+      last
+    )
   end
 
   return {}
