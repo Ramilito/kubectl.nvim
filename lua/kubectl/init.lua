@@ -130,7 +130,7 @@ function M.setup(options)
     complete = kubectl.complete,
   })
 
-  vim.api.nvim_create_user_command("k", function(opts)
+  vim.api.nvim_create_user_command("K", function(opts)
     kubectl.execute(opts.fargs)
   end, {
     nargs = "*",
