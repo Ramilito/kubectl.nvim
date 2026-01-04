@@ -39,27 +39,26 @@ function M.get_items()
     end
   end
 
-  -- Add viewsTable items (only if not already in API resources)
+  -- Add custom views (plugin-specific, not Kubernetes resources)
+  local custom_views = {
+    "overview",
+    "api-resources",
+    "contexts",
+    "top",
+    "drift",
+    "helm",
+  }
   local viewsTable = require("kubectl.utils.viewsTable")
-  for view_name, aliases in pairs(viewsTable) do
-    for _, alias in ipairs(aliases) do
-      if not items_map[alias] then
-        if alias == view_name then
-          items_map[alias] = {
-            label = alias,
-            labelDetails = { description = "view" },
-            kind_name = "View",
-            kind_icon = "󱃾",
-          }
-        else
-          items_map[alias] = {
-            label = alias,
-            labelDetails = { description = view_name },
-            insertText = view_name,
-            kind_name = "View",
-            kind_icon = "󱃾",
-          }
-        end
+  for _, view_name in ipairs(custom_views) do
+    local aliases = viewsTable[view_name]
+    if aliases then
+      for _, alias in ipairs(aliases) do
+        items_map[alias] = {
+          label = alias,
+          labelDetails = { description = "view" },
+          kind_name = "View",
+          kind_icon = "󱃾",
+        }
       end
     end
   end
