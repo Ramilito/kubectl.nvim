@@ -5,7 +5,6 @@ local M = {
   did_setup = false,
   client_state = "pending", -- "pending", "initializing", "ready", "failed"
   client_callbacks = {},
-  did_init_cache = false,
 }
 
 --- Initialize the kubectl client (shared by UI and completion)
@@ -40,7 +39,9 @@ end
 
 --- Initialize cache for completions (no UI side effects)
 function M.init_cache()
-  if M.did_init_cache then
+  local cache = require("kubectl.cache")
+
+  if cache.cached_api_resources and not vim.tbl_isempty(cache.cached_api_resources.values or {}) then
     return
   end
 
@@ -48,7 +49,6 @@ function M.init_cache()
     if ok then
       local state = require("kubectl.state")
       local commands = require("kubectl.actions.commands")
-      local cache = require("kubectl.cache")
 
       -- Load context first (required by cache)
       commands.run_async("get_minified_config_async", {}, function(data)
@@ -57,7 +57,6 @@ function M.init_cache()
           state.context = result
         end
         cache.LoadFallbackData()
-        M.did_init_cache = true
       end)
     end
   end)
@@ -83,9 +82,6 @@ local function init_ui()
     local queue = require("kubectl.event_queue")
     queue.start(500)
     splash.done("Context: " .. (state.context["current-context"] or ""))
-
-    -- Also load cache when UI initializes
-    M.init_cache()
   end)
 end
 

@@ -51,10 +51,7 @@ local function get_completion_items()
   local items = {}
 
   -- Lazy init: trigger cache initialization on first completion request
-  local kubectl = require("kubectl")
-  if not kubectl.did_init_cache then
-    kubectl.init_cache()
-  end
+  require("kubectl").init_cache()
 
   local cache_ok, cache = pcall(require, "kubectl.cache")
   if cache_ok and cache.cached_api_resources and cache.cached_api_resources.values then
