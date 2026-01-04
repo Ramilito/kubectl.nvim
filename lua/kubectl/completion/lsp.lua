@@ -146,6 +146,10 @@ function M.start()
 
   if client_id then
     M.client_id = client_id
+    -- Tab to trigger completion (fallback for prompt buffers where autotrigger may not work)
+    vim.keymap.set("i", "<Tab>", function()
+      vim.api.nvim_feedkeys(vim.keycode("<C-x><C-o>"), "n", false)
+    end, { buffer = buf, silent = true, desc = "Trigger completion" })
   end
 end
 
