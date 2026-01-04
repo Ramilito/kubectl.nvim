@@ -3,7 +3,91 @@ local splash = require("kubectl.splash")
 local M = {
   is_open = false,
   did_setup = false,
+  client_state = "pending", -- "pending", "initializing", "ready", "failed"
+  client_callbacks = {},
+  did_init_cache = false,
 }
+
+--- Initialize the kubectl client (shared by UI and completion)
+--- @param callback fun(ok: boolean)
+function M.init_client(callback)
+  if M.client_state == "ready" then
+    callback(true)
+    return
+  end
+
+  if M.client_state == "failed" then
+    callback(false)
+    return
+  end
+
+  table.insert(M.client_callbacks, callback)
+
+  if M.client_state == "initializing" then
+    return -- Already initializing, callback queued
+  end
+
+  M.client_state = "initializing"
+  local client = require("kubectl.client")
+  client.set_implementation(function(ok)
+    M.client_state = ok and "ready" or "failed"
+    for _, cb in ipairs(M.client_callbacks) do
+      cb(ok)
+    end
+    M.client_callbacks = {}
+  end)
+end
+
+--- Initialize cache for completions (no UI side effects)
+function M.init_cache()
+  if M.did_init_cache then
+    return
+  end
+
+  M.init_client(function(ok)
+    if ok then
+      local state = require("kubectl.state")
+      local commands = require("kubectl.actions.commands")
+      local cache = require("kubectl.cache")
+
+      -- Load context first (required by cache)
+      commands.run_async("get_minified_config_async", {}, function(data)
+        local result = vim.json.decode(data or "{}")
+        if result then
+          state.context = result
+        end
+        cache.LoadFallbackData()
+        M.did_init_cache = true
+      end)
+    end
+  end)
+end
+
+--- Initialize UI components (called after client is ready)
+local function init_ui()
+  local config = require("kubectl.config")
+  local header = require("kubectl.views.header")
+  local state = require("kubectl.state")
+  local statusline = require("kubectl.views.statusline")
+
+  vim.schedule(function()
+    state.setup()
+
+    if config.options.headers.enabled then
+      header.View()
+    end
+    if config.options.statusline.enabled then
+      statusline.View()
+    end
+
+    local queue = require("kubectl.event_queue")
+    queue.start(500)
+    splash.done("Context: " .. (state.context["current-context"] or ""))
+
+    -- Also load cache when UI initializes
+    M.init_cache()
+  end)
+end
 
 --- Open the kubectl view
 function M.open()
@@ -16,29 +100,11 @@ function M.open()
 end
 
 function M.init()
-  local client = require("kubectl.client")
   splash.status("Client module loaded ✔ ")
-  client.set_implementation(function(ok)
+  M.init_client(function(ok)
     if ok then
       splash.status("Client ininitalized ✔ ")
-      local config = require("kubectl.config")
-      local header = require("kubectl.views.header")
-      local state = require("kubectl.state")
-      local statusline = require("kubectl.views.statusline")
-      vim.schedule(function()
-        state.setup()
-
-        if config.options.headers.enabled then
-          header.View()
-        end
-        if config.options.statusline.enabled then
-          statusline.View()
-        end
-
-        local queue = require("kubectl.event_queue")
-        queue.start(500)
-        splash.done("Context: " .. (state.context["current-context"] or ""))
-      end)
+      init_ui()
     else
       splash.fail("Failed to load context")
     end
