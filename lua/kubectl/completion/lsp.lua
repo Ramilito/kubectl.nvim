@@ -126,7 +126,10 @@ function M.start()
     handlers = {
       ["textDocument/completion"] = function(_method, _params, callback)
         local items = get_completion_items()
-        callback(nil, { isIncomplete = false, items = items })
+        -- Defer callback to allow text/window changes
+        vim.schedule(function()
+          callback(nil, { isIncomplete = false, items = items })
+        end)
       end,
     },
   })
