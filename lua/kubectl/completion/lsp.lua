@@ -51,21 +51,31 @@ local function get_completion_items()
   local items = {}
 
   local cache_ok, cache = pcall(require, "kubectl.cache")
-  if cache_ok and cache.cached_api_resources then
-    for name, resource in pairs(cache.cached_api_resources.values or {}) do
-      table.insert(items, {
-        label = name,
-        kind = vim.lsp.protocol.CompletionItemKind.Class,
-        detail = resource.gvk and resource.gvk.k or nil,
-        documentation = resource.namespaced and "namespaced" or "cluster-scoped",
-      })
-      for _, short in ipairs(resource.short_names or {}) do
+  if cache_ok and cache.cached_api_resources and cache.cached_api_resources.values then
+    for name, resource in pairs(cache.cached_api_resources.values) do
+      if type(name) == "string" and type(resource) == "table" then
+        local scope = resource.namespaced and "namespaced" or "cluster-scoped"
+        local kind_name = (resource.gvk and resource.gvk.k) or name
         table.insert(items, {
-          label = short,
-          kind = vim.lsp.protocol.CompletionItemKind.Class,
-          detail = name,
-          insertText = name,
+          label = name,
+          labelDetails = { description = kind_name },
+          documentation = scope,
+          kind_name = "Kind",
+          kind_icon = "󱃾",
         })
+        if resource.short_names then
+          for _, short in ipairs(resource.short_names) do
+            if type(short) == "string" then
+              table.insert(items, {
+                label = short,
+                labelDetails = { description = kind_name },
+                insertText = name,
+                kind_name = "Kind",
+                kind_icon = "󱃾",
+              })
+            end
+          end
+        end
       end
     end
   end
@@ -73,22 +83,26 @@ local function get_completion_items()
   local ns_ok, ns_view = pcall(require, "kubectl.views.namespace")
   if ns_ok and ns_view.namespaces then
     for _, ns in ipairs(ns_view.namespaces) do
-      table.insert(items, {
-        label = ns,
-        kind = vim.lsp.protocol.CompletionItemKind.Module,
-        detail = "namespace",
-      })
+      if type(ns) == "string" then
+        table.insert(items, {
+          label = ns,
+          kind_name = "Namespace",
+          kind_icon = "󱃾",
+        })
+      end
     end
   end
 
   local ctx_ok, ctx_view = pcall(require, "kubectl.resources.contexts")
   if ctx_ok and ctx_view.contexts then
     for _, context in ipairs(ctx_view.contexts) do
-      table.insert(items, {
-        label = context,
-        kind = vim.lsp.protocol.CompletionItemKind.Variable,
-        detail = "context",
-      })
+      if type(context) == "string" then
+        table.insert(items, {
+          label = context,
+          kind_name = "Cluster",
+          kind_icon = "󱃾",
+        })
+      end
     end
   end
 
