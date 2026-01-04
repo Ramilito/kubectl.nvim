@@ -6,6 +6,7 @@ function M.get_items()
   -- Lazy init: trigger cache initialization on first completion request
   require("kubectl").init_cache()
 
+  -- Add cached API resources
   local cache_ok, cache = pcall(require, "kubectl.cache")
   if cache_ok and cache.cached_api_resources and cache.cached_api_resources.values then
     for name, resource in pairs(cache.cached_api_resources.values) do
@@ -36,27 +37,21 @@ function M.get_items()
     end
   end
 
-  local ns_ok, ns_view = pcall(require, "kubectl.views.namespace")
-  if ns_ok and ns_view.namespaces then
-    for _, ns in ipairs(ns_view.namespaces) do
-      if type(ns) == "string" then
+  -- Add viewsTable items
+  local viewsTable = require("kubectl.utils.viewsTable")
+  for view_name, aliases in pairs(viewsTable) do
+    for _, alias in ipairs(aliases) do
+      if alias == view_name then
         table.insert(items, {
-          label = ns,
-          kind_name = "Namespace",
           kind_icon = "󱃾",
+          label = alias,
+          labelDetails = { description = "view" },
         })
-      end
-    end
-  end
-
-  local ctx_ok, ctx_view = pcall(require, "kubectl.resources.contexts")
-  if ctx_ok and ctx_view.contexts then
-    for _, context in ipairs(ctx_view.contexts) do
-      if type(context) == "string" then
+      else
         table.insert(items, {
-          label = context,
-          kind_name = "Cluster",
-          kind_icon = "󱃾",
+          label = alias,
+          labelDetails = { description = view_name },
+          insertText = view_name,
         })
       end
     end
