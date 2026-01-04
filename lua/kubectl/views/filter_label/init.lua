@@ -17,11 +17,12 @@ local M = {
       { key = "<Plug>(kubectl.tab)", desc = "toggle label" },
       { key = "<Plug>(kubectl.add_label)", desc = "new label" },
       { key = "<Plug>(kubectl.delete_label)", desc = "delete label" },
+      { key = "<Plug>(kubectl.refresh)", desc = "refresh view" },
     },
     panes = {
       { title = "Labels" },
     },
-    notes = "Select none to clear existing filters.",
+    notes = "Select none to clear existing filters. 🏷 indicates label is also a resource label.",
   },
   augroup = vim.api.nvim_create_augroup("KubectlFilterLabel", { clear = true }),
   resource_definition = {},
@@ -174,6 +175,8 @@ function M.View()
     builder.extmarks = {}
     builder.data = data
     builder.decodeJson()
+
+    builder.resource_data = builder.data
 
     vim.schedule(function()
       display_float(builder)
