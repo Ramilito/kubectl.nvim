@@ -23,15 +23,27 @@ function M.add_existing_labels(builder)
   builder.fl_content.existing_labels = {}
   local sess_fl = state.getSessionFilterLabel()
 
+  local resource_label_texts = {}
+  local resource_data = builder.resource_data or builder.data
+  local labels = resource_data and resource_data.metadata and resource_data.metadata.labels or {}
+  for key, value in pairs(labels) do
+    resource_label_texts[key .. "=" .. value] = true
+  end
+
   table.insert(builder.fl_content.existing_labels, {
     is_label = false,
     text = string.format("Existing labels (%s):", vim.tbl_count(sess_fl)),
     extmarks = {},
   })
 
-  -- add existing labels from session
   for i, label in ipairs(sess_fl) do
-    -- check if label is in state.filter_label
+    local is_also_pod_label = resource_label_texts[label] == true
+    local virt_text = { { "", hl.symbols.header } }
+
+    if is_also_pod_label then
+      table.insert(virt_text, { "🏷", "KubectlInfo" })
+    end
+
     table.insert(builder.fl_content.existing_labels, {
       is_label = true,
       is_selected = vim.tbl_contains(state.filter_label, label),
@@ -41,7 +53,7 @@ function M.add_existing_labels(builder)
       extmarks = {
         {
           start_col = 0,
-          virt_text = { { "", hl.symbols.header } },
+          virt_text = virt_text,
           virt_text_pos = "inline",
           right_gravity = false,
         },
@@ -49,9 +61,15 @@ function M.add_existing_labels(builder)
     })
   end
 
-  -- add existing labels from state
   for _, label in ipairs(state.filter_label) do
     if not vim.tbl_contains(sess_fl, label) then
+      local is_also_pod_label = resource_label_texts[label] == true
+      local virt_text = { { "", hl.symbols.header } }
+
+      if is_also_pod_label then
+        table.insert(virt_text, { "🏷", "KubectlInfo" })
+      end
+
       table.insert(builder.fl_content.existing_labels, {
         is_label = true,
         is_selected = true,
@@ -60,7 +78,7 @@ function M.add_existing_labels(builder)
         extmarks = {
           {
             start_col = 0,
-            virt_text = { { "", hl.symbols.header } },
+            virt_text = virt_text,
             virt_text_pos = "inline",
             right_gravity = false,
           },
@@ -79,31 +97,44 @@ end
 function M.add_res_labels(builder, kind)
   builder.fl_content.res_labels = {}
 
-  local labels = builder.data and builder.data.metadata and builder.data.metadata.labels or {}
+  local resource_data = builder.resource_data or builder.data
+  local labels = resource_data and resource_data.metadata and resource_data.metadata.labels or {}
   if not labels or vim.tbl_count(labels) == 0 then
     return
   end
+
+  local existing_label_texts = {}
+  for _, label in ipairs(builder.fl_content.existing_labels) do
+    if label.is_label then
+      local label_text = label.sess_filter_id and state.filter_label_history[label.sess_filter_id] or label.text
+      existing_label_texts[label_text] = true
+    end
+  end
+
   table.insert(builder.fl_content.res_labels, {
     is_label = false,
     text = kind .. " labels:",
     extmarks = {},
   })
   for key, value in pairs(labels) do
-    local label_line = {
-      is_label = true,
-      is_selected = false,
-      text = key .. "=" .. value,
-      ---@type ExtMark[]
-      extmarks = {
-        {
-          start_col = 0,
-          virt_text = { { "", hl.symbols.header } },
-          virt_text_pos = "inline",
-          right_gravity = false,
+    local label_text = key .. "=" .. value
+    if not existing_label_texts[label_text] then
+      local label_line = {
+        is_label = true,
+        is_selected = false,
+        text = label_text,
+        ---@type ExtMark[]
+        extmarks = {
+          {
+            start_col = 0,
+            virt_text = { { "", hl.symbols.header } },
+            virt_text_pos = "inline",
+            right_gravity = false,
+          },
         },
-      },
-    }
-    table.insert(builder.fl_content.res_labels, label_line)
+      }
+      table.insert(builder.fl_content.res_labels, label_line)
+    end
   end
   table.insert(builder.fl_content.res_labels, {
     is_label = false,
