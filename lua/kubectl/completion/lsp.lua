@@ -146,7 +146,8 @@ function M.start()
 
   if client_id then
     M.client_id = client_id
-    vim.lsp.completion.enable(true, client_id, buf, { autotrigger = true })
+    -- Enable completion on prompt buffers (for blink.cmp)
+    vim.b[buf].completion = true
   end
 end
 

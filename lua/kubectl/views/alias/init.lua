@@ -64,17 +64,6 @@ M.View = function()
     end,
   })
 
-  -- Set up LSP completion
-  require("kubectl.completion.lsp").start()
-
-  -- Set up omnifunc for LSP completion
-  vim.bo[buf].omnifunc = "v:lua.vim.lsp.omnifunc"
-
-  -- Trigger completion on Tab
-  vim.keymap.set("i", "<Tab>", function()
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-x><C-o>", true, false, true), "n", false)
-  end, { buffer = buf, noremap = true, silent = true })
-
   vim.schedule(function()
     -- Build content
     local content = {}
