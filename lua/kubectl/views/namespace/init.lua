@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local completion = require("kubectl.utils.completion")
 local definition = require("kubectl.views.namespace.definition")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
@@ -67,14 +66,11 @@ function M.View()
         builder.displayContent(builder.win_nr)
         builder.fitToContent()
 
-        local list = { { name = "All" } }
         for _, value in ipairs(builder.processedData) do
           if value.name.value then
             table.insert(M.namespaces, value.name.value)
-            table.insert(list, { name = value.name.value })
           end
         end
-        completion.with_completion(buf, list)
 
         vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
           noremap = true,

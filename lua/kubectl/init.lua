@@ -176,11 +176,14 @@ function M.setup(options)
 
     -- Register completion sources
     require("kubectl.completion.sources.aliases").register()
+    require("kubectl.completion.sources.filter").register()
+    require("kubectl.completion.sources.namespaces").register()
+    require("kubectl.completion.sources.contexts").register()
 
     -- LSP completion for specific filetypes
     vim.api.nvim_create_autocmd("FileType", {
       group = group,
-      pattern = { "k8s_aliases" },
+      pattern = { "k8s_aliases", "k8s_filter", "k8s_namespaces", "k8s_contexts" },
       callback = function()
         require("kubectl.completion.lsp").start()
       end,
