@@ -33,9 +33,10 @@ local function on_confirm(builder, confirm)
     local sess_labels = {}
     for _, label in ipairs(builder.fl_content.existing_labels) do
       if label.is_label then
-        table.insert(sess_labels, label.text)
+        local label_text = label.sess_filter_id and state.filter_label_history[label.sess_filter_id] or label.text
+        table.insert(sess_labels, label_text)
         if label.is_selected then
-          table.insert(confirmed_labels, label.text)
+          table.insert(confirmed_labels, label_text)
         end
       end
     end
@@ -47,6 +48,7 @@ local function on_confirm(builder, confirm)
     end
     state.filter_label = confirmed_labels
     state.filter_label_history = sess_labels
+    state.filter = ""
     utils.save_history()
   end
 end
@@ -203,7 +205,8 @@ function M.Draw()
   end
 
   for _, line in ipairs(builder.fl_content.lines) do
-    table.insert(builder.data, line.text)
+    local display_text = line.sess_filter_id and state.filter_label_history[line.sess_filter_id] or line.text
+    table.insert(builder.data, display_text)
     vim.list_extend(builder.extmarks, line.extmarks or {})
   end
 
