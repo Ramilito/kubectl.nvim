@@ -174,6 +174,9 @@ function M.setup(options)
       end,
     })
 
+    -- Register completion sources
+    require("kubectl.completion.sources.aliases").register()
+
     -- LSP completion for specific filetypes
     vim.api.nvim_create_autocmd("FileType", {
       group = group,
