@@ -108,6 +108,9 @@ function M.setup(options)
             loop.start_loop(current_view.Draw, { buf = ev.buf })
             vim.opt_local.foldmethod = "manual"
           end
+          if config.options.lsp.enabled then
+            require("kubectl.completion.lsp").start()
+          end
         end
       end,
     })
