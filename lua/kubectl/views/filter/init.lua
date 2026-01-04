@@ -13,8 +13,6 @@ M.definition = {
   title = "Filter",
   hints = {
     { key = "<Plug>(kubectl.select)", desc = "apply" },
-    { key = "<Plug>(kubectl.tab)", desc = "next" },
-    { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
     { key = "<Plug>(kubectl.quit)", desc = "close" },
   },
   panes = {
