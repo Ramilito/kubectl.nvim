@@ -3,64 +3,7 @@ local splash = require("kubectl.splash")
 local M = {
   is_open = false,
   did_setup = false,
-  client_state = "pending", -- "pending", "initializing", "ready", "failed"
-  client_callbacks = {},
 }
-
---- Initialize the kubectl client (shared by UI and completion)
---- @param callback fun(ok: boolean)
-function M.init_client(callback)
-  if M.client_state == "ready" then
-    callback(true)
-    return
-  end
-
-  if M.client_state == "failed" then
-    callback(false)
-    return
-  end
-
-  table.insert(M.client_callbacks, callback)
-
-  if M.client_state == "initializing" then
-    return -- Already initializing, callback queued
-  end
-
-  M.client_state = "initializing"
-  local client = require("kubectl.client")
-  client.set_implementation(function(ok)
-    M.client_state = ok and "ready" or "failed"
-    for _, cb in ipairs(M.client_callbacks) do
-      cb(ok)
-    end
-    M.client_callbacks = {}
-  end)
-end
-
---- Initialize cache for completions (no UI side effects)
-function M.init_cache()
-  local cache = require("kubectl.cache")
-
-  if cache.cached_api_resources and not vim.tbl_isempty(cache.cached_api_resources.values or {}) then
-    return
-  end
-
-  M.init_client(function(ok)
-    if ok then
-      local state = require("kubectl.state")
-      local commands = require("kubectl.actions.commands")
-
-      -- Load context first (required by cache)
-      commands.run_async("get_minified_config_async", {}, function(data)
-        local result = vim.json.decode(data or "{}")
-        if result then
-          state.context = result
-        end
-        cache.LoadFallbackData()
-      end)
-    end
-  end)
-end
 
 --- Initialize UI components (called after client is ready)
 local function init_ui()
@@ -96,10 +39,11 @@ function M.open()
 end
 
 function M.init()
+  local client = require("kubectl.client")
   splash.status("Client module loaded ✔ ")
-  M.init_client(function(ok)
+  client.set_implementation(function(ok)
     if ok then
-      splash.status("Client ininitalized ✔ ")
+      splash.status("Client initialized ✔ ")
       init_ui()
     else
       splash.fail("Failed to load context")

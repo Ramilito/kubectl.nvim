@@ -3,10 +3,7 @@ local M = {}
 function M.get_items()
   local items_map = {}
 
-  -- Lazy init: trigger cache initialization on first completion request
-  require("kubectl").init_cache()
-
-  -- Add cached API resources first
+  -- Add cached API resources (populated when plugin opens)
   local cache_ok, cache = pcall(require, "kubectl.cache")
   if cache_ok and cache.cached_api_resources and cache.cached_api_resources.values then
     for name, resource in pairs(cache.cached_api_resources.values) do
