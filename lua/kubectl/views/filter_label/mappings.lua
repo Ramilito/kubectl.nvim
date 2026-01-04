@@ -29,6 +29,13 @@ M.overrides = {
       end
       label_line.is_selected = not label_line.is_selected
 
+      if label_type == "res_labels" and label_line.is_selected then
+        table.insert(state.filter_label_history, label_line.text)
+        table.insert(state.filter_label, label_line.text)
+        utils.add_existing_labels(store)
+        utils.add_res_labels(store, fl_view.resource_definition.gvk.k)
+      end
+
       vim.schedule(function()
         utils.event = "toggle"
         fl_view.Draw()
@@ -50,6 +57,7 @@ M.overrides = {
         table.insert(state.filter_label_history, kv)
       end
       utils.add_existing_labels(store)
+      utils.add_res_labels(store, fl_view.resource_definition.gvk.k)
       vim.schedule(function()
         utils.event = "add"
         fl_view.Draw()
@@ -81,10 +89,37 @@ M.overrides = {
         return
       end
 
+      local deleted_label = state.filter_label_history[sess_filter_id]
       table.remove(state.filter_label_history, sess_filter_id)
+
+      for i, label in ipairs(state.filter_label) do
+        if label == deleted_label then
+          table.remove(state.filter_label, i)
+          break
+        end
+      end
+
       utils.add_existing_labels(store)
+      utils.add_res_labels(store, fl_view.resource_definition.gvk.k)
       vim.schedule(function()
         utils.event = "delete"
+        fl_view.Draw()
+      end)
+    end,
+  },
+  ["<Plug>(kubectl.refresh)"] = {
+    noremap = true,
+    silent = true,
+    desc = "refresh view",
+    callback = function()
+      local store = manager.get(resource)
+      if not store then
+        return
+      end
+
+      utils.add_existing_labels(store)
+      utils.add_res_labels(store, fl_view.resource_definition.gvk.k)
+      vim.schedule(function()
         fl_view.Draw()
       end)
     end,
@@ -95,6 +130,7 @@ function M.register()
   mappings.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
   mappings.map_if_plug_not_set("n", "o", "<Plug>(kubectl.add_label)")
   mappings.map_if_plug_not_set("n", "dd", "<Plug>(kubectl.delete_label)")
+  mappings.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
 end
 
 return M
