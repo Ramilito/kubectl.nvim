@@ -152,6 +152,7 @@ function M.View()
   view, M.resource_definition = views.resource_and_definition(instance.resource)
   local name, ns = view.getCurrentSelection()
   if not name then
+    builder.resource_data = nil
     vim.schedule(function()
       display_float(builder)
     end)
