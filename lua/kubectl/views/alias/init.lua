@@ -1,6 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
-local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.alias.definition")
 local hl = require("kubectl.actions.highlight")
@@ -65,12 +64,16 @@ M.View = function()
     end,
   })
 
-  -- Set up completion
-  completion.with_completion(buf, builder.data, function()
-    builder.data = cache.cached_api_resources.values
-    builder.splitData().decodeJson()
-    builder.data = definition.merge_views(builder.data, viewsTable)
-  end)
+  -- Set up LSP completion
+  require("kubectl.completion.lsp").start()
+
+  -- Set up omnifunc for LSP completion
+  vim.bo[buf].omnifunc = "v:lua.vim.lsp.omnifunc"
+
+  -- Trigger completion on Tab
+  vim.keymap.set("i", "<Tab>", function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-x><C-o>", true, false, true), "n", false)
+  end, { buffer = buf, noremap = true, silent = true })
 
   vim.schedule(function()
     -- Build content
