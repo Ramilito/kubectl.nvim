@@ -58,11 +58,13 @@ local function format_containers(containers, statuses)
     local status = status_map[c.name]
     local state_str = "unknown"
     local icon = "○"
+    local ready = false
 
     if status and status.state then
+      ready = status.ready or false
       if status.state.running then
         state_str = "running"
-        icon = "●"
+        icon = ready and "●" or "◐"
       elseif status.state.waiting then
         state_str = status.state.waiting.reason or "waiting"
         icon = "◌"
@@ -72,9 +74,10 @@ local function format_containers(containers, statuses)
       end
     end
 
+    local ready_str = ready and "ready" or "not ready"
     local restarts = status and status.restartCount or 0
-    local restart_str = restarts > 0 and string.format(" (%d restarts)", restarts) or ""
-    table.insert(lines, string.format("  %s `%s` - %s%s", icon, c.name, state_str, restart_str))
+    local restart_str = restarts > 0 and string.format(", %d restarts", restarts) or ""
+    table.insert(lines, string.format("  %s `%s` - %s (%s%s)", icon, c.name, state_str, ready_str, restart_str))
   end
   return table.concat(lines, "\n")
 end
@@ -111,6 +114,9 @@ function M.format_pod(data)
     string.format("**Node:** %s", spec.nodeName or "_unscheduled_"),
     string.format("**IP:** %s", status.podIP or "_none_"),
     string.format("**Age:** %s", format_age(meta.creationTimestamp)),
+    "",
+    "### Conditions",
+    format_conditions(status.conditions),
     "",
     "### Containers",
     format_containers(spec.containers, status.containerStatuses),
