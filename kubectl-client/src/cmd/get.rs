@@ -369,7 +369,7 @@ pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> 
         let resources: Vec<FallbackResource> = discovery
             .groups()
             .flat_map(|g| {
-                g.recommended_resources()
+                g.resources_by_stability()
                     .into_iter()
                     .map(|(ar, caps)| FallbackResource::from_ar_cap(&ar, &caps, &sn_map))
             })
