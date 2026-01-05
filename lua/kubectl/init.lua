@@ -5,6 +5,29 @@ local M = {
   did_setup = false,
 }
 
+--- Initialize UI components (called after client is ready)
+local function init_ui()
+  local config = require("kubectl.config")
+  local header = require("kubectl.views.header")
+  local state = require("kubectl.state")
+  local statusline = require("kubectl.views.statusline")
+
+  vim.schedule(function()
+    state.setup()
+
+    if config.options.headers.enabled then
+      header.View()
+    end
+    if config.options.statusline.enabled then
+      statusline.View()
+    end
+
+    local queue = require("kubectl.event_queue")
+    queue.start(500)
+    splash.done("Context: " .. (state.context["current-context"] or ""))
+  end)
+end
+
 --- Open the kubectl view
 function M.open()
   local hl = require("kubectl.actions.highlight")
@@ -20,25 +43,8 @@ function M.init()
   splash.status("Client module loaded ✔ ")
   client.set_implementation(function(ok)
     if ok then
-      splash.status("Client ininitalized ✔ ")
-      local config = require("kubectl.config")
-      local header = require("kubectl.views.header")
-      local state = require("kubectl.state")
-      local statusline = require("kubectl.views.statusline")
-      vim.schedule(function()
-        state.setup()
-
-        if config.options.headers.enabled then
-          header.View()
-        end
-        if config.options.statusline.enabled then
-          statusline.View()
-        end
-
-        local queue = require("kubectl.event_queue")
-        queue.start(500)
-        splash.done("Context: " .. (state.context["current-context"] or ""))
-      end)
+      splash.status("Client initialized ✔ ")
+      init_ui()
     else
       splash.fail("Failed to load context")
     end
@@ -109,6 +115,21 @@ function M.setup(options)
             vim.opt_local.foldmethod = "manual"
           end
         end
+      end,
+    })
+
+    -- Register completion sources
+    require("kubectl.completion.sources.aliases").register()
+    require("kubectl.completion.sources.filter").register()
+    require("kubectl.completion.sources.namespaces").register()
+    require("kubectl.completion.sources.contexts").register()
+
+    -- LSP completion for specific filetypes
+    vim.api.nvim_create_autocmd("FileType", {
+      group = group,
+      pattern = { "k8s_aliases", "k8s_filter", "k8s_namespaces", "k8s_contexts" },
+      callback = function()
+        require("kubectl.completion.lsp").start()
       end,
     })
     vim.api.nvim_create_autocmd("VimLeavePre", {

@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local completion = require("kubectl.utils.completion")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local splash = require("kubectl.splash")
@@ -21,8 +20,6 @@ local M = {
     },
     hints = {
       { key = "<Plug>(kubectl.select)", desc = "apply" },
-      { key = "<Plug>(kubectl.tab)", desc = "next" },
-      { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
       { key = "<Plug>(kubectl.quit)", desc = "close" },
     },
     panes = {
@@ -65,15 +62,12 @@ function M.View()
       builder.process(M.processRow, true).prettyPrint().displayContent(win)
       builder.fitToContent(1)
 
-      local list = {}
       M.contexts = {}
       for _, value in ipairs(builder.processedData) do
         if value.name.value then
           table.insert(M.contexts, value.name.value)
-          table.insert(list, { name = value.name.value })
         end
       end
-      completion.with_completion(buf, list)
 
       vim.api.nvim_buf_set_keymap(buf, "n", "<cr>", "", {
         noremap = true,

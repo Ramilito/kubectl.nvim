@@ -21,6 +21,7 @@ local function validate_config(opts)
     namespace_fallback = { opts.namespace_fallback, "table", true },
     headers = { opts.headers, "table", true },
     lineage = { opts.lineage, "table", true },
+    lsp = { opts.lsp, "table", true },
     completion = { opts.completion, "table", true },
     logs = { opts.logs, "table", true },
     alias = { opts.alias, "table", true },
@@ -43,6 +44,7 @@ end
 ---@alias HeadersConfig { enabled: boolean, blend: integer, hints: boolean, context: boolean, heartbeat: boolean, skew: SkewConfig }
 ---@alias LineageConfig { enabled: boolean }
 ---@alias CompletionConfig { follow_cursor: boolean }
+---@alias LspConfig { enabled: boolean }
 ---@alias LogsConfig { prefix: boolean, timestamps: boolean, since: string }
 ---@alias AliasConfig { apply_on_select_from_history: boolean, max_history: number }
 ---@alias FilterConfig { apply_on_select_from_history: boolean, max_history: number }
@@ -60,6 +62,7 @@ end
 ---@field namespace_fallback string[]
 ---@field headers HeadersConfig
 ---@field lineage LineageConfig
+---@field lsp LspConfig
 ---@field completion CompletionConfig
 ---@field logs LogsConfig
 ---@field alias AliasConfig
@@ -101,6 +104,9 @@ local defaults = {
   },
   lineage = {
     enabled = true,
+  },
+  lsp = {
+    enabled = false,
   },
   completion = {
     follow_cursor = false,

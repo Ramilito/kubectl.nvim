@@ -1,5 +1,4 @@
 local buffers = require("kubectl.actions.buffers")
-local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
@@ -14,8 +13,6 @@ M.definition = {
   title = "Filter",
   hints = {
     { key = "<Plug>(kubectl.select)", desc = "apply" },
-    { key = "<Plug>(kubectl.tab)", desc = "next" },
-    { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
     { key = "<Plug>(kubectl.quit)", desc = "close" },
   },
   panes = {
@@ -73,12 +70,6 @@ function M.View()
   end)
 
   vim.cmd("startinsert")
-
-  -- Set up completion
-  local items = vim.tbl_map(function(entry)
-    return { name = entry }
-  end, state.filter_history)
-  completion.with_completion(buf, items, nil, false)
 
   -- Build content
   local content = {}

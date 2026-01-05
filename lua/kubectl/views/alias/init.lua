@@ -1,6 +1,5 @@
 local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
-local completion = require("kubectl.utils.completion")
 local config = require("kubectl.config")
 local definition = require("kubectl.views.alias.definition")
 local hl = require("kubectl.actions.highlight")
@@ -17,8 +16,6 @@ M.definition = {
   hints = {
     { key = "<Plug>(kubectl.select)", desc = "apply" },
     { key = "<Plug>(kubectl.refresh)", desc = "refresh" },
-    { key = "<Plug>(kubectl.tab)", desc = "next" },
-    { key = "<Plug>(kubectl.shift_tab)", desc = "previous" },
     { key = "<Plug>(kubectl.quit)", desc = "close" },
   },
   panes = {
@@ -64,13 +61,6 @@ M.View = function()
       end
     end,
   })
-
-  -- Set up completion
-  completion.with_completion(buf, builder.data, function()
-    builder.data = cache.cached_api_resources.values
-    builder.splitData().decodeJson()
-    builder.data = definition.merge_views(builder.data, viewsTable)
-  end)
 
   vim.schedule(function()
     -- Build content
