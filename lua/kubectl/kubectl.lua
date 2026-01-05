@@ -46,6 +46,7 @@ local subcommands = {
   "top",
   "uncordon",
   "version",
+  "view",
   "wait",
 }
 
@@ -59,6 +60,7 @@ local resource_commands = {
   annotate = true,
   patch = true,
   explain = true,
+  view = true,
 }
 
 --- Commands that take a pod name
@@ -197,6 +199,19 @@ function M.execute(args)
   -- Special case: "api-resources" opens interactive view
   if cmd == "api-resources" and #args == 1 then
     require("kubectl.resources.api-resources").View()
+    return
+  end
+
+  -- Special case: "view <resource>" opens interactive kubectl.nvim view
+  if cmd == "view" and #args >= 2 then
+    local kubectl_main = require("kubectl")
+    local resource = args[2]
+
+    kubectl_main.init(function(ok)
+      if ok then
+        require("kubectl.views").resource_or_fallback(resource)
+      end
+    end)
     return
   end
 

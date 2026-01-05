@@ -28,25 +28,44 @@ local function init_ui()
   end)
 end
 
---- Open the kubectl view
+--- Open the kubectl view with splash screen
 function M.open()
-  local hl = require("kubectl.actions.highlight")
-  hl.setup()
   splash.show()
   vim.schedule(function()
     M.init()
   end)
 end
 
-function M.init()
+--- Initialize the client and UI
+--- @param callback? fun(ok: boolean) Optional callback after initialization
+function M.init(callback)
+  if M.is_open then
+    if callback then
+      callback(true)
+    end
+    return
+  end
+
+  local hl = require("kubectl.actions.highlight")
+  hl.setup()
+
   local client = require("kubectl.client")
   splash.status("Client module loaded ✔ ")
   client.set_implementation(function(ok)
     if ok then
       splash.status("Client initialized ✔ ")
+      M.is_open = true
       init_ui()
+      if callback then
+        vim.schedule(function()
+          callback(true)
+        end)
+      end
     else
       splash.fail("Failed to load context")
+      if callback then
+        callback(false)
+      end
     end
   end)
 end
@@ -80,7 +99,6 @@ function M.toggle(opts)
       vim.cmd("tabnew")
     end
     M.open()
-    M.is_open = true
   end
 end
 
