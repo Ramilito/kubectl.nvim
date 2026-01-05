@@ -3,6 +3,18 @@ local M = {}
 
 local timers = {}
 
+--- Check if any floating window is open (hover, popup, etc.)
+---@return boolean
+local function has_floating_window()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local win_config = vim.api.nvim_win_get_config(win)
+    if win_config.relative ~= "" then
+      return true
+    end
+  end
+  return false
+end
+
 --- Start a loop for a specific buffer
 ---@param buf number
 ---@param callback fun(is_cancelled: fun(): boolean)
@@ -26,6 +38,11 @@ function M.start_loop_for_buffer(buf, callback, opts)
       timers[buf].running = true
 
       vim.schedule(function()
+        -- Skip refresh if any floating window is open (hover, popups, etc.)
+        if has_floating_window() then
+          timers[buf].running = false
+          return
+        end
         callback(is_cancelled)
       end)
     end

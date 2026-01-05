@@ -113,16 +113,14 @@ function M.get_hover(_params, callback)
       end
 
       local content = formatters.format(decoded, gvk.k)
-      local lines = vim.split(content, "\n")
 
-      -- Open floating preview with custom close events (no BufLeave/buffer changes)
-      vim.lsp.util.open_floating_preview(lines, "markdown", {
-        border = "rounded",
-        close_events = { "CursorMoved", "InsertEnter" },
+      -- Return content via LSP callback - let Neovim handle display
+      callback(nil, {
+        contents = {
+          kind = "markdown",
+          value = content,
+        },
       })
-
-      -- Return nil to prevent default handler from opening another window
-      callback(nil, nil)
     end)
   end)
 end
