@@ -1,5 +1,4 @@
 local commands = require("kubectl.actions.commands")
-local formatters = require("kubectl.lsp.hover.formatters")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
@@ -93,26 +92,17 @@ function M.get_hover(_params, callback)
     return
   end
 
-  -- Fetch resource data asynchronously
-  commands.run_async("get_single_async", {
+  -- Fetch and format resource data via Rust
+  commands.run_async("get_hover_async", {
     gvk = gvk,
     namespace = ns,
     name = name,
-    output = "Json",
-  }, function(data)
+  }, function(content)
     vim.schedule(function()
-      if not data then
+      if not content or content == "" then
         callback(nil, nil)
         return
       end
-
-      local ok, decoded = pcall(vim.json.decode, data)
-      if not ok or not decoded then
-        callback(nil, nil)
-        return
-      end
-
-      local content = formatters.format(decoded, gvk.k)
 
       -- Return content via LSP callback - let Neovim handle display
       callback(nil, {

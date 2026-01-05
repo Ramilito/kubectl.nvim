@@ -34,6 +34,7 @@ mod drain;
 mod event_queue;
 mod events;
 mod filter;
+mod hover;
 mod metrics;
 mod processors;
 mod sort;
