@@ -29,6 +29,7 @@ local M = {
 }
 
 function M.View()
+  M.namespaces = { "All" }
   local builder = manager.get_or_create(M.definition.resource)
   builder.definition = M.definition
   builder.view_framed(M.definition)

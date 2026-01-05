@@ -3,13 +3,6 @@ local M = {}
 function M.get_items()
   local items = {}
 
-  -- Add "All" option first
-  table.insert(items, {
-    label = "All",
-    kind_name = "Namespace",
-    kind_icon = "󰘧",
-  })
-
   local ns_ok, ns_view = pcall(require, "kubectl.views.namespace")
   if ns_ok and ns_view.namespaces then
     for _, ns in ipairs(ns_view.namespaces) do
