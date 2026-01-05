@@ -63,17 +63,31 @@ fn format_owner(owners: &Option<Vec<OwnerReference>>) -> Option<String> {
 
 fn format_labels(labels: &Option<std::collections::BTreeMap<String, String>>) -> String {
     let Some(labels) = labels else {
-        return "_none_".to_string();
+        return "  _none_".to_string();
     };
     if labels.is_empty() {
-        return "_none_".to_string();
+        return "  _none_".to_string();
     }
-    labels
+    let mut lines: Vec<String> = labels
         .iter()
-        .take(5)
-        .map(|(k, v)| format!("`{}={}`", k, v))
+        .take(8)
+        .map(|(k, v)| format!("  `{}={}`", k, v))
+        .collect();
+    if labels.len() > 8 {
+        lines.push(format!("  ... and {} more", labels.len() - 8));
+    }
+    lines.join("\n")
+}
+
+fn format_selector(selector: &std::collections::BTreeMap<String, String>) -> String {
+    if selector.is_empty() {
+        return "  _none_".to_string();
+    }
+    selector
+        .iter()
+        .map(|(k, v)| format!("  `{}={}`", k, v))
         .collect::<Vec<_>>()
-        .join(", ")
+        .join("\n")
 }
 
 fn format_image(image: &str) -> String {
@@ -497,11 +511,7 @@ fn format_deployment(obj: &DynamicObject) -> String {
         .unwrap_or_default();
 
     // Get selector
-    let selector: Vec<String> = spec
-        .selector
-        .match_labels
-        .map(|m| m.iter().map(|(k, v)| format!("{}={}", k, v)).collect())
-        .unwrap_or_default();
+    let selector = spec.selector.match_labels.unwrap_or_default();
 
     let mut lines = vec![
         format!("## Deployment: {}", name),
@@ -518,9 +528,10 @@ fn format_deployment(obj: &DynamicObject) -> String {
     if !images.is_empty() {
         lines.push(format!("**Images:** {}", images.join(", ")));
     }
-    if !selector.is_empty() {
-        lines.push(format!("**Selector:** `{}`", selector.join(", ")));
-    }
+
+    lines.push(String::new());
+    lines.push("### Selector".to_string());
+    lines.push(format_selector(&selector));
 
     lines.push(String::new());
     lines.push("### Conditions".to_string());
@@ -749,17 +760,9 @@ fn format_service(obj: &DynamicObject) -> String {
         })
         .collect();
 
-    let selector = spec
-        .selector
-        .map(|s| {
-            s.iter()
-                .map(|(k, v)| format!("`{}={}`", k, v))
-                .collect::<Vec<_>>()
-                .join(", ")
-        })
-        .unwrap_or_else(|| "_none_".to_string());
+    let selector = spec.selector.unwrap_or_default();
 
-    vec![
+    let mut lines = vec![
         format!("## Service: {}", name),
         String::new(),
         format!("**Namespace:** {}", namespace),
@@ -774,11 +777,13 @@ fn format_service(obj: &DynamicObject) -> String {
             }
         ),
         format!("**Age:** {}", age),
-        String::new(),
-        "### Selector".to_string(),
-        selector,
-    ]
-    .join("\n")
+    ];
+
+    lines.push(String::new());
+    lines.push("### Selector".to_string());
+    lines.push(format_selector(&selector));
+
+    lines.join("\n")
 }
 
 fn format_ingress(obj: &DynamicObject) -> String {
