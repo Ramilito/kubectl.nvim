@@ -612,7 +612,7 @@ function M.register()
   end
 end
 
---- Apply mappings for a kubectl buffer
+--- Apply all mappings for a buffer
 ---@param bufnr number
 ---@param view_name string
 local function apply_mappings(bufnr, view_name)
@@ -647,19 +647,21 @@ function M.setup(ev)
   local view_name = ev.match:gsub("k8s_", "")
   local bufnr = ev.buf
 
-  apply_mappings(bufnr, view_name)
-
-  -- Re-apply mappings after LSP attaches to ensure kubectl mappings win
+  -- Set up mappings after LSP attaches to override LSP defaults
+  -- but map_if_plug_not_set respects user <Plug> customizations
   vim.api.nvim_create_autocmd("LspAttach", {
     buffer = bufnr,
+    once = true,
     callback = function()
-      -- Defer to ensure LSP has finished setting up its mappings
-      vim.defer_fn(function()
+      vim.schedule(function()
         if vim.api.nvim_buf_is_valid(bufnr) then
           apply_mappings(bufnr, view_name)
         end
-      end, 10)
+      end)
     end,
   })
+
+  -- Also apply immediately for buffers where LSP doesn't attach
+  apply_mappings(bufnr, view_name)
 end
 return M
