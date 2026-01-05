@@ -536,6 +536,15 @@ function M.get_mappings()
         lineage_view.View(name, ns, current_view.definition.gvk.k)
       end,
     },
+    ["<Plug>(kubectl.quickfix)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Send diagnostics to quickfix",
+      callback = function()
+        local diagnostics = require("kubectl.lsp.diagnostics")
+        diagnostics.to_quickfix()
+      end,
+    },
   }
   -- Add dynamic "view" mappings
   for _, view_name in ipairs(vim.tbl_keys(viewsTable)) do
@@ -596,14 +605,17 @@ function M.register()
   M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
   M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
+  M.map_if_plug_not_set("n", "gq", "<Plug>(kubectl.quickfix)")
 
   if config.options.lineage.enabled then
     M.map_if_plug_not_set("n", "gxx", "<Plug>(kubectl.lineage)")
   end
 end
 
-function M.setup(ev)
-  local view_name = ev.match:gsub("k8s_", "")
+--- Apply mappings for a kubectl buffer
+---@param bufnr number
+---@param view_name string
+local function apply_mappings(bufnr, view_name)
   local ok, view_mappings = pcall(require, "kubectl.resources." .. view_name .. ".mappings")
   if not ok then
     ok, view_mappings = pcall(require, "kubectl.views." .. view_name .. ".mappings")
@@ -621,7 +633,7 @@ function M.setup(ev)
       desc = def.desc,
       noremap = def.noremap ~= false,
       silent = def.silent ~= false,
-      buffer = true,
+      buffer = bufnr,
     })
   end
 
@@ -629,5 +641,25 @@ function M.setup(ev)
     pcall(view_mappings.register)
   end
   M.register()
+end
+
+function M.setup(ev)
+  local view_name = ev.match:gsub("k8s_", "")
+  local bufnr = ev.buf
+
+  apply_mappings(bufnr, view_name)
+
+  -- Re-apply mappings after LSP attaches to ensure kubectl mappings win
+  vim.api.nvim_create_autocmd("LspAttach", {
+    buffer = bufnr,
+    callback = function()
+      -- Defer to ensure LSP has finished setting up its mappings
+      vim.defer_fn(function()
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          apply_mappings(bufnr, view_name)
+        end
+      end, 10)
+    end,
+  })
 end
 return M

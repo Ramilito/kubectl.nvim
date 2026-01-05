@@ -124,6 +124,9 @@ function M.setup(options)
     require("kubectl.lsp.sources.namespaces").register()
     require("kubectl.lsp.sources.contexts").register()
 
+    -- Setup diagnostics for unhealthy resources
+    require("kubectl.lsp.diagnostics").setup()
+
     -- LSP for completion (floating views) and hover (resource buffers)
     vim.api.nvim_create_autocmd("FileType", {
       group = group,
