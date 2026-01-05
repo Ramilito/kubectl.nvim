@@ -124,11 +124,16 @@ function M.setup(options)
     require("kubectl.completion.sources.namespaces").register()
     require("kubectl.completion.sources.contexts").register()
 
-    -- LSP completion for specific filetypes
+    -- LSP for completion (floating views) and hover (resource buffers)
     vim.api.nvim_create_autocmd("FileType", {
       group = group,
-      pattern = { "k8s_aliases", "k8s_filter", "k8s_namespaces", "k8s_contexts" },
-      callback = function()
+      pattern = { "k8s_*" },
+      callback = function(ev)
+        -- Skip non-hoverable filetypes
+        local skip = { k8s_pod_logs = true, k8s_action = true }
+        if skip[ev.match] or ev.match:match("_yaml$") or ev.match:match("_describe$") then
+          return
+        end
         require("kubectl.completion.lsp").start()
       end,
     })

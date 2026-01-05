@@ -76,6 +76,7 @@ function M.start()
       completionProvider = {
         triggerCharacters = { ":", "-" },
       },
+      hoverProvider = true,
     },
     handlers = {
       ["textDocument/completion"] = function(_method, _params, callback)
@@ -85,6 +86,10 @@ function M.start()
         vim.schedule(function()
           callback(nil, { isIncomplete = false, items = items })
         end)
+      end,
+      ["textDocument/hover"] = function(_method, params, callback)
+        local hover = require("kubectl.completion.hover")
+        hover.get_hover(params, callback)
       end,
     },
   })
