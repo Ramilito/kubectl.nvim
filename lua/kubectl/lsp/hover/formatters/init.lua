@@ -37,6 +37,42 @@ local function format_age(timestamp)
   return "unknown"
 end
 
+--- Format image name (strip registry prefix for brevity)
+---@param image string
+---@return string
+local function format_image(image)
+  if not image then
+    return "_unknown_"
+  end
+  -- Keep it readable but show tag/digest
+  local parts = vim.split(image, "/")
+  local name = parts[#parts] -- last part has image:tag
+  return string.format("`%s`", name)
+end
+
+--- Format resource requests/limits
+---@param resources table|nil
+---@return string|nil
+local function format_resources(resources)
+  if not resources then
+    return nil
+  end
+  local parts = {}
+  local req = resources.requests or {}
+  local lim = resources.limits or {}
+
+  if req.cpu or lim.cpu then
+    table.insert(parts, string.format("cpu: %s/%s", req.cpu or "-", lim.cpu or "-"))
+  end
+  if req.memory or lim.memory then
+    table.insert(parts, string.format("mem: %s/%s", req.memory or "-", lim.memory or "-"))
+  end
+  if #parts == 0 then
+    return nil
+  end
+  return table.concat(parts, ", ")
+end
+
 --- Format container status for pods
 ---@param containers table|nil
 ---@param statuses table|nil
@@ -59,6 +95,7 @@ local function format_containers(containers, statuses)
     local state_str = "unknown"
     local icon = "○"
     local ready = false
+    local extra_info = {}
 
     if status and status.state then
       ready = status.ready or false
@@ -68,16 +105,46 @@ local function format_containers(containers, statuses)
       elseif status.state.waiting then
         state_str = status.state.waiting.reason or "waiting"
         icon = "◌"
+        -- Show waiting message for debugging
+        if status.state.waiting.message then
+          table.insert(extra_info, string.format("    _→ %s_", status.state.waiting.message:sub(1, 60)))
+        end
       elseif status.state.terminated then
         state_str = status.state.terminated.reason or "terminated"
         icon = "○"
+        -- Show exit code for debugging
+        if status.state.terminated.exitCode and status.state.terminated.exitCode ~= 0 then
+          table.insert(extra_info, string.format("    _→ exit code %d_", status.state.terminated.exitCode))
+        end
       end
     end
 
-    local ready_str = ready and "ready" or "not ready"
+    -- Show last termination reason if container restarted
     local restarts = status and status.restartCount or 0
+    if restarts > 0 and status and status.lastState and status.lastState.terminated then
+      local last = status.lastState.terminated
+      local reason = last.reason or "Unknown"
+      local exit_code = last.exitCode and string.format(" (exit %d)", last.exitCode) or ""
+      table.insert(extra_info, string.format("    _→ last: %s%s_", reason, exit_code))
+    end
+
+    local ready_str = ready and "ready" or "not ready"
     local restart_str = restarts > 0 and string.format(", %d restarts", restarts) or ""
     table.insert(lines, string.format("  %s `%s` - %s (%s%s)", icon, c.name, state_str, ready_str, restart_str))
+
+    -- Add image
+    table.insert(lines, string.format("    image: %s", format_image(c.image)))
+
+    -- Add resources if defined
+    local res = format_resources(c.resources)
+    if res then
+      table.insert(lines, string.format("    resources: %s", res))
+    end
+
+    -- Add extra debugging info
+    for _, info in ipairs(extra_info) do
+      table.insert(lines, info)
+    end
   end
   return table.concat(lines, "\n")
 end
@@ -94,6 +161,20 @@ local function format_conditions(conditions)
   for _, c in ipairs(conditions) do
     local icon = c.status == "True" and "✓" or "✗"
     table.insert(lines, string.format("  %s %s", icon, c.type))
+    -- Show reason/message for failed conditions (debugging)
+    if c.status ~= "True" then
+      if c.reason then
+        table.insert(lines, string.format("    _→ %s_", c.reason))
+      end
+      if c.message and c.message ~= "" then
+        -- Truncate long messages
+        local msg = c.message:sub(1, 80)
+        if #c.message > 80 then
+          msg = msg .. "..."
+        end
+        table.insert(lines, string.format("    _→ %s_", msg))
+      end
+    end
   end
   return table.concat(lines, "\n")
 end
@@ -106,6 +187,13 @@ function M.format_pod(data)
   local spec = data.spec or {}
   local status = data.status or {}
 
+  -- Get owner reference
+  local owner_str = nil
+  if meta.ownerReferences and #meta.ownerReferences > 0 then
+    local owner = meta.ownerReferences[1]
+    owner_str = string.format("`%s/%s`", owner.kind, owner.name)
+  end
+
   local lines = {
     string.format("## Pod: %s", meta.name or "unknown"),
     "",
@@ -113,17 +201,24 @@ function M.format_pod(data)
     string.format("**Status:** %s", status.phase or "Unknown"),
     string.format("**Node:** %s", spec.nodeName or "_unscheduled_"),
     string.format("**IP:** %s", status.podIP or "_none_"),
+    string.format("**QoS:** %s", status.qosClass or "BestEffort"),
     string.format("**Age:** %s", format_age(meta.creationTimestamp)),
-    "",
-    "### Conditions",
-    format_conditions(status.conditions),
-    "",
-    "### Containers",
-    format_containers(spec.containers, status.containerStatuses),
-    "",
-    "### Labels",
-    format_labels(meta.labels),
   }
+
+  if owner_str then
+    table.insert(lines, string.format("**Controlled By:** %s", owner_str))
+  end
+
+  if spec.serviceAccountName then
+    table.insert(lines, string.format("**Service Account:** `%s`", spec.serviceAccountName))
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "### Containers")
+  table.insert(lines, format_containers(spec.containers, status.containerStatuses))
+  table.insert(lines, "")
+  table.insert(lines, "### Conditions")
+  table.insert(lines, format_conditions(status.conditions))
 
   return table.concat(lines, "\n")
 end
@@ -139,21 +234,45 @@ function M.format_deployment(data)
   local replicas = status.replicas or 0
   local ready = status.readyReplicas or 0
   local available = status.availableReplicas or 0
+  local updated = status.updatedReplicas or 0
+
+  -- Get container images from template
+  local images = {}
+  local template = spec.template and spec.template.spec
+  if template and template.containers then
+    for _, c in ipairs(template.containers) do
+      table.insert(images, format_image(c.image))
+    end
+  end
+
+  -- Get selector
+  local selector_parts = {}
+  if spec.selector and spec.selector.matchLabels then
+    for k, v in pairs(spec.selector.matchLabels) do
+      table.insert(selector_parts, string.format("%s=%s", k, v))
+    end
+  end
 
   local lines = {
     string.format("## Deployment: %s", meta.name or "unknown"),
     "",
     string.format("**Namespace:** %s", meta.namespace or "default"),
-    string.format("**Replicas:** %d/%d ready, %d available", ready, replicas, available),
+    string.format("**Replicas:** %d/%d ready, %d available, %d updated", ready, replicas, available, updated),
     string.format("**Strategy:** %s", spec.strategy and spec.strategy.type or "RollingUpdate"),
     string.format("**Age:** %s", format_age(meta.creationTimestamp)),
-    "",
-    "### Conditions",
-    format_conditions(status.conditions),
-    "",
-    "### Labels",
-    format_labels(meta.labels),
   }
+
+  if #images > 0 then
+    table.insert(lines, string.format("**Images:** %s", table.concat(images, ", ")))
+  end
+
+  if #selector_parts > 0 then
+    table.insert(lines, string.format("**Selector:** `%s`", table.concat(selector_parts, ", ")))
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "### Conditions")
+  table.insert(lines, format_conditions(status.conditions))
 
   return table.concat(lines, "\n")
 end

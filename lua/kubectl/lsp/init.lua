@@ -88,7 +88,7 @@ function M.start()
         end)
       end,
       ["textDocument/hover"] = function(_method, params, callback)
-        local hover = require("kubectl.completion.hover")
+        local hover = require("kubectl.lsp.hover")
         hover.get_hover(params, callback)
       end,
     },

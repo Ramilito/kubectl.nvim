@@ -1,5 +1,5 @@
 local commands = require("kubectl.actions.commands")
-local formatters = require("kubectl.completion.hover.formatters")
+local formatters = require("kubectl.lsp.hover.formatters")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")

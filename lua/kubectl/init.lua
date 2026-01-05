@@ -118,11 +118,11 @@ function M.setup(options)
       end,
     })
 
-    -- Register completion sources
-    require("kubectl.completion.sources.aliases").register()
-    require("kubectl.completion.sources.filter").register()
-    require("kubectl.completion.sources.namespaces").register()
-    require("kubectl.completion.sources.contexts").register()
+    -- Register LSP completion sources
+    require("kubectl.lsp.sources.aliases").register()
+    require("kubectl.lsp.sources.filter").register()
+    require("kubectl.lsp.sources.namespaces").register()
+    require("kubectl.lsp.sources.contexts").register()
 
     -- LSP for completion (floating views) and hover (resource buffers)
     vim.api.nvim_create_autocmd("FileType", {
@@ -134,7 +134,7 @@ function M.setup(options)
         if skip[ev.match] or ev.match:match("_yaml$") or ev.match:match("_describe$") then
           return
         end
-        require("kubectl.completion.lsp").start()
+        require("kubectl.lsp").start()
       end,
     })
     vim.api.nvim_create_autocmd("VimLeavePre", {
