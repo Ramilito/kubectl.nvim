@@ -52,6 +52,10 @@ local status_hints = {
   Terminating = "Pod is being terminated",
   Evicted = "Pod was evicted from node (resource pressure)",
   Unknown = "Pod state cannot be determined",
+  ContainerStatusUnknown = "Container status cannot be determined",
+  ["Init:ContainerStatusUnknown"] = "Init container status cannot be determined",
+  ["Init:ErrImagePull"] = "Init container failed to pull image",
+  ["Init:ImagePullBackOff"] = "Init container image pull back-off",
 }
 
 --- Build diagnostic message from row data

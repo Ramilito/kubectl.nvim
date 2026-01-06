@@ -58,6 +58,7 @@ function M.ColorStatus(status)
     VolumeResizeFailed = true,
     ["Init:ErrImagePull"] = true,
     ["Init:ImagePullBackOff"] = true,
+    ["Init:ContainerStatusUnknown"] = true,
   }
 
   local warningStatuses = {
