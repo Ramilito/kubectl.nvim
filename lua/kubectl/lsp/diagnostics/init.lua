@@ -140,12 +140,7 @@ function M.setup()
       prefix = "●",
       spacing = 2,
     },
-    signs = {
-      text = {
-        [vim.diagnostic.severity.ERROR] = "✖",
-        [vim.diagnostic.severity.WARN] = "⚠",
-      },
-    },
+    signs = false,
     underline = true,
     update_in_insert = false,
   }, ns)
