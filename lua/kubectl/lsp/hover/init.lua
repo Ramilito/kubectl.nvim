@@ -5,6 +5,28 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
+--- Get diagnostic section for current line
+---@param bufnr number
+---@param line number 0-indexed line number
+---@return string|nil markdown formatted diagnostic section
+local function get_diagnostic_section(bufnr, line)
+  local diags = vim.diagnostic.get(bufnr, { lnum = line })
+  if #diags == 0 then
+    return nil
+  end
+
+  local lines = { "", "---", "## Diagnostics" }
+  for _, diag in ipairs(diags) do
+    local severity = vim.diagnostic.severity[diag.severity] or "INFO"
+    local icon = diag.severity == vim.diagnostic.severity.ERROR and "🔴"
+      or diag.severity == vim.diagnostic.severity.WARN and "🟡"
+      or "🔵"
+    table.insert(lines, string.format("%s **%s**: %s", icon, severity, diag.message))
+  end
+
+  return table.concat(lines, "\n")
+end
+
 --- Extract resource name from filetype (k8s_pods -> pods)
 ---@param ft string
 ---@return string|nil
@@ -92,6 +114,9 @@ function M.get_hover(_params, callback)
     return
   end
 
+  -- Capture cursor position before async call
+  local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-indexed
+
   -- Fetch and format resource data via Rust
   commands.run_async("get_hover_async", {
     gvk = gvk,
@@ -102,6 +127,12 @@ function M.get_hover(_params, callback)
       if not content or content == "" then
         callback(nil, nil)
         return
+      end
+
+      -- Append diagnostic section if there are diagnostics on this line
+      local diag_section = get_diagnostic_section(buf, cursor_line)
+      if diag_section then
+        content = content .. diag_section
       end
 
       -- Return content via LSP callback - let Neovim handle display
