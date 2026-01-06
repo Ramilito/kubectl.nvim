@@ -37,7 +37,15 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
   <img src="https://github.com/user-attachments/assets/f6d5d38a-2b1d-4262-9c15-0587277e2b7a" width="700px">
 </details>
 <details>
-  <summary>Run custom commands e.g <code>:Kubectl get endpoints</code></summary>
+  <summary>Commands: <code>:Kubectl</code>, <code>:Kubens</code>, <code>:Kubectx</code></summary>
+  <sub>Run kubectl commands directly or open interactive views. All commands support tab completion.</sub>
+  <pre>
+:Kubectl get endpoints            -- Run kubectl and show output in split
+:Kubectl view [resource]          -- Open interactive view for any resource
+:Kubectl top                      -- Open top dashboard
+:Kubectl diff [path]              -- Diff resources
+:Kubens [namespace]               -- Switch or select namespace
+:Kubectx [context]                -- Switch or select context</pre>
   <img src="https://github.com/user-attachments/assets/3162ef16-4730-472b-95f8-4bdc2948647f" width="700px">
 </details>
 <details>
