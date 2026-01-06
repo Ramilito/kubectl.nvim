@@ -336,6 +336,10 @@ function M.new(resource)
         -- Set buffer content once (all windows see the same buffer)
         builder.displayContent(primary_win, cancellationToken)
 
+        -- Update diagnostics immediately after content (same render frame)
+        local diagnostics = require("kubectl.lsp.diagnostics")
+        diagnostics.set_diagnostics(builder.buf_nr, resource)
+
         -- Winbar is window-local, so update it for all windows
         update_winbars(windows, builder.header.divider_winbar)
 
