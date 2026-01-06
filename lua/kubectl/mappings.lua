@@ -554,6 +554,15 @@ function M.get_mappings()
         diagnostics.toggle()
       end,
     },
+    ["<Plug>(kubectl.jump_to_resource)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Jump to resource",
+      callback = function()
+        local symbols = require("kubectl.lsp.symbols")
+        symbols.jump_to_resource()
+      end,
+    },
   }
   -- Add dynamic "view" mappings
   for _, view_name in ipairs(vim.tbl_keys(viewsTable)) do
@@ -616,6 +625,7 @@ function M.register()
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
   M.map_if_plug_not_set("n", "gq", "<Plug>(kubectl.quickfix)")
   M.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.toggle_diagnostics)")
+  M.map_if_plug_not_set("n", "go", "<Plug>(kubectl.jump_to_resource)")
 
   if config.options.lineage.enabled then
     M.map_if_plug_not_set("n", "gxx", "<Plug>(kubectl.lineage)")
