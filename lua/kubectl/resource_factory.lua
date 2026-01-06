@@ -333,6 +333,10 @@ function M.new(resource)
         local primary_win = windows[1]
         builder.prettyPrint(primary_win).addDivider(true)
 
+        -- Add semantic line highlights based on resource state
+        local semantic = require("kubectl.lsp.semantic")
+        semantic.add_line_highlights(builder.processedData, builder.extmarks, 1)
+
         -- Set buffer content once (all windows see the same buffer)
         builder.displayContent(primary_win, cancellationToken)
 
