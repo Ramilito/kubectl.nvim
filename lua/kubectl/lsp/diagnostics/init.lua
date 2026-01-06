@@ -136,45 +136,13 @@ end
 function M.setup()
   -- Configure our diagnostic namespace
   vim.diagnostic.config({
-    virtual_text = {
-      prefix = "●",
-      spacing = 2,
-    },
+    virtual_text = false,
+    virtual_lines = { only_current_line = true },
     signs = false,
     underline = true,
     update_in_insert = false,
   }, ns)
 
-  -- Set diagnostics when data loads
-  vim.api.nvim_create_autocmd("User", {
-    pattern = "K8sDataLoaded",
-    callback = function()
-      local bufnr = vim.api.nvim_get_current_buf()
-      local ft = vim.bo[bufnr].filetype
-
-      if not ft or not ft:match("^k8s_") then
-        return
-      end
-
-      -- Skip non-resource filetypes
-      local skip = {
-        k8s_filter = true,
-        k8s_namespaces = true,
-        k8s_contexts = true,
-        k8s_aliases = true,
-        k8s_pod_logs = true,
-        k8s_action = true,
-      }
-      if skip[ft] or ft:match("_yaml$") or ft:match("_describe$") then
-        return
-      end
-
-      local resource = ft:match("^k8s_(.+)$")
-      if resource then
-        M.set_diagnostics(bufnr, resource)
-      end
-    end,
-  })
 end
 
 return M
