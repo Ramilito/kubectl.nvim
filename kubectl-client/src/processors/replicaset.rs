@@ -103,6 +103,7 @@ fn make_repl_field(value: i32, desired: i32, always_note: bool) -> FieldValue {
         value: value.to_string(),
         sort_by: Some(value as usize),
         symbol: Some(symbol),
+        hint: None,
     }
 }
 

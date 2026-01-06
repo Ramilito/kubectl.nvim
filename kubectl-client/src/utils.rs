@@ -15,14 +15,18 @@ pub struct FieldValue {
     pub value: String,
     pub symbol: Option<String>,
     pub sort_by: Option<usize>,
+    /// Diagnostic hint message (e.g., container waiting/terminated message)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
 }
-// Implement Default
+
 impl Default for FieldValue {
     fn default() -> Self {
         Self {
             value: "".to_string(),
             symbol: None,
             sort_by: None,
+            hint: None,
         }
     }
 }

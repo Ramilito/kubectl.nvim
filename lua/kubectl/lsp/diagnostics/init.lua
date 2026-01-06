@@ -36,27 +36,15 @@ local function get_value(field)
   return field or ""
 end
 
---- Status descriptions for common Kubernetes states
-local status_hints = {
-  CrashLoopBackOff = "Container keeps crashing after restart attempts",
-  ImagePullBackOff = "Failed to pull container image, check image name/registry access",
-  ErrImagePull = "Error pulling container image",
-  CreateContainerConfigError = "Invalid container configuration",
-  InvalidImageName = "Container image name is malformed",
-  OOMKilled = "Container exceeded memory limit and was killed",
-  Error = "Container exited with an error",
-  Completed = "Container finished execution",
-  ContainerCreating = "Container is being created",
-  PodInitializing = "Init containers are running",
-  Pending = "Pod is waiting to be scheduled",
-  Terminating = "Pod is being terminated",
-  Evicted = "Pod was evicted from node (resource pressure)",
-  Unknown = "Pod state cannot be determined",
-  ContainerStatusUnknown = "Container status cannot be determined",
-  ["Init:ContainerStatusUnknown"] = "Init container status cannot be determined",
-  ["Init:ErrImagePull"] = "Init container failed to pull image",
-  ["Init:ImagePullBackOff"] = "Init container image pull back-off",
-}
+--- Get hint from field (Rust provides hint in FieldValue.hint)
+---@param field any
+---@return string|nil
+local function get_hint(field)
+  if type(field) == "table" then
+    return field.hint
+  end
+  return nil
+end
 
 --- Build diagnostic message from row data
 ---@param row table
@@ -65,12 +53,12 @@ local status_hints = {
 local function get_message(row, severity)
   local parts = {}
 
-  -- Status with hint
+  -- Status with hint from Rust
   if row.status then
     local val = get_value(row.status)
     if val ~= "" and val ~= "Running" and val ~= "Succeeded" and val ~= "Active" then
-      local hint = status_hints[val]
-      if hint then
+      local hint = get_hint(row.status)
+      if hint and hint ~= "" then
         table.insert(parts, string.format("%s - %s", val, hint))
       else
         table.insert(parts, val)

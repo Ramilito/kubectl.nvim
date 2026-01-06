@@ -81,5 +81,6 @@ fn get_ready_from_statefulset(ss: &StatefulSet) -> FieldValue {
         symbol: Some(symbol),
         value,
         sort_by: Some(sort_by as usize),
+        hint: None,
     }
 }

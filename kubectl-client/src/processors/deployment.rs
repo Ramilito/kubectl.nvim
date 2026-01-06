@@ -103,5 +103,6 @@ fn get_ready_from_deployment(deployment: &Deployment) -> FieldValue {
         symbol: Some(symbol),
         value,
         sort_by: Some(sort_by as usize),
+        hint: None,
     }
 }

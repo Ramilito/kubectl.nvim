@@ -134,5 +134,6 @@ fn get_ready_from_daemonset(ds: &DaemonSet) -> FieldValue {
         symbol: Some(symbol),
         value,
         sort_by: Some(sort_by as usize),
+        hint: None,
     }
 }

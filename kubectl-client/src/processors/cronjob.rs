@@ -65,6 +65,7 @@ impl Processor for CronJobProcessor {
             } else {
                 symbols().deprecated.clone()
             }),
+            hint: None,
         };
 
         let last_schedule = cj
