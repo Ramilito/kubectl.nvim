@@ -545,6 +545,15 @@ function M.get_mappings()
         diagnostics.to_quickfix()
       end,
     },
+    ["<Plug>(kubectl.toggle_diagnostics)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Toggle diagnostics display",
+      callback = function()
+        local diagnostics = require("kubectl.lsp.diagnostics")
+        diagnostics.toggle()
+      end,
+    },
   }
   -- Add dynamic "view" mappings
   for _, view_name in ipairs(vim.tbl_keys(viewsTable)) do
@@ -606,6 +615,7 @@ function M.register()
   M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
   M.map_if_plug_not_set("n", "gq", "<Plug>(kubectl.quickfix)")
+  M.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.toggle_diagnostics)")
 
   if config.options.lineage.enabled then
     M.map_if_plug_not_set("n", "gxx", "<Plug>(kubectl.lineage)")

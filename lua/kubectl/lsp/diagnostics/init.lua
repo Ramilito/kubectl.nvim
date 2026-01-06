@@ -161,6 +161,27 @@ function M.to_quickfix()
   vim.cmd("copen")
 end
 
+local diagnostics_enabled = true
+
+--- Toggle diagnostic display on/off
+function M.toggle()
+  diagnostics_enabled = not diagnostics_enabled
+
+  if diagnostics_enabled then
+    vim.diagnostic.config({
+      virtual_lines = { only_current_line = true },
+      virtual_text = false,
+    }, ns)
+    vim.notify("Diagnostics: on", vim.log.levels.INFO)
+  else
+    vim.diagnostic.config({
+      virtual_lines = false,
+      virtual_text = false,
+    }, ns)
+    vim.notify("Diagnostics: off", vim.log.levels.INFO)
+  end
+end
+
 --- Setup diagnostics
 function M.setup()
   -- Configure our diagnostic namespace
