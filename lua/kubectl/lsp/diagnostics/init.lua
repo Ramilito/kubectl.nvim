@@ -36,37 +36,74 @@ local function get_value(field)
   return field or ""
 end
 
+--- Status descriptions for common Kubernetes states
+local status_hints = {
+  CrashLoopBackOff = "Container keeps crashing after restart attempts",
+  ImagePullBackOff = "Failed to pull container image, check image name/registry access",
+  ErrImagePull = "Error pulling container image",
+  CreateContainerConfigError = "Invalid container configuration",
+  InvalidImageName = "Container image name is malformed",
+  OOMKilled = "Container exceeded memory limit and was killed",
+  Error = "Container exited with an error",
+  Completed = "Container finished execution",
+  ContainerCreating = "Container is being created",
+  PodInitializing = "Init containers are running",
+  Pending = "Pod is waiting to be scheduled",
+  Terminating = "Pod is being terminated",
+  Evicted = "Pod was evicted from node (resource pressure)",
+  Unknown = "Pod state cannot be determined",
+}
+
 --- Build diagnostic message from row data
 ---@param row table
+---@param severity integer
 ---@return string
-local function get_message(row)
+local function get_message(row, severity)
   local parts = {}
 
+  -- Status with hint
   if row.status then
     local val = get_value(row.status)
     if val ~= "" and val ~= "Running" and val ~= "Succeeded" and val ~= "Active" then
-      table.insert(parts, val)
+      local hint = status_hints[val]
+      if hint then
+        table.insert(parts, string.format("%s - %s", val, hint))
+      else
+        table.insert(parts, val)
+      end
     end
   end
 
-  if row.restarts then
-    local val = get_value(row.restarts)
-    if val and tonumber(val) and tonumber(val) > 0 then
-      table.insert(parts, val .. " restarts")
-    end
-  end
-
+  -- Ready count
   if row.ready then
     local val = get_value(row.ready)
     if val and val:match("^%d+/%d+$") then
       local current, total = val:match("^(%d+)/(%d+)$")
       if current ~= total then
-        table.insert(parts, "Ready: " .. val)
+        table.insert(parts, string.format("Ready: %s/%s containers", current, total))
       end
     end
   end
 
-  return table.concat(parts, " | ")
+  -- Restarts with context
+  if row.restarts then
+    local val = get_value(row.restarts)
+    -- Handle "5 (2m ago)" format
+    local count = val and val:match("^(%d+)")
+    if count and tonumber(count) > 0 then
+      table.insert(parts, string.format("Restarts: %s", val))
+    end
+  end
+
+  -- Age for context
+  if row.age and severity == vim.diagnostic.severity.ERROR then
+    local age = get_value(row.age)
+    if age ~= "" then
+      table.insert(parts, string.format("Age: %s", age))
+    end
+  end
+
+  return table.concat(parts, " │ ")
 end
 
 --- Set diagnostics for a resource buffer
@@ -101,25 +138,17 @@ function M.set_diagnostics(bufnr, resource)
     end
 
     if severity then
-      local name = get_value(row.name)
-      local namespace = get_value(row.namespace)
-      local message = get_message(row)
+      local message = get_message(row, severity)
 
-      local text = name
-      if namespace ~= "" then
-        text = namespace .. "/" .. name
-      end
       if message ~= "" then
-        text = text .. ": " .. message
+        table.insert(diagnostics, {
+          lnum = content_start + i - 1, -- 0-indexed
+          col = 0,
+          message = message,
+          severity = severity,
+          source = "kubectl",
+        })
       end
-
-      table.insert(diagnostics, {
-        lnum = content_start + i - 1, -- 0-indexed
-        col = 0,
-        message = text,
-        severity = severity,
-        source = "kubectl",
-      })
     end
   end
 
@@ -138,11 +167,10 @@ function M.setup()
   vim.diagnostic.config({
     virtual_text = false,
     virtual_lines = { only_current_line = true },
-    signs = false,
+    signs = true,
     underline = true,
     update_in_insert = false,
   }, ns)
-
 end
 
 return M
