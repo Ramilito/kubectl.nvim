@@ -14,7 +14,6 @@ local function validate_config(opts)
   local ok, err = pcall(vim.validate, {
     log_level = { opts.log_level, "number", true },
     auto_refresh = { opts.auto_refresh, "table", true },
-    diff = { opts.diff, "table", true },
     kubectl_cmd = { opts.kubectl_cmd, "table", true },
     terminal_cmd = { opts.terminal_cmd, "string", true },
     namespace = { opts.namespace, "string", true },
@@ -38,12 +37,10 @@ end
 
 ---@alias SkewConfig { enabled: boolean, log_level: number }
 ---@alias AutoRefreshConfig { enabled: boolean, interval: number }
----@alias DiffConfig { bin: string }
----@alias KubectlCmd { cmd: string, env: table<string, string>, args: string[], persist_context_change: boolean }
+---@alias KubectlCmd { cmd: string, env: table<string, string>, args: string[] }
 -- luacheck: no max line length
 ---@alias HeadersConfig { enabled: boolean, blend: integer, hints: boolean, context: boolean, heartbeat: boolean, skew: SkewConfig }
 ---@alias LineageConfig { enabled: boolean }
----@alias CompletionConfig { follow_cursor: boolean }
 ---@alias LspConfig { enabled: boolean }
 ---@alias LogsConfig { prefix: boolean, timestamps: boolean, since: string }
 ---@alias AliasConfig { apply_on_select_from_history: boolean, max_history: number }
@@ -55,7 +52,6 @@ end
 ---@class KubectlOptions
 ---@field log_level number
 ---@field auto_refresh AutoRefreshConfig
----@field diff DiffConfig
 ---@field kubectl_cmd KubectlCmd
 ---@field terminal_cmd string?
 ---@field namespace string
@@ -63,7 +59,6 @@ end
 ---@field headers HeadersConfig
 ---@field lineage LineageConfig
 ---@field lsp LspConfig
----@field completion CompletionConfig
 ---@field logs LogsConfig
 ---@field alias AliasConfig
 ---@field filter FilterConfig
@@ -80,14 +75,11 @@ local defaults = {
     enabled = true,
     interval = 500, -- milliseconds
   },
-  diff = {
-    bin = "kubediff",
-  },
   -- We will use this when invoking kubectl.
   -- The subshells invoked will have PATH, HOME and the environments listed below
   -- NOTE: Some executions using the io.open and vim.fn.terminal will still have default shell environments,
   -- in that case, the environments below will not override the defaults and should not be in your .zshrc/.bashrc files
-  kubectl_cmd = { cmd = "kubectl", env = {}, args = {}, persist_context_change = false },
+  kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {},
@@ -107,9 +99,6 @@ local defaults = {
   },
   lsp = {
     enabled = false,
-  },
-  completion = {
-    follow_cursor = false,
   },
   logs = {
     prefix = true,

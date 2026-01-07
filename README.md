@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 MD045 MD013 -->
 <h1 align="center"><img src="https://github.com/user-attachments/assets/f28e04e0-0610-412c-9c58-fa53706a9c91"> kubectl.nvim</h1>
 <p align="center">
   <a href="https://nvim.io/">
@@ -20,7 +21,7 @@ Processes kubectl outputs to enable vim-like navigation in a buffer for your clu
 ## ✨ Features
 
 <details>
-  <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deplyoment -> pod -> container
+  <summary>Navigate your cluster in a buffer, using hierarchy where possible (backspace for up, enter for down) e.g. root -> deployment -> pod -> container
 </summary>
   <img src="https://github.com/user-attachments/assets/2243c9d8-0808-4734-92aa-7612496c920b" width="700px">
 </details>
@@ -302,7 +303,7 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
   diff = {
     bin = "kubediff" -- or any other binary
   },
-  kubectl_cmd = { cmd = "kubectl", env = {}, args = {}, persist_context_change = false },
+  kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
@@ -388,11 +389,11 @@ We trigger events that you can use to run custom logic:
 
 <details><summary>events</summary>
 
-| Name                | When                          | Data |
-| ------------------- | ----------------------------- | ----------------------------- |
-| K8sResourceSelected | On main views, when selecting a resource unless overriden (like pod view) | kind, name, ns |
-| K8sContextChanged   | After context change | context |
-| K8sCacheLoaded      | After api-resources cache is loaded | - |
+| Name                | When                                                                       | Data           |
+| ------------------- | -------------------------------------------------------------------------- | -------------- |
+| K8sResourceSelected | On main views, when selecting a resource unless overridden (like pod view) | kind, name, ns |
+| K8sContextChanged   | After context change                                                       | context        |
+| K8sCacheLoaded      | After api-resources cache is loaded                                        | -              |
 
 Example: saving session on context change
 
@@ -423,7 +424,7 @@ We use kubectl proxy and curl to reduce latency.
 
 We leverage the kubernetes informer to efficiently monitor resource updates.
 
-By using the `resourceversion`, we avoid fetching all resources in each loop.
+By using the `resourceVersion`, we avoid fetching all resources in each loop.
 
 Instead, the Informer provides only the changes, significantly reducing overhead and improving performance.
 
