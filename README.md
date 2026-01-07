@@ -302,7 +302,7 @@ For overriding the default mappings when using `lazy.nvim` [check out our wiki p
   diff = {
     bin = "kubediff" -- or any other binary
   },
-  kubectl_cmd = { cmd = "kubectl", env = {}, args = {}, persist_context_change = false },
+  kubectl_cmd = { cmd = "kubectl", env = {}, args = {} },
   terminal_cmd = nil, -- Exec will launch in a terminal if set, i.e. "ghostty -e"
   namespace = "All",
   namespace_fallback = {}, -- If you have limited access you can list all the namespaces here
@@ -388,11 +388,11 @@ We trigger events that you can use to run custom logic:
 
 <details><summary>events</summary>
 
-| Name                | When                          | Data |
-| ------------------- | ----------------------------- | ----------------------------- |
+| Name                | When                                                                      | Data           |
+| ------------------- | ------------------------------------------------------------------------- | -------------- |
 | K8sResourceSelected | On main views, when selecting a resource unless overriden (like pod view) | kind, name, ns |
-| K8sContextChanged   | After context change | context |
-| K8sCacheLoaded      | After api-resources cache is loaded | - |
+| K8sContextChanged   | After context change                                                      | context        |
+| K8sCacheLoaded      | After api-resources cache is loaded                                       | -              |
 
 Example: saving session on context change
 
