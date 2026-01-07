@@ -587,6 +587,10 @@ end
 function M.getCurrentSelection(...)
   local bufnr = vim.api.nvim_get_current_buf()
   local buf_state = state.get_buffer_state(bufnr)
+  if not buf_state or not buf_state.content_row_start then
+    return nil
+  end
+
   local line_number = vim.api.nvim_win_get_cursor(0)[1]
   if line_number <= buf_state.content_row_start then
     return nil
@@ -598,7 +602,12 @@ function M.getCurrentSelection(...)
   local indices = { ... }
   for i = 1, #indices do
     local index = indices[i]
-    local trimmed = vim.trim(columns[index])
+    -- Guard against out-of-bounds column access
+    local col_value = columns[index]
+    if not col_value then
+      return nil
+    end
+    local trimmed = vim.trim(col_value)
     table.insert(results, trimmed)
   end
 

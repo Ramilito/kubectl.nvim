@@ -71,7 +71,8 @@ local function get_message(row, severity)
     local val = get_value(row.ready)
     if val and val:match("^%d+/%d+$") then
       local current, total = val:match("^(%d+)/(%d+)$")
-      if current ~= total then
+      -- Use numeric comparison to correctly compare ready counts
+      if current and total and tonumber(current) ~= tonumber(total) then
         table.insert(parts, string.format("Ready: %s/%s containers", current, total))
       end
     end
@@ -112,6 +113,9 @@ function M.set_diagnostics(bufnr, resource)
   end
 
   local buf_state = state.get_buffer_state(bufnr)
+  if not buf_state then
+    return
+  end
   local content_start = buf_state.content_row_start or 1
 
   local diagnostics = {}

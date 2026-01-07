@@ -5,6 +5,9 @@ local tables = require("kubectl.utils.tables")
 
 local M = {}
 
+-- Request ID for cancelling stale hover requests
+local current_request_id = 0
+
 --- Get diagnostic section for current line
 ---@param bufnr number
 ---@param line number 0-indexed line number
@@ -70,8 +73,11 @@ local function get_selection(builder)
   -- Check if cursor is on content row
   local bufnr = vim.api.nvim_get_current_buf()
   local buf_state = state.get_buffer_state(bufnr)
-  local line_number = vim.api.nvim_win_get_cursor(0)[1]
+  if not buf_state or not buf_state.content_row_start then
+    return nil, nil
+  end
 
+  local line_number = vim.api.nvim_win_get_cursor(0)[1]
   if line_number <= buf_state.content_row_start then
     return nil, nil
   end
@@ -117,6 +123,10 @@ function M.get_hover(_params, callback)
   -- Capture cursor position before async call
   local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-indexed
 
+  -- Increment request ID to cancel stale requests
+  current_request_id = current_request_id + 1
+  local request_id = current_request_id
+
   -- Fetch and format resource data via Rust
   commands.run_async("get_hover_async", {
     gvk = gvk,
@@ -124,6 +134,17 @@ function M.get_hover(_params, callback)
     name = name,
   }, function(content)
     vim.schedule(function()
+      -- Check if this request is stale (newer request was made)
+      if request_id ~= current_request_id then
+        return
+      end
+
+      -- Check if buffer is still valid after async operation
+      if not vim.api.nvim_buf_is_valid(buf) then
+        callback(nil, nil)
+        return
+      end
+
       if not content or content == "" then
         callback(nil, nil)
         return

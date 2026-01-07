@@ -46,7 +46,7 @@ end
 ---@param extmarks table[] Existing extmarks to append to
 ---@param content_start number Row offset for content (1 for header row)
 function M.add_line_highlights(data, extmarks, content_start)
-  if not semantic_enabled or not data then
+  if not semantic_enabled or not data or not extmarks then
     return
   end
 
