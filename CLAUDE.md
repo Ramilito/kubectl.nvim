@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **[CLAUDE-LUA.md](./.claude/CLAUDE-LUA.md)** - Lua/Neovim plugin guidance (resource pattern, factory, state management)
 - **[CLAUDE-LOGS.md](./.claude/CLAUDE-LOGS.md)** - Pod logs feature (streaming, JSON toggle, histogram, mlua UserData)
 - **[CLAUDE-LSP.md](./.claude/CLAUDE-LSP.md)** - LSP features (completion, hover, diagnostics, in-process server)
+- **[CLAUDE-STATUSLINE.md](./.claude/CLAUDE-STATUSLINE.md)** - Statusline feature (cluster health, metrics display, refresh timing)
 - **[CLAUDE-CODE-REVIEW.md](./.claude/CLAUDE-CODE-REVIEW.md)** - Targeted code review (post-edit, pre-commit, module modes)
 - **[CLAUDE-ARCHITECTURE-VERIFY.md](./.claude/CLAUDE-ARCHITECTURE-VERIFY.md)** - Architecture verification (dependency rules, pattern conformance)
 
