@@ -142,5 +142,6 @@ fn get_phase(pvc: &PersistentVolumeClaim) -> FieldValue {
         symbol: Some(symbol.into()),
         value: phase,
         sort_by: Some(sort_by),
+        hint: None,
     }
 }

@@ -63,6 +63,7 @@ impl Processor for RuntimeFallbackProcessor {
                     value: str_val,
                     symbol: None,
                     sort_by: None,
+                    hint: None,
                 },
             );
         }

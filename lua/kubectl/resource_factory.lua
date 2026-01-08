@@ -333,8 +333,16 @@ function M.new(resource)
         local primary_win = windows[1]
         builder.prettyPrint(primary_win).addDivider(true)
 
+        -- Add semantic line highlights based on resource state
+        local semantic = require("kubectl.lsp.semantic")
+        semantic.add_line_highlights(builder.processedData, builder.extmarks, 1)
+
         -- Set buffer content once (all windows see the same buffer)
         builder.displayContent(primary_win, cancellationToken)
+
+        -- Update diagnostics immediately after content (same render frame)
+        local diagnostics = require("kubectl.lsp.diagnostics")
+        diagnostics.set_diagnostics(builder.buf_nr, resource)
 
         -- Winbar is window-local, so update it for all windows
         update_winbars(windows, builder.header.divider_winbar)

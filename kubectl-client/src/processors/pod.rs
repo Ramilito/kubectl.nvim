@@ -115,6 +115,7 @@ impl Processor for PodProcessor {
                     .unwrap_or_else(|| "n/a".into()),
                 sort_by: cpu_pct_r_val.map(|p| p as usize),
                 symbol: cpu_pct_r_val.map(color_usage),
+                hint: None,
             },
             cpu_pct_l: FieldValue {
                 value: cpu_pct_l_val
@@ -122,6 +123,7 @@ impl Processor for PodProcessor {
                     .unwrap_or_else(|| "n/a".into()),
                 sort_by: cpu_pct_l_val.map(|p| p as usize),
                 symbol: cpu_pct_l_val.map(color_usage),
+                hint: None,
             },
             mem_pct_r: FieldValue {
                 value: mem_pct_r_val
@@ -129,6 +131,7 @@ impl Processor for PodProcessor {
                     .unwrap_or_else(|| "n/a".into()),
                 sort_by: mem_pct_r_val.map(|p| p as usize),
                 symbol: mem_pct_r_val.map(color_usage),
+                hint: None,
             },
             mem_pct_l: FieldValue {
                 value: mem_pct_l_val
@@ -136,6 +139,7 @@ impl Processor for PodProcessor {
                     .unwrap_or_else(|| "n/a".into()),
                 sort_by: mem_pct_l_val.map(|p| p as usize),
                 symbol: mem_pct_l_val.map(color_usage),
+                hint: None,
             },
         })
     }
@@ -395,42 +399,57 @@ fn get_init_container_status(pod: &Pod, status: &str) -> (String, bool) {
     (status.to_string(), false)
 }
 
-fn get_container_status(pod_statuses: &[ContainerStatus], default_status: &str) -> (String, bool) {
-    let mut final_status = default_status.to_owned();
-    let mut running = false;
+/// Container status result with status string, running flag, and optional hint message
+struct ContainerStatusResult {
+    status: String,
+    running: bool,
+    hint: Option<String>,
+}
+
+fn get_container_status(pod_statuses: &[ContainerStatus], default_status: &str) -> ContainerStatusResult {
+    let mut result = ContainerStatusResult {
+        status: default_status.to_owned(),
+        running: false,
+        hint: None,
+    };
 
     for cs in pod_statuses.iter().rev() {
         if let Some(state) = &cs.state {
             if let Some(waiting) = &state.waiting {
                 if let Some(reason) = waiting.reason.as_deref() {
                     if !reason.is_empty() {
-                        final_status = reason.to_string();
+                        result.status = reason.to_string();
+                        // Capture the detailed message as hint
+                        result.hint = waiting.message.clone();
                         continue;
                     }
                 }
             } else if let Some(terminated) = &state.terminated {
                 if let Some(reason) = terminated.reason.as_deref() {
                     if !reason.is_empty() {
-                        final_status = reason.to_string();
+                        result.status = reason.to_string();
+                        result.hint = terminated.message.clone();
                         continue;
                     }
                 } else if let Some(signal) = terminated.signal {
                     if signal != 0 {
-                        final_status = format!("Signal:{}", signal);
+                        result.status = format!("Signal:{}", signal);
+                        result.hint = terminated.message.clone();
                         continue;
                     }
                 }
-                final_status = format!("ExitCode:{}", terminated.exit_code);
+                result.status = format!("ExitCode:{}", terminated.exit_code);
+                result.hint = terminated.message.clone();
                 continue;
             }
 
             if cs.ready && state.running.is_some() {
-                running = true;
+                result.running = true;
             }
         }
     }
 
-    (final_status, running)
+    result
 }
 
 fn get_pod_status(pod: &Pod) -> FieldValue {
@@ -476,10 +495,12 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
     // Process regular container statuses
     let mut final_status = status_after_init.clone();
     let mut is_running = false;
+    let mut hint: Option<String> = None;
     if let Some(container_statuses) = &status.container_statuses {
-        let (s, r) = get_container_status(container_statuses, &final_status);
-        final_status = s;
-        is_running = r;
+        let result = get_container_status(container_statuses, &final_status);
+        final_status = result.status;
+        is_running = result.running;
+        hint = result.hint;
     }
 
     // Adjust final status if necessary
@@ -499,6 +520,7 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
     FieldValue {
         value: final_status.clone(),
         symbol: Some(color_status(&final_status)),
+        hint,
         ..Default::default()
     }
 }
@@ -536,5 +558,6 @@ fn get_ready(pod: &Pod) -> FieldValue {
         value: format!("{}/{}", ready_count, containers),
         symbol: Some(symbol.to_string()),
         sort_by: Some(ready_count),
+        hint: None,
     }
 }

@@ -100,6 +100,7 @@ fn get_type(svc: &Service) -> FieldValue {
         symbol: if symbol.is_empty() { None } else { Some(symbol.into()) },
         value: svc_type,
         sort_by: Some(sort_by),
+        hint: None,
     }
 }
 

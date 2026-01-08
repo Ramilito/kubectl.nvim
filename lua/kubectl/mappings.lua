@@ -536,6 +536,33 @@ function M.get_mappings()
         lineage_view.View(name, ns, current_view.definition.gvk.k)
       end,
     },
+    ["<Plug>(kubectl.quickfix)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Send diagnostics to quickfix",
+      callback = function()
+        local diagnostics = require("kubectl.lsp.diagnostics")
+        diagnostics.to_quickfix()
+      end,
+    },
+    ["<Plug>(kubectl.toggle_diagnostics)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Toggle diagnostics display",
+      callback = function()
+        local diagnostics = require("kubectl.lsp.diagnostics")
+        diagnostics.toggle()
+      end,
+    },
+    ["<Plug>(kubectl.jump_to_resource)"] = {
+      noremap = true,
+      silent = true,
+      desc = "Jump to resource",
+      callback = function()
+        local symbols = require("kubectl.lsp.symbols")
+        symbols.jump_to_resource()
+      end,
+    },
   }
   -- Add dynamic "view" mappings
   for _, view_name in ipairs(vim.tbl_keys(viewsTable)) do
@@ -596,14 +623,19 @@ function M.register()
   M.map_if_plug_not_set("n", "g?", "<Plug>(kubectl.help)")
   M.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
   M.map_if_plug_not_set("n", "<cr>", "<Plug>(kubectl.select)")
+  M.map_if_plug_not_set("n", "gq", "<Plug>(kubectl.quickfix)")
+  M.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.toggle_diagnostics)")
+  M.map_if_plug_not_set("n", "go", "<Plug>(kubectl.jump_to_resource)")
 
   if config.options.lineage.enabled then
     M.map_if_plug_not_set("n", "gxx", "<Plug>(kubectl.lineage)")
   end
 end
 
-function M.setup(ev)
-  local view_name = ev.match:gsub("k8s_", "")
+--- Apply all mappings for a buffer
+---@param bufnr number
+---@param view_name string
+local function apply_mappings(bufnr, view_name)
   local ok, view_mappings = pcall(require, "kubectl.resources." .. view_name .. ".mappings")
   if not ok then
     ok, view_mappings = pcall(require, "kubectl.views." .. view_name .. ".mappings")
@@ -621,7 +653,7 @@ function M.setup(ev)
       desc = def.desc,
       noremap = def.noremap ~= false,
       silent = def.silent ~= false,
-      buffer = true,
+      buffer = bufnr,
     })
   end
 
@@ -629,5 +661,27 @@ function M.setup(ev)
     pcall(view_mappings.register)
   end
   M.register()
+end
+
+function M.setup(ev)
+  local view_name = ev.match:gsub("k8s_", "")
+  local bufnr = ev.buf
+
+  -- Set up mappings after LSP attaches to override LSP defaults
+  -- but map_if_plug_not_set respects user <Plug> customizations
+  vim.api.nvim_create_autocmd("LspAttach", {
+    buffer = bufnr,
+    once = true,
+    callback = function()
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          apply_mappings(bufnr, view_name)
+        end
+      end)
+    end,
+  })
+
+  -- Also apply immediately for buffers where LSP doesn't attach
+  apply_mappings(bufnr, view_name)
 end
 return M

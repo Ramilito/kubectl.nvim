@@ -43,6 +43,7 @@ impl Processor for JobProcessor {
                 symbols().deprecated.clone()
             }),
             sort_by: Some(succeeded as usize),
+            hint: None,
         };
 
         let duration = {

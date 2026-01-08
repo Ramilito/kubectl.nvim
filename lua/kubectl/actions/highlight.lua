@@ -19,6 +19,10 @@ M.symbols = {
   tab = "KubectlTab",
   underline = "KubectlUnderline",
   match = "KubectlPmatch",
+  -- Semantic line highlights (subtle backgrounds)
+  semantic_error = "KubectlSemanticError",
+  semantic_warn = "KubectlSemanticWarn",
+  semantic_completed = "KubectlSemanticCompleted",
 }
 
 local highlights = {
@@ -37,6 +41,10 @@ local highlights = {
   KubectlPselect = { bg = "#3e4451" }, -- Grey Blue
   KubectlPmatch = { link = "KubectlWarning" },
   KubectlUnderline = { underline = true },
+  -- Semantic line highlights (text colors)
+  KubectlSemanticError = { fg = "#D16969" }, -- Red text
+  KubectlSemanticWarn = { fg = "#D19A66" }, -- Orange text
+  KubectlSemanticCompleted = { fg = "#666666" }, -- Gray text (dimmed)
 }
 
 local function add_bold_variant()

@@ -22,6 +22,9 @@ local function server(opts)
         callback(nil, { capabilities = capabilities })
       elseif method == "shutdown" then
         callback(nil, nil)
+      else
+        -- Always call callback for unhandled methods to avoid LSP protocol violations
+        callback(nil, nil)
       end
       request_id = request_id + 1
       if notify_reply_callback then
@@ -76,6 +79,7 @@ function M.start()
       completionProvider = {
         triggerCharacters = { ":", "-" },
       },
+      hoverProvider = true,
     },
     handlers = {
       ["textDocument/completion"] = function(_method, _params, callback)
@@ -83,8 +87,17 @@ function M.start()
         local items = get_completion_items(buf)
         -- Defer callback to allow text/window changes
         vim.schedule(function()
+          -- Check buffer validity before using items (buf may be deleted)
+          if not vim.api.nvim_buf_is_valid(buf) then
+            callback(nil, { isIncomplete = false, items = {} })
+            return
+          end
           callback(nil, { isIncomplete = false, items = items })
         end)
+      end,
+      ["textDocument/hover"] = function(_method, params, callback)
+        local hover = require("kubectl.lsp.hover")
+        hover.get_hover(params, callback)
       end,
     },
   })

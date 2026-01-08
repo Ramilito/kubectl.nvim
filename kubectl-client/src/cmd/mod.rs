@@ -15,6 +15,7 @@ use crate::cmd::log_session::{fetch_logs_async, log_session};
 use crate::cmd::portforward::{portforward_list, portforward_start, portforward_stop};
 use crate::cmd::restart::restart_async;
 use crate::cmd::scale::scale_async;
+use crate::hover::get_hover_async;
 use crate::with_stream_client;
 
 pub mod apply;
@@ -95,6 +96,10 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
     )?;
     exports.set("log_session", lua.create_function(log_session)?)?;
     exports.set("get_drift", lua.create_function(get_drift)?)?;
+    exports.set(
+        "get_hover_async",
+        lua.create_async_function(get_hover_async)?,
+    )?;
 
     Ok(())
 }

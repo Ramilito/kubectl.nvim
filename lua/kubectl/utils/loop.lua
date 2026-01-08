@@ -3,6 +3,22 @@ local M = {}
 
 local timers = {}
 
+--- Check if LSP hover float is open (only block refresh for hover)
+---@return boolean
+local function has_hover_float()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local win_config = vim.api.nvim_win_get_config(win)
+    if win_config.relative ~= "" then
+      local buf = vim.api.nvim_win_get_buf(win)
+      local ft = vim.bo[buf].filetype
+      if ft == "markdown" then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 --- Start a loop for a specific buffer
 ---@param buf number
 ---@param callback fun(is_cancelled: fun(): boolean)
@@ -15,7 +31,7 @@ function M.start_loop_for_buffer(buf, callback, opts)
 
   local interval = opts.interval or config.options.auto_refresh.interval
   local timer = vim.uv.new_timer()
-  timers[buf] = { running = true, timer = nil }
+  timers[buf] = { running = false, timer = nil }
 
   local function is_cancelled()
     return timers[buf] == nil
@@ -26,6 +42,11 @@ function M.start_loop_for_buffer(buf, callback, opts)
       timers[buf].running = true
 
       vim.schedule(function()
+        -- Skip refresh if LSP hover float is open
+        if has_hover_float() then
+          timers[buf].running = false
+          return
+        end
         callback(is_cancelled)
       end)
     end
@@ -47,6 +68,16 @@ function M.start_loop_for_buffer(buf, callback, opts)
     group = group,
     callback = function()
       M.stop_loop(buf)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("User", {
+    pattern = "K8sContextChanged",
+    group = group,
+    callback = function()
+      if vim.api.nvim_buf_is_valid(buf) then
+        M.start_loop_for_buffer(buf, callback, opts)
+      end
     end,
   })
 end

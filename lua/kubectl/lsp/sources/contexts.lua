@@ -20,7 +20,7 @@ function M.get_items()
 end
 
 function M.register()
-  require("kubectl.completion.lsp").register_source("k8s_contexts", M.get_items)
+  require("kubectl.lsp").register_source("k8s_contexts", M.get_items)
 end
 
 return M

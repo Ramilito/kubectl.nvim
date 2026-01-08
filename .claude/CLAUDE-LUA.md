@@ -163,3 +163,94 @@ end
 - 120 column width
 - LuaJIT/Lua 5.1 runtime
 - Type annotations via `---@param`, `---@return` comments
+
+## Defensive Patterns
+
+### Buffer Validity After Async
+
+Always check buffer validity in async callbacks - buffer may be deleted during async operation:
+```lua
+commands.run_async("some_function", args, function(content)
+  vim.schedule(function()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    -- Safe to use buf
+  end)
+end)
+```
+
+### Stale Request Cancellation
+
+Prevent showing outdated data when user triggers rapid requests:
+```lua
+local current_request_id = 0
+
+function M.fetch_data(callback)
+  current_request_id = current_request_id + 1
+  local request_id = current_request_id
+
+  commands.run_async(..., function(data)
+    vim.schedule(function()
+      if request_id ~= current_request_id then
+        return  -- Stale request, newer one in flight
+      end
+      callback(data)
+    end)
+  end)
+end
+```
+
+### Buffer State Nil Checks
+
+Always check buffer state exists before accessing fields:
+```lua
+local buf_state = state.get_buffer_state(bufnr)
+if not buf_state or not buf_state.content_row_start then
+  return nil
+end
+```
+
+### Column/Array Bounds Checking
+
+Guard against nil when accessing parsed arrays:
+```lua
+local col_value = columns[index]
+if not col_value then
+  return nil
+end
+local trimmed = vim.trim(col_value)
+```
+
+### pcall Return Validation
+
+Check module exists after pcall (module may return nil):
+```lua
+local ok, module = pcall(require, "some.module")
+if ok and module and module.field then
+  -- Safe to use module.field
+end
+```
+
+### Numeric String Comparisons
+
+Use `tonumber()` when comparing parsed numeric strings:
+```lua
+local current, total = val:match("^(%d+)/(%d+)$")
+if current and total and tonumber(current) ~= tonumber(total) then
+  -- Properly compares as numbers, not strings
+end
+```
+
+### LSP Callback Protocol
+
+Always call LSP callbacks, even for unhandled methods:
+```lua
+function srv.request(method, params, callback)
+  if handlers[method] then
+    handlers[method](method, params, callback)
+  else
+    callback(nil, nil)  -- Don't leave client waiting
+  end
+end
+```

@@ -26,6 +26,8 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.sort)", desc = "Sort column" },
     { key = "<Plug>(kubectl.edit)", desc = "Edit resource" },
     { key = "<Plug>(kubectl.toggle_headers)", desc = "Toggle headers" },
+    { key = "<Plug>(kubectl.toggle_diagnostics)", desc = "Toggle diagnostics" },
+    { key = "<Plug>(kubectl.jump_to_resource)", desc = "Jump to resource" },
     { key = "<Plug>(kubectl.lineage)", desc = "View Lineage" },
     { key = "<Plug>(kubectl.refresh)", desc = "Refresh view" },
     { key = "<Plug>(kubectl.tab)", desc = "Select resource" },

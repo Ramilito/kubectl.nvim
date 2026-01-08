@@ -58,6 +58,7 @@ function M.ColorStatus(status)
     VolumeResizeFailed = true,
     ["Init:ErrImagePull"] = true,
     ["Init:ImagePullBackOff"] = true,
+    ["Init:ContainerStatusUnknown"] = true,
   }
 
   local warningStatuses = {
@@ -145,6 +146,34 @@ function M.ColorStatus(status)
     return hl.symbols.success
   end
   return ""
+end
+
+local completedStatuses = {
+  Completed = true,
+  Succeeded = true,
+}
+
+--- Get semantic line highlight for a status
+---@param status string
+---@return string|nil highlight group name or nil for no highlight
+function M.GetSemanticHighlight(status)
+  if type(status) ~= "string" then
+    return nil
+  end
+  local capitalized = string_utils.capitalize(status)
+
+  -- Completed takes priority (dimmed, not attention-grabbing)
+  if completedStatuses[capitalized] then
+    return hl.symbols.semantic_completed
+  end
+
+  if M.ColorStatus(status) == hl.symbols.error then
+    return hl.symbols.semantic_error
+  elseif M.ColorStatus(status) == hl.symbols.warning then
+    return hl.symbols.semantic_warn
+  end
+
+  return nil
 end
 
 return M
