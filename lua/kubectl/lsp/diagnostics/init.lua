@@ -166,12 +166,12 @@ function M.toggle()
   if diagnostics_enabled then
     vim.diagnostic.config({
       virtual_lines = { current_line = true },
-    })
+    }, ns)
     vim.notify("Diagnostics: on", vim.log.levels.INFO)
   else
     vim.diagnostic.config({
       virtual_lines = false,
-    })
+    }, ns)
     vim.notify("Diagnostics: off", vim.log.levels.INFO)
   end
 end
@@ -184,7 +184,7 @@ function M.setup()
     signs = true,
     underline = false,
     update_in_insert = false,
-  })
+  }, ns)
 end
 
 return M
