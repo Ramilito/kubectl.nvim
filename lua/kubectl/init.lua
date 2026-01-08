@@ -15,6 +15,15 @@ local function init_ui()
   vim.schedule(function()
     state.setup()
 
+    -- Register LSP completion sources
+    require("kubectl.lsp.sources.aliases").register()
+    require("kubectl.lsp.sources.filter").register()
+    require("kubectl.lsp.sources.namespaces").register()
+    require("kubectl.lsp.sources.contexts").register()
+
+    -- Setup diagnostics for unhealthy resources
+    require("kubectl.lsp.diagnostics").setup()
+
     if config.options.headers.enabled then
       header.View()
     end
@@ -135,15 +144,6 @@ function M.setup(options)
         end
       end,
     })
-
-    -- Register LSP completion sources
-    require("kubectl.lsp.sources.aliases").register()
-    require("kubectl.lsp.sources.filter").register()
-    require("kubectl.lsp.sources.namespaces").register()
-    require("kubectl.lsp.sources.contexts").register()
-
-    -- Setup diagnostics for unhealthy resources
-    require("kubectl.lsp.diagnostics").setup()
 
     -- LSP for completion (floating views) and hover (resource buffers)
     vim.api.nvim_create_autocmd("FileType", {
