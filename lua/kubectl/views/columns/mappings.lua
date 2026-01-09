@@ -4,77 +4,42 @@ local state = require("kubectl.state")
 
 local M = {}
 
-local resource = "columns"
-
-local function save_state()
-  local session_name = state.context["current-context"]
-  if session_name and state.session.contexts[session_name] then
-    state.set_session(state.session.contexts[session_name].view)
-  end
-end
-
---- Returns store, index, and column for current cursor position
----@return table|nil store
----@return number|nil idx
----@return table|nil col
+--- Get column at current cursor position
 local function get_current_column()
-  local store = manager.get(resource)
-  if not (store and store.col_content and store.header) then
-    return nil, nil, nil
+  local builder = manager.get("columns")
+  if not (builder and builder.processedData and builder.header) then
+    return nil
   end
 
   local row = vim.api.nvim_win_get_cursor(0)[1]
-  local idx = row - #store.header.data
+  local idx = row - #builder.header.data
 
-  if idx < 1 or idx > #store.col_content.columns then
-    return store, nil, nil
+  if idx < 1 or idx > #builder.processedData then
+    return nil
   end
 
-  local col = store.col_content.columns[idx]
-  if not col or not col.is_column then
-    return store, idx, nil
-  end
-  return store, idx, col
+  return builder.processedData[idx]
 end
 
 local function toggle_column()
-  local _, _, col = get_current_column()
+  local col = get_current_column()
   if not col then
     return
   end
+
   if col.is_required then
     vim.notify(col.header .. " column cannot be hidden", vim.log.levels.INFO)
     return
   end
+
   col.is_visible = not col.is_visible
+
   local target = columns_view.target_resource
   state.column_visibility[target] = state.column_visibility[target] or {}
   state.column_visibility[target][col.header] = col.is_visible
-  save_state()
-  vim.schedule(columns_view.Draw)
-end
 
-local function move_column(direction)
-  local store, idx = get_current_column()
-  if not (store and idx) then
-    return
-  end
-  local columns = store.col_content.columns
-  local target_idx = idx + direction
-  if target_idx < 1 or target_idx > #columns then
-    return
-  end
-  columns[idx], columns[target_idx] = columns[target_idx], columns[idx]
-  local order = {}
-  for _, col in ipairs(columns) do
-    order[#order + 1] = col.header
-  end
-  state.column_order[columns_view.target_resource] = order
-  save_state()
-  vim.schedule(function()
-    columns_view.Draw()
-    vim.api.nvim_win_set_cursor(0, { #store.header.data + target_idx, 0 })
-  end)
+  columns_view.save_state()
+  vim.schedule(columns_view.refresh_extmarks)
 end
 
 local function reset_order()
@@ -82,51 +47,31 @@ local function reset_order()
   if not target then
     return
   end
+
   state.column_order[target] = nil
-  local store = manager.get(resource)
-  if store and store.frame then
-    store.frame.close()
+
+  local builder = manager.get("columns")
+  if builder and builder.frame then
+    builder.frame.close()
   end
+
   local views = require("kubectl.views")
-  local view, def = views.resource_and_definition(target)
-  if view and def and def.headers then
+  local _, def = views.resource_and_definition(target)
+  if def and def.headers then
     vim.schedule(function()
       columns_view.View(target, def.headers)
     end)
   end
 end
 
+local map_opts = { noremap = true, silent = true }
+
 M.overrides = {
-  ["<Plug>(kubectl.tab)"] = { noremap = true, silent = true, desc = "toggle column", callback = toggle_column },
-  ["<Plug>(kubectl.select)"] = { noremap = true, silent = true, desc = "toggle column", callback = toggle_column },
-  ["<Plug>(kubectl.move_up)"] = {
-    noremap = true,
-    silent = true,
-    desc = "move column up",
-    callback = function()
-      move_column(-1)
-    end,
-  },
-  ["<Plug>(kubectl.move_down)"] = {
-    noremap = true,
-    silent = true,
-    desc = "move column down",
-    callback = function()
-      move_column(1)
-    end,
-  },
-  ["<Plug>(kubectl.reset_order)"] = {
-    noremap = true,
-    silent = true,
-    desc = "reset column order",
-    callback = reset_order,
-  },
+  ["<Plug>(kubectl.tab)"] = vim.tbl_extend("force", map_opts, { desc = "toggle", callback = toggle_column }),
+  ["<Plug>(kubectl.select)"] = vim.tbl_extend("force", map_opts, { desc = "toggle", callback = toggle_column }),
+  ["<Plug>(kubectl.reset_order)"] = vim.tbl_extend("force", map_opts, { desc = "reset order", callback = reset_order }),
 }
 
--- register() is intentionally empty for framed views.
--- Key mappings are set directly on the correct buffer in init.lua.
--- Using map_if_plug_not_set here would incorrectly set mappings on buffer 0
--- (the original buffer) instead of the columns float buffer.
 function M.register() end
 
 return M
