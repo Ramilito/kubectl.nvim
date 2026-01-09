@@ -148,17 +148,19 @@ function M.Draw()
 
   local data = {}
   local extmarks = {}
-  local columns = builder.col_content.columns
 
-  for i, line in ipairs(columns) do
+  for i, line in ipairs(builder.col_content.columns) do
     local row = i - 1
-    local line_extmarks = line.extmarks
-    if line_extmarks then
+    if line.extmarks then
       local checkbox_text = get_checkbox(line.is_required, line.is_visible)
-      for _, ext in ipairs(line_extmarks) do
-        ext.row = row
-        ext.virt_text[1][1] = checkbox_text
-        extmarks[#extmarks + 1] = ext
+      for _, ext in ipairs(line.extmarks) do
+        extmarks[#extmarks + 1] = {
+          row = row,
+          start_col = ext.start_col,
+          virt_text = { { checkbox_text, ext.virt_text[1][2] } },
+          virt_text_pos = ext.virt_text_pos,
+          right_gravity = ext.right_gravity,
+        }
       end
     end
     data[#data + 1] = line.text

@@ -14,37 +14,23 @@ local function save_state()
   end
 end
 
---- Get current row's column info
----@return number|nil index
-local function get_current_column_index()
-  local builder = manager.get(resource)
-  if not builder or not builder.col_content then
-    return nil
+--- Returns store, index, and column for current cursor position
+---@return table|nil store
+---@return number|nil idx
+---@return table|nil col
+local function get_current_column()
+  local store = manager.get(resource)
+  if not (store and store.col_content and store.header) then
+    return nil, nil, nil
   end
 
   local row = vim.api.nvim_win_get_cursor(0)[1]
-  local content_start = #builder.header.data
+  local idx = row - #store.header.data
 
-  local idx = row - content_start
-  if idx >= 1 and idx <= #builder.col_content.columns then
-    return idx
-  end
-  return nil
-end
-
---- Returns store, index, and column for current cursor position
---- @return table|nil store
---- @return number|nil idx
---- @return table|nil col
-local function get_current_column()
-  local store = manager.get(resource)
-  if not (store and store.col_content) then
-    return nil, nil, nil
-  end
-  local idx = get_current_column_index()
-  if not idx then
+  if idx < 1 or idx > #store.col_content.columns then
     return store, nil, nil
   end
+
   local col = store.col_content.columns[idx]
   if not col or not col.is_column then
     return store, idx, nil
