@@ -6,8 +6,8 @@ M.definition = {
   ft = "k8s_columns",
   title = "Columns",
   hints = {
-    { key = "<Plug>(kubectl.toggle_column)", desc = "toggle column" },
-    { key = "<Plug>(kubectl.select)", desc = "close" },
+    { key = "<Plug>(kubectl.tab)", desc = "toggle" },
+    { key = "<Plug>(kubectl.quit)", desc = "close" },
   },
   panes = {
     { title = "Columns" },
