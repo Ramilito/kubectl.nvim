@@ -15,31 +15,68 @@ struct CanIArgs {
 
 #[derive(Serialize)]
 struct RuleRow {
-    resources: String,
-    api_groups: String,
-    verbs: String,
-    resource_names: String,
-    non_resource_urls: String,
+    name: String,
+    api_group: String,
+    get: bool,
+    list: bool,
+    watch: bool,
+    create: bool,
+    patch: bool,
+    update: bool,
+    delete: bool,
+    del_list: bool,
+    extras: String,
 }
 
-fn format_vec(v: &[String]) -> String {
-    if v.is_empty() {
-        "*".to_string()
-    } else if v.len() == 1 && v[0] == "*" {
-        "*".to_string()
+fn has_verb(verbs: &[String], verb: &str) -> bool {
+    verbs.iter().any(|v| v == "*" || v == verb)
+}
+
+fn extra_verbs(verbs: &[String]) -> String {
+    let standard = ["get", "list", "watch", "create", "patch", "update", "delete", "deletecollection"];
+    let extras: Vec<&String> = verbs
+        .iter()
+        .filter(|v| *v != "*" && !standard.contains(&v.as_str()))
+        .collect();
+    extras.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(",")
+}
+
+fn resource_rule_to_rows(rule: &ResourceRule) -> Vec<RuleRow> {
+    let resources = rule.resources.clone().unwrap_or_default();
+    let api_groups = rule.api_groups.clone().unwrap_or_default();
+    let verbs = &rule.verbs;
+
+    let res_list: Vec<&str> = if resources.is_empty() {
+        vec!["*"]
     } else {
-        v.join(",")
-    }
-}
+        resources.iter().map(|s| s.as_str()).collect()
+    };
 
-fn resource_rule_to_row(rule: &ResourceRule) -> RuleRow {
-    RuleRow {
-        resources: format_vec(&rule.resources.clone().unwrap_or_default()),
-        api_groups: format_vec(&rule.api_groups.clone().unwrap_or_default()),
-        verbs: format_vec(&rule.verbs),
-        resource_names: format_vec(&rule.resource_names.clone().unwrap_or_default()),
-        non_resource_urls: String::new(),
+    let grp_list: Vec<&str> = if api_groups.is_empty() {
+        vec![""]
+    } else {
+        api_groups.iter().map(|s| s.as_str()).collect()
+    };
+
+    let mut rows = Vec::new();
+    for res in &res_list {
+        for grp in &grp_list {
+            rows.push(RuleRow {
+                name: res.to_string(),
+                api_group: grp.to_string(),
+                get: has_verb(verbs, "get"),
+                list: has_verb(verbs, "list"),
+                watch: has_verb(verbs, "watch"),
+                create: has_verb(verbs, "create"),
+                patch: has_verb(verbs, "patch"),
+                update: has_verb(verbs, "update"),
+                delete: has_verb(verbs, "delete"),
+                del_list: has_verb(verbs, "deletecollection"),
+                extras: extra_verbs(verbs),
+            });
+        }
     }
+    rows
 }
 
 #[tracing::instrument]
@@ -72,18 +109,27 @@ pub async fn get_self_subject_rules_async(_lua: Lua, json: String) -> LuaResult<
 
         // Process resource rules
         for rule in status.resource_rules {
-            rows.push(resource_rule_to_row(&rule));
+            rows.extend(resource_rule_to_rows(&rule));
         }
 
-        // Process non-resource rules
+        // Process non-resource rules (show as special entries)
         for rule in status.non_resource_rules {
-            rows.push(RuleRow {
-                resources: String::new(),
-                api_groups: String::new(),
-                verbs: format_vec(&rule.verbs),
-                resource_names: String::new(),
-                non_resource_urls: format_vec(&rule.non_resource_urls.clone().unwrap_or_default()),
-            });
+            let urls = rule.non_resource_urls.clone().unwrap_or_default();
+            for url in urls {
+                rows.push(RuleRow {
+                    name: url,
+                    api_group: "(non-resource)".to_string(),
+                    get: has_verb(&rule.verbs, "get"),
+                    list: has_verb(&rule.verbs, "list"),
+                    watch: has_verb(&rule.verbs, "watch"),
+                    create: has_verb(&rule.verbs, "create"),
+                    patch: has_verb(&rule.verbs, "patch"),
+                    update: has_verb(&rule.verbs, "update"),
+                    delete: has_verb(&rule.verbs, "delete"),
+                    del_list: has_verb(&rule.verbs, "deletecollection"),
+                    extras: extra_verbs(&rule.verbs),
+                });
+            }
         }
 
         let json_str = k8s_openapi::serde_json::to_string(&rows)

@@ -4,6 +4,8 @@ local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
+local hl = require("kubectl.actions.highlight")
+
 local M = {
   definition = {
     resource = "cani",
@@ -14,14 +16,28 @@ local M = {
       { key = "<Plug>(kubectl.refresh)", desc = "refresh" },
     },
     headers = {
-      "RESOURCES",
-      "API GROUPS",
-      "VERBS",
-      "RESOURCE NAMES",
-      "NON-RESOURCE URLS",
+      "NAME",
+      "API-GROUP",
+      "GET",
+      "LIST",
+      "WATCH",
+      "CREATE",
+      "PATCH",
+      "UPDATE",
+      "DELETE",
+      "DEL-LIST",
+      "EXTRAS",
     },
   },
 }
+
+local function verb_symbol(enabled)
+  if enabled then
+    return { value = "", symbol = hl.symbols.success }
+  else
+    return { value = "", symbol = "" }
+  end
+end
 
 ---@param rows table
 ---@return table
@@ -32,11 +48,17 @@ local function processRow(rows)
   end
   for _, row in ipairs(rows) do
     table.insert(data, {
-      resources = { value = row.resources or "", symbol = "" },
-      api_groups = { value = row.api_groups or "", symbol = "" },
-      verbs = { value = row.verbs or "", symbol = "" },
-      resource_names = { value = row.resource_names or "", symbol = "" },
-      non_resource_urls = { value = row.non_resource_urls or "", symbol = "" },
+      name = { value = row.name or "", symbol = "" },
+      ["api-group"] = { value = row.api_group or "", symbol = "" },
+      get = verb_symbol(row.get),
+      list = verb_symbol(row.list),
+      watch = verb_symbol(row.watch),
+      create = verb_symbol(row.create),
+      patch = verb_symbol(row.patch),
+      update = verb_symbol(row.update),
+      delete = verb_symbol(row.delete),
+      ["del-list"] = verb_symbol(row.del_list),
+      extras = { value = row.extras or "", symbol = "" },
     })
   end
   return data

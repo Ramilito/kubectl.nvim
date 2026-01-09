@@ -1,3 +1,4 @@
 /target
+/kubectl-client/target
 go/libkubectl_go.a
 go/libkubectl_go.h
