@@ -337,6 +337,22 @@ function M.get_mappings()
         filter_label_view.View()
       end,
     },
+    ["<Plug>(kubectl.toggle_columns)"] = {
+      mode = "n",
+      desc = "Toggle columns",
+      callback = function()
+        local _, buf_name = pcall(vim.api.nvim_buf_get_var, 0, "buf_name")
+        local view = require("kubectl.views")
+        local _, definition = view.resource_and_definition(string.lower(vim.trim(buf_name)))
+
+        if definition and definition.headers then
+          local columns_view = require("kubectl.views.columns")
+          columns_view.View(definition.resource, definition.headers)
+        else
+          vim.notify("No columns available for this view", vim.log.levels.WARN)
+        end
+      end,
+    },
     ["<Plug>(kubectl.namespace_view)"] = {
       mode = "n",
       desc = "Change namespace",
@@ -616,6 +632,7 @@ function M.register()
   M.map_if_plug_not_set("n", "<C-f>", "<Plug>(kubectl.filter_view)")
   M.map_if_plug_not_set("v", "<C-f>", "<Plug>(kubectl.filter_term)")
   M.map_if_plug_not_set("n", "<C-l>", "<Plug>(kubectl.filter_label)")
+  M.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.toggle_columns)")
   M.map_if_plug_not_set("n", "<C-p>", "<Plug>(kubectl.picker_view)")
   M.map_if_plug_not_set("n", "<C-n>", "<Plug>(kubectl.namespace_view)")
   M.map_if_plug_not_set("n", "<C-x>", "<Plug>(kubectl.contexts_view)")

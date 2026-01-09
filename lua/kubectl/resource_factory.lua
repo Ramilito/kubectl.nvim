@@ -142,7 +142,19 @@ function M.new(resource)
     if builder.definition and builder.definition.headers then
       headers = builder.definition.headers
     end
-    builder.prettyData, builder.extmarks = tables.pretty_print(builder.processedData, headers, sort_info, win_nr)
+
+    -- Filter headers based on column visibility
+    local visible_headers = {}
+    local visibility = state.column_visibility[builder.resource]
+    for _, header in ipairs(headers) do
+      -- NAME is always visible, others check visibility state
+      if header == "NAME" or not visibility or visibility[header] ~= false then
+        table.insert(visible_headers, header)
+      end
+    end
+
+    builder.prettyData, builder.extmarks =
+      tables.pretty_print(builder.processedData, visible_headers, sort_info, win_nr)
     return builder
   end
 

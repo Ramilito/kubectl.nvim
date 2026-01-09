@@ -366,6 +366,7 @@ function M.generateHeader(headers, include_defaults, include_context)
       { key = "<Plug>(kubectl.filter_view)", desc = "filter", global = true },
       { key = "<Plug>(kubectl.namespace_view)", desc = "namespace", global = true },
       { key = "<Plug>(kubectl.toggle_diagnostics)", desc = "diagnostics", global = true },
+      { key = "<Plug>(kubectl.toggle_columns)", desc = "columns", global = true },
       { key = "<Plug>(kubectl.help)", desc = "help", global = true, sort_order = 100 },
       { key = "<Plug>(kubectl.toggle_headers)", desc = "toggle", global = true, sort_order = 200 },
     }
