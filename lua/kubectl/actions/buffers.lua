@@ -433,6 +433,9 @@ function M.buffer(filetype, title)
     end)
   end
 
+  -- Clear selections when opening/switching to a view buffer
+  state.set_buffer_selections(buf, {})
+
   api.nvim_set_current_buf(buf)
   state.set_session(bufname)
 

@@ -43,7 +43,7 @@ local function toggle_column()
     return
   end
   if col.is_required then
-    vim.notify("NAME column cannot be hidden", vim.log.levels.INFO)
+    vim.notify(col.header .. " column cannot be hidden", vim.log.levels.INFO)
     return
   end
   col.is_visible = not col.is_visible

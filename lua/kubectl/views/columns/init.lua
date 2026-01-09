@@ -105,7 +105,7 @@ function M.View(resource_name, headers)
     local columns = builder.col_content.columns
     local resource = M.target_resource
     for _, header in ipairs(M.target_headers) do
-      local is_required = header == "NAME"
+      local is_required = tables.required_headers[header] or false
       local is_visible = (state.column_visibility[resource] or {})[header] ~= false
       local checkbox_text, hl_group = get_checkbox(is_required, is_visible)
 

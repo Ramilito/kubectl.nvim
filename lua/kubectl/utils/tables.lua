@@ -658,7 +658,6 @@ function M.getCurrentSelection(...)
   local indices = { ... }
   for i = 1, #indices do
     local index = indices[i]
-    -- Guard against out-of-bounds column access
     local col_value = columns[index]
     if not col_value then
       return nil

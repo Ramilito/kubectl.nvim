@@ -138,42 +138,13 @@ function M.new(resource)
 
   function builder.prettyPrint(win_nr)
     local sort_info = state.sortby[builder.resource]
-    local headers = {}
+    local original_headers = {}
     if builder.definition and builder.definition.headers then
-      headers = builder.definition.headers
+      original_headers = builder.definition.headers
     end
 
-    -- Reorder headers based on saved column order
-    local saved_order = state.column_order[builder.resource]
-    if saved_order and #saved_order > 0 then
-      local header_set = {}
-      for _, h in ipairs(headers) do
-        header_set[h] = true
-      end
-      local ordered = {}
-      local used = {}
-      for _, h in ipairs(saved_order) do
-        if header_set[h] then
-          table.insert(ordered, h)
-          used[h] = true
-        end
-      end
-      for _, h in ipairs(headers) do
-        if not used[h] then
-          table.insert(ordered, h)
-        end
-      end
-      headers = ordered
-    end
-
-    -- Filter headers based on column visibility
-    local visible_headers = {}
-    local visibility = state.column_visibility[builder.resource]
-    for _, header in ipairs(headers) do
-      if tables.required_headers[header] or not visibility or visibility[header] ~= false then
-        table.insert(visible_headers, header)
-      end
-    end
+    -- Use centralized function for column ordering and visibility
+    local visible_headers = tables.getVisibleHeaders(builder.resource, original_headers)
 
     builder.prettyData, builder.extmarks =
       tables.pretty_print(builder.processedData, visible_headers, sort_info, win_nr)

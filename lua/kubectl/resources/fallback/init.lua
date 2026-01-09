@@ -45,7 +45,6 @@ function M.View(cancellationToken, kind)
     vim.schedule(function()
       M.Draw(cancellationToken)
       vim.cmd("doautocmd User K8sDataLoaded")
-      state.set_buffer_selections(builder.buf_nr, {})
     end)
   end)
 end

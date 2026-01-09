@@ -99,8 +99,8 @@ function M.get_mappings()
         for _, value in ipairs(selections) do
           local ns_prefix = value.namespace and (value.namespace .. ": ") or ""
           table.insert(action_data, {
-            text = ">> " .. ns_prefix .. value.name,
-            value = "",
+            text = "",
+            value = "» " .. ns_prefix .. value.name,
             cmd = { name = value.name, namespace = value.namespace },
             type = "positional",
           })
@@ -470,6 +470,7 @@ function M.get_mappings()
         local bufnr = vim.api.nvim_get_current_buf()
         local selections = state.get_buffer_selections(bufnr)
         local name, ns = current_view.getCurrentSelection()
+
         for i, selection in ipairs(selections) do
           if selection.name == name and (ns and selection.namespace == ns or true) then
             table.remove(selections, i)
