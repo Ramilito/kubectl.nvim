@@ -143,6 +143,29 @@ function M.new(resource)
       headers = builder.definition.headers
     end
 
+    -- Reorder headers based on saved column order
+    local saved_order = state.column_order[builder.resource]
+    if saved_order and #saved_order > 0 then
+      local header_set = {}
+      for _, h in ipairs(headers) do
+        header_set[h] = true
+      end
+      local ordered = {}
+      local used = {}
+      for _, h in ipairs(saved_order) do
+        if header_set[h] then
+          table.insert(ordered, h)
+          used[h] = true
+        end
+      end
+      for _, h in ipairs(headers) do
+        if not used[h] then
+          table.insert(ordered, h)
+        end
+      end
+      headers = ordered
+    end
+
     -- Filter headers based on column visibility
     local visible_headers = {}
     local visibility = state.column_visibility[builder.resource]

@@ -27,6 +27,8 @@ M.alias_history = {}
 M.proxyUrl = ""
 ---@type table<string, table<string, boolean>>
 M.column_visibility = {}
+---@type table<string, string[]>
+M.column_order = {}
 
 ---------------------------------------------------------------------------
 -- Per-buffer state for split support
@@ -48,6 +50,7 @@ M.session = {
   filter_label_history = {},
   alias_history = {},
   column_visibility = {},
+  column_order = {},
 }
 ---@type table
 M.instance = {}
@@ -257,6 +260,7 @@ function M.set_session(view)
   M.session.alias_history = M.alias_history
   M.session.filter_label_history = M.filter_label_history
   M.session.column_visibility = M.column_visibility
+  M.session.column_order = M.column_order
 
   local config_file = commands.read_file(config_filename) or {}
   local merged = vim.tbl_deep_extend("force", config_file, M.session)
@@ -278,6 +282,7 @@ function M.restore_session()
       M.alias_history = M.session.alias_history or {}
       M.filter_label_history = M.session.filter_label_history or {}
       M.column_visibility = M.session.column_visibility or {}
+      M.column_order = M.session.column_order or {}
       session_view = ctx_session.view
     end
   end

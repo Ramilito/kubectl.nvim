@@ -108,6 +108,42 @@ local function display_float(builder)
   builder.fitToContent(2)
 end
 
+--- Reorder headers based on saved column order
+---@param resource string
+---@param headers string[]
+---@return string[]
+local function get_ordered_headers(resource, headers)
+  local saved_order = state.column_order[resource]
+  if not saved_order or #saved_order == 0 then
+    return headers
+  end
+
+  -- Build a set of current headers for quick lookup
+  local header_set = {}
+  for _, h in ipairs(headers) do
+    header_set[h] = true
+  end
+
+  -- Start with headers from saved order that still exist
+  local ordered = {}
+  local used = {}
+  for _, h in ipairs(saved_order) do
+    if header_set[h] then
+      table.insert(ordered, h)
+      used[h] = true
+    end
+  end
+
+  -- Append any new headers not in saved order
+  for _, h in ipairs(headers) do
+    if not used[h] then
+      table.insert(ordered, h)
+    end
+  end
+
+  return ordered
+end
+
 function M.View(resource_name, headers)
   if not resource_name or not headers or #headers == 0 then
     vim.notify("No columns available for this view", vim.log.levels.WARN)
@@ -115,7 +151,7 @@ function M.View(resource_name, headers)
   end
 
   M.target_resource = resource_name
-  M.target_headers = headers
+  M.target_headers = get_ordered_headers(resource_name, headers)
 
   -- Update definition title
   M.definition.title = "Columns (" .. resource_name .. ")"
