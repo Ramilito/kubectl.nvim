@@ -7,89 +7,89 @@ local M = {}
 
 local resource = "columns"
 
-local function toggle_column()
+local function save_state()
+  local session_name = state.context["current-context"]
+  if session_name and state.session.contexts[session_name] then
+    state.set_session(state.session.contexts[session_name].view)
+  end
+end
+
+--- Get current row's column info
+---@return number|nil index
+local function get_current_column_index()
+  local builder = manager.get(resource)
+  if not builder or not builder.col_content then
+    return nil
+  end
+
+  local row = vim.api.nvim_win_get_cursor(0)[1]
+  local content_start = #builder.header.data
+
+  local idx = row - content_start
+  if idx >= 1 and idx <= #builder.col_content.columns then
+    return idx
+  end
+  return nil
+end
+
+--- Returns store, index, and column for current cursor position
+--- @return table|nil store
+--- @return number|nil idx
+--- @return table|nil col
+local function get_current_column()
   local store = manager.get(resource)
   if not (store and store.col_content) then
-    return
+    return nil, nil, nil
   end
-
-  local idx = columns_view.get_current_column_index()
+  local idx = get_current_column_index()
   if not idx then
+    return store, nil, nil
+  end
+  local col = store.col_content.columns[idx]
+  if not col or not col.is_column then
+    return store, idx, nil
+  end
+  return store, idx, col
+end
+
+local function toggle_column()
+  local _, _, col = get_current_column()
+  if not col then
     return
   end
-
-  local col_line = store.col_content.columns[idx]
-  if not col_line or not col_line.is_column then
-    return
-  end
-
-  -- Don't toggle required columns (NAME)
-  if col_line.is_required then
+  if col.is_required then
     vim.notify("NAME column cannot be hidden", vim.log.levels.INFO)
     return
   end
-
-  -- Toggle visibility
-  col_line.is_visible = not col_line.is_visible
-
-  -- Update state
-  if not state.column_visibility[columns_view.target_resource] then
-    state.column_visibility[columns_view.target_resource] = {}
-  end
-  state.column_visibility[columns_view.target_resource][col_line.header] = col_line.is_visible
-
-  vim.schedule(function()
-    columns_view.Draw()
-  end)
-end
-
-local function update_column_order(store)
-  local order = {}
-  for _, col in ipairs(store.col_content.columns) do
-    table.insert(order, col.header)
-  end
-  state.column_order[columns_view.target_resource] = order
+  col.is_visible = not col.is_visible
+  local target = columns_view.target_resource
+  state.column_visibility[target] = state.column_visibility[target] or {}
+  state.column_visibility[target][col.header] = col.is_visible
+  save_state()
+  vim.schedule(columns_view.Draw)
 end
 
 local function move_column(direction)
-  local store = manager.get(resource)
-  if not (store and store.col_content) then
+  local store, idx = get_current_column()
+  if not (store and idx) then
     return
   end
-
-  local idx = columns_view.get_current_column_index()
-  if not idx then
-    return
-  end
-
   local columns = store.col_content.columns
   local target_idx = idx + direction
-
-  -- Bounds check
   if target_idx < 1 or target_idx > #columns then
     return
   end
-
-  -- Swap columns
   columns[idx], columns[target_idx] = columns[target_idx], columns[idx]
-
-  -- Update state for persistence
-  update_column_order(store)
-
-  -- Redraw and move cursor to follow the moved column
+  local order = {}
+  for _, col in ipairs(columns) do
+    order[#order + 1] = col.header
+  end
+  state.column_order[columns_view.target_resource] = order
+  save_state()
   vim.schedule(function()
     columns_view.Draw()
-    local content_start = #store.header.data
-    vim.api.nvim_win_set_cursor(0, { content_start + target_idx, 0 })
+    vim.api.nvim_win_set_cursor(0, { #store.header.data + target_idx, 0 })
   end)
-end
-
-local function move_column_up()
-  move_column(-1)
-end
-
-local function move_column_down()
-  move_column(1)
 end
 
 local function reset_order()
@@ -97,17 +97,11 @@ local function reset_order()
   if not target then
     return
   end
-
-  -- Clear saved order
   state.column_order[target] = nil
-
-  -- Close and re-open to refresh with default order
   local store = manager.get(resource)
   if store and store.frame then
     store.frame.close()
   end
-
-  -- Re-open the view (needs the original headers from the parent view)
   local views = require("kubectl.views")
   local view, def = views.resource_and_definition(target)
   if view and def and def.headers then
@@ -118,29 +112,23 @@ local function reset_order()
 end
 
 M.overrides = {
-  ["<Plug>(kubectl.tab)"] = {
-    noremap = true,
-    silent = true,
-    desc = "toggle column",
-    callback = toggle_column,
-  },
-  ["<Plug>(kubectl.select)"] = {
-    noremap = true,
-    silent = true,
-    desc = "toggle column",
-    callback = toggle_column,
-  },
+  ["<Plug>(kubectl.tab)"] = { noremap = true, silent = true, desc = "toggle column", callback = toggle_column },
+  ["<Plug>(kubectl.select)"] = { noremap = true, silent = true, desc = "toggle column", callback = toggle_column },
   ["<Plug>(kubectl.move_up)"] = {
     noremap = true,
     silent = true,
     desc = "move column up",
-    callback = move_column_up,
+    callback = function()
+      move_column(-1)
+    end,
   },
   ["<Plug>(kubectl.move_down)"] = {
     noremap = true,
     silent = true,
     desc = "move column down",
-    callback = move_column_down,
+    callback = function()
+      move_column(1)
+    end,
   },
   ["<Plug>(kubectl.reset_order)"] = {
     noremap = true,
