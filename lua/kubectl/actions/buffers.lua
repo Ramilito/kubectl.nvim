@@ -127,12 +127,12 @@ function M.apply_marks(bufnr, marks, header)
   end
 
   local ns_id = api.nvim_create_namespace("__kubectl_views")
-  pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
-
   local header_data = header and header.data
   local header_row_offset = header_data and #header_data or 0
 
   vim.schedule(function()
+    pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
+
     -- Apply header marks
     if header and header.marks then
       for _, mark in ipairs(header.marks) do
