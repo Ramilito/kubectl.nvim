@@ -11,12 +11,24 @@ local M = {
   target_headers = nil,
 }
 
+--- Get checkbox text and highlight for a column
+---@param is_required boolean
+---@param is_visible boolean
+---@return string checkbox_text
+---@return string hl_group
+local function get_checkbox(is_required, is_visible)
+  if is_required then
+    return "[*] ", hl.symbols.gray
+  elseif is_visible then
+    return "[x] ", hl.symbols.header
+  else
+    return "[ ] ", hl.symbols.header
+  end
+end
+
 local function get_column_visibility(resource, header)
   local vis = state.column_visibility[resource]
-  if not vis then
-    return true -- default visible
-  end
-  if vis[header] == nil then
+  if not vis or vis[header] == nil then
     return true -- default visible
   end
   return vis[header]
@@ -26,17 +38,6 @@ local function save_visibility()
   local session_name = state.context["current-context"]
   if session_name and state.session.contexts[session_name] then
     state.set_session(state.session.contexts[session_name].view)
-  end
-end
-
-local function on_close(_builder)
-  save_visibility()
-  -- Refresh the parent view
-  local view, _ = views.resource_and_definition(M.target_resource)
-  if view and view.Draw then
-    vim.schedule(function()
-      view.Draw()
-    end)
   end
 end
 
@@ -68,27 +69,19 @@ local function display_float(builder)
   builder.col_content = { columns = {} }
 
   -- Add column lines
+  local columns = builder.col_content.columns
+  local resource = M.target_resource
   for _, header in ipairs(M.target_headers) do
     local is_required = header == "NAME"
-    local is_visible = get_column_visibility(M.target_resource, header)
+    local is_visible = get_column_visibility(resource, header)
+    local checkbox_text, hl_group = get_checkbox(is_required, is_visible)
 
-    local checkbox_text
-    if is_required then
-      checkbox_text = "[*] "
-    elseif is_visible then
-      checkbox_text = "[x] "
-    else
-      checkbox_text = "[ ] "
-    end
-
-    local hl_group = is_required and hl.symbols.gray or hl.symbols.header
-
-    table.insert(builder.col_content.columns, {
+    columns[#columns + 1] = {
       is_column = true,
       is_required = is_required,
       is_visible = is_visible,
       header = header,
-      text = header .. (is_required and " (required)" or ""),
+      text = is_required and (header .. " (required)") or header,
       extmarks = {
         {
           start_col = 0,
@@ -97,7 +90,7 @@ local function display_float(builder)
           right_gravity = false,
         },
       },
-    })
+    }
   end
 
   -- Setup close autocmd
@@ -105,7 +98,7 @@ local function display_float(builder)
     pattern = tostring(win),
     once = true,
     callback = function()
-      on_close(builder)
+      save_visibility()
     end,
   })
 
@@ -172,34 +165,30 @@ end
 
 function M.Draw()
   local builder = manager.get(M.definition.resource)
-  if not builder then
+  if not builder or not builder.col_content then
     return
   end
 
-  builder.data = {}
-  builder.extmarks = {}
+  local data = {}
+  local extmarks = {}
+  local columns = builder.col_content.columns
 
-  for i, line in ipairs(builder.col_content.columns) do
-    -- Update extmark row
-    for _, ext in ipairs(line.extmarks or {}) do
-      ext.row = i - 1
-
-      -- Update checkbox text
-      local checkbox_text
-      if line.is_required then
-        checkbox_text = "[*] "
-      elseif line.is_visible then
-        checkbox_text = "[x] "
-      else
-        checkbox_text = "[ ] "
+  for i, line in ipairs(columns) do
+    local row = i - 1
+    local line_extmarks = line.extmarks
+    if line_extmarks then
+      local checkbox_text = get_checkbox(line.is_required, line.is_visible)
+      for _, ext in ipairs(line_extmarks) do
+        ext.row = row
+        ext.virt_text[1][1] = checkbox_text
+        extmarks[#extmarks + 1] = ext
       end
-      ext.virt_text[1][1] = checkbox_text
     end
-
-    table.insert(builder.data, line.text)
-    vim.list_extend(builder.extmarks, line.extmarks or {})
+    data[#data + 1] = line.text
   end
 
+  builder.data = data
+  builder.extmarks = extmarks
   builder.displayContentRaw()
 end
 
