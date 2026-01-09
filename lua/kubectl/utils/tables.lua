@@ -526,7 +526,7 @@ function M.pretty_print(data, headers, sort_by, win)
       table.insert(extmarks, {
         row = row_index,
         start_col = 0,
-        sign_text = ">>",
+        sign_text = "»",
         sign_hl_group = "Note",
       })
     end
