@@ -170,8 +170,7 @@ function M.new(resource)
     local visible_headers = {}
     local visibility = state.column_visibility[builder.resource]
     for _, header in ipairs(headers) do
-      -- NAME is always visible, others check visibility state
-      if header == "NAME" or not visibility or visibility[header] ~= false then
+      if tables.required_headers[header] or not visibility or visibility[header] ~= false then
         table.insert(visible_headers, header)
       end
     end

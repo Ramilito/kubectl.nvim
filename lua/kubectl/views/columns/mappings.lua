@@ -1,6 +1,5 @@
 local columns_view = require("kubectl.views.columns")
 local manager = require("kubectl.resource_manager")
-local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 
 local M = {}
@@ -124,12 +123,10 @@ M.overrides = {
   },
 }
 
-function M.register()
-  mappings.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
-  mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
-  mappings.map_if_plug_not_set("n", "K", "<Plug>(kubectl.move_up)")
-  mappings.map_if_plug_not_set("n", "J", "<Plug>(kubectl.move_down)")
-  mappings.map_if_plug_not_set("n", "R", "<Plug>(kubectl.reset_order)")
-end
+-- register() is intentionally empty for framed views.
+-- Key mappings are set directly on the correct buffer in init.lua.
+-- Using map_if_plug_not_set here would incorrectly set mappings on buffer 0
+-- (the original buffer) instead of the columns float buffer.
+function M.register() end
 
 return M

@@ -56,7 +56,11 @@ end
 --- Get current seletion for view
 ---@return string|nil
 function M.getCurrentSelection()
-  return tables.getCurrentSelection(1)
+  local name_col = tables.getColumnIndices(M.definition.resource, M.definition.headers)
+  if not name_col then
+    return nil
+  end
+  return tables.getCurrentSelection(name_col)
 end
 
 return M

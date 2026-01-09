@@ -136,14 +136,16 @@ function M.Yaml(name, ns)
 end
 
 --- Get current seletion for view
----@return string|nil
+---@return string|nil, string|nil
 function M.getCurrentSelection()
-  local name_idx = tables.find_index(M.definition.headers, "NAME")
-  local ns_idx = tables.find_index(M.definition.headers, "NAMESPACE")
-  if ns_idx then
-    return tables.getCurrentSelection(name_idx, ns_idx)
+  local name_col, ns_col = tables.getColumnIndices(M.definition.resource, M.definition.headers)
+  if not name_col then
+    return nil, nil
   end
-  return tables.getCurrentSelection(name_idx)
+  if ns_col then
+    return tables.getCurrentSelection(name_col, ns_col)
+  end
+  return tables.getCurrentSelection(name_col), nil
 end
 
 return M
