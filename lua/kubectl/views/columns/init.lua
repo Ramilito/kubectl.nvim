@@ -85,22 +85,28 @@ end
 --- Render extmarks for all columns
 function M.refresh_extmarks()
   local builder = manager.get(M.definition.resource)
-  if not builder or not builder.processedData then
+  if not builder or not builder.processedData or not vim.api.nvim_buf_is_valid(builder.buf_nr) then
     return
   end
 
   local header_count = builder.header and #builder.header.data or 0
   local ns = vim.api.nvim_create_namespace(ns_name)
+  local line_count = vim.api.nvim_buf_line_count(builder.buf_nr)
 
-  vim.api.nvim_buf_clear_namespace(builder.buf_nr, ns, header_count, -1)
+  -- Clear all extmarks in our namespace
+  vim.api.nvim_buf_clear_namespace(builder.buf_nr, ns, 0, -1)
 
+  -- Set extmarks only for valid rows
   for i, col in ipairs(builder.processedData) do
-    local checkbox, hl_group = get_checkbox(col)
-    vim.api.nvim_buf_set_extmark(builder.buf_nr, ns, header_count + i - 1, 0, {
-      virt_text = { { checkbox, hl_group } },
-      virt_text_pos = "inline",
-      right_gravity = false,
-    })
+    local row = header_count + i - 1
+    if row < line_count then
+      local checkbox, hl_group = get_checkbox(col)
+      vim.api.nvim_buf_set_extmark(builder.buf_nr, ns, row, 0, {
+        virt_text = { { checkbox, hl_group } },
+        virt_text_pos = "inline",
+        right_gravity = false,
+      })
+    end
   end
 end
 
@@ -120,7 +126,7 @@ function M.sync_from_buffer()
 
   local new_columns, new_order = {}, {}
   for _, line in ipairs(lines) do
-    local header = line:gsub(" %(required%)$", "")
+    local header = vim.trim(line):gsub(" %(required%)$", "")
     if header ~= "" and M.col_master[header] then
       new_columns[#new_columns + 1] = M.col_master[header]
       new_order[#new_order + 1] = header
@@ -184,7 +190,9 @@ function M.View(resource_name, headers)
   })
   vim.api.nvim_create_autocmd("TextChanged", {
     buffer = builder.buf_nr,
-    callback = M.sync_from_buffer,
+    callback = function()
+      vim.schedule(M.sync_from_buffer)
+    end,
   })
 end
 
