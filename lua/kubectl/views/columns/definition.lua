@@ -9,6 +9,7 @@ M.definition = {
     { key = "<Plug>(kubectl.tab)", desc = "toggle" },
     { key = "<Plug>(kubectl.move_up)", desc = "move up" },
     { key = "<Plug>(kubectl.move_down)", desc = "move down" },
+    { key = "<Plug>(kubectl.reset_order)", desc = "reset order" },
     { key = "<Plug>(kubectl.quit)", desc = "close" },
   },
   panes = {

@@ -92,6 +92,31 @@ local function move_column_down()
   move_column(1)
 end
 
+local function reset_order()
+  local target = columns_view.target_resource
+  if not target then
+    return
+  end
+
+  -- Clear saved order
+  state.column_order[target] = nil
+
+  -- Close and re-open to refresh with default order
+  local store = manager.get(resource)
+  if store and store.frame then
+    store.frame.close()
+  end
+
+  -- Re-open the view (needs the original headers from the parent view)
+  local views = require("kubectl.views")
+  local view, def = views.resource_and_definition(target)
+  if view and def and def.headers then
+    vim.schedule(function()
+      columns_view.View(target, def.headers)
+    end)
+  end
+end
+
 M.overrides = {
   ["<Plug>(kubectl.tab)"] = {
     noremap = true,
@@ -117,6 +142,12 @@ M.overrides = {
     desc = "move column down",
     callback = move_column_down,
   },
+  ["<Plug>(kubectl.reset_order)"] = {
+    noremap = true,
+    silent = true,
+    desc = "reset column order",
+    callback = reset_order,
+  },
 }
 
 function M.register()
@@ -124,6 +155,7 @@ function M.register()
   mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
   mappings.map_if_plug_not_set("n", "K", "<Plug>(kubectl.move_up)")
   mappings.map_if_plug_not_set("n", "J", "<Plug>(kubectl.move_down)")
+  mappings.map_if_plug_not_set("n", "R", "<Plug>(kubectl.reset_order)")
 end
 
 return M

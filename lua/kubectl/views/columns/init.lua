@@ -46,6 +46,7 @@ local function display_float(builder)
   local opts = { noremap = true, silent = true }
   vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "K", "<Plug>(kubectl.move_up)", opts)
   vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "J", "<Plug>(kubectl.move_down)", opts)
+  vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "R", "<Plug>(kubectl.reset_order)", opts)
   builder.renderHints()
 
   local win = builder.win_nr
