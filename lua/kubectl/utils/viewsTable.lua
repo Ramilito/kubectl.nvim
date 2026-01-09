@@ -3,6 +3,7 @@
 ---@type ViewTable
 return {
   overview = { "overview" },
+  cani = { "cani" },
   ["api-resources"] = { "api-resources", "apiresources" },
   pods = { "pods", "pod", "po" },
   deployments = { "deployments", "deployment", "deploy", "deployments.apps" },

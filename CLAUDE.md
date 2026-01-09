@@ -108,6 +108,14 @@ Minimal C-compatible exports for specialized kubectl operations (describe, drain
 Do NOT run these commands:
 - `make build` - Takes too long, use `make build_dev` instead
 
+## Denied Suggestions
+
+Do NOT suggest installing these tools - they are already installed:
+- lua-language-server
+- rust-analyzer
+- stylua
+- luacheck
+
 ## Token Efficiency Rules
 
 Follow these rules to minimize token usage:

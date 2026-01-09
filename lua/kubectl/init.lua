@@ -138,7 +138,9 @@ function M.setup(options)
           if not loop.is_running(ev.buf) then
             local resource_name = ev.match:sub(#"k8s_" + 1)
             local current_view = require("kubectl.views").resource_and_definition(resource_name)
-            loop.start_loop(current_view.Draw, { buf = ev.buf })
+            if current_view.definition.auto_refresh ~= false then
+              loop.start_loop(current_view.Draw, { buf = ev.buf })
+            end
             vim.opt_local.foldmethod = "manual"
           end
         end
