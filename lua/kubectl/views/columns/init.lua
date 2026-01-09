@@ -25,14 +25,6 @@ local function get_checkbox(is_required, is_visible)
   end
 end
 
-local function get_column_visibility(resource, header)
-  local vis = state.column_visibility[resource]
-  if not vis or vis[header] == nil then
-    return true -- default visible
-  end
-  return vis[header]
-end
-
 --- Reorder headers based on saved column order
 ---@param resource string
 ---@param headers string[]
@@ -114,7 +106,7 @@ function M.View(resource_name, headers)
     local resource = M.target_resource
     for _, header in ipairs(M.target_headers) do
       local is_required = header == "NAME"
-      local is_visible = get_column_visibility(resource, header)
+      local is_visible = (state.column_visibility[resource] or {})[header] ~= false
       local checkbox_text, hl_group = get_checkbox(is_required, is_visible)
 
       columns[#columns + 1] = {
