@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "rust-lsp": {
+      "command": "/Users/ramidaghlawi/go/bin/mcp-language-server",
+      "args": [
+        "--workspace",
+        "/Users/ramidaghlawi/workspace/mine/kubectl.nvim/kubectl-client",
+        "--lsp",
+        "rust-analyzer"
+      ]
+    },
+    "lua-lsp": {
+      "command": "/Users/ramidaghlawi/go/bin/mcp-language-server",
+      "args": [
+        "--workspace",
+        "/Users/ramidaghlawi/workspace/mine/kubectl.nvim/lua",
+        "--lsp",
+        "lua-language-server"
+      ]
+    }
+  }
+}

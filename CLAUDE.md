@@ -116,6 +116,27 @@ Do NOT suggest installing these tools - they are already installed:
 - stylua
 - luacheck
 
+## Code Navigation
+
+Prefer LSP tools over grep/glob for code navigation:
+
+**For Rust code (`kubectl-client/`):**
+- `mcp__rust-lsp__definition` - Find where a symbol is defined
+- `mcp__rust-lsp__references` - Find all usages of a symbol
+- `mcp__rust-lsp__hover` - Get type info and documentation
+- `mcp__rust-lsp__diagnostics` - Get errors/warnings for a file
+
+**For Lua code (`lua/`):**
+- `mcp__lua-lsp__definition` - Find where a symbol is defined
+- `mcp__lua-lsp__references` - Find all usages of a symbol
+- `mcp__lua-lsp__hover` - Get type info and documentation
+- `mcp__lua-lsp__diagnostics` - Get errors/warnings for a file
+
+Use grep only when:
+- Searching for string literals or comments
+- The symbol name is too generic (e.g., `M`, `self`)
+- You need regex pattern matching
+
 ## Token Efficiency Rules
 
 Follow these rules to minimize token usage:
