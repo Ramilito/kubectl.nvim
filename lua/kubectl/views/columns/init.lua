@@ -3,7 +3,6 @@ local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
-local views = require("kubectl.views")
 
 local M = {
   definition = definition.definition,
