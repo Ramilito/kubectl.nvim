@@ -75,23 +75,34 @@ M.overrides = {
     desc = "Rollout restart",
     callback = function()
       local name, ns = deployment_view.getCurrentSelection()
-      buffers.confirmation_buffer(
-        "Are you sure that you want to restart the deployment: " .. name,
-        "prompt",
-        function(confirm)
-          if confirm then
-            commands.run_async("restart_async", {
-              gvk = deployment_view.definition.gvk,
-              name = name,
-              namespace = ns,
-            }, function(response)
-              vim.schedule(function()
-                vim.notify(response)
-              end)
-            end)
-          end
-        end
-      )
+      local builder = manager.get_or_create("deployment_restart")
+
+      local def = {
+        resource = "deployment_restart",
+        display = "Restart deployment",
+        ft = "k8s_action",
+      }
+
+      local action_data = {
+        {
+          text = "",
+          value = ns .. "/" .. name,
+          type = "positional",
+        },
+      }
+
+      builder.data = {}
+      builder.action_view(def, action_data, function()
+        commands.run_async("restart_async", {
+          gvk = deployment_view.definition.gvk,
+          name = name,
+          namespace = ns,
+        }, function(response)
+          vim.schedule(function()
+            vim.notify(response)
+          end)
+        end)
+      end)
     end,
   },
 }

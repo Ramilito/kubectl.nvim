@@ -1,6 +1,6 @@
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local daemonset_view = require("kubectl.resources.daemonsets")
+local manager = require("kubectl.resource_manager")
 local mapping_helpers = require("kubectl.utils.mapping_helpers")
 local mappings = require("kubectl.mappings")
 
@@ -20,25 +20,34 @@ M.overrides = {
     desc = "Rollout restart",
     callback = function()
       local name, ns = daemonset_view.getCurrentSelection()
-      buffers.confirmation_buffer(
-        "Are you sure that you want to restart the daemonset: " .. name,
-        "prompt",
-        function(confirm)
-          if confirm then
-            commands.run_async("restart_async", {
-              daemonset_view.definition.gvk.k,
-              daemonset_view.definition.gvk.g,
-              daemonset_view.definition.gvk.v,
-              name,
-              ns,
-            }, function(response)
-              vim.schedule(function()
-                vim.notify(response)
-              end)
-            end)
-          end
-        end
-      )
+      local builder = manager.get_or_create("daemonset_restart")
+
+      local def = {
+        resource = "daemonset_restart",
+        display = "Restart daemonset",
+        ft = "k8s_action",
+      }
+
+      local action_data = {
+        {
+          text = "",
+          value = ns .. "/" .. name,
+          type = "positional",
+        },
+      }
+
+      builder.data = {}
+      builder.action_view(def, action_data, function()
+        commands.run_async("restart_async", {
+          gvk = daemonset_view.definition.gvk,
+          name = name,
+          namespace = ns,
+        }, function(response)
+          vim.schedule(function()
+            vim.notify(response)
+          end)
+        end)
+      end)
     end,
   },
 }
