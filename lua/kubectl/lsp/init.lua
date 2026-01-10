@@ -80,6 +80,10 @@ function M.start()
         triggerCharacters = { ":", "-" },
       },
       hoverProvider = true,
+      codeActionProvider = true,
+      executeCommandProvider = {
+        commands = { "kubectl.execute_action" },
+      },
     },
     handlers = {
       ["textDocument/completion"] = function(_method, _params, callback)
@@ -98,6 +102,19 @@ function M.start()
       ["textDocument/hover"] = function(_method, params, callback)
         local hover = require("kubectl.lsp.hover")
         hover.get_hover(params, callback)
+      end,
+      ["textDocument/codeAction"] = function(_method, params, callback)
+        local code_actions = require("kubectl.lsp.code_actions")
+        code_actions.get_code_actions(params, callback)
+      end,
+      ["workspace/executeCommand"] = function(_method, params, callback)
+        if params.command == "kubectl.execute_action" and params.arguments then
+          local code_actions = require("kubectl.lsp.code_actions")
+          vim.schedule(function()
+            code_actions.execute(params.arguments[1])
+          end)
+        end
+        callback(nil, nil)
       end,
     },
   })
