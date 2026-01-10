@@ -66,9 +66,11 @@ local function get_selection(builder)
   end
 
   local def = builder.definition
-  local is_cluster_scoped = not vim.tbl_contains(def.headers or {}, "NAMESPACE")
-  local name_col = is_cluster_scoped and 1 or 2
-  local ns_col = is_cluster_scoped and nil or 1
+  local name_col, ns_col = tables.getColumnIndices(builder.resource, def.headers or {})
+
+  if not name_col then
+    return nil, nil
+  end
 
   -- Check if cursor is on content row
   local bufnr = vim.api.nvim_get_current_buf()

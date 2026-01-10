@@ -6,7 +6,7 @@ local BaseResource = {}
 
 --- Create a new resource module based on BaseResource
 ---@param definition table The resource definition table
----@param options? table Optional configuration (is_cluster_scoped, name_column_index, namespace_column_index)
+---@param options? table Optional configuration (is_cluster_scoped)
 ---@return table The resource module with View, Draw, Desc, getCurrentSelection
 function BaseResource.extend(definition, options)
   options = options or {}
@@ -17,19 +17,10 @@ function BaseResource.extend(definition, options)
     is_cluster_scoped = not vim.tbl_contains(definition.headers or {}, "NAMESPACE")
   end
 
-  -- Set column indices based on scope
-  local name_col = options.name_column_index or (is_cluster_scoped and 1 or 2)
-  local ns_col = options.namespace_column_index
-  if ns_col == nil and not is_cluster_scoped then
-    ns_col = 1
-  end
-
   local M = {
     definition = definition,
     _options = {
       is_cluster_scoped = is_cluster_scoped,
-      name_column_index = name_col,
-      namespace_column_index = ns_col,
     },
   }
 
@@ -97,10 +88,14 @@ function BaseResource.extend(definition, options)
   --- Get current selection from buffer
   ---@return string|nil ... Returns name and optionally namespace
   function M.getCurrentSelection()
-    if M._options.namespace_column_index then
-      return tables.getCurrentSelection(M._options.name_column_index, M._options.namespace_column_index)
+    local name_col, ns_col = tables.getColumnIndices(M.definition.resource, M.definition.headers or {})
+    if not name_col then
+      return nil
+    end
+    if ns_col then
+      return tables.getCurrentSelection(name_col, ns_col)
     else
-      return tables.getCurrentSelection(M._options.name_column_index)
+      return tables.getCurrentSelection(name_col)
     end
   end
 

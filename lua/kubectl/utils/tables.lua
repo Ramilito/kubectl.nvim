@@ -4,6 +4,9 @@ local state = require("kubectl.state")
 local time = require("kubectl.utils.time")
 local M = {}
 
+--- Headers that cannot be hidden (always visible)
+M.required_headers = { NAME = true, NAMESPACE = true }
+
 --- Calculate column widths for table data
 ---@param rows table[]
 ---@param columns string[]
@@ -366,6 +369,7 @@ function M.generateHeader(headers, include_defaults, include_context)
       { key = "<Plug>(kubectl.filter_view)", desc = "filter", global = true },
       { key = "<Plug>(kubectl.namespace_view)", desc = "namespace", global = true },
       { key = "<Plug>(kubectl.toggle_diagnostics)", desc = "diagnostics", global = true },
+      { key = "<Plug>(kubectl.toggle_columns)", desc = "columns", global = true },
       { key = "<Plug>(kubectl.help)", desc = "help", global = true, sort_order = 100 },
       { key = "<Plug>(kubectl.toggle_headers)", desc = "toggle", global = true, sort_order = 200 },
     }
@@ -522,7 +526,7 @@ function M.pretty_print(data, headers, sort_by, win)
       table.insert(extmarks, {
         row = row_index,
         start_col = 0,
-        sign_text = ">>",
+        sign_text = "»",
         sign_hl_group = "Note",
       })
     end
@@ -581,6 +585,58 @@ function M.is_selected(row, selections)
   return false
 end
 
+--- Get visible headers accounting for column order and visibility
+---@param resource string Resource name
+---@param original_headers string[] Original headers from definition
+---@return string[] visible_headers
+function M.getVisibleHeaders(resource, original_headers)
+  local headers = original_headers
+
+  -- Reorder based on saved column order
+  local saved_order = state.column_order[resource]
+  if saved_order and #saved_order > 0 then
+    local header_set = {}
+    for _, h in ipairs(headers) do
+      header_set[h] = true
+    end
+    local ordered = {}
+    local used = {}
+    for _, h in ipairs(saved_order) do
+      if header_set[h] then
+        table.insert(ordered, h)
+        used[h] = true
+      end
+    end
+    for _, h in ipairs(headers) do
+      if not used[h] then
+        table.insert(ordered, h)
+      end
+    end
+    headers = ordered
+  end
+
+  -- Filter based on visibility
+  local visible = {}
+  local visibility = state.column_visibility[resource]
+  for _, header in ipairs(headers) do
+    if M.required_headers[header] or not visibility or visibility[header] ~= false then
+      table.insert(visible, header)
+    end
+  end
+
+  return visible
+end
+
+--- Get column indices for NAME and NAMESPACE based on visible headers
+---@param resource string Resource name
+---@param original_headers string[] Original headers from definition
+---@return number|nil name_col Index of NAME column (1-based)
+---@return number|nil ns_col Index of NAMESPACE column (1-based), nil if not visible
+function M.getColumnIndices(resource, original_headers)
+  local visible = M.getVisibleHeaders(resource, original_headers)
+  return M.find_index(visible, "NAME"), M.find_index(visible, "NAMESPACE")
+end
+
 --- Get the current selection from the buffer
 ---@vararg number
 ---@return string|nil ...
@@ -602,7 +658,6 @@ function M.getCurrentSelection(...)
   local indices = { ... }
   for i = 1, #indices do
     local index = indices[i]
-    -- Guard against out-of-bounds column access
     local col_value = columns[index]
     if not col_value then
       return nil

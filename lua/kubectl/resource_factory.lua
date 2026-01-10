@@ -138,11 +138,16 @@ function M.new(resource)
 
   function builder.prettyPrint(win_nr)
     local sort_info = state.sortby[builder.resource]
-    local headers = {}
+    local original_headers = {}
     if builder.definition and builder.definition.headers then
-      headers = builder.definition.headers
+      original_headers = builder.definition.headers
     end
-    builder.prettyData, builder.extmarks = tables.pretty_print(builder.processedData, headers, sort_info, win_nr)
+
+    -- Use centralized function for column ordering and visibility
+    local visible_headers = tables.getVisibleHeaders(builder.resource, original_headers)
+
+    builder.prettyData, builder.extmarks =
+      tables.pretty_print(builder.processedData, visible_headers, sort_info, win_nr)
     return builder
   end
 
