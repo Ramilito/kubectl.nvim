@@ -134,7 +134,7 @@ function M.sync_from_buffer()
 
   local new_columns, new_order = {}, {}
   for _, line in ipairs(lines) do
-    local header = vim.tring(line)
+    local header = vim.trim(line)
     if header ~= "" and M.col_master[header] then
       new_columns[#new_columns + 1] = M.col_master[header]
       new_order[#new_order + 1] = header
