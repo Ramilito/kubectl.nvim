@@ -13,15 +13,20 @@ local M = {
 
 local ns_name = "__kubectl_views"
 
---- Get checkbox text and highlight based on column state
+--- Get checkbox prefix based on column state
 local function get_checkbox(col)
   if col.is_required then
-    return "[*] ", hl.symbols.gray
+    return "[*]"
   elseif col.is_visible then
-    return "[x] ", hl.symbols.header
+    return "[x]"
   else
-    return "[ ] ", hl.symbols.header
+    return "[ ]"
   end
+end
+
+--- Build display line for a column (header only, checkbox via extmark)
+local function build_line(col)
+  return col.header
 end
 
 --- Save current column state to session
@@ -73,7 +78,6 @@ local function build_columns(headers, resource)
       header = header,
       is_required = is_required,
       is_visible = is_visible,
-      text = is_required and (header .. " (required)") or header,
     }
     columns[#columns + 1] = col
     M.col_master[header] = col
@@ -82,8 +86,8 @@ local function build_columns(headers, resource)
   return columns
 end
 
---- Render extmarks for all columns
-function M.refresh_extmarks()
+--- Apply checkbox extmarks (virtual text, not editable)
+function M.refresh_highlights()
   local builder = manager.get(M.definition.resource)
   if not builder or not builder.processedData or not vim.api.nvim_buf_is_valid(builder.buf_nr) then
     return
@@ -91,22 +95,26 @@ function M.refresh_extmarks()
 
   local header_count = builder.header and #builder.header.data or 0
   local ns = vim.api.nvim_create_namespace(ns_name)
-  local line_count = vim.api.nvim_buf_line_count(builder.buf_nr)
 
-  -- Clear all extmarks in our namespace
   vim.api.nvim_buf_clear_namespace(builder.buf_nr, ns, 0, -1)
 
-  -- Set extmarks only for valid rows
   for i, col in ipairs(builder.processedData) do
     local row = header_count + i - 1
-    if row < line_count then
-      local checkbox, hl_group = get_checkbox(col)
-      vim.api.nvim_buf_set_extmark(builder.buf_nr, ns, row, 0, {
-        virt_text = { { checkbox, hl_group } },
-        virt_text_pos = "inline",
-        right_gravity = false,
-      })
+    local checkbox = get_checkbox(col) .. " "
+    local hl_group
+    if col.is_required then
+      hl_group = hl.symbols.gray
+    elseif col.is_visible then
+      hl_group = hl.symbols.success
+    else
+      hl_group = hl.symbols.gray
     end
+
+    -- Display checkbox as inline virtual text (not editable)
+    vim.api.nvim_buf_set_extmark(builder.buf_nr, ns, row, 0, {
+      virt_text = { { checkbox, hl_group } },
+      virt_text_pos = "inline",
+    })
   end
 end
 
@@ -126,7 +134,7 @@ function M.sync_from_buffer()
 
   local new_columns, new_order = {}, {}
   for _, line in ipairs(lines) do
-    local header = vim.trim(line):gsub(" %(required%)$", "")
+    local header = vim.tring(line)
     if header ~= "" and M.col_master[header] then
       new_columns[#new_columns + 1] = M.col_master[header]
       new_order[#new_order + 1] = header
@@ -137,7 +145,7 @@ function M.sync_from_buffer()
     builder.processedData = new_columns
     state.column_order[M.target_resource] = new_order
     M.save_state()
-    M.refresh_extmarks()
+    M.refresh_highlights()
   end
 end
 
@@ -155,10 +163,14 @@ function M.View(resource_name, headers)
   builder.definition = M.definition
   builder.view_framed(M.definition)
 
-  -- Build column data using builder's data fields
+  -- Disable any formatting that could interfere with paste
+  vim.api.nvim_set_option_value("formatoptions", "", { buf = builder.buf_nr })
+  vim.api.nvim_set_option_value("textwidth", 0, { buf = builder.buf_nr })
+
+  -- Build column data with checkbox prefix
   builder.processedData = build_columns(ordered_headers, resource_name)
   builder.data = vim.tbl_map(function(col)
-    return col.text
+    return build_line(col)
   end, builder.processedData)
 
   -- Header
@@ -177,9 +189,8 @@ function M.View(resource_name, headers)
   builder.displayContentRaw()
   builder.fitToContent(2)
 
-  -- Schedule extmarks after displayContentRaw's internal vim.schedule completes
   vim.schedule(function()
-    M.refresh_extmarks()
+    M.refresh_highlights()
     M.syncing = false
   end)
 

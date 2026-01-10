@@ -22,8 +22,9 @@ local function get_current_column()
 end
 
 local function toggle_column()
+  local builder = manager.get("columns")
   local col = get_current_column()
-  if not col then
+  if not col or not builder then
     return
   end
 
@@ -38,8 +39,17 @@ local function toggle_column()
   state.column_visibility[target] = state.column_visibility[target] or {}
   state.column_visibility[target][col.header] = col.is_visible
 
+  -- Update the buffer line with new checkbox
+  -- local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  -- local checkbox = col.is_visible and "[x]" or "[ ]"
+  -- local new_line = checkbox .. " " .. col.header
+
+  -- columns_view.syncing = true
+  -- vim.api.nvim_buf_set_lines(builder.buf_nr, row, row + 1, false, { new_line })
+  -- columns_view.syncing = false
+
   columns_view.save_state()
-  vim.schedule(columns_view.refresh_extmarks)
+  columns_view.refresh_highlights()
 end
 
 local function reset_order()
