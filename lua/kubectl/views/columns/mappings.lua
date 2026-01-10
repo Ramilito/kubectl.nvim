@@ -78,5 +78,4 @@ function M.register()
   mappings.map_if_plug_not_set("n", "R", "<Plug>(kubectl.reset_order)")
 end
 
-
 return M
