@@ -3,15 +3,15 @@ local M = {}
 
 local timers = {}
 
---- Check if LSP hover float is open (only block refresh for hover)
+--- Check if a float that should pause refresh is open
 ---@return boolean
-local function has_hover_float()
+local function has_active_float()
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     local win_config = vim.api.nvim_win_get_config(win)
     if win_config.relative ~= "" then
-      local buf = vim.api.nvim_win_get_buf(win)
-      local ft = vim.bo[buf].filetype
-      if ft == "markdown" then
+      -- LSP float (hover/diagnostic) has w:lsp_floating_bufnr set by Neovim
+      local ok = pcall(vim.api.nvim_win_get_var, win, "lsp_floating_bufnr")
+      if ok then
         return true
       end
     end
@@ -42,8 +42,8 @@ function M.start_loop_for_buffer(buf, callback, opts)
       timers[buf].running = true
 
       vim.schedule(function()
-        -- Skip refresh if LSP hover float is open
-        if has_hover_float() then
+        -- Skip refresh if LSP hover or diagnostic float is open
+        if has_active_float() then
           timers[buf].running = false
           return
         end
