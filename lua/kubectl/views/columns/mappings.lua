@@ -39,15 +39,6 @@ local function toggle_column()
   state.column_visibility[target] = state.column_visibility[target] or {}
   state.column_visibility[target][col.header] = col.is_visible
 
-  -- Update the buffer line with new checkbox
-  -- local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-  -- local checkbox = col.is_visible and "[x]" or "[ ]"
-  -- local new_line = checkbox .. " " .. col.header
-
-  -- columns_view.syncing = true
-  -- vim.api.nvim_buf_set_lines(builder.buf_nr, row, row + 1, false, { new_line })
-  -- columns_view.syncing = false
-
   columns_view.save_state()
   columns_view.refresh_highlights()
 end
@@ -82,6 +73,10 @@ M.overrides = {
   ["<Plug>(kubectl.reset_order)"] = vim.tbl_extend("force", map_opts, { desc = "reset order", callback = reset_order }),
 }
 
-function M.register() end
+function M.register()
+  local mappings = require("kubectl.mappings")
+  mappings.map_if_plug_not_set("n", "R", "<Plug>(kubectl.reset_order)")
+end
+
 
 return M

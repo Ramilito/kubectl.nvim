@@ -160,6 +160,7 @@ function M.View(resource_name, headers)
 
   local ordered_headers = get_ordered_headers(resource_name, headers)
   local builder = manager.get_or_create(M.definition.resource)
+
   builder.definition = M.definition
   builder.view_framed(M.definition)
 
@@ -194,11 +195,6 @@ function M.View(resource_name, headers)
     M.syncing = false
   end)
 
-  -- Setup buffer sync
-  vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "R", "<Plug>(kubectl.reset_order)", {
-    noremap = true,
-    silent = true,
-  })
   vim.api.nvim_create_autocmd("TextChanged", {
     buffer = builder.buf_nr,
     callback = function()
