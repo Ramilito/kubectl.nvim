@@ -1,11 +1,10 @@
+use k8s_metrics::{v1beta1 as metricsv1, QuantityExt};
+use kube::{api, Api, Client, ResourceExt};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::{Arc, Mutex, OnceLock},
     time::Duration,
 };
-
-use k8s_metrics::{v1beta1 as metricsv1, QuantityExt};
-use kube::{api, Api, Client, ResourceExt};
 use tokio::{task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;

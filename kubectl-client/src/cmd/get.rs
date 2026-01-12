@@ -6,7 +6,6 @@ use kube::{
     api::{ApiResource, DynamicObject, ListParams, ResourceExt, TypeMeta},
     core::GroupVersionKind,
     discovery::{ApiCapabilities, Discovery, Scope},
-    error::DiscoveryError,
     Client, Error,
 };
 use mlua::prelude::*;
@@ -16,7 +15,7 @@ use serde_json::{json, to_string};
 use tokio::time::{timeout, Duration};
 use tracing::{trace_span, warn, Instrument};
 
-use super::utils::{dynamic_api, resolve_api_resource};
+use super::utils::dynamic_api;
 use crate::{
     store,
     structs::{GetServerRawArgs, GetSingleArgs},
@@ -60,23 +59,12 @@ impl Default for OutputMode {
 pub async fn get_resources_async(
     client: &Client,
     kind: String,
-    group: Option<String>,
-    version: Option<String>,
+    group: String,
+    version: String,
     namespace: Option<String>,
 ) -> Result<Vec<DynamicObject>, Error> {
-    let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
-        let gvk = GroupVersionKind::gvk(g.as_str(), v.as_str(), kind.as_str());
-        kube::discovery::pinned_kind(client, &gvk).await?
-    } else {
-        let discovery = kube::discovery::Discovery::new(client.clone())
-            .run()
-            .await?;
-        resolve_api_resource(&discovery, &kind).ok_or_else(|| {
-            Error::Discovery(DiscoveryError::MissingResource(format!(
-                "Resource not found in cluster: {kind}"
-            )))
-        })?
-    };
+    let gvk = GroupVersionKind::gvk(&group, &version, &kind);
+    let (ar, caps) = kube::discovery::pinned_kind(client, &gvk).await?;
     let ar_api_version = ar.api_version.clone();
     let ar_kind = ar.kind.clone();
     let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), true);
@@ -100,8 +88,8 @@ pub async fn get_resources_async(
 pub async fn get_resource_async(
     client: &Client,
     kind: String,
-    group: Option<String>,
-    version: Option<String>,
+    group: String,
+    version: String,
     name: String,
     namespace: Option<String>,
     output: Option<String>,
@@ -111,20 +99,10 @@ pub async fn get_resource_async(
         .map(OutputMode::from_str)
         .unwrap_or_default();
 
-    let (ar, caps) = if let (Some(g), Some(v)) = (group, version) {
-        let gvk = GroupVersionKind::gvk(g.as_str(), v.as_str(), kind.as_str());
-        kube::discovery::pinned_kind(client, &gvk)
-            .await
-            .map_err(mlua::Error::external)?
-    } else {
-        let discovery = Discovery::new(client.clone())
-            .run()
-            .await
-            .map_err(mlua::Error::external)?;
-        resolve_api_resource(&discovery, &kind).ok_or_else(|| {
-            mlua::Error::external(format!("Resource not found in cluster: {kind}"))
-        })?
-    };
+    let gvk = GroupVersionKind::gvk(&group, &version, &kind);
+    let (ar, caps) = kube::discovery::pinned_kind(client, &gvk)
+        .await
+        .map_err(mlua::Error::external)?;
 
     let api = dynamic_api(ar, caps, client.clone(), namespace.as_deref(), false);
 
@@ -151,17 +129,16 @@ pub fn get_single(lua: &Lua, json: String) -> LuaResult<String> {
         {
             return Ok(output_mode.format(found));
         }
-        let result = get_resource_async(
+        get_resource_async(
             &client,
             args.gvk.k,
-            Some(args.gvk.g),
-            Some(args.gvk.v),
+            args.gvk.g,
+            args.gvk.v,
             args.name,
             args.namespace,
             args.output,
-        );
-
-        result.await
+        )
+        .await
     })
 }
 
@@ -184,17 +161,16 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
                 return Ok(output_mode.format(found));
             }
         }
-        let result = get_resource_async(
+        get_resource_async(
             &client,
             args.gvk.k,
-            Some(args.gvk.g),
-            Some(args.gvk.v),
+            args.gvk.g,
+            args.gvk.v,
             args.name,
             args.namespace,
             args.output,
-        );
-
-        result.await
+        )
+        .await
     })
 }
 
@@ -308,11 +284,28 @@ impl FallbackResource {
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(|client| async move {
-        let discovery = Discovery::new(client.clone())
-            .exclude(&[r"custom.metrics.k8s.io", r"metrics.k8s.io", r"events.k8s.io"])
-            .run()
+        // Try aggregated discovery first (K8s 1.26+, stable in 1.30+)
+        // Falls back to standard discovery for older clusters
+        let exclude_groups = &[r"custom.metrics.k8s.io", r"metrics.k8s.io", r"events.k8s.io"];
+
+        let discovery = match Discovery::new(client.clone())
+            .exclude(exclude_groups)
+            .run_aggregated()
             .await
-            .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
+        {
+            Ok(d) => {
+                tracing::debug!("Using aggregated discovery");
+                d
+            }
+            Err(_) => {
+                tracing::debug!("Aggregated discovery not available, falling back to standard");
+                Discovery::new(client.clone())
+                    .exclude(exclude_groups)
+                    .run()
+                    .await
+                    .map_err(|e| LuaError::external(format!("discovery: {e}")))?
+            }
+        };
 
         let mut sn_map: HashMap<String, HashSet<String>> = HashMap::new();
 

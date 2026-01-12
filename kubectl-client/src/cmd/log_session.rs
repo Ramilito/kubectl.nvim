@@ -1,6 +1,6 @@
 use futures::{AsyncBufReadExt, TryStreamExt};
+use jiff::{Span, Timestamp};
 use k8s_openapi::api::core::v1::{Pod, PodSpec};
-use k8s_openapi::chrono::{DateTime, Duration, Utc};
 use k8s_openapi::serde_json;
 use kube::api::LogParams;
 use kube::{Api, Client};
@@ -121,16 +121,16 @@ fn format_log_line(
 }
 
 /// Parse a duration string like "5m", "1h", "30s".
-fn parse_duration(input: &str) -> Option<Duration> {
+fn parse_duration(input: &str) -> Option<Span> {
     if input.is_empty() || input == "0" || input.len() < 2 {
         return None;
     }
     let (num_str, unit) = input.split_at(input.len() - 1);
     let num: i64 = num_str.parse().ok()?;
     match unit {
-        "s" => Some(Duration::seconds(num)),
-        "m" => Some(Duration::minutes(num)),
-        "h" => Some(Duration::hours(num)),
+        "s" => Some(Span::new().seconds(num)),
+        "m" => Some(Span::new().minutes(num)),
+        "h" => Some(Span::new().hours(num)),
         _ => None,
     }
 }
@@ -146,7 +146,7 @@ const HISTOGRAM_BAR_CHARS: [char; 9] = [' ', '▁', '▂', '▃', '▄', '▅', 
 const DEFAULT_HISTOGRAM_BUCKETS: usize = 50;
 
 /// Try to find and parse a K8s timestamp (2024-01-15T10:30:45.123Z format)
-fn find_timestamp(line: &str) -> Option<DateTime<Utc>> {
+fn find_timestamp(line: &str) -> Option<Timestamp> {
     for (i, _) in line.match_indices('T') {
         if i < 10 || i + 9 > line.len() {
             continue;
@@ -157,7 +157,7 @@ fn find_timestamp(line: &str) -> Option<DateTime<Utc>> {
         let end = rest.find('Z').map(|z_pos| i + 1 + z_pos + 1)?;
 
         let candidate = &line[start..end];
-        if let Ok(ts) = candidate.parse::<DateTime<Utc>>() {
+        if let Ok(ts) = candidate.parse::<Timestamp>() {
             return Some(ts);
         }
     }
@@ -165,34 +165,35 @@ fn find_timestamp(line: &str) -> Option<DateTime<Utc>> {
 }
 
 /// Format a timestamp label based on the time range duration.
-fn format_time_label(ts: DateTime<Utc>, total_hours: i64) -> String {
+fn format_time_label(ts: Timestamp, total_hours: i64) -> String {
+    let zdt = ts.to_zoned(jiff::tz::TimeZone::UTC);
     if total_hours < 24 {
-        ts.format("%H:%M").to_string()
+        zdt.strftime("%H:%M").to_string()
     } else if total_hours < 24 * 7 {
-        ts.format("%d %H:%M").to_string()
+        zdt.strftime("%d %H:%M").to_string()
     } else {
-        ts.format("%m-%d").to_string()
+        zdt.strftime("%m-%d").to_string()
     }
 }
 
 /// Build and render histogram as bar chart lines.
 fn render_histogram(
     lines: &[String],
-    since_duration: Option<Duration>,
+    since_span: Option<Span>,
     bucket_count: usize,
 ) -> Vec<String> {
-    if bucket_count == 0 {
+    if bucket_count < 12 {
         return Vec::new();
     }
 
-    let timestamps: Vec<DateTime<Utc>> = lines.iter().filter_map(|l| find_timestamp(l)).collect();
+    let timestamps: Vec<Timestamp> = lines.iter().filter_map(|l| find_timestamp(l)).collect();
     if timestamps.is_empty() {
         return Vec::new();
     }
 
-    let now = Utc::now();
-    let start_time = match since_duration
-        .map(|dur| now - dur)
+    let now = Timestamp::now();
+    let start_time = match since_span
+        .and_then(|span| now.checked_sub(span).ok())
         .or_else(|| timestamps.iter().min().copied())
     {
         Some(t) => t,
@@ -200,16 +201,17 @@ fn render_histogram(
     };
     let end_time = now;
 
-    let total_duration = end_time.signed_duration_since(start_time);
-    if total_duration.num_seconds() <= 0 {
+    let total_duration = end_time.duration_since(start_time);
+    let total_secs = total_duration.as_secs();
+    if total_secs <= 0 {
         return Vec::new();
     }
 
-    let bucket_duration_secs = total_duration.num_seconds() as f64 / bucket_count as f64;
+    let bucket_duration_secs = total_secs as f64 / bucket_count as f64;
 
     let mut buckets = vec![0usize; bucket_count];
     for ts in &timestamps {
-        let offset = ts.signed_duration_since(start_time).num_seconds() as f64;
+        let offset = ts.duration_since(start_time).as_secs() as f64;
         let bucket_idx = ((offset / bucket_duration_secs) as usize).min(bucket_count - 1);
         buckets[bucket_idx] += 1;
     }
@@ -225,13 +227,13 @@ fn render_histogram(
     bar_line.push('│');
 
     // Build label line
-    let total_hours = total_duration.num_hours();
+    let total_hours = (total_secs / 3600) as i64;
     let first_label = format_time_label(start_time, total_hours);
     let last_label = format_time_label(end_time, total_hours);
     let padding = bucket_count
         .saturating_sub(first_label.len() + last_label.len())
         .max(1);
-    let label_line = format!(" {}{}{}",  first_label, "─".repeat(padding), last_label);
+    let label_line = format!(" {}{}{}", first_label, "─".repeat(padding), last_label);
 
     vec![bar_line, label_line]
 }
@@ -271,7 +273,11 @@ impl LogSession {
             .get()
             .ok_or_else(|| LuaError::runtime("Tokio runtime not initialized"))?;
 
-        let since_time = config.since.as_deref().and_then(parse_duration).map(|d| Utc::now() - d);
+        let since_time = config
+            .since
+            .as_deref()
+            .and_then(parse_duration)
+            .and_then(|span| Timestamp::now().checked_sub(span).ok());
 
         // If following with no since, use since_seconds=1 to start from "now"
         let follow = config.follow.unwrap_or(false);
@@ -341,7 +347,7 @@ impl UserData for LogSession {
 #[derive(Clone, Copy)]
 struct ContainerLogParams {
     follow: bool,
-    since_time: Option<DateTime<Utc>>,
+    since_time: Option<Timestamp>,
     since_seconds: Option<i64>,
     timestamps: bool,
     previous: bool,
@@ -429,8 +435,10 @@ pub async fn fetch_logs_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
         .map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     let bucket_count = config.histogram_width.unwrap_or(DEFAULT_HISTOGRAM_BUCKETS);
-    let since_duration = config.since.as_deref().and_then(parse_duration);
-    let since_time = since_duration.map(|d| Utc::now() - d);
+    let since_span = config.since.as_deref().and_then(parse_duration);
+    let since_time = since_span
+        .as_ref()
+        .and_then(|span| Timestamp::now().checked_sub(*span).ok());
 
     with_client(move |client| async move {
         let targets = resolve_log_targets(
@@ -488,7 +496,7 @@ pub async fn fetch_logs_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
             collected_logs.push(line);
         }
 
-        let mut result = render_histogram(&collected_logs, since_duration, bucket_count);
+        let mut result = render_histogram(&collected_logs, since_span, bucket_count);
         result.append(&mut collected_logs);
 
         serde_json::to_string(&result)

@@ -1,4 +1,4 @@
-use chrono::{Duration, Utc};
+use jiff::Timestamp;
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use rayon::prelude::*;
@@ -9,7 +9,7 @@ use crate::{
     filter::filter_dynamic,
     sort::sort_dynamic,
     structs::Gvk,
-    utils::{time_since, AccessorMode, FieldValue},
+    utils::{time_since_jiff, AccessorMode, FieldValue},
 };
 
 type FieldAccessorFn<'a, R> = Box<dyn Fn(&R, &str) -> Option<String> + 'a>;
@@ -150,12 +150,13 @@ pub trait Processor: Debug + Send + Sync {
         };
 
         if let Some(ts) = obj.metadata.creation_timestamp.as_ref() {
-            age.value = time_since(&ts.0.to_rfc3339()).to_string();
-            age.sort_by = Some(ts.0.timestamp().max(0) as usize);
-            let ten_minutes = Duration::minutes(10);
-            let age_duration = Utc::now().signed_duration_since(ts.0);
-            if age_duration < ten_minutes {
-                age.symbol = Some(symbols().success.clone());
+            age.value = time_since_jiff(&ts.0);
+            age.sort_by = Some(ts.0.as_second().max(0) as usize);
+            if let Ok(age_span) = Timestamp::now().since(ts.0) {
+                // Check if age is less than 10 minutes (600 seconds)
+                if age_span.get_seconds() < 600 {
+                    age.symbol = Some(symbols().success.clone());
+                }
             }
         }
 

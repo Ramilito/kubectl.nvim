@@ -1,5 +1,4 @@
 local BaseResource = require("kubectl.resources.base_resource")
-local config = require("kubectl.config")
 local log_session = require("kubectl.views.logs.session")
 local manager = require("kubectl.resource_manager")
 local pf_action = require("kubectl.actions.portforward")
@@ -110,8 +109,6 @@ function M.LogsWithPods(pods, display_name, container)
       end
     end
   end
-  local width = math.floor(config.options.float_size.width * vim.o.columns) - 4
-
   -- Get current options for display
   local opts = log_session.get_options()
 
@@ -138,6 +135,10 @@ function M.LogsWithPods(pods, display_name, container)
     recreate_func = M.LogsWithPods,
     recreate_args = { pods, display_name, container },
   })
+
+  -- Get actual window width after view is created, minus 2 for histogram borders
+  local win = vim.fn.bufwinid(builder.buf_nr)
+  local width = (win > 0 and vim.api.nvim_win_get_width(win) or 50) - 2
 
   -- Store pods in buffer for option changes (gp, gt, gh, etc.)
   vim.api.nvim_buf_set_var(builder.buf_nr, "kubectl_log_pods", pods)

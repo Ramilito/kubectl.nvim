@@ -266,15 +266,9 @@ fn get_all(_lua: &Lua, json: String) -> LuaResult<String> {
     with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
-            get_resources_async(
-                &client,
-                args.gvk.k,
-                Some(args.gvk.g),
-                Some(args.gvk.v),
-                args.namespace,
-            )
-            .await
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+            get_resources_async(&client, args.gvk.k, args.gvk.g, args.gvk.v, args.namespace)
+                .await
+                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
             cached
         };
@@ -293,15 +287,9 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
     with_client(move |client| async move {
         let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
-            get_resources_async(
-                &client,
-                args.gvk.k,
-                Some(args.gvk.g),
-                Some(args.gvk.v),
-                args.namespace,
-            )
-            .await
-            .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+            get_resources_async(&client, args.gvk.k, args.gvk.g, args.gvk.v, args.namespace)
+                .await
+                .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
             cached
         };

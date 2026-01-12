@@ -1,9 +1,9 @@
 use crate::events::symbols;
 use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
+use jiff::Timestamp;
 use k8s_openapi::{
     api::batch::v1::Job,
-    chrono::Utc,
     serde_json::{from_value, to_value},
 };
 use kube::api::DynamicObject;
@@ -52,14 +52,14 @@ impl Processor for JobProcessor {
                 .creation_timestamp
                 .as_ref()
                 .map(|t| t.0)
-                .unwrap_or_else(Utc::now);
+                .unwrap_or_else(Timestamp::now);
             let end_ts = job
                 .status
                 .as_ref()
                 .and_then(|s| s.completion_time.as_ref().map(|t| t.0))
-                .unwrap_or_else(Utc::now);
+                .unwrap_or_else(Timestamp::now);
 
-            human_duration(end_ts - create_ts)
+            human_duration_jiff(create_ts, end_ts)
         };
 
         let containers = container_data(&job, |c| c.name.clone());
@@ -118,8 +118,8 @@ where
         .unwrap_or_default()
 }
 
-fn human_duration(dur: chrono::Duration) -> String {
-    let secs = dur.num_seconds();
+fn human_duration_jiff(start: Timestamp, end: Timestamp) -> String {
+    let secs = end.since(start).map(|s| s.get_seconds()).unwrap_or(0);
     if secs < 60 {
         format!("{secs}s")
     } else if secs < 3600 {

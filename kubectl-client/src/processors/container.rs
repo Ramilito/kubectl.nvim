@@ -1,8 +1,8 @@
 use crate::{
     pod_stats,
-    utils::{time_since, AccessorMode},
+    utils::{time_since_jiff, AccessorMode},
 };
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use k8s_metrics::QuantityExt;
 use k8s_openapi::{
     api::core::v1::{ContainerPort, ContainerStatus, Pod, ResourceRequirements},
@@ -86,7 +86,7 @@ impl Processor for ContainerProcessor {
 
             let age = started_at
                 .as_ref()
-                .map(|ts| time_since(&ts.to_rfc3339()))
+                .map(|ts| time_since_jiff(ts))
                 .unwrap_or_else(|| "n/a".into());
 
             let (req_cpu, req_mem) = resource_pair(res, true);
@@ -181,7 +181,7 @@ impl Processor for ContainerProcessor {
     }
 }
 
-fn container_state(cs: &ContainerStatus) -> (String, Option<DateTime<Utc>>) {
+fn container_state(cs: &ContainerStatus) -> (String, Option<Timestamp>) {
     if let Some(s) = &cs.state {
         if let Some(r) = &s.running {
             return ("Running".into(), r.started_at.as_ref().map(|t| t.0));
@@ -259,6 +259,7 @@ fn pct(used: u64, bound: u64) -> String {
 fn quantity_to_millicpu(q: &Quantity) -> u64 {
     (q.to_f64().unwrap_or(0.0) * 1000.0).round() as u64
 }
+
 #[inline]
 fn quantity_to_mib(q: &Quantity) -> u64 {
     if let Ok(bytes) = q.to_memory() {

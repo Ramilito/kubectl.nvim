@@ -108,13 +108,13 @@ async fn await_status_or_timeout(mut proc: AttachedProcess) -> Result<AttachedPr
     if let Some(fut) = proc.take_status() {
         match timeout(Duration::from_millis(200), fut).await {
             Ok(Some(status)) if status.status.as_deref() == Some("Failure") => {
-                // convert Status -> kube::Error::Api
-                Err(KubeError::Api(kube::error::ErrorResponse {
-                    status: status.status.unwrap_or_default(),
-                    message: status.message.unwrap_or_else(|| "exec failed".into()),
-                    reason: status.reason.unwrap_or_default(),
-                    code: status.code.unwrap_or(400) as u16,
-                }))
+                // convert k8s_openapi::Status -> kube::core::Status -> kube::Error::Api
+                let kube_status = kube::core::Status::failure(
+                    &status.message.clone().unwrap_or_else(|| "exec failed".into()),
+                    &status.reason.clone().unwrap_or_default(),
+                )
+                .with_code(status.code.unwrap_or(400) as u16);
+                Err(KubeError::Api(Box::new(kube_status)))
             }
             _ => Ok(proc),
         }

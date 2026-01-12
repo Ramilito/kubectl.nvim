@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use k8s_openapi::api::apps::v1::{
     DaemonSet, DaemonSetCondition, Deployment, DeploymentCondition, ReplicaSet,
     ReplicaSetCondition, StatefulSet, StatefulSetCondition,
@@ -37,12 +37,15 @@ pub fn format_resource(kind: &str, obj: &DynamicObject) -> String {
 
 // Helper functions
 
-fn time_since(timestamp: Option<&DateTime<Utc>>) -> String {
+fn time_since(timestamp: Option<&Timestamp>) -> String {
     let Some(ts) = timestamp else {
         return "unknown".to_string();
     };
-    let duration = Utc::now().signed_duration_since(*ts);
-    let secs = duration.num_seconds();
+    let now = Timestamp::now();
+    let Ok(span) = now.since(*ts) else {
+        return "unknown".to_string();
+    };
+    let secs = span.get_seconds();
     if secs < 60 {
         format!("{}s", secs)
     } else if secs < 3600 {

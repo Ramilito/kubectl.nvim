@@ -1,11 +1,11 @@
+use jiff::Timestamp;
 use k8s_openapi::api::core::v1::{Event as CoreEvent, ObjectReference};
-use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
 use crate::events::color_status;
 use crate::processors::processor::Processor;
-use crate::utils::{pad_key, time_since, AccessorMode, FieldValue};
+use crate::utils::{pad_key, time_since_jiff, AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EventProcessed {
@@ -131,17 +131,17 @@ fn object_string(kind: String, name: String) -> String {
 }
 
 fn last_seen_field(
-    series_last: Option<DateTime<Utc>>,
-    event_time: Option<DateTime<Utc>>,
-    created: Option<DateTime<Utc>>,
-    last_timestamp: Option<DateTime<Utc>>,
+    series_last: Option<Timestamp>,
+    event_time: Option<Timestamp>,
+    created: Option<Timestamp>,
+    last_timestamp: Option<Timestamp>,
 ) -> FieldValue {
     let ts = series_last.or(event_time).or(last_timestamp).or(created);
 
     let mut f = FieldValue::default();
     if let Some(t) = ts {
-        f.value = time_since(&t.to_rfc3339());
-        f.sort_by = Some(t.timestamp_millis().try_into().unwrap());
+        f.value = time_since_jiff(&t);
+        f.sort_by = Some(t.as_millisecond().max(0) as usize);
     }
     f
 }

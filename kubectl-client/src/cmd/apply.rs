@@ -1,78 +1,52 @@
 use k8s_openapi::serde_json;
 use kube::{
     api::{DynamicObject, GroupVersionKind, Patch, PatchParams},
-    Discovery, ResourceExt,
+    ResourceExt,
 };
 use mlua::prelude::*;
-use tokio::runtime::Runtime;
 
-use crate::{CLIENT_INSTANCE, RUNTIME};
+use crate::with_client;
 
 use super::utils::{dynamic_api, multidoc_deserialize};
 
 #[tracing::instrument]
 pub async fn apply_async(_lua: Lua, args: Option<String>) -> LuaResult<()> {
-    let path = args;
-
-    let (client, rt_handle) = {
-        let client = {
-            let client_guard = CLIENT_INSTANCE
-                .lock()
-                .map_err(|_| mlua::Error::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))?;
-            client_guard
-                .as_ref()
-                .ok_or_else(|| mlua::Error::RuntimeError("Client not initialized".into()))?
-                .clone()
-        };
-
-        let rt_handle =
-            { RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime")) };
-
-        (client, rt_handle)
-    };
-
-    let discovery = rt_handle.block_on(async {
-        Discovery::new(client.clone())
-            .run()
-            .await
-            .map_err(mlua::Error::external)
-    })?;
-
-    let ssapply = PatchParams::apply("kubectl-light").force();
-    let pth = path
-        .clone()
+    let pth = args
         .ok_or_else(|| mlua::Error::RuntimeError("apply requires a file path (-f)".into()))?;
     let yaml = std::fs::read_to_string(&pth).map_err(mlua::Error::external)?;
 
+    let ssapply = PatchParams::apply("kubectl-light").force();
+
     for doc in multidoc_deserialize(&yaml)? {
-        let obj: DynamicObject =
-            serde_yaml::from_value(doc).map_err(mlua::Error::external)?;
+        let obj: DynamicObject = serde_yaml::from_value(doc).map_err(mlua::Error::external)?;
 
-        let namespace = obj.metadata.namespace.as_deref();
+        let gvk = obj
+            .types
+            .as_ref()
+            .map(GroupVersionKind::try_from)
+            .transpose()
+            .map_err(mlua::Error::external)?
+            .ok_or_else(|| mlua::Error::RuntimeError("Missing object types".into()))?;
 
-        let gvk = if let Some(tm) = &obj.types {
-            GroupVersionKind::try_from(tm).map_err(mlua::Error::external)?
-        } else {
-            return Err(mlua::Error::RuntimeError("Missing object types".into()));
-        };
-
+        let namespace = obj.metadata.namespace.clone();
         let name = obj.name_any();
-        if let Some((ar, caps)) = discovery.resolve_gvk(&gvk) {
-            let api = dynamic_api(ar, caps, client.clone(), namespace, false);
+        let data: serde_json::Value =
+            serde_json::to_value(&obj).map_err(mlua::Error::external)?;
 
-            let data: serde_json::Value =
-                serde_json::to_value(&obj).map_err(mlua::Error::external)?;
+        let ssapply = ssapply.clone();
+        with_client(move |client| async move {
+            let (ar, caps) = kube::discovery::pinned_kind(&client, &gvk)
+                .await
+                .map_err(mlua::Error::external)?;
 
-            let _r = rt_handle.block_on(async {
-                api.patch(&name, &ssapply, &Patch::Apply(data))
-                    .await
-                    .map_err(mlua::Error::external)
-            });
-        } else {
-            return Err(mlua::Error::RuntimeError(
-                "Cannot apply document for unknown ".into(),
-            ));
-        }
+            let api = dynamic_api(ar, caps, client, namespace.as_deref(), false);
+
+            api.patch(&name, &ssapply, &Patch::Apply(data))
+                .await
+                .map_err(mlua::Error::external)?;
+
+            Ok(())
+        })?;
     }
 
     Ok(())
