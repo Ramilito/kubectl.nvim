@@ -3,6 +3,7 @@ use crate::{
     utils::{time_since_jiff, AccessorMode},
 };
 use jiff::Timestamp;
+use k8s_metrics::QuantityExt;
 use k8s_openapi::{
     api::core::v1::{ContainerPort, ContainerStatus, Pod, ResourceRequirements},
     apimachinery::pkg::api::resource::Quantity,
@@ -256,57 +257,19 @@ fn pct(used: u64, bound: u64) -> String {
 
 #[inline]
 fn quantity_to_millicpu(q: &Quantity) -> u64 {
-    parse_cpu_to_millicores(&q.0).unwrap_or(0)
+    (q.to_f64().unwrap_or(0.0) * 1000.0).round() as u64
 }
 
 #[inline]
 fn quantity_to_mib(q: &Quantity) -> u64 {
-    parse_memory_to_bytes(&q.0)
-        .map(|bytes| bytes / (1024 * 1024))
-        .unwrap_or(0)
-}
-
-/// Parse Kubernetes CPU quantity string to millicores
-fn parse_cpu_to_millicores(s: &str) -> Option<u64> {
-    if let Some(n) = s.strip_suffix('m') {
-        // Already in millicores
-        n.parse::<f64>().ok().map(|v| v.round() as u64)
-    } else if let Some(n) = s.strip_suffix('n') {
-        // Nanocores
-        n.parse::<f64>().ok().map(|v| (v / 1_000_000.0).round() as u64)
-    } else if let Some(n) = s.strip_suffix('u') {
-        // Microcores
-        n.parse::<f64>().ok().map(|v| (v / 1_000.0).round() as u64)
+    if let Ok(bytes) = q.to_memory() {
+        (bytes as u64) / (1024 * 1024)
+    } else if let Some(num_str) = q.0.strip_suffix('m') {
+        num_str
+            .parse::<f64>()
+            .map(|n| ((n / 1000.0) / (1024.0 * 1024.0)).round() as u64)
+            .unwrap_or(0)
     } else {
-        // Whole cores
-        s.parse::<f64>().ok().map(|v| (v * 1000.0).round() as u64)
+        0
     }
-}
-
-/// Parse Kubernetes memory quantity string to bytes
-fn parse_memory_to_bytes(s: &str) -> Option<u64> {
-    let suffixes: &[(&str, u64)] = &[
-        ("Ei", 1024 * 1024 * 1024 * 1024 * 1024 * 1024),
-        ("Pi", 1024 * 1024 * 1024 * 1024 * 1024),
-        ("Ti", 1024 * 1024 * 1024 * 1024),
-        ("Gi", 1024 * 1024 * 1024),
-        ("Mi", 1024 * 1024),
-        ("Ki", 1024),
-        ("E", 1000 * 1000 * 1000 * 1000 * 1000 * 1000),
-        ("P", 1000 * 1000 * 1000 * 1000 * 1000),
-        ("T", 1000 * 1000 * 1000 * 1000),
-        ("G", 1000 * 1000 * 1000),
-        ("M", 1000 * 1000),
-        ("K", 1000),
-        ("k", 1000),
-    ];
-
-    for (suffix, multiplier) in suffixes {
-        if let Some(n) = s.strip_suffix(suffix) {
-            return n.parse::<f64>().ok().map(|v| (v * (*multiplier as f64)).round() as u64);
-        }
-    }
-
-    // Plain bytes
-    s.parse::<u64>().ok()
 }
