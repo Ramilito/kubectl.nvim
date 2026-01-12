@@ -68,9 +68,14 @@ pub async fn get_resources_async(
         let gvk = GroupVersionKind::gvk(g.as_str(), v.as_str(), kind.as_str());
         kube::discovery::pinned_kind(client, &gvk).await?
     } else {
-        let discovery = kube::discovery::Discovery::new(client.clone())
-            .run()
-            .await?;
+        // Try aggregated discovery first (K8s 1.26+)
+        let discovery = match kube::discovery::Discovery::new(client.clone())
+            .run_aggregated()
+            .await
+        {
+            Ok(d) => d,
+            Err(_) => kube::discovery::Discovery::new(client.clone()).run().await?,
+        };
         resolve_api_resource(&discovery, &kind).ok_or_else(|| {
             Error::Discovery(DiscoveryError::MissingResource(format!(
                 "Resource not found in cluster: {kind}"
@@ -117,10 +122,17 @@ pub async fn get_resource_async(
             .await
             .map_err(mlua::Error::external)?
     } else {
-        let discovery = Discovery::new(client.clone())
-            .run()
+        // Try aggregated discovery first (K8s 1.26+)
+        let discovery = match Discovery::new(client.clone())
+            .run_aggregated()
             .await
-            .map_err(mlua::Error::external)?;
+        {
+            Ok(d) => d,
+            Err(_) => Discovery::new(client.clone())
+                .run()
+                .await
+                .map_err(mlua::Error::external)?,
+        };
         resolve_api_resource(&discovery, &kind).ok_or_else(|| {
             mlua::Error::external(format!("Resource not found in cluster: {kind}"))
         })?
@@ -308,11 +320,28 @@ impl FallbackResource {
 #[tracing::instrument]
 pub async fn get_api_resources_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(|client| async move {
-        let discovery = Discovery::new(client.clone())
-            .exclude(&[r"custom.metrics.k8s.io", r"metrics.k8s.io", r"events.k8s.io"])
-            .run()
+        // Try aggregated discovery first (K8s 1.26+, stable in 1.30+)
+        // Falls back to standard discovery for older clusters
+        let exclude_groups = &[r"custom.metrics.k8s.io", r"metrics.k8s.io", r"events.k8s.io"];
+
+        let discovery = match Discovery::new(client.clone())
+            .exclude(exclude_groups)
+            .run_aggregated()
             .await
-            .map_err(|e| LuaError::external(format!("discovery: {e}")))?;
+        {
+            Ok(d) => {
+                tracing::debug!("Using aggregated discovery");
+                d
+            }
+            Err(_) => {
+                tracing::debug!("Aggregated discovery not available, falling back to standard");
+                Discovery::new(client.clone())
+                    .exclude(exclude_groups)
+                    .run()
+                    .await
+                    .map_err(|e| LuaError::external(format!("discovery: {e}")))?
+            }
+        };
 
         let mut sn_map: HashMap<String, HashSet<String>> = HashMap::new();
 

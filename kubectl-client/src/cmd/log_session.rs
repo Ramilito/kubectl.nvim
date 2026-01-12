@@ -1,6 +1,7 @@
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Pod, PodSpec};
-use k8s_openapi::chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
+use jiff::{Span, Timestamp};
 use k8s_openapi::serde_json;
 use kube::api::LogParams;
 use kube::{Api, Client};
@@ -271,7 +272,11 @@ impl LogSession {
             .get()
             .ok_or_else(|| LuaError::runtime("Tokio runtime not initialized"))?;
 
-        let since_time = config.since.as_deref().and_then(parse_duration).map(|d| Utc::now() - d);
+        let since_time = config
+            .since
+            .as_deref()
+            .and_then(parse_duration)
+            .and_then(|d| Timestamp::now().checked_sub(Span::new().seconds(d.num_seconds())).ok());
 
         // If following with no since, use since_seconds=1 to start from "now"
         let follow = config.follow.unwrap_or(false);
@@ -341,7 +346,7 @@ impl UserData for LogSession {
 #[derive(Clone, Copy)]
 struct ContainerLogParams {
     follow: bool,
-    since_time: Option<DateTime<Utc>>,
+    since_time: Option<Timestamp>,
     since_seconds: Option<i64>,
     timestamps: bool,
     previous: bool,
@@ -430,7 +435,9 @@ pub async fn fetch_logs_async(_lua: mlua::Lua, json: String) -> mlua::Result<Str
 
     let bucket_count = config.histogram_width.unwrap_or(DEFAULT_HISTOGRAM_BUCKETS);
     let since_duration = config.since.as_deref().and_then(parse_duration);
-    let since_time = since_duration.map(|d| Utc::now() - d);
+    let since_time = since_duration.and_then(|d| {
+        Timestamp::now().checked_sub(Span::new().seconds(d.num_seconds())).ok()
+    });
 
     with_client(move |client| async move {
         let targets = resolve_log_targets(

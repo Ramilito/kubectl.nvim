@@ -1,4 +1,4 @@
-use k8s_openapi::chrono::Utc;
+use chrono::Utc;
 use k8s_openapi::serde_json;
 use kube::api::ApiResource;
 use kube::api::DynamicObject;

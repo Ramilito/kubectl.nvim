@@ -31,11 +31,15 @@ pub async fn apply_async(_lua: Lua, args: Option<String>) -> LuaResult<()> {
         (client, rt_handle)
     };
 
+    // Try aggregated discovery first (K8s 1.26+, stable in 1.30+)
     let discovery = rt_handle.block_on(async {
-        Discovery::new(client.clone())
-            .run()
-            .await
-            .map_err(mlua::Error::external)
+        match Discovery::new(client.clone()).run_aggregated().await {
+            Ok(d) => Ok(d),
+            Err(_) => Discovery::new(client.clone())
+                .run()
+                .await
+                .map_err(mlua::Error::external),
+        }
     })?;
 
     let ssapply = PatchParams::apply("kubectl-light").force();

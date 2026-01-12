@@ -3,10 +3,9 @@ use std::collections::HashMap;
 use crate::{
     events::{color_status, symbols},
     pod_stats,
-    utils::{pad_key, time_since, AccessorMode, FieldValue},
+    utils::{pad_key, time_since_jiff, AccessorMode, FieldValue},
 };
-use chrono::{DateTime, Utc};
-use k8s_metrics::QuantityExt;
+use jiff::Timestamp;
 use k8s_openapi::{
     api::core::v1::{ContainerStatus, Pod},
     apimachinery::pkg::api::resource::Quantity,
@@ -46,13 +45,12 @@ impl Processor for PodProcessor {
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         use k8s_openapi::api::core::v1::Pod;
-        use k8s_openapi::chrono::Utc;
         use k8s_openapi::serde_json::{from_value, to_value};
 
         let pod: Pod =
             from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
 
-        let now = Utc::now();
+        let now = Timestamp::now();
 
         let namespace = pod.metadata.namespace.clone().unwrap_or_default();
         let name = pod.metadata.name.clone().unwrap_or_default();
@@ -239,21 +237,53 @@ fn sum_limits(pod: &Pod) -> (u64, u64) {
 }
 
 fn quantity_to_millicpu(q: &Quantity) -> u64 {
-    (q.to_f64().unwrap_or(0.0) * 1000.0).round() as u64
+    parse_cpu_to_millicores(&q.0).unwrap_or(0)
 }
-fn quantity_to_mib(q: &Quantity) -> u64 {
-    if let Ok(bytes) = q.to_memory() {
-        return (bytes as u64) / (1024 * 1024);
-    }
 
-    let raw = q.0.as_str();
-    if let Some(num_str) = raw.strip_suffix('m') {
-        if let Ok(num) = num_str.parse::<f64>() {
-            return ((num / 1000.0) / (1024.0 * 1024.0)).round() as u64;
+fn quantity_to_mib(q: &Quantity) -> u64 {
+    parse_memory_to_bytes(&q.0)
+        .map(|bytes| bytes / (1024 * 1024))
+        .unwrap_or(0)
+}
+
+/// Parse Kubernetes CPU quantity string to millicores
+fn parse_cpu_to_millicores(s: &str) -> Option<u64> {
+    if let Some(n) = s.strip_suffix('m') {
+        n.parse::<f64>().ok().map(|v| v.round() as u64)
+    } else if let Some(n) = s.strip_suffix('n') {
+        n.parse::<f64>().ok().map(|v| (v / 1_000_000.0).round() as u64)
+    } else if let Some(n) = s.strip_suffix('u') {
+        n.parse::<f64>().ok().map(|v| (v / 1_000.0).round() as u64)
+    } else {
+        s.parse::<f64>().ok().map(|v| (v * 1000.0).round() as u64)
+    }
+}
+
+/// Parse Kubernetes memory quantity string to bytes
+fn parse_memory_to_bytes(s: &str) -> Option<u64> {
+    let suffixes: &[(&str, u64)] = &[
+        ("Ei", 1024 * 1024 * 1024 * 1024 * 1024 * 1024),
+        ("Pi", 1024 * 1024 * 1024 * 1024 * 1024),
+        ("Ti", 1024 * 1024 * 1024 * 1024),
+        ("Gi", 1024 * 1024 * 1024),
+        ("Mi", 1024 * 1024),
+        ("Ki", 1024),
+        ("E", 1000 * 1000 * 1000 * 1000 * 1000 * 1000),
+        ("P", 1000 * 1000 * 1000 * 1000 * 1000),
+        ("T", 1000 * 1000 * 1000 * 1000),
+        ("G", 1000 * 1000 * 1000),
+        ("M", 1000 * 1000),
+        ("K", 1000),
+        ("k", 1000),
+    ];
+
+    for (suffix, multiplier) in suffixes {
+        if let Some(n) = s.strip_suffix(suffix) {
+            return n.parse::<f64>().ok().map(|v| (v * (*multiplier as f64)).round() as u64);
         }
     }
 
-    0
+    s.parse::<u64>().ok()
 }
 
 fn color_usage(p: u64) -> String {
@@ -270,7 +300,7 @@ pub fn percent(used: u64, limit: u64) -> u64 {
     ((used as f64 / limit as f64) * 100.0).round() as u64
 }
 
-fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> FieldValue {
+fn get_restarts(pod: &Pod, _current_time: &Timestamp) -> FieldValue {
     let total_restarts: usize = pod
         .status
         .as_ref()
@@ -278,7 +308,7 @@ fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> FieldValue {
         .map(|statuses| statuses.iter().map(|cs| cs.restart_count as usize).sum())
         .unwrap_or(0);
 
-    let last_finished: Option<DateTime<Utc>> = pod
+    let last_finished: Option<Timestamp> = pod
         .status
         .as_ref()
         .and_then(|s| s.container_statuses.as_ref())
@@ -302,7 +332,7 @@ fn get_restarts(pod: &Pod, _current_time: &DateTime<Utc>) -> FieldValue {
     };
 
     if let Some(ts) = last_finished {
-        restarts.value = format!("{} ({} ago)", total_restarts, time_since(&ts.to_rfc3339()));
+        restarts.value = format!("{} ({} ago)", total_restarts, time_since_jiff(&ts));
     }
 
     if total_restarts > 0 {

@@ -4,7 +4,6 @@ use std::{
     time::Duration,
 };
 
-use k8s_metrics::{v1beta1 as metricsv1, QuantityExt};
 use k8s_openapi::api::core::v1::Node;
 use kube::{api, Api, Client, ResourceExt};
 use tokio::{task::JoinHandle, time};
@@ -12,6 +11,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use super::mark_node_stats_dirty;
+use super::types::{parse_cpu_to_cores, parse_memory_to_bytes, NodeMetrics};
 use crate::{node_stats, processors::node::get_status};
 
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
@@ -55,7 +55,7 @@ impl NodeCollector {
         let child = cancel.clone();
 
         let node_api: Api<Node> = Api::all(client.clone());
-        let metrics_api: Api<metricsv1::NodeMetrics> = Api::all(client);
+        let metrics_api: Api<NodeMetrics> = Api::all(client);
 
         let handle = tokio::spawn(async move {
             let mut tick = time::interval(POLL_INTERVAL);
@@ -83,8 +83,8 @@ impl NodeCollector {
                                         let cpu_q = capacity.get("cpu")?;
                                         let mem_q = capacity.get("memory")?;
 
-                                        let cpu_cores = cpu_q.to_f64().unwrap_or(0.0);
-                                        let mem_bytes = mem_q.to_memory().unwrap_or(0);
+                                        let cpu_cores = parse_cpu_to_cores(&cpu_q.0).unwrap_or(0.0);
+                                        let mem_bytes = parse_memory_to_bytes(&mem_q.0).unwrap_or(0);
                                         let status = get_status(&n);
                                         Some((n.name_any(), (status.value, cpu_cores, mem_bytes)))
                                     })
@@ -97,8 +97,8 @@ impl NodeCollector {
                                         let name = m.metadata.name?;
                                         let (status, cap_cpu, cap_mem) = cap.get(&name)?;
 
-                                        let used_cpu = m.usage.cpu.to_f64().unwrap_or(0.0);
-                                        let used_mem = m.usage.memory.to_memory().unwrap_or(0).max(0) as f64;
+                                        let used_cpu = parse_cpu_to_cores(&m.usage.cpu.0).unwrap_or(0.0);
+                                        let used_mem = parse_memory_to_bytes(&m.usage.memory.0).unwrap_or(0).max(0) as f64;
                                         let cap_mem_f = *cap_mem as f64;
 
                                         let cpu_pct = if *cap_cpu > 0.0 {

@@ -1,5 +1,6 @@
 pub mod nodes;
 pub mod pods;
+pub mod types;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 

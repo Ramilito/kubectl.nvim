@@ -1,6 +1,6 @@
 use crate::events::symbols;
 use crate::processors::processor::Processor;
-use crate::utils::{time_since, AccessorMode, FieldValue};
+use crate::utils::{time_since_jiff, AccessorMode, FieldValue};
 use k8s_openapi::api::batch::v1::CronJob;
 use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
@@ -72,7 +72,7 @@ impl Processor for CronJobProcessor {
             .status
             .as_ref()
             .and_then(|s| s.last_schedule_time.as_ref())
-            .map(|t| time_since(&t.0.to_rfc3339()))
+            .map(|t| time_since_jiff(&t.0))
             .unwrap_or_else(|| "<none>".into());
 
         let containers = fetch_container_data(&cj, true);

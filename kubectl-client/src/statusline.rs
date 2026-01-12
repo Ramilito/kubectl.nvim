@@ -1,6 +1,4 @@
-use chrono::DateTime;
-use chrono::Duration;
-use chrono::Utc;
+use jiff::{Span, Timestamp};
 use k8s_openapi::api::core::v1::Event;
 use kube::api::ListParams;
 use kube::Api;
@@ -51,7 +49,9 @@ pub async fn get_statusline(client: Client) -> Result<Statusline, Error> {
     let events_api: Api<Event> = Api::all(client);
     let lp = ListParams::default().fields("type=Warning");
 
-    let cutoff: DateTime<Utc> = Utc::now() - Duration::hours(1);
+    let cutoff: Timestamp = Timestamp::now()
+        .checked_sub(Span::new().hours(1))
+        .unwrap_or(Timestamp::now());
 
     let mut crit_events = 0_u32;
     for e in events_api

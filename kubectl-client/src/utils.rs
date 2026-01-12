@@ -1,9 +1,40 @@
-use k8s_openapi::chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 #[derive(Debug, Clone, Copy)]
 pub enum AccessorMode {
     Sort,
     Filter,
+}
+
+/// Compute time since a jiff::Timestamp, returning a human-readable string
+pub fn time_since_jiff(ts: &Timestamp) -> String {
+    let now = jiff::Timestamp::now();
+    let span = now.since(*ts);
+    let Ok(span) = span else {
+        return "unknown".to_string();
+    };
+
+    // jiff Span stores duration in the finest unit, we need to decompose manually
+    let total_secs = span.get_seconds();
+    let days = total_secs / 86400;
+    let hours = (total_secs % 86400) / 3600;
+    let mins = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+
+    if days > 365 {
+        let years = days / 365;
+        format!("{}y{}d", years, days % 365)
+    } else if days > 7 {
+        format!("{}d", days)
+    } else if days > 0 || hours > 23 {
+        format!("{}d{}h", days, hours % 24)
+    } else if hours > 0 {
+        format!("{}h{}m", hours, mins % 60)
+    } else if mins > 0 {
+        format!("{}m{}s", mins, secs % 60)
+    } else {
+        format!("{}s", secs)
+    }
 }
 
 pub fn pad_key(n: usize) -> String {
@@ -28,38 +59,5 @@ impl Default for FieldValue {
             sort_by: None,
             hint: None,
         }
-    }
-}
-
-pub fn time_since(ts_str: &str) -> String {
-    if let Ok(ts) = ts_str.parse::<DateTime<Utc>>() {
-        let now = Utc::now();
-        let diff = now.signed_duration_since(ts);
-
-        if diff.num_seconds() < 0 {
-            return "In the future".to_string();
-        }
-
-        // Extract units
-        let days = diff.num_days();
-        let years = days / 365;
-        let hours = diff.num_hours() % 24;
-        let minutes = diff.num_minutes() % 60;
-        let seconds = diff.num_seconds() % 60;
-
-        // Format based on size
-        if days > 365 {
-            format!("{}y{}d", years, days % 365)
-        } else if days > 7 {
-            format!("{}d", days)
-        } else if days > 0 || hours > 23 {
-            format!("{}d{}h", days, hours)
-        } else if hours > 0 {
-            format!("{}h{}m", hours, minutes)
-        } else {
-            format!("{}m{}s", minutes, seconds)
-        }
-    } else {
-        "".to_string()
     }
 }
