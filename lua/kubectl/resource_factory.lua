@@ -298,6 +298,19 @@ function M.new(resource)
     local filter_label = state.getFilterLabel() or nil
     local filter_key = state.getFilterKey() or nil
 
+    -- Get window dimensions for Rust-side formatting
+    local windows = buffers.get_windows_by_name(resource)
+    local primary_win = windows[1]
+    local window_width, text_offset
+    if primary_win and vim.api.nvim_win_is_valid(primary_win) then
+      window_width = vim.api.nvim_win_get_width(primary_win)
+      text_offset = vim.fn.getwininfo(primary_win)[1].textoff
+    end
+
+    -- Get visible headers for formatting
+    local original_headers = definition.headers or {}
+    local visible_headers = tables.getVisibleHeaders(resource, original_headers)
+
     local args = {
       gvk = definition.gvk,
       namespace = namespace,
@@ -306,6 +319,10 @@ function M.new(resource)
       filter = filter,
       filter_label = filter_label,
       filter_key = filter_key,
+      -- Formatting parameters (Rust will format if all are present)
+      headers = visible_headers,
+      window_width = window_width,
+      text_offset = text_offset,
     }
 
     commands.run_async("get_table_async", args, function(data, err)
@@ -318,39 +335,53 @@ function M.new(resource)
 
       builder.data = data
       builder.decodeJson()
-      builder.processedData = builder.data
 
       vim.schedule(function()
-        if definition.processRow then
-          builder.process(definition.processRow, true)
-          if sort_data then
-            builder.sort()
+        -- Check if Rust returned formatted output
+        local rust_formatted = builder.data and builder.data.lines and builder.data.extmarks
+        if rust_formatted then
+          -- Use Rust-formatted output directly (includes semantic highlights)
+          builder.prettyData = builder.data.lines
+          builder.extmarks = builder.data.extmarks
+          builder.processedData = {}
+        else
+          -- Fallback to Lua formatting (backward compatibility)
+          builder.processedData = builder.data
+
+          if definition.processRow then
+            builder.process(definition.processRow, true)
+            if sort_data then
+              builder.sort()
+            end
           end
+
+          local win_list = buffers.get_windows_by_name(resource)
+          if #win_list == 0 then
+            return
+          end
+          builder.prettyPrint(win_list[1])
+
+          -- Add semantic line highlights (only for Lua path - Rust does this internally)
+          local semantic = require("kubectl.lsp.semantic")
+          semantic.add_line_highlights(builder.processedData, builder.extmarks, 1)
         end
 
-        local windows = buffers.get_windows_by_name(resource)
-        if #windows == 0 then
+        local win_list = buffers.get_windows_by_name(resource)
+        if #win_list == 0 then
           return
         end
 
-        -- Format content using first window's dimensions
-        -- Note: Buffer content is shared across all windows showing this buffer
-        local primary_win = windows[1]
-        builder.prettyPrint(primary_win).addDivider(true)
-
-        -- Add semantic line highlights based on resource state
-        local semantic = require("kubectl.lsp.semantic")
-        semantic.add_line_highlights(builder.processedData, builder.extmarks, 1)
+        builder.addDivider(true)
 
         -- Set buffer content once (all windows see the same buffer)
-        builder.displayContent(primary_win, cancellationToken)
+        builder.displayContent(win_list[1], cancellationToken)
 
         -- Update diagnostics immediately after content (same render frame)
         local diagnostics = require("kubectl.lsp.diagnostics")
         diagnostics.set_diagnostics(builder.buf_nr, resource)
 
         -- Winbar is window-local, so update it for all windows
-        update_winbars(windows, builder.header.divider_winbar)
+        update_winbars(win_list, builder.header.divider_winbar)
 
         local loop = require("kubectl.utils.loop")
         loop.set_running(builder.buf_nr, false)
