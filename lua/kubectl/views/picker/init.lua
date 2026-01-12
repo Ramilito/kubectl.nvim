@@ -1,7 +1,6 @@
 local buffers = require("kubectl.actions.buffers")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
-local mappings = require("kubectl.mappings")
 local state = require("kubectl.state")
 local tables = require("kubectl.utils.tables")
 
@@ -70,49 +69,6 @@ function M.View()
     header = { data = {}, marks = {} },
   })
   builder.fitToContent(1)
-
-  vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "<Plug>(kubectl.delete)", "", {
-    noremap = true,
-    callback = function()
-      local row = vim.api.nvim_win_get_cursor(0)[1]
-      local data_idx = row - 1 -- Account for header row
-      local item = data[data_idx]
-      if item and item._entry then
-        state.picker_remove(item._entry.key)
-        table.remove(data, data_idx)
-        pcall(vim.api.nvim_buf_set_lines, 0, row - 1, row, false, {})
-      end
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(builder.buf_nr, "n", "<Plug>(kubectl.select)", "", {
-    noremap = true,
-    callback = function()
-      local row = vim.api.nvim_win_get_cursor(0)[1]
-      local data_idx = row - 1 -- Account for header row
-      local item = data[data_idx]
-      if not item or not item._entry then
-        return
-      end
-
-      local entry = item._entry
-      vim.cmd("fclose!")
-      vim.schedule(function()
-        if not vim.api.nvim_tabpage_is_valid(entry.tab_id) then
-          vim.cmd("tabnew")
-          entry.tab_id = vim.api.nvim_get_current_tabpage()
-        end
-        vim.schedule(function()
-          vim.api.nvim_set_current_tabpage(entry.tab_id)
-          entry.open(unpack(entry.args))
-        end)
-      end)
-    end,
-  })
-
-  vim.schedule(function()
-    mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.delete)")
-  end)
 end
 
 return M
