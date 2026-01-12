@@ -182,7 +182,7 @@ fn render_histogram(
     since_span: Option<Span>,
     bucket_count: usize,
 ) -> Vec<String> {
-    if bucket_count == 0 {
+    if bucket_count < 12 {
         return Vec::new();
     }
 
@@ -227,9 +227,9 @@ fn render_histogram(
     bar_line.push('│');
 
     // Build label line
-    let total_hours = total_secs / 3600;
-    let first_label = format_time_label(start_time, total_hours as i64);
-    let last_label = format_time_label(end_time, total_hours as i64);
+    let total_hours = (total_secs / 3600) as i64;
+    let first_label = format_time_label(start_time, total_hours);
+    let last_label = format_time_label(end_time, total_hours);
     let padding = bucket_count
         .saturating_sub(first_label.len() + last_label.len())
         .max(1);

@@ -6,6 +6,7 @@ use crate::{
     utils::{pad_key, time_since_jiff, AccessorMode, FieldValue},
 };
 use jiff::Timestamp;
+use k8s_metrics::QuantityExt;
 use k8s_openapi::{
     api::core::v1::{ContainerStatus, Pod},
     apimachinery::pkg::api::resource::Quantity,
@@ -237,53 +238,20 @@ fn sum_limits(pod: &Pod) -> (u64, u64) {
 }
 
 fn quantity_to_millicpu(q: &Quantity) -> u64 {
-    parse_cpu_to_millicores(&q.0).unwrap_or(0)
+    (q.to_f64().unwrap_or(0.0) * 1000.0).round() as u64
 }
 
 fn quantity_to_mib(q: &Quantity) -> u64 {
-    parse_memory_to_bytes(&q.0)
-        .map(|bytes| bytes / (1024 * 1024))
-        .unwrap_or(0)
-}
-
-/// Parse Kubernetes CPU quantity string to millicores
-fn parse_cpu_to_millicores(s: &str) -> Option<u64> {
-    if let Some(n) = s.strip_suffix('m') {
-        n.parse::<f64>().ok().map(|v| v.round() as u64)
-    } else if let Some(n) = s.strip_suffix('n') {
-        n.parse::<f64>().ok().map(|v| (v / 1_000_000.0).round() as u64)
-    } else if let Some(n) = s.strip_suffix('u') {
-        n.parse::<f64>().ok().map(|v| (v / 1_000.0).round() as u64)
-    } else {
-        s.parse::<f64>().ok().map(|v| (v * 1000.0).round() as u64)
+    if let Ok(bytes) = q.to_memory() {
+        return (bytes as u64) / (1024 * 1024);
     }
-}
-
-/// Parse Kubernetes memory quantity string to bytes
-fn parse_memory_to_bytes(s: &str) -> Option<u64> {
-    let suffixes: &[(&str, u64)] = &[
-        ("Ei", 1024 * 1024 * 1024 * 1024 * 1024 * 1024),
-        ("Pi", 1024 * 1024 * 1024 * 1024 * 1024),
-        ("Ti", 1024 * 1024 * 1024 * 1024),
-        ("Gi", 1024 * 1024 * 1024),
-        ("Mi", 1024 * 1024),
-        ("Ki", 1024),
-        ("E", 1000 * 1000 * 1000 * 1000 * 1000 * 1000),
-        ("P", 1000 * 1000 * 1000 * 1000 * 1000),
-        ("T", 1000 * 1000 * 1000 * 1000),
-        ("G", 1000 * 1000 * 1000),
-        ("M", 1000 * 1000),
-        ("K", 1000),
-        ("k", 1000),
-    ];
-
-    for (suffix, multiplier) in suffixes {
-        if let Some(n) = s.strip_suffix(suffix) {
-            return n.parse::<f64>().ok().map(|v| (v * (*multiplier as f64)).round() as u64);
+    let raw = q.0.as_str();
+    if let Some(num_str) = raw.strip_suffix('m') {
+        if let Ok(num) = num_str.parse::<f64>() {
+            return ((num / 1000.0) / (1024.0 * 1024.0)).round() as u64;
         }
     }
-
-    s.parse::<u64>().ok()
+    0
 }
 
 fn color_usage(p: u64) -> String {
@@ -436,7 +404,10 @@ struct ContainerStatusResult {
     hint: Option<String>,
 }
 
-fn get_container_status(pod_statuses: &[ContainerStatus], default_status: &str) -> ContainerStatusResult {
+fn get_container_status(
+    pod_statuses: &[ContainerStatus],
+    default_status: &str,
+) -> ContainerStatusResult {
     let mut result = ContainerStatusResult {
         status: default_status.to_owned(),
         running: false,
