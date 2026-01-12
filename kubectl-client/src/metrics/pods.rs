@@ -10,8 +10,9 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use super::mark_pod_stats_dirty;
-use super::types::{parse_cpu_to_cores, parse_memory_to_bytes, PodMetrics};
+use super::types::{parse_cpu_to_cores, parse_memory_to_bytes};
 use crate::{pod_stats, store};
+use k8s_metrics::v1beta1::PodMetrics;
 
 pub const HISTORY_LEN: usize = 60; // ≈ 30 s @ 500 ms tick or 30 min @ 30 s tick
 

@@ -11,8 +11,9 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use super::mark_node_stats_dirty;
-use super::types::{parse_cpu_to_cores, parse_memory_to_bytes, NodeMetrics};
+use super::types::{parse_cpu_to_cores, parse_memory_to_bytes};
 use crate::{node_stats, processors::node::get_status};
+use k8s_metrics::v1beta1::NodeMetrics;
 
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
 
