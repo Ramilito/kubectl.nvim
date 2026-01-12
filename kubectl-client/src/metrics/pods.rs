@@ -10,9 +10,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use super::mark_pod_stats_dirty;
-use super::types::{parse_cpu_to_cores, parse_memory_to_bytes};
 use crate::{pod_stats, store};
-use k8s_metrics::v1beta1::PodMetrics;
+use k8s_metrics::{v1beta1::PodMetrics, QuantityExt};
 
 pub const HISTORY_LEN: usize = 60; // ≈ 30 s @ 500 ms tick or 30 min @ 30 s tick
 
@@ -313,9 +312,9 @@ impl PodCollector {
                             let mut c_map: HashMap<String, ContainerSample> = HashMap::with_capacity(m.containers.len());
 
                             for c in m.containers {
-                                let cpu_cores = parse_cpu_to_cores(&c.usage.cpu.0).unwrap_or(0.0);
+                                let cpu_cores = c.usage.cpu.to_f64().unwrap_or(0.0);
                                 let cpu_m = (cpu_cores * 1000.0).round() as u64;
-                                let mem_bytes = parse_memory_to_bytes(&c.usage.memory.0).unwrap_or(0).max(0) as u64;
+                                let mem_bytes = c.usage.memory.to_f64().unwrap_or(0.0).max(0.0) as u64;
                                 let mem_mi = mem_bytes / (1024 * 1024);
 
                                 agg_cpu += cpu_cores;

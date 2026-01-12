@@ -11,9 +11,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use super::mark_node_stats_dirty;
-use super::types::{parse_cpu_to_cores, parse_memory_to_bytes};
 use crate::{node_stats, processors::node::get_status};
-use k8s_metrics::v1beta1::NodeMetrics;
+use k8s_metrics::{v1beta1::NodeMetrics, QuantityExt};
 
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
 
@@ -84,8 +83,8 @@ impl NodeCollector {
                                         let cpu_q = capacity.get("cpu")?;
                                         let mem_q = capacity.get("memory")?;
 
-                                        let cpu_cores = parse_cpu_to_cores(&cpu_q.0).unwrap_or(0.0);
-                                        let mem_bytes = parse_memory_to_bytes(&mem_q.0).unwrap_or(0);
+                                        let cpu_cores = cpu_q.to_f64().unwrap_or(0.0);
+                                        let mem_bytes = mem_q.to_f64().unwrap_or(0.0) as i64;
                                         let status = get_status(&n);
                                         Some((n.name_any(), (status.value, cpu_cores, mem_bytes)))
                                     })
@@ -98,8 +97,8 @@ impl NodeCollector {
                                         let name = m.metadata.name?;
                                         let (status, cap_cpu, cap_mem) = cap.get(&name)?;
 
-                                        let used_cpu = parse_cpu_to_cores(&m.usage.cpu.0).unwrap_or(0.0);
-                                        let used_mem = parse_memory_to_bytes(&m.usage.memory.0).unwrap_or(0).max(0) as f64;
+                                        let used_cpu = m.usage.cpu.to_f64().unwrap_or(0.0);
+                                        let used_mem = m.usage.memory.to_f64().unwrap_or(0.0).max(0.0);
                                         let cap_mem_f = *cap_mem as f64;
 
                                         let cpu_pct = if *cap_cpu > 0.0 {
