@@ -1,4 +1,4 @@
-use chrono::Utc;
+use jiff::Timestamp;
 use k8s_openapi::serde_json;
 use kube::api::ApiResource;
 use kube::api::DynamicObject;
@@ -31,7 +31,7 @@ pub async fn restart_async(_lua: Lua, json: String) -> LuaResult<String> {
             "template": {
               "metadata": {
                 "annotations": {
-                  "kube.kubernetes.io/restartedAt": Utc::now().to_rfc3339()
+                  "kube.kubernetes.io/restartedAt": Timestamp::now().to_string()
                 }
               }
             }
