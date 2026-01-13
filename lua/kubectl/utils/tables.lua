@@ -136,23 +136,27 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addHeaderRow(headers, hints, marks)
+  local DIVIDER = " | "
+  local PREFIX = "Hints: "
+
   local function appendMapToLine(line, map, hintIndex)
+    if #line > #PREFIX then
+      local dividerStart = #line
+      line = line .. DIVIDER
+      M.add_mark(marks, hintIndex, dividerStart, #line, hl.symbols.success)
+    end
+
     local lineStart = #line
     line = line .. map.key .. " " .. map.desc
-    local DIVIDER = " | "
-    line = line .. DIVIDER
-    local lineEnd = #line
-
-    M.add_mark(marks, hintIndex, lineEnd - #DIVIDER, lineEnd, hl.symbols.success)
     M.add_mark(marks, hintIndex, lineStart, lineStart + #map.key, hl.symbols.pending)
 
     return line
   end
 
-  local localHintLine = "Hints: "
-  local globalHintLine = (" "):rep(#localHintLine)
+  local localHintLine = PREFIX
+  local globalHintLine = (" "):rep(#PREFIX)
 
-  M.add_mark(marks, #hints, 0, #localHintLine, hl.symbols.success)
+  M.add_mark(marks, #hints, 0, #PREFIX, hl.symbols.success)
   local keymaps = M.get_plug_mappings(headers)
   local hasGlobal = false
   for _, map in ipairs(keymaps) do
@@ -163,6 +167,7 @@ local function addHeaderRow(headers, hints, marks)
       localHintLine = appendMapToLine(localHintLine, map, #hints)
     end
   end
+
   table.insert(hints, localHintLine .. "\n")
   if hasGlobal then
     table.insert(hints, globalHintLine .. "\n")
