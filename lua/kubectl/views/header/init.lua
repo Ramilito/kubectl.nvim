@@ -1,8 +1,70 @@
 local buffers = require("kubectl.actions.buffers")
 local config = require("kubectl.config")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
+local tables = require("kubectl.utils.tables")
 
 local M = { is_drawing = false }
+
+local function wrap_hints(data, marks, max_per_row)
+  local DIVIDER = " | "
+  local PREFIX = "Hints: "
+  local PADDING = (" "):rep(#PREFIX)
+
+  local new_data = {}
+  local new_marks = {}
+
+  for row_idx, line in ipairs(data) do
+    local content = line:gsub("%s*\n$", "")
+    local items = vim.split(content:sub(#PREFIX + 1), DIVIDER, { plain = true })
+
+    if #items <= max_per_row then
+      table.insert(new_data, content .. " ")
+      for _, mark in ipairs(marks) do
+        if mark.row == row_idx - 1 then
+          local m = vim.deepcopy(mark)
+          m.row = #new_data - 1
+          table.insert(new_marks, m)
+        end
+      end
+    else
+      local row, col = #new_data, 0
+
+      local function start_line(prefix)
+        tables.add_mark(new_marks, row, 0, #prefix, hl.symbols.success)
+        col = #prefix
+        return prefix
+      end
+
+      local current = start_line(PREFIX)
+      for i, item in ipairs(items) do
+        local is_first = (i - 1) % max_per_row == 0
+
+        if is_first and i > 1 then
+          table.insert(new_data, current .. " ")
+          row = #new_data
+          current = start_line(PADDING)
+        end
+
+        if not is_first then
+          tables.add_mark(new_marks, row, col, col + #DIVIDER, hl.symbols.success)
+          current = current .. DIVIDER
+          col = col + #DIVIDER
+        end
+
+        local key_end = item:find(" ")
+        if key_end then
+          tables.add_mark(new_marks, row, col, col + key_end - 1, hl.symbols.pending)
+        end
+        current = current .. item
+        col = col + #item
+      end
+      table.insert(new_data, current .. " ")
+    end
+  end
+
+  return new_data, new_marks
+end
 
 local function is_overlapping()
   local ui = vim.api.nvim_list_uis()[1] -- current UI size
@@ -96,7 +158,10 @@ function M.Draw()
     if current_builder then
       local hints = current_builder.definition and current_builder.definition.hints or {}
       builder.addHints(hints, true, true)
-      buffers.set_content(builder.buf_nr, { content = builder.header.data, marks = builder.header.marks })
+
+      local max_per_row = 6
+      local data, marks = wrap_hints(builder.header.data, builder.header.marks, max_per_row)
+      buffers.set_content(builder.buf_nr, { content = data, marks = marks })
     end
   end
 

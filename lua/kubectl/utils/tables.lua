@@ -136,23 +136,27 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addHeaderRow(headers, hints, marks)
+  local DIVIDER = " | "
+  local PREFIX = "Hints: "
+
   local function appendMapToLine(line, map, hintIndex)
+    if #line > #PREFIX then
+      local dividerStart = #line
+      line = line .. DIVIDER
+      M.add_mark(marks, hintIndex, dividerStart, #line, hl.symbols.success)
+    end
+
     local lineStart = #line
     line = line .. map.key .. " " .. map.desc
-    local DIVIDER = " | "
-    line = line .. DIVIDER
-    local lineEnd = #line
-
-    M.add_mark(marks, hintIndex, lineEnd - #DIVIDER, lineEnd, hl.symbols.success)
     M.add_mark(marks, hintIndex, lineStart, lineStart + #map.key, hl.symbols.pending)
 
     return line
   end
 
-  local localHintLine = "Hints: "
-  local globalHintLine = (" "):rep(#localHintLine)
+  local localHintLine = PREFIX
+  local globalHintLine = (" "):rep(#PREFIX)
 
-  M.add_mark(marks, #hints, 0, #localHintLine, hl.symbols.success)
+  M.add_mark(marks, #hints, 0, #PREFIX, hl.symbols.success)
   local keymaps = M.get_plug_mappings(headers)
   local hasGlobal = false
   for _, map in ipairs(keymaps) do
@@ -163,9 +167,10 @@ local function addHeaderRow(headers, hints, marks)
       localHintLine = appendMapToLine(localHintLine, map, #hints)
     end
   end
-  table.insert(hints, localHintLine .. "\n")
+
+  table.insert(hints, localHintLine .. " \n")
   if hasGlobal then
-    table.insert(hints, globalHintLine .. "\n")
+    table.insert(hints, globalHintLine .. " \n")
   end
 end
 
@@ -365,10 +370,10 @@ function M.generateHeader(headers, include_defaults, include_context)
   if include_defaults then
     local defaults = {
       { key = "<Plug>(kubectl.refresh)", desc = "reload", global = true },
+      { key = "<Plug>(kubectl.delete)", desc = "delete", global = true },
       { key = "<Plug>(kubectl.alias_view)", desc = "aliases", global = true },
       { key = "<Plug>(kubectl.filter_view)", desc = "filter", global = true },
       { key = "<Plug>(kubectl.namespace_view)", desc = "namespace", global = true },
-      { key = "<Plug>(kubectl.toggle_diagnostics)", desc = "diagnostics", global = true },
       { key = "<Plug>(kubectl.toggle_columns)", desc = "columns", global = true },
       { key = "<Plug>(kubectl.help)", desc = "help", global = true, sort_order = 100 },
       { key = "<Plug>(kubectl.toggle_headers)", desc = "toggle", global = true, sort_order = 200 },

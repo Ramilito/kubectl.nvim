@@ -180,7 +180,7 @@ end
 function M.setup()
   vim.diagnostic.config({
     virtual_text = false,
-    virtual_lines = { current_line = true },
+    virtual_lines = false,
     signs = true,
     underline = false,
     update_in_insert = false,
