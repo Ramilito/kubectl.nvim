@@ -168,9 +168,9 @@ local function addHeaderRow(headers, hints, marks)
     end
   end
 
-  table.insert(hints, localHintLine .. "\n")
+  table.insert(hints, localHintLine .. " \n")
   if hasGlobal then
-    table.insert(hints, globalHintLine .. "\n")
+    table.insert(hints, globalHintLine .. " \n")
   end
 end
 
@@ -370,6 +370,7 @@ function M.generateHeader(headers, include_defaults, include_context)
   if include_defaults then
     local defaults = {
       { key = "<Plug>(kubectl.refresh)", desc = "reload", global = true },
+      { key = "<Plug>(kubectl.delete)", desc = "delete", global = true },
       { key = "<Plug>(kubectl.alias_view)", desc = "aliases", global = true },
       { key = "<Plug>(kubectl.filter_view)", desc = "filter", global = true },
       { key = "<Plug>(kubectl.namespace_view)", desc = "namespace", global = true },
