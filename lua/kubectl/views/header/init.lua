@@ -159,7 +159,7 @@ function M.Draw()
       local hints = current_builder.definition and current_builder.definition.hints or {}
       builder.addHints(hints, true, true)
 
-      local max_per_row = 6
+      local max_per_row = 4
       local data, marks = wrap_hints(builder.header.data, builder.header.marks, max_per_row)
       buffers.set_content(builder.buf_nr, { content = data, marks = marks })
     end
