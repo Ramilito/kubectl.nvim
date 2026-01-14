@@ -8,7 +8,7 @@ local M = { is_drawing = false }
 
 local function wrap_hints(data, marks, max_per_row)
   local DIVIDER = " | "
-  local PREFIX = "Hints: "
+  local PREFIX = "       "
   local PADDING = (" "):rep(#PREFIX)
 
   local new_data = {}
