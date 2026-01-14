@@ -4,6 +4,9 @@ local state = require("kubectl.state")
 local time = require("kubectl.utils.time")
 local M = {}
 
+-- Cache for plug mapping lookups (maps plug name -> lhs key)
+local plug_mapping_cache = nil
+
 --- Headers that cannot be hidden (always visible)
 M.required_headers = { NAME = true, NAMESPACE = true }
 
@@ -78,29 +81,45 @@ local function calculate_extra_padding(widths, headers, win)
   end
 end
 
+--- Build the plug mapping cache from all keymaps
+--- This is expensive (calls maplist) so we cache the result
+local function build_plug_mapping_cache()
+  local cache = {}
+  local keymaps = vim.fn.maplist()
+  for _, keymap in ipairs(keymaps) do
+    if keymap.rhs and keymap.rhs:match("^<Plug>%(kubectl%.") then
+      cache[keymap.rhs] = keymap.lhs
+    end
+  end
+  return cache
+end
+
+--- Invalidate the plug mapping cache
+--- Call this when keybindings are changed
+function M.invalidate_plug_mapping_cache()
+  plug_mapping_cache = nil
+end
+
 --- Gets both global and buffer-local plug keymaps
 --- @param headers table[] The header table
 function M.get_plug_mappings(headers)
   local keymaps_table = {}
-  local header_lookup = {}
 
   if not headers then
     return keymaps_table
   end
 
-  local keymaps = vim.fn.maplist()
-
-  for _, header in ipairs(headers) do
-    header_lookup[header.key] =
-      { desc = header.desc, long_desc = header.long_desc, sort_order = header.sort_order, global = header.global }
+  -- Build cache once, reuse on subsequent calls
+  if not plug_mapping_cache then
+    plug_mapping_cache = build_plug_mapping_cache()
   end
 
-  -- Iterate over keymaps and check if they match any header key
-  for _, keymap in ipairs(keymaps) do
-    local header = header_lookup[keymap.rhs]
-    if header then
+  -- Fast lookup using cached plug->lhs mapping
+  for _, header in ipairs(headers) do
+    local lhs = plug_mapping_cache[header.key]
+    if lhs then
       table.insert(keymaps_table, {
-        key = keymap.lhs,
+        key = lhs,
         desc = header.desc,
         long_desc = header.long_desc,
         sort_order = header.sort_order,

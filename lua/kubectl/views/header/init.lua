@@ -131,6 +131,20 @@ function M.View()
       end
     end,
   })
+
+  vim.api.nvim_create_autocmd({ "BufEnter" }, {
+    group = group,
+    callback = function()
+      local ft = vim.bo.filetype
+      if ft and ft:match("^k8s_") then
+        -- Invalidate cache so we pick up buffer-local mappings for this buffer
+        tables.invalidate_plug_mapping_cache()
+        vim.schedule(function()
+          M.Draw()
+        end)
+      end
+    end,
+  })
 end
 
 function M.Draw()
