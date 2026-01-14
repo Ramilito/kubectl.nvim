@@ -2,6 +2,7 @@ local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local manager = require("kubectl.resource_manager")
 local string_utils = require("kubectl.utils.string")
+local tables = require("kubectl.utils.tables")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
@@ -679,6 +680,9 @@ local function apply_mappings(bufnr, view_name)
     pcall(view_mappings.register)
   end
   M.register()
+
+  -- Invalidate plug mapping cache so header picks up new buffer-local mappings
+  tables.invalidate_plug_mapping_cache()
 end
 
 function M.setup(ev)
