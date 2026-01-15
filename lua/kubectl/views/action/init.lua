@@ -124,12 +124,24 @@ function M.View(definition, data, callback)
     })
   end
 
-  -- Add confirmation line (will add centered text after fitting)
+  -- Add confirmation lines
   table.insert(content, "")
   table.insert(content, "")
 
-  -- Set content
+  -- Set content and fit to get window width
   buffers.set_content(buf, { content = content })
+  builder.fitToContent(1)
+
+  -- Add centered confirmation mark now that we know the width
+  local win_width = vim.api.nvim_win_get_config(builder.win_nr).width or 100
+  local confirm_text = "[y]es [n]o"
+  local padding = string.rep(" ", math.floor((win_width - #confirm_text) / 2))
+  table.insert(marks, {
+    row = #content - 1,
+    start_col = 0,
+    virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
+    virt_text_pos = "inline",
+  })
   buffers.apply_marks(buf, marks, nil)
 
   -- Set up y/n keymaps
@@ -142,22 +154,6 @@ function M.View(definition, data, callback)
   vim.keymap.set("n", "n", function()
     builder.frame.close()
   end, { buffer = buf, noremap = true, silent = true })
-
-  -- Fit to content
-  builder.fitToContent(1)
-
-  -- Add centered confirmation text after fitting so we know the width
-  local win_width = vim.api.nvim_win_get_config(builder.win_nr).width or 100
-  local confirm_text = "[y]es [n]o"
-  local padding = string.rep(" ", math.floor((win_width - #confirm_text) / 2))
-  buffers.apply_marks(buf, {
-    {
-      row = #content - 1,
-      start_col = 0,
-      virt_text = { { padding .. "[y]es ", "KubectlError" }, { "[n]o", "KubectlInfo" } },
-      virt_text_pos = "inline",
-    },
-  }, nil)
 
   vim.cmd([[syntax match KubectlPending /.*/]])
 end
