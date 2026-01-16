@@ -466,7 +466,12 @@ fn spawn_io_tasks(
             let mut buf = [0u8; 4096];
             loop {
                 match stdout.read(&mut buf).await {
-                    Ok(0) | Err(_) => break,
+                    Ok(0) | Err(_) => {
+                        // Process exited - force close session immediately
+                        // so is_open() returns false without waiting for stdin task
+                        handle.force_close();
+                        break;
+                    }
                     Ok(n) => {
                         if output_sender.send(buf[..n].to_vec()).is_err() {
                             break;

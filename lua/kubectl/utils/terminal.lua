@@ -1,5 +1,4 @@
 local buffers = require("kubectl.actions.buffers")
-local state = require("kubectl.state")
 
 local M = {}
 
@@ -40,9 +39,16 @@ function M.attach_session(sess, buf, win)
           timer:close()
         end
         vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-        if vim.api.nvim_win_is_valid(win) then
-          vim.api.nvim_win_close(win, true)
-        end
+        -- Small delay to let user see the message, then close
+        vim.defer_fn(function()
+          vim.cmd("stopinsert")
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+          if vim.api.nvim_buf_is_valid(buf) then
+            vim.api.nvim_buf_delete(buf, { force = true })
+          end
+        end, 1000)
       end
     end)
   )
@@ -77,13 +83,17 @@ function M.spawn_terminal(title, key, fn, is_fullscreen, ...)
     return
   end
 
+  -- Delete any existing buffer with the same name to avoid "Terminal already connected" error
+  local existing_buf = buffers.get_buffer_by_name(key .. " | " .. title)
+  if existing_buf and vim.api.nvim_buf_is_valid(existing_buf) then
+    vim.api.nvim_buf_delete(existing_buf, { force = true })
+  end
+
   local buf, win
   if is_fullscreen then
     buf, win = buffers.buffer(key, title)
-    state.picker_register(key, title, buffers.buffer, { key, title })
   else
     buf, win = buffers.floating_buffer(key, title)
-    state.picker_register(key, title, buffers.floating_buffer, { key, title })
   end
 
   vim.api.nvim_set_current_buf(buf)
