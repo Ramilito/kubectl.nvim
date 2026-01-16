@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
@@ -6,6 +5,7 @@ local definition = require("kubectl.resources.containers.definition")
 local manager = require("kubectl.resource_manager")
 local pod_view = require("kubectl.resources.pods")
 local queue = require("kubectl.event_queue")
+local terminal = require("kubectl.utils.terminal")
 
 local resource = "containers"
 
@@ -84,65 +84,6 @@ function M.View(pod, ns)
   end)
 end
 
-local function attach_session(sess, buf, win)
-  local chan = vim.api.nvim_open_term(buf, {
-    on_input = function(_, _, _, data)
-      sess:write(data)
-    end,
-  })
-  vim.cmd.startinsert()
-
-  local timer = vim.uv.new_timer()
-  if not timer then
-    vim.notify("Timer failed to initialize", vim.log.levels.ERROR)
-    return
-  end
-  timer:start(
-    0,
-    30,
-    vim.schedule_wrap(function()
-      repeat
-        local chunk = sess:read_chunk()
-        if chunk then
-          vim.api.nvim_chan_send(chan, chunk)
-        end
-      until not chunk
-      if not sess:open() then
-        timer:stop()
-        if not timer:is_closing() then
-          timer:close()
-        end
-        vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-        if vim.api.nvim_win_is_valid(win) then
-          vim.api.nvim_win_close(win, true)
-        end
-      end
-    end)
-  )
-end
-
-local function spawn_terminal(title, key, fn, is_fullscreen, ...)
-  local ok, sess = pcall(fn, ...)
-  if not ok or sess == nil then
-    vim.notify("kubectl‑client error: " .. tostring(sess), vim.log.levels.ERROR)
-    return
-  end
-  local buf, win
-  local state = require("kubectl.state")
-  if is_fullscreen then
-    buf, win = buffers.buffer(key, title)
-    state.picker_register(key, title, buffers.buffer, { key, title })
-  else
-    buf, win = buffers.floating_buffer(key, title)
-    state.picker_register(key, title, buffers.floating_buffer, { key, title })
-  end
-
-  vim.api.nvim_set_current_buf(buf)
-  vim.schedule(function()
-    attach_session(sess, buf, win)
-  end)
-end
-
 function M.exec(pod, ns, is_fullscreen)
   if config.options.terminal_cmd then
     local args = { "exec", "-it", pod, "-n", ns, "-c", M.selection, "--", "/bin/sh" }
@@ -151,7 +92,7 @@ function M.exec(pod, ns, is_fullscreen)
     return
   end
 
-  spawn_terminal(
+  terminal.spawn_terminal(
     string.format("%s | %s: %s | %s", "container", pod, M.selection, ns),
     "k8s_exec",
     client.exec,
@@ -183,7 +124,16 @@ function M.debug(pod, ns, is_fullscreen)
         name = args[1].value,
         image = args[2].value,
       }
-      spawn_terminal(cmd_args.name, "k8s_debug", client.debug, is_fullscreen, ns, pod, cmd_args.image, M.selection)
+      terminal.spawn_terminal(
+        cmd_args.name,
+        "k8s_debug",
+        client.debug,
+        is_fullscreen,
+        ns,
+        pod,
+        cmd_args.image,
+        M.selection
+      )
     end)
   end)
 end

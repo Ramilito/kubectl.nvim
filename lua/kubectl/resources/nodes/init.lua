@@ -1,9 +1,9 @@
 local BaseResource = require("kubectl.resources.base_resource")
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local kubectl_client = require("kubectl.client")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
+local terminal = require("kubectl.utils.terminal")
 
 local resource = "nodes"
 
@@ -88,58 +88,6 @@ function M.Cordon(node)
   end)
 end
 
-local function attach_session(sess, buf, win)
-  local chan = vim.api.nvim_open_term(buf, {
-    on_input = function(_, _, _, data)
-      sess:write(data)
-    end,
-  })
-  vim.cmd.startinsert()
-
-  local timer = vim.uv.new_timer()
-  if not timer then
-    vim.notify("Timer failed to initialize", vim.log.levels.ERROR)
-    return
-  end
-  timer:start(
-    0,
-    30,
-    vim.schedule_wrap(function()
-      repeat
-        local chunk = sess:read_chunk()
-        if chunk then
-          vim.api.nvim_chan_send(chan, chunk)
-        end
-      until not chunk
-      if not sess:open() then
-        timer:stop()
-        if not timer:is_closing() then
-          timer:close()
-        end
-        vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-        if vim.api.nvim_win_is_valid(win) then
-          vim.api.nvim_win_close(win, true)
-        end
-      end
-    end)
-  )
-end
-
-local function spawn_node_shell(title, key, config)
-  local ok, sess = pcall(kubectl_client.node_shell, config)
-  if not ok or sess == nil then
-    vim.notify("kubectl-client error: " .. tostring(sess), vim.log.levels.ERROR)
-    return
-  end
-  local buf, win = buffers.floating_buffer(key, title)
-  state.picker_register(key, title, buffers.floating_buffer, { key, title })
-
-  vim.api.nvim_set_current_buf(buf)
-  vim.schedule(function()
-    attach_session(sess, buf, win)
-  end)
-end
-
 function M.Shell(node)
   local def = {
     resource = "node_shell",
@@ -158,14 +106,20 @@ function M.Shell(node)
 
   builder.action_view(def, data, function(args)
     vim.schedule(function()
-      local config = {
+      local shell_config = {
         node = node,
         namespace = args[1].value,
         image = args[2].value,
         cpu_limit = args[3].value ~= "" and args[3].value or nil,
         mem_limit = args[4].value ~= "" and args[4].value or nil,
       }
-      spawn_node_shell(string.format("node-shell | %s", node), "k8s_node_shell", config)
+      terminal.spawn_terminal(
+        string.format("node-shell | %s", node),
+        "k8s_node_shell",
+        kubectl_client.node_shell,
+        false,
+        shell_config
+      )
     end)
   end)
 end
