@@ -137,8 +137,6 @@ function M.View()
     callback = function()
       local ft = vim.bo.filetype
       if ft and ft:match("^k8s_") then
-        -- Invalidate cache so we pick up buffer-local mappings for this buffer
-        tables.invalidate_plug_mapping_cache()
         vim.schedule(function()
           M.Draw()
         end)
@@ -160,6 +158,9 @@ function M.Draw()
     return
   end
   M.is_drawing = true
+
+  -- Always invalidate cache at draw time to ensure hints reflect current buffer
+  tables.invalidate_plug_mapping_cache()
   builder.buf_nr, builder.win_nr = buffers.header_buffer(builder.win_nr)
 
   local current_win = vim.api.nvim_get_current_win()

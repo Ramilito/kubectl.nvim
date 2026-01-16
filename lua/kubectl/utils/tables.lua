@@ -83,14 +83,30 @@ end
 
 --- Build the plug mapping cache from all keymaps
 --- This is expensive (calls maplist) so we cache the result
+--- Current buffer's mappings take priority over other buffers'
 local function build_plug_mapping_cache()
   local cache = {}
+  local current_buf = vim.api.nvim_get_current_buf()
   local keymaps = vim.fn.maplist()
+
+  -- First pass: add mappings from OTHER buffers
   for _, keymap in ipairs(keymaps) do
     if keymap.rhs and keymap.rhs:match("^<Plug>%(kubectl%.") then
-      cache[keymap.rhs] = keymap.lhs
+      if keymap.buffer ~= current_buf then
+        cache[keymap.rhs] = keymap.lhs
+      end
     end
   end
+
+  -- Second pass: add current buffer's mappings (overwrites others)
+  for _, keymap in ipairs(keymaps) do
+    if keymap.rhs and keymap.rhs:match("^<Plug>%(kubectl%.") then
+      if keymap.buffer == current_buf then
+        cache[keymap.rhs] = keymap.lhs
+      end
+    end
+  end
+
   return cache
 end
 
