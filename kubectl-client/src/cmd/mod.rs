@@ -7,7 +7,7 @@ use crate::cmd::config::{
 use crate::cmd::delete::delete_async;
 use crate::cmd::drift::get_drift;
 use crate::cmd::edit::edit_async;
-use crate::cmd::exec::{open_debug, Session};
+use crate::cmd::exec::{node_shell, open_debug, NodeShellConfig, Session};
 use crate::cmd::get::{
     get_api_resources_async, get_raw_async, get_server_raw_async, get_single, get_single_async,
 };
@@ -89,6 +89,12 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
                 })
             },
         )?,
+    )?;
+    exports.set(
+        "node_shell",
+        lua.create_function(|_, config: NodeShellConfig| {
+            with_stream_client(|client| async move { node_shell(client, config) })
+        })?,
     )?;
     exports.set(
         "log_stream_async",

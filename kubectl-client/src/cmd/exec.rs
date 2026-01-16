@@ -1,13 +1,18 @@
 use crate::streaming::BidirectionalSession;
 use crate::{block_on, RUNTIME};
 use k8s_openapi::{
-    api::core::v1::{EphemeralContainer, Pod},
+    api::core::v1::{
+        Container, EphemeralContainer, HostPathVolumeSource, Pod, PodSpec, ResourceRequirements,
+        SecurityContext, Toleration, Volume, VolumeMount,
+    },
+    apimachinery::pkg::api::resource::Quantity,
     serde_json::{self, json},
 };
 use kube::{
-    api::{Api, AttachParams, AttachedProcess, Patch, PatchParams},
+    api::{Api, AttachParams, AttachedProcess, DeleteParams, ObjectMeta, Patch, PatchParams, PostParams},
     Client, Error as KubeError,
 };
+use std::collections::BTreeMap;
 use mlua::{prelude::*, UserData, UserDataMethods};
 use std::time::Duration;
 use tokio::{
@@ -102,6 +107,252 @@ pub fn open_debug(
 
         Ok(Session::from_attached(attached))
     })
+}
+
+/// Node shell configuration passed from Lua
+#[derive(Clone, Debug)]
+pub struct NodeShellConfig {
+    pub node: String,
+    pub namespace: String,
+    pub image: String,
+    pub cpu_limit: Option<String>,
+    pub mem_limit: Option<String>,
+}
+
+impl FromLua for NodeShellConfig {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        let table = value
+            .as_table()
+            .ok_or_else(|| LuaError::FromLuaConversionError {
+                from: "value",
+                to: "NodeShellConfig".into(),
+                message: Some("expected table".into()),
+            })?;
+        Ok(NodeShellConfig {
+            node: table.get("node")?,
+            namespace: table.get::<Option<String>>("namespace")?.unwrap_or_else(|| "default".into()),
+            image: table.get::<Option<String>>("image")?.unwrap_or_else(|| "busybox:latest".into()),
+            cpu_limit: table.get("cpu_limit")?,
+            mem_limit: table.get("mem_limit")?,
+        })
+    }
+}
+
+/// Creates a privileged debug pod on a node and attaches to it for shell access.
+/// The pod runs with host namespaces (PID, network, IPC) and uses nsenter to
+/// access the node's filesystem, similar to `kubectl debug node/<name>`.
+#[tracing::instrument(skip(client))]
+pub fn node_shell(client: Client, config: NodeShellConfig) -> LuaResult<NodeShellSession> {
+    let pod_name = format!("node-shell-{}", uuid::Uuid::new_v4().simple());
+    let ns = &config.namespace;
+
+    // Build resource limits if specified
+    let limits = {
+        let mut map = BTreeMap::new();
+        if let Some(cpu) = &config.cpu_limit {
+            map.insert("cpu".to_string(), Quantity(cpu.clone()));
+        }
+        if let Some(mem) = &config.mem_limit {
+            map.insert("memory".to_string(), Quantity(mem.clone()));
+        }
+        if map.is_empty() {
+            None
+        } else {
+            Some(map)
+        }
+    };
+
+    // Create the debug pod spec with host namespaces and privileged access
+    // Mount host root filesystem to /host and use chroot for shell access
+    let pod = Pod {
+        metadata: ObjectMeta {
+            name: Some(pod_name.clone()),
+            namespace: Some(ns.clone()),
+            labels: Some(BTreeMap::from([
+                ("app".to_string(), "kubectl-nvim-node-shell".to_string()),
+                ("node".to_string(), config.node.clone()),
+            ])),
+            ..Default::default()
+        },
+        spec: Some(PodSpec {
+            node_name: Some(config.node.clone()),
+            host_pid: Some(true),
+            host_network: Some(true),
+            host_ipc: Some(true),
+            restart_policy: Some("Never".to_string()),
+            // Tolerate all taints to ensure we can schedule on any node
+            tolerations: Some(vec![Toleration {
+                operator: Some("Exists".to_string()),
+                ..Default::default()
+            }]),
+            // Mount the host's root filesystem
+            volumes: Some(vec![Volume {
+                name: "host-root".to_string(),
+                host_path: Some(HostPathVolumeSource {
+                    path: "/".to_string(),
+                    type_: Some("Directory".to_string()),
+                }),
+                ..Default::default()
+            }]),
+            containers: vec![Container {
+                name: "shell".to_string(),
+                image: Some(config.image.clone()),
+                stdin: Some(true),
+                tty: Some(true),
+                security_context: Some(SecurityContext {
+                    privileged: Some(true),
+                    ..Default::default()
+                }),
+                volume_mounts: Some(vec![VolumeMount {
+                    name: "host-root".to_string(),
+                    mount_path: "/host".to_string(),
+                    ..Default::default()
+                }]),
+                // Drop into shell - host filesystem is available at /host
+                command: Some(vec!["sh".to_string()]),
+                resources: limits.map(|l| ResourceRequirements {
+                    limits: Some(l),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    block_on(async {
+        let pods: Api<Pod> = Api::namespaced(client.clone(), ns);
+
+        // Create the pod
+        pods.create(&PostParams::default(), &pod)
+            .await
+            .map_err(LuaError::external)?;
+
+        // Wait for the pod to be running
+        loop {
+            let p = pods.get(&pod_name).await.map_err(LuaError::external)?;
+            if let Some(status) = &p.status {
+                if let Some(phase) = &status.phase {
+                    match phase.as_str() {
+                        "Running" => break,
+                        "Failed" | "Succeeded" => {
+                            // Extract failure reason from container status
+                            let reason = status
+                                .container_statuses
+                                .as_ref()
+                                .and_then(|statuses| statuses.first())
+                                .and_then(|cs| cs.state.as_ref())
+                                .and_then(|state| {
+                                    state.terminated.as_ref().map(|t| {
+                                        format!(
+                                            "reason={}, message={}, exit_code={}",
+                                            t.reason.as_deref().unwrap_or("unknown"),
+                                            t.message.as_deref().unwrap_or("none"),
+                                            t.exit_code
+                                        )
+                                    })
+                                })
+                                .unwrap_or_else(|| "unknown".to_string());
+
+                            // Clean up the pod on failure
+                            let _ = pods.delete(&pod_name, &DeleteParams::default()).await;
+                            return Err(LuaError::RuntimeError(format!(
+                                "Node shell pod entered {} state ({})",
+                                phase, reason
+                            )));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            sleep(Duration::from_millis(250)).await;
+        }
+
+        // Attach to the pod
+        let attached = pods
+            .attach(
+                &pod_name,
+                &AttachParams::default()
+                    .stdin(true)
+                    .stdout(true)
+                    .stderr(false)
+                    .tty(true)
+                    .container("shell"),
+            )
+            .await
+            .map_err(LuaError::external)?;
+
+        Ok(NodeShellSession::new(attached, client, ns.clone(), pod_name))
+    })
+}
+
+/// A session that cleans up the debug pod when closed
+pub struct NodeShellSession {
+    session: BidirectionalSession<Vec<u8>, Vec<u8>>,
+    client: Client,
+    namespace: String,
+    pod_name: String,
+}
+
+impl NodeShellSession {
+    fn new(mut proc: AttachedProcess, client: Client, namespace: String, pod_name: String) -> Self {
+        let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
+        let mut session = BidirectionalSession::new();
+
+        spawn_io_tasks(rt, &mut proc, &mut session);
+
+        NodeShellSession {
+            session,
+            client,
+            namespace,
+            pod_name,
+        }
+    }
+
+    fn read_chunk(&self) -> LuaResult<Option<String>> {
+        match self.session.try_recv_output() {
+            Ok(Some(bytes)) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
+            Ok(None) => Ok(None),
+            Err(e) => Err(LuaError::RuntimeError(e.to_string())),
+        }
+    }
+
+    fn write(&self, s: &str) {
+        let _ = self.session.send_input(s.as_bytes().to_vec());
+    }
+
+    fn is_open(&self) -> bool {
+        self.session.is_open()
+    }
+
+    fn close(&self) {
+        self.session.close();
+        // Clean up the debug pod
+        let client = self.client.clone();
+        let ns = self.namespace.clone();
+        let pod_name = self.pod_name.clone();
+        let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
+        rt.spawn(async move {
+            let pods: Api<Pod> = Api::namespaced(client, &ns);
+            let _ = pods.delete(&pod_name, &DeleteParams::default()).await;
+        });
+    }
+}
+
+impl UserData for NodeShellSession {
+    fn add_methods<M: UserDataMethods<Self>>(m: &mut M) {
+        m.add_method("read_chunk", |_, this, ()| this.read_chunk());
+        m.add_method("write", |_, this, s: String| {
+            this.write(&s);
+            Ok(())
+        });
+        m.add_method("open", |_, this, ()| Ok(this.is_open()));
+        m.add_method("close", |_, this, ()| {
+            this.close();
+            Ok(())
+        });
+    }
 }
 
 async fn await_status_or_timeout(mut proc: AttachedProcess) -> Result<AttachedProcess> {
