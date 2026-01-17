@@ -20,7 +20,10 @@ M.definition = {
 }
 
 function M.View()
-  vim.cmd("fclose!")
+  local win_config = vim.api.nvim_win_get_config(0)
+  if win_config.relative ~= "" then
+    vim.cmd("fclose!")
+  end
 
   local builder = manager.get_or_create("Picker")
   builder.view_framed(M.definition)
