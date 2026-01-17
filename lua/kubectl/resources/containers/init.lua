@@ -119,22 +119,20 @@ function M.debug(pod, ns, is_fullscreen)
   }
 
   builder.action_view(def, data, function(args)
-    vim.schedule(function()
-      local cmd_args = {
-        name = args[1].value,
-        image = args[2].value,
-      }
-      terminal.spawn_terminal(
-        cmd_args.name,
-        "k8s_debug",
-        client.debug,
-        is_fullscreen,
-        ns,
-        pod,
-        cmd_args.image,
-        M.selection
-      )
-    end)
+    local cmd_args = {
+      name = args[1].value,
+      image = args[2].value,
+    }
+    terminal.spawn_terminal(
+      cmd_args.name,
+      "k8s_debug",
+      client.debug,
+      is_fullscreen,
+      ns,
+      pod,
+      cmd_args.image,
+      M.selection
+    )
   end)
 end
 

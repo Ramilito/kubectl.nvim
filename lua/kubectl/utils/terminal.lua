@@ -16,6 +16,10 @@ function M.attach_session(sess, buf, win)
   -- Send initial newline to trigger shell prompt
   sess:write("\n")
 
+  -- Ensure we're in the terminal window before entering insert mode
+  if vim.api.nvim_win_is_valid(win) then
+    vim.api.nvim_set_current_win(win)
+  end
   vim.cmd.startinsert()
 
   local timer = vim.uv.new_timer()
@@ -62,22 +66,7 @@ end
 --- @param is_fullscreen boolean Whether to use fullscreen buffer
 --- @param ... any Additional arguments passed to fn
 function M.spawn_terminal(title, key, fn, is_fullscreen, ...)
-  -- Show loading indicator during connection
-  local loading_buf, loading_win = buffers.floating_dynamic_buffer("k8s_loading", "Connecting...", nil, {
-    enter = false,
-    width = 20,
-    height = 1,
-    skip_fit = true,
-  })
-  buffers.set_content(loading_buf, { content = { " Connecting..." } })
-  vim.cmd("redraw")
-
   local ok, sess = pcall(fn, ...)
-
-  -- Close loading indicator
-  if vim.api.nvim_win_is_valid(loading_win) then
-    vim.api.nvim_win_close(loading_win, true)
-  end
 
   if not ok or sess == nil then
     vim.notify("kubectl-client error: " .. tostring(sess), vim.log.levels.ERROR)
