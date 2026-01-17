@@ -7,7 +7,10 @@ use crate::cmd::config::{
 use crate::cmd::delete::delete_async;
 use crate::cmd::drift::get_drift;
 use crate::cmd::edit::edit_async;
-use crate::cmd::exec::{open_debug, Session};
+use crate::cmd::exec::{
+    await_status_or_timeout, open_debug, open_exec, open_node_shell, NodeShellConfig,
+    NodeShellSession, Session,
+};
 use crate::cmd::get::{
     get_api_resources_async, get_raw_async, get_server_raw_async, get_single, get_single_async,
 };
@@ -74,9 +77,10 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
         "debug",
         lua.create_function(
             |_, (ns, pod, image, target): (String, String, String, Option<String>)| {
-                with_stream_client(
-                    |client| async move { open_debug(client, ns, pod, image, target) },
-                )
+                with_stream_client(|client| async move {
+                    let proc = open_debug(&client, &ns, &pod, &image, target.as_deref()).await?;
+                    Ok(Session::from_attached(proc))
+                })
             },
         )?,
     )?;
@@ -85,10 +89,25 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
         lua.create_function(
             |_, (ns, pod, container, cmd): (String, String, Option<String>, Vec<String>)| {
                 with_stream_client(|client| async move {
-                    Session::new(client, ns, pod, container, cmd, true)
+                    let proc = open_exec(&client, &ns, &pod, &container, &cmd, true)
+                        .await
+                        .map_err(mlua::Error::external)?;
+                    let proc = await_status_or_timeout(proc)
+                        .await
+                        .map_err(mlua::Error::external)?;
+                    Ok(Session::from_attached(proc))
                 })
             },
         )?,
+    )?;
+    exports.set(
+        "node_shell",
+        lua.create_function(|_, config: NodeShellConfig| {
+            with_stream_client(|client| async move {
+                let (proc, pod_name) = open_node_shell(&client, &config).await?;
+                Ok(NodeShellSession::new(proc, client, config.namespace, pod_name))
+            })
+        })?,
     )?;
     exports.set(
         "log_stream_async",

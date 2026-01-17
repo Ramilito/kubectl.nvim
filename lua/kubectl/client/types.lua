@@ -15,6 +15,19 @@
 --- @field close fun(self: kubectl.DescribeSession)
 --- @field read_content fun(self: kubectl.DescribeSession): string?
 
+--- @class kubectl.NodeShellSession
+--- @field open fun(self: kubectl.NodeShellSession): boolean
+--- @field close fun(self: kubectl.NodeShellSession)
+--- @field read_chunk fun(self: kubectl.NodeShellSession): string?
+--- @field write fun(self: kubectl.NodeShellSession, data: string)
+
+--- @class kubectl.NodeShellConfig
+--- @field node string Target node name
+--- @field namespace? string Namespace for the debug pod (default: "default")
+--- @field image? string Container image to use (default: "busybox:latest")
+--- @field cpu_limit? string CPU limit (e.g., "100m")
+--- @field mem_limit? string Memory limit (e.g., "128Mi")
+
 --- @class kubectl.ClientImplementation
 --- @field init_runtime fun(context_name: string)
 --- @field init_logging fun(filepath: string)
@@ -26,6 +39,7 @@
 --- @field edit_resource fun(resource_name: string, namespace: string?, name: string, group: string?, version: string? )
 --- @field exec fun(ns: string, pod: string, container: string?, cmd: {})
 --- @field debug fun(ns: string, pod: string, image: string, target: string?)
+--- @field node_shell fun(config: kubectl.NodeShellConfig): kubectl.NodeShellSession
 --- @field portforward_start fun(kind: string, name: string, namespace: string, local_port: number, remote_port: number)
 --- @field portforward_list fun()
 --- @field portforward_stop fun(id: number)

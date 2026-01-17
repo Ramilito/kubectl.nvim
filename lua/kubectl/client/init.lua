@@ -83,6 +83,13 @@ function client.exec(ns, pod, container, cmd)
   return client.implementation.exec(ns, pod, container, cmd)
 end
 
+--- Create a shell session on a Kubernetes node
+--- @param config kubectl.NodeShellConfig
+--- @return kubectl.NodeShellSession
+function client.node_shell(config)
+  return client.implementation.node_shell(config)
+end
+
 --- @class kubectl.LogConfig
 --- @field pods table[] Array of {name, namespace} tables
 --- @field container? string Target container name

@@ -266,6 +266,7 @@ vim.api.nvim_create_autocmd("FileType", {
     -- Node actions
     k("n", "gC", "<Plug>(kubectl.cordon)", opts) -- Cordon node
     k("n", "gU", "<Plug>(kubectl.uncordon)", opts) -- Uncordon node
+    k("n", "gS", "<Plug>(kubectl.shell)", opts) -- Shell pod
     k("n", "gR", "<Plug>(kubectl.drain)", opts) -- Drain node
 
     -- Top actions

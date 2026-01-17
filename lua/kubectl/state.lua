@@ -357,6 +357,7 @@ local SKIP_FILETYPES = {
   k8s_filter_label = true,
   k8s_contexts = true,
   k8s_splash = true,
+  k8s_loading = true,
 }
 
 --- Build unique key from filetype and title
