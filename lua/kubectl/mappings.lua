@@ -99,9 +99,10 @@ function M.get_mappings()
         local action_data = {}
         for _, value in ipairs(selections) do
           local ns_prefix = value.namespace and (value.namespace .. ": ") or ""
+          local display = ns_prefix .. value.name
           table.insert(action_data, {
-            text = "",
-            value = "» " .. ns_prefix .. value.name,
+            text = display,
+            value = "» " .. display,
             cmd = { name = value.name, namespace = value.namespace },
             type = "positional",
           })
@@ -113,7 +114,7 @@ function M.get_mappings()
             local ns = value.cmd.namespace
             local name = value.cmd.name
 
-            vim.notify("Deleting " .. gvk.k .. ": " .. name, vim.log.levels.INFO)
+            vim.notify("Deleting " .. gvk.k .. ": " .. ns .. "/" .. name, vim.log.levels.INFO)
             commands.run_async("delete_async", { gvk = gvk, namespace = ns, name = name }, function(_, err)
               vim.schedule(function()
                 if not err then
