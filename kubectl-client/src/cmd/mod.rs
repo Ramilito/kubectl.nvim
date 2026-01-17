@@ -8,8 +8,8 @@ use crate::cmd::delete::delete_async;
 use crate::cmd::drift::get_drift;
 use crate::cmd::edit::edit_async;
 use crate::cmd::exec::{
-    await_status_or_timeout, open_debug, open_exec, open_node_shell, NodeShellConfig,
-    NodeShellSession, Session,
+    await_status_or_timeout, open_debug, open_exec, open_node_shell, DebugConfig, ExecConfig,
+    NodeShellConfig, NodeShellSession, Session,
 };
 use crate::cmd::get::{
     get_api_resources_async, get_raw_async, get_server_raw_async, get_single, get_single_async,
@@ -75,30 +75,40 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
     )?;
     exports.set(
         "debug",
-        lua.create_function(
-            |_, (ns, pod, image, target): (String, String, String, Option<String>)| {
-                with_stream_client(|client| async move {
-                    let proc = open_debug(&client, &ns, &pod, &image, target.as_deref()).await?;
-                    Ok(Session::from_attached(proc))
-                })
-            },
-        )?,
+        lua.create_function(|_, config: DebugConfig| {
+            with_stream_client(|client| async move {
+                let proc = open_debug(
+                    &client,
+                    &config.namespace,
+                    &config.pod,
+                    &config.image,
+                    config.target.as_deref(),
+                )
+                .await?;
+                Ok(Session::from_attached(proc))
+            })
+        })?,
     )?;
     exports.set(
         "exec",
-        lua.create_function(
-            |_, (ns, pod, container, cmd): (String, String, Option<String>, Vec<String>)| {
-                with_stream_client(|client| async move {
-                    let proc = open_exec(&client, &ns, &pod, &container, &cmd, true)
-                        .await
-                        .map_err(mlua::Error::external)?;
-                    let proc = await_status_or_timeout(proc)
-                        .await
-                        .map_err(mlua::Error::external)?;
-                    Ok(Session::from_attached(proc))
-                })
-            },
-        )?,
+        lua.create_function(|_, config: ExecConfig| {
+            with_stream_client(|client| async move {
+                let proc = open_exec(
+                    &client,
+                    &config.namespace,
+                    &config.pod,
+                    &config.container,
+                    &config.cmd,
+                    true,
+                )
+                .await
+                .map_err(mlua::Error::external)?;
+                let proc = await_status_or_timeout(proc)
+                    .await
+                    .map_err(mlua::Error::external)?;
+                Ok(Session::from_attached(proc))
+            })
+        })?,
     )?;
     exports.set(
         "node_shell",

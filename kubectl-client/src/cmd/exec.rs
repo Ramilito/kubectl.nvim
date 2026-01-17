@@ -23,6 +23,60 @@ type Result<T> = std::result::Result<T, KubeError>;
 // Configuration Types
 // ============================================================================
 
+/// Exec configuration passed from Lua
+#[derive(Clone, Debug)]
+pub struct ExecConfig {
+    pub namespace: String,
+    pub pod: String,
+    pub container: Option<String>,
+    pub cmd: Vec<String>,
+}
+
+impl FromLua for ExecConfig {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        let table = value
+            .as_table()
+            .ok_or_else(|| LuaError::FromLuaConversionError {
+                from: "value",
+                to: "ExecConfig".into(),
+                message: Some("expected table".into()),
+            })?;
+        Ok(ExecConfig {
+            namespace: table.get("namespace")?,
+            pod: table.get("pod")?,
+            container: table.get("container")?,
+            cmd: table.get("cmd")?,
+        })
+    }
+}
+
+/// Debug configuration passed from Lua
+#[derive(Clone, Debug)]
+pub struct DebugConfig {
+    pub namespace: String,
+    pub pod: String,
+    pub image: String,
+    pub target: Option<String>,
+}
+
+impl FromLua for DebugConfig {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        let table = value
+            .as_table()
+            .ok_or_else(|| LuaError::FromLuaConversionError {
+                from: "value",
+                to: "DebugConfig".into(),
+                message: Some("expected table".into()),
+            })?;
+        Ok(DebugConfig {
+            namespace: table.get("namespace")?,
+            pod: table.get("pod")?,
+            image: table.get("image")?,
+            target: table.get("target")?,
+        })
+    }
+}
+
 /// Node shell configuration passed from Lua
 #[derive(Clone, Debug)]
 pub struct NodeShellConfig {

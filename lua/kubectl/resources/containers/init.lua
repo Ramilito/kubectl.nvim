@@ -99,15 +99,13 @@ function M.exec(pod, ns, is_fullscreen)
     return
   end
 
+  local exec_cmd = { "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh" }
   terminal.spawn_terminal(
     string.format("%s | %s: %s | %s", "container", pod, M.selection, ns),
     "k8s_exec",
     client.exec,
     is_fullscreen,
-    ns,
-    pod,
-    M.selection,
-    { "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh" }
+    { namespace = ns, pod = pod, container = M.selection, cmd = exec_cmd }
   )
 end
 
@@ -135,10 +133,7 @@ function M.debug(pod, ns, is_fullscreen)
       "k8s_debug",
       client.debug,
       is_fullscreen,
-      ns,
-      pod,
-      cmd_args.image,
-      M.selection
+      { namespace = ns, pod = pod, image = cmd_args.image, target = M.selection }
     )
   end)
 end
