@@ -467,7 +467,7 @@ end
 --- @param opts FramedBufferConfig
 --- @return FramedBufferResult
 function M.framed_buffer(opts)
-  -- Create buffers with names for debugging
+  -- Create buffers
   local hints_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_name(hints_buf, "kubectl://" .. (opts.filetype or "frame") .. "_hints")
 
