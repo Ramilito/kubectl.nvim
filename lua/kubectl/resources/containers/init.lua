@@ -54,19 +54,15 @@ function M.selectContainer(name)
   M.selection = name
 end
 
-function M.View(pod, ns)
-  M.definition.display_name = "pods | " .. pod .. " | " .. ns
+local function draw(builder, pod, ns)
   local gvk = M.definition.gvk
-  local builder = manager.get_or_create(M.definition.resource)
-  builder.view_framed(M.definition, {
-    recreate_func = M.View,
-    recreate_args = { pod, ns },
-  })
-
   commands.run_async(M.definition.cmd, { gvk = gvk, name = pod, namespace = ns }, function(result)
     builder.data = result
     builder.decodeJson()
     vim.schedule(function()
+      if not vim.api.nvim_win_is_valid(builder.win_nr) then
+        return
+      end
       builder
         .process(M.definition.processRow, true)
         .sort()
@@ -75,11 +71,22 @@ function M.View(pod, ns)
         .displayContent(builder.win_nr)
     end)
   end)
+end
+
+function M.View(pod, ns)
+  M.definition.display_name = "pods | " .. pod .. " | " .. ns
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view_framed(M.definition, {
+    recreate_func = M.View,
+    recreate_args = { pod, ns },
+  })
+
+  draw(builder, pod, ns)
 
   queue.register(pod_view.definition.gvk.k, builder.buf_nr, function(payload)
     local ev = vim.json.decode(payload)
     if ev.metadata.name == pod_view.selection.pod then
-      M.View(pod_view.selection.pod, pod_view.selection.ns)
+      draw(builder, pod_view.selection.pod, pod_view.selection.ns)
     end
   end)
 end

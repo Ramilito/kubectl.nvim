@@ -432,11 +432,6 @@ function M.new(resource)
     opts = opts or {}
     builder.definition = definition or {}
 
-    -- Close any existing frame before creating a new one
-    if builder.frame and builder.frame.close then
-      pcall(builder.frame.close)
-    end
-
     local frame = buffers.framed_buffer({
       title = definition.title,
       filetype = definition.ft,
