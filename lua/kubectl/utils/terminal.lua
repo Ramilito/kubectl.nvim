@@ -82,8 +82,8 @@ function M.spawn_terminal(title, key, fn, is_fullscreen, ...)
     buf, win = buffers.floating_buffer(key, title)
   end
 
-  vim.api.nvim_set_current_buf(buf)
   vim.schedule(function()
+    vim.api.nvim_set_current_win(win)
     M.attach_session(sess, buf, win)
   end)
 end
