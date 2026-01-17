@@ -38,6 +38,7 @@ function M.attach_session(sess, buf, win)
         if not timer:is_closing() then
           timer:close()
         end
+        sess:close()
         vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
         -- Small delay to let user see the message, then close
         vim.defer_fn(function()

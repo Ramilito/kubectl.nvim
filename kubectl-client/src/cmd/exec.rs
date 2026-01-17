@@ -9,6 +9,7 @@ use kube::{
     Client, Error as KubeError,
 };
 use mlua::{prelude::*, UserData, UserDataMethods};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -153,12 +154,13 @@ impl Session {
 // ============================================================================
 
 /// Interactive session for node-level shell access.
-/// Automatically cleans up the debug pod when closed.
+/// Cleans up the debug pod when closed.
 pub struct NodeShellSession {
     inner: BidirectionalSession<Vec<u8>, Vec<u8>>,
     client: Client,
     namespace: String,
     pod_name: String,
+    cleaned_up: AtomicBool,
 }
 
 impl SessionOps for NodeShellSession {
@@ -185,10 +187,16 @@ impl NodeShellSession {
             client,
             namespace,
             pod_name,
+            cleaned_up: AtomicBool::new(false),
         }
     }
 
     fn cleanup_pod(&self) {
+        // Only cleanup once
+        if self.cleaned_up.swap(true, Ordering::SeqCst) {
+            return;
+        }
+
         let client = self.client.clone();
         let ns = self.namespace.clone();
         let pod_name = self.pod_name.clone();
