@@ -1,5 +1,5 @@
 use crate::streaming::BidirectionalSession;
-use crate::{block_on, RUNTIME};
+use crate::RUNTIME;
 use k8s_openapi::{
     api::core::v1::{EphemeralContainer, Pod},
     serde_json::{self, json},
@@ -123,24 +123,6 @@ impl SessionOps for Session {
 impl_session_userdata!(Session);
 
 impl Session {
-    #[tracing::instrument(skip(client))]
-    pub fn new(
-        client: Client,
-        ns: String,
-        pod: String,
-        container: Option<String>,
-        cmd: Vec<String>,
-        tty: bool,
-    ) -> LuaResult<Self> {
-        let proc = block_on(async {
-            let p = open_exec(&client, &ns, &pod, &container, &cmd, tty).await?;
-            await_status_or_timeout(p).await
-        })
-        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-
-        Ok(Self::from_attached(proc))
-    }
-
     pub fn from_attached(mut proc: AttachedProcess) -> Self {
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
         let mut inner = BidirectionalSession::new();
@@ -177,7 +159,7 @@ impl SessionOps for NodeShellSession {
 impl_session_userdata!(NodeShellSession);
 
 impl NodeShellSession {
-    fn new(mut proc: AttachedProcess, client: Client, namespace: String, pod_name: String) -> Self {
+    pub fn new(mut proc: AttachedProcess, client: Client, namespace: String, pod_name: String) -> Self {
         let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
         let mut inner = BidirectionalSession::new();
         spawn_io_tasks(rt, &mut proc, &mut inner);
@@ -262,7 +244,7 @@ fn spawn_io_tasks(
 }
 
 /// Wait briefly for exec status to detect immediate failures
-async fn await_status_or_timeout(mut proc: AttachedProcess) -> Result<AttachedProcess> {
+pub async fn await_status_or_timeout(mut proc: AttachedProcess) -> Result<AttachedProcess> {
     let Some(fut) = proc.take_status() else {
         return Ok(proc);
     };
@@ -393,96 +375,88 @@ pub async fn open_exec(
     pods.exec(pod, cmd, &attach).await
 }
 
-/// Create an ephemeral debug container in a pod and return a session
+/// Create an ephemeral debug container in a pod and return an attached process
 #[tracing::instrument(skip(client))]
-pub fn open_debug(
-    client: Client,
-    ns: String,
-    pod: String,
-    image: String,
-    target: Option<String>,
-) -> LuaResult<Session> {
+pub async fn open_debug(
+    client: &Client,
+    ns: &str,
+    pod: &str,
+    image: &str,
+    target: Option<&str>,
+) -> LuaResult<AttachedProcess> {
     let debug_name = format!("debug-{}", uuid::Uuid::new_v4().simple());
 
     let mut ectr = EphemeralContainer {
         name: debug_name.clone(),
-        image: Some(image),
+        image: Some(image.to_owned()),
         stdin: Some(true),
         tty: Some(true),
         ..Default::default()
     };
     if let Some(t) = target {
-        ectr.target_container_name = Some(t);
+        ectr.target_container_name = Some(t.to_owned());
     }
 
     let patch: Pod =
         serde_json::from_value(json!({ "spec": { "ephemeralContainers": [ ectr ] }}))
             .map_err(|e| LuaError::external(format!("failed to build debug patch: {e}")))?;
 
-    block_on(async {
-        let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
+    let pods: Api<Pod> = Api::namespaced(client.clone(), ns);
 
-        pods.patch_ephemeral_containers(
-            &pod,
-            &PatchParams::apply("kubectl-client-debug"),
-            &Patch::Strategic(patch),
-        )
-        .await
-        .map_err(LuaError::external)?;
+    pods.patch_ephemeral_containers(
+        pod,
+        &PatchParams::apply("kubectl-client-debug"),
+        &Patch::Strategic(patch),
+    )
+    .await
+    .map_err(LuaError::external)?;
 
-        wait_for_ephemeral_container(&pods, &pod, &debug_name).await?;
+    wait_for_ephemeral_container(&pods, pod, &debug_name).await?;
 
-        let attached = pods
-            .attach(
-                &pod,
-                &AttachParams::default()
-                    .stdin(true)
-                    .stdout(true)
-                    .stderr(false)
-                    .tty(true)
-                    .container(debug_name),
-            )
-            .await
-            .map_err(LuaError::external)?;
-
-        Ok(Session::from_attached(attached))
-    })
+    pods.attach(
+        pod,
+        &AttachParams::default()
+            .stdin(true)
+            .stdout(true)
+            .stderr(false)
+            .tty(true)
+            .container(debug_name),
+    )
+    .await
+    .map_err(LuaError::external)
 }
 
 /// Create a privileged debug pod on a node and attach for shell access.
 /// Similar to `kubectl debug node/<name>` - uses host namespaces with root filesystem at /host.
+/// Returns the attached process and pod name (for cleanup).
 #[tracing::instrument(skip(client))]
-pub fn node_shell(client: Client, config: NodeShellConfig) -> LuaResult<NodeShellSession> {
+pub async fn open_node_shell(
+    client: &Client,
+    config: &NodeShellConfig,
+) -> LuaResult<(AttachedProcess, String)> {
     let pod_name = format!("node-shell-{}", uuid::Uuid::new_v4().simple());
-    let pod = build_node_shell_pod(&config, &pod_name)?;
+    let pod = build_node_shell_pod(config, &pod_name)?;
 
-    block_on(async {
-        let pods: Api<Pod> = Api::namespaced(client.clone(), &config.namespace);
+    let pods: Api<Pod> = Api::namespaced(client.clone(), &config.namespace);
 
-        pods.create(&PostParams::default(), &pod)
-            .await
-            .map_err(LuaError::external)?;
+    pods.create(&PostParams::default(), &pod)
+        .await
+        .map_err(LuaError::external)?;
 
-        wait_for_pod_running(&pods, &pod_name).await?;
+    wait_for_pod_running(&pods, &pod_name).await?;
 
-        let attached = pods
-            .attach(
-                &pod_name,
-                &AttachParams::default()
-                    .stdin(true)
-                    .stdout(true)
-                    .stderr(false)
-                    .tty(true)
-                    .container("shell"),
-            )
-            .await
-            .map_err(LuaError::external)?;
+    let attached = pods
+        .attach(
+            &pod_name,
+            &AttachParams::default()
+                .stdin(true)
+                .stdout(true)
+                .stderr(false)
+                .tty(true)
+                .container("shell"),
+        )
+        .await
+        .map_err(LuaError::external)?;
 
-        Ok(NodeShellSession::new(
-            attached,
-            client,
-            config.namespace,
-            pod_name,
-        ))
-    })
+    Ok((attached, pod_name))
 }
