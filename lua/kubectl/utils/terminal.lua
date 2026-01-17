@@ -16,10 +16,6 @@ function M.attach_session(sess, buf, win)
   -- Send initial newline to trigger shell prompt
   sess:write("\n")
 
-  -- Ensure we're in the terminal window before entering insert mode
-  if vim.api.nvim_win_is_valid(win) then
-    vim.api.nvim_set_current_win(win)
-  end
   vim.cmd.startinsert()
 
   local timer = vim.uv.new_timer()

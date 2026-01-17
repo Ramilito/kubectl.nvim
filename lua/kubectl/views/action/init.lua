@@ -147,10 +147,8 @@ function M.View(definition, data, callback)
   -- Set up y/n keymaps
   vim.keymap.set("n", "y", function()
     local args = get_values(definition, builder.origin_data)
+    callback(args)
     builder.frame.close()
-    vim.schedule(function()
-      callback(args)
-    end)
   end, { buffer = buf, noremap = true, silent = true })
 
   vim.keymap.set("n", "n", function()
