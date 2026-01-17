@@ -34,7 +34,7 @@ M.overrides = {
 function M.register()
   mappings.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
   mappings.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
-  mappings.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.cordon)")
+  mappings.map_if_plug_not_set("n", "gO", "<Plug>(kubectl.cordon)")
   mappings.map_if_plug_not_set("n", "gS", "<Plug>(kubectl.shell)")
 end
 
