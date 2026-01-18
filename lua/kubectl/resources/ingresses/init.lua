@@ -45,7 +45,7 @@ function M.OpenBrowser(name, ns)
         and builder.data.spec.rules[1].http.paths[1].backend
       then
         local backend = builder.data.spec.rules[1].http.paths[1].backend
-        port = backend.service.port.number or backend.servicePort or "80"
+        port = tostring(backend.service.port.number or backend.servicePort or 80)
       end
 
       -- determine host
@@ -65,12 +65,8 @@ function M.OpenBrowser(name, ns)
         end
       end
       local proto = port == "443" and "https" or "http"
-      local url
-      if port ~= "443" and port ~= "80" then
-        url = string.format("%s://%s:%s", proto, host, port)
-      else
-        url = string.format("%s://%s", proto, host)
-      end
+      local url = (port == "80" or port == "443") and string.format("%s://%s", proto, host)
+        or string.format("%s://%s:%s", proto, host, port)
       vim.ui.open(url)
     end
   )
