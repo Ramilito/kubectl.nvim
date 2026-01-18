@@ -23,6 +23,12 @@ pub struct GetTableArgs {
     pub filter: Option<String>,
     pub filter_label: Option<Vec<String>>,
     pub filter_key: Option<String>,
+    /// Headers for table formatting (visible columns in display order)
+    pub headers: Option<Vec<String>>,
+    /// Window width for column padding calculation
+    pub window_width: Option<usize>,
+    /// Window text offset (gutter/signcolumn width)
+    pub text_offset: Option<usize>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

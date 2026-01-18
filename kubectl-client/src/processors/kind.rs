@@ -111,6 +111,19 @@ fn run<P: Processor>(
     Ok(json_str)
 }
 
+/// Process items and return as Vec<serde_json::Value> directly (no string conversion).
+#[tracing::instrument(skip(proc_impl, items))]
+fn run_to_values<P: Processor>(
+    proc_impl: &P,
+    items: &[DynamicObject],
+    params: &FilterParams,
+) -> LuaResult<Vec<serde_json::Value>> {
+    let rows = proc_impl.process(items, params)?;
+    rows.into_iter()
+        .map(|row| serde_json::to_value(row).map_err(|e| mlua::Error::RuntimeError(e.to_string())))
+        .collect()
+}
+
 impl ProcessorKind {
     #[tracing::instrument]
     pub fn process_fallback(
@@ -163,6 +176,42 @@ impl ProcessorKind {
             ServiceAccount => run(&ServiceAccountProcessor, lua, items, params),
             StatefulSet => run(&StatefulsetProcessor, lua, items, params),
             StorageClass => run(&StorageClassProcessor, lua, items, params),
+        }
+    }
+
+    /// Process items and return as Vec<serde_json::Value> directly (skips JSON string conversion).
+    pub fn process_to_values(
+        &self,
+        items: &[DynamicObject],
+        params: &FilterParams,
+    ) -> LuaResult<Vec<serde_json::Value>> {
+        use ProcessorKind::*;
+        match self {
+            ClusterRole => run_to_values(&ClusterRoleProcessor, items, params),
+            ClusterRoleBinding => run_to_values(&ClusterRoleBindingProcessor, items, params),
+            ConfigMap => run_to_values(&ConfigmapProcessor, items, params),
+            Container => run_to_values(&ContainerProcessor, items, params),
+            CronJob => run_to_values(&CronJobProcessor, items, params),
+            CustomResourceDefinition => run_to_values(&ClusterResourceDefinitionProcessor, items, params),
+            DaemonSet => run_to_values(&DaemonsetProcessor, items, params),
+            Default => run_to_values(&DefaultProcessor, items, params),
+            Deployment => run_to_values(&DeploymentProcessor, items, params),
+            Event => run_to_values(&EventProcessor, items, params),
+            Fallback => run_to_values(&FallbackProcessor, items, params),
+            HorizontalPodAutoscaler => run_to_values(&HorizontalPodAutoscalerProcessor, items, params),
+            Ingress => run_to_values(&IngressProcessor, items, params),
+            Job => run_to_values(&JobProcessor, items, params),
+            Namespace => run_to_values(&NamespaceProcessor, items, params),
+            Node => run_to_values(&NodeProcessor, items, params),
+            PersistentVolume => run_to_values(&PersistentVolumeProcessor, items, params),
+            PersistentVolumeClaim => run_to_values(&PersistentVolumeClaimProcessor, items, params),
+            Pod => run_to_values(&PodProcessor, items, params),
+            ReplicaSet => run_to_values(&ReplicaSetProcessor, items, params),
+            Secret => run_to_values(&SecretProcessor, items, params),
+            Service => run_to_values(&ServiceProcessor, items, params),
+            ServiceAccount => run_to_values(&ServiceAccountProcessor, items, params),
+            StatefulSet => run_to_values(&StatefulsetProcessor, items, params),
+            StorageClass => run_to_values(&StorageClassProcessor, items, params),
         }
     }
 }

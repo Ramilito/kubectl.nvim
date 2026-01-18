@@ -20,6 +20,10 @@ pub struct Symbols {
     pub tab: String,
     pub underline: String,
     pub plmatch: String,
+    // Semantic line highlights
+    pub semantic_error: String,
+    pub semantic_warn: String,
+    pub semantic_completed: String,
 }
 
 static SYMBOLS: OnceLock<Symbols> = OnceLock::new();
@@ -46,6 +50,9 @@ pub fn symbols() -> &'static Symbols {
         tab:          "KubectlTab".to_string(),
         underline:    "KubectlUnderline".to_string(),
         plmatch:       "KubectlPmatch".to_string(),
+        semantic_error:     "KubectlSemanticError".to_string(),
+        semantic_warn:      "KubectlSemanticWarn".to_string(),
+        semantic_completed: "KubectlSemanticCompleted".to_string(),
     })
 }
 
@@ -213,5 +220,39 @@ pub fn color_status(status: &str) -> String {
         symbols().success.clone()
     } else {
         "".to_string()
+    }
+}
+
+static COMPLETED_STATUSES: OnceLock<HashSet<String>> = OnceLock::new();
+
+fn completed_statuses() -> &'static HashSet<String> {
+    COMPLETED_STATUSES.get_or_init(|| {
+        let mut set = HashSet::new();
+        set.insert("Completed".into());
+        set.insert("Succeeded".into());
+        set
+    })
+}
+
+/// Get semantic line highlight for a status/phase value.
+/// Returns highlight group name or None.
+#[inline]
+pub fn get_semantic_highlight(status: &str) -> Option<&'static str> {
+    if status.is_empty() {
+        return None;
+    }
+    let capitalized = capitalize(status);
+
+    // Completed takes priority (dimmed, not attention-grabbing)
+    if completed_statuses().contains(&capitalized) {
+        return Some(&symbols().semantic_completed);
+    }
+
+    if error_statuses().contains(&capitalized) {
+        Some(&symbols().semantic_error)
+    } else if warning_statuses().contains(&capitalized) {
+        Some(&symbols().semantic_warn)
+    } else {
+        None
     }
 }
