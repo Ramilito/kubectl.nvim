@@ -27,7 +27,10 @@ pub async fn delete_async(_lua: Lua, json: String) -> LuaResult<String> {
             .map_err(|e| LuaError::RuntimeError(format!("Delete failed: {e}")))?;
 
         if let Either::Left(pdel) = deletion {
-            await_condition(api.clone(), &args.name, is_deleted(&pdel.uid().unwrap()))
+            let uid = pdel
+                .uid()
+                .ok_or_else(|| LuaError::RuntimeError("Resource missing UID".to_string()))?;
+            await_condition(api.clone(), &args.name, is_deleted(&uid))
                 .await
                 .map_err(|e| {
                     LuaError::RuntimeError(format!("Timed out waiting for deletion: {e}"))
