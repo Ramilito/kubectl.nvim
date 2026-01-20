@@ -1,10 +1,17 @@
-# CLAUDE-STATUSLINE.md
+---
+name: statusline
+description: Statusline feature specialist. Use when working on cluster health indicators, metrics display, statusline refresh timing, or adding new statusline metrics.
+tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+---
+
+# Statusline Feature Guidance
 
 Guidance for working with the kubectl.nvim statusline feature.
 
-## When to Use This Guide
+## When to Use This Subagent
 
-Consult this guide when working on:
+Work on:
 - Statusline content, layout, or formatting
 - Cluster health indicators
 - Statusline refresh timing or performance
@@ -24,11 +31,11 @@ Consult this guide when working on:
 
 ```
 Lua                              Rust (dylib)
-───────────────────────────────────────────────────────────
-View() ──► timer:start() ───────► (waits 5s)
-Draw() ──► get_statusline_async ─► Aggregate node stats + events
-                                  └─► Query Warning events (1h window)
-process() ◄── JSON response ◄────┘
+-----------------------------------------------------------
+View() --> timer:start() -------> (waits 5s)
+Draw() --> get_statusline_async -> Aggregate node stats + events
+                                  +-> Query Warning events (1h window)
+process() <-- JSON response <----+
 vim.o.statusline = formatted
 ```
 

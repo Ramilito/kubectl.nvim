@@ -1,17 +1,24 @@
-# CLAUDE-LOGS.md
+---
+name: logs
+description: Pod logs feature specialist. Use when working on log streaming, tailing, JSON expand/collapse, histogram visualization, or LogSession UserData bindings.
+tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+---
+
+# Pod Logs Feature Guidance
 
 Guidance for working with the pod logs view feature.
 
-## When to Use This Guide
+## When to Use This Subagent
 
-Consult this guide when working on:
+Work on:
 - Log streaming, tailing, or fetching
 - JSON expand/collapse in log output
 - Log view keybindings or syntax highlighting
 - Histogram visualization
 - `LogSession` UserData or related mlua bindings
 
-For general mlua FFI patterns (async functions, JSON serialization, error handling), see [CLAUDE-RUST.md](./CLAUDE-RUST.md).
+For general mlua FFI patterns (async functions, JSON serialization, error handling), use the `rust` subagent.
 
 ## File Map
 
@@ -31,10 +38,10 @@ For general mlua FFI patterns (async functions, JSON serialization, error handli
 
 ```
 Lua                              Rust (dylib)
-───────────────────────────────────────────────────────────
-Logs() ──► log_stream_async ───► One-shot fetch + histogram
-TailLogs() ──► log_session ────► LogSession (streaming)
-toggle_json() ─────────────────► JSON expand/collapse
+-----------------------------------------------------------
+Logs() --> log_stream_async ---> One-shot fetch + histogram
+TailLogs() --> log_session ----> LogSession (streaming)
+toggle_json() -----------------> JSON expand/collapse
 ```
 
 ## Rust: LogSession UserData

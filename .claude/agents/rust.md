@@ -1,4 +1,11 @@
-# CLAUDE-RUST.md
+---
+name: rust
+description: Rust codebase specialist for kubectl-client. Use when working on Rust code, mlua FFI bindings, Tokio async patterns, processors, or Go FFI integration.
+tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+---
+
+# Rust Codebase Guidance
 
 Guidance for working with the Rust codebase (`kubectl-client/`).
 

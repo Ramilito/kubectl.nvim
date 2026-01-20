@@ -1,4 +1,11 @@
-# CLAUDE-LUA.md
+---
+name: lua
+description: Lua/Neovim plugin specialist for kubectl.nvim. Use when working on Lua code, resource views, keybindings, state management, or Neovim integration.
+tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+---
+
+# Lua/Neovim Plugin Guidance
 
 Guidance for working with the Lua/Neovim plugin codebase (`lua/kubectl/`).
 

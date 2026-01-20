@@ -2,21 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Subagent Guides
+## Subagents
 
-- **[CLAUDE-PLAN.md](./.claude/CLAUDE-PLAN.md)** - **INVOKE FIRST** for refactoring/pattern-following tasks. Plans minimal approach before any tool calls.
-- **[CLAUDE-RUST.md](./.claude/CLAUDE-RUST.md)** - Rust codebase guidance (dylib constraints, mlua FFI, Tokio runtime)
-- **[CLAUDE-LUA.md](./.claude/CLAUDE-LUA.md)** - Lua/Neovim plugin guidance (resource pattern, factory, state management)
-- **[CLAUDE-LOGS.md](./.claude/CLAUDE-LOGS.md)** - Pod logs feature (streaming, JSON toggle, histogram, mlua UserData)
-- **[CLAUDE-LSP.md](./.claude/CLAUDE-LSP.md)** - LSP features (completion, hover, diagnostics, in-process server)
-- **[CLAUDE-STATUSLINE.md](./.claude/CLAUDE-STATUSLINE.md)** - Statusline feature (cluster health, metrics display, refresh timing)
-- **[CLAUDE-CODE-REVIEW.md](./.claude/CLAUDE-CODE-REVIEW.md)** - Targeted code review (post-edit, pre-commit, module modes)
-- **[CLAUDE-ARCHITECTURE-VERIFY.md](./.claude/CLAUDE-ARCHITECTURE-VERIFY.md)** - Architecture verification (dependency rules, pattern conformance)
+This project uses Claude Code subagents (`.claude/agents/`) for specialized tasks. Claude will automatically delegate to these based on context:
 
-### Reference Documents
+| Subagent | When Used |
+|----------|-----------|
+| `plan` | **INVOKE FIRST** for refactoring/pattern-following tasks |
+| `rust` | Working on Rust code, mlua FFI, Tokio patterns |
+| `lua` | Working on Lua/Neovim plugin code |
+| `logs` | Pod logs feature (streaming, JSON toggle, histogram) |
+| `lsp` | LSP features (completion, hover, diagnostics) |
+| `statusline` | Statusline feature (cluster health, metrics) |
+| `code-review` | Code quality review (post-edit, pre-commit, module) |
+| `architecture-verify` | Architecture verification (dependency rules) |
 
-- **[CLAUDE-CLEAN-CODE.md](./.claude/CLAUDE-CLEAN-CODE.md)** - Clean code principles (cognitive load, readability, function design)
-- **[ARCHITECTURE.md](./.claude/ARCHITECTURE.md)** - Architecture contract (layers, boundaries, dependency rules)
+**Reference subagents** (read-only, for guidance):
+| Subagent | Purpose |
+|----------|---------|
+| `clean-code` | Clean code principles and patterns |
+| `architecture` | Architecture contract and dependency rules |
+
+**Explicit invocation:** `"Use the plan subagent to..."` or `"Have the code-review subagent check..."`
 
 ## Project Overview
 
@@ -113,7 +120,7 @@ Do NOT run these commands:
 Follow these rules to minimize token usage:
 
 **Before starting work:**
-1. **INVOKE [CLAUDE-PLAN.md](./.claude/CLAUDE-PLAN.md)** for any refactoring or pattern-following task
+1. **Use the `plan` subagent** for any refactoring or pattern-following task
 2. Ask clarifying questions FIRST if the task involves patterns you need to understand
 3. Request the user paste relevant code snippets instead of exploring broadly
 4. For refactoring tasks, read ONLY the file being changed + ONE example of the target pattern

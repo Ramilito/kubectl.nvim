@@ -1,18 +1,25 @@
-# CLAUDE-LSP.md
+---
+name: lsp
+description: LSP features specialist. Use when working on completion, hover, diagnostics, in-process LSP server, or adding new completion sources.
+tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+---
+
+# LSP Features Guidance
 
 Guidance for working with the LSP features (completion, hover, diagnostics).
 
-## When to Use This Guide
+## When to Use This Subagent
 
-Consult this guide when working on:
+Work on:
 - LSP server configuration or capabilities
 - Completion sources for different filetypes
 - Hover provider (resource info display)
 - Diagnostics (errors/warnings for resources)
 - Adding new completion sources or hover formatters
 
-For general Lua/Neovim patterns, see [CLAUDE-LUA.md](./CLAUDE-LUA.md).
-For Rust async patterns and mlua FFI, see [CLAUDE-RUST.md](./CLAUDE-RUST.md).
+For general Lua/Neovim patterns, use the `lua` subagent.
+For Rust async patterns and mlua FFI, use the `rust` subagent.
 
 ## Architecture Overview
 
@@ -22,20 +29,20 @@ The plugin runs an **in-process LSP server** (no external process). This enables
 - Diagnostics for resource status issues
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Neovim                               │
-│  ┌─────────────────┐      ┌────────────────────────────┐   │
-│  │ Plugin Buffers  │◄────►│  kubectl LSP Server        │   │
-│  │ (k8s_* types)   │      │  (in-process, lsp/init.lua)│   │
-│  └─────────────────┘      └────────────────────────────┘   │
-│           │                          │                      │
-│           ▼                          ▼                      │
-│  ┌─────────────────┐      ┌────────────────────────────┐   │
-│  │ Diagnostics     │      │  Handlers:                 │   │
-│  │ (virtual_lines) │      │  - completion → sources/*  │   │
-│  └─────────────────┘      │  - hover → Rust FFI        │   │
-│                           └────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                         Neovim                               |
+|  +-----------------+      +----------------------------+    |
+|  | Plugin Buffers  |<---->|  kubectl LSP Server        |    |
+|  | (k8s_* types)   |      |  (in-process, lsp/init.lua)|    |
+|  +-----------------+      +----------------------------+    |
+|           |                          |                       |
+|           v                          v                       |
+|  +-----------------+      +----------------------------+    |
+|  | Diagnostics     |      |  Handlers:                 |    |
+|  | (virtual_lines) |      |  - completion -> sources/* |    |
+|  +-----------------+      |  - hover -> Rust FFI       |    |
+|                           +----------------------------+    |
++-------------------------------------------------------------+
 ```
 
 ## File Map
@@ -57,66 +64,66 @@ The plugin runs an **in-process LSP server** (no external process). This enables
 ### Completion Flow
 ```
 User types in prompt buffer
-        │
-        ▼
+        |
+        v
 LSP textDocument/completion request
-        │
-        ▼
+        |
+        v
 lsp/init.lua:get_completion_items()
-        │
-        ▼
-sources[filetype]() → items[]
-        │
-        ▼
+        |
+        v
+sources[filetype]() -> items[]
+        |
+        v
 Return to LSP client (displayed by completion plugin)
 ```
 
 ### Hover Flow
 ```
 User triggers hover (K key)
-        │
-        ▼
+        |
+        v
 LSP textDocument/hover request
-        │
-        ▼
+        |
+        v
 lsp/hover/init.lua:get_hover()
-        │
-        ├─► resource_from_filetype() → resource name
-        ├─► get_selection() → name, namespace
-        │
-        ▼
+        |
+        +--> resource_from_filetype() -> resource name
+        +--> get_selection() -> name, namespace
+        |
+        v
 commands.run_async("get_hover_async", {gvk, namespace, name})
-        │
-        ▼
-Rust: hover/mod.rs → store cache or API fetch
-        │
-        ▼
-Rust: formatters.rs → markdown output
-        │
-        ▼
+        |
+        v
+Rust: hover/mod.rs -> store cache or API fetch
+        |
+        v
+Rust: formatters.rs -> markdown output
+        |
+        v
 Lua: append diagnostic section (if any)
-        │
-        ▼
+        |
+        v
 Return markdown to Neovim hover window
 ```
 
 ### Diagnostics Flow
 ```
 Resource view drawn (via resource_factory)
-        │
-        ▼
+        |
+        v
 diagnostics.set_diagnostics(bufnr, resource)
-        │
-        ▼
+        |
+        v
 Iterate builder.processedData rows
-        │
-        ├─► Check status/phase/conditions for severity symbols
-        ├─► Build message from status, ready, restarts, hint
-        │
-        ▼
+        |
+        +--> Check status/phase/conditions for severity symbols
+        +--> Build message from status, ready, restarts, hint
+        |
+        v
 vim.diagnostic.set(ns, bufnr, diagnostics)
-        │
-        ▼
+        |
+        v
 Displayed via virtual_lines (current line only by default)
 ```
 
@@ -261,7 +268,7 @@ function M.get_items()
   table.insert(items, {
     label = "item-name",
     kind_name = "KindName",
-    kind_icon = "󰘧",
+    kind_icon = "...",
   })
   return items
 end

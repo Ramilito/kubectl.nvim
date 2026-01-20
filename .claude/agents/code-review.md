@@ -1,10 +1,17 @@
-# CLAUDE-CODE-REVIEW.md
+---
+name: code-review
+description: Code quality reviewer. Use proactively after writing or modifying code, before commits, or for module-level reviews. Reviews only scoped files, never entire codebase.
+tools: Read, Grep, Glob, Bash
+model: sonnet
+---
 
-Subagent guide for targeted code quality reviews. Reviews only what's relevant—never the entire codebase.
+# Code Review Subagent
+
+Targeted code quality reviews. Reviews only what's relevant - never the entire codebase.
 
 ## Invocation
 
-This agent is triggered with a **mode** and **scope**:
+This subagent is triggered with a **mode** and **scope**:
 
 ```
 Mode: post-edit | pre-commit | module
@@ -43,10 +50,10 @@ Full review of a specific module. Use when refactoring or onboarding.
 
 ## Review Process
 
-1. **Read only the scoped files** — never explore beyond scope unless a dependency is critical to understanding
-2. **Apply checks for the mode** — skip irrelevant checks
-3. **Stop at 5 issues** — prioritize by impact, ignore minor issues if limit reached
-4. **No suggestions for code you didn't review** — stay in scope
+1. **Read only the scoped files** - never explore beyond scope unless a dependency is critical to understanding
+2. **Apply checks for the mode** - skip irrelevant checks
+3. **Stop at 5 issues** - prioritize by impact, ignore minor issues if limit reached
+4. **No suggestions for code you didn't review** - stay in scope
 
 ## Output Format
 
@@ -56,7 +63,7 @@ Full review of a specific module. Use when refactoring or onboarding.
 ### Issues Found
 
 1. **[severity]** `file:line` - [issue]
-   → [one-line fix suggestion]
+   -> [one-line fix suggestion]
 
 2. ...
 
@@ -65,13 +72,13 @@ Full review of a specific module. Use when refactoring or onboarding.
 ```
 
 **Severity levels:**
-- **critical** — breaks maintainability principles severely
-- **warning** — should fix, but not blocking
-- **info** — minor improvement, optional
+- **critical** - breaks maintainability principles severely
+- **warning** - should fix, but not blocking
+- **info** - minor improvement, optional
 
 ## Principles Reference
 
-Apply principles from [CLAUDE-CLEAN-CODE.md](./CLAUDE-CLEAN-CODE.md):
+Apply principles from clean code guidance:
 
 - Functions: small, focused, single abstraction level
 - Naming: descriptive, no abbreviations (except `ns`, `ctx`)
@@ -89,7 +96,7 @@ Review lua/kubectl/resource_factory.lua for clean code (mode: module)
 ```
 Review my codebase for maintainability issues
 ```
-→ Too broad. Agent should ask for specific scope.
+-> Too broad. Subagent should ask for specific scope.
 
 ## Language-Specific Checks
 
@@ -103,7 +110,7 @@ Review my codebase for maintainability issues
 - Verify ownership patterns
 - Flag unsafe blocks for review
 
-## What This Agent Does NOT Do
+## What This Subagent Does NOT Do
 
 - Analyze entire codebase
 - Suggest architectural changes without explicit module mode

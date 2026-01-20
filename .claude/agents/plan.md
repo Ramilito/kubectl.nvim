@@ -1,3 +1,10 @@
+---
+name: plan
+description: Planning subagent for refactoring, pattern-following, and multi-file changes. INVOKE FIRST before any refactoring or feature work that follows existing patterns. Returns a structured plan without making any tool calls.
+tools: ""
+model: haiku
+---
+
 # Planning Subagent
 
 Invoke this agent BEFORE starting any task that involves:
