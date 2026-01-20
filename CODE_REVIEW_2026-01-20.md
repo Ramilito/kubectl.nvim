@@ -1,7 +1,7 @@
 # kubectl.nvim Code Review Report
 **Date:** 2026-01-20
 **Reviewed by:** Specialized subagents (rust, lua, logs, lsp, statusline, architecture-verify)
-**Last Updated:** 2026-01-20 (after Priority 1 fixes)
+**Last Updated:** 2026-01-20 (after Priority 2 fixes)
 
 ---
 
@@ -39,35 +39,50 @@ The following critical issues have been resolved:
 
 ---
 
+## Completed Fixes (Priority 2)
+
+### Lua Fixes
+
+| File | Issue | Fix Applied |
+|------|-------|-------------|
+| `lua/kubectl/lsp/hover/init.lua:24-26` | Emojis in hover undocumented | Added comment explaining colored emojis provide clear severity distinction |
+| `lua/kubectl/resource_factory.lua:269-273` | Async callback missing buffer validity | Added `nvim_buf_is_valid()` check before draw |
+| `lua/kubectl/mappings.lua:383-386` | Buffer state access without nil check | Added `buf_state` and `content_row_start` nil checks |
+
+### Rust Fixes
+
+| File | Issue | Fix Applied |
+|------|-------|-------------|
+| `kubectl-client/src/lib.rs:373-376` | Silent statusline API failures | Added `tracing::warn!` for errors |
+| `kubectl-client/src/lib.rs:262-265` | Sync `get_all` undocumented | Added doc comment explaining it's required for :Kubens command completion (must be sync) |
+| `kubectl-client/src/statusline.rs:67` | Missing event timestamp source | Added `series.last_observed_time` fallback |
+| `kubectl-client/src/cmd/log_session.rs:54-59` | Silent pod failures in multi-pod | Added `tracing::warn!` when skipping failed pods |
+| `kubectl-client/src/cmd/log_session.rs:180-188` | No histogram bucket limit | Added `MAX_HISTOGRAM_BUCKETS = 500` constant |
+
+### Already Addressed (Not Bugs)
+
+| Item | Reason |
+|------|--------|
+| Stale request cancellation for LSP completion | Completion is synchronous - no async I/O that could cause stale data. Buffer validity check already present. |
+
+---
+
 ## Executive Summary
 
 Six specialized subagents performed comprehensive reviews of their respective areas. The codebase is well-architected overall with excellent patterns in both Rust and Lua layers.
 
 | Area | Grade | Remaining Issues |
 |------|-------|------------------|
-| Rust Codebase | B+ → A- | 2 High, 2 Medium |
-| Lua Codebase | 9.2/10 | 3 High, 2 Medium |
-| Pod Logs Feature | Good | 4 High, 4 Medium |
-| LSP Features | Good | 1 High, 4 Medium |
-| Statusline Feature | Good | 2 High, 5 Medium |
+| Rust Codebase | A- | 1 Medium (poisoned lock policy) |
+| Lua Codebase | 9.4/10 | 1 Medium (state race condition) |
+| Pod Logs Feature | Good | 2 Medium |
+| LSP Features | Good | 3 Medium |
+| Statusline Feature | Good | 4 Medium |
 | Architecture | B | 3 Architectural |
 
 ---
 
 ## Remaining Action Items
-
-### Priority 2: High (Should Fix)
-
-| # | Issue | Location | Effort |
-|---|-------|----------|--------|
-| 1 | Add buffer validity checks in async callbacks | `resource_factory.lua:265`, `mappings.lua:383` | Small |
-| 2 | Replace emojis with text symbols in hover | `hover/init.lua:24-26` | Trivial |
-| 3 | Add `series.last_observed_time` to statusline event logic | `statusline.rs:62-66` | Small |
-| 4 | Add error logging for statusline API failures | `lib.rs:369-378` | Trivial |
-| 5 | Add stale request cancellation to LSP completion | `lsp/init.lua:89-101` | Small |
-| 6 | Add max bound for histogram buckets | `log_session.rs:186` | Trivial |
-| 7 | Report failed pods in multi-pod log mode | `log_session.rs:54-56` | Small |
-| 8 | Deprecate sync `get_all` function (blocks UI) | `lib.rs:263` | Medium |
 
 ### Priority 3: Medium (Nice to Have)
 
@@ -95,27 +110,18 @@ Six specialized subagents performed comprehensive reviews of their respective ar
 
 ### 1. Rust Codebase
 
-**Grade: B+ → A- (after fixes)**
+**Grade: A- (after Priority 2 fixes)**
 
-#### 1.1 Remaining High Priority
+#### 1.1 Fixed Issues
 
-##### 1.1.1 Sync Function Blocks Neovim Thread
+- ✓ Sync `get_all` function documented (required for :Kubens command completion)
+- ✓ Statusline API failures now logged via `tracing::warn!`
+- ✓ Event timestamps now include `series.last_observed_time` fallback
+- ✓ Multi-pod log failures now logged with warning
 
-**Location:** `kubectl-client/src/lib.rs:263`
+#### 1.2 Remaining Medium Priority
 
-```rust
-fn get_all(_lua: &Lua, json: String) -> LuaResult<String>
-```
-
-This sync function calls `with_client` which uses `block_on`, blocking the Neovim main thread.
-
-**Impact:** User-visible UI freeze during Kubernetes API calls.
-
-**Recommendation:** Deprecate sync version, only expose async functions to Lua. There's already `get_all_async` at line 284.
-
----
-
-##### 1.1.2 Poisoned Lock Handling Inconsistency
+##### 1.2.1 Poisoned Lock Handling Inconsistency
 
 The codebase has two patterns for handling poisoned locks:
 
@@ -326,9 +332,11 @@ Should log the error for debugging.
 
 ---
 
-## Files Modified (Priority 1 Fixes)
+## Files Modified
 
-### Rust Files
+### Priority 1 Fixes
+
+#### Rust Files
 - `kubectl-client/src/dao/cronjob.rs`
 - `kubectl-client/src/cmd/delete.rs`
 - `kubectl-client/src/processors/node.rs`
@@ -337,6 +345,18 @@ Should log the error for debugging.
 - `kubectl-client/src/processors/configmap.rs`
 - `kubectl-client/src/processors/serviceaccount.rs`
 
-### Lua Files
+#### Lua Files
 - `lua/kubectl/views/statusline/init.lua`
 - `lua/kubectl/views/logs/session.lua`
+
+### Priority 2 Fixes
+
+#### Rust Files
+- `kubectl-client/src/lib.rs`
+- `kubectl-client/src/statusline.rs`
+- `kubectl-client/src/cmd/log_session.rs`
+
+#### Lua Files
+- `lua/kubectl/lsp/hover/init.lua`
+- `lua/kubectl/resource_factory.lua`
+- `lua/kubectl/mappings.lua`

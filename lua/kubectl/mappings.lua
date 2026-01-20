@@ -381,6 +381,9 @@ function M.get_mappings()
 
         local bufnr = vim.api.nvim_get_current_buf()
         local buf_state = state.get_buffer_state(bufnr)
+        if not buf_state or not buf_state.content_row_start then
+          return
+        end
         local mark, word = marks.get_current_mark(buf_state.content_row_start, bufnr)
 
         if not mark then

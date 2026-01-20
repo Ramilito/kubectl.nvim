@@ -52,7 +52,11 @@ async fn resolve_log_targets(
             Ok(pod) => pod,
             Err(e) => {
                 if is_multi_pod {
-                    continue; // Skip failed pods in multi-pod mode
+                    tracing::warn!(
+                        "Skipping pod {}/{}: {}",
+                        pod_ref.namespace, pod_ref.name, e
+                    );
+                    continue;
                 }
                 return Err(format!(
                     "Failed to get pod {} in {}: {}",
@@ -177,12 +181,15 @@ fn format_time_label(ts: Timestamp, total_hours: i64) -> String {
 }
 
 /// Build and render histogram as bar chart lines.
+/// Maximum number of histogram buckets to prevent memory issues with very wide terminals
+const MAX_HISTOGRAM_BUCKETS: usize = 500;
+
 fn render_histogram(
     lines: &[String],
     since_span: Option<Span>,
     bucket_count: usize,
 ) -> Vec<String> {
-    if bucket_count < 12 {
+    if bucket_count < 12 || bucket_count > MAX_HISTOGRAM_BUCKETS {
         return Vec::new();
     }
 

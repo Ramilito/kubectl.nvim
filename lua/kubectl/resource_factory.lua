@@ -267,6 +267,10 @@ function M.new(resource)
         return
       end
       vim.schedule(function()
+        -- Check buffer validity before drawing (buffer may have been deleted)
+        if builder.buf_nr and not vim.api.nvim_buf_is_valid(builder.buf_nr) then
+          return
+        end
         builder.draw(cancellationToken)
         vim.cmd("doautocmd User K8sDataLoaded")
       end)
