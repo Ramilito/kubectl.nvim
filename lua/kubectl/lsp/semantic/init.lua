@@ -72,6 +72,7 @@ function M.add_line_highlights(data, extmarks, content_start)
         row = content_start + i - 1,
         start_col = 0,
         line_hl_group = hl_group,
+        priority = 10, -- Lower priority so selection highlights can override
       })
     end
   end

@@ -561,12 +561,14 @@ function M.pretty_print(data, headers, sort_by, win)
         row = row_index,
         start_col = 0,
         line_hl_group = hl.symbols.header,
+        priority = 100, -- Higher priority so selection overrides semantic highlights
       })
       table.insert(extmarks, {
         row = row_index,
         start_col = 0,
         sign_text = "»",
         sign_hl_group = "Note",
+        priority = 100,
       })
     end
 

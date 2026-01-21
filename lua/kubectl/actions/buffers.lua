@@ -101,6 +101,7 @@ local function apply_single_mark(bufnr, ns_id, mark, row_offset)
     sign_text = mark.sign_text,
     sign_hl_group = mark.sign_hl_group,
     ephemeral = mark.ephemeral,
+    priority = mark.priority,
   })
 end
 
