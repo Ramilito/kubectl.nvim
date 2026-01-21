@@ -40,13 +40,15 @@ impl Processor for NodeProcessor {
         let version = node
             .status
             .as_ref()
-            .map(|s| s.node_info.as_ref().unwrap().kubelet_version.clone())
+            .and_then(|s| s.node_info.as_ref())
+            .map(|ni| ni.kubelet_version.clone())
             .unwrap_or_default();
 
         let os_image = node
             .status
             .as_ref()
-            .map(|s| s.node_info.as_ref().unwrap().os_image.clone())
+            .and_then(|s| s.node_info.as_ref())
+            .map(|ni| ni.os_image.clone())
             .unwrap_or_default();
 
         let (internal, external) = split_ips(&node);

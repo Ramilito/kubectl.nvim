@@ -259,6 +259,9 @@ fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
     Ok(true)
 }
 
+/// Synchronous version of get_all - blocks the Neovim main thread.
+/// NOTE: Required for Neovim command completion (e.g., :Kubens) which must be synchronous.
+/// For all other uses, prefer get_all_async.
 #[tracing::instrument]
 fn get_all(_lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetAllArgs = serde_json::from_str(&json)
@@ -370,7 +373,10 @@ pub async fn get_statusline_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     with_client(|client| async move {
         let statusline = match get_statusline(client).await {
             Ok(s) => s,
-            Err(_) => return Ok(String::new()),
+            Err(e) => {
+                tracing::warn!("Failed to get statusline data: {}", e);
+                return Ok(String::new());
+            }
         };
 
         let json_str = k8s_openapi::serde_json::to_string(&statusline)

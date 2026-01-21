@@ -22,9 +22,10 @@ impl Processor for ConfigmapProcessor {
     type Row = ConfigmapProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let map: ConfigMap =
-            from_value(to_value(obj).expect("Failed to convert DynamicObject to JSON Value"))
-                .expect("Failed to convert JSON Value into ClusterRoleBinding");
+        let map: ConfigMap = from_value(
+            to_value(obj).map_err(|e| LuaError::external(format!("Failed to serialize ConfigMap: {e}")))?,
+        )
+        .map_err(|e| LuaError::external(format!("Failed to deserialize ConfigMap: {e}")))?;
         let binary_data = map.data.as_ref().map_or(0, |map| map.len());
         Ok(ConfigmapProcessed {
             namespace: map.metadata.namespace.clone().unwrap_or_default(),

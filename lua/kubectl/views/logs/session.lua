@@ -65,8 +65,9 @@ local function create_session(buf, win, options)
     end
     self.stopped = true
 
+    local cleanup_ok = true
     if self.rust_session then
-      pcall(function()
+      cleanup_ok = pcall(function()
         self.rust_session:close()
       end)
       self.rust_session = nil
@@ -80,8 +81,10 @@ local function create_session(buf, win, options)
     ---@diagnostic enable: undefined-field
     self.timer = nil
 
-    -- Remove from manager
-    manager.remove(session_key(buf))
+    -- Only remove from manager if cleanup succeeded to avoid orphaned resources
+    if cleanup_ok then
+      manager.remove(session_key(buf))
+    end
   end
 
   --- Start streaming logs for the given pods

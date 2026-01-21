@@ -27,9 +27,13 @@ function M.get_current_mark(row, bufnr)
   for _, value in ipairs(line_marks) do
     local mark_col = value[3]
     local content = value[4]
-    if col >= mark_col and col <= mark_col + #content.virt_text[1][1] then
-      mark = value
-      current_word = vim.trim(content.virt_text[1][1])
+    local text = content.virt_text[1][1]
+    -- Skip sort indicator marks (▲/▼)
+    if text ~= "▲" and text ~= "▼" then
+      if col >= mark_col and col < mark_col + #text then
+        mark = value
+        current_word = vim.trim(text)
+      end
     end
   end
 

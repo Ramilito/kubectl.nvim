@@ -63,7 +63,8 @@ pub async fn get_statusline(client: Client) -> Result<Statusline, Error> {
             .event_time
             .as_ref()
             .map(|t| t.0)
-            .or_else(|| e.last_timestamp.as_ref().map(|t| t.0));
+            .or_else(|| e.last_timestamp.as_ref().map(|t| t.0))
+            .or_else(|| e.series.as_ref().and_then(|s| s.last_observed_time.as_ref()).map(|t| t.0));
 
         if let Some(ts) = ts {
             if ts > cutoff {

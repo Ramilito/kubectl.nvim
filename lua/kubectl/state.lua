@@ -34,7 +34,7 @@ M.column_order = {}
 -- Per-buffer state for split support
 -- Each buffer has its own marks, content_row_start, and selections
 ---------------------------------------------------------------------------
----@type table<number, { ns_id: number, header: number[], content_row_start: number, selections: table[] }>
+---@type table<number, { ns_id: number, content_row_start: number, selections: table[] }>
 M.buffer_state = {}
 
 ---------------------------------------------------------------------------
@@ -309,13 +309,12 @@ end
 
 --- Get buffer-specific state, creating if needed
 ---@param bufnr number Buffer number
----@return { ns_id: number, header: number[], content_row_start: number, selections: table[] }
+---@return { ns_id: number, content_row_start: number, selections: table[] }
 function M.get_buffer_state(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not M.buffer_state[bufnr] then
     M.buffer_state[bufnr] = {
       ns_id = 0,
-      header = {},
       content_row_start = 0,
       selections = {},
     }

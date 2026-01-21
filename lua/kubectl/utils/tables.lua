@@ -523,12 +523,11 @@ function M.pretty_print(data, headers, sort_by, win)
     table.insert(header_line, value)
 
     local start_col = header_col_position
-    local end_col = start_col + #header + 1
 
     if header == sort_by.current_word then
       table.insert(extmarks, {
         row = 0,
-        start_col = end_col,
+        start_col = start_col + #header,
         virt_text = { { (sort_by.order == "asc" and "▲" or "▼"), hl.symbols.header } },
         virt_text_pos = "overlay",
       })
@@ -538,7 +537,7 @@ function M.pretty_print(data, headers, sort_by, win)
       row = 0,
       start_col = start_col,
       hl_mode = "combine",
-      virt_text = { { header .. string.rep(" ", column_width), { hl.symbols.header } } },
+      virt_text = { { value, { hl.symbols.header } } },
       virt_text_pos = "overlay",
     })
 

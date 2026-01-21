@@ -21,6 +21,7 @@ local function get_diagnostic_section(bufnr, line)
   local lines = { "", "---", "## Diagnostics" }
   for _, diag in ipairs(diags) do
     local severity = vim.diagnostic.severity[diag.severity] or "INFO"
+    -- Colored circle emojis provide clear visual severity distinction in hover
     local icon = diag.severity == vim.diagnostic.severity.ERROR and "🔴"
       or diag.severity == vim.diagnostic.severity.WARN and "🟡"
       or "🔵"

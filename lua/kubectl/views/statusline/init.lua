@@ -13,7 +13,15 @@ M.View = function()
     statusline = vim.o.statusline,
   }
   vim.o.laststatus = 3
+
+  -- Stop existing timer if any
+  if builder.timer and not builder.timer:is_closing() then
+    builder.timer:stop()
+    builder.timer:close()
+  end
+
   local timer = vim.uv.new_timer()
+  builder.timer = timer
 
   timer:start(5000, M.interval, function()
     vim.schedule(function()
@@ -41,6 +49,13 @@ end
 M.Close = function()
   local statusline_builder = manager.get("statusline")
   if statusline_builder then
+    -- Stop and cleanup timer
+    if statusline_builder.timer and not statusline_builder.timer:is_closing() then
+      statusline_builder.timer:stop()
+      statusline_builder.timer:close()
+    end
+    statusline_builder.timer = nil
+
     vim.o.laststatus = statusline_builder.original_values.laststatus
     pcall(
       vim.api.nvim_set_option_value,
@@ -48,6 +63,8 @@ M.Close = function()
       statusline_builder.original_values.statusline,
       { scope = "global" }
     )
+
+    manager.remove("statusline")
   end
 end
 

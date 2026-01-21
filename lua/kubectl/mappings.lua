@@ -377,17 +377,15 @@ function M.get_mappings()
       callback = function()
         local marks = require("kubectl.utils.marks")
         local state = require("kubectl.state")
-        local find = require("kubectl.utils.find")
 
         local bufnr = vim.api.nvim_get_current_buf()
         local buf_state = state.get_buffer_state(bufnr)
+        if not buf_state or not buf_state.content_row_start then
+          return
+        end
         local mark, word = marks.get_current_mark(buf_state.content_row_start, bufnr)
 
         if not mark then
-          return
-        end
-
-        if not find.array(buf_state.header, mark[1]) then
           return
         end
 
