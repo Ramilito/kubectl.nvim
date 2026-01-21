@@ -560,7 +560,7 @@ function M.pretty_print(data, headers, sort_by, win)
       table.insert(extmarks, {
         row = row_index,
         start_col = 0,
-        line_hl_group = hl.symbols.header,
+        line_hl_group = "Visual",
         priority = 100, -- Higher priority so selection overrides semantic highlights
       })
       table.insert(extmarks, {
