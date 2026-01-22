@@ -262,7 +262,9 @@ function M.new(resource)
     builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, builder.resource)
     state.addToHistory(builder.resource)
 
-    commands.run_async("start_reflector_async", { gvk = definition.gvk, namespace = nil }, function(_, err)
+    -- Use namespace from state to support users with namespace-scoped permissions only
+    local ns = (state.ns and state.ns ~= "All") and state.ns or nil
+    commands.run_async("start_reflector_async", { gvk = definition.gvk, namespace = ns }, function(_, err)
       if err then
         return
       end
