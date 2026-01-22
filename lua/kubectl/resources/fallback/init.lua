@@ -41,7 +41,9 @@ function M.View(cancellationToken, kind)
   builder.definition = M.definition
   builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, resource.name)
 
-  commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = nil }, function()
+  -- Use namespace from state to support users with namespace-scoped permissions only
+  local ns = (state.ns and state.ns ~= "All") and state.ns or nil
+  commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = ns }, function()
     vim.schedule(function()
       M.Draw(cancellationToken)
       vim.cmd("doautocmd User K8sDataLoaded")
