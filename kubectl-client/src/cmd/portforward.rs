@@ -1,10 +1,9 @@
 use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::{api::ListParams, Api, Client};
 use mlua::prelude::*;
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
@@ -109,7 +108,10 @@ pub fn portforward_start(
     };
 
     let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
-    pf_map.lock().insert(id, pf_data);
+    pf_map
+        .lock()
+        .map_err(|_| mlua::Error::RuntimeError("poisoned PF_MAP lock".into()))?
+        .insert(id, pf_data);
 
     Ok(id)
 }
@@ -118,7 +120,9 @@ pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
     let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
     let table = lua.create_table()?;
 
-    let map = pf_map.lock();
+    let map = pf_map
+        .lock()
+        .map_err(|_| mlua::Error::RuntimeError("poisoned PF_MAP lock".into()))?;
     for (id, pf) in map.iter() {
         let row = lua.create_table()?;
         row.set("id", *id)?;
@@ -145,7 +149,9 @@ pub fn portforward_stop(_lua: &Lua, id: usize) -> LuaResult<()> {
 
     // Remove from map with sync lock
     let data = {
-        let mut map = pf_map.lock();
+        let mut map = pf_map
+            .lock()
+            .map_err(|_| mlua::Error::RuntimeError("poisoned PF_MAP lock".into()))?;
         map.remove(&id)
     };
 
