@@ -40,4 +40,8 @@ build: build_go
 
 .PHONY: build_console
 build_console: build_go
-	cargo build --features console
+ifeq ($(shell uname -s),Darwin)
+	RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup -C link-arg=-Wl,-dead_strip --cfg tokio_unstable" cargo build --features console
+else
+	RUSTFLAGS="--cfg tokio_unstable" cargo build --features console
+endif

@@ -1654,7 +1654,6 @@ name = "kubectl-client"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
- "console-subscriber",
  "crossterm 0.29.0",
  "ctor",
  "fern",

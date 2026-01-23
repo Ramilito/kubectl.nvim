@@ -3,7 +3,6 @@ rustflags = [
   "-C", "link-arg=-undefined",
   "-C", "link-arg=dynamic_lookup",
   "-C", "link-arg=-Wl,-dead_strip",
-  "--cfg", "tokio_unstable",
 ]
 
 [target.aarch64-apple-darwin]
@@ -11,11 +10,10 @@ rustflags = [
   "-C", "link-arg=-undefined",
   "-C", "link-arg=dynamic_lookup",
   "-C", "link-arg=-Wl,-dead_strip",
-  "--cfg", "tokio_unstable",
 ]
 
 [target.x86_64-unknown-linux-musl]
-rustflags = ["-C", "target-feature=-crt-static", "--cfg", "tokio_unstable"]
+rustflags = ["-C", "target-feature=-crt-static"]
 
 [target.aarch64-unknown-linux-musl]
-rustflags = ["-C", "target-feature=-crt-static", "--cfg", "tokio_unstable"]
+rustflags = ["-C", "target-feature=-crt-static"]
