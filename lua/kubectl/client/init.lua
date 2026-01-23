@@ -75,12 +75,25 @@ function client.cordon_node(name)
   return client.implementation.cordon_node(name)
 end
 
-function client.debug(ns, pod, image, target)
-  return client.implementation.debug(ns, pod, image, target)
+--- Execute a command in a container
+--- @param config kubectl.ExecConfig
+--- @return kubectl.Session
+function client.exec(config)
+  return client.implementation.exec(config)
 end
 
-function client.exec(ns, pod, container, cmd)
-  return client.implementation.exec(ns, pod, container, cmd)
+--- Create an ephemeral debug container in a pod
+--- @param config kubectl.DebugConfig
+--- @return kubectl.Session
+function client.debug(config)
+  return client.implementation.debug(config)
+end
+
+--- Create a shell session on a Kubernetes node
+--- @param config kubectl.NodeShellConfig
+--- @return kubectl.NodeShellSession
+function client.node_shell(config)
+  return client.implementation.node_shell(config)
 end
 
 --- @class kubectl.LogConfig

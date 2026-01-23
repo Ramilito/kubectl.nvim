@@ -1,4 +1,11 @@
-# CLAUDE-CLEAN-CODE.md
+---
+name: clean-code
+description: Clean code principles reference. Use when you need guidance on function design, naming conventions, managing complexity, or code structure decisions.
+tools: Read
+model: haiku
+---
+
+# Clean Code Principles
 
 Guidance for maintaining clean, readable code that respects human cognitive limits.
 
@@ -193,7 +200,7 @@ Before submitting code, verify:
 
 - [ ] Can each function be understood without scrolling?
 - [ ] Do names clearly describe purpose without needing comments?
-- [ ] Is nesting depth ≤ 2-3 levels?
+- [ ] Is nesting depth <= 2-3 levels?
 - [ ] Does each module have a single, clear responsibility?
 - [ ] Would a new team member understand this in one read?
 

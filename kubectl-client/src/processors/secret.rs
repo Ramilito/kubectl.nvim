@@ -23,9 +23,10 @@ impl Processor for SecretProcessor {
     type Row = SecretProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let secret: Secret =
-            from_value(to_value(obj).expect("Failed to convert DynamicObject to JSON Value"))
-                .expect("Failed to convert JSON Value into Secret");
+        let secret: Secret = from_value(
+            to_value(obj).map_err(|e| LuaError::external(format!("Failed to serialize Secret: {e}")))?,
+        )
+        .map_err(|e| LuaError::external(format!("Failed to deserialize Secret: {e}")))?;
         Ok(SecretProcessed {
             namespace: secret.metadata.namespace.clone().unwrap_or_default(),
             name: secret.metadata.name.clone().unwrap_or_default(),

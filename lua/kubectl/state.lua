@@ -34,7 +34,7 @@ M.column_order = {}
 -- Per-buffer state for split support
 -- Each buffer has its own marks, content_row_start, and selections
 ---------------------------------------------------------------------------
----@type table<number, { ns_id: number, header: number[], content_row_start: number, selections: table[] }>
+---@type table<number, { ns_id: number, content_row_start: number, selections: table[] }>
 M.buffer_state = {}
 
 ---------------------------------------------------------------------------
@@ -147,18 +147,19 @@ end
 function M.checkHealth()
   M.livez.timer = vim.uv.new_timer()
 
+  -- Health check runs in background Rust task every 2s
+  -- Lua just reads the cached result (sync, no block_on)
   M.livez.timer:start(0, 2000, function()
-    commands.run_async("get_server_raw_async", { path = "/livez" }, function(data)
-      M.livez.ok = false
-      if data == "ok" then
-        M.livez.ok = true
-        M.livez.time_of_ok = os.time()
-      else
-        M.livez.ok = false
+    vim.schedule(function()
+      local ok, mod = pcall(require, "kubectl_client")
+      if ok and mod.get_health_status then
+        local status = mod.get_health_status()
+        M.livez.ok = status.ok
+        if status.ok and status.time_of_ok > 0 then
+          M.livez.time_of_ok = status.time_of_ok
+        end
       end
-      vim.schedule(function()
-        vim.cmd("doautocmd User K8sDataLoaded")
-      end)
+      vim.cmd("doautocmd User K8sDataLoaded")
     end)
   end)
 end
@@ -309,13 +310,12 @@ end
 
 --- Get buffer-specific state, creating if needed
 ---@param bufnr number Buffer number
----@return { ns_id: number, header: number[], content_row_start: number, selections: table[] }
+---@return { ns_id: number, content_row_start: number, selections: table[] }
 function M.get_buffer_state(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not M.buffer_state[bufnr] then
     M.buffer_state[bufnr] = {
       ns_id = 0,
-      header = {},
       content_row_start = 0,
       selections = {},
     }
@@ -357,6 +357,7 @@ local SKIP_FILETYPES = {
   k8s_filter_label = true,
   k8s_contexts = true,
   k8s_splash = true,
+  k8s_loading = true,
 }
 
 --- Build unique key from filetype and title

@@ -2,6 +2,7 @@ local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local manager = require("kubectl.resource_manager")
 local string_utils = require("kubectl.utils.string")
+local tables = require("kubectl.utils.tables")
 local viewsTable = require("kubectl.utils.viewsTable")
 local M = {}
 
@@ -98,9 +99,10 @@ function M.get_mappings()
         local action_data = {}
         for _, value in ipairs(selections) do
           local ns_prefix = value.namespace and (value.namespace .. ": ") or ""
+          local display = ns_prefix .. value.name
           table.insert(action_data, {
-            text = "",
-            value = "» " .. ns_prefix .. value.name,
+            text = display,
+            value = "» " .. display,
             cmd = { name = value.name, namespace = value.namespace },
             type = "positional",
           })
@@ -112,7 +114,7 @@ function M.get_mappings()
             local ns = value.cmd.namespace
             local name = value.cmd.name
 
-            vim.notify("Deleting " .. gvk.k .. ": " .. name, vim.log.levels.INFO)
+            vim.notify("Deleting " .. gvk.k .. ": " .. ns .. "/" .. name, vim.log.levels.INFO)
             commands.run_async("delete_async", { gvk = gvk, namespace = ns, name = name }, function(_, err)
               vim.schedule(function()
                 if not err then
@@ -375,17 +377,15 @@ function M.get_mappings()
       callback = function()
         local marks = require("kubectl.utils.marks")
         local state = require("kubectl.state")
-        local find = require("kubectl.utils.find")
 
         local bufnr = vim.api.nvim_get_current_buf()
         local buf_state = state.get_buffer_state(bufnr)
+        if not buf_state or not buf_state.content_row_start then
+          return
+        end
         local mark, word = marks.get_current_mark(buf_state.content_row_start, bufnr)
 
         if not mark then
-          return
-        end
-
-        if not find.array(buf_state.header, mark[1]) then
           return
         end
 
@@ -679,6 +679,9 @@ local function apply_mappings(bufnr, view_name)
     pcall(view_mappings.register)
   end
   M.register()
+
+  -- Invalidate plug mapping cache so header picks up new buffer-local mappings
+  tables.invalidate_plug_mapping_cache()
 end
 
 function M.setup(ev)

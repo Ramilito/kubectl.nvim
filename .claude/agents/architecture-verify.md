@@ -1,10 +1,17 @@
-# CLAUDE-ARCHITECTURE-VERIFY.md
+---
+name: architecture-verify
+description: Architecture verification specialist. Use to verify dependency rules and pattern conformance. Works with dependency graphs, not source code.
+tools: Read, Grep, Glob, Bash
+model: sonnet
+---
 
-Subagent for verifying codebase against architecture contract. Works with dependency graphs, not source code.
+# Architecture Verification Subagent
+
+Verifies codebase against architecture contract. Works with dependency graphs, not source code.
 
 ## Overview
 
-This agent verifies the codebase adheres to [ARCHITECTURE.md](./ARCHITECTURE.md) by:
+This subagent verifies the codebase adheres to the architecture contract by:
 1. Extracting dependency graphs (cheap)
 2. Checking against documented rules
 3. Sampling files only to verify pattern conformance
@@ -23,25 +30,25 @@ Run these commands to build the graph (zero tokens):
 
 ### Lua Dependencies
 ```bash
-# Core → * dependencies
+# Core -> * dependencies
 for f in lua/kubectl/*.lua; do
   echo "=== $f ==="
   grep "^local.*require" "$f" | sed 's/.*require("\([^"]*\)").*/\1/'
 done
 
-# Resources → * dependencies
+# Resources -> * dependencies
 for f in lua/kubectl/resources/*/init.lua; do
   echo "=== $f ==="
   grep "^local.*require" "$f" | sed 's/.*require("\([^"]*\)").*/\1/'
 done
 
-# Views → * dependencies
+# Views -> * dependencies
 for f in lua/kubectl/views/*/init.lua; do
   echo "=== $f ==="
   grep "^local.*require" "$f" | sed 's/.*require("\([^"]*\)").*/\1/'
 done
 
-# Actions → * dependencies
+# Actions -> * dependencies
 for f in lua/kubectl/actions/*.lua; do
   echo "=== $f ==="
   grep "^local.*require" "$f" | sed 's/.*require("\([^"]*\)").*/\1/'
@@ -50,7 +57,7 @@ done
 
 ### Rust Dependencies
 ```bash
-# Module → module dependencies
+# Module -> module dependencies
 for f in kubectl-client/src/*.rs; do
   echo "=== $f ==="
   grep "^use crate::" "$f" | sed 's/use crate::\([^:;{]*\).*/\1/'
@@ -114,15 +121,15 @@ Verify each sampled resource has:
 ### Violations
 
 #### Critical
-1. `file` → `dependency` violates: [rule description]
+1. `file` -> `dependency` violates: [rule description]
 
 #### Warning
 1. `file` has N imports (threshold: 7)
 
 ### Pattern Conformance
-- ✓ pods: conforms
-- ✓ deployments: conforms
-- ✗ <resource>: missing `gvk` field
+- [x] pods: conforms
+- [x] deployments: conforms
+- [ ] <resource>: missing `gvk` field
 
 ### Recommendations
 [Only if violations found, max 3 items]
@@ -140,7 +147,7 @@ Verify each sampled resource has:
 ## What This Does NOT Do
 
 - Read all source files
-- Analyze code quality (use CODE-REVIEW for that)
+- Analyze code quality (use code-review for that)
 - Suggest refactoring
 - Check naming conventions
 - Measure complexity metrics
@@ -159,8 +166,8 @@ claude "verify architecture, check all resources for pattern conformance"
 
 ## When to Deep Dive
 
-If violations found, use targeted CODE-REVIEW:
+If violations found, use targeted code-review:
 
 ```
-"Review lua/kubectl/views/portforward/init.lua in module mode"
+"Use code-review to review lua/kubectl/views/portforward/init.lua in module mode"
 ```

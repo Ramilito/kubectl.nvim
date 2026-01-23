@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
@@ -6,6 +5,7 @@ local definition = require("kubectl.resources.containers.definition")
 local manager = require("kubectl.resource_manager")
 local pod_view = require("kubectl.resources.pods")
 local queue = require("kubectl.event_queue")
+local terminal = require("kubectl.utils.terminal")
 
 local resource = "containers"
 
@@ -54,19 +54,15 @@ function M.selectContainer(name)
   M.selection = name
 end
 
-function M.View(pod, ns)
-  M.definition.display_name = "pods | " .. pod .. " | " .. ns
+local function draw(builder, pod, ns)
   local gvk = M.definition.gvk
-  local builder = manager.get_or_create(M.definition.resource)
-  builder.view_framed(M.definition, {
-    recreate_func = M.View,
-    recreate_args = { pod, ns },
-  })
-
   commands.run_async(M.definition.cmd, { gvk = gvk, name = pod, namespace = ns }, function(result)
     builder.data = result
     builder.decodeJson()
     vim.schedule(function()
+      if not vim.api.nvim_win_is_valid(builder.win_nr) then
+        return
+      end
       builder
         .process(M.definition.processRow, true)
         .sort()
@@ -75,71 +71,23 @@ function M.View(pod, ns)
         .displayContent(builder.win_nr)
     end)
   end)
+end
+
+function M.View(pod, ns)
+  M.definition.display_name = "pods | " .. pod .. " | " .. ns
+  local builder = manager.get_or_create(M.definition.resource)
+  builder.view_framed(M.definition, {
+    recreate_func = M.View,
+    recreate_args = { pod, ns },
+  })
+
+  draw(builder, pod, ns)
 
   queue.register(pod_view.definition.gvk.k, builder.buf_nr, function(payload)
     local ev = vim.json.decode(payload)
     if ev.metadata.name == pod_view.selection.pod then
-      M.View(pod_view.selection.pod, pod_view.selection.ns)
+      draw(builder, pod_view.selection.pod, pod_view.selection.ns)
     end
-  end)
-end
-
-local function attach_session(sess, buf, win)
-  local chan = vim.api.nvim_open_term(buf, {
-    on_input = function(_, _, _, data)
-      sess:write(data)
-    end,
-  })
-  vim.cmd.startinsert()
-
-  local timer = vim.uv.new_timer()
-  if not timer then
-    vim.notify("Timer failed to initialize", vim.log.levels.ERROR)
-    return
-  end
-  timer:start(
-    0,
-    30,
-    vim.schedule_wrap(function()
-      repeat
-        local chunk = sess:read_chunk()
-        if chunk then
-          vim.api.nvim_chan_send(chan, chunk)
-        end
-      until not chunk
-      if not sess:open() then
-        timer:stop()
-        if not timer:is_closing() then
-          timer:close()
-        end
-        vim.api.nvim_chan_send(chan, "\r\n[process exited]\r\n")
-        if vim.api.nvim_win_is_valid(win) then
-          vim.api.nvim_win_close(win, true)
-        end
-      end
-    end)
-  )
-end
-
-local function spawn_terminal(title, key, fn, is_fullscreen, ...)
-  local ok, sess = pcall(fn, ...)
-  if not ok or sess == nil then
-    vim.notify("kubectl‑client error: " .. tostring(sess), vim.log.levels.ERROR)
-    return
-  end
-  local buf, win
-  local state = require("kubectl.state")
-  if is_fullscreen then
-    buf, win = buffers.buffer(key, title)
-    state.picker_register(key, title, buffers.buffer, { key, title })
-  else
-    buf, win = buffers.floating_buffer(key, title)
-    state.picker_register(key, title, buffers.floating_buffer, { key, title })
-  end
-
-  vim.api.nvim_set_current_buf(buf)
-  vim.schedule(function()
-    attach_session(sess, buf, win)
   end)
 end
 
@@ -151,15 +99,13 @@ function M.exec(pod, ns, is_fullscreen)
     return
   end
 
-  spawn_terminal(
+  local exec_cmd = { "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh" }
+  terminal.spawn_terminal(
     string.format("%s | %s: %s | %s", "container", pod, M.selection, ns),
     "k8s_exec",
     client.exec,
     is_fullscreen,
-    ns,
-    pod,
-    M.selection,
-    { "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh" }
+    { namespace = ns, pod = pod, container = M.selection, cmd = exec_cmd }
   )
 end
 
@@ -178,13 +124,17 @@ function M.debug(pod, ns, is_fullscreen)
   }
 
   builder.action_view(def, data, function(args)
-    vim.schedule(function()
-      local cmd_args = {
-        name = args[1].value,
-        image = args[2].value,
-      }
-      spawn_terminal(cmd_args.name, "k8s_debug", client.debug, is_fullscreen, ns, pod, cmd_args.image, M.selection)
-    end)
+    local cmd_args = {
+      name = args[1].value,
+      image = args[2].value,
+    }
+    terminal.spawn_terminal(
+      cmd_args.name,
+      "k8s_debug",
+      client.debug,
+      is_fullscreen,
+      { namespace = ns, pod = pod, image = cmd_args.image, target = M.selection }
+    )
   end)
 end
 

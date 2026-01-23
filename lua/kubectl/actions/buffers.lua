@@ -101,19 +101,17 @@ local function apply_single_mark(bufnr, ns_id, mark, row_offset)
     sign_text = mark.sign_text,
     sign_hl_group = mark.sign_hl_group,
     ephemeral = mark.ephemeral,
+    priority = mark.priority,
   })
 end
 
---- Initialize buffer state for sorting support (main windows only).
---- Tracks header column extmark IDs for click-to-sort functionality.
+--- Initialize buffer state for sorting support.
 ---@param bufnr integer Buffer number
 ---@param ns_id integer Namespace ID
 ---@param header_row_offset integer Number of header lines (content starts after this)
----@param header_mark_ids integer[] Extmark IDs for header columns
-function M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset, header_mark_ids)
+function M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset)
   local buf_state = state.get_buffer_state(bufnr)
   buf_state.ns_id = ns_id
-  buf_state.header = header_mark_ids or {}
   buf_state.content_row_start = header_row_offset + 1
 end
 
@@ -140,18 +138,14 @@ function M.apply_marks(bufnr, marks, header)
       end
     end
 
-    -- Apply content marks and collect header column IDs
-    local header_mark_ids = {}
+    -- Apply content marks
     if marks then
       for _, mark in ipairs(marks) do
-        local ok, extmark_id = apply_single_mark(bufnr, ns_id, mark, header_row_offset)
-        if ok and mark.row == 0 then
-          table.insert(header_mark_ids, extmark_id)
-        end
+        apply_single_mark(bufnr, ns_id, mark, header_row_offset)
       end
     end
 
-    M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset, header_mark_ids)
+    M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset)
   end)
 end
 
@@ -469,6 +463,8 @@ end
 function M.framed_buffer(opts)
   -- Create buffers
   local hints_buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_name(hints_buf, "kubectl://" .. (opts.filetype or "frame") .. "_hints")
+
   local pane_bufs = {}
   for i, pane_opts in ipairs(opts.panes) do
     if pane_opts.prompt then
@@ -477,6 +473,7 @@ function M.framed_buffer(opts)
     else
       pane_bufs[i] = api.nvim_create_buf(false, true)
     end
+    api.nvim_buf_set_name(pane_bufs[i], "kubectl://" .. (opts.filetype or "frame") .. "_pane_" .. i)
   end
 
   -- Create windows via layout

@@ -20,7 +20,10 @@ pub fn create_job_from_cronjob(
 
     with_client(move |client| async move {
         let cj_api: Api<CronJob> = Api::namespaced(client.clone(), &namespace);
-        let cronjob = cj_api.get(&cronjob_name).await.unwrap();
+        let cronjob = cj_api
+            .get(&cronjob_name)
+            .await
+            .map_err(|e| LuaError::RuntimeError(format!("Failed to get CronJob '{}': {}", cronjob_name, e)))?;
 
         let mut annotations: BTreeMap<String, String> = cronjob
             .spec

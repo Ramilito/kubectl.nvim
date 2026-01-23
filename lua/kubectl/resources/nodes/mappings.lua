@@ -23,12 +23,19 @@ M.overrides = {
     desc = "Cordon node",
     callback = mapping_helpers.safe_callback(node_view, node_view.Cordon, true),
   },
+  ["<Plug>(kubectl.shell)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Shell into node",
+    callback = mapping_helpers.safe_callback(node_view, node_view.Shell, true),
+  },
 }
 
 function M.register()
   mappings.map_if_plug_not_set("n", "gR", "<Plug>(kubectl.drain)")
   mappings.map_if_plug_not_set("n", "gU", "<Plug>(kubectl.uncordon)")
-  mappings.map_if_plug_not_set("n", "gC", "<Plug>(kubectl.cordon)")
+  mappings.map_if_plug_not_set("n", "gO", "<Plug>(kubectl.cordon)")
+  mappings.map_if_plug_not_set("n", "gS", "<Plug>(kubectl.shell)")
 end
 
 return M

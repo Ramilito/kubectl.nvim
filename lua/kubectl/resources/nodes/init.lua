@@ -1,7 +1,9 @@
 local BaseResource = require("kubectl.resources.base_resource")
 local commands = require("kubectl.actions.commands")
+local kubectl_client = require("kubectl.client")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
+local terminal = require("kubectl.utils.terminal")
 
 local resource = "nodes"
 
@@ -20,6 +22,7 @@ local M = BaseResource.extend({
     { key = "<Plug>(kubectl.cordon)", desc = "cordon", long_desc = "Cordon selected node" },
     { key = "<Plug>(kubectl.uncordon)", desc = "uncordon", long_desc = "UnCordon selected node" },
     { key = "<Plug>(kubectl.drain)", desc = "drain", long_desc = "Drain selected node" },
+    { key = "<Plug>(kubectl.shell)", desc = "shell", long_desc = "Shell into selected node" },
   },
   headers = {
     "NAME",
@@ -82,6 +85,42 @@ function M.Cordon(node)
   local ok = client.cordon_node(node)
   vim.schedule(function()
     vim.notify(ok, vim.log.levels.INFO)
+  end)
+end
+
+function M.Shell(node)
+  local def = {
+    resource = "node_shell",
+    ft = "k8s_action",
+    display = "Shell into node: " .. node .. "?",
+  }
+
+  local builder = manager.get_or_create(def.resource)
+
+  local data = {
+    { text = "namespace:", value = "default", type = "option" },
+    { text = "image:", value = "busybox:latest", type = "option" },
+    { text = "cpu limit:", value = "", type = "option" },
+    { text = "mem limit:", value = "", type = "option" },
+  }
+
+  builder.action_view(def, data, function(args)
+    vim.schedule(function()
+      local shell_config = {
+        node = node,
+        namespace = args[1].value,
+        image = args[2].value,
+        cpu_limit = args[3].value ~= "" and args[3].value or nil,
+        mem_limit = args[4].value ~= "" and args[4].value or nil,
+      }
+      terminal.spawn_terminal(
+        string.format("node-shell | %s", node),
+        "k8s_node_shell",
+        kubectl_client.node_shell,
+        false,
+        shell_config
+      )
+    end)
   end)
 end
 

@@ -1,4 +1,23 @@
-# CLAUDE-LUA.md
+---
+name: lua
+description: Lua/Neovim plugin specialist. ALWAYS use for ANY task involving lua/kubectl/, Neovim API, resource views, keybindings, or plugin code.
+tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+---
+
+# Lua/Neovim Plugin Guidance
+
+**ALWAYS use this subagent** for ANY task involving:
+- Reading, editing, or understanding Lua code
+- `lua/kubectl/` directory
+- Resource views, keybindings, or mappings
+- State management or configuration
+- Neovim API integration
+- Researching Lua code for documentation
+
+For Rust FFI patterns and async calls, also consult the `rust` subagent.
+
+---
 
 Guidance for working with the Lua/Neovim plugin codebase (`lua/kubectl/`).
 

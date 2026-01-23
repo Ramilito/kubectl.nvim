@@ -4,6 +4,9 @@ local state = require("kubectl.state")
 local time = require("kubectl.utils.time")
 local M = {}
 
+-- Cache for plug mapping lookups (maps plug name -> lhs key)
+local plug_mapping_cache = nil
+
 --- Headers that cannot be hidden (always visible)
 M.required_headers = { NAME = true, NAMESPACE = true }
 
@@ -78,29 +81,61 @@ local function calculate_extra_padding(widths, headers, win)
   end
 end
 
+--- Build the plug mapping cache from all keymaps
+--- This is expensive (calls maplist) so we cache the result
+--- Current buffer's mappings take priority over other buffers'
+local function build_plug_mapping_cache()
+  local cache = {}
+  local current_buf = vim.api.nvim_get_current_buf()
+  local keymaps = vim.fn.maplist()
+
+  -- First pass: add mappings from OTHER buffers
+  for _, keymap in ipairs(keymaps) do
+    if keymap.rhs and keymap.rhs:match("^<Plug>%(kubectl%.") then
+      if keymap.buffer ~= current_buf then
+        cache[keymap.rhs] = keymap.lhs
+      end
+    end
+  end
+
+  -- Second pass: add current buffer's mappings (overwrites others)
+  for _, keymap in ipairs(keymaps) do
+    if keymap.rhs and keymap.rhs:match("^<Plug>%(kubectl%.") then
+      if keymap.buffer == current_buf then
+        cache[keymap.rhs] = keymap.lhs
+      end
+    end
+  end
+
+  return cache
+end
+
+--- Invalidate the plug mapping cache
+--- Call this when keybindings are changed
+function M.invalidate_plug_mapping_cache()
+  plug_mapping_cache = nil
+end
+
 --- Gets both global and buffer-local plug keymaps
 --- @param headers table[] The header table
 function M.get_plug_mappings(headers)
   local keymaps_table = {}
-  local header_lookup = {}
 
   if not headers then
     return keymaps_table
   end
 
-  local keymaps = vim.fn.maplist()
-
-  for _, header in ipairs(headers) do
-    header_lookup[header.key] =
-      { desc = header.desc, long_desc = header.long_desc, sort_order = header.sort_order, global = header.global }
+  -- Build cache once, reuse on subsequent calls
+  if not plug_mapping_cache then
+    plug_mapping_cache = build_plug_mapping_cache()
   end
 
-  -- Iterate over keymaps and check if they match any header key
-  for _, keymap in ipairs(keymaps) do
-    local header = header_lookup[keymap.rhs]
-    if header then
+  -- Fast lookup using cached plug->lhs mapping
+  for _, header in ipairs(headers) do
+    local lhs = plug_mapping_cache[header.key]
+    if lhs then
       table.insert(keymaps_table, {
-        key = keymap.lhs,
+        key = lhs,
         desc = header.desc,
         long_desc = header.long_desc,
         sort_order = header.sort_order,
@@ -136,23 +171,27 @@ end
 ---@param hints table[]
 ---@param marks table[]
 local function addHeaderRow(headers, hints, marks)
+  local DIVIDER = " | "
+  local PREFIX = "Hints: "
+
   local function appendMapToLine(line, map, hintIndex)
+    if #line > #PREFIX then
+      local dividerStart = #line
+      line = line .. DIVIDER
+      M.add_mark(marks, hintIndex, dividerStart, #line, hl.symbols.success)
+    end
+
     local lineStart = #line
     line = line .. map.key .. " " .. map.desc
-    local DIVIDER = " | "
-    line = line .. DIVIDER
-    local lineEnd = #line
-
-    M.add_mark(marks, hintIndex, lineEnd - #DIVIDER, lineEnd, hl.symbols.success)
     M.add_mark(marks, hintIndex, lineStart, lineStart + #map.key, hl.symbols.pending)
 
     return line
   end
 
-  local localHintLine = "Hints: "
-  local globalHintLine = (" "):rep(#localHintLine)
+  local localHintLine = PREFIX
+  local globalHintLine = (" "):rep(#PREFIX)
 
-  M.add_mark(marks, #hints, 0, #localHintLine, hl.symbols.success)
+  M.add_mark(marks, #hints, 0, #PREFIX, hl.symbols.success)
   local keymaps = M.get_plug_mappings(headers)
   local hasGlobal = false
   for _, map in ipairs(keymaps) do
@@ -163,9 +202,10 @@ local function addHeaderRow(headers, hints, marks)
       localHintLine = appendMapToLine(localHintLine, map, #hints)
     end
   end
-  table.insert(hints, localHintLine .. "\n")
+
+  table.insert(hints, localHintLine .. " \n")
   if hasGlobal then
-    table.insert(hints, globalHintLine .. "\n")
+    table.insert(hints, globalHintLine .. " \n")
   end
 end
 
@@ -365,10 +405,10 @@ function M.generateHeader(headers, include_defaults, include_context)
   if include_defaults then
     local defaults = {
       { key = "<Plug>(kubectl.refresh)", desc = "reload", global = true },
+      { key = "<Plug>(kubectl.delete)", desc = "delete", global = true },
       { key = "<Plug>(kubectl.alias_view)", desc = "aliases", global = true },
       { key = "<Plug>(kubectl.filter_view)", desc = "filter", global = true },
       { key = "<Plug>(kubectl.namespace_view)", desc = "namespace", global = true },
-      { key = "<Plug>(kubectl.toggle_diagnostics)", desc = "diagnostics", global = true },
       { key = "<Plug>(kubectl.toggle_columns)", desc = "columns", global = true },
       { key = "<Plug>(kubectl.help)", desc = "help", global = true, sort_order = 100 },
       { key = "<Plug>(kubectl.toggle_headers)", desc = "toggle", global = true, sort_order = 200 },
@@ -483,12 +523,11 @@ function M.pretty_print(data, headers, sort_by, win)
     table.insert(header_line, value)
 
     local start_col = header_col_position
-    local end_col = start_col + #header + 1
 
     if header == sort_by.current_word then
       table.insert(extmarks, {
         row = 0,
-        start_col = end_col,
+        start_col = start_col + #header,
         virt_text = { { (sort_by.order == "asc" and "▲" or "▼"), hl.symbols.header } },
         virt_text_pos = "overlay",
       })
@@ -498,7 +537,7 @@ function M.pretty_print(data, headers, sort_by, win)
       row = 0,
       start_col = start_col,
       hl_mode = "combine",
-      virt_text = { { header .. string.rep(" ", column_width), { hl.symbols.header } } },
+      virt_text = { { value, { hl.symbols.header } } },
       virt_text_pos = "overlay",
     })
 
@@ -521,13 +560,15 @@ function M.pretty_print(data, headers, sort_by, win)
       table.insert(extmarks, {
         row = row_index,
         start_col = 0,
-        line_hl_group = hl.symbols.header,
+        line_hl_group = "Visual",
+        priority = 100, -- Higher priority so selection overrides semantic highlights
       })
       table.insert(extmarks, {
         row = row_index,
         start_col = 0,
         sign_text = "»",
         sign_hl_group = "Note",
+        priority = 100,
       })
     end
 

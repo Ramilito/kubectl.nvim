@@ -124,9 +124,7 @@ pub fn get_single(lua: &Lua, json: String) -> LuaResult<String> {
         .unwrap_or_default();
 
     with_client(move |client| async move {
-        if let Some(found) =
-            store::get_single(&args.gvk.k, args.namespace.clone(), &args.name).await?
-        {
+        if let Some(found) = store::get_single(&args.gvk.k, args.namespace.clone(), &args.name)? {
             return Ok(output_mode.format(found));
         }
         get_resource_async(
@@ -156,7 +154,7 @@ pub async fn get_single_async(_lua: Lua, json: String) -> LuaResult<String> {
     with_client(move |client| async move {
         if args.cached.unwrap_or(true) {
             if let Some(found) =
-                store::get_single(&args.gvk.k, args.namespace.clone(), &args.name).await?
+                store::get_single(&args.gvk.k, args.namespace.clone(), &args.name)?
             {
                 return Ok(output_mode.format(found));
             }

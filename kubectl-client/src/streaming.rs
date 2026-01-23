@@ -109,6 +109,12 @@ impl TaskHandle {
         self.is_active.load(Ordering::Acquire)
     }
 
+    /// Force the session to close, regardless of active tasks.
+    /// Use this when the underlying process has exited.
+    pub fn force_close(&self) {
+        self.is_active.store(false, Ordering::Release);
+    }
+
     /// Increment the active task count.
     /// Call this when spawning a new task.
     pub fn task_started(&self) {

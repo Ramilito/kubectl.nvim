@@ -1,40 +1,53 @@
-local events = require("kubectl.utils.events")
+local hl = require("kubectl.actions.highlight")
 
 local M = {}
 
 local semantic_enabled = true
 
---- Extract value from field (handles both table and string)
----@param field any
----@return string|nil
-local function get_value(field)
-  if type(field) == "table" then
-    return field.value
-  elseif type(field) == "string" then
-    return field
-  end
-  return nil
-end
+-- Symbol to semantic highlight mapping
+local symbol_to_semantic = {
+  KubectlError = hl.symbols.semantic_error,
+  KubectlWarning = hl.symbols.semantic_warn,
+}
 
---- Get semantic highlight for a row
+-- Completed status values (dimmed, not attention-grabbing)
+local completed_values = {
+  Completed = true,
+  Succeeded = true,
+}
+
+--- Get semantic highlight for a row based on symbol (fast path)
 ---@param row table
 ---@return string|nil
 local function get_row_highlight(row)
-  -- Check status field
-  local status = get_value(row.status)
-  if status then
-    local hl = events.GetSemanticHighlight(status)
-    if hl then
-      return hl
+  -- Check status symbol first (most common case)
+  if row.status and type(row.status) == "table" then
+    local semantic = symbol_to_semantic[row.status.symbol]
+    if semantic then
+      return semantic
+    end
+    -- Check for completed values (dimmed background)
+    if row.status.value and completed_values[row.status.value] then
+      return hl.symbols.semantic_completed
     end
   end
 
-  -- Check phase field
-  local phase = get_value(row.phase)
-  if phase then
-    local hl = events.GetSemanticHighlight(phase)
-    if hl then
-      return hl
+  -- Check phase symbol
+  if row.phase and type(row.phase) == "table" then
+    local semantic = symbol_to_semantic[row.phase.symbol]
+    if semantic then
+      return semantic
+    end
+    if row.phase.value and completed_values[row.phase.value] then
+      return hl.symbols.semantic_completed
+    end
+  end
+
+  -- Check conditions symbol
+  if row.conditions and type(row.conditions) == "table" then
+    local semantic = symbol_to_semantic[row.conditions.symbol]
+    if semantic then
+      return semantic
     end
   end
 
@@ -59,6 +72,7 @@ function M.add_line_highlights(data, extmarks, content_start)
         row = content_start + i - 1,
         start_col = 0,
         line_hl_group = hl_group,
+        priority = 10, -- Lower priority so selection highlights can override
       })
     end
   end

@@ -350,15 +350,14 @@ fn check_init_container_status(
 }
 
 fn get_init_container_status(pod: &Pod, status: &str) -> (String, bool) {
-    let init_containers = pod
+    let Some(arr) = pod
         .spec
         .as_ref()
-        .and_then(|spec| spec.init_containers.as_ref());
-    if init_containers.is_none() {
+        .and_then(|spec| spec.init_containers.as_ref())
+    else {
         return (status.to_string(), false);
-    }
+    };
 
-    let arr = init_containers.unwrap();
     let count = arr.len() as i64;
     if count == 0 {
         return (status.to_string(), false);
@@ -455,15 +454,13 @@ fn get_container_status(
 
 fn get_pod_status(pod: &Pod) -> FieldValue {
     // If status is missing, return "Unknown"
-    let status = pod.status.as_ref();
-    if status.is_none() {
+    let Some(status) = pod.status.as_ref() else {
         return FieldValue {
             value: "Unknown".to_string(),
             symbol: Some(color_status("Unknown")),
             ..Default::default()
         };
-    }
-    let status = status.unwrap();
+    };
 
     // Get pod phase
     let mut phase = status.phase.as_deref().unwrap_or("Unknown");

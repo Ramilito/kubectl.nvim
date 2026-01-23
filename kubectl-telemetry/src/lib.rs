@@ -17,11 +17,13 @@ use opentelemetry_sdk::{
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
+use tokio_util::sync::CancellationToken;
 
 static SUBSCRIBER_SET: OnceLock<()> = OnceLock::new();
 static LOG_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
 static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 static WORKER_HANDLE: OnceLock<std::thread::JoinHandle<()>> = OnceLock::new();
+static CONSOLE_CANCEL: OnceLock<CancellationToken> = OnceLock::new();
 
 /// Common OTEL resource descriptor.
 fn resource() -> Resource {
@@ -104,13 +106,49 @@ pub fn setup_logger(
 
     // ---- 4. install subscriber (set only once) ----
     SUBSCRIBER_SET.get_or_init(|| {
-        tracing_subscriber::registry()
+        let registry = tracing_subscriber::registry()
             .with(LevelFilter::TRACE)
             .with(file_layer)
-            .with(otel_layer)
-            .try_init()
-            .ok();
+            .with(otel_layer);
+
+        let (console_layer, server) = console_subscriber::ConsoleLayer::builder()
+            .with_default_env()
+            .build();
+
+        // Create cancellation token for graceful shutdown
+        let cancel = CancellationToken::new();
+        CONSOLE_CANCEL.get_or_init(|| cancel.clone());
+
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("console runtime");
+
+            rt.block_on(async move {
+                tokio::select! {
+                    result = server.serve() => {
+                        if let Err(e) = result {
+                            eprintln!("tokio-console server error: {e}");
+                        }
+                    }
+                    _ = cancel.cancelled() => {
+                        // Graceful shutdown requested
+                    }
+                }
+            });
+        });
+
+        registry.with(console_layer).try_init().ok();
     });
 
     Ok(())
+}
+
+/// Shutdown telemetry systems (call before process exit to release ports).
+pub fn shutdown() {
+    // Signal console server to stop - this releases the port
+    if let Some(cancel) = CONSOLE_CANCEL.get() {
+        cancel.cancel();
+    }
 }

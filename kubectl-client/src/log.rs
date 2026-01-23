@@ -24,3 +24,6 @@ pub fn setup_logger(log_file_path: &str, _ep: &str) -> Result<(), Box<dyn std::e
 
     Ok(())
 }
+
+/// No-op shutdown for non-telemetry builds.
+pub fn shutdown() {}

@@ -21,9 +21,10 @@ impl Processor for ServiceAccountProcessor {
     type Row = ServiceAccountProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let sa: ServiceAccount =
-            from_value(to_value(obj).expect("Failed to convert DynamicObject to JSON Value"))
-                .expect("Failed to convert JSON Value into ServiceAccount");
+        let sa: ServiceAccount = from_value(
+            to_value(obj).map_err(|e| LuaError::external(format!("Failed to serialize ServiceAccount: {e}")))?,
+        )
+        .map_err(|e| LuaError::external(format!("Failed to deserialize ServiceAccount: {e}")))?;
         Ok(ServiceAccountProcessed {
             namespace: sa.metadata.namespace.clone().unwrap_or_default(),
             name: sa.metadata.name.clone().unwrap_or_default(),
