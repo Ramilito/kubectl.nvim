@@ -407,6 +407,8 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
         *ctx = None;
     }
 
+    logging::shutdown();
+
     Ok("Done".to_string())
 }
 

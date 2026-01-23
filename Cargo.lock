@@ -1694,6 +1694,7 @@ dependencies = [
  "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-appender",
  "tracing-opentelemetry",
