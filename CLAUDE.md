@@ -4,26 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Subagents
 
-This project uses Claude Code subagents (`.claude/agents/`) for specialized tasks. Claude will automatically delegate to these based on context:
+This project uses Claude Code subagents (`.claude/agents/`). **You MUST use them.**
 
-| Subagent | When Used |
-|----------|-----------|
-| `plan` | **INVOKE FIRST** for refactoring/pattern-following tasks |
-| `rust` | Working on Rust code, mlua FFI, Tokio patterns |
-| `lua` | Working on Lua/Neovim plugin code |
-| `logs` | Pod logs feature (streaming, JSON toggle, histogram) |
-| `lsp` | LSP features (completion, hover, diagnostics) |
-| `statusline` | Statusline feature (cluster health, metrics) |
-| `code-review` | Code quality review (post-edit, pre-commit, module) |
-| `architecture-verify` | Architecture verification (dependency rules) |
+### Rule 1: ALWAYS Plan First
 
-**Reference subagents** (read-only, for guidance):
+For ANY non-trivial task, invoke the `plan` subagent FIRST before doing anything else.
+- Trivial = single obvious edit, typo fix, or direct question
+- Everything else = use `plan` first
+
+### Rule 2: ALWAYS Use Domain Subagents
+
+When a task touches a domain, use that subagent. No exceptions.
+
+| Domain | Subagent | Trigger |
+|--------|----------|---------|
+| Rust code | `rust` | ANY task involving `kubectl-client/`, telemetry, Tokio, mlua, Go FFI |
+| Lua code | `lua` | ANY task involving `lua/kubectl/`, Neovim API, plugin code |
+| Pod logs | `logs` | ANY task involving log streaming, LogSession, histogram |
+| LSP | `lsp` | ANY task involving completion, hover, diagnostics |
+| Statusline | `statusline` | ANY task involving statusline metrics or display |
+
+### Rule 3: Use Verification Subagents
+
+| Subagent | When |
+|----------|------|
+| `code-review` | After writing/editing code, before commits |
+| `architecture-verify` | To check dependency rules and patterns |
+
+### Reference Subagents (read-only)
+
 | Subagent | Purpose |
 |----------|---------|
 | `clean-code` | Clean code principles and patterns |
 | `architecture` | Architecture contract and dependency rules |
-
-**Explicit invocation:** `"Use the plan subagent to..."` or `"Have the code-review subagent check..."`
 
 ## Project Overview
 

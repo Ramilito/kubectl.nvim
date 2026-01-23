@@ -1,17 +1,13 @@
 ---
 name: statusline
-description: Statusline feature specialist. Use when working on cluster health indicators, metrics display, statusline refresh timing, or adding new statusline metrics.
+description: Statusline feature specialist. ALWAYS use for ANY task involving statusline metrics, cluster health display, or statusline refresh.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
 ---
 
 # Statusline Feature Guidance
 
-Guidance for working with the kubectl.nvim statusline feature.
-
-## When to Use This Subagent
-
-Work on:
+**ALWAYS use this subagent** for ANY task involving:
 - Statusline content, layout, or formatting
 - Cluster health indicators
 - Statusline refresh timing or performance

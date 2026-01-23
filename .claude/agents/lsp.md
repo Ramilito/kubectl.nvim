@@ -1,17 +1,13 @@
 ---
 name: lsp
-description: LSP features specialist. Use when working on completion, hover, diagnostics, in-process LSP server, or adding new completion sources.
+description: LSP features specialist. ALWAYS use for ANY task involving completion, hover, diagnostics, or the in-process LSP server.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
 ---
 
 # LSP Features Guidance
 
-Guidance for working with the LSP features (completion, hover, diagnostics).
-
-## When to Use This Subagent
-
-Work on:
+**ALWAYS use this subagent** for ANY task involving:
 - LSP server configuration or capabilities
 - Completion sources for different filetypes
 - Hover provider (resource info display)

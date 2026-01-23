@@ -1,11 +1,24 @@
 ---
 name: rust
-description: Rust codebase specialist for kubectl-client. Use when working on Rust code, mlua FFI bindings, Tokio async patterns, processors, or Go FFI integration.
+description: Rust codebase specialist. ALWAYS use for ANY task involving kubectl-client/, kubectl-telemetry/, Tokio, mlua FFI, Go FFI, or Rust code.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
 ---
 
 # Rust Codebase Guidance
+
+**ALWAYS use this subagent** for ANY task involving:
+- Reading, editing, or understanding Rust code
+- `kubectl-client/` or `kubectl-telemetry/` directories
+- Tokio async patterns, runtime, or collectors
+- mlua FFI bindings or Lua exports
+- Go FFI integration
+- Telemetry, tracing, or logging setup
+- Researching Rust code for documentation
+
+For Lua-side integration, also consult the `lua` subagent.
+
+---
 
 Guidance for working with the Rust codebase (`kubectl-client/`).
 

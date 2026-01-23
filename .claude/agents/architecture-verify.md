@@ -1,6 +1,6 @@
 ---
 name: architecture-verify
-description: Architecture verification specialist. Use to verify codebase against architecture contract, check dependency rules, and validate pattern conformance. Works with dependency graphs, not source code.
+description: Architecture verification specialist. Use to verify dependency rules and pattern conformance. Works with dependency graphs, not source code.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

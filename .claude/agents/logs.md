@@ -1,17 +1,13 @@
 ---
 name: logs
-description: Pod logs feature specialist. Use when working on log streaming, tailing, JSON expand/collapse, histogram visualization, or LogSession UserData bindings.
+description: Pod logs feature specialist. ALWAYS use for ANY task involving log streaming, tailing, JSON toggle, histogram, or LogSession.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
 ---
 
 # Pod Logs Feature Guidance
 
-Guidance for working with the pod logs view feature.
-
-## When to Use This Subagent
-
-Work on:
+**ALWAYS use this subagent** for ANY task involving:
 - Log streaming, tailing, or fetching
 - JSON expand/collapse in log output
 - Log view keybindings or syntax highlighting

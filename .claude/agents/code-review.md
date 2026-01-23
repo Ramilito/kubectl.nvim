@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Code quality reviewer. Use proactively after writing or modifying code, before commits, or for module-level reviews. Reviews only scoped files, never entire codebase.
+description: Code quality reviewer. ALWAYS use after writing/editing code and before commits. Reviews only scoped files, never entire codebase.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
