@@ -1,13 +1,14 @@
 use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::{api::ListParams, Api, Client};
 use mlua::prelude::*;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio::time;
 use tracing::{error, warn};
@@ -108,9 +109,7 @@ pub fn portforward_start(
     };
 
     let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
-    rt.block_on(async {
-        pf_map.lock().await.insert(id, pf_data);
-    });
+    pf_map.lock().insert(id, pf_data);
 
     Ok(id)
 }
@@ -118,51 +117,55 @@ pub fn portforward_start(
 pub fn portforward_list(lua: &Lua, _: ()) -> LuaResult<LuaTable> {
     let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
     let table = lua.create_table()?;
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
-    rt.block_on(async {
-        let map = pf_map.lock().await;
-        for (id, pf) in map.iter() {
-            let row = lua.create_table()?;
-            row.set("id", *id)?;
-            row.set(
-                "type",
-                match pf.pf_type {
-                    PFType::Pod => "pod",
-                    PFType::Service => "service",
-                },
-            )?;
-            row.set("name", pf.name.clone())?;
-            row.set("namespace", pf.namespace.clone())?;
-            row.set("host", pf.host.clone())?;
-            row.set("local_port", pf.local_port)?;
-            row.set("remote_port", pf.remote_port)?;
-            table.set(*id, row)?;
-        }
-        Ok::<(), mlua::Error>(())
-    })?;
+    let map = pf_map.lock();
+    for (id, pf) in map.iter() {
+        let row = lua.create_table()?;
+        row.set("id", *id)?;
+        row.set(
+            "type",
+            match pf.pf_type {
+                PFType::Pod => "pod",
+                PFType::Service => "service",
+            },
+        )?;
+        row.set("name", pf.name.clone())?;
+        row.set("namespace", pf.namespace.clone())?;
+        row.set("host", pf.host.clone())?;
+        row.set("local_port", pf.local_port)?;
+        row.set("remote_port", pf.remote_port)?;
+        table.set(*id, row)?;
+    }
 
     Ok(table)
 }
 
 pub fn portforward_stop(_lua: &Lua, id: usize) -> LuaResult<()> {
-    let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
-    rt.block_on(async {
-        let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
-        let mut map = pf_map.lock().await;
-        if let Some(mut data) = map.remove(&id) {
-            if let Some(tx) = data.cancel.take() {
-                let _ = tx.send(());
-            }
-            let _ = data.handle.await;
-            Ok(())
-        } else {
-            Err(mlua::Error::RuntimeError(format!(
-                "No port forward found for id {}",
-                id
-            )))
+    let pf_map = PF_MAP.get_or_init(|| Mutex::new(HashMap::new()));
+
+    // Remove from map with sync lock
+    let data = {
+        let mut map = pf_map.lock();
+        map.remove(&id)
+    };
+
+    if let Some(mut data) = data {
+        // Send cancel signal
+        if let Some(tx) = data.cancel.take() {
+            let _ = tx.send(());
         }
-    })
+        // Wait for task to finish (needs runtime)
+        let rt = RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"));
+        rt.block_on(async {
+            let _ = data.handle.await;
+        });
+        Ok(())
+    } else {
+        Err(mlua::Error::RuntimeError(format!(
+            "No port forward found for id {}",
+            id
+        )))
+    }
 }
 
 async fn run_forward(

@@ -13,7 +13,7 @@ use rayon::prelude::*;
 use kube::runtime::reflector::Store;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
-use tokio::sync::RwLock;
+use parking_lot::RwLock;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
@@ -41,7 +41,7 @@ fn key(kind: &str, namespace: Option<&str>) -> ReflectorKey {
 
 #[tracing::instrument]
 pub async fn shutdown_all_reflectors() {
-    let mut map = store_map().write().await;
+    let mut map = store_map().write();
     for ((kind, ns), data) in map.drain() {
         tracing::debug!(kind, ?ns, "Shutting down reflector");
         data.cancel.cancel();
@@ -71,7 +71,7 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut map = store_map().write().await;
+    let mut map = store_map().write();
     let kind = &gvk.kind;
     let requested_key = key(kind, namespace.as_deref());
 
@@ -183,8 +183,8 @@ fn emit_event(kind: &str, event: &Event<DynamicObject>) {
 }
 
 #[tracing::instrument]
-pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
-    let map = store_map().read().await;
+pub fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
+    let map = store_map().read();
 
     let data = map
         .get(&key(kind, None))
@@ -206,12 +206,12 @@ pub async fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObj
 }
 
 #[tracing::instrument]
-pub async fn get_single(
+pub fn get_single(
     kind: &str,
     namespace: Option<String>,
     name: &str,
 ) -> Result<Option<DynamicObject>, mlua::Error> {
-    let map = store_map().read().await;
+    let map = store_map().read();
 
     let data = map
         .get(&key(kind, None))

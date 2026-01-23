@@ -75,7 +75,7 @@ fn ensure_reflectors() {
 /// Fetches all namespaces from the store.
 pub fn fetch_namespaces() -> Vec<NamespaceInfo> {
     ensure_reflectors();
-    let objects = block_on(async { store::get("Namespace", None).await.unwrap_or_default() });
+    let objects = store::get("Namespace", None).unwrap_or_default();
 
     let mut namespaces: Vec<NamespaceInfo> = objects
         .iter()
@@ -94,7 +94,7 @@ pub fn fetch_namespaces() -> Vec<NamespaceInfo> {
 /// Fetches recent events from the store (Warning and Error only).
 pub fn fetch_events() -> Vec<EventInfo> {
     ensure_reflectors();
-    let objects = block_on(async { store::get("Event", None).await.unwrap_or_default() });
+    let objects = store::get("Event", None).unwrap_or_default();
 
     let mut events: Vec<EventInfo> = objects
         .iter()
@@ -114,11 +114,9 @@ pub fn fetch_events() -> Vec<EventInfo> {
 /// Fetches cluster statistics.
 pub fn fetch_cluster_stats(node_count: usize, ready_node_count: usize) -> ClusterStats {
     ensure_reflectors();
-    let pod_count =
-        block_on(async { store::get("Pod", None).await.unwrap_or_default().len() });
+    let pod_count = store::get("Pod", None).unwrap_or_default().len();
 
-    let namespace_count =
-        block_on(async { store::get("Namespace", None).await.unwrap_or_default().len() });
+    let namespace_count = store::get("Namespace", None).unwrap_or_default().len();
 
     ClusterStats {
         node_count,

@@ -1668,6 +1668,7 @@ dependencies = [
  "libc",
  "mlua",
  "nix",
+ "parking_lot",
  "ratatui",
  "rayon",
  "serde",
