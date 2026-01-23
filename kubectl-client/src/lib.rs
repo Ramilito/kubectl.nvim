@@ -3,6 +3,7 @@ use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::config::ExecInteractiveMode;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
+use health::{get_health_status, shutdown_health_collector, spawn_health_collector};
 use metrics::nodes::{shutdown_node_collector, spawn_node_collector, NodeStat, SharedNodeStats};
 use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodKey, PodStat, SharedPodStats};
 use std::collections::HashMap;
@@ -32,6 +33,7 @@ mod dao;
 mod describe_session;
 mod drain;
 mod event_queue;
+mod health;
 mod events;
 mod filter;
 mod hover;
@@ -180,6 +182,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
     // Stop collectors and clear stale metrics from previous context
     shutdown_pod_collector();
     shutdown_node_collector();
+    shutdown_health_collector();
     clear_pod_stats();
     clear_node_stats();
 
@@ -253,7 +256,8 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
 fn init_metrics(_lua: &Lua, _args: ()) -> LuaResult<bool> {
     with_client(|client| async move {
         spawn_pod_collector(client.clone());
-        spawn_node_collector(client);
+        spawn_node_collector(client.clone());
+        spawn_health_collector(client);
         Ok(())
     })?;
     Ok(true)
@@ -267,7 +271,7 @@ fn get_all(_lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetAllArgs = serde_json::from_str(&json)
         .map_err(|e| mlua::Error::external(format!("invalid JSON in get_all: {e}")))?;
     with_client(move |client| async move {
-        let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
+        let cached = store::get(&args.gvk.k, args.namespace.clone()).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
             get_resources_async(&client, args.gvk.k, args.gvk.g, args.gvk.v, args.namespace)
                 .await
@@ -288,7 +292,7 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: GetAllArgs = serde_json::from_str(&json)
         .map_err(|e| mlua::Error::external(format!("invalid JSON in get_all_async: {e}")))?;
     with_client(move |client| async move {
-        let cached = (store::get(&args.gvk.k, args.namespace.clone()).await).unwrap_or_default();
+        let cached = store::get(&args.gvk.k, args.namespace.clone()).unwrap_or_default();
         let resources: Vec<DynamicObject> = if cached.is_empty() {
             get_resources_async(&client, args.gvk.k, args.gvk.g, args.gvk.v, args.namespace)
                 .await
@@ -334,12 +338,11 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
 }
 
 #[tracing::instrument]
-async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> {
+fn get_container_table(lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetSingleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
     let pod = store::get_single(&args.gvk.k, args.namespace.clone(), &args.name)
-        .await
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
     let vec = match pod {
@@ -351,12 +354,10 @@ async fn get_container_table_async(lua: Lua, json: String) -> LuaResult<String> 
 }
 
 #[tracing::instrument]
-async fn get_table_async(lua: Lua, json: String) -> LuaResult<String> {
+fn get_table(lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-    let cached = store::get(&args.gvk.k, args.namespace.clone())
-        .await
-        .unwrap_or_default();
+    let cached = store::get(&args.gvk.k, args.namespace.clone()).unwrap_or_default();
     let proc = processor_for(&args.gvk.k.to_lowercase());
     let params = FilterParams {
         sort_by: args.sort_by,
@@ -389,6 +390,7 @@ pub async fn get_statusline_async(_lua: Lua, _args: ()) -> LuaResult<String> {
 async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_pod_collector();
     shutdown_node_collector();
+    shutdown_health_collector();
     shutdown_all_reflectors().await;
 
     {
@@ -441,11 +443,11 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
     exports.set("get_all_async", lua.create_async_function(get_all_async)?)?;
     exports.set(
         "get_container_table_async",
-        lua.create_async_function(get_container_table_async)?,
+        lua.create_function(get_container_table)?,
     )?;
     exports.set(
         "get_table_async",
-        lua.create_async_function(get_table_async)?,
+        lua.create_function(get_table)?,
     )?;
     exports.set(
         "get_fallback_table_async",
@@ -483,6 +485,18 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
                 }
                 None => Ok(mlua::Value::Nil),
             }
+        })?,
+    )?;
+
+    // Sync health check - reads cached result from background task
+    exports.set(
+        "get_health_status",
+        lua.create_function(|lua, _: ()| {
+            let (ok, last_ok) = get_health_status();
+            let tbl = lua.create_table()?;
+            tbl.set("ok", ok)?;
+            tbl.set("time_of_ok", last_ok)?;
+            Ok(tbl)
         })?,
     )?;
 

@@ -262,7 +262,7 @@ impl PodCollector {
                     _ = tick.tick() => {
                         // Batch fetch: get metrics and all pod specs in parallel
                         let metrics_result = metrics_api.list(&api::ListParams::default()).await;
-                        let pods_result = store::get("Pod", None).await;
+                        let pods_result = store::get("Pod", None);
 
                         let metrics_list = match metrics_result {
                             Ok(list) => list,

@@ -19,7 +19,7 @@ pub async fn get_hover_async(_lua: Lua, json: String) -> LuaResult<String> {
 
     with_client(move |client| async move {
         // Try cache first
-        if let Some(obj) = store::get_single(&args.gvk.k, args.namespace.clone(), &args.name).await?
+        if let Some(obj) = store::get_single(&args.gvk.k, args.namespace.clone(), &args.name)?
         {
             return Ok(format_resource(&kind, &obj));
         }
