@@ -170,7 +170,7 @@ fn emit_event(kind: &str, event: &Event<DynamicObject>) {
 
     let payload = json!({
         "event": event_type,
-        "metadata": metadata.map(|m| serde_json::to_value(m).ok()).flatten()
+        "metadata": metadata.and_then(|m| serde_json::to_value(m).ok())
     });
 
     if let Ok(payload_str) = serde_json::to_string(&payload) {
@@ -226,8 +226,8 @@ pub async fn get_single(
 
 fn matches_namespace(obj: &DynamicObject, namespace: Option<&str>) -> bool {
     match (obj.namespace(), namespace) {
-        (None, _) => true,                              // Cluster-scoped resources
-        (_, None) => true,                              // "All" namespaces requested
-        (Some(obj_ns), Some(ns)) => obj_ns == ns,       // Specific namespace match
+        (None, _) => true,                        // Cluster-scoped resources
+        (_, None) => true,                        // "All" namespaces requested
+        (Some(obj_ns), Some(ns)) => obj_ns == ns, // Specific namespace match
     }
 }
