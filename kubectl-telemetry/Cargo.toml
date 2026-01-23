@@ -3,7 +3,11 @@ name = "kubectl-telemetry"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+console = ["console-subscriber"]
+
 [dependencies]
+console-subscriber = { version = "0.4", optional = true }
 tokio                       = { version = "1", features = ["rt-multi-thread", "macros"] }
 tracing                     = { version = "0.1.41", features = ["log", "attributes"] }
 tracing-subscriber          = { version = "0.3", features = ["env-filter", "fmt", "registry"] }

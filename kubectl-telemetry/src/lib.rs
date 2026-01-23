@@ -104,12 +104,15 @@ pub fn setup_logger(
 
     // ---- 4. install subscriber (set only once) ----
     SUBSCRIBER_SET.get_or_init(|| {
-        tracing_subscriber::registry()
+        let registry = tracing_subscriber::registry()
             .with(LevelFilter::TRACE)
             .with(file_layer)
-            .with(otel_layer)
-            .try_init()
-            .ok();
+            .with(otel_layer);
+
+        #[cfg(feature = "console")]
+        let registry = registry.with(console_subscriber::spawn());
+
+        registry.try_init().ok();
     });
 
     Ok(())

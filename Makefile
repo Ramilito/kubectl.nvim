@@ -37,3 +37,7 @@ build_windows: build_go
 .PHONY: build
 build: build_go
 	cargo build --release
+
+.PHONY: build_console
+build_console: build_go
+	cargo build --features console
