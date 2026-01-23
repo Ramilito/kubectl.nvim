@@ -21,7 +21,6 @@ use crate::event_queue::notify_named;
 
 pub struct ReflectorData {
     pub store: Store<DynamicObject>,
-    #[allow(dead_code)]
     pub handle: JoinHandle<()>,
     pub cancel: CancellationToken,
 }
@@ -46,6 +45,7 @@ pub async fn shutdown_all_reflectors() {
     for ((kind, ns), data) in map.drain() {
         tracing::debug!(kind, ?ns, "Shutting down reflector");
         data.cancel.cancel();
+        data.handle.abort();
     }
 }
 
@@ -60,6 +60,7 @@ fn shutdown_namespaced_reflectors(map: &mut HashMap<ReflectorKey, ReflectorData>
         if let Some(data) = map.remove(&key) {
             tracing::debug!(kind, ns = ?key.1, "Shutting down namespaced reflector");
             data.cancel.cancel();
+            data.handle.abort();
         }
     }
 }
@@ -95,6 +96,7 @@ pub async fn init_reflector_for_kind(
     Ok(())
 }
 
+#[tracing::instrument(skip(client))]
 async fn create_reflector(
     client: Client,
     gvk: &GroupVersionKind,
@@ -126,6 +128,7 @@ async fn create_reflector(
     Ok((data, reader))
 }
 
+#[tracing::instrument(skip(api, config, ar, cancel, writer))]
 fn build_watcher_stream(
     api: Api<DynamicObject>,
     config: watcher::Config,
@@ -161,6 +164,7 @@ fn build_watcher_stream(
         .map(|_| ())
 }
 
+#[tracing::instrument(skip(event))]
 fn emit_event(kind: &str, event: &Event<DynamicObject>) {
     let (event_type, metadata) = match event {
         Event::Apply(obj) => ("MODIFIED", Some(&obj.metadata)),
