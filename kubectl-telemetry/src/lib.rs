@@ -109,7 +109,6 @@ pub fn setup_logger(
             .with(file_layer)
             .with(otel_layer);
 
-        #[cfg(feature = "console")]
         let registry = registry.with(console_subscriber::spawn());
 
         registry.try_init().ok();

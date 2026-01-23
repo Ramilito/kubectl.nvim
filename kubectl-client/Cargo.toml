@@ -5,8 +5,7 @@ edition = "2021"
 
 
 [features]
-telemetry = ["kubectl-telemetry"]
-console = ["telemetry", "kubectl-telemetry/console", "tokio/tracing"]
+telemetry = ["kubectl-telemetry", "tokio/tracing"]
 
 [lib]
 path = "./src/lib.rs"

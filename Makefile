@@ -24,24 +24,20 @@ build_go:
 
 .PHONY: build_dev
 build_dev: build_go
-	cargo build --features telemetry
+ifeq ($(shell uname -s),Darwin)
+	RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup -C link-arg=-Wl,-dead_strip --cfg tokio_unstable" cargo build --features telemetry
+else
+	RUSTFLAGS="--cfg tokio_unstable" cargo build --features telemetry
+endif
 
 .PHONY: build_release
 build_release: build_go
-	@cargo build --release --features telemetry
+	@cargo build --release
 
 .PHONY: build_windows
 build_windows: build_go
-	cargo build --release --target x86_64-pc-windows-gnu 
+	cargo build --release --target x86_64-pc-windows-gnu
 
 .PHONY: build
 build: build_go
 	cargo build --release
-
-.PHONY: build_console
-build_console: build_go
-ifeq ($(shell uname -s),Darwin)
-	RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup -C link-arg=-Wl,-dead_strip --cfg tokio_unstable" cargo build --features console
-else
-	RUSTFLAGS="--cfg tokio_unstable" cargo build --features console
-endif
