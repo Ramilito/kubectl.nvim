@@ -71,6 +71,16 @@ function health.report_native_library()
     plugin_root .. "/target/debug/kubectl_client" .. extension,
   }
 
+  -- Add Windows gnu target directories (used by CI releases)
+  if jit.os:lower() == "windows" then
+    vim.list_extend(binary_paths, {
+      plugin_root .. "/target/x86_64-pc-windows-gnu/release/kubectl_client" .. extension,
+      plugin_root .. "/target/x86_64-pc-windows-gnu/release/libkubectl_client" .. extension,
+      plugin_root .. "/target/x86_64-pc-windows-gnu/debug/kubectl_client" .. extension,
+      plugin_root .. "/target/x86_64-pc-windows-gnu/debug/libkubectl_client" .. extension,
+    })
+  end
+
   local found_binary = nil
   for _, path in ipairs(binary_paths) do
     if vim.uv.fs_stat(path) then
@@ -104,8 +114,11 @@ end
 
 function health.report_kubeconfig()
   -- Check KUBECONFIG env or default path
-  local kubeconfig = os.getenv("KUBECONFIG") or (os.getenv("HOME") .. "/.kube/config")
-  local paths = vim.split(kubeconfig, ":", { plain = true })
+  local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
+  local kubeconfig = os.getenv("KUBECONFIG") or (home .. "/.kube/config")
+  -- Use ; as path separator on Windows, : on Unix
+  local sep = jit.os:lower() == "windows" and ";" or ":"
+  local paths = vim.split(kubeconfig, sep, { plain = true })
 
   local found_any = false
   for _, path in ipairs(paths) do
