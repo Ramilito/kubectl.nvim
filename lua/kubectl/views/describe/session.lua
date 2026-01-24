@@ -2,6 +2,7 @@
 --- Handles polling-based describe with auto-refresh toggle
 local buffers = require("kubectl.actions.buffers")
 local client = require("kubectl.client")
+local loop = require("kubectl.utils.loop")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 
@@ -32,16 +33,14 @@ end
 local function create_session(buf, win, args, builder)
   local session = {
     rust_session = nil,
-    timer = nil,
     buf = buf,
     win = win,
     args = args,
     builder = builder,
-    stopped = false,
   }
 
   function session:is_active()
-    if self.stopped or not self.rust_session then
+    if not self.rust_session then
       return false
     end
     local ok, is_open = pcall(function()
@@ -51,10 +50,7 @@ local function create_session(buf, win, args, builder)
   end
 
   function session:stop()
-    if self.stopped then
-      return
-    end
-    self.stopped = true
+    loop.stop_loop(self.buf)
 
     if self.rust_session then
       pcall(function()
@@ -62,14 +58,6 @@ local function create_session(buf, win, args, builder)
       end)
       self.rust_session = nil
     end
-
-    ---@diagnostic disable: undefined-field
-    if self.timer and not self.timer:is_closing() then
-      self.timer:stop()
-      self.timer:close()
-    end
-    ---@diagnostic enable: undefined-field
-    self.timer = nil
   end
 
   function session:update_hints(is_running)
@@ -80,7 +68,6 @@ local function create_session(buf, win, args, builder)
   end
 
   function session:start()
-    self.stopped = false
     self:update_hints(true)
 
     local ok, sess = pcall(client.describe_session, {
@@ -96,63 +83,47 @@ local function create_session(buf, win, args, builder)
     end
 
     self.rust_session = sess
-    self.timer = vim.uv.new_timer()
 
     local this = self
-    ---@diagnostic disable: undefined-field
-    self.timer:start(
-      0,
-      200,
-      vim.schedule_wrap(function()
-        -- If intentionally stopped by user toggle, just return without removing session
-        if this.stopped then
-          return
-        end
+    loop.start_loop_for_buffer(self.buf, function(is_cancelled)
+      -- Skip if cancelled (toggled off) or rust session closed
+      if is_cancelled() or not this:is_active() then
+        return
+      end
 
-        -- If buffer invalid or rust session closed, clean up fully
-        if not vim.api.nvim_buf_is_valid(this.buf) or not this:is_active() then
-          this:stop()
-          manager.remove(session_key(this.buf))
-          return
-        end
-
-        local read_ok, content = pcall(function()
-          return this.rust_session:read_content()
-        end)
-
-        if read_ok and content then
-          local lines = vim.split(content, "\n", { plain = true })
-          buffers.set_content(this.buf, {
-            content = lines,
-            header = { data = {}, marks = {} },
-          })
-        end
-      end)
-    )
-    ---@diagnostic enable: undefined-field
-
-    -- Cleanup on buffer/window close
-    vim.api.nvim_create_autocmd({ "BufUnload", "BufDelete", "BufWinLeave" }, {
-      group = vim.api.nvim_create_augroup("__kubectl_describe_session_" .. self.buf, { clear = true }),
-      buffer = self.buf,
-      once = true,
-      callback = function()
+      -- Buffer deleted - full cleanup
+      if not vim.api.nvim_buf_is_valid(this.buf) then
         this:stop()
         manager.remove(session_key(this.buf))
-      end,
-    })
+        return
+      end
+
+      local read_ok, content = pcall(function()
+        return this.rust_session:read_content()
+      end)
+
+      if read_ok and content then
+        local lines = vim.split(content, "\n", { plain = true })
+        buffers.set_content(this.buf, {
+          content = lines,
+          header = { data = {}, marks = {} },
+        })
+      end
+
+      loop.set_running(this.buf, false)
+    end, { interval = 200 })
 
     return true
   end
 
   function session:toggle()
-    if self.stopped then
-      self:start()
-      return true
-    else
+    if loop.is_running(self.buf) then
       self:stop()
       self:update_hints(false)
       return false
+    else
+      self:start()
+      return true
     end
   end
 
