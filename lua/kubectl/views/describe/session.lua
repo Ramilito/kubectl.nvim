@@ -86,7 +86,13 @@ local function create_session(buf, win, args, builder)
 
     local this = self
     loop.start_loop_for_buffer(self.buf, function(is_cancelled)
-      if is_cancelled() or not vim.api.nvim_buf_is_valid(this.buf) or not this:is_active() then
+      -- Skip if cancelled (toggled off) or rust session closed
+      if is_cancelled() or not this:is_active() then
+        return
+      end
+
+      -- Buffer deleted - full cleanup
+      if not vim.api.nvim_buf_is_valid(this.buf) then
         this:stop()
         manager.remove(session_key(this.buf))
         return
