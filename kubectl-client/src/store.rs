@@ -119,9 +119,7 @@ async fn create_reflector(
     let cancel = CancellationToken::new();
     let stream = build_watcher_stream(api, config, &ar, &gvk.kind, cancel.clone(), writer);
 
-    let handle = tokio::spawn(async move {
-        stream.for_each(|_| futures::future::ready(())).await;
-    });
+    let handle = tokio::spawn(stream.for_each(|_| futures::future::ready(())));
 
     let data = ReflectorData {
         store: reader.clone(),
