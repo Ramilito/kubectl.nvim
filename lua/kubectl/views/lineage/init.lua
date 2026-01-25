@@ -59,19 +59,14 @@ function M.generate_content()
     local kind = M.selection.kind
     local ns, name = M.selection.ns, M.selection.name
 
-    -- Look up the actual kind from cached API resources
+    -- Look up the actual kind from cached API resources (authoritative source)
     local resource_info = cache.cached_api_resources.values[string.lower(kind)]
       or cache.cached_api_resources.shortNames[string.lower(kind)]
 
     if resource_info and resource_info.gvk and resource_info.gvk.k then
       kind = resource_info.gvk.k
-    else
-      -- Fallback to simple plural removal if not found in cache
-      kind = string.lower(kind)
-      if kind:sub(-1) == "s" and kind ~= "ingresses" and kind ~= "storageclasses" then
-        kind = kind:sub(1, -2)
-      end
     end
+    -- No fallback - use GVK lookup exclusively. If not found, use as-is.
 
     kind = string.lower(kind)
 

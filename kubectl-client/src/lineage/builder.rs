@@ -3,11 +3,11 @@ use mlua::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
-use uuid::Uuid;
 
 use super::tree::{RelationRef, Resource, Tree, TreeNode};
 
-/// Global storage for lineage trees indexed by UUID
+/// Global storage for lineage trees indexed by deterministic key (cluster name)
+/// Uses idempotent storage - same key overwrites previous entry, no accumulation
 static LINEAGE_TREES: LazyLock<Mutex<HashMap<String, Tree>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Serializable version of TreeNode for JSON output
@@ -97,6 +97,9 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
     let input: BuildGraphInput = serde_json::from_str(&json_input)
         .map_err(|e| LuaError::external(format!("Failed to parse input JSON: {}", e)))?;
 
+    // Use root_name as idempotent tree_id - same cluster always uses same key
+    let tree_id = input.root_name.clone();
+
     // Convert typed input resources to our Resource struct
     let parsed_resources: Vec<Resource> = input
         .resources
@@ -104,10 +107,10 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
         .map(|res| parse_resource_typed(res))
         .collect();
 
-    // Create root resource (cluster)
+    // Create root resource (cluster) - use tree_id which is root_name
     let root_resource = Resource {
         kind: "cluster".to_string(),
-        name: input.root_name,
+        name: tree_id.clone(),
         namespace: None,
         api_version: None,
         uid: None,
@@ -128,9 +131,6 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
 
     // Link nodes based on relationships
     tree.link_nodes();
-
-    // Generate UUID for this tree
-    let tree_id = Uuid::new_v4().to_string();
 
     // Convert tree nodes to serializable format
     // Pre-allocate with exact capacity
