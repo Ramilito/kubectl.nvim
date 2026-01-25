@@ -35,44 +35,9 @@ vim.api.nvim_create_autocmd("User", {
   end,
 })
 
-function M.View(name, ns, kind)
-  if cache.loading then
-    vim.notify("cache is not ready")
-    return
-  end
-
-  M.total = 0
-  for _, _ in pairs(cache.cached_api_resources.values) do
-    M.total = M.total + 1
-  end
-
-  if M.total == 0 then
-    vim.notify("cache is not ready")
-    return
-  end
-
-  M.builder = nil
-  M.selection.name = name
-  M.selection.ns = ns
-  M.selection.kind = kind
-
-  if not M.loaded and not M.is_loading then
-    M.is_loading = true
-    M.load_cache()
-  end
-
-  M.builder = manager.get_or_create(M.definition.resource)
-  M.builder.view_framed(M.definition)
-
-  M.set_keymaps(M.builder.buf_nr)
-  M.Draw()
-end
-
-function M.Draw()
-  if not M.builder or not vim.api.nvim_buf_is_valid(M.builder.buf_nr) then
-    return
-  end
-
+--- Generate content for the lineage view
+--- @return { content: table, marks: table, header_data: table, header_marks: table }
+function M.generate_content()
   local content = {}
   local marks = {}
   local header_data = {}
@@ -131,16 +96,67 @@ function M.Draw()
     end
   end
 
-  vim.schedule(function()
-    buffers.set_content(M.builder.buf_nr, {
-      content = content,
-      marks = marks,
-      header = { data = header_data, marks = header_marks },
-    })
+  return {
+    content = content,
+    marks = marks,
+    header_data = header_data,
+    header_marks = header_marks,
+  }
+end
 
-    M.set_folding(M.builder.win_nr, M.builder.buf_nr)
-    collectgarbage("collect")
-  end)
+function M.View(name, ns, kind)
+  if cache.loading then
+    vim.notify("cache is not ready")
+    return
+  end
+
+  M.total = 0
+  for _, _ in pairs(cache.cached_api_resources.values) do
+    M.total = M.total + 1
+  end
+
+  if M.total == 0 then
+    vim.notify("cache is not ready")
+    return
+  end
+
+  M.builder = nil
+  M.selection.name = name
+  M.selection.ns = ns
+  M.selection.kind = kind
+
+  if not M.loaded and not M.is_loading then
+    M.is_loading = true
+    M.load_cache()
+  end
+
+  M.builder = manager.get_or_create(M.definition.resource)
+  M.builder.view_framed(M.definition)
+
+  M.set_keymaps(M.builder.buf_nr)
+  M.Draw()
+end
+
+function M.Draw()
+  if not M.builder or not vim.api.nvim_buf_is_valid(M.builder.buf_nr) then
+    return
+  end
+
+  local result = M.generate_content()
+
+  buffers.set_content(M.builder.buf_nr, {
+    content = result.content,
+    marks = result.marks,
+    header = { data = result.header_data, marks = result.header_marks },
+  })
+
+  M.set_folding(M.builder.win_nr, M.builder.buf_nr)
+
+  if M.builder.frame then
+    M.builder.fitToContent(1)
+  end
+
+  collectgarbage("collect")
 end
 
 function M.load_cache(callback)
@@ -230,6 +246,23 @@ function M.set_keymaps(bufnr)
       end
     end,
   })
+
+  -- Add keymaps that trigger resize after fold operations
+  local fold_keys = { "za", "zA", "zo", "zO", "zc", "zC", "zR", "zM" }
+  for _, key in ipairs(fold_keys) do
+    vim.api.nvim_buf_set_keymap(bufnr, "n", key, "", {
+      noremap = true,
+      silent = true,
+      callback = function()
+        -- Execute the original fold command
+        vim.cmd("normal! " .. key)
+        -- Resize after fold operation
+        if M.builder and M.builder.frame then
+          M.builder.fitToContent(1)
+        end
+      end,
+    })
+  end
 end
 
 function M.set_folding(win_nr, buf_nr)
