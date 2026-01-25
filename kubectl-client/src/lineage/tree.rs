@@ -54,9 +54,7 @@ impl TreeNode {
     /// Generate a unique key for a resource
     pub fn get_resource_key(resource: &Resource) -> String {
         if let Some(ref ns) = resource.namespace {
-            if resource.kind.to_lowercase() != "node" {
-                return format!("{}/{}/{}", resource.kind, ns, resource.name).to_lowercase();
-            }
+            return format!("{}/{}/{}", resource.kind, ns, resource.name).to_lowercase();
         }
         format!("{}/{}", resource.kind, resource.name).to_lowercase()
     }

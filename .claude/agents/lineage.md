@@ -21,15 +21,18 @@ For general Lua patterns or Neovim API usage, use the `lua` subagent.
 
 | Layer | File | Purpose |
 |-------|------|---------|
+| Rust | `kubectl-client/src/lineage/relationships.rs` | K8s resource relationship extraction |
+| Rust | `kubectl-client/src/lineage/builder.rs` | Parse resources, build tree, convert to Lua |
+| Rust | `kubectl-client/src/lineage/tree.rs` | Tree/TreeNode structs, graph algorithms |
 | Lua | `lua/kubectl/views/lineage/init.lua` | View lifecycle (View, Draw, load_cache), keymaps, folding |
-| Lua | `lua/kubectl/views/lineage/definition.lua` | Resource definition, graph building, display formatting |
-| Lua | `lua/kubectl/views/lineage/tree.lua` | Tree/TreeNode classes, graph algorithms |
-| Lua | `lua/kubectl/views/lineage/relationships.lua` | K8s resource relationship definitions |
+| Lua | `lua/kubectl/views/lineage/definition.lua` | Resource collection, display formatting |
+| Lua | `lua/kubectl/views/lineage/tree.lua` | DEPRECATED - kept for backward compatibility |
+| Lua | `lua/kubectl/views/lineage/relationships.lua` | DEPRECATED - relationships now extracted in Rust |
 
 ## Data Flow
 
 ```
-Lua
+Lua --> Rust Integration
 -----------------------------------------------------------
 View(name, ns, kind) --> Check cache ready
                     --> load_cache() if first time
@@ -37,100 +40,124 @@ View(name, ns, kind) --> Check cache ready
                     --> Draw()
 
 load_cache() --> Fetch all API resources via get_all_async
-            --> processRow() for each resource
-            --> Build relationships (owners, dependencies)
+            --> processRow() stores raw resource data
             --> Store in cached_api_resources.values[].data
             --> Fire K8sLineageDataLoaded autocmd
 
-Draw() --> collect_all_resources() from cache
-       --> build_graph() creates Tree
+Draw() --> collect_all_resources() from cache (with namespaced flag)
+       --> build_graph() --> Rust build_lineage_graph()
+           --> Parse resources
+           --> Extract ownerReferences from metadata
+           --> Extract relationships via relationships::extract_relationships()
+           --> Build tree structure
+           --> Return Lua table with nodes and get_related_nodes function
        --> build_display_lines() for selected node
        --> displayContentRaw() with folding
 ```
 
 ## Core Data Structures
 
-### TreeNode (`tree.lua:24-46`)
+### Resource (Rust: `tree.rs:6-18`)
 
-```lua
-local node = {
-    resource = resource,    -- Original K8s resource data
-    children = {},          -- Child nodes (via ownerReferences)
-    leafs = {},             -- Bidirectional relations (via selectors)
-    key = "kind/ns/name",   -- Unique identifier
-    parent = nil,           -- Parent node reference
+```rust
+pub struct Resource {
+    pub kind: String,
+    pub name: String,
+    pub namespace: Option<String>,
+    pub api_version: Option<String>,
+    pub uid: Option<String>,
+    pub labels: Option<HashMap<String, String>>,
+    pub selectors: Option<HashMap<String, String>>,
+    pub owners: Option<Vec<RelationRef>>,      // From ownerReferences
+    pub relations: Option<Vec<RelationRef>>,   // From relationship extraction
 }
 ```
 
-### Tree (`tree.lua:48-61`)
+### TreeNode (Rust: `tree.rs:33-40`)
 
-```lua
-local tree = {
-    root = TreeNode,        -- Cluster root node
-    nodes_by_key = {},      -- Fast lookup by key
-    nodes_list = {},        -- Ordered list for iteration
+```rust
+pub struct TreeNode {
+    pub resource: Resource,
+    pub children_keys: Vec<String>,  // Child nodes (via ownerReferences)
+    pub leaf_keys: Vec<String>,      // Bidirectional relations (via selectors)
+    pub key: String,                 // Unique identifier: "kind/ns/name" or "kind/name"
+    pub parent_key: Option<String>,  // Parent node reference
 }
 ```
 
-### Resource Row (`definition.lua:72-87`)
+### Tree (Rust: `tree.rs:78-82`)
+
+```rust
+pub struct Tree {
+    pub root: TreeNode,              // Cluster root node
+    pub nodes: HashMap<String, TreeNode>,  // Fast lookup by key
+}
+```
+
+### Resource Row (Lua: `definition.lua:41-49`)
 
 ```lua
 local row = {
+    kind = "Pod",
     name = "resource-name",
     ns = "namespace",
     apiVersion = "v1",
     labels = { ... },
-    owners = { ... },       -- Owner relationships
-    relations = { ... },    -- Dependency relationships
-    selectors = { ... },    -- For matching children by labels
+    metadata = { ... },      -- Full metadata for Rust extraction
+    spec = { ... },          -- Full spec for Rust extraction
+    selectors = { ... },     -- For matching children by labels
+    namespaced = true,       -- From API resource metadata
 }
 ```
 
 ## Key Functions
 
-### Tree Operations
+### Rust Functions
 
 | Function | Location | Purpose |
 |----------|----------|---------|
-| `Tree:add_node()` | `tree.lua:63-75` | Add resource to graph |
-| `Tree:link_nodes()` | `tree.lua:77-146` | Build parent-child and leaf relationships |
-| `Tree:get_related_items()` | `tree.lua:148-216` | Find all related nodes for selection |
+| `build_lineage_graph()` | `builder.rs:11-61` | Main entry point, builds tree and returns Lua table |
+| `parse_resource()` | `builder.rs:64-162` | Parse JSON resource, extract owners and relationships |
+| `extract_relationships()` | `relationships.rs:5-21` | Dispatch relationship extraction by kind |
+| `extract_pod_relationships()` | `relationships.rs:211-275` | Extract Pod → Node, ServiceAccount, ConfigMap, etc. |
+| `extract_hpa_relationships()` | `relationships.rs:562-594` | Extract HPA → scaleTargetRef |
+| `Tree::add_node()` | `tree.rs:94-104` | Add resource node to graph |
+| `Tree::link_nodes()` | `tree.rs:106-207` | Build parent-child and leaf relationships |
+| `Tree::get_related_items()` | `tree.rs:209-276` | Find all related nodes for selection |
+| `TreeNode::get_resource_key()` | `tree.rs:55-60` | Generate unique key based on namespace |
 
-### Relationship Resolution
-
-| Function | Location | Purpose |
-|----------|----------|---------|
-| `getRelationship()` | `relationships.lua:11-63` | Extract relationships from resource spec |
-| `extractFieldValue()` | `relationships.lua:3-9` | Navigate nested field paths |
-
-### View Lifecycle
+### Lua Functions
 
 | Function | Location | Purpose |
 |----------|----------|---------|
 | `M.View()` | `init.lua:26-57` | Entry point, setup buffer |
-| `M.Draw()` | `init.lua:59-131` | Render tree to buffer |
+| `M.Draw()` | `init.lua:59-103` | Render tree to buffer, call Rust graph builder |
 | `M.load_cache()` | `init.lua:133-178` | Fetch all resources async |
+| `M.processRow()` | `definition.lua:14-68` | Store raw resource data with metadata/spec |
+| `M.collect_all_resources()` | `definition.lua:70-83` | Collect resources with namespaced flag |
+| `M.build_graph()` | `definition.lua:85-94` | Convert to JSON and call Rust |
+| `M.build_display_lines()` | `definition.lua:96-220` | Format tree for display |
 | `M.set_folding()` | `init.lua:223-289` | Configure fold expression |
 
 ## Relationship Types
 
-Defined in `relationships.lua:65-502`. Two main types:
-
-| Type | Meaning | Example |
-|------|---------|---------|
-| `owner` | Target owns this resource | Event → Pod (regarding) |
-| `dependency` | This resource depends on target | Pod → Node (nodeName) |
+Defined in `kubectl-client/src/lineage/relationships.rs`. All relationships are dependency-based (this resource depends on or references the target).
 
 ### Supported Resources
 
 - **Event** - regarding, related references
 - **Ingress** - ingressClassName, backend services, TLS secrets
 - **IngressClass** - parameters reference
-- **Pod** - nodeName, priorityClass, runtimeClass, serviceAccount, volumes
-- **ClusterRole** - aggregation rules, policy rules
+- **Pod** - nodeName, priorityClass, runtimeClass, serviceAccount, volumes (ConfigMap, Secret, PVC, CSI)
+- **ClusterRole** - aggregation rules (currently returns empty, can be enhanced)
 - **PersistentVolumeClaim** - volumeName
 - **PersistentVolume** - claimRef
-- **ClusterRoleBinding** - subjects, roleRef
+- **ClusterRoleBinding** - subjects (ServiceAccounts), roleRef
+- **StatefulSet** - volumeClaimTemplates, serviceName
+- **DaemonSet** - (placeholder, can be enhanced)
+- **Job** - (placeholder, can be enhanced)
+- **CronJob** - (placeholder, can be enhanced)
+- **HorizontalPodAutoscaler** - scaleTargetRef
 
 ## User Events
 
@@ -156,14 +183,20 @@ M.processed = 0     -- Progress counter
 M.total = 0         -- Total resources to load
 ```
 
-## Kind Normalization (`init.lua:76-93`)
+## Kind Normalization (`init.lua:75-93`)
 
-Views use plural forms, lineage uses singular. Special cases:
-- `storageclasses` → `storageclass`
-- `ingresses` → `ingress`
-- `ingressclasses` → `ingressclass`
-- `sa` → `serviceaccount`
-- Default: strip trailing `s`
+Views use plural forms (e.g., "pods"), lineage needs singular forms (e.g., "Pod").
+
+**Implementation:** Lookup in `cached_api_resources` to find the actual GVK kind:
+1. Check `cached_api_resources.values[lowercase_kind]`
+2. Check `cached_api_resources.shortNames[lowercase_kind]`
+3. Extract `resource_info.gvk.k` for the canonical kind
+4. Fallback to simple plural removal if not found in cache
+
+**Benefits:**
+- Robust for all resource types, including CRDs
+- No hardcoded special cases
+- Uses the same API resource metadata as the rest of the plugin
 
 ## Folding Implementation
 
@@ -177,30 +210,39 @@ Custom fold expression in `set_folding()` (`init.lua:223-289`):
 
 ### Adding a New Relationship Type
 
-1. Add entry to `M.definition` in `relationships.lua`
-2. Specify `relationship_type`: `owner` or `dependency`
-3. Define `field_path` to extract the reference
-4. Implement `target_kind`, `target_name`, `target_namespace` functions
-5. Use `extract_subfield` for array fields
+Add an extraction function in `kubectl-client/src/lineage/relationships.rs`:
+
+1. Add the resource kind to the match statement in `extract_relationships()`
+2. Create a new `extract_RESOURCE_relationships()` function
+3. Extract relevant fields from `item: &Value`
+4. Return `Vec<RelationRef>` with all related resources
 
 Example pattern:
-```lua
-MyResource = {
-    kind = "MyResource",
-    relationships = {
-        {
-            relationship_type = "dependency",
-            field_path = "spec.targetRef",
-            target_kind = function(field_value)
-                return field_value.kind
-            end,
-            target_name = function(field_value)
-                return field_value.name
-            end,
-            target_namespace = true,  -- Same as source
-        },
-    },
-},
+```rust
+fn extract_deployment_relationships(item: &Value) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+    let namespace = item
+        .get("metadata")
+        .and_then(|m| m.get("namespace"))
+        .and_then(|v| v.as_str());
+
+    // Example: Extract a simple string reference
+    if let Some(target_name) = item
+        .get("spec")
+        .and_then(|s| s.get("targetRef"))
+        .and_then(|v| v.as_str())
+    {
+        relations.push(RelationRef {
+            kind: "TargetResource".to_string(),
+            name: target_name.to_string(),
+            namespace: namespace.map(String::from),
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    relations
+}
 ```
 
 ### Adding Display Information

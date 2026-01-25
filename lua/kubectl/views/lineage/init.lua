@@ -72,25 +72,25 @@ function M.Draw()
     local data = definition.collect_all_resources(cache.cached_api_resources.values)
     local graph = definition.build_graph(data)
 
-    -- TODO: Our views are in plural form, we remove the last s for that...not really that robust
-    local kind, ns, name = string.lower(M.selection.kind), M.selection.ns, M.selection.name
-    if
-      kind:sub(-1) == "s"
-      and kind ~= "ingresses"
-      and kind ~= "storageclasses"
-      and kind ~= "sa"
-      and kind ~= "ingressclasses"
-    then
-      kind = kind:sub(1, -2)
-    elseif kind == "storageclasses" then
-      kind = "storageclass"
-    elseif kind == "ingresses" then
-      kind = "ingress"
-    elseif kind == "ingressclasses" then
-      kind = "ingressclass"
-    elseif kind == "sa" then
-      kind = "serviceaccount"
+    -- Convert plural resource name to singular using cached API resources
+    local kind = M.selection.kind
+    local ns, name = M.selection.ns, M.selection.name
+
+    -- Look up the actual kind from cached API resources
+    local resource_info = cache.cached_api_resources.values[string.lower(kind)]
+      or cache.cached_api_resources.shortNames[string.lower(kind)]
+
+    if resource_info and resource_info.gvk and resource_info.gvk.k then
+      kind = resource_info.gvk.k
+    else
+      -- Fallback to simple plural removal if not found in cache
+      kind = string.lower(kind)
+      if kind:sub(-1) == "s" and kind ~= "ingresses" and kind ~= "storageclasses" then
+        kind = kind:sub(1, -2)
+      end
     end
+
+    kind = string.lower(kind)
 
     local selected_key = kind
     if ns then
@@ -136,7 +136,7 @@ function M.load_cache(callback)
   M.processed = 0
   for _, resource in pairs(cached_api_resources.values) do
     if resource.gvk then
-      table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk, nil } })
+      table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk } })
     end
   end
 
@@ -144,7 +144,6 @@ function M.load_cache(callback)
 
   -- Memory usage before creating the table
   local mem_before = collectgarbage("count")
-  local relationships = require("kubectl.views.lineage.relationships")
 
   commands.await_all(all_gvk, function()
     M.processed = M.processed + 1
@@ -155,7 +154,7 @@ function M.load_cache(callback)
     M.builder.processedData = {}
 
     for _, values in pairs(M.builder.data) do
-      definition.processRow(values, cached_api_resources, relationships)
+      definition.processRow(values, cached_api_resources)
     end
 
     -- Memory usage after creating the table

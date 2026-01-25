@@ -12,10 +12,22 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
     let resources: Vec<Value> = serde_json::from_str(&resources_json)
         .map_err(|e| LuaError::external(format!("Failed to parse resources JSON: {}", e)))?;
 
+    // Build a map of resource kinds to their namespaced status
+    let namespaced_map = HashMap::new();
+    for resource_value in &resources {
+        if let (Some(_kind), Some(_namespaced)) = (
+            resource_value.get("kind").and_then(|v| v.as_str()),
+            resource_value.get("namespaced").and_then(|v| v.as_bool()),
+        ) {
+            // Note: namespaced_map is no longer used as we determine namespace
+            // from the resource itself via ownerReferences
+        }
+    }
+
     // Convert JSON resources to our Resource struct
     let mut parsed_resources: Vec<Resource> = Vec::new();
     for resource_value in resources {
-        if let Some(resource) = parse_resource(&resource_value) {
+        if let Some(resource) = parse_resource(&resource_value, &namespaced_map) {
             parsed_resources.push(resource);
         }
     }
@@ -49,7 +61,7 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
 }
 
 /// Parse a JSON value into a Resource struct
-fn parse_resource(value: &Value) -> Option<Resource> {
+fn parse_resource(value: &Value, _namespaced_map: &HashMap<String, bool>) -> Option<Resource> {
     let kind = value.get("kind")?.as_str()?.to_string();
     let name = value
         .get("name")
@@ -92,25 +104,62 @@ fn parse_resource(value: &Value) -> Option<Resource> {
             .collect::<HashMap<String, String>>()
     });
 
-    // Parse owners
-    let owners = value
+    // Parse owners from ownerReferences in metadata
+    let mut owners = value
+        .get("metadata")
+        .and_then(|m| m.get("ownerReferences"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|owner| {
+                    let owner_kind = owner.get("kind")?.as_str()?.to_string();
+                    let owner_name = owner.get("name")?.as_str()?.to_string();
+
+                    // Try to get namespace from owner reference first, then fall back to resource namespace
+                    let owner_namespace = owner
+                        .get("namespace")
+                        .and_then(|v| v.as_str())
+                        .or(namespace.as_deref())
+                        .map(String::from);
+
+                    Some(RelationRef {
+                        kind: owner_kind,
+                        name: owner_name,
+                        namespace: owner_namespace,
+                        api_version: owner.get("apiVersion").and_then(|v| v.as_str()).map(String::from),
+                        uid: owner.get("uid").and_then(|v| v.as_str()).map(String::from),
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    // Also merge any owners already set from Lua processing
+    if let Some(lua_owners) = value
         .get("owners")
         .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(parse_relation_ref)
-                .collect()
-        });
+    {
+        for owner in lua_owners.iter().filter_map(parse_relation_ref) {
+            if !owners.iter().any(|o| o.kind == owner.kind && o.name == owner.name) {
+                owners.push(owner);
+            }
+        }
+    }
 
-    // Parse explicit relations
-    let relations = value
+    // Extract relationships using Rust relationship extraction
+    let mut relations = super::relationships::extract_relationships(&kind, value);
+
+    // Also merge any relations already set from Lua processing
+    if let Some(lua_relations) = value
         .get("relations")
         .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(parse_relation_ref)
-                .collect()
-        });
+    {
+        for relation in lua_relations.iter().filter_map(parse_relation_ref) {
+            if !relations.iter().any(|r| r.kind == relation.kind && r.name == relation.name) {
+                relations.push(relation);
+            }
+        }
+    }
 
     Some(Resource {
         kind,
@@ -120,8 +169,8 @@ fn parse_resource(value: &Value) -> Option<Resource> {
         uid,
         labels,
         selectors,
-        owners,
-        relations,
+        owners: if owners.is_empty() { None } else { Some(owners) },
+        relations: if relations.is_empty() { None } else { Some(relations) },
     })
 }
 
@@ -252,7 +301,8 @@ mod tests {
             }
         });
 
-        let resource = parse_resource(&json).unwrap();
+        let namespaced_map = HashMap::new();
+        let resource = parse_resource(&json, &namespaced_map).unwrap();
         assert_eq!(resource.kind, "Pod");
         assert_eq!(resource.name, "test-pod");
         assert_eq!(resource.namespace, Some("default".to_string()));

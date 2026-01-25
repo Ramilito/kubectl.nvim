@@ -11,7 +11,7 @@ local function get_kind(resource, default_kind)
   return (resource.kind and resource.kind) or (default_kind and default_kind) or "unknownkind"
 end
 
-function M.processRow(rows, cached_api_resources, relationships)
+function M.processRow(rows, cached_api_resources)
   if not rows or type(rows) == "string" then
     return
   end
@@ -37,45 +37,15 @@ function M.processRow(rows, cached_api_resources, relationships)
     local row
 
     if item.metadata.name then
-      local owners = {}
-      local relations = {}
-
-      for _, relation in ipairs(relationships.getRelationship(item.kind, item, rows)) do
-        if relation.relationship_type == "owner" then
-          table.insert(owners, relation)
-        elseif relation.relationship_type == "dependency" then
-          table.insert(relations, relation)
-        end
-      end
-
-      -- Add ownerReferences
-      if item.metadata.ownerReferences then
-        for _, owner in ipairs(item.metadata.ownerReferences) do
-          -- TODO: Check if resource is NamespaceScoped or ClusterScoped in a better way
-          local get_ns = function()
-            if owner.kind == "Node" then
-              return nil
-            end
-            return owner.namespace or item.metadata.namespace
-          end
-          table.insert(owners, {
-            kind = owner.kind,
-            apiVersion = owner.apiVersion,
-            name = owner.name,
-            uid = owner.uid,
-            ns = get_ns(),
-          })
-        end
-      end
-
-      -- Build the row data
+      -- Build the row data - relationships will be extracted in Rust
       row = {
+        kind = item.kind,
         name = item.metadata.name,
         ns = item.metadata.namespace,
-        apiVersion = rows.apiVersion,
+        apiVersion = item.apiVersion or rows.apiVersion,
         labels = item.metadata.labels,
-        owners = owners,
-        relations = relations,
+        metadata = item.metadata,
+        spec = item.spec,
       }
 
       -- Add selectors if available
@@ -103,6 +73,8 @@ function M.collect_all_resources(data_sample)
     if resource_group.data then
       for _, resource in ipairs(resource_group.data) do
         resource.kind = get_kind(resource, resource_group.gvk.k or kind_key)
+        -- Add namespaced flag from API resource metadata
+        resource.namespaced = resource_group.namespaced
         table.insert(resources, resource)
       end
     end

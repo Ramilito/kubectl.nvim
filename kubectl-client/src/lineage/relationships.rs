@@ -2,7 +2,6 @@ use k8s_openapi::serde_json::Value;
 use super::tree::RelationRef;
 
 /// Extract relationships from a Kubernetes resource based on its kind
-#[allow(dead_code)]
 pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
     match kind {
         "Event" => extract_event_relationships(item),
@@ -13,6 +12,11 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
         "PersistentVolumeClaim" => extract_pvc_relationships(item),
         "PersistentVolume" => extract_pv_relationships(item),
         "ClusterRoleBinding" => extract_clusterrolebinding_relationships(item),
+        "StatefulSet" => extract_statefulset_relationships(item),
+        "DaemonSet" => extract_daemonset_relationships(item),
+        "Job" => extract_job_relationships(item),
+        "CronJob" => extract_cronjob_relationships(item),
+        "HorizontalPodAutoscaler" => extract_hpa_relationships(item),
         _ => Vec::new(),
     }
 }
@@ -274,7 +278,6 @@ fn extract_pod_relationships(item: &Value) -> Vec<RelationRef> {
     relations
 }
 
-#[allow(dead_code)]
 fn extract_volume_relations(volume: &Value, namespace: Option<&str>) -> Vec<RelationRef> {
     let mut relations = Vec::new();
 
@@ -377,14 +380,12 @@ fn extract_volume_relations(volume: &Value, namespace: Option<&str>) -> Vec<Rela
     relations
 }
 
-#[allow(dead_code)]
 fn extract_clusterrole_relationships(_item: &Value) -> Vec<RelationRef> {
     // ClusterRole relationships are complex and selector-based
     // For now, return empty - can be enhanced later
     Vec::new()
 }
 
-#[allow(dead_code)]
 fn extract_pvc_relationships(item: &Value) -> Vec<RelationRef> {
     let mut relations = Vec::new();
 
@@ -405,7 +406,6 @@ fn extract_pvc_relationships(item: &Value) -> Vec<RelationRef> {
     relations
 }
 
-#[allow(dead_code)]
 fn extract_pv_relationships(item: &Value) -> Vec<RelationRef> {
     let mut relations = Vec::new();
 
@@ -434,7 +434,6 @@ fn extract_pv_relationships(item: &Value) -> Vec<RelationRef> {
     relations
 }
 
-#[allow(dead_code)]
 fn extract_clusterrolebinding_relationships(item: &Value) -> Vec<RelationRef> {
     let mut relations = Vec::new();
 
@@ -477,6 +476,112 @@ fn extract_clusterrolebinding_relationships(item: &Value) -> Vec<RelationRef> {
                     });
                 }
             }
+        }
+    }
+
+    relations
+}
+
+fn extract_statefulset_relationships(item: &Value) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    // volumeClaimTemplates
+    if let Some(templates) = item
+        .get("spec")
+        .and_then(|s| s.get("volumeClaimTemplates"))
+        .and_then(|v| v.as_array())
+    {
+        let namespace = item
+            .get("metadata")
+            .and_then(|m| m.get("namespace"))
+            .and_then(|v| v.as_str());
+
+        for template in templates {
+            if let Some(name) = template
+                .get("metadata")
+                .and_then(|m| m.get("name"))
+                .and_then(|v| v.as_str())
+            {
+                relations.push(RelationRef {
+                    kind: "PersistentVolumeClaim".to_string(),
+                    name: name.to_string(),
+                    namespace: namespace.map(String::from),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+        }
+    }
+
+    // serviceName
+    if let Some(service_name) = item
+        .get("spec")
+        .and_then(|s| s.get("serviceName"))
+        .and_then(|v| v.as_str())
+    {
+        let namespace = item
+            .get("metadata")
+            .and_then(|m| m.get("namespace"))
+            .and_then(|v| v.as_str());
+
+        relations.push(RelationRef {
+            kind: "Service".to_string(),
+            name: service_name.to_string(),
+            namespace: namespace.map(String::from),
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    relations
+}
+
+fn extract_daemonset_relationships(_item: &Value) -> Vec<RelationRef> {
+    // DaemonSets primarily use label selectors for pod matching
+    // Can be enhanced later to include node selectors
+    Vec::new()
+}
+
+fn extract_job_relationships(_item: &Value) -> Vec<RelationRef> {
+    // Jobs create pods via label selectors
+    // Can be enhanced later if needed
+    Vec::new()
+}
+
+fn extract_cronjob_relationships(_item: &Value) -> Vec<RelationRef> {
+    // CronJobs create Jobs via template
+    // Can be enhanced later if needed
+    Vec::new()
+}
+
+fn extract_hpa_relationships(item: &Value) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    // scaleTargetRef
+    if let Some(scale_target) = item
+        .get("spec")
+        .and_then(|s| s.get("scaleTargetRef"))
+        .and_then(|v| v.as_object())
+    {
+        if let (Some(kind), Some(name)) = (
+            scale_target.get("kind").and_then(|v| v.as_str()),
+            scale_target.get("name").and_then(|v| v.as_str()),
+        ) {
+            let namespace = item
+                .get("metadata")
+                .and_then(|m| m.get("namespace"))
+                .and_then(|v| v.as_str());
+
+            relations.push(RelationRef {
+                kind: kind.to_string(),
+                name: name.to_string(),
+                namespace: namespace.map(String::from),
+                api_version: scale_target
+                    .get("apiVersion")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                uid: None,
+            });
         }
     }
 
