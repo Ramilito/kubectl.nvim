@@ -194,7 +194,6 @@ function M.Draw()
   })
 
   M.set_folding(M.builder.win_nr, M.builder.buf_nr)
-  M.set_keymaps(M.builder.buf_nr)
 
   if M.builder.frame then
     M.builder.fitToContent(1)
@@ -249,25 +248,6 @@ function M.load_cache(callback)
   end)
 end
 
-function M.set_keymaps(bufnr)
-  -- Add keymaps that trigger resize after fold operations
-  local fold_keys = { "za", "zA", "zo", "zO", "zc", "zC", "zR", "zM" }
-  for _, key in ipairs(fold_keys) do
-    vim.api.nvim_buf_set_keymap(bufnr, "n", key, "", {
-      noremap = true,
-      silent = true,
-      callback = function()
-        -- Execute the original fold command
-        vim.cmd("normal! " .. key)
-        -- Resize after fold operation
-        if M.builder and M.builder.frame then
-          M.builder.fitToContent(1)
-        end
-      end,
-    })
-  end
-end
-
 function M.set_folding(win_nr, buf_nr)
   if not vim.api.nvim_win_is_valid(win_nr) then
     return
@@ -281,9 +261,17 @@ function M.set_folding(win_nr, buf_nr)
   vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldenable", true, { scope = "local", win = win_nr })
   vim.api.nvim_set_option_value("foldtext", "", { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("foldcolumn", "1", { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("foldcolumn", "auto:4", { scope = "local", win = win_nr })
+  vim.api.nvim_set_option_value("foldlevel", 99, { scope = "local", win = win_nr })
+
+  -- Better fold indicators, hide tildes and fold separator lines
+  vim.api.nvim_set_option_value(
+    "fillchars",
+    "fold: ,foldopen:▼,foldclose:▶,foldsep: ,eob: ",
+    { scope = "local", win = win_nr }
+  )
 end
---- Get current seletion for view
+--- Get current selection for view
 function M.getCurrentSelection()
   local line = vim.api.nvim_get_current_line()
   local selection = vim.split(line, ":")
@@ -292,10 +280,25 @@ function M.getCurrentSelection()
   local kind = vim.trim(selection[1])
   local ns = vim.trim(columns[1])
   local name = vim.trim(columns[2])
-  if kind:sub(-1) ~= "s" then
-    kind = kind .. "s"
+
+  -- Convert singular kind to plural resource name using cache
+  local plural_kind = nil
+  for _, value in pairs(cache.cached_api_resources.values) do
+    if value.gvk and value.gvk.k == kind then
+      plural_kind = value.crd_name
+      break
+    end
   end
-  return kind, ns, name
+
+  -- Fallback to naive pluralization if not found in cache
+  if not plural_kind then
+    plural_kind = string.lower(kind)
+    if plural_kind:sub(-1) ~= "s" then
+      plural_kind = plural_kind .. "s"
+    end
+  end
+
+  return plural_kind, ns, name
 end
 
 return M

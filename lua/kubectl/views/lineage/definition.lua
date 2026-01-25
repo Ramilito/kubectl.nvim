@@ -225,17 +225,38 @@ function M.build_display_lines(graph, selected_node_key)
     -- Build the line to display
     local line = indent .. key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
 
-    -- Determine highlight group based on whether the node is selected
-    local hlgroup = node.key == selected_node_key and hl.symbols.success_bold or hl.symbols.white_bold
+    local is_selected = node.key == selected_node_key
+    local text_hl = is_selected and hl.symbols.success_bold or hl.symbols.white
 
-    -- Insert marks for highlighting
     if line then
+      local indent_len = #indent
+      local kind_len = #key_values[1]
+      local ns_len = #key_values[2]
+
+      -- Kind (highlighted)
       table.insert(marks, {
         row = #lines,
-        start_col = #indent + #key_values[1] + #key_values[2] + 3,
-        end_col = #line,
-        hl_group = hlgroup,
+        start_col = indent_len,
+        end_col = indent_len + kind_len,
+        hl_group = text_hl,
       })
+
+      -- ": namespace/" (gray)
+      table.insert(marks, {
+        row = #lines,
+        start_col = indent_len + kind_len,
+        end_col = indent_len + kind_len + 2 + ns_len + 1,
+        hl_group = hl.symbols.gray,
+      })
+
+      -- Resource name (highlighted)
+      table.insert(marks, {
+        row = #lines,
+        start_col = indent_len + kind_len + 2 + ns_len + 1,
+        end_col = #line,
+        hl_group = text_hl,
+      })
+
       table.insert(lines, line)
       displayed_in_tree[node.key] = true
     end
@@ -251,7 +272,7 @@ function M.build_display_lines(graph, selected_node_key)
       end
     end
 
-    -- Show leaf relationships as flat references (with arrow prefix, no recursion)
+    -- Show leaf relationships (references, not ownership)
     for i = 1, #node.leaf_keys do
       local leaf_key = node.leaf_keys[i]
       if related_keys_lookup[leaf_key] and not displayed_in_tree[leaf_key] then
@@ -262,13 +283,36 @@ function M.build_display_lines(graph, selected_node_key)
             safe_value(leaf.ns, "cluster"),
             leaf.name,
           }
-          local leaf_line = indent .. "    → " .. leaf_values[1] .. ": " .. leaf_values[2] .. "/" .. leaf_values[3]
+          local leaf_line = indent .. "    " .. leaf_values[1] .. ": " .. leaf_values[2] .. "/" .. leaf_values[3]
+
+          local base_indent = #indent + 4
+          local kind_len = #leaf_values[1]
+          local ns_len = #leaf_values[2]
+
+          -- Kind (highlighted)
           table.insert(marks, {
             row = #lines,
-            start_col = #indent + 6 + #leaf_values[1] + #leaf_values[2] + 3,
-            end_col = #leaf_line,
-            hl_group = hl.symbols.pending,
+            start_col = base_indent,
+            end_col = base_indent + kind_len,
+            hl_group = hl.symbols.white,
           })
+
+          -- ": namespace/" (gray)
+          table.insert(marks, {
+            row = #lines,
+            start_col = base_indent + kind_len,
+            end_col = base_indent + kind_len + 2 + ns_len + 1,
+            hl_group = hl.symbols.gray,
+          })
+
+          -- Resource name (highlighted)
+          table.insert(marks, {
+            row = #lines,
+            start_col = base_indent + kind_len + 2 + ns_len + 1,
+            end_col = #leaf_line,
+            hl_group = hl.symbols.white,
+          })
+
           table.insert(lines, leaf_line)
           displayed_in_tree[leaf_key] = true
         end
