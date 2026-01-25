@@ -4,7 +4,6 @@ local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.lineage.definition")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
-local view = require("kubectl.views")
 
 local M = {
   selection = {},
@@ -170,8 +169,6 @@ function M.View(name, ns, kind)
   M.builder = manager.get_or_create(M.definition.resource)
   M.builder.view_framed(M.definition)
 
-  M.set_keymaps(M.builder.buf_nr)
-
   -- If we already have a graph or are building one, just draw
   if has_existing_state then
     M.Draw()
@@ -197,6 +194,7 @@ function M.Draw()
   })
 
   M.set_folding(M.builder.win_nr, M.builder.buf_nr)
+  M.set_keymaps(M.builder.buf_nr)
 
   if M.builder.frame then
     M.builder.fitToContent(1)
@@ -252,45 +250,6 @@ function M.load_cache(callback)
 end
 
 function M.set_keymaps(bufnr)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.select)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Select",
-    callback = function()
-      local kind, ns, name = M.getCurrentSelection()
-      if name and ns then
-        local state = require("kubectl.state")
-        vim.api.nvim_set_option_value("modified", false, { buf = 0 })
-        vim.cmd.fclose()
-
-        state.filter_key = "metadata.name=" .. name
-        if ns then
-          state.filter_key = state.filter_key .. ",metadata.namespace=" .. ns
-        end
-        view.resource_or_fallback(kind)
-      else
-        vim.notify("Failed to select resource.", vim.log.levels.ERROR)
-      end
-    end,
-  })
-
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "<Plug>(kubectl.refresh)", "", {
-    noremap = true,
-    silent = true,
-    desc = "Refresh",
-    callback = function()
-      if M.is_loading or M.is_building_graph then
-        vim.notify("Already loading, please wait...", vim.log.levels.INFO)
-        return
-      end
-      -- Reset and reload cache, which will trigger graph build via autocmd
-      M.is_loading = true
-      M.graph = nil
-      M.Draw() -- Show loading message
-      M.load_cache()
-    end,
-  })
-
   -- Add keymaps that trigger resize after fold operations
   local fold_keys = { "za", "zA", "zo", "zO", "zc", "zC", "zR", "zM" }
   for _, key in ipairs(fold_keys) do
