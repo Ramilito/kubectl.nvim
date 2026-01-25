@@ -76,6 +76,7 @@ pub struct Tree {
 }
 
 impl Tree {
+    #[tracing::instrument(skip(root_resource), fields(root_kind = %root_resource.kind, root_name = %root_resource.name))]
     pub fn new(root_resource: Resource) -> Self {
         let root = TreeNode::new(root_resource);
         let root_key = root.key.clone();
@@ -97,6 +98,7 @@ impl Tree {
         self.nodes.insert(key, node);
     }
 
+    #[tracing::instrument(skip(self), fields(node_count = self.nodes.len()))]
     pub fn link_nodes(&mut self) {
         // Collect all node keys to avoid borrow checker issues
         let node_keys: Vec<String> = self.nodes.keys().cloned().collect();
@@ -245,6 +247,7 @@ impl Tree {
     }
 
     /// Get all related nodes for a given node key
+    #[tracing::instrument(skip(self), fields(node_key = %node_key))]
     pub fn get_related_items(&self, node_key: &str) -> Vec<String> {
         if !self.nodes.contains_key(node_key) {
             return Vec::new();
