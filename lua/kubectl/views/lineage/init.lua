@@ -219,6 +219,11 @@ function M.load_cache(callback)
 
   commands.await_all(all_gvk, function()
     M.processed = M.processed + 1
+    vim.schedule(function()
+      if M.builder and M.builder.buf_nr and vim.api.nvim_buf_is_valid(M.builder.buf_nr) then
+        M.Draw()
+      end
+    end)
   end, function(data)
     M.builder.data = data
     M.builder.splitData()
