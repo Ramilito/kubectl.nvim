@@ -523,6 +523,18 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_function(lineage::get_lineage_related_nodes)?,
     )?;
 
+    // Export lineage graph to DOT format
+    exports.set(
+        "export_lineage_dot",
+        lua.create_function(lineage::export_lineage_dot)?,
+    )?;
+
+    // Export lineage graph to Mermaid format
+    exports.set(
+        "export_lineage_mermaid",
+        lua.create_function(lineage::export_lineage_mermaid)?,
+    )?;
+
     dao::install(lua, &exports)?;
     cmd::install(lua, &exports)?;
     event_queue::install(lua, &exports)?;

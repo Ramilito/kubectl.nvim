@@ -80,6 +80,8 @@
 --- @field toggle_json fun(input: string): kubectl.ToggleJsonResult?
 --- @field build_lineage_graph fun(resources_json: string, root_name: string): table
 --- @field get_lineage_related_nodes fun(tree_id: string, node_key: string): string
+--- @field export_lineage_dot fun(tree_id: string): string
+--- @field export_lineage_mermaid fun(tree_id: string): string
 
 --- @class kubectl.ToggleJsonResult
 --- @field json string

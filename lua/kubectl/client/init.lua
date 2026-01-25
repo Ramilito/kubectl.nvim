@@ -175,4 +175,18 @@ function client.get_lineage_related_nodes(tree_id, node_key)
   return client.implementation.get_lineage_related_nodes(tree_id, node_key)
 end
 
+--- Export lineage graph to Graphviz DOT format
+--- @param tree_id string The tree ID from build_lineage_graph_worker
+--- @return string DOT format string
+function client.export_lineage_dot(tree_id)
+  return client.implementation.export_lineage_dot(tree_id)
+end
+
+--- Export lineage graph to Mermaid diagram format
+--- @param tree_id string The tree ID from build_lineage_graph_worker
+--- @return string Mermaid format string
+function client.export_lineage_mermaid(tree_id)
+  return client.implementation.export_lineage_mermaid(tree_id)
+end
+
 return client

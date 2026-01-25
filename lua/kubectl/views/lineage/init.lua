@@ -23,6 +23,8 @@ M.definition = {
   hints = {
     { key = "<Plug>(kubectl.select)", desc = "go to" },
     { key = "<Plug>(kubectl.refresh)", desc = "refresh cache" },
+    { key = "<Plug>(kubectl.export_dot)", desc = "export DOT" },
+    { key = "<Plug>(kubectl.export_mermaid)", desc = "export Mermaid" },
   },
   panes = {
     { title = "Lineage" },
