@@ -4,7 +4,6 @@ local commands = require("kubectl.actions.commands")
 local definition = require("kubectl.views.lineage.definition")
 local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
-local mappings = require("kubectl.mappings")
 local view = require("kubectl.views")
 
 local M = {
@@ -14,6 +13,19 @@ local M = {
   is_loading = false,
   processed = 0,
   total = 0,
+}
+
+M.definition = {
+  resource = "Lineage",
+  ft = "k8s_lineage",
+  title = "Lineage",
+  hints = {
+    { key = "<Plug>(kubectl.select)", desc = "go to" },
+    { key = "<Plug>(kubectl.refresh)", desc = "refresh cache" },
+  },
+  panes = {
+    { title = "Lineage" },
+  },
 }
 
 vim.api.nvim_create_autocmd("User", {
@@ -49,25 +61,28 @@ function M.View(name, ns, kind)
     M.load_cache()
   end
 
-  M.builder = manager.get_or_create(definition.resource)
+  M.builder = manager.get_or_create(M.definition.resource)
+  M.builder.view_framed(M.definition)
 
-  M.builder.buf_nr, M.builder.win_nr =
-    buffers.floating_dynamic_buffer(definition.ft, definition.resource, definition.syntax)
+  M.set_keymaps(M.builder.buf_nr)
   M.Draw()
 end
 
 function M.Draw()
-  if vim.api.nvim_get_current_buf() ~= M.builder.buf_nr then
+  if not M.builder or not vim.api.nvim_buf_is_valid(M.builder.buf_nr) then
     return
   end
 
-  M.builder.data = { "Associated Resources: " }
+  local content = {}
+  local marks = {}
+  local header_data = {}
+  local header_marks = {}
+
   if cache.loading or M.is_loading then
-    table.insert(M.builder.data, "")
-    vim.schedule(function()
-      table.insert(M.builder.data, M.processed .. "/" .. M.total)
-      table.insert(M.builder.data, "Cache still loading...")
-    end)
+    table.insert(content, "Associated Resources:")
+    table.insert(content, "")
+    table.insert(content, M.processed .. "/" .. M.total)
+    table.insert(content, "Cache still loading...")
   else
     local data = definition.collect_all_resources(cache.cached_api_resources.values)
     local graph = definition.build_graph(data)
@@ -98,33 +113,31 @@ function M.Draw()
     end
     selected_key = selected_key .. "/" .. name
 
-    M.builder.data, M.builder.extmarks = definition.build_display_lines(graph, selected_key)
-  end
+    content, marks = definition.build_display_lines(graph, selected_key)
 
-  M.builder:splitData()
-
-  M.set_keymaps(M.builder.buf_nr)
-
-  vim.schedule(function()
-    mappings.map_if_plug_not_set("n", "<CR>", "<Plug>(kubectl.select)")
-    mappings.map_if_plug_not_set("n", "gr", "<Plug>(kubectl.refresh)")
-    M.builder:addHints({
-      { key = "<Plug>(kubectl.select)", desc = "go to" },
-      { key = "<Plug>(kubectl.refresh)", desc = "refresh cache" },
-    }, false, false, false)
+    -- Add cache timestamp to header
     if cache.timestamp and not cache.loading then
       local time = os.date("%H:%M:%S", cache.timestamp)
-      local line = "Cache refreshed at: " .. time
-      table.insert(M.builder.header.marks, {
-        row = #M.builder.header.data or 0,
+      local line = "Associated Resources - Cache refreshed at: " .. time
+      table.insert(header_data, line)
+      table.insert(header_marks, {
+        row = 0,
         start_col = 0,
         end_col = #line,
         hl_group = hl.symbols.gray,
       })
-      table.insert(M.builder.header.data, line)
+    else
+      table.insert(header_data, "Associated Resources")
     end
+  end
 
-    M.builder.displayContentRaw()
+  vim.schedule(function()
+    buffers.set_content(M.builder.buf_nr, {
+      content = content,
+      marks = marks,
+      header = { data = header_data, marks = header_marks },
+    })
+
     M.set_folding(M.builder.win_nr, M.builder.buf_nr)
     collectgarbage("collect")
   end)
