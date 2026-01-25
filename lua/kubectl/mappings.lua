@@ -185,13 +185,19 @@ function M.get_mappings()
           -- `kind`: string, the resource type
           -- `name`: string|nil, the resource name
           -- `ns`: string|nil, the namespace
-          local parts = vim.split(buf_name, "|")
+          local parts = vim.split(buf_name or "", "|")
 
-          vim.notify("Reloading " .. parts[3], vim.log.levels.INFO)
+          -- Check if we have enough parts for the expected format
+          if not parts[2] then
+            vim.notify("Cannot reload this buffer type", vim.log.levels.INFO)
+            return
+          end
+
+          vim.notify("Reloading " .. (parts[3] or parts[2]), vim.log.levels.INFO)
           local ok, view = pcall(require, "kubectl.resources." .. vim.trim(parts[2]))
 
           if not ok then
-            vim.notify(parts[3] .. " not found", vim.log.levels.INFO)
+            vim.notify((parts[3] or parts[2]) .. " not found", vim.log.levels.INFO)
             return
           end
 

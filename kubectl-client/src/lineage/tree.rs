@@ -33,8 +33,8 @@ pub struct RelationRef {
 #[derive(Debug, Clone)]
 pub struct TreeNode {
     pub resource: Resource,
-    pub children_keys: Vec<String>,
-    pub leaf_keys: Vec<String>,
+    pub children_keys: std::collections::HashSet<String>,
+    pub leaf_keys: std::collections::HashSet<String>,
     pub key: String,
     pub parent_key: Option<String>,
 }
@@ -44,8 +44,8 @@ impl TreeNode {
         let key = Self::get_resource_key(&resource);
         Self {
             resource,
-            children_keys: Vec::new(),
-            leaf_keys: Vec::new(),
+            children_keys: std::collections::HashSet::new(),
+            leaf_keys: std::collections::HashSet::new(),
             key,
             parent_key: None,
         }
@@ -60,15 +60,11 @@ impl TreeNode {
     }
 
     pub fn add_child(&mut self, child_key: String) {
-        if !self.children_keys.contains(&child_key) {
-            self.children_keys.push(child_key);
-        }
+        self.children_keys.insert(child_key);
     }
 
     pub fn add_leaf(&mut self, leaf_key: String) {
-        if !self.leaf_keys.contains(&leaf_key) {
-            self.leaf_keys.push(leaf_key);
-        }
+        self.leaf_keys.insert(leaf_key);
     }
 }
 
@@ -111,34 +107,41 @@ impl Tree {
                 continue;
             }
 
-            let node = self.nodes.get(node_key).unwrap();
+            // Extract all needed data while borrowing immutably
+            let owner_key_opt = {
+                let node = self.nodes.get(node_key).unwrap();
+                node.resource.owners.as_ref().and_then(|owners| {
+                    if !owners.is_empty() {
+                        let owner = &owners[0];
+                        Some(TreeNode::get_resource_key(&Resource {
+                            kind: owner.kind.clone(),
+                            name: owner.name.clone(),
+                            namespace: owner.namespace.clone(),
+                            api_version: owner.api_version.clone(),
+                            uid: owner.uid.clone(),
+                            labels: None,
+                            selectors: None,
+                            owners: None,
+                            relations: None,
+                        }))
+                    } else {
+                        None
+                    }
+                })
+            };
+
             let mut parent_found = false;
 
-            // Check if this node has owners
-            if let Some(ref owners) = node.resource.owners {
-                if !owners.is_empty() {
-                    let owner = &owners[0]; // Use first owner
-                    let owner_key = TreeNode::get_resource_key(&Resource {
-                        kind: owner.kind.clone(),
-                        name: owner.name.clone(),
-                        namespace: owner.namespace.clone(),
-                        api_version: owner.api_version.clone(),
-                        uid: owner.uid.clone(),
-                        labels: None,
-                        selectors: None,
-                        owners: None,
-                        relations: None,
-                    });
-
-                    if self.nodes.contains_key(&owner_key) {
-                        parent_found = true;
-                        // Update parent-child relationship
-                        if let Some(parent_node) = self.nodes.get_mut(&owner_key) {
-                            parent_node.add_child(node_key.clone());
-                        }
-                        if let Some(child_node) = self.nodes.get_mut(node_key) {
-                            child_node.parent_key = Some(owner_key);
-                        }
+            // Now perform mutable operations with extracted data
+            if let Some(owner_key) = owner_key_opt {
+                if self.nodes.contains_key(&owner_key) {
+                    parent_found = true;
+                    // Update parent-child relationship
+                    if let Some(parent_node) = self.nodes.get_mut(&owner_key) {
+                        parent_node.add_child(node_key.clone());
+                    }
+                    if let Some(child_node) = self.nodes.get_mut(node_key) {
+                        child_node.parent_key = Some(owner_key.clone());
                     }
                 }
             }
@@ -154,36 +157,55 @@ impl Tree {
             }
         }
 
-        // Second pass: handle selector-based and explicit relationships (leafs)
-        let node_keys: Vec<String> = self.nodes.keys().cloned().collect();
+        // Build an index of nodes by labels to avoid O(n²) selector matching
+        // Clone the minimal data needed (keys and labels only, not entire nodes)
+        let mut nodes_with_labels: Vec<(String, HashMap<String, String>)> = Vec::new();
         for node_key in node_keys.iter() {
-            let node = self.nodes.get(node_key).unwrap().clone();
+            if let Some(node) = self.nodes.get(node_key) {
+                if let Some(ref labels) = node.resource.labels {
+                    nodes_with_labels.push((node_key.clone(), labels.clone()));
+                }
+            }
+        }
+
+        // Second pass: handle selector-based and explicit relationships (leafs)
+        for node_key in node_keys.iter() {
+            // Extract selectors and relations without cloning the entire node
+            let (selectors_opt, relations_opt) = {
+                let node = self.nodes.get(node_key).unwrap();
+                (node.resource.selectors.clone(), node.resource.relations.clone())
+            };
 
             // Handle selector-based relationships
-            if let Some(ref selectors) = node.resource.selectors {
-                for potential_child_key in node_keys.iter() {
+            if let Some(ref selectors) = selectors_opt {
+                // Collect matching child keys first
+                let mut matching_children = Vec::new();
+                for (potential_child_key, labels) in nodes_with_labels.iter() {
                     if potential_child_key == node_key {
                         continue;
                     }
 
-                    if let Some(potential_child) = self.nodes.get(potential_child_key) {
-                        if let Some(ref labels) = potential_child.resource.labels {
-                            if selectors_match(selectors, labels) {
-                                // Add bidirectional leaf relationship
-                                if let Some(n) = self.nodes.get_mut(node_key) {
-                                    n.add_leaf(potential_child_key.clone());
-                                }
-                                if let Some(n) = self.nodes.get_mut(potential_child_key) {
-                                    n.add_leaf(node_key.clone());
-                                }
-                            }
-                        }
+                    if selectors_match(selectors, labels) {
+                        matching_children.push(potential_child_key.clone());
+                    }
+                }
+
+                // Now perform mutable operations
+                for potential_child_key in matching_children {
+                    // Add bidirectional leaf relationship
+                    if let Some(n) = self.nodes.get_mut(node_key) {
+                        n.add_leaf(potential_child_key.clone());
+                    }
+                    if let Some(n) = self.nodes.get_mut(&potential_child_key) {
+                        n.add_leaf(node_key.clone());
                     }
                 }
             }
 
             // Handle explicit relations
-            if let Some(ref relations) = node.resource.relations {
+            if let Some(ref relations) = relations_opt {
+                // Collect relation keys and their types first
+                let mut relation_updates = Vec::new();
                 for relation in relations {
                     let relation_key = TreeNode::get_resource_key(&Resource {
                         kind: relation.kind.clone(),
@@ -198,17 +220,23 @@ impl Tree {
                     });
 
                     if self.nodes.contains_key(&relation_key) {
-                        // Add forward relationship (node -> relation)
-                        if let Some(n) = self.nodes.get_mut(node_key) {
-                            n.add_leaf(relation_key.clone());
-                        }
+                        let is_config_or_secret = relation.kind == "ConfigMap" || relation.kind == "Secret";
+                        relation_updates.push((relation_key, is_config_or_secret));
+                    }
+                }
 
-                        // Add reverse relationship for ConfigMap/Secret
-                        // When viewing a ConfigMap or Secret, show which Pods consume it
-                        if relation.kind == "ConfigMap" || relation.kind == "Secret" {
-                            if let Some(n) = self.nodes.get_mut(&relation_key) {
-                                n.add_leaf(node_key.clone());
-                            }
+                // Now perform mutable operations
+                for (relation_key, is_config_or_secret) in relation_updates {
+                    // Add forward relationship (node -> relation)
+                    if let Some(n) = self.nodes.get_mut(node_key) {
+                        n.add_leaf(relation_key.clone());
+                    }
+
+                    // Add reverse relationship for ConfigMap/Secret
+                    // When viewing a ConfigMap or Secret, show which Pods consume it
+                    if is_config_or_secret {
+                        if let Some(n) = self.nodes.get_mut(&relation_key) {
+                            n.add_leaf(node_key.clone());
                         }
                     }
                 }
@@ -222,23 +250,14 @@ impl Tree {
             return Vec::new();
         }
 
-        let mut related_nodes = Vec::new();
         let mut visited = std::collections::HashSet::new();
-
-        // Helper to add node if not visited
-        let add_node = |key: &str, related: &mut Vec<String>, vis: &mut std::collections::HashSet<String>| {
-            if !vis.contains(key) {
-                related.push(key.to_string());
-                vis.insert(key.to_string());
-            }
-        };
 
         // Collect all ancestors (but skip root)
         let mut current_key = Some(node_key.to_string());
         while let Some(ref key) = current_key {
             if let Some(node) = self.nodes.get(key) {
                 if key != &self.root.key {
-                    add_node(key, &mut related_nodes, &mut visited);
+                    visited.insert(key.to_string());
                 }
                 current_key = node.parent_key.clone();
             } else {
@@ -247,17 +266,19 @@ impl Tree {
         }
 
         // Collect descendants and leafs for all ancestors
-        let ancestors = related_nodes.clone();
+        // Use a small Vec to hold ancestor keys instead of cloning related_nodes
+        let ancestors: Vec<String> = visited.iter().cloned().collect();
         for ancestor_key in ancestors.iter() {
-            self.collect_descendants(ancestor_key, &mut related_nodes, &mut visited);
+            self.collect_descendants(ancestor_key.as_str(), &mut visited);
         }
 
         // Finally add the selected node itself and its descendants
-        add_node(node_key, &mut related_nodes, &mut visited);
-        self.collect_descendants(node_key, &mut related_nodes, &mut visited);
-        self.collect_leafs(node_key, &mut related_nodes, &mut visited);
+        visited.insert(node_key.to_string());
+        self.collect_descendants(node_key, &mut visited);
+        self.collect_leafs(node_key, &mut visited);
 
-        // Sort related nodes by key
+        // Convert HashSet to sorted Vec
+        let mut related_nodes: Vec<String> = visited.into_iter().collect();
         related_nodes.sort();
         related_nodes
     }
@@ -265,16 +286,13 @@ impl Tree {
     fn collect_descendants(
         &self,
         node_key: &str,
-        related: &mut Vec<String>,
         visited: &mut std::collections::HashSet<String>,
     ) {
         if let Some(node) = self.nodes.get(node_key) {
             for child_key in node.children_keys.iter() {
-                if !visited.contains(child_key) {
-                    related.push(child_key.clone());
-                    visited.insert(child_key.clone());
-                    self.collect_leafs(child_key, related, visited);
-                    self.collect_descendants(child_key, related, visited);
+                if visited.insert(child_key.clone()) {
+                    self.collect_leafs(child_key, visited);
+                    self.collect_descendants(child_key, visited);
                 }
             }
         }
@@ -283,15 +301,11 @@ impl Tree {
     fn collect_leafs(
         &self,
         node_key: &str,
-        related: &mut Vec<String>,
         visited: &mut std::collections::HashSet<String>,
     ) {
         if let Some(node) = self.nodes.get(node_key) {
             for leaf_key in node.leaf_keys.iter() {
-                if !visited.contains(leaf_key) {
-                    related.push(leaf_key.clone());
-                    visited.insert(leaf_key.clone());
-                }
+                visited.insert(leaf_key.clone());
             }
         }
     }

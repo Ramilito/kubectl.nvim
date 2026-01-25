@@ -11,6 +11,14 @@ local function get_kind(resource, default_kind)
   return (resource.kind and resource.kind) or (default_kind and default_kind) or "unknownkind"
 end
 
+--- Helper to safely get a value that might be vim.NIL
+local function safe_value(val, default)
+  if val == nil or val == vim.NIL then
+    return default
+  end
+  return val
+end
+
 function M.processRow(rows, cached_api_resources)
   if not rows or type(rows) == "string" then
     return
@@ -82,6 +90,55 @@ function M.collect_all_resources(data_sample)
   return resources
 end
 
+--- Build lineage graph asynchronously in a worker thread
+--- @param data table The collected resources
+--- @param callback function Called with (graph) when done
+function M.build_graph_async(data, callback)
+  local commands = require("kubectl.actions.commands")
+  local context = state.getContext()
+  local root_name = context.clusters[1].name
+
+  -- Call Rust backend in a worker thread via commands.run_async
+  commands.run_async("build_lineage_graph_worker", {
+    resources = data,
+    root_name = root_name,
+  }, function(result_json, err)
+    if err then
+      vim.schedule(function()
+        vim.notify("Error building lineage graph: " .. tostring(err), vim.log.levels.ERROR)
+        callback(nil)
+      end)
+      return
+    end
+
+    local ok, result = pcall(vim.json.decode, result_json)
+    if not ok then
+      vim.schedule(function()
+        vim.notify("Error decoding lineage graph: " .. tostring(result), vim.log.levels.ERROR)
+        callback(nil)
+      end)
+      return
+    end
+
+    -- Create a graph object compatible with the display code
+    local graph = {
+      nodes = result.nodes,
+      root_key = result.root_key,
+      tree_id = result.tree_id,
+      -- Wrapper function that calls Rust to get related nodes
+      get_related_nodes = function(node_key)
+        local related_json = client.get_lineage_related_nodes(result.tree_id, node_key)
+        return vim.json.decode(related_json)
+      end,
+    }
+
+    vim.schedule(function()
+      callback(graph)
+    end)
+  end)
+end
+
+--- Build lineage graph synchronously (for backward compatibility)
 function M.build_graph(data)
   local context = state.getContext()
   local root_name = context.clusters[1].name
@@ -115,32 +172,44 @@ function M.build_display_lines(graph, selected_node_key)
     node_lookup[node.key] = node
   end
 
-  -- Find the root ancestor of the selected node
+  -- Find the root ancestor of the selected node (following ownership chain)
   local selected_node = node_lookup[selected_node_key]
   if not selected_node then
     return lines, marks
   end
 
   local root_node = selected_node
-  while root_node and root_node.parent_key do
-    root_node = node_lookup[root_node.parent_key]
-    if not root_node then
+  -- Traverse up to find the root (parent_key can be nil or vim.NIL)
+  while root_node and root_node.parent_key and root_node.parent_key ~= vim.NIL do
+    local parent = node_lookup[root_node.parent_key]
+    if not parent then
       break
     end
+    root_node = parent
   end
 
-  local function build_lines(node, indent)
+  -- Track which nodes are displayed in the ownership tree
+  local displayed_in_tree = {}
+
+  local function build_tree_lines(node, indent, visited)
     indent = indent or ""
+    visited = visited or {}
+
+    -- Prevent infinite loops
+    if visited[node.key] then
+      return
+    end
+    visited[node.key] = true
 
     -- Skip the root node (cluster)
     if node.key == graph.root_key then
-      -- Still need to display the children of the root node, so recurse over them
+      -- Process children of root (top-level owned resources)
       for i = 1, #node.children_keys do
         local child_key = node.children_keys[i]
         if related_keys_lookup[child_key] then
           local child = node_lookup[child_key]
           if child then
-            build_lines(child, indent) -- No indentation change for root's children
+            build_tree_lines(child, indent, visited)
           end
         end
       end
@@ -149,7 +218,7 @@ function M.build_display_lines(graph, selected_node_key)
 
     local key_values = {
       node.kind,
-      node.ns or "cluster",
+      safe_value(node.ns, "cluster"),
       node.name,
     }
 
@@ -167,17 +236,41 @@ function M.build_display_lines(graph, selected_node_key)
         end_col = #line,
         hl_group = hlgroup,
       })
-      -- Insert the line into the output
       table.insert(lines, line)
+      displayed_in_tree[node.key] = true
     end
 
-    -- Recursively process the children if they are in the related nodes list
+    -- Process ONLY children (ownership hierarchy via ownerReferences)
     for i = 1, #node.children_keys do
       local child_key = node.children_keys[i]
-      if related_keys_lookup[child_key] then
+      if related_keys_lookup[child_key] and not visited[child_key] then
         local child = node_lookup[child_key]
         if child then
-          build_lines(child, indent .. "    ") -- Add indentation for children
+          build_tree_lines(child, indent .. "    ", visited)
+        end
+      end
+    end
+
+    -- Show leaf relationships as flat references (with arrow prefix, no recursion)
+    for i = 1, #node.leaf_keys do
+      local leaf_key = node.leaf_keys[i]
+      if related_keys_lookup[leaf_key] and not displayed_in_tree[leaf_key] then
+        local leaf = node_lookup[leaf_key]
+        if leaf then
+          local leaf_values = {
+            leaf.kind,
+            safe_value(leaf.ns, "cluster"),
+            leaf.name,
+          }
+          local leaf_line = indent .. "    → " .. leaf_values[1] .. ": " .. leaf_values[2] .. "/" .. leaf_values[3]
+          table.insert(marks, {
+            row = #lines,
+            start_col = #indent + 6 + #leaf_values[1] + #leaf_values[2] + 3,
+            end_col = #leaf_line,
+            hl_group = hl.symbols.pending,
+          })
+          table.insert(lines, leaf_line)
+          displayed_in_tree[leaf_key] = true
         end
       end
     end
@@ -185,9 +278,7 @@ function M.build_display_lines(graph, selected_node_key)
 
   -- Start the traversal from the root ancestor
   if root_node then
-    build_lines(root_node, "")
-  else
-    print("Error: Root node not found.")
+    build_tree_lines(root_node, "", {})
   end
 
   return lines, marks

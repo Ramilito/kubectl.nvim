@@ -1,36 +1,193 @@
 use k8s_openapi::serde_json::{self, Value};
 use mlua::prelude::*;
+use serde::Serialize;
 use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
+use uuid::Uuid;
 
 use super::tree::{RelationRef, Resource, Tree, TreeNode};
 
+/// Global storage for lineage trees indexed by UUID
+static LINEAGE_TREES: LazyLock<Mutex<HashMap<String, Tree>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Serializable version of TreeNode for JSON output
+#[derive(Debug, Serialize)]
+struct SerializableNode {
+    key: String,
+    kind: String,
+    name: String,
+    ns: Option<String>,
+    children_keys: Vec<String>,
+    leaf_keys: Vec<String>,
+    parent_key: Option<String>,
+    resource: SerializableResource,
+}
+
+#[derive(Debug, Serialize)]
+struct SerializableResource {
+    kind: String,
+    name: String,
+    ns: Option<String>,
+}
+
+impl From<&TreeNode> for SerializableNode {
+    fn from(node: &TreeNode) -> Self {
+        let mut children_keys: Vec<String> = node.children_keys.iter().cloned().collect();
+        children_keys.sort();
+
+        let mut leaf_keys: Vec<String> = node.leaf_keys.iter().cloned().collect();
+        leaf_keys.sort();
+
+        Self {
+            key: node.key.clone(),
+            kind: node.resource.kind.clone(),
+            name: node.resource.name.clone(),
+            ns: node.resource.namespace.clone(),
+            children_keys,
+            leaf_keys,
+            parent_key: node.parent_key.clone(),
+            resource: SerializableResource {
+                kind: node.resource.kind.clone(),
+                name: node.resource.name.clone(),
+                ns: node.resource.namespace.clone(),
+            },
+        }
+    }
+}
+
+/// Result structure for lineage graph building
+#[derive(Serialize)]
+struct TreeResult {
+    tree_id: String,
+    nodes: Vec<SerializableNode>,
+    root_key: String,
+}
+
+/// Input structure for build_lineage_graph_worker
+#[derive(Debug, serde::Deserialize)]
+struct BuildGraphInput {
+    resources: Vec<ResourceInput>,
+    root_name: String,
+}
+
+/// Input resource structure from Lua (matches processRow output)
+#[derive(Debug, serde::Deserialize)]
+struct ResourceInput {
+    kind: String,
+    name: String,
+    #[serde(rename = "ns")]
+    ns: Option<String>,
+    #[serde(rename = "apiVersion")]
+    api_version: Option<String>,
+    #[serde(default)]
+    labels: Option<HashMap<String, String>>,
+    #[serde(default)]
+    selectors: Option<HashMap<String, String>>,
+    #[serde(default)]
+    metadata: Option<Value>,
+    #[serde(default)]
+    spec: Option<Value>,
+}
+
+/// Build lineage graph in a worker thread - called via commands.run_async
+/// Takes a single JSON string with {resources, root_name}, returns JSON result
+#[tracing::instrument(skip(json_input))]
+pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
+    // Parse the input JSON
+    let input: BuildGraphInput = serde_json::from_str(&json_input)
+        .map_err(|e| LuaError::external(format!("Failed to parse input JSON: {}", e)))?;
+
+    // Convert typed input resources to our Resource struct
+    let parsed_resources: Vec<Resource> = input
+        .resources
+        .into_iter()
+        .map(|res| parse_resource_typed(res))
+        .collect();
+
+    // Create root resource (cluster)
+    let root_resource = Resource {
+        kind: "cluster".to_string(),
+        name: input.root_name,
+        namespace: None,
+        api_version: None,
+        uid: None,
+        labels: None,
+        selectors: None,
+        owners: None,
+        relations: None,
+    };
+
+    // Build the tree
+    let mut tree = Tree::new(root_resource);
+
+    // Add all resources to the tree
+    for resource in parsed_resources {
+        tree.add_node(resource);
+    }
+
+    // Link nodes based on relationships
+    tree.link_nodes();
+
+    // Generate UUID for this tree
+    let tree_id = Uuid::new_v4().to_string();
+
+    // Convert tree nodes to serializable format
+    let mut node_keys: Vec<&String> = tree.nodes.keys().collect();
+    node_keys.sort();
+
+    let nodes: Vec<SerializableNode> = node_keys
+        .iter()
+        .filter_map(|key| tree.nodes.get(*key).map(SerializableNode::from))
+        .collect();
+
+    let result = TreeResult {
+        tree_id: tree_id.clone(),
+        nodes,
+        root_key: tree.root.key.clone(),
+    };
+
+    // Store the tree
+    let mut trees = LINEAGE_TREES
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to lock LINEAGE_TREES".into()))?;
+    trees.insert(tree_id, tree);
+
+    // Return as JSON string
+    serde_json::to_string(&result)
+        .map_err(|e| LuaError::external(format!("Failed to serialize result: {}", e)))
+}
+
+/// Get related nodes for a given node in a stored tree
+/// Returns JSON array of related node keys
+#[tracing::instrument(skip(_lua))]
+pub fn get_lineage_related_nodes(_lua: &Lua, (tree_id, node_key): (String, String)) -> LuaResult<String> {
+    let trees = LINEAGE_TREES
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to lock LINEAGE_TREES".into()))?;
+
+    let tree = trees
+        .get(&tree_id)
+        .ok_or_else(|| LuaError::RuntimeError(format!("Tree not found: {}", tree_id)))?;
+
+    let related_keys = tree.get_related_items(&node_key);
+
+    serde_json::to_string(&related_keys)
+        .map_err(|e| LuaError::external(format!("Failed to serialize related nodes: {}", e)))
+}
+
 /// Build a lineage graph from a list of Kubernetes resources
 /// Returns a Lua table with the tree structure
-#[tracing::instrument(skip(lua))]
+#[tracing::instrument(skip(lua, resources_json))]
 pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String) -> LuaResult<LuaTable> {
-    // Parse the JSON input
-    let resources: Vec<Value> = serde_json::from_str(&resources_json)
+    // Parse the JSON input using typed deserialization
+    let resources: Vec<ResourceInput> = serde_json::from_str(&resources_json)
         .map_err(|e| LuaError::external(format!("Failed to parse resources JSON: {}", e)))?;
 
-    // Build a map of resource kinds to their namespaced status
-    let namespaced_map = HashMap::new();
-    for resource_value in &resources {
-        if let (Some(_kind), Some(_namespaced)) = (
-            resource_value.get("kind").and_then(|v| v.as_str()),
-            resource_value.get("namespaced").and_then(|v| v.as_bool()),
-        ) {
-            // Note: namespaced_map is no longer used as we determine namespace
-            // from the resource itself via ownerReferences
-        }
-    }
-
-    // Convert JSON resources to our Resource struct
-    let mut parsed_resources: Vec<Resource> = Vec::new();
-    for resource_value in resources {
-        if let Some(resource) = parse_resource(&resource_value, &namespaced_map) {
-            parsed_resources.push(resource);
-        }
-    }
+    // Convert typed input resources to our Resource struct
+    let parsed_resources: Vec<Resource> = resources
+        .into_iter()
+        .map(|res| parse_resource_typed(res))
+        .collect();
 
     // Create root resource (cluster)
     let root_resource = Resource {
@@ -60,53 +217,14 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
     tree_to_lua_table(lua, &tree)
 }
 
-/// Parse a JSON value into a Resource struct
-fn parse_resource(value: &Value, _namespaced_map: &HashMap<String, bool>) -> Option<Resource> {
-    let kind = value.get("kind")?.as_str()?.to_string();
-    let name = value
-        .get("name")
-        .or_else(|| value.get("metadata")?.get("name"))?
-        .as_str()?
-        .to_string();
+/// Parse a typed ResourceInput into a Resource struct
+fn parse_resource_typed(input: ResourceInput) -> Resource {
+    let namespace = input.ns.as_deref();
 
-    let namespace = value
-        .get("ns")
-        .or_else(|| value.get("metadata").and_then(|m| m.get("namespace")))
-        .and_then(|v| v.as_str())
-        .map(String::from);
-
-    let api_version = value
-        .get("apiVersion")
-        .and_then(|v| v.as_str())
-        .map(String::from);
-
-    let uid = value
-        .get("uid")
-        .or_else(|| value.get("metadata").and_then(|m| m.get("uid")))
-        .and_then(|v| v.as_str())
-        .map(String::from);
-
-    // Parse labels
-    let labels = value
-        .get("labels")
-        .or_else(|| value.get("metadata").and_then(|m| m.get("labels")))
-        .and_then(|v| v.as_object())
-        .map(|obj| {
-            obj.iter()
-                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                .collect::<HashMap<String, String>>()
-        });
-
-    // Parse selectors
-    let selectors = value.get("selectors").and_then(|v| v.as_object()).map(|obj| {
-        obj.iter()
-            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-            .collect::<HashMap<String, String>>()
-    });
-
-    // Parse owners from ownerReferences in metadata
-    let mut owners = value
-        .get("metadata")
+    // Extract ownerReferences from metadata if available
+    let owners = input
+        .metadata
+        .as_ref()
         .and_then(|m| m.get("ownerReferences"))
         .and_then(|v| v.as_array())
         .map(|arr| {
@@ -119,7 +237,7 @@ fn parse_resource(value: &Value, _namespaced_map: &HashMap<String, bool>) -> Opt
                     let owner_namespace = owner
                         .get("namespace")
                         .and_then(|v| v.as_str())
-                        .or(namespace.as_deref())
+                        .or(namespace)
                         .map(String::from);
 
                     Some(RelationRef {
@@ -134,68 +252,41 @@ fn parse_resource(value: &Value, _namespaced_map: &HashMap<String, bool>) -> Opt
         })
         .unwrap_or_default();
 
-    // Also merge any owners already set from Lua processing
-    if let Some(lua_owners) = value
-        .get("owners")
-        .and_then(|v| v.as_array())
-    {
-        for owner in lua_owners.iter().filter_map(parse_relation_ref) {
-            if !owners.iter().any(|o| o.kind == owner.kind && o.name == owner.name) {
-                owners.push(owner);
-            }
-        }
+    // Get UID from metadata if available
+    let uid = input
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("uid"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+
+    // Build a combined Value for relationship extraction (metadata + spec)
+    let mut combined_value = serde_json::json!({
+        "kind": input.kind,
+        "apiVersion": input.api_version,
+    });
+
+    if let Some(metadata) = &input.metadata {
+        combined_value["metadata"] = metadata.clone();
+    }
+    if let Some(spec) = &input.spec {
+        combined_value["spec"] = spec.clone();
     }
 
     // Extract relationships using Rust relationship extraction
-    let mut relations = super::relationships::extract_relationships(&kind, value);
+    let relations = super::relationships::extract_relationships(&input.kind, &combined_value);
 
-    // Also merge any relations already set from Lua processing
-    if let Some(lua_relations) = value
-        .get("relations")
-        .and_then(|v| v.as_array())
-    {
-        for relation in lua_relations.iter().filter_map(parse_relation_ref) {
-            if !relations.iter().any(|r| r.kind == relation.kind && r.name == relation.name) {
-                relations.push(relation);
-            }
-        }
-    }
-
-    Some(Resource {
-        kind,
-        name,
-        namespace,
-        api_version,
+    Resource {
+        kind: input.kind,
+        name: input.name,
+        namespace: input.ns,
+        api_version: input.api_version,
         uid,
-        labels,
-        selectors,
+        labels: input.labels,
+        selectors: input.selectors,
         owners: if owners.is_empty() { None } else { Some(owners) },
         relations: if relations.is_empty() { None } else { Some(relations) },
-    })
-}
-
-/// Parse a JSON value into a RelationRef
-fn parse_relation_ref(value: &Value) -> Option<RelationRef> {
-    let kind = value.get("kind")?.as_str()?.to_string();
-    let name = value.get("name")?.as_str()?.to_string();
-    let namespace = value
-        .get("ns")
-        .or_else(|| value.get("namespace"))
-        .and_then(|v| v.as_str())
-        .map(String::from);
-    let api_version = value
-        .get("apiVersion")
-        .and_then(|v| v.as_str())
-        .map(String::from);
-    let uid = value.get("uid").and_then(|v| v.as_str()).map(String::from);
-
-    Some(RelationRef {
-        kind,
-        name,
-        namespace,
-        api_version,
-        uid,
-    })
+    }
 }
 
 /// Convert the tree structure to a Lua table
@@ -291,18 +382,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_resource() {
-        let json = serde_json::json!({
-            "kind": "Pod",
-            "name": "test-pod",
-            "ns": "default",
-            "labels": {
-                "app": "nginx"
-            }
-        });
+    fn test_parse_resource_typed() {
+        let input = ResourceInput {
+            kind: "Pod".to_string(),
+            name: "test-pod".to_string(),
+            ns: Some("default".to_string()),
+            api_version: Some("v1".to_string()),
+            labels: Some({
+                let mut map = HashMap::new();
+                map.insert("app".to_string(), "nginx".to_string());
+                map
+            }),
+            selectors: None,
+            metadata: None,
+            spec: None,
+        };
 
-        let namespaced_map = HashMap::new();
-        let resource = parse_resource(&json, &namespaced_map).unwrap();
+        let resource = parse_resource_typed(input);
         assert_eq!(resource.kind, "Pod");
         assert_eq!(resource.name, "test-pod");
         assert_eq!(resource.namespace, Some("default".to_string()));
@@ -310,16 +406,35 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_relation_ref() {
-        let json = serde_json::json!({
-            "kind": "Deployment",
-            "name": "test-deployment",
-            "ns": "default"
+    fn test_parse_resource_with_owner_refs() {
+        let metadata = serde_json::json!({
+            "name": "test-pod",
+            "namespace": "default",
+            "ownerReferences": [{
+                "kind": "ReplicaSet",
+                "name": "test-rs",
+                "apiVersion": "apps/v1",
+                "uid": "123"
+            }]
         });
 
-        let relation = parse_relation_ref(&json).unwrap();
-        assert_eq!(relation.kind, "Deployment");
-        assert_eq!(relation.name, "test-deployment");
-        assert_eq!(relation.namespace, Some("default".to_string()));
+        let input = ResourceInput {
+            kind: "Pod".to_string(),
+            name: "test-pod".to_string(),
+            ns: Some("default".to_string()),
+            api_version: Some("v1".to_string()),
+            labels: None,
+            selectors: None,
+            metadata: Some(metadata),
+            spec: None,
+        };
+
+        let resource = parse_resource_typed(input);
+        assert_eq!(resource.kind, "Pod");
+        assert!(resource.owners.is_some());
+        let owners = resource.owners.unwrap();
+        assert_eq!(owners.len(), 1);
+        assert_eq!(owners[0].kind, "ReplicaSet");
+        assert_eq!(owners[0].name, "test-rs");
     }
 }

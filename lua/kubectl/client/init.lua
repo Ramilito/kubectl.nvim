@@ -167,4 +167,12 @@ function client.build_lineage_graph(resources_json, root_name)
   return client.implementation.build_lineage_graph(resources_json, root_name)
 end
 
+--- Get related nodes from a stored lineage tree
+--- @param tree_id string The tree ID from build_lineage_graph_worker
+--- @param node_key string The node key to get related nodes for
+--- @return string JSON-encoded array of related node keys
+function client.get_lineage_related_nodes(tree_id, node_key)
+  return client.implementation.get_lineage_related_nodes(tree_id, node_key)
+end
+
 return client

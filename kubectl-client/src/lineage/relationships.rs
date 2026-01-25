@@ -17,108 +17,63 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
         "Event" => from_value::<Event>(item.clone())
             .ok()
             .map(|typed| extract_event_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert Event to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "Ingress" => from_value::<Ingress>(item.clone())
             .ok()
             .map(|typed| extract_ingress_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert Ingress to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "IngressClass" => from_value::<IngressClass>(item.clone())
             .ok()
             .map(|typed| extract_ingressclass_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert IngressClass to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "Pod" => from_value::<Pod>(item.clone())
             .ok()
             .map(|typed| extract_pod_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert Pod to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "ClusterRole" => from_value::<ClusterRole>(item.clone())
             .ok()
             .map(|typed| extract_clusterrole_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert ClusterRole to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "PersistentVolumeClaim" => from_value::<PersistentVolumeClaim>(item.clone())
             .ok()
             .map(|typed| extract_pvc_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert PersistentVolumeClaim to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "PersistentVolume" => from_value::<PersistentVolume>(item.clone())
             .ok()
             .map(|typed| extract_pv_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert PersistentVolume to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "ClusterRoleBinding" => from_value::<ClusterRoleBinding>(item.clone())
             .ok()
             .map(|typed| extract_clusterrolebinding_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert ClusterRoleBinding to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "StatefulSet" => from_value::<StatefulSet>(item.clone())
             .ok()
             .map(|typed| extract_statefulset_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert StatefulSet to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "DaemonSet" => from_value::<DaemonSet>(item.clone())
             .ok()
             .map(|typed| extract_daemonset_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert DaemonSet to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "Job" => from_value::<Job>(item.clone())
             .ok()
             .map(|typed| extract_job_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert Job to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "CronJob" => from_value::<CronJob>(item.clone())
             .ok()
             .map(|typed| extract_cronjob_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert CronJob to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "HorizontalPodAutoscaler" => from_value::<HorizontalPodAutoscaler>(item.clone())
             .ok()
             .map(|typed| extract_hpa_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert HorizontalPodAutoscaler to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "Service" => from_value::<Service>(item.clone())
             .ok()
             .map(|typed| extract_service_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert Service to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         "NetworkPolicy" => from_value::<NetworkPolicy>(item.clone())
             .ok()
             .map(|typed| extract_networkpolicy_relationships(&typed))
-            .unwrap_or_else(|| {
-                tracing::warn!("Failed to convert NetworkPolicy to typed struct");
-                Vec::new()
-            }),
+            .unwrap_or_default(),
         _ => Vec::new(),
     }
 }

@@ -11,6 +11,8 @@ local M = {
   builder = nil,
   loaded = false,
   is_loading = false,
+  is_building_graph = false,
+  graph = nil,
   processed = 0,
   total = 0,
 }
@@ -31,7 +33,8 @@ M.definition = {
 vim.api.nvim_create_autocmd("User", {
   pattern = "K8sLineageDataLoaded",
   callback = function()
-    M.Draw()
+    -- Cache is loaded, now build the graph asynchronously
+    M.build_graph()
   end,
 })
 
@@ -48,10 +51,11 @@ function M.generate_content()
     table.insert(content, "")
     table.insert(content, M.processed .. "/" .. M.total)
     table.insert(content, "Cache still loading...")
+  elseif M.is_building_graph then
+    table.insert(content, "Building lineage graph...")
+  elseif not M.graph then
+    table.insert(content, "No graph available. Press r to refresh.")
   else
-    local data = definition.collect_all_resources(cache.cached_api_resources.values)
-    local graph = definition.build_graph(data)
-
     -- Convert plural resource name to singular using cached API resources
     local kind = M.selection.kind
     local ns, name = M.selection.ns, M.selection.name
@@ -72,13 +76,14 @@ function M.generate_content()
 
     kind = string.lower(kind)
 
+    -- Build the key with lowercase to match Rust's TreeNode::get_resource_key
     local selected_key = kind
     if ns then
-      selected_key = selected_key .. "/" .. ns
+      selected_key = selected_key .. "/" .. string.lower(ns)
     end
-    selected_key = selected_key .. "/" .. name
+    selected_key = selected_key .. "/" .. string.lower(name)
 
-    content, marks = definition.build_display_lines(graph, selected_key)
+    content, marks = definition.build_display_lines(M.graph, selected_key)
 
     -- Add cache timestamp to header
     if cache.timestamp and not cache.loading then
@@ -104,6 +109,29 @@ function M.generate_content()
   }
 end
 
+--- Build the lineage graph asynchronously
+function M.build_graph()
+  if M.is_building_graph then
+    -- Already building, just update display to show status
+    M.Draw()
+    return
+  end
+
+  M.is_building_graph = true
+  M.graph = nil
+  M.Draw() -- Show "Building..." message
+
+  local data = definition.collect_all_resources(cache.cached_api_resources.values)
+  definition.build_graph_async(data, function(graph)
+    M.graph = graph
+    M.is_building_graph = false
+    -- Only draw if buffer still exists
+    if M.builder and vim.api.nvim_buf_is_valid(M.builder.buf_nr) then
+      M.Draw()
+    end
+  end)
+end
+
 function M.View(name, ns, kind)
   if cache.loading then
     vim.notify("cache is not ready")
@@ -120,7 +148,16 @@ function M.View(name, ns, kind)
     return
   end
 
-  M.builder = nil
+  -- Check if this is the same selection and we already have/are building a graph
+  local same_selection = M.selection.name == name and M.selection.ns == ns and M.selection.kind == kind
+  local has_existing_state = same_selection and (M.graph or M.is_building_graph)
+
+  -- Only reset if it's a different selection
+  if not same_selection then
+    M.graph = nil
+    M.is_building_graph = false
+  end
+
   M.selection.name = name
   M.selection.ns = ns
   M.selection.kind = kind
@@ -134,7 +171,16 @@ function M.View(name, ns, kind)
   M.builder.view_framed(M.definition)
 
   M.set_keymaps(M.builder.buf_nr)
-  M.Draw()
+
+  -- If we already have a graph or are building one, just draw
+  if has_existing_state then
+    M.Draw()
+  elseif M.loaded and not M.is_loading then
+    -- Cache is loaded, start building graph
+    M.build_graph()
+  else
+    M.Draw() -- Show loading message
+  end
 end
 
 function M.Draw()
@@ -233,17 +279,15 @@ function M.set_keymaps(bufnr)
     silent = true,
     desc = "Refresh",
     callback = function()
-      if not M.is_loading then
-        M.is_loading = true
-        M.load_cache(function()
-          vim.schedule(function()
-            M.Draw()
-          end)
-        end)
+      if M.is_loading or M.is_building_graph then
+        vim.notify("Already loading, please wait...", vim.log.levels.INFO)
         return
-      else
-        vim.notify("Cache is loading, please wait...", vim.log.levels.INFO)
       end
+      -- Reset and reload cache, which will trigger graph build via autocmd
+      M.is_loading = true
+      M.graph = nil
+      M.Draw() -- Show loading message
+      M.load_cache()
     end,
   })
 
