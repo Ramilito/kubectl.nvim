@@ -20,6 +20,7 @@ When a task touches a domain, use that subagent. No exceptions.
 |--------|----------|---------|
 | Rust code | `rust` | ANY task involving `kubectl-client/`, telemetry, Tokio, mlua, Go FFI |
 | Lua code | `lua` | ANY task involving `lua/kubectl/`, Neovim API, plugin code |
+| Keymappings | `keymappings` | ANY task involving adding, modifying, or removing keybindings |
 | Pod logs | `logs` | ANY task involving log streaming, LogSession, histogram |
 | LSP | `lsp` | ANY task involving completion, hover, diagnostics |
 | Statusline | `statusline` | ANY task involving statusline metrics or display |
