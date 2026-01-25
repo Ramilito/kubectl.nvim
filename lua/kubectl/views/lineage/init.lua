@@ -295,12 +295,12 @@ function M.getCurrentSelection()
   local columns = vim.split(selection[2], "/")
 
   local kind = vim.trim(selection[1])
-  local name = vim.trim(columns[1])
-  local ns = vim.trim(columns[2])
+  local ns = vim.trim(columns[1])
+  local name = vim.trim(columns[2])
   if kind:sub(-1) ~= "s" then
     kind = kind .. "s"
   end
-  return kind, name, ns
+  return kind, ns, name
 end
 
 return M

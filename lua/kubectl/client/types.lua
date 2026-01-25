@@ -78,6 +78,7 @@
 --- @field log_session fun(pods: table[], container: string?, ...): kubectl.LogSession
 --- @field describe_session fun(config: table): kubectl.DescribeSession
 --- @field toggle_json fun(input: string): kubectl.ToggleJsonResult?
+--- @field build_lineage_graph fun(resources_json: string, root_name: string): table
 
 --- @class kubectl.ToggleJsonResult
 --- @field json string

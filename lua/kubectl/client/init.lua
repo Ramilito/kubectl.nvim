@@ -159,4 +159,12 @@ function client.toggle_json(input)
   return client.implementation.toggle_json(input)
 end
 
+--- Build a lineage graph from Kubernetes resources
+--- @param resources_json string JSON-encoded array of resources
+--- @param root_name string Name of the cluster root node
+--- @return table Graph with root_key, nodes, and get_related_nodes function
+function client.build_lineage_graph(resources_json, root_name)
+  return client.implementation.build_lineage_graph(resources_json, root_name)
+end
+
 return client

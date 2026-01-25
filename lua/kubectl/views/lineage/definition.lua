@@ -1,4 +1,4 @@
-local Tree = require("kubectl.views.lineage.tree")
+local client = require("kubectl.client")
 local hl = require("kubectl.actions.highlight")
 local state = require("kubectl.state")
 local M = {
@@ -112,52 +112,73 @@ end
 
 function M.build_graph(data)
   local context = state.getContext()
-  local tree = Tree:new({ kind = "cluster", name = context.clusters[1].name })
+  local root_name = context.clusters[1].name
 
-  for _, item in ipairs(data) do
-    tree:add_node(item)
-  end
-  tree:link_nodes()
+  -- Convert data to JSON string for Rust
+  local resources_json = vim.json.encode(data)
 
-  return tree
+  -- Call Rust backend to build the graph
+  local graph = client.build_lineage_graph(resources_json, root_name)
+
+  return graph
 end
 
-function M.build_display_lines(tree, selected_node_key)
+function M.build_display_lines(graph, selected_node_key)
   local lines = {}
   local marks = {}
 
-  local related_nodes = tree:get_related_items(selected_node_key)
+  -- Get related node keys from Rust
+  local related_keys_table = graph.get_related_nodes(selected_node_key)
 
+  -- Convert to Lua table and create lookup
+  local related_keys_lookup = {}
+  for i = 1, #related_keys_table do
+    related_keys_lookup[related_keys_table[i]] = true
+  end
+
+  -- Create node lookup from graph.nodes
   local node_lookup = {}
-  for _, node in ipairs(related_nodes) do
+  for i = 1, #graph.nodes do
+    local node = graph.nodes[i]
     node_lookup[node.key] = node
   end
 
   -- Find the root ancestor of the selected node
   local selected_node = node_lookup[selected_node_key]
+  if not selected_node then
+    return lines, marks
+  end
+
   local root_node = selected_node
-  while root_node and root_node.parent do
-    root_node = root_node.parent
+  while root_node and root_node.parent_key do
+    root_node = node_lookup[root_node.parent_key]
+    if not root_node then
+      break
+    end
   end
 
   local function build_lines(node, indent)
     indent = indent or ""
 
-    -- Skip the root node
-    if node == root_node then
+    -- Skip the root node (cluster)
+    if node.key == graph.root_key then
       -- Still need to display the children of the root node, so recurse over them
-      for _, child in ipairs(node.children) do
-        if node_lookup[child.key] then
-          build_lines(child, indent) -- No indentation change for root's children
+      for i = 1, #node.children_keys do
+        local child_key = node.children_keys[i]
+        if related_keys_lookup[child_key] then
+          local child = node_lookup[child_key]
+          if child then
+            build_lines(child, indent) -- No indentation change for root's children
+          end
         end
       end
       return
     end
 
     local key_values = {
-      node.resource.kind,
-      node.resource.ns or "cluster",
-      node.resource.name,
+      node.kind,
+      node.ns or "cluster",
+      node.name,
     }
 
     -- Build the line to display
@@ -179,9 +200,13 @@ function M.build_display_lines(tree, selected_node_key)
     end
 
     -- Recursively process the children if they are in the related nodes list
-    for _, child in ipairs(node.children) do
-      if node_lookup[child.key] then
-        build_lines(child, indent .. "    ") -- Add indentation for children
+    for i = 1, #node.children_keys do
+      local child_key = node.children_keys[i]
+      if related_keys_lookup[child_key] then
+        local child = node_lookup[child_key]
+        if child then
+          build_lines(child, indent .. "    ") -- Add indentation for children
+        end
       end
     end
   end

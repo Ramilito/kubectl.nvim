@@ -37,6 +37,7 @@ mod health;
 mod events;
 mod filter;
 mod hover;
+mod lineage;
 mod metrics;
 mod processors;
 mod sort;
@@ -497,6 +498,14 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
             tbl.set("ok", ok)?;
             tbl.set("time_of_ok", last_ok)?;
             Ok(tbl)
+        })?,
+    )?;
+
+    // Lineage graph builder
+    exports.set(
+        "build_lineage_graph",
+        lua.create_function(|lua, (resources_json, root_name): (String, String)| {
+            lineage::build_lineage_graph(lua, resources_json, root_name)
         })?,
     )?;
 
