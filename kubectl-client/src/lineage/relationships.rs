@@ -17,63 +17,63 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
         "Event" => from_value::<Event>(item.clone())
             .ok()
             .map(|typed| extract_event_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "Ingress" => from_value::<Ingress>(item.clone())
             .ok()
             .map(|typed| extract_ingress_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "IngressClass" => from_value::<IngressClass>(item.clone())
             .ok()
             .map(|typed| extract_ingressclass_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "Pod" => from_value::<Pod>(item.clone())
             .ok()
             .map(|typed| extract_pod_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "ClusterRole" => from_value::<ClusterRole>(item.clone())
             .ok()
             .map(|typed| extract_clusterrole_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "PersistentVolumeClaim" => from_value::<PersistentVolumeClaim>(item.clone())
             .ok()
             .map(|typed| extract_pvc_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "PersistentVolume" => from_value::<PersistentVolume>(item.clone())
             .ok()
             .map(|typed| extract_pv_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "ClusterRoleBinding" => from_value::<ClusterRoleBinding>(item.clone())
             .ok()
             .map(|typed| extract_clusterrolebinding_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "StatefulSet" => from_value::<StatefulSet>(item.clone())
             .ok()
             .map(|typed| extract_statefulset_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "DaemonSet" => from_value::<DaemonSet>(item.clone())
             .ok()
             .map(|typed| extract_daemonset_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "Job" => from_value::<Job>(item.clone())
             .ok()
             .map(|typed| extract_job_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "CronJob" => from_value::<CronJob>(item.clone())
             .ok()
             .map(|typed| extract_cronjob_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "HorizontalPodAutoscaler" => from_value::<HorizontalPodAutoscaler>(item.clone())
             .ok()
             .map(|typed| extract_hpa_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "Service" => from_value::<Service>(item.clone())
             .ok()
             .map(|typed| extract_service_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         "NetworkPolicy" => from_value::<NetworkPolicy>(item.clone())
             .ok()
             .map(|typed| extract_networkpolicy_relationships(&typed))
-            .unwrap_or_default(),
+            .unwrap_or_else(Vec::new),
         _ => Vec::new(),
     }
 }

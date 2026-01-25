@@ -162,6 +162,8 @@ impl Tree {
         // Build an index of nodes by labels to avoid O(n²) selector matching
         // Clone the minimal data needed (keys and labels only, not entire nodes)
         let mut nodes_with_labels: Vec<(String, HashMap<String, String>)> = Vec::new();
+        nodes_with_labels.reserve(node_keys.len() / 2); // Estimate ~50% of nodes have labels
+
         for node_key in node_keys.iter() {
             if let Some(node) = self.nodes.get(node_key) {
                 if let Some(ref labels) = node.resource.labels {
@@ -181,16 +183,13 @@ impl Tree {
             // Handle selector-based relationships
             if let Some(ref selectors) = selectors_opt {
                 // Collect matching child keys first
-                let mut matching_children = Vec::new();
-                for (potential_child_key, labels) in nodes_with_labels.iter() {
-                    if potential_child_key == node_key {
-                        continue;
-                    }
-
-                    if selectors_match(selectors, labels) {
-                        matching_children.push(potential_child_key.clone());
-                    }
-                }
+                let matching_children: Vec<String> = nodes_with_labels
+                    .iter()
+                    .filter(|(potential_child_key, labels)| {
+                        potential_child_key != node_key && selectors_match(selectors, labels)
+                    })
+                    .map(|(key, _)| key.clone())
+                    .collect();
 
                 // Now perform mutable operations
                 for potential_child_key in matching_children {
@@ -253,7 +252,8 @@ impl Tree {
             return Vec::new();
         }
 
-        let mut visited = std::collections::HashSet::new();
+        // Pre-allocate with a reasonable estimate (typical lineage depth * breadth)
+        let mut visited = std::collections::HashSet::with_capacity(self.nodes.len() / 4);
 
         // Collect all ancestors (but skip root)
         let mut current_key = Some(node_key.to_string());

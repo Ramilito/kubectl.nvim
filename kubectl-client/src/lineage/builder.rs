@@ -33,10 +33,10 @@ struct SerializableResource {
 impl From<&TreeNode> for SerializableNode {
     fn from(node: &TreeNode) -> Self {
         let mut children_keys: Vec<String> = node.children_keys.iter().cloned().collect();
-        children_keys.sort();
+        children_keys.sort_unstable();
 
         let mut leaf_keys: Vec<String> = node.leaf_keys.iter().cloned().collect();
-        leaf_keys.sort();
+        leaf_keys.sort_unstable();
 
         Self {
             key: node.key.clone(),
@@ -117,8 +117,9 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
         relations: None,
     };
 
-    // Build the tree
+    // Build the tree with pre-allocated capacity
     let mut tree = Tree::new(root_resource);
+    tree.nodes.reserve(parsed_resources.len());
 
     // Add all resources to the tree
     for resource in parsed_resources {
@@ -132,13 +133,18 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
     let tree_id = Uuid::new_v4().to_string();
 
     // Convert tree nodes to serializable format
-    let mut node_keys: Vec<&String> = tree.nodes.keys().collect();
-    node_keys.sort();
+    // Pre-allocate with exact capacity
+    let mut nodes: Vec<SerializableNode> = Vec::with_capacity(tree.nodes.len());
 
-    let nodes: Vec<SerializableNode> = node_keys
-        .iter()
-        .filter_map(|key| tree.nodes.get(*key).map(SerializableNode::from))
-        .collect();
+    // Collect keys and sort in place
+    let mut node_keys: Vec<&String> = tree.nodes.keys().collect();
+    node_keys.sort_unstable();
+
+    for key in node_keys {
+        if let Some(node) = tree.nodes.get(key) {
+            nodes.push(SerializableNode::from(node));
+        }
+    }
 
     let result = TreeResult {
         tree_id: tree_id.clone(),
@@ -202,8 +208,9 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
         relations: None,
     };
 
-    // Build the tree
+    // Build the tree with pre-allocated capacity
     let mut tree = Tree::new(root_resource);
+    tree.nodes.reserve(parsed_resources.len());
 
     // Add all resources to the tree
     for resource in parsed_resources {
@@ -293,12 +300,12 @@ fn parse_resource_typed(input: ResourceInput) -> Resource {
 fn tree_to_lua_table(lua: &Lua, tree: &Tree) -> LuaResult<LuaTable> {
     let result = lua.create_table()?;
 
-    // Create nodes table
-    let nodes_table = lua.create_table()?;
+    // Create nodes table with pre-allocated capacity
+    let nodes_table = lua.create_table_with_capacity(tree.nodes.len(), 0)?;
 
     // Sort node keys for consistent ordering
     let mut node_keys: Vec<&String> = tree.nodes.keys().collect();
-    node_keys.sort();
+    node_keys.sort_unstable();
 
     for (idx, key) in node_keys.iter().enumerate() {
         if let Some(node) = tree.nodes.get(*key) {
@@ -332,45 +339,46 @@ fn tree_to_lua_table(lua: &Lua, tree: &Tree) -> LuaResult<LuaTable> {
 
 /// Convert a TreeNode to a Lua table
 fn node_to_lua_table(lua: &Lua, node: &TreeNode) -> LuaResult<LuaTable> {
-    let table = lua.create_table()?;
+    // Pre-allocate table with known field count (7 fields)
+    let table = lua.create_table_with_capacity(0, 7)?;
 
-    table.set("key", node.key.clone())?;
-    table.set("kind", node.resource.kind.clone())?;
-    table.set("name", node.resource.name.clone())?;
+    table.set("key", node.key.as_str())?;
+    table.set("kind", node.resource.kind.as_str())?;
+    table.set("name", node.resource.name.as_str())?;
 
     if let Some(ref ns) = node.resource.namespace {
-        table.set("ns", ns.clone())?;
+        table.set("ns", ns.as_str())?;
     } else {
         table.set("ns", LuaValue::Nil)?;
     }
 
     // Children keys
-    let children_table = lua.create_table()?;
+    let children_table = lua.create_table_with_capacity(node.children_keys.len(), 0)?;
     for (idx, child_key) in node.children_keys.iter().enumerate() {
-        children_table.set(idx + 1, child_key.clone())?;
+        children_table.set(idx + 1, child_key.as_str())?;
     }
     table.set("children_keys", children_table)?;
 
     // Leaf keys
-    let leafs_table = lua.create_table()?;
+    let leafs_table = lua.create_table_with_capacity(node.leaf_keys.len(), 0)?;
     for (idx, leaf_key) in node.leaf_keys.iter().enumerate() {
-        leafs_table.set(idx + 1, leaf_key.clone())?;
+        leafs_table.set(idx + 1, leaf_key.as_str())?;
     }
     table.set("leaf_keys", leafs_table)?;
 
     // Parent key
     if let Some(ref parent_key) = node.parent_key {
-        table.set("parent_key", parent_key.clone())?;
+        table.set("parent_key", parent_key.as_str())?;
     } else {
         table.set("parent_key", LuaValue::Nil)?;
     }
 
     // Resource data (for debugging/display)
-    let resource_table = lua.create_table()?;
-    resource_table.set("kind", node.resource.kind.clone())?;
-    resource_table.set("name", node.resource.name.clone())?;
+    let resource_table = lua.create_table_with_capacity(0, 3)?;
+    resource_table.set("kind", node.resource.kind.as_str())?;
+    resource_table.set("name", node.resource.name.as_str())?;
     if let Some(ref ns) = node.resource.namespace {
-        resource_table.set("ns", ns.clone())?;
+        resource_table.set("ns", ns.as_str())?;
     }
     table.set("resource", resource_table)?;
 
