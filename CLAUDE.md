@@ -23,6 +23,7 @@ When a task touches a domain, use that subagent. No exceptions.
 | Pod logs | `logs` | ANY task involving log streaming, LogSession, histogram |
 | LSP | `lsp` | ANY task involving completion, hover, diagnostics |
 | Statusline | `statusline` | ANY task involving statusline metrics or display |
+| Lineage | `lineage` | ANY task involving resource lineage, relationship graphs, owner references |
 
 ### Rule 3: Use Verification Subagents
 
