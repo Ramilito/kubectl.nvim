@@ -5,7 +5,8 @@ use k8s_openapi::{
         batch::v1::{CronJob, Job},
         core::v1::{Event, ObjectReference, PersistentVolume, PersistentVolumeClaim, Pod, Service},
         networking::v1::{Ingress, IngressClass, NetworkPolicy},
-        rbac::v1::{ClusterRole, ClusterRoleBinding},
+        policy::v1::PodDisruptionBudget,
+        rbac::v1::{ClusterRole, ClusterRoleBinding, RoleBinding},
     },
     serde_json::{from_value, Value},
 };
@@ -73,6 +74,14 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
         "NetworkPolicy" => from_value::<NetworkPolicy>(item.clone())
             .ok()
             .map(|typed| extract_networkpolicy_relationships(&typed))
+            .unwrap_or_default(),
+        "RoleBinding" => from_value::<RoleBinding>(item.clone())
+            .ok()
+            .map(|typed| extract_rolebinding_relationships(&typed))
+            .unwrap_or_default(),
+        "PodDisruptionBudget" => from_value::<PodDisruptionBudget>(item.clone())
+            .ok()
+            .map(|typed| extract_poddisruptionbudget_relationships(&typed))
             .unwrap_or_default(),
         _ => Vec::new(),
     }
@@ -666,6 +675,47 @@ fn extract_service_relationships(_service: &Service) -> Vec<RelationRef> {
 
 fn extract_networkpolicy_relationships(_network_policy: &NetworkPolicy) -> Vec<RelationRef> {
     // NetworkPolicy → Pod relationships are selector-based (via spec.podSelector)
+    // and handled via the selector field in the Resource struct
+    // The selector matching happens in tree.rs link_nodes()
+    Vec::new()
+}
+
+fn extract_rolebinding_relationships(rb: &RoleBinding) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    // roleRef - can be Role or ClusterRole
+    relations.push(RelationRef {
+        kind: rb.role_ref.kind.clone(),
+        name: rb.role_ref.name.clone(),
+        namespace: if rb.role_ref.kind == "Role" {
+            rb.metadata.namespace.clone()
+        } else {
+            None
+        },
+        api_version: Some(rb.role_ref.api_group.clone()),
+        uid: None,
+    });
+
+    // subjects (ServiceAccounts, Users, Groups)
+    if let Some(subjects) = &rb.subjects {
+        for subject in subjects {
+            if subject.kind == "ServiceAccount" {
+                relations.push(RelationRef {
+                    kind: "ServiceAccount".to_string(),
+                    name: subject.name.clone(),
+                    namespace: subject.namespace.clone(),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+        }
+    }
+
+    relations
+}
+
+fn extract_poddisruptionbudget_relationships(_pdb: &PodDisruptionBudget) -> Vec<RelationRef> {
+    // PodDisruptionBudget → Pod relationships are selector-based (via spec.selector)
     // and handled via the selector field in the Resource struct
     // The selector matching happens in tree.rs link_nodes()
     Vec::new()

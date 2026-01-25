@@ -152,9 +152,125 @@ function M.build_graph(data)
   return graph
 end
 
-function M.build_display_lines(graph, selected_node_key)
+--- Get orphan resources from the lineage graph
+--- @param graph table The lineage graph
+--- @return table Lookup table of orphan keys
+function M.get_orphans(graph)
+  if not graph or not graph.tree_id then
+    return {}
+  end
+
+  local orphan_lookup = {}
+  local ok, orphans_json = pcall(client.find_lineage_orphans, graph.tree_id)
+  if ok then
+    local orphans = vim.json.decode(orphans_json)
+    for i = 1, #orphans do
+      orphan_lookup[orphans[i]] = true
+    end
+  end
+  return orphan_lookup
+end
+
+--- Parse current line to extract resource key
+--- @param line string The current line text
+--- @return string|nil The resource key in format "kind/ns/name" or nil if parse fails
+function M.parse_line_resource_key(line)
+  -- Remove leading whitespace and orphan prefix
+  local trimmed = line:gsub("^%s*", ""):gsub("^%[orphan%]%s*", "")
+
+  -- Expected format: "Kind: namespace/name"
+  local kind, rest = trimmed:match("^([^:]+):%s*(.+)$")
+  if not kind or not rest then
+    return nil
+  end
+
+  -- Split namespace/name
+  local ns, name = rest:match("^([^/]+)/(.+)$")
+  if not ns or not name then
+    return nil
+  end
+
+  -- Trim whitespace
+  kind = vim.trim(kind):lower()
+  ns = vim.trim(ns):lower()
+  name = vim.trim(name):lower()
+
+  -- Build resource key
+  if ns == "cluster" then
+    -- Cluster-scoped resource
+    return kind .. "/" .. name
+  else
+    -- Namespaced resource
+    return kind .. "/" .. ns .. "/" .. name
+  end
+end
+
+--- Display impact analysis results in a floating window
+--- @param impacted table Array of {resource_key, edge_type} tuples
+--- @param resource_key string The resource being analyzed
+function M.display_impact_results(impacted, resource_key)
+  if not impacted or #impacted == 0 then
+    vim.notify("No resources depend on " .. resource_key, vim.log.levels.INFO)
+    return
+  end
+
+  local lines = {
+    "Impact Analysis for: " .. resource_key,
+    "",
+    "Resources that would be affected if deleted:",
+    "",
+  }
+
+  for _, item in ipairs(impacted) do
+    local key = item[1]
+    local edge_type = item[2]
+    local relationship = edge_type == "owns" and "owns (parent)" or "references"
+    table.insert(lines, "  " .. key .. " [" .. relationship .. "]")
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "Total: " .. #impacted .. " resources would be impacted")
+
+  -- Create floating window
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+  vim.api.nvim_set_option_value("filetype", "k8s_lineage_impact", { buf = buf })
+
+  -- Calculate window size
+  local width = 80
+  local height = math.min(#lines + 2, 30)
+
+  local opts = {
+    relative = "editor",
+    width = width,
+    height = height,
+    col = (vim.o.columns - width) / 2,
+    row = (vim.o.lines - height) / 2,
+    style = "minimal",
+    border = "rounded",
+    title = " Impact Analysis ",
+    title_pos = "center",
+  }
+
+  local win = vim.api.nvim_open_win(buf, true, opts)
+
+  -- Close on q or Escape
+  vim.keymap.set("n", "q", function()
+    vim.api.nvim_win_close(win, true)
+  end, { buffer = buf, nowait = true })
+
+  vim.keymap.set("n", "<Esc>", function()
+    vim.api.nvim_win_close(win, true)
+  end, { buffer = buf, nowait = true })
+end
+
+function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
   local lines = {}
   local marks = {}
+
+  -- Get orphans if filter is enabled
+  local orphan_lookup = orphan_filter_enabled and M.get_orphans(graph) or {}
 
   -- Get related node keys from Rust
   local related_keys_table = graph.get_related_nodes(selected_node_key)
@@ -163,6 +279,13 @@ function M.build_display_lines(graph, selected_node_key)
   local related_keys_lookup = {}
   for i = 1, #related_keys_table do
     related_keys_lookup[related_keys_table[i]] = true
+  end
+
+  -- If orphan filter is enabled, also add all orphans to related keys
+  if orphan_filter_enabled then
+    for orphan_key, _ in pairs(orphan_lookup) do
+      related_keys_lookup[orphan_key] = true
+    end
   end
 
   -- Create node lookup from graph.nodes
@@ -216,43 +339,62 @@ function M.build_display_lines(graph, selected_node_key)
       return
     end
 
+    -- Skip non-orphans if filter is enabled
+    if orphan_filter_enabled and not orphan_lookup[node.key] then
+      return
+    end
+
     local key_values = {
       node.kind,
       safe_value(node.ns, "cluster"),
       node.name,
     }
 
-    -- Build the line to display
-    local line = indent .. key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
+    -- Build the line to display with orphan indicator
+    local orphan_prefix = orphan_lookup[node.key] and "[orphan] " or ""
+    local line = indent .. orphan_prefix .. key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
 
     local is_selected = node.key == selected_node_key
     local text_hl = is_selected and hl.symbols.success_bold or hl.symbols.white
+    local orphan_hl = hl.symbols.warning
 
     if line then
       local indent_len = #indent
+      local orphan_prefix_len = #orphan_prefix
+
+      -- Orphan indicator (warning color)
+      if orphan_prefix_len > 0 then
+        table.insert(marks, {
+          row = #lines,
+          start_col = indent_len,
+          end_col = indent_len + orphan_prefix_len,
+          hl_group = orphan_hl,
+        })
+      end
+
       local kind_len = #key_values[1]
       local ns_len = #key_values[2]
 
       -- Kind (highlighted)
       table.insert(marks, {
         row = #lines,
-        start_col = indent_len,
-        end_col = indent_len + kind_len,
+        start_col = indent_len + orphan_prefix_len,
+        end_col = indent_len + orphan_prefix_len + kind_len,
         hl_group = text_hl,
       })
 
       -- ": namespace/" (gray)
       table.insert(marks, {
         row = #lines,
-        start_col = indent_len + kind_len,
-        end_col = indent_len + kind_len + 2 + ns_len + 1,
+        start_col = indent_len + orphan_prefix_len + kind_len,
+        end_col = indent_len + orphan_prefix_len + kind_len + 2 + ns_len + 1,
         hl_group = hl.symbols.gray,
       })
 
       -- Resource name (highlighted)
       table.insert(marks, {
         row = #lines,
-        start_col = indent_len + kind_len + 2 + ns_len + 1,
+        start_col = indent_len + orphan_prefix_len + kind_len + 2 + ns_len + 1,
         end_col = #line,
         hl_group = text_hl,
       })
@@ -276,45 +418,68 @@ function M.build_display_lines(graph, selected_node_key)
     for i = 1, #node.leaf_keys do
       local leaf_key = node.leaf_keys[i]
       if related_keys_lookup[leaf_key] and not displayed_in_tree[leaf_key] then
-        local leaf = node_lookup[leaf_key]
-        if leaf then
-          local leaf_values = {
-            leaf.kind,
-            safe_value(leaf.ns, "cluster"),
-            leaf.name,
-          }
-          local leaf_line = indent .. "    " .. leaf_values[1] .. ": " .. leaf_values[2] .. "/" .. leaf_values[3]
+        -- Skip non-orphans if filter is enabled
+        if not orphan_filter_enabled or orphan_lookup[leaf_key] then
+          local leaf = node_lookup[leaf_key]
+          if leaf then
+            local leaf_values = {
+              leaf.kind,
+              safe_value(leaf.ns, "cluster"),
+              leaf.name,
+            }
+            local leaf_orphan_prefix = orphan_lookup[leaf_key] and "[orphan] " or ""
+            local leaf_line = indent
+              .. "    "
+              .. leaf_orphan_prefix
+              .. leaf_values[1]
+              .. ": "
+              .. leaf_values[2]
+              .. "/"
+              .. leaf_values[3]
 
-          local base_indent = #indent + 4
-          local kind_len = #leaf_values[1]
-          local ns_len = #leaf_values[2]
+            local base_indent = #indent + 4
+            local leaf_orphan_prefix_len = #leaf_orphan_prefix
 
-          -- Kind (highlighted)
-          table.insert(marks, {
-            row = #lines,
-            start_col = base_indent,
-            end_col = base_indent + kind_len,
-            hl_group = hl.symbols.white,
-          })
+            -- Orphan indicator (warning color)
+            if leaf_orphan_prefix_len > 0 then
+              table.insert(marks, {
+                row = #lines,
+                start_col = base_indent,
+                end_col = base_indent + leaf_orphan_prefix_len,
+                hl_group = orphan_hl,
+              })
+            end
 
-          -- ": namespace/" (gray)
-          table.insert(marks, {
-            row = #lines,
-            start_col = base_indent + kind_len,
-            end_col = base_indent + kind_len + 2 + ns_len + 1,
-            hl_group = hl.symbols.gray,
-          })
+            local kind_len = #leaf_values[1]
+            local ns_len = #leaf_values[2]
 
-          -- Resource name (highlighted)
-          table.insert(marks, {
-            row = #lines,
-            start_col = base_indent + kind_len + 2 + ns_len + 1,
-            end_col = #leaf_line,
-            hl_group = hl.symbols.white,
-          })
+            -- Kind (highlighted)
+            table.insert(marks, {
+              row = #lines,
+              start_col = base_indent + leaf_orphan_prefix_len,
+              end_col = base_indent + leaf_orphan_prefix_len + kind_len,
+              hl_group = hl.symbols.white,
+            })
 
-          table.insert(lines, leaf_line)
-          displayed_in_tree[leaf_key] = true
+            -- ": namespace/" (gray)
+            table.insert(marks, {
+              row = #lines,
+              start_col = base_indent + leaf_orphan_prefix_len + kind_len,
+              end_col = base_indent + leaf_orphan_prefix_len + kind_len + 2 + ns_len + 1,
+              hl_group = hl.symbols.gray,
+            })
+
+            -- Resource name (highlighted)
+            table.insert(marks, {
+              row = #lines,
+              start_col = base_indent + leaf_orphan_prefix_len + kind_len + 2 + ns_len + 1,
+              end_col = #leaf_line,
+              hl_group = hl.symbols.white,
+            })
+
+            table.insert(lines, leaf_line)
+            displayed_in_tree[leaf_key] = true
+          end
         end
       end
     end

@@ -535,6 +535,30 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         lua.create_function(lineage::export_lineage_mermaid)?,
     )?;
 
+    // Export lineage subgraph to DOT format
+    exports.set(
+        "export_lineage_subgraph_dot",
+        lua.create_function(lineage::export_lineage_subgraph_dot)?,
+    )?;
+
+    // Export lineage subgraph to Mermaid format
+    exports.set(
+        "export_lineage_subgraph_mermaid",
+        lua.create_function(lineage::export_lineage_subgraph_mermaid)?,
+    )?;
+
+    // Find orphan resources
+    exports.set(
+        "find_lineage_orphans",
+        lua.create_function(lineage::find_lineage_orphans)?,
+    )?;
+
+    // Compute impact analysis
+    exports.set(
+        "compute_lineage_impact",
+        lua.create_function(lineage::compute_lineage_impact)?,
+    )?;
+
     dao::install(lua, &exports)?;
     cmd::install(lua, &exports)?;
     event_queue::install(lua, &exports)?;

@@ -189,4 +189,36 @@ function client.export_lineage_mermaid(tree_id)
   return client.implementation.export_lineage_mermaid(tree_id)
 end
 
+--- Find orphan resources in the lineage graph
+--- @param tree_id string The tree ID from build_lineage_graph_worker
+--- @return string JSON array of orphan resource keys
+function client.find_lineage_orphans(tree_id)
+  return client.implementation.find_lineage_orphans(tree_id)
+end
+
+--- Compute impact analysis for a resource
+--- Returns all resources that depend on (reference) this resource
+--- @param tree_id string The tree ID from build_lineage_graph_worker
+--- @param resource_key string The resource key (e.g., "pod/default/my-pod")
+--- @return string JSON array of tuples: [[resource_key, edge_type], ...]
+function client.compute_lineage_impact(tree_id, resource_key)
+  return client.implementation.compute_lineage_impact(tree_id, resource_key)
+end
+
+--- Export a subgraph centered on a resource to DOT format
+--- @param tree_id string The tree ID from build_lineage_graph_worker
+--- @param resource_key string The resource key to center the subgraph on
+--- @return string DOT format string for the subgraph
+function client.export_lineage_subgraph_dot(tree_id, resource_key)
+  return client.implementation.export_lineage_subgraph_dot(tree_id, resource_key)
+end
+
+--- Export a subgraph centered on a resource to Mermaid format
+--- @param tree_id string The tree ID from build_lineage_graph_worker
+--- @param resource_key string The resource key to center the subgraph on
+--- @return string Mermaid format string for the subgraph
+function client.export_lineage_subgraph_mermaid(tree_id, resource_key)
+  return client.implementation.export_lineage_subgraph_mermaid(tree_id, resource_key)
+end
+
 return client

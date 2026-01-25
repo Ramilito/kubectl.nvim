@@ -82,6 +82,10 @@
 --- @field get_lineage_related_nodes fun(tree_id: string, node_key: string): string
 --- @field export_lineage_dot fun(tree_id: string): string
 --- @field export_lineage_mermaid fun(tree_id: string): string
+--- @field find_lineage_orphans fun(tree_id: string): string
+--- @field compute_lineage_impact fun(tree_id: string, resource_key: string): string
+--- @field export_lineage_subgraph_dot fun(tree_id: string, resource_key: string): string
+--- @field export_lineage_subgraph_mermaid fun(tree_id: string, resource_key: string): string
 
 --- @class kubectl.ToggleJsonResult
 --- @field json string

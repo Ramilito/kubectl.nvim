@@ -365,6 +365,165 @@ impl Tree {
             .map(|e| self.get_key_for_index(e.source()))
     }
 
+    /// Compute impact analysis for a resource
+    /// Returns all resources that depend on (reference) this resource
+    /// Algorithm: BFS following incoming edges (who depends on THIS resource?)
+    #[tracing::instrument(skip(self), fields(resource_key = %resource_key))]
+    pub fn compute_impact(&self, resource_key: &str) -> Vec<(String, String)> {
+        // Find the node index for the given key
+        let node_idx = match self.key_to_index.get(resource_key) {
+            Some(&idx) => idx,
+            None => return Vec::new(),
+        };
+
+        let mut impacted = Vec::new();
+        let mut visited = HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+
+        // Start BFS from the target node
+        queue.push_back(node_idx);
+        visited.insert(node_idx);
+
+        while let Some(current_idx) = queue.pop_front() {
+            // Get all incoming edges (who depends on current node?)
+            for edge in self.graph.edges_directed(current_idx, Direction::Incoming) {
+                let source_idx = edge.source();
+                let source_key = self.get_key_for_index(source_idx);
+
+                // Skip the root cluster node
+                if source_key == self.root_key {
+                    continue;
+                }
+
+                // Only process if not visited
+                if !visited.contains(&source_idx) {
+                    visited.insert(source_idx);
+                    queue.push_back(source_idx);
+
+                    // Determine edge type
+                    let edge_type = match edge.weight() {
+                        EdgeType::Owns => "owns",
+                        EdgeType::References => "references",
+                    };
+
+                    impacted.push((source_key, edge_type.to_string()));
+                }
+            }
+        }
+
+        // Sort for consistent output
+        impacted.sort_by(|a, b| a.0.cmp(&b.0));
+        impacted
+    }
+
+    /// Extract subgraph nodes and edges for a given resource key
+    /// Returns tuple of (node_indices, edge_indices) that form the subgraph
+    /// Algorithm: Collect all ancestors via ownership, descendants via ownership+references
+    #[tracing::instrument(skip(self), fields(resource_key = %resource_key))]
+    pub fn extract_subgraph(&self, resource_key: &str) -> (HashSet<NodeIndex>, HashSet<usize>) {
+        let mut subgraph_nodes = HashSet::new();
+        let mut subgraph_edges = HashSet::new();
+
+        // Find the starting node
+        let start_idx = match self.key_to_index.get(resource_key) {
+            Some(&idx) => idx,
+            None => return (subgraph_nodes, subgraph_edges),
+        };
+
+        subgraph_nodes.insert(start_idx);
+
+        // Collect all ancestors (following ownership up to root)
+        let mut current_idx = start_idx;
+        loop {
+            let parent_opt = self
+                .graph
+                .edges_directed(current_idx, Direction::Incoming)
+                .find(|edge| *edge.weight() == EdgeType::Owns)
+                .map(|edge| edge.source());
+
+            if let Some(parent_idx) = parent_opt {
+                // Don't include the cluster root in the subgraph
+                if parent_idx != self.root_index {
+                    subgraph_nodes.insert(parent_idx);
+                }
+                current_idx = parent_idx;
+            } else {
+                break;
+            }
+        }
+
+        // Collect all descendants using DFS on full graph (both edge types)
+        let mut dfs = Dfs::new(&self.graph, start_idx);
+        while let Some(visited_idx) = dfs.next(&self.graph) {
+            if visited_idx != self.root_index {
+                subgraph_nodes.insert(visited_idx);
+            }
+        }
+
+        // Collect edges that connect nodes within the subgraph
+        for edge in self.graph.edge_references() {
+            let source = edge.source();
+            let target = edge.target();
+
+            if subgraph_nodes.contains(&source) && subgraph_nodes.contains(&target) {
+                subgraph_edges.insert(edge.id().index());
+            }
+        }
+
+        (subgraph_nodes, subgraph_edges)
+    }
+
+    /// Export a subgraph centered on a resource to Graphviz DOT format
+    /// Returns a string containing the DOT representation of the subgraph
+    pub fn export_subgraph_dot(&self, resource_key: &str) -> String {
+        let (subgraph_nodes, subgraph_edges) = self.extract_subgraph(resource_key);
+
+        let mut output = String::from("digraph lineage_subgraph {\n");
+        output.push_str("    rankdir=TB;\n");
+        output.push_str("    node [fontname=\"Arial\"];\n");
+        output.push_str("    edge [fontname=\"Arial\"];\n\n");
+
+        // Add nodes with styling
+        for idx in subgraph_nodes.iter() {
+            let resource = &self.graph[*idx];
+            let node_id = format!("N{}", idx.index());
+
+            let shape = if resource.kind == "ConfigMap" || resource.kind == "Secret" {
+                "shape=note style=filled fillcolor=lightyellow"
+            } else {
+                "shape=ellipse"
+            };
+
+            let label = if let Some(ref ns) = resource.namespace {
+                format!("{}\\n{}\\n({})", resource.kind, resource.name, ns)
+            } else {
+                format!("{}\\n{}", resource.kind, resource.name)
+            };
+
+            output.push_str(&format!("    {} [label=\"{}\" {}];\n", node_id, label, shape));
+        }
+
+        output.push('\n');
+
+        // Add edges with styling (only edges in the subgraph)
+        for edge_idx in subgraph_edges.iter() {
+            if let Some(edge) = self.graph.edge_references().find(|e| e.id().index() == *edge_idx) {
+                let source_id = format!("N{}", edge.source().index());
+                let target_id = format!("N{}", edge.target().index());
+
+                let style = match edge.weight() {
+                    EdgeType::Owns => "color=blue style=solid",
+                    EdgeType::References => "color=green style=dashed",
+                };
+
+                output.push_str(&format!("    {} -> {} [{}];\n", source_id, target_id, style));
+            }
+        }
+
+        output.push_str("}\n");
+        output
+    }
+
     /// Export the lineage graph to Graphviz DOT format
     /// Returns a string containing the DOT representation
     pub fn export_dot(&self) -> String {
@@ -411,6 +570,126 @@ impl Tree {
         }
 
         output.push_str("}\n");
+        output
+    }
+
+    /// Find orphan resources in the tree
+    /// An orphan is a resource with no owners and no incoming edges from non-root nodes
+    /// Returns a list of resource keys that are orphans
+    pub fn find_orphans(&self) -> Vec<String> {
+        // Well-known cluster-scoped resources that are expected to have no owners
+        const CLUSTER_SCOPED_KINDS: &[&str] = &[
+            "namespace",
+            "node",
+            "clusterrole",
+            "clusterrolebinding",
+            "persistentvolume",
+            "storageclass",
+            "customresourcedefinition",
+            "apiservice",
+            "mutatingwebhookconfiguration",
+            "validatingwebhookconfiguration",
+            "priorityclass",
+            "runtimeclass",
+            "volumeattachment",
+            "csidriver",
+            "csinode",
+            "ingressclass",
+        ];
+
+        let mut orphans = Vec::new();
+
+        for (key, &idx) in self.key_to_index.iter() {
+            // Skip the cluster root node
+            if key == &self.root_key {
+                continue;
+            }
+
+            let resource = &self.graph[idx];
+
+            // Skip well-known cluster-scoped resources
+            if CLUSTER_SCOPED_KINDS.contains(&resource.kind.to_lowercase().as_str()) {
+                continue;
+            }
+
+            // Check if the resource has owners
+            let has_owners = resource
+                .owners
+                .as_ref()
+                .map(|owners| !owners.is_empty())
+                .unwrap_or(false);
+
+            // If it has owners, it's not an orphan
+            if has_owners {
+                continue;
+            }
+
+            // Check if the resource has incoming edges from non-root nodes
+            let has_non_root_incoming_edges = self
+                .graph
+                .edges_directed(idx, Direction::Incoming)
+                .any(|edge| edge.source() != self.root_index);
+
+            // An orphan has no owners and no incoming edges from non-root nodes
+            if !has_non_root_incoming_edges {
+                orphans.push(key.clone());
+            }
+        }
+
+        // Sort for consistent output
+        orphans.sort();
+        orphans
+    }
+
+    /// Export a subgraph centered on a resource to Mermaid diagram format
+    /// Returns a string containing the Mermaid representation of the subgraph
+    pub fn export_subgraph_mermaid(&self, resource_key: &str) -> String {
+        let (subgraph_nodes, subgraph_edges) = self.extract_subgraph(resource_key);
+
+        let mut output = String::from("graph TD\n");
+
+        // Create node definitions with sanitized IDs
+        let mut node_ids: HashMap<NodeIndex, String> = HashMap::new();
+        for idx in subgraph_nodes.iter() {
+            let resource = &self.graph[*idx];
+            let node_id = format!("N{}", idx.index());
+            node_ids.insert(*idx, node_id.clone());
+
+            let label = if let Some(ref ns) = resource.namespace {
+                format!("{}\\n{}\\n({})", resource.kind, resource.name, ns)
+            } else {
+                format!("{}\\n{}", resource.kind, resource.name)
+            };
+
+            let shape = if resource.kind == "ConfigMap" || resource.kind == "Secret" {
+                format!("    {}[\"{}\"]:::config\n", node_id, label)
+            } else {
+                format!("    {}[\"{}\"]\n", node_id, label)
+            };
+
+            output.push_str(&shape);
+        }
+
+        output.push('\n');
+
+        // Create edge definitions (only edges in the subgraph)
+        for edge_idx in subgraph_edges.iter() {
+            if let Some(edge) = self.graph.edge_references().find(|e| e.id().index() == *edge_idx) {
+                let source_id = &node_ids[&edge.source()];
+                let target_id = &node_ids[&edge.target()];
+
+                let edge_def = match edge.weight() {
+                    EdgeType::Owns => format!("    {} --> {}\n", source_id, target_id),
+                    EdgeType::References => format!("    {} -.-> {}\n", source_id, target_id),
+                };
+
+                output.push_str(&edge_def);
+            }
+        }
+
+        // Add style classes
+        output.push_str("\n    classDef config fill:#ffffcc,stroke:#333,stroke-width:2px\n");
+
         output
     }
 
@@ -879,5 +1158,208 @@ mod tests {
             ref_edge_from_cm,
             "ConfigMap should have reverse References edge"
         );
+    }
+
+    #[test]
+    fn test_compute_impact() {
+        let root = Resource {
+            kind: "cluster".to_string(),
+            name: "test".to_string(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+        };
+
+        let mut tree = Tree::new(root);
+
+        // Add ConfigMap
+        let configmap = Resource {
+            kind: "ConfigMap".to_string(),
+            name: "my-config".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("v1".to_string()),
+            uid: Some("cm-1".to_string()),
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+        };
+        tree.add_node(configmap);
+
+        // Add Pod that references ConfigMap
+        let pod = Resource {
+            kind: "Pod".to_string(),
+            name: "pod-1".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("v1".to_string()),
+            uid: Some("pod-1".to_string()),
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: Some(vec![RelationRef {
+                kind: "ConfigMap".to_string(),
+                name: "my-config".to_string(),
+                namespace: Some("default".to_string()),
+                api_version: Some("v1".to_string()),
+                uid: Some("cm-1".to_string()),
+            }]),
+        };
+        tree.add_node(pod);
+
+        // Add Deployment that owns Pod
+        let deployment = Resource {
+            kind: "Deployment".to_string(),
+            name: "my-app".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("apps/v1".to_string()),
+            uid: Some("dep-1".to_string()),
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+        };
+        tree.add_node(deployment);
+
+        // Update pod to be owned by deployment
+        let pod_with_owner = Resource {
+            kind: "Pod".to_string(),
+            name: "pod-1".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("v1".to_string()),
+            uid: Some("pod-1".to_string()),
+            labels: None,
+            selectors: None,
+            owners: Some(vec![RelationRef {
+                kind: "Deployment".to_string(),
+                name: "my-app".to_string(),
+                namespace: Some("default".to_string()),
+                api_version: Some("apps/v1".to_string()),
+                uid: Some("dep-1".to_string()),
+            }]),
+            relations: Some(vec![RelationRef {
+                kind: "ConfigMap".to_string(),
+                name: "my-config".to_string(),
+                namespace: Some("default".to_string()),
+                api_version: Some("v1".to_string()),
+                uid: Some("cm-1".to_string()),
+            }]),
+        };
+
+        // Replace the pod node with the updated version
+        let pod_key = "pod/default/pod-1";
+        if let Some(&pod_idx) = tree.key_to_index.get(pod_key) {
+            tree.graph[pod_idx] = pod_with_owner;
+        }
+
+        tree.link_nodes();
+
+        // Test impact of deleting ConfigMap - should affect Pod
+        let cm_key = "configmap/default/my-config";
+        let impact = tree.compute_impact(cm_key);
+
+        assert!(!impact.is_empty(), "ConfigMap should have dependents");
+        assert!(
+            impact.iter().any(|(key, _)| key == pod_key),
+            "Pod should be in ConfigMap impact list"
+        );
+
+        // Test impact of deleting Pod - should affect Deployment
+        let pod_key = "pod/default/pod-1";
+        let impact = tree.compute_impact(pod_key);
+
+        assert!(
+            impact.iter().any(|(key, edge_type)| {
+                key == "deployment/default/my-app" && edge_type == "owns"
+            }),
+            "Deployment should be in Pod impact list with 'owns' relationship"
+        );
+
+        // Test impact of deleting Deployment - should have no incoming edges
+        let dep_key = "deployment/default/my-app";
+        let impact = tree.compute_impact(dep_key);
+
+        assert!(
+            impact.is_empty(),
+            "Deployment should have no resources depending on it"
+        );
+    }
+
+    #[test]
+    fn test_find_orphans() {
+        let root = Resource {
+            kind: "cluster".to_string(),
+            name: "test".to_string(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+        };
+
+        let mut tree = Tree::new(root);
+
+        // Add deployment with no owner (orphan)
+        let orphan_deployment = Resource {
+            kind: "Deployment".to_string(),
+            name: "orphan-deployment".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("apps/v1".to_string()),
+            uid: Some("dep-orphan".to_string()),
+            labels: None,
+            selectors: None,
+            owners: None, // No owner
+            relations: None,
+        };
+        tree.add_node(orphan_deployment);
+
+        // Add deployment with owner (not an orphan)
+        let owned_deployment = Resource {
+            kind: "Deployment".to_string(),
+            name: "owned-deployment".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("apps/v1".to_string()),
+            uid: Some("dep-owned".to_string()),
+            labels: None,
+            selectors: None,
+            owners: Some(vec![RelationRef {
+                kind: "Application".to_string(),
+                name: "my-app".to_string(),
+                namespace: Some("default".to_string()),
+                api_version: Some("v1".to_string()),
+                uid: Some("app-1".to_string()),
+            }]),
+            relations: None,
+        };
+        tree.add_node(owned_deployment);
+
+        // Add a namespace (cluster-scoped, should be excluded)
+        let namespace = Resource {
+            kind: "Namespace".to_string(),
+            name: "test-ns".to_string(),
+            namespace: None,
+            api_version: Some("v1".to_string()),
+            uid: Some("ns-1".to_string()),
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+        };
+        tree.add_node(namespace);
+
+        tree.link_nodes();
+
+        let orphans = tree.find_orphans();
+
+        // Should find the orphan deployment but not the namespace or owned deployment
+        assert_eq!(orphans.len(), 1);
+        assert!(orphans.contains(&"deployment/default/orphan-deployment".to_string()));
+        assert!(!orphans.contains(&"namespace/test-ns".to_string()));
+        assert!(!orphans.contains(&"deployment/default/owned-deployment".to_string()));
     }
 }

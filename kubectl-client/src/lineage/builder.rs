@@ -223,6 +223,72 @@ pub fn export_lineage_mermaid(_lua: &Lua, tree_id: String) -> LuaResult<String> 
     Ok(tree.to_mermaid())
 }
 
+/// Export lineage subgraph to Graphviz DOT format
+/// Returns DOT string for the subgraph centered on the specified resource
+#[tracing::instrument(skip(_lua))]
+pub fn export_lineage_subgraph_dot(_lua: &Lua, (tree_id, resource_key): (String, String)) -> LuaResult<String> {
+    let trees = LINEAGE_TREES
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to lock LINEAGE_TREES".into()))?;
+
+    let tree = trees
+        .get(&tree_id)
+        .ok_or_else(|| LuaError::RuntimeError(format!("Tree not found: {}", tree_id)))?;
+
+    Ok(tree.export_subgraph_dot(&resource_key))
+}
+
+/// Export lineage subgraph to Mermaid diagram format
+/// Returns Mermaid string for the subgraph centered on the specified resource
+#[tracing::instrument(skip(_lua))]
+pub fn export_lineage_subgraph_mermaid(_lua: &Lua, (tree_id, resource_key): (String, String)) -> LuaResult<String> {
+    let trees = LINEAGE_TREES
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to lock LINEAGE_TREES".into()))?;
+
+    let tree = trees
+        .get(&tree_id)
+        .ok_or_else(|| LuaError::RuntimeError(format!("Tree not found: {}", tree_id)))?;
+
+    Ok(tree.export_subgraph_mermaid(&resource_key))
+}
+
+/// Find orphan resources in a stored tree
+/// Returns JSON array of orphan resource keys
+#[tracing::instrument(skip(_lua))]
+pub fn find_lineage_orphans(_lua: &Lua, tree_id: String) -> LuaResult<String> {
+    let trees = LINEAGE_TREES
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to lock LINEAGE_TREES".into()))?;
+
+    let tree = trees
+        .get(&tree_id)
+        .ok_or_else(|| LuaError::RuntimeError(format!("Tree not found: {}", tree_id)))?;
+
+    let orphans = tree.find_orphans();
+
+    serde_json::to_string(&orphans)
+        .map_err(|e| LuaError::external(format!("Failed to serialize orphans: {}", e)))
+}
+
+/// Compute impact analysis for a resource
+/// Returns JSON array of tuples: [[resource_key, edge_type], ...]
+#[tracing::instrument(skip(_lua))]
+pub fn compute_lineage_impact(_lua: &Lua, (tree_id, resource_key): (String, String)) -> LuaResult<String> {
+    let trees = LINEAGE_TREES
+        .lock()
+        .map_err(|_| LuaError::RuntimeError("Failed to lock LINEAGE_TREES".into()))?;
+
+    let tree = trees
+        .get(&tree_id)
+        .ok_or_else(|| LuaError::RuntimeError(format!("Tree not found: {}", tree_id)))?;
+
+    let impacted = tree.compute_impact(&resource_key);
+
+    serde_json::to_string(&impacted)
+        .map_err(|e| LuaError::external(format!("Failed to serialize impact analysis: {}", e)))
+}
+
 /// Build a lineage graph from a list of Kubernetes resources
 /// Returns a Lua table with the tree structure
 #[tracing::instrument(skip(lua, resources_json))]

@@ -14,6 +14,7 @@ local M = {
   graph = nil,
   processed = 0,
   total = 0,
+  orphan_filter_enabled = false,
 }
 
 M.definition = {
@@ -23,6 +24,8 @@ M.definition = {
   hints = {
     { key = "<Plug>(kubectl.select)", desc = "go to" },
     { key = "<Plug>(kubectl.refresh)", desc = "refresh cache" },
+    { key = "<Plug>(kubectl.toggle_orphan_filter)", desc = "toggle orphans" },
+    { key = "<Plug>(kubectl.impact_analysis)", desc = "impact analysis" },
     { key = "<Plug>(kubectl.export_dot)", desc = "export DOT" },
     { key = "<Plug>(kubectl.export_mermaid)", desc = "export Mermaid" },
   },
@@ -79,12 +82,13 @@ function M.generate_content()
     end
     selected_key = selected_key .. "/" .. string.lower(name)
 
-    content, marks = definition.build_display_lines(M.graph, selected_key)
+    content, marks = definition.build_display_lines(M.graph, selected_key, M.orphan_filter_enabled)
 
-    -- Add cache timestamp to header
+    -- Add cache timestamp and filter status to header
     if cache.timestamp and not cache.loading then
       local time = os.date("%H:%M:%S", cache.timestamp)
-      local line = "Associated Resources - Cache refreshed at: " .. time
+      local filter_status = M.orphan_filter_enabled and " [Orphans Only]" or ""
+      local line = "Associated Resources - Cache refreshed at: " .. time .. filter_status
       table.insert(header_data, line)
       table.insert(header_marks, {
         row = 0,
@@ -93,7 +97,8 @@ function M.generate_content()
         hl_group = hl.symbols.gray,
       })
     else
-      table.insert(header_data, "Associated Resources")
+      local filter_status = M.orphan_filter_enabled and " [Orphans Only]" or ""
+      table.insert(header_data, "Associated Resources" .. filter_status)
     end
   end
 
