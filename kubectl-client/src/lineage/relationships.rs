@@ -1,134 +1,192 @@
-use k8s_openapi::serde_json::Value;
+use k8s_openapi::{
+    api::{
+        apps::v1::{DaemonSet, StatefulSet},
+        autoscaling::v2::HorizontalPodAutoscaler,
+        batch::v1::{CronJob, Job},
+        core::v1::{Event, ObjectReference, PersistentVolume, PersistentVolumeClaim, Pod, Service},
+        networking::v1::{Ingress, IngressClass, NetworkPolicy},
+        rbac::v1::{ClusterRole, ClusterRoleBinding},
+    },
+    serde_json::{from_value, Value},
+};
 use super::tree::RelationRef;
 
 /// Extract relationships from a Kubernetes resource based on its kind
 pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
     match kind {
-        "Event" => extract_event_relationships(item),
-        "Ingress" => extract_ingress_relationships(item),
-        "IngressClass" => extract_ingressclass_relationships(item),
-        "Pod" => extract_pod_relationships(item),
-        "ClusterRole" => extract_clusterrole_relationships(item),
-        "PersistentVolumeClaim" => extract_pvc_relationships(item),
-        "PersistentVolume" => extract_pv_relationships(item),
-        "ClusterRoleBinding" => extract_clusterrolebinding_relationships(item),
-        "StatefulSet" => extract_statefulset_relationships(item),
-        "DaemonSet" => extract_daemonset_relationships(item),
-        "Job" => extract_job_relationships(item),
-        "CronJob" => extract_cronjob_relationships(item),
-        "HorizontalPodAutoscaler" => extract_hpa_relationships(item),
+        "Event" => from_value::<Event>(item.clone())
+            .ok()
+            .map(|typed| extract_event_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert Event to typed struct");
+                Vec::new()
+            }),
+        "Ingress" => from_value::<Ingress>(item.clone())
+            .ok()
+            .map(|typed| extract_ingress_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert Ingress to typed struct");
+                Vec::new()
+            }),
+        "IngressClass" => from_value::<IngressClass>(item.clone())
+            .ok()
+            .map(|typed| extract_ingressclass_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert IngressClass to typed struct");
+                Vec::new()
+            }),
+        "Pod" => from_value::<Pod>(item.clone())
+            .ok()
+            .map(|typed| extract_pod_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert Pod to typed struct");
+                Vec::new()
+            }),
+        "ClusterRole" => from_value::<ClusterRole>(item.clone())
+            .ok()
+            .map(|typed| extract_clusterrole_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert ClusterRole to typed struct");
+                Vec::new()
+            }),
+        "PersistentVolumeClaim" => from_value::<PersistentVolumeClaim>(item.clone())
+            .ok()
+            .map(|typed| extract_pvc_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert PersistentVolumeClaim to typed struct");
+                Vec::new()
+            }),
+        "PersistentVolume" => from_value::<PersistentVolume>(item.clone())
+            .ok()
+            .map(|typed| extract_pv_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert PersistentVolume to typed struct");
+                Vec::new()
+            }),
+        "ClusterRoleBinding" => from_value::<ClusterRoleBinding>(item.clone())
+            .ok()
+            .map(|typed| extract_clusterrolebinding_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert ClusterRoleBinding to typed struct");
+                Vec::new()
+            }),
+        "StatefulSet" => from_value::<StatefulSet>(item.clone())
+            .ok()
+            .map(|typed| extract_statefulset_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert StatefulSet to typed struct");
+                Vec::new()
+            }),
+        "DaemonSet" => from_value::<DaemonSet>(item.clone())
+            .ok()
+            .map(|typed| extract_daemonset_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert DaemonSet to typed struct");
+                Vec::new()
+            }),
+        "Job" => from_value::<Job>(item.clone())
+            .ok()
+            .map(|typed| extract_job_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert Job to typed struct");
+                Vec::new()
+            }),
+        "CronJob" => from_value::<CronJob>(item.clone())
+            .ok()
+            .map(|typed| extract_cronjob_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert CronJob to typed struct");
+                Vec::new()
+            }),
+        "HorizontalPodAutoscaler" => from_value::<HorizontalPodAutoscaler>(item.clone())
+            .ok()
+            .map(|typed| extract_hpa_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert HorizontalPodAutoscaler to typed struct");
+                Vec::new()
+            }),
+        "Service" => from_value::<Service>(item.clone())
+            .ok()
+            .map(|typed| extract_service_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert Service to typed struct");
+                Vec::new()
+            }),
+        "NetworkPolicy" => from_value::<NetworkPolicy>(item.clone())
+            .ok()
+            .map(|typed| extract_networkpolicy_relationships(&typed))
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to convert NetworkPolicy to typed struct");
+                Vec::new()
+            }),
         _ => Vec::new(),
     }
 }
 
-fn extract_event_relationships(item: &Value) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
+/// Helper to convert ObjectReference to RelationRef
+fn object_ref_to_relation(obj_ref: &ObjectReference) -> Option<RelationRef> {
+    let kind = obj_ref.kind.as_ref()?;
+    let name = obj_ref.name.as_ref()?;
 
-    // regarding field
-    if let Some(regarding) = item.get("regarding").and_then(|v| v.as_object()) {
-        if let (Some(kind), Some(name)) = (
-            regarding.get("kind").and_then(|v| v.as_str()),
-            regarding.get("name").and_then(|v| v.as_str()),
-        ) {
-            relations.push(RelationRef {
-                kind: kind.to_string(),
-                name: name.to_string(),
-                namespace: regarding
-                    .get("namespace")
-                    .and_then(|v| v.as_str())
-                    .map(String::from),
-                api_version: regarding
-                    .get("apiVersion")
-                    .and_then(|v| v.as_str())
-                    .map(String::from),
-                uid: regarding.get("uid").and_then(|v| v.as_str()).map(String::from),
-            });
-        }
-    }
-
-    // related field
-    if let Some(related) = item.get("related").and_then(|v| v.as_object()) {
-        if let (Some(kind), Some(name)) = (
-            related.get("kind").and_then(|v| v.as_str()),
-            related.get("name").and_then(|v| v.as_str()),
-        ) {
-            relations.push(RelationRef {
-                kind: kind.to_string(),
-                name: name.to_string(),
-                namespace: related
-                    .get("namespace")
-                    .and_then(|v| v.as_str())
-                    .map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    relations
+    Some(RelationRef {
+        kind: kind.clone(),
+        name: name.clone(),
+        namespace: obj_ref.namespace.clone(),
+        api_version: obj_ref.api_version.clone(),
+        uid: obj_ref.uid.clone(),
+    })
 }
 
-fn extract_ingress_relationships(item: &Value) -> Vec<RelationRef> {
+/// Extract container environment variable relationships using typed Container struct
+fn extract_container_env_relations_typed(container: &k8s_openapi::api::core::v1::Container, namespace: Option<&str>) -> Vec<RelationRef> {
     let mut relations = Vec::new();
-    let namespace = item
-        .get("metadata")
-        .and_then(|m| m.get("namespace"))
-        .and_then(|v| v.as_str());
 
-    // ingressClassName
-    if let Some(class_name) = item
-        .get("spec")
-        .and_then(|s| s.get("ingressClassName"))
-        .and_then(|v| v.as_str())
-    {
-        relations.push(RelationRef {
-            kind: "IngressClass".to_string(),
-            name: class_name.to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // backend
-    if let Some(backend) = item.get("spec").and_then(|s| s.get("backend")) {
-        if let Some(rel) = extract_backend_relation(backend, namespace) {
-            relations.push(rel);
-        }
-    }
-
-    // rules
-    if let Some(rules) = item
-        .get("spec")
-        .and_then(|s| s.get("rules"))
-        .and_then(|v| v.as_array())
-    {
-        for rule in rules {
-            if let Some(http) = rule.get("http") {
-                if let Some(paths) = http.get("paths").and_then(|v| v.as_array()) {
-                    for path in paths {
-                        if let Some(backend) = path.get("backend") {
-                            if let Some(rel) = extract_backend_relation(backend, namespace) {
-                                relations.push(rel);
-                            }
-                        }
-                    }
+    // env with valueFrom
+    if let Some(env_vars) = &container.env {
+        for env in env_vars {
+            if let Some(value_from) = &env.value_from {
+                // configMapKeyRef
+                if let Some(config_map_ref) = &value_from.config_map_key_ref {
+                    relations.push(RelationRef {
+                        kind: "ConfigMap".to_string(),
+                        name: config_map_ref.name.clone(),
+                        namespace: namespace.map(String::from),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+                // secretKeyRef
+                if let Some(secret_ref) = &value_from.secret_key_ref {
+                    relations.push(RelationRef {
+                        kind: "Secret".to_string(),
+                        name: secret_ref.name.clone(),
+                        namespace: namespace.map(String::from),
+                        api_version: None,
+                        uid: None,
+                    });
                 }
             }
         }
     }
 
-    // tls secrets
-    if let Some(tls_list) = item
-        .get("spec")
-        .and_then(|s| s.get("tls"))
-        .and_then(|v| v.as_array())
-    {
-        for tls in tls_list {
-            if let Some(secret_name) = tls.get("secretName").and_then(|v| v.as_str()) {
+    // envFrom
+    if let Some(env_from) = &container.env_from {
+        for env in env_from {
+            // configMapRef
+            if let Some(config_map_ref) = &env.config_map_ref {
+                relations.push(RelationRef {
+                    kind: "ConfigMap".to_string(),
+                    name: config_map_ref.name.clone(),
+                    namespace: namespace.map(String::from),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+            // secretRef
+            if let Some(secret_ref) = &env.secret_ref {
                 relations.push(RelationRef {
                     kind: "Secret".to_string(),
-                    name: secret_name.to_string(),
+                    name: secret_ref.name.clone(),
                     namespace: namespace.map(String::from),
                     api_version: None,
                     uid: None,
@@ -140,166 +198,27 @@ fn extract_ingress_relationships(item: &Value) -> Vec<RelationRef> {
     relations
 }
 
-fn extract_backend_relation(backend: &Value, namespace: Option<&str>) -> Option<RelationRef> {
-    // Check for resource backend
-    if let Some(resource) = backend.get("resource").and_then(|v| v.as_object()) {
-        if let (Some(kind), Some(name)) = (
-            resource.get("kind").and_then(|v| v.as_str()),
-            resource.get("name").and_then(|v| v.as_str()),
-        ) {
-            return Some(RelationRef {
-                kind: kind.to_string(),
-                name: name.to_string(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    // Check for service backend (old API)
-    if let Some(service_name) = backend.get("serviceName").and_then(|v| v.as_str()) {
-        return Some(RelationRef {
-            kind: "Service".to_string(),
-            name: service_name.to_string(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // Check for service backend (new API)
-    if let Some(service) = backend.get("service").and_then(|v| v.as_object()) {
-        if let Some(name) = service.get("name").and_then(|v| v.as_str()) {
-            return Some(RelationRef {
-                kind: "Service".to_string(),
-                name: name.to_string(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    None
-}
-
-fn extract_ingressclass_relationships(item: &Value) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    if let Some(parameters) = item
-        .get("spec")
-        .and_then(|s| s.get("parameters"))
-        .and_then(|v| v.as_object())
-    {
-        if let (Some(kind), Some(name)) = (
-            parameters.get("kind").and_then(|v| v.as_str()),
-            parameters.get("name").and_then(|v| v.as_str()),
-        ) {
-            relations.push(RelationRef {
-                kind: kind.to_string(),
-                name: name.to_string(),
-                namespace: parameters
-                    .get("namespace")
-                    .and_then(|v| v.as_str())
-                    .map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    relations
-}
-
-fn extract_pod_relationships(item: &Value) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-    let namespace = item
-        .get("metadata")
-        .and_then(|m| m.get("namespace"))
-        .and_then(|v| v.as_str());
-
-    let spec = match item.get("spec") {
-        Some(s) => s,
-        None => return relations,
-    };
-
-    // nodeName
-    if let Some(node_name) = spec.get("nodeName").and_then(|v| v.as_str()) {
-        relations.push(RelationRef {
-            kind: "Node".to_string(),
-            name: node_name.to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // priorityClassName
-    if let Some(priority_class) = spec.get("priorityClassName").and_then(|v| v.as_str()) {
-        relations.push(RelationRef {
-            kind: "PriorityClass".to_string(),
-            name: priority_class.to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // runtimeClassName
-    if let Some(runtime_class) = spec.get("runtimeClassName").and_then(|v| v.as_str()) {
-        relations.push(RelationRef {
-            kind: "RuntimeClass".to_string(),
-            name: runtime_class.to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // serviceAccountName
-    if let Some(sa_name) = spec.get("serviceAccountName").and_then(|v| v.as_str()) {
-        relations.push(RelationRef {
-            kind: "ServiceAccount".to_string(),
-            name: sa_name.to_string(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // volumes
-    if let Some(volumes) = spec.get("volumes").and_then(|v| v.as_array()) {
-        for volume in volumes {
-            relations.extend(extract_volume_relations(volume, namespace));
-        }
-    }
-
-    relations
-}
-
-fn extract_volume_relations(volume: &Value, namespace: Option<&str>) -> Vec<RelationRef> {
+/// Extract volume relationships using typed Volume struct
+fn extract_volume_relations_typed(volume: &k8s_openapi::api::core::v1::Volume, namespace: Option<&str>) -> Vec<RelationRef> {
     let mut relations = Vec::new();
 
     // ConfigMap
-    if let Some(config_map) = volume.get("configMap").and_then(|v| v.as_object()) {
-        if let Some(name) = config_map.get("name").and_then(|v| v.as_str()) {
-            relations.push(RelationRef {
-                kind: "ConfigMap".to_string(),
-                name: name.to_string(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
+    if let Some(config_map) = &volume.config_map {
+        relations.push(RelationRef {
+            kind: "ConfigMap".to_string(),
+            name: config_map.name.clone(),
+            namespace: namespace.map(String::from),
+            api_version: None,
+            uid: None,
+        });
     }
 
     // Secret
-    if let Some(secret) = volume.get("secret").and_then(|v| v.as_object()) {
-        if let Some(name) = secret.get("secretName").and_then(|v| v.as_str()) {
+    if let Some(secret) = &volume.secret {
+        if let Some(name) = &secret.secret_name {
             relations.push(RelationRef {
                 kind: "Secret".to_string(),
-                name: name.to_string(),
+                name: name.clone(),
                 namespace: namespace.map(String::from),
                 api_version: None,
                 uid: None,
@@ -308,14 +227,29 @@ fn extract_volume_relations(volume: &Value, namespace: Option<&str>) -> Vec<Rela
     }
 
     // PersistentVolumeClaim
-    if let Some(pvc) = volume
-        .get("persistentVolumeClaim")
-        .and_then(|v| v.as_object())
-    {
-        if let Some(name) = pvc.get("claimName").and_then(|v| v.as_str()) {
+    if let Some(pvc) = &volume.persistent_volume_claim {
+        relations.push(RelationRef {
+            kind: "PersistentVolumeClaim".to_string(),
+            name: pvc.claim_name.clone(),
+            namespace: namespace.map(String::from),
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    // CSI
+    if let Some(csi) = &volume.csi {
+        relations.push(RelationRef {
+            kind: "CSIDriver".to_string(),
+            name: csi.driver.clone(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+        });
+        if let Some(secret_ref) = &csi.node_publish_secret_ref {
             relations.push(RelationRef {
-                kind: "PersistentVolumeClaim".to_string(),
-                name: name.to_string(),
+                kind: "Secret".to_string(),
+                name: secret_ref.name.clone(),
                 namespace: namespace.map(String::from),
                 api_version: None,
                 uid: None,
@@ -323,154 +257,24 @@ fn extract_volume_relations(volume: &Value, namespace: Option<&str>) -> Vec<Rela
         }
     }
 
-    // CSI
-    if let Some(csi) = volume.get("csi").and_then(|v| v.as_object()) {
-        if let Some(driver) = csi.get("driver").and_then(|v| v.as_str()) {
-            relations.push(RelationRef {
-                kind: "CSIDriver".to_string(),
-                name: driver.to_string(),
-                namespace: None,
-                api_version: None,
-                uid: None,
-            });
-        }
-        if let Some(secret_ref) = csi.get("nodePublishSecretRef").and_then(|v| v.as_object()) {
-            if let Some(name) = secret_ref.get("name").and_then(|v| v.as_str()) {
-                relations.push(RelationRef {
-                    kind: "Secret".to_string(),
-                    name: name.to_string(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
-    }
-
     // Projected
-    if let Some(projected) = volume.get("projected").and_then(|v| v.as_object()) {
-        if let Some(sources) = projected.get("sources").and_then(|v| v.as_array()) {
+    if let Some(projected) = &volume.projected {
+        if let Some(sources) = &projected.sources {
             for source in sources {
-                if let Some(config_map) = source.get("configMap").and_then(|v| v.as_object()) {
-                    if let Some(name) = config_map.get("name").and_then(|v| v.as_str()) {
-                        relations.push(RelationRef {
-                            kind: "ConfigMap".to_string(),
-                            name: name.to_string(),
-                            namespace: namespace.map(String::from),
-                            api_version: None,
-                            uid: None,
-                        });
-                    }
-                }
-                if let Some(secret) = source.get("secret").and_then(|v| v.as_object()) {
-                    if let Some(name) = secret.get("name").and_then(|v| v.as_str()) {
-                        relations.push(RelationRef {
-                            kind: "Secret".to_string(),
-                            name: name.to_string(),
-                            namespace: namespace.map(String::from),
-                            api_version: None,
-                            uid: None,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    relations
-}
-
-fn extract_clusterrole_relationships(_item: &Value) -> Vec<RelationRef> {
-    // ClusterRole relationships are complex and selector-based
-    // For now, return empty - can be enhanced later
-    Vec::new()
-}
-
-fn extract_pvc_relationships(item: &Value) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    if let Some(volume_name) = item
-        .get("spec")
-        .and_then(|s| s.get("volumeName"))
-        .and_then(|v| v.as_str())
-    {
-        relations.push(RelationRef {
-            kind: "PersistentVolume".to_string(),
-            name: volume_name.to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    relations
-}
-
-fn extract_pv_relationships(item: &Value) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    if let Some(claim_ref) = item
-        .get("spec")
-        .and_then(|s| s.get("claimRef"))
-        .and_then(|v| v.as_object())
-    {
-        if let (Some(kind), Some(name)) = (
-            claim_ref.get("kind").and_then(|v| v.as_str()),
-            claim_ref.get("name").and_then(|v| v.as_str()),
-        ) {
-            relations.push(RelationRef {
-                kind: kind.to_string(),
-                name: name.to_string(),
-                namespace: claim_ref
-                    .get("namespace")
-                    .and_then(|v| v.as_str())
-                    .map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    relations
-}
-
-fn extract_clusterrolebinding_relationships(item: &Value) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    // roleRef
-    if let Some(role_ref) = item.get("roleRef").and_then(|v| v.as_object()) {
-        if let (Some(kind), Some(name)) = (
-            role_ref.get("kind").and_then(|v| v.as_str()),
-            role_ref.get("name").and_then(|v| v.as_str()),
-        ) {
-            if kind == "ClusterRole" {
-                relations.push(RelationRef {
-                    kind: kind.to_string(),
-                    name: name.to_string(),
-                    namespace: None,
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
-    }
-
-    // subjects (ServiceAccounts)
-    if let Some(subjects) = item.get("subjects").and_then(|v| v.as_array()) {
-        for subject in subjects {
-            if let Some(subject_obj) = subject.as_object() {
-                let kind = subject_obj.get("kind").and_then(|v| v.as_str());
-                let name = subject_obj.get("name").and_then(|v| v.as_str());
-
-                if let (Some("ServiceAccount"), Some(sa_name)) = (kind, name) {
-                    let namespace = subject_obj
-                        .get("namespace")
-                        .and_then(|v| v.as_str())
-                        .map(String::from);
+                if let Some(config_map) = &source.config_map {
                     relations.push(RelationRef {
-                        kind: "ServiceAccount".to_string(),
-                        name: sa_name.to_string(),
-                        namespace,
+                        kind: "ConfigMap".to_string(),
+                        name: config_map.name.clone(),
+                        namespace: namespace.map(String::from),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+                if let Some(secret) = &source.secret {
+                    relations.push(RelationRef {
+                        kind: "Secret".to_string(),
+                        name: secret.name.clone(),
+                        namespace: namespace.map(String::from),
                         api_version: None,
                         uid: None,
                     });
@@ -482,29 +286,328 @@ fn extract_clusterrolebinding_relationships(item: &Value) -> Vec<RelationRef> {
     relations
 }
 
-fn extract_statefulset_relationships(item: &Value) -> Vec<RelationRef> {
+/// Extract relationships from a PodSpec (used by DaemonSet, Job, CronJob)
+fn extract_pod_spec_relations(spec: &k8s_openapi::api::core::v1::PodSpec, namespace: Option<&str>) -> Vec<RelationRef> {
     let mut relations = Vec::new();
 
-    // volumeClaimTemplates
-    if let Some(templates) = item
-        .get("spec")
-        .and_then(|s| s.get("volumeClaimTemplates"))
-        .and_then(|v| v.as_array())
-    {
-        let namespace = item
-            .get("metadata")
-            .and_then(|m| m.get("namespace"))
-            .and_then(|v| v.as_str());
+    // serviceAccountName
+    if let Some(sa_name) = &spec.service_account_name {
+        relations.push(RelationRef {
+            kind: "ServiceAccount".to_string(),
+            name: sa_name.clone(),
+            namespace: namespace.map(String::from),
+            api_version: None,
+            uid: None,
+        });
+    }
 
+    // volumes
+    if let Some(volumes) = &spec.volumes {
+        for volume in volumes {
+            relations.extend(extract_volume_relations_typed(volume, namespace));
+        }
+    }
+
+    // environment variables from containers
+    for container in &spec.containers {
+        relations.extend(extract_container_env_relations_typed(container, namespace));
+    }
+
+    // environment variables from initContainers
+    if let Some(init_containers) = &spec.init_containers {
+        for container in init_containers {
+            relations.extend(extract_container_env_relations_typed(container, namespace));
+        }
+    }
+
+    relations
+}
+
+fn extract_event_relationships(event: &Event) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    // involved_object field (required field in Event)
+    if let Some(rel) = object_ref_to_relation(&event.involved_object) {
+        relations.push(rel);
+    }
+
+    // related field (optional)
+    if let Some(related) = &event.related {
+        if let Some(rel) = object_ref_to_relation(related) {
+            relations.push(rel);
+        }
+    }
+
+    relations
+}
+
+fn extract_ingress_relationships(ingress: &Ingress) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+    let namespace = ingress.metadata.namespace.as_deref();
+
+    let spec = match &ingress.spec {
+        Some(s) => s,
+        None => return relations,
+    };
+
+    // ingressClassName
+    if let Some(class_name) = &spec.ingress_class_name {
+        relations.push(RelationRef {
+            kind: "IngressClass".to_string(),
+            name: class_name.clone(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    // default backend
+    if let Some(backend) = &spec.default_backend {
+        if let Some(service) = &backend.service {
+            relations.push(RelationRef {
+                kind: "Service".to_string(),
+                name: service.name.clone(),
+                namespace: namespace.map(String::from),
+                api_version: None,
+                uid: None,
+            });
+        }
+        if let Some(resource) = &backend.resource {
+            relations.push(RelationRef {
+                kind: resource.kind.clone(),
+                name: resource.name.clone(),
+                namespace: namespace.map(String::from),
+                api_version: resource.api_group.clone(),
+                uid: None,
+            });
+        }
+    }
+
+    // rules
+    if let Some(rules) = &spec.rules {
+        for rule in rules {
+            if let Some(http) = &rule.http {
+                for path in &http.paths {
+                    if let Some(service) = &path.backend.service {
+                        relations.push(RelationRef {
+                            kind: "Service".to_string(),
+                            name: service.name.clone(),
+                            namespace: namespace.map(String::from),
+                            api_version: None,
+                            uid: None,
+                        });
+                    }
+                    if let Some(resource) = &path.backend.resource {
+                        relations.push(RelationRef {
+                            kind: resource.kind.clone(),
+                            name: resource.name.clone(),
+                            namespace: namespace.map(String::from),
+                            api_version: resource.api_group.clone(),
+                            uid: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // tls secrets
+    if let Some(tls_list) = &spec.tls {
+        for tls in tls_list {
+            if let Some(secret_name) = &tls.secret_name {
+                relations.push(RelationRef {
+                    kind: "Secret".to_string(),
+                    name: secret_name.clone(),
+                    namespace: namespace.map(String::from),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+        }
+    }
+
+    relations
+}
+
+fn extract_ingressclass_relationships(ingress_class: &IngressClass) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    if let Some(spec) = &ingress_class.spec {
+        if let Some(parameters) = &spec.parameters {
+            relations.push(RelationRef {
+                kind: parameters.kind.clone(),
+                name: parameters.name.clone(),
+                namespace: parameters.namespace.clone(),
+                api_version: parameters.api_group.clone(),
+                uid: None,
+            });
+        }
+    }
+
+    relations
+}
+
+fn extract_pod_relationships(pod: &Pod) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+    let namespace = pod.metadata.namespace.as_deref();
+
+    let spec = match &pod.spec {
+        Some(s) => s,
+        None => return relations,
+    };
+
+    // nodeName
+    if let Some(node_name) = &spec.node_name {
+        relations.push(RelationRef {
+            kind: "Node".to_string(),
+            name: node_name.clone(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    // priorityClassName
+    if let Some(priority_class) = &spec.priority_class_name {
+        relations.push(RelationRef {
+            kind: "PriorityClass".to_string(),
+            name: priority_class.clone(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    // runtimeClassName
+    if let Some(runtime_class) = &spec.runtime_class_name {
+        relations.push(RelationRef {
+            kind: "RuntimeClass".to_string(),
+            name: runtime_class.clone(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    // serviceAccountName
+    if let Some(sa_name) = &spec.service_account_name {
+        relations.push(RelationRef {
+            kind: "ServiceAccount".to_string(),
+            name: sa_name.clone(),
+            namespace: namespace.map(String::from),
+            api_version: None,
+            uid: None,
+        });
+    }
+
+    // volumes (includes ConfigMap and Secret references)
+    if let Some(volumes) = &spec.volumes {
+        for volume in volumes {
+            relations.extend(extract_volume_relations_typed(volume, namespace));
+        }
+    }
+
+    // environment variables from containers
+    for container in &spec.containers {
+        relations.extend(extract_container_env_relations_typed(container, namespace));
+    }
+
+    // environment variables from initContainers
+    if let Some(init_containers) = &spec.init_containers {
+        for container in init_containers {
+            relations.extend(extract_container_env_relations_typed(container, namespace));
+        }
+    }
+
+    relations
+}
+
+fn extract_clusterrole_relationships(_cluster_role: &ClusterRole) -> Vec<RelationRef> {
+    // ClusterRole relationships are complex and selector-based
+    // For now, return empty - can be enhanced later
+    Vec::new()
+}
+
+fn extract_pvc_relationships(pvc: &PersistentVolumeClaim) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    if let Some(spec) = &pvc.spec {
+        if let Some(volume_name) = &spec.volume_name {
+            relations.push(RelationRef {
+                kind: "PersistentVolume".to_string(),
+                name: volume_name.clone(),
+                namespace: None,
+                api_version: None,
+                uid: None,
+            });
+        }
+    }
+
+    relations
+}
+
+fn extract_pv_relationships(pv: &PersistentVolume) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    if let Some(spec) = &pv.spec {
+        if let Some(claim_ref) = &spec.claim_ref {
+            if let Some(rel) = object_ref_to_relation(claim_ref) {
+                relations.push(rel);
+            }
+        }
+    }
+
+    relations
+}
+
+fn extract_clusterrolebinding_relationships(crb: &ClusterRoleBinding) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    // roleRef
+    if crb.role_ref.kind == "ClusterRole" {
+        relations.push(RelationRef {
+            kind: crb.role_ref.kind.clone(),
+            name: crb.role_ref.name.clone(),
+            namespace: None,
+            api_version: Some(crb.role_ref.api_group.clone()),
+            uid: None,
+        });
+    }
+
+    // subjects (ServiceAccounts)
+    if let Some(subjects) = &crb.subjects {
+        for subject in subjects {
+            if subject.kind == "ServiceAccount" {
+                relations.push(RelationRef {
+                    kind: "ServiceAccount".to_string(),
+                    name: subject.name.clone(),
+                    namespace: subject.namespace.clone(),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+        }
+    }
+
+    relations
+}
+
+fn extract_statefulset_relationships(sts: &StatefulSet) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+    let namespace = sts.metadata.namespace.as_deref();
+
+    let spec = match &sts.spec {
+        Some(s) => s,
+        None => return relations,
+    };
+
+    // volumeClaimTemplates
+    if let Some(templates) = &spec.volume_claim_templates {
         for template in templates {
-            if let Some(name) = template
-                .get("metadata")
-                .and_then(|m| m.get("name"))
-                .and_then(|v| v.as_str())
-            {
+            if let Some(name) = &template.metadata.name {
                 relations.push(RelationRef {
                     kind: "PersistentVolumeClaim".to_string(),
-                    name: name.to_string(),
+                    name: name.clone(),
                     namespace: namespace.map(String::from),
                     api_version: None,
                     uid: None,
@@ -514,19 +617,10 @@ fn extract_statefulset_relationships(item: &Value) -> Vec<RelationRef> {
     }
 
     // serviceName
-    if let Some(service_name) = item
-        .get("spec")
-        .and_then(|s| s.get("serviceName"))
-        .and_then(|v| v.as_str())
-    {
-        let namespace = item
-            .get("metadata")
-            .and_then(|m| m.get("namespace"))
-            .and_then(|v| v.as_str());
-
+    if let Some(service_name) = &spec.service_name {
         relations.push(RelationRef {
             kind: "Service".to_string(),
-            name: service_name.to_string(),
+            name: service_name.clone(),
             namespace: namespace.map(String::from),
             api_version: None,
             uid: None,
@@ -536,73 +630,108 @@ fn extract_statefulset_relationships(item: &Value) -> Vec<RelationRef> {
     relations
 }
 
-fn extract_daemonset_relationships(_item: &Value) -> Vec<RelationRef> {
-    // DaemonSets primarily use label selectors for pod matching
-    // Can be enhanced later to include node selectors
-    Vec::new()
+fn extract_daemonset_relationships(ds: &DaemonSet) -> Vec<RelationRef> {
+    let namespace = ds.metadata.namespace.as_deref();
+
+    let spec = match &ds.spec {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let pod_spec = match &spec.template.spec {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    extract_pod_spec_relations(pod_spec, namespace)
 }
 
-fn extract_job_relationships(_item: &Value) -> Vec<RelationRef> {
-    // Jobs create pods via label selectors
-    // Can be enhanced later if needed
-    Vec::new()
+fn extract_job_relationships(job: &Job) -> Vec<RelationRef> {
+    let namespace = job.metadata.namespace.as_deref();
+
+    let spec = match &job.spec {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let pod_spec = match &spec.template.spec {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    extract_pod_spec_relations(pod_spec, namespace)
 }
 
-fn extract_cronjob_relationships(_item: &Value) -> Vec<RelationRef> {
-    // CronJobs create Jobs via template
-    // Can be enhanced later if needed
-    Vec::new()
+fn extract_cronjob_relationships(cronjob: &CronJob) -> Vec<RelationRef> {
+    let namespace = cronjob.metadata.namespace.as_deref();
+
+    let spec = match &cronjob.spec {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let job_spec = match &spec.job_template.spec {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let pod_spec = match &job_spec.template.spec {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    extract_pod_spec_relations(pod_spec, namespace)
 }
 
-fn extract_hpa_relationships(item: &Value) -> Vec<RelationRef> {
+fn extract_hpa_relationships(hpa: &HorizontalPodAutoscaler) -> Vec<RelationRef> {
     let mut relations = Vec::new();
+    let namespace = hpa.metadata.namespace.as_deref();
 
-    // scaleTargetRef
-    if let Some(scale_target) = item
-        .get("spec")
-        .and_then(|s| s.get("scaleTargetRef"))
-        .and_then(|v| v.as_object())
-    {
-        if let (Some(kind), Some(name)) = (
-            scale_target.get("kind").and_then(|v| v.as_str()),
-            scale_target.get("name").and_then(|v| v.as_str()),
-        ) {
-            let namespace = item
-                .get("metadata")
-                .and_then(|m| m.get("namespace"))
-                .and_then(|v| v.as_str());
-
-            relations.push(RelationRef {
-                kind: kind.to_string(),
-                name: name.to_string(),
-                namespace: namespace.map(String::from),
-                api_version: scale_target
-                    .get("apiVersion")
-                    .and_then(|v| v.as_str())
-                    .map(String::from),
-                uid: None,
-            });
-        }
+    if let Some(spec) = &hpa.spec {
+        // scaleTargetRef
+        let scale_target = &spec.scale_target_ref;
+        relations.push(RelationRef {
+            kind: scale_target.kind.clone(),
+            name: scale_target.name.clone(),
+            namespace: namespace.map(String::from),
+            api_version: scale_target.api_version.clone(),
+            uid: None,
+        });
     }
 
     relations
 }
 
+fn extract_service_relationships(_service: &Service) -> Vec<RelationRef> {
+    // Service → Pod relationships are selector-based and handled via the selector field
+    // in the Resource struct, which is processed in tree.rs link_nodes()
+    // The selector matching happens in tree.rs using the selectors_match function
+    Vec::new()
+}
+
+fn extract_networkpolicy_relationships(_network_policy: &NetworkPolicy) -> Vec<RelationRef> {
+    // NetworkPolicy → Pod relationships are selector-based (via spec.podSelector)
+    // and handled via the selector field in the Resource struct
+    // The selector matching happens in tree.rs link_nodes()
+    Vec::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k8s_openapi::serde_json::json;
+    use k8s_openapi::{api::core::v1::Pod, serde_json::json};
 
     #[test]
     fn test_extract_event_relationships() {
-        let event = json!({
-            "regarding": {
+        let event_json = json!({
+            "involvedObject": {
                 "kind": "Pod",
                 "name": "test-pod",
                 "namespace": "default"
             }
         });
 
+        let event: Event = from_value(event_json).unwrap();
         let relations = extract_event_relationships(&event);
         assert_eq!(relations.len(), 1);
         assert_eq!(relations[0].kind, "Pod");
@@ -611,16 +740,18 @@ mod tests {
 
     #[test]
     fn test_extract_pod_relationships() {
-        let pod = json!({
+        let pod_json = json!({
             "metadata": {
                 "namespace": "default"
             },
             "spec": {
                 "nodeName": "node-1",
-                "serviceAccountName": "default"
+                "serviceAccountName": "default",
+                "containers": []
             }
         });
 
+        let pod: Pod = from_value(pod_json).unwrap();
         let relations = extract_pod_relationships(&pod);
         assert_eq!(relations.len(), 2);
         assert!(relations.iter().any(|r| r.kind == "Node"));

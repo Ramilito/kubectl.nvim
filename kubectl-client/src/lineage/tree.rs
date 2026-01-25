@@ -198,8 +198,17 @@ impl Tree {
                     });
 
                     if self.nodes.contains_key(&relation_key) {
+                        // Add forward relationship (node -> relation)
                         if let Some(n) = self.nodes.get_mut(node_key) {
-                            n.add_leaf(relation_key);
+                            n.add_leaf(relation_key.clone());
+                        }
+
+                        // Add reverse relationship for ConfigMap/Secret
+                        // When viewing a ConfigMap or Secret, show which Pods consume it
+                        if relation.kind == "ConfigMap" || relation.kind == "Secret" {
+                            if let Some(n) = self.nodes.get_mut(&relation_key) {
+                                n.add_leaf(node_key.clone());
+                            }
                         }
                     }
                 }
