@@ -115,4 +115,29 @@ Always convert errors to `LuaError` for proper propagation:
 
 ### Tracing
 
-Use `#[tracing::instrument]` on exported functions. Logging configured via telemetry feature or fallback logger.
+Use `#[tracing::instrument]` for OpenTelemetry instrumentation (viewable in Jaeger).
+
+**When to instrument:**
+- Entry point functions (exported to Lua)
+- Key processing functions that are NOT called in loops
+- Functions where you want to understand data flow timing
+
+**When NOT to instrument:**
+- Functions called in tight loops (causes trace explosion)
+- Recursive helpers
+- Simple getters/setters
+- Internal helpers called per-item in collections
+
+**Pattern:**
+```rust
+#[tracing::instrument(skip(large_param), fields(useful_field = %value))]
+pub fn process_something(large_param: &Value, name: &str) -> Result<()> {
+```
+
+- Use `skip()` for large parameters (JSON, structs, `self`)
+- Use `fields()` to add useful context (kind, name, counts)
+
+**Finding functions to instrument:**
+```bash
+grep -n "^pub fn\|^pub async fn" <file>  # Find public functions
+```

@@ -17,6 +17,19 @@ model: sonnet
 
 For general Lua patterns or Neovim API usage, use the `lua` subagent.
 
+## Delegation Rules
+
+**Delegate to `rust` subagent for:**
+- Adding tracing/instrumentation to Rust code
+- Telemetry or logging changes
+- Any cross-cutting Rust concerns not specific to lineage logic
+
+## Token Efficiency
+
+**File read strategy:**
+- **Use Grep with -A context** to find specific functions instead of full file reads
+- **Rust files**: Read lines 1-50 for imports + structs, use Grep for specific functions
+
 ## File Map
 
 | Layer | File | Purpose |
@@ -26,8 +39,7 @@ For general Lua patterns or Neovim API usage, use the `lua` subagent.
 | Rust | `kubectl-client/src/lineage/tree.rs` | Tree/TreeNode structs, graph algorithms |
 | Lua | `lua/kubectl/views/lineage/init.lua` | View lifecycle (View, Draw, load_cache), keymaps, folding |
 | Lua | `lua/kubectl/views/lineage/definition.lua` | Resource collection, display formatting |
-| Lua | `lua/kubectl/views/lineage/tree.lua` | DEPRECATED - kept for backward compatibility |
-| Lua | `lua/kubectl/views/lineage/relationships.lua` | DEPRECATED - relationships now extracted in Rust |
+| Lua | `lua/kubectl/views/lineage/mappings.lua` | Lineage-specific keybindings |
 
 ## Data Flow
 
@@ -116,15 +128,16 @@ local row = {
 
 | Function | Location | Purpose |
 |----------|----------|---------|
-| `build_lineage_graph()` | `builder.rs:11-61` | Main entry point, builds tree and returns Lua table |
-| `parse_resource()` | `builder.rs:64-162` | Parse JSON resource, extract owners and relationships |
-| `extract_relationships()` | `relationships.rs:5-21` | Dispatch relationship extraction by kind |
-| `extract_pod_relationships()` | `relationships.rs:211-275` | Extract Pod → Node, ServiceAccount, ConfigMap, etc. |
-| `extract_hpa_relationships()` | `relationships.rs:562-594` | Extract HPA → scaleTargetRef |
-| `Tree::add_node()` | `tree.rs:94-104` | Add resource node to graph |
-| `Tree::link_nodes()` | `tree.rs:106-207` | Build parent-child and leaf relationships |
-| `Tree::get_related_items()` | `tree.rs:209-276` | Find all related nodes for selection |
-| `TreeNode::get_resource_key()` | `tree.rs:55-60` | Generate unique key based on namespace |
+| `build_lineage_graph_worker()` | `builder.rs:95` | Async entry point, builds tree |
+| `get_lineage_related_nodes()` | `builder.rs:163` | Get related nodes for stored tree |
+| `build_lineage_graph()` | `builder.rs:181` | Sync entry point, returns Lua table |
+| `extract_relationships()` | `relationships.rs:15` | Dispatch relationship extraction by kind |
+| `TreeNode::new()` | `tree.rs:43` | Create node from resource |
+| `TreeNode::get_resource_key()` | `tree.rs:55` | Generate unique key based on namespace |
+| `Tree::new()` | `tree.rs:80` | Create tree with root resource |
+| `Tree::add_node()` | `tree.rs:89` | Add resource node to graph |
+| `Tree::link_nodes()` | `tree.rs:102` | Build parent-child and leaf relationships |
+| `Tree::get_related_items()` | `tree.rs:251` | Find all related nodes for selection |
 
 ### Lua Functions
 
