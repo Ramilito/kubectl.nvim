@@ -277,28 +277,11 @@ function M.getCurrentSelection()
   local selection = vim.split(line, ":")
   local columns = vim.split(selection[2], "/")
 
-  local kind = vim.trim(selection[1])
+  local kind = string.lower(vim.trim(selection[1]))
   local ns = vim.trim(columns[1])
   local name = vim.trim(columns[2])
 
-  -- Convert singular kind to plural resource name using cache
-  local plural_kind = nil
-  for _, value in pairs(cache.cached_api_resources.values) do
-    if value.gvk and value.gvk.k == kind then
-      plural_kind = value.crd_name
-      break
-    end
-  end
-
-  -- Fallback to naive pluralization if not found in cache
-  if not plural_kind then
-    plural_kind = string.lower(kind)
-    if plural_kind:sub(-1) ~= "s" then
-      plural_kind = plural_kind .. "s"
-    end
-  end
-
-  return plural_kind, ns, name
+  return kind, ns, name
 end
 
 return M
