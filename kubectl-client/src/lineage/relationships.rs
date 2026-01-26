@@ -438,27 +438,18 @@ mod tests {
         assert!(!is_resource_orphan("ServiceAccount", "default", Some("kube-system"), &no_refs, None, None));
         assert!(!is_resource_orphan("ServiceAccount", "default", Some("my-namespace"), &no_refs, None, None));
 
-        // ServiceAccounts in system namespaces are never orphans
-        assert!(!is_resource_orphan("ServiceAccount", "my-sa", Some("kube-system"), &no_refs, None, None));
-        assert!(!is_resource_orphan("ServiceAccount", "my-sa", Some("kube-public"), &no_refs, None, None));
-        assert!(!is_resource_orphan("ServiceAccount", "my-sa", Some("kube-node-lease"), &no_refs, None, None));
-
-        // Non-system ServiceAccount with no refs is orphan
+        // Non-default ServiceAccount with no refs is orphan (even in system namespaces)
+        assert!(is_resource_orphan("ServiceAccount", "my-sa", Some("kube-system"), &no_refs, None, None));
         assert!(is_resource_orphan("ServiceAccount", "my-sa", Some("default"), &no_refs, None, None));
 
-        // System ConfigMaps are never orphans
+        // Specific system ConfigMaps are never orphans
         assert!(!is_resource_orphan("ConfigMap", "kube-root-ca.crt", Some("default"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ConfigMap", "kube-root-ca.crt", Some("kube-system"), &no_refs, None, None));
         assert!(!is_resource_orphan("ConfigMap", "extension-apiserver-authentication", Some("kube-system"), &no_refs, None, None));
-        assert!(!is_resource_orphan("ConfigMap", "my-cm", Some("kube-system"), &no_refs, None, None));
-        assert!(!is_resource_orphan("ConfigMap", "my-cm", Some("kube-public"), &no_refs, None, None));
 
-        // Non-system ConfigMap with no refs is orphan
+        // Other ConfigMaps with no refs are orphans (even in system namespaces)
+        assert!(is_resource_orphan("ConfigMap", "my-cm", Some("kube-system"), &no_refs, None, None));
         assert!(is_resource_orphan("ConfigMap", "my-cm", Some("default"), &no_refs, None, None));
-
-        // Secrets in system namespaces are never orphans
-        assert!(!is_resource_orphan("Secret", "my-secret", Some("kube-system"), &no_refs, None, None));
-        assert!(!is_resource_orphan("Secret", "my-secret", Some("kube-public"), &no_refs, None, None));
-        assert!(!is_resource_orphan("Secret", "my-secret", Some("kube-node-lease"), &no_refs, None, None));
 
         // Service account token secrets are never orphans (checked via label or type)
         let mut sa_labels = std::collections::HashMap::new();
@@ -468,15 +459,15 @@ mod tests {
         // Service account token secrets detected by type
         assert!(!is_resource_orphan("Secret", "token-secret", Some("default"), &no_refs, None, Some("kubernetes.io/service-account-token")));
 
-        // Non-system Secret with no refs is orphan
+        // Other Secrets with no refs are orphans (even in system namespaces)
+        assert!(is_resource_orphan("Secret", "my-secret", Some("kube-system"), &no_refs, None, None));
         assert!(is_resource_orphan("Secret", "my-secret", Some("default"), &no_refs, None, None));
 
-        // System Services are never orphans
+        // Only "kubernetes" Service in default namespace is never orphan
         assert!(!is_resource_orphan("Service", "kubernetes", Some("default"), &no_refs, None, None));
-        assert!(!is_resource_orphan("Service", "my-service", Some("kube-system"), &no_refs, None, None));
-        assert!(!is_resource_orphan("Service", "my-service", Some("kube-public"), &no_refs, None, None));
 
-        // Non-system Service with no refs is orphan
+        // Other Services with no refs are orphans (even in system namespaces)
+        assert!(is_resource_orphan("Service", "my-service", Some("kube-system"), &no_refs, None, None));
         assert!(is_resource_orphan("Service", "my-service", Some("default"), &no_refs, None, None));
     }
 }

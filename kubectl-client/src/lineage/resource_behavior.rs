@@ -15,41 +15,25 @@ use k8s_openapi::api::{
 };
 use k8s_openapi::kube_aggregator::pkg::apis::apiregistration::v1::APIService;
 
-/// System namespaces that should never have orphan resources
-const SYSTEM_NAMESPACES: &[&str] = &["kube-system", "kube-public", "kube-node-lease"];
-
 /// Check if a resource is a system ClusterRole that should never be considered orphan
 fn is_system_cluster_role(name: &str) -> bool {
     matches!(name, "admin" | "edit" | "view" | "sudoer" | "cluster-admin")
         || name.starts_with("system:")
 }
 
-/// Check if a resource is in a system namespace
-fn is_system_namespace(namespace: Option<&str>) -> bool {
-    namespace.map_or(false, |ns| SYSTEM_NAMESPACES.contains(&ns))
+/// Check if a ServiceAccount is a system default (only "default" SA, not all in system namespaces)
+fn is_system_service_account(name: &str) -> bool {
+    name == "default"
 }
 
-/// Check if a ServiceAccount is a system default
-fn is_system_service_account(name: &str, namespace: Option<&str>) -> bool {
-    name == "default" || is_system_namespace(namespace)
+/// Check if a ConfigMap is a system resource (specific ConfigMaps, not all in system namespaces)
+fn is_system_config_map(name: &str) -> bool {
+    name == "kube-root-ca.crt" || name == "extension-apiserver-authentication"
 }
 
-/// Check if a ConfigMap is a system resource
-fn is_system_config_map(name: &str, namespace: Option<&str>) -> bool {
-    name == "kube-root-ca.crt"
-        || name == "extension-apiserver-authentication"
-        || is_system_namespace(namespace)
-}
-
-/// Check if a Secret is a system resource
-/// Note: Service account token secrets are checked separately via type field
-fn is_system_secret(namespace: Option<&str>) -> bool {
-    is_system_namespace(namespace)
-}
-
-/// Check if a Service is a system resource
+/// Check if a Service is a system resource (only "kubernetes" service in default namespace)
 fn is_system_service(name: &str, namespace: Option<&str>) -> bool {
-    (name == "kubernetes" && namespace == Some("default")) || is_system_namespace(namespace)
+    name == "kubernetes" && namespace == Some("default")
 }
 
 /// Trait for defining resource-specific behavior in the lineage graph
@@ -889,9 +873,9 @@ impl ResourceBehavior for ConfigMapBehavior {
         Vec::new()
     }
 
-    fn is_orphan(name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
-        // System ConfigMaps are never orphans
-        if is_system_config_map(name, namespace) {
+    fn is_orphan(name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+        // System ConfigMaps are never orphans (kube-root-ca.crt, extension-apiserver-authentication)
+        if is_system_config_map(name) {
             return false;
         }
 
@@ -907,12 +891,7 @@ impl ResourceBehavior for SecretBehavior {
         Vec::new()
     }
 
-    fn is_orphan(_name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], labels: Option<&std::collections::HashMap<String, String>>, resource_type: Option<&str>) -> bool {
-        // System namespace secrets are never orphans
-        if is_system_secret(namespace) {
-            return false;
-        }
-
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], labels: Option<&std::collections::HashMap<String, String>>, resource_type: Option<&str>) -> bool {
         // Service account token secrets are never orphans (automatically managed by Kubernetes)
         // Check the Secret type field first (most reliable)
         if let Some(secret_type) = resource_type {
@@ -973,9 +952,9 @@ impl ResourceBehavior for ServiceAccount {
         relations
     }
 
-    fn is_orphan(name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
-        // System ServiceAccounts are never orphans
-        if is_system_service_account(name, namespace) {
+    fn is_orphan(name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+        // Only "default" ServiceAccount is never an orphan (it's auto-created in every namespace)
+        if is_system_service_account(name) {
             return false;
         }
 
