@@ -11,7 +11,7 @@ use super::tree::{RelationRef, Resource, Tree};
 static LINEAGE_TREES: LazyLock<Mutex<HashMap<String, Tree>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Serializable version of TreeNode for JSON output
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, serde::Deserialize)]
 struct SerializableNode {
     key: String,
     kind: String,
@@ -24,7 +24,7 @@ struct SerializableNode {
     resource: SerializableResource,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, serde::Deserialize)]
 struct SerializableResource {
     kind: String,
     name: String,
@@ -60,7 +60,7 @@ impl SerializableNode {
 }
 
 /// Result structure for lineage graph building
-#[derive(Serialize)]
+#[derive(Serialize, serde::Deserialize)]
 struct TreeResult {
     tree_id: String,
     nodes: Vec<SerializableNode>,
@@ -68,7 +68,7 @@ struct TreeResult {
 }
 
 /// Input structure for build_lineage_graph_worker
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct BuildGraphInput {
     resources: Vec<ResourceInput>,
     root_name: String,
@@ -90,11 +90,19 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
     let tree_id = input.root_name.clone();
 
     // Convert typed input resources to our Resource struct
+    let total_resources = input.resources.len();
     let parsed_resources: Vec<Resource> = input
         .resources
         .into_iter()
         .filter_map(parse_resource_typed)
         .collect();
+
+    tracing::info!(
+        total_input = total_resources,
+        parsed = parsed_resources.len(),
+        filtered = total_resources - parsed_resources.len(),
+        "Resource parsing completed"
+    );
 
     // Create root resource (cluster) - use tree_id which is root_name
     let root_resource = Resource {
@@ -108,6 +116,7 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
         owners: None,
         relations: None,
         is_orphan: false,
+        resource_type: None,
     };
 
     // Build the tree with pre-allocated capacity
@@ -305,6 +314,7 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
         owners: None,
         relations: None,
         is_orphan: false,
+        resource_type: None,
     };
 
     // Build the tree with pre-allocated capacity
@@ -326,11 +336,23 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
 /// Extracts all needed fields from the JSON
 fn parse_resource_typed(input: ResourceInput) -> Option<Resource> {
     // Extract kind - can be at top level or we skip this resource
-    let kind = input.get("kind").and_then(|v| v.as_str())?.to_string();
+    let kind = input.get("kind").and_then(|v| v.as_str())?;
 
-    // Extract metadata
+    // Extract metadata early to get name for logging
     let metadata = input.get("metadata")?;
-    let name = metadata.get("name").and_then(|v| v.as_str())?.to_string();
+    let name = metadata.get("name").and_then(|v| v.as_str())?;
+
+    // Log when we're parsing RBAC resources
+    if kind.to_lowercase().contains("role") {
+        tracing::debug!(
+            resource_kind = %kind,
+            resource_name = %name,
+            "Parsing RBAC resource"
+        );
+    }
+
+    let kind = kind.to_string();
+    let name = name.to_string();
     let namespace = metadata
         .get("namespace")
         .and_then(|v| v.as_str())
@@ -409,6 +431,14 @@ fn parse_resource_typed(input: ResourceInput) -> Option<Resource> {
     // Extract relationships using Rust relationship extraction (uses full raw JSON)
     let relations = super::relationships::extract_relationships(&kind, &input);
 
+    // Extract resource-specific type information
+    // For Secrets, extract the type field (e.g., "kubernetes.io/service-account-token")
+    let resource_type = if kind == "Secret" {
+        input.get("type").and_then(|v| v.as_str()).map(String::from)
+    } else {
+        None
+    };
+
     Some(Resource {
         kind,
         name,
@@ -424,6 +454,7 @@ fn parse_resource_typed(input: ResourceInput) -> Option<Resource> {
             Some(relations)
         },
         is_orphan: false,
+        resource_type,
     })
 }
 

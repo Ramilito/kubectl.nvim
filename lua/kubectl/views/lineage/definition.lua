@@ -27,29 +27,28 @@ function M.processRow(rows, cached_api_resources)
     return
   end
   for _, item in ipairs(rows) do
-    if not item.kind or not item.metadata or not item.metadata.name then
-      return
-    end
+    -- Skip invalid items instead of returning (which would skip all remaining items)
+    if item.kind and item.metadata and item.metadata.name then
+      -- Clear managedFields to reduce payload size
+      item.metadata.managedFields = nil
 
-    -- Clear managedFields to reduce payload size
-    item.metadata.managedFields = nil
-
-    -- Find cache key for this resource
-    local cache_key = nil
-    for _, value in pairs(cached_api_resources.values) do
-      if value.api_version and item.apiVersion then
-        if string.lower(value.api_version) == string.lower(item.apiVersion) and value.gvk.k == item.kind then
-          cache_key = value.crd_name
+      -- Find cache key for this resource
+      local cache_key = nil
+      for _, value in pairs(cached_api_resources.values) do
+        if value.api_version and item.apiVersion then
+          if string.lower(value.api_version) == string.lower(item.apiVersion) and value.gvk.k == item.kind then
+            cache_key = value.crd_name
+          end
         end
       end
-    end
 
-    -- Add the raw item to the cache - Rust will extract all needed fields
-    if cache_key then
-      if not cached_api_resources.values[cache_key].data then
-        cached_api_resources.values[cache_key].data = {}
+      -- Add the raw item to the cache - Rust will extract all needed fields
+      if cache_key then
+        if not cached_api_resources.values[cache_key].data then
+          cached_api_resources.values[cache_key].data = {}
+        end
+        table.insert(cached_api_resources.values[cache_key].data, item)
       end
-      table.insert(cached_api_resources.values[cache_key].data, item)
     end
   end
 end

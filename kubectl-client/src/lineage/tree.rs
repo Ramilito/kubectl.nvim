@@ -27,6 +27,9 @@ pub struct Resource {
     pub owners: Option<Vec<RelationRef>>,
     pub relations: Option<Vec<RelationRef>>,
     pub is_orphan: bool,
+    /// Resource-specific type information (e.g., Secret type like "kubernetes.io/service-account-token")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_type: Option<String>,
 }
 
 /// Reference to a related resource
@@ -105,6 +108,9 @@ impl Tree {
 
     #[tracing::instrument(skip(self), fields(node_count = self.key_to_index.len()))]
     pub fn link_nodes(&mut self) {
+        // Track missing relationship targets for summary reporting
+        let mut missing_targets: HashMap<String, Vec<(String, String)>> = HashMap::new();
+
         // Collect all node keys to avoid borrow checker issues
         let node_keys: Vec<String> = self.key_to_index.keys().cloned().collect();
 
@@ -133,6 +139,7 @@ impl Tree {
                         owners: None,
                         relations: None,
                         is_orphan: false,
+                        resource_type: None,
                     }.get_resource_key())
                 } else {
                     None
@@ -211,12 +218,33 @@ impl Tree {
                         owners: None,
                         relations: None,
                         is_orphan: false,
+                        resource_type: None,
                     }.get_resource_key();
 
                     if let Some(&relation_idx) = self.key_to_index.get(&relation_key) {
                         let is_config_or_secret =
                             relation.kind == "ConfigMap" || relation.kind == "Secret";
                         relation_updates.push((relation_idx, is_config_or_secret));
+                        tracing::debug!(
+                            source_key = %node_key,
+                            target_key = %relation_key,
+                            relation_kind = %relation.kind,
+                            "Found relation target in graph"
+                        );
+                    } else {
+                        // Track missing target for summary
+                        missing_targets
+                            .entry(relation.kind.clone())
+                            .or_insert_with(Vec::new)
+                            .push((node_key.clone(), relation.name.clone()));
+
+                        tracing::warn!(
+                            source_key = %node_key,
+                            target_key = %relation_key,
+                            relation_kind = %relation.kind,
+                            relation_name = %relation.name,
+                            "Relation target NOT found in graph - edges will not be created"
+                        );
                     }
                 }
 
@@ -228,6 +256,39 @@ impl Tree {
                         .add_edge(node_idx, relation_idx, EdgeType::References);
                     self.graph
                         .add_edge(relation_idx, node_idx, EdgeType::References);
+                }
+            }
+        }
+
+        // Log summary of missing relationship targets
+        if !missing_targets.is_empty() {
+            let total_missing: usize = missing_targets.values().map(|v| v.len()).sum();
+            tracing::warn!(
+                missing_kinds = ?missing_targets.keys().collect::<Vec<_>>(),
+                total_missing_edges = total_missing,
+                "Graph construction incomplete: some relationship targets not found in graph"
+            );
+
+            // Log details for each missing kind
+            for (kind, sources) in missing_targets.iter() {
+                if sources.len() <= 5 {
+                    // If few missing, log them all
+                    for (source_key, target_name) in sources {
+                        tracing::info!(
+                            missing_kind = %kind,
+                            source = %source_key,
+                            target_name = %target_name,
+                            "Missing relationship target"
+                        );
+                    }
+                } else {
+                    // If many missing, log summary + first few
+                    tracing::warn!(
+                        missing_kind = %kind,
+                        count = sources.len(),
+                        examples = ?sources.iter().take(3).map(|(s, t)| format!("{} -> {}", s, t)).collect::<Vec<_>>(),
+                        "Many resources missing this relationship target (showing first 3)"
+                    );
                 }
             }
         }
@@ -267,6 +328,10 @@ impl Tree {
 
             let resource = &self.graph[idx];
             let kind = &resource.kind;
+            let name = &resource.name;
+            let namespace = resource.namespace.as_deref();
+            let labels = resource.labels.as_ref();
+            let resource_type = resource.resource_type.as_deref();
 
             // Collect incoming References edges with their source kinds (excluding root)
             let incoming_refs: Vec<(EdgeType, String)> = self
@@ -286,7 +351,7 @@ impl Tree {
                 .collect();
 
             // Determine orphan status using per-resource logic
-            let is_orphan = super::relationships::is_resource_orphan(kind, &incoming_refs_slice);
+            let is_orphan = super::relationships::is_resource_orphan(kind, name, namespace, &incoming_refs_slice, labels, resource_type);
 
             // Update the resource's orphan status
             if let Some(resource) = self.graph.node_weight_mut(idx) {
@@ -781,6 +846,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let key = resource.get_resource_key();
@@ -800,6 +866,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let key = resource.get_resource_key();
@@ -842,6 +909,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let mut tree = Tree::new(root);
@@ -862,6 +930,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         tree.add_node(deployment);
@@ -888,6 +957,7 @@ mod tests {
             }]),
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         tree.add_node(pod);
@@ -933,6 +1003,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let mut tree = Tree::new(root);
@@ -948,6 +1019,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(deployment);
 
@@ -968,6 +1040,7 @@ mod tests {
             }]),
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(pod);
 
@@ -993,6 +1066,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1008,6 +1082,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(deployment);
 
@@ -1028,6 +1103,7 @@ mod tests {
             }]),
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(pod);
 
@@ -1054,6 +1130,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1074,6 +1151,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(deployment);
 
@@ -1099,6 +1177,7 @@ mod tests {
             }]),
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(pod);
 
@@ -1114,6 +1193,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(configmap);
 
@@ -1135,6 +1215,7 @@ mod tests {
                 uid: Some("cm-1".to_string()),
             }]),
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(pod_with_relation);
 
@@ -1203,6 +1284,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1219,6 +1301,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(configmap);
 
@@ -1240,6 +1323,7 @@ mod tests {
                 uid: Some("cm-1".to_string()),
             }]),
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(pod);
 
@@ -1255,6 +1339,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(deployment);
 
@@ -1282,6 +1367,7 @@ mod tests {
                 uid: Some("cm-1".to_string()),
             }]),
             is_orphan: false,
+            resource_type: None,
         };
 
         // Replace the pod node with the updated version
@@ -1336,6 +1422,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1352,6 +1439,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(orphan_configmap);
 
@@ -1367,6 +1455,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(used_configmap);
 
@@ -1388,6 +1477,7 @@ mod tests {
                 uid: Some("cm-used".to_string()),
             }]),
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(pod);
 
@@ -1403,6 +1493,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(deployment);
 
@@ -1418,6 +1509,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(namespace);
 
@@ -1465,6 +1557,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1481,6 +1574,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(orphan_secret);
 
@@ -1496,6 +1590,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(orphan_service);
 
@@ -1511,6 +1606,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(used_secret);
 
@@ -1532,6 +1628,7 @@ mod tests {
                 uid: Some("secret-used".to_string()),
             }]),
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(pod);
 
@@ -1547,6 +1644,7 @@ mod tests {
             owners: None,
             relations: None,
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(used_service);
 
@@ -1568,6 +1666,7 @@ mod tests {
                 uid: Some("svc-used".to_string()),
             }]),
             is_orphan: false,
+            resource_type: None,
         };
         tree.add_node(ingress);
 
@@ -1611,5 +1710,78 @@ mod tests {
         assert_eq!(orphans.len(), 2);
         assert!(orphans.contains(&"secret/default/orphan-secret".to_string()));
         assert!(orphans.contains(&"service/default/orphan-svc".to_string()));
+    }
+
+    #[test]
+    fn test_service_account_token_secrets_not_orphans() {
+        let root = Resource {
+            kind: "cluster".to_string(),
+            name: "test".to_string(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+            is_orphan: false,
+            resource_type: None,
+        };
+
+        let mut tree = Tree::new(root);
+
+        // Add service account token secret with type field (should NOT be orphan)
+        let sa_token_secret = Resource {
+            kind: "Secret".to_string(),
+            name: "sa-token-secret".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("v1".to_string()),
+            uid: Some("secret-sa-token".to_string()),
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+            is_orphan: false,
+            resource_type: Some("kubernetes.io/service-account-token".to_string()),
+        };
+        tree.add_node(sa_token_secret);
+
+        // Add regular orphan secret without type (should be orphan)
+        let orphan_secret = Resource {
+            kind: "Secret".to_string(),
+            name: "orphan-secret".to_string(),
+            namespace: Some("default".to_string()),
+            api_version: Some("v1".to_string()),
+            uid: Some("secret-orphan".to_string()),
+            labels: None,
+            selectors: None,
+            owners: None,
+            relations: None,
+            is_orphan: false,
+            resource_type: Some("Opaque".to_string()),
+        };
+        tree.add_node(orphan_secret);
+
+        tree.link_nodes();
+
+        // Verify service account token secret is NOT an orphan
+        let sa_token_idx = tree.key_to_index["secret/default/sa-token-secret"];
+        assert!(
+            !tree.graph[sa_token_idx].is_orphan,
+            "Service account token Secret should NOT be an orphan (type field check)"
+        );
+
+        // Verify regular secret without consumers IS an orphan
+        let orphan_idx = tree.key_to_index["secret/default/orphan-secret"];
+        assert!(
+            tree.graph[orphan_idx].is_orphan,
+            "Regular Secret without consumers should be an orphan"
+        );
+
+        // Verify find_orphans only returns the regular orphan
+        let orphans = tree.find_orphans();
+        assert_eq!(orphans.len(), 1);
+        assert!(orphans.contains(&"secret/default/orphan-secret".to_string()));
+        assert!(!orphans.contains(&"secret/default/sa-token-secret".to_string()));
     }
 }

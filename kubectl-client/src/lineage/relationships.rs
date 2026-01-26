@@ -127,40 +127,44 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
 /// This dispatcher routes to the appropriate trait implementation
 pub fn is_resource_orphan(
     kind: &str,
+    name: &str,
+    namespace: Option<&str>,
     incoming_refs: &[(super::tree::EdgeType, &str)],
+    labels: Option<&std::collections::HashMap<String, String>>,
+    resource_type: Option<&str>,
 ) -> bool {
     match kind {
         // Core resources with clear consumer relationships
-        "ConfigMap" | "configmap" => ConfigMapBehavior::is_orphan(incoming_refs),
-        "Secret" | "secret" => SecretBehavior::is_orphan(incoming_refs),
-        "Service" | "service" => Service::is_orphan(incoming_refs),
-        "ServiceAccount" | "serviceaccount" => ServiceAccount::is_orphan(incoming_refs),
+        "ConfigMap" | "configmap" => ConfigMapBehavior::is_orphan(name, namespace, incoming_refs, labels, resource_type),
+        "Secret" | "secret" => SecretBehavior::is_orphan(name, namespace, incoming_refs, labels, resource_type),
+        "Service" | "service" => Service::is_orphan(name, namespace, incoming_refs, labels, resource_type),
+        "ServiceAccount" | "serviceaccount" => ServiceAccount::is_orphan(name, namespace, incoming_refs, labels, resource_type),
         // Storage resources
         "PersistentVolumeClaim" | "persistentvolumeclaim" => {
-            PersistentVolumeClaim::is_orphan(incoming_refs)
+            PersistentVolumeClaim::is_orphan(name, namespace, incoming_refs, labels, resource_type)
         }
-        "PersistentVolume" | "persistentvolume" => PersistentVolume::is_orphan(incoming_refs),
+        "PersistentVolume" | "persistentvolume" => PersistentVolume::is_orphan(name, namespace, incoming_refs, labels, resource_type),
         // RBAC resources
-        "Role" | "role" => Role::is_orphan(incoming_refs),
-        "ClusterRole" | "clusterrole" => ClusterRole::is_orphan(incoming_refs),
-        "RoleBinding" | "rolebinding" => RoleBinding::is_orphan(incoming_refs),
+        "Role" | "role" => Role::is_orphan(name, namespace, incoming_refs, labels, resource_type),
+        "ClusterRole" | "clusterrole" => ClusterRole::is_orphan(name, namespace, incoming_refs, labels, resource_type),
+        "RoleBinding" | "rolebinding" => RoleBinding::is_orphan(name, namespace, incoming_refs, labels, resource_type),
         "ClusterRoleBinding" | "clusterrolebinding" => {
-            ClusterRoleBinding::is_orphan(incoming_refs)
+            ClusterRoleBinding::is_orphan(name, namespace, incoming_refs, labels, resource_type)
         }
         // Policy resources with selector-based relationships
-        "NetworkPolicy" | "networkpolicy" => NetworkPolicy::is_orphan(incoming_refs),
+        "NetworkPolicy" | "networkpolicy" => NetworkPolicy::is_orphan(name, namespace, incoming_refs, labels, resource_type),
         "PodDisruptionBudget" | "poddisruptionbudget" => {
-            PodDisruptionBudget::is_orphan(incoming_refs)
+            PodDisruptionBudget::is_orphan(name, namespace, incoming_refs, labels, resource_type)
         }
         // Networking resources
-        "IngressClass" | "ingressclass" => IngressClass::is_orphan(incoming_refs),
-        "Ingress" | "ingress" => Ingress::is_orphan(incoming_refs),
+        "IngressClass" | "ingressclass" => IngressClass::is_orphan(name, namespace, incoming_refs, labels, resource_type),
+        "Ingress" | "ingress" => Ingress::is_orphan(name, namespace, incoming_refs, labels, resource_type),
         // Autoscaling
         "HorizontalPodAutoscaler" | "horizontalpodautoscaler" => {
-            HorizontalPodAutoscaler::is_orphan(incoming_refs)
+            HorizontalPodAutoscaler::is_orphan(name, namespace, incoming_refs, labels, resource_type)
         }
         // Workload helpers
-        "ReplicaSet" | "replicaset" => ReplicaSet::is_orphan(incoming_refs),
+        "ReplicaSet" | "replicaset" => ReplicaSet::is_orphan(name, namespace, incoming_refs, labels, resource_type),
         _ => false, // Other resource types are never considered orphans
     }
 }
@@ -222,18 +226,18 @@ mod tests {
 
         // ConfigMap with no incoming references is orphan
         let no_refs: Vec<(EdgeType, &str)> = vec![];
-        assert!(ConfigMapBehavior::is_orphan(&no_refs));
-        assert!(is_resource_orphan("ConfigMap", &no_refs));
+        assert!(ConfigMapBehavior::is_orphan("test-cm", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("ConfigMap", "test-cm", Some("default"), &no_refs, None, None));
 
         // ConfigMap with incoming References from Pod is not orphan
         let with_ref = vec![(EdgeType::References, "Pod")];
-        assert!(!ConfigMapBehavior::is_orphan(&with_ref));
-        assert!(!is_resource_orphan("ConfigMap", &with_ref));
+        assert!(!ConfigMapBehavior::is_orphan("test-cm", Some("default"), &with_ref, None, None));
+        assert!(!is_resource_orphan("ConfigMap", "test-cm", Some("default"), &with_ref, None, None));
 
         // ConfigMap with only Owns edge is orphan (shouldn't happen but test it)
         let only_owns = vec![(EdgeType::Owns, "Pod")];
-        assert!(ConfigMapBehavior::is_orphan(&only_owns));
-        assert!(is_resource_orphan("ConfigMap", &only_owns));
+        assert!(ConfigMapBehavior::is_orphan("test-cm", Some("default"), &only_owns, None, None));
+        assert!(is_resource_orphan("ConfigMap", "test-cm", Some("default"), &only_owns, None, None));
     }
 
     #[test]
@@ -242,23 +246,23 @@ mod tests {
 
         // Service with no incoming references is orphan
         let no_refs: Vec<(EdgeType, &str)> = vec![];
-        assert!(Service::is_orphan(&no_refs));
-        assert!(is_resource_orphan("Service", &no_refs));
+        assert!(Service::is_orphan("test-svc", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("Service", "test-svc", Some("default"), &no_refs, None, None));
 
         // Service with incoming References from Pod is not orphan
         let with_pod = vec![(EdgeType::References, "Pod")];
-        assert!(!Service::is_orphan(&with_pod));
-        assert!(!is_resource_orphan("Service", &with_pod));
+        assert!(!Service::is_orphan("test-svc", Some("default"), &with_pod, None, None));
+        assert!(!is_resource_orphan("Service", "test-svc", Some("default"), &with_pod, None, None));
 
         // Service with incoming References from Ingress is not orphan
         let with_ingress = vec![(EdgeType::References, "Ingress")];
-        assert!(!Service::is_orphan(&with_ingress));
-        assert!(!is_resource_orphan("Service", &with_ingress));
+        assert!(!Service::is_orphan("test-svc", Some("default"), &with_ingress, None, None));
+        assert!(!is_resource_orphan("Service", "test-svc", Some("default"), &with_ingress, None, None));
 
         // Service with References from other resources (not Pod/Ingress) is orphan
         let with_other = vec![(EdgeType::References, "ConfigMap")];
-        assert!(Service::is_orphan(&with_other));
-        assert!(is_resource_orphan("Service", &with_other));
+        assert!(Service::is_orphan("test-svc", Some("default"), &with_other, None, None));
+        assert!(is_resource_orphan("Service", "test-svc", Some("default"), &with_other, None, None));
     }
 
     #[test]
@@ -267,23 +271,23 @@ mod tests {
 
         // PVC with no incoming references is orphan
         let no_refs: Vec<(EdgeType, &str)> = vec![];
-        assert!(PersistentVolumeClaim::is_orphan(&no_refs));
-        assert!(is_resource_orphan("PersistentVolumeClaim", &no_refs));
+        assert!(PersistentVolumeClaim::is_orphan("test-pvc", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("PersistentVolumeClaim", "test-pvc", Some("default"), &no_refs, None, None));
 
         // PVC with incoming References from Pod is not orphan
         let with_pod = vec![(EdgeType::References, "Pod")];
-        assert!(!PersistentVolumeClaim::is_orphan(&with_pod));
-        assert!(!is_resource_orphan("PersistentVolumeClaim", &with_pod));
+        assert!(!PersistentVolumeClaim::is_orphan("test-pvc", Some("default"), &with_pod, None, None));
+        assert!(!is_resource_orphan("PersistentVolumeClaim", "test-pvc", Some("default"), &with_pod, None, None));
 
         // PVC with incoming References from StatefulSet is not orphan
         let with_sts = vec![(EdgeType::References, "StatefulSet")];
-        assert!(!PersistentVolumeClaim::is_orphan(&with_sts));
-        assert!(!is_resource_orphan("PersistentVolumeClaim", &with_sts));
+        assert!(!PersistentVolumeClaim::is_orphan("test-pvc", Some("default"), &with_sts, None, None));
+        assert!(!is_resource_orphan("PersistentVolumeClaim", "test-pvc", Some("default"), &with_sts, None, None));
 
         // PVC with References from other resources is orphan
         let with_other = vec![(EdgeType::References, "ConfigMap")];
-        assert!(PersistentVolumeClaim::is_orphan(&with_other));
-        assert!(is_resource_orphan("PersistentVolumeClaim", &with_other));
+        assert!(PersistentVolumeClaim::is_orphan("test-pvc", Some("default"), &with_other, None, None));
+        assert!(is_resource_orphan("PersistentVolumeClaim", "test-pvc", Some("default"), &with_other, None, None));
     }
 
     #[test]
@@ -292,28 +296,28 @@ mod tests {
 
         // ServiceAccount with no incoming references is orphan
         let no_refs: Vec<(EdgeType, &str)> = vec![];
-        assert!(ServiceAccount::is_orphan(&no_refs));
-        assert!(is_resource_orphan("ServiceAccount", &no_refs));
+        assert!(ServiceAccount::is_orphan("test-sa", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("ServiceAccount", "test-sa", Some("default"), &no_refs, None, None));
 
         // ServiceAccount with incoming References from Pod is not orphan
         let with_pod = vec![(EdgeType::References, "Pod")];
-        assert!(!ServiceAccount::is_orphan(&with_pod));
-        assert!(!is_resource_orphan("ServiceAccount", &with_pod));
+        assert!(!ServiceAccount::is_orphan("test-sa", Some("default"), &with_pod, None, None));
+        assert!(!is_resource_orphan("ServiceAccount", "test-sa", Some("default"), &with_pod, None, None));
 
         // ServiceAccount with incoming References from RoleBinding is not orphan
         let with_rb = vec![(EdgeType::References, "RoleBinding")];
-        assert!(!ServiceAccount::is_orphan(&with_rb));
-        assert!(!is_resource_orphan("ServiceAccount", &with_rb));
+        assert!(!ServiceAccount::is_orphan("test-sa", Some("default"), &with_rb, None, None));
+        assert!(!is_resource_orphan("ServiceAccount", "test-sa", Some("default"), &with_rb, None, None));
 
         // ServiceAccount with incoming References from ClusterRoleBinding is not orphan
         let with_crb = vec![(EdgeType::References, "ClusterRoleBinding")];
-        assert!(!ServiceAccount::is_orphan(&with_crb));
-        assert!(!is_resource_orphan("ServiceAccount", &with_crb));
+        assert!(!ServiceAccount::is_orphan("test-sa", Some("default"), &with_crb, None, None));
+        assert!(!is_resource_orphan("ServiceAccount", "test-sa", Some("default"), &with_crb, None, None));
 
         // ServiceAccount with References from other resources is orphan
         let with_other = vec![(EdgeType::References, "ConfigMap")];
-        assert!(ServiceAccount::is_orphan(&with_other));
-        assert!(is_resource_orphan("ServiceAccount", &with_other));
+        assert!(ServiceAccount::is_orphan("test-sa", Some("default"), &with_other, None, None));
+        assert!(is_resource_orphan("ServiceAccount", "test-sa", Some("default"), &with_other, None, None));
     }
 
     #[test]
@@ -322,53 +326,66 @@ mod tests {
 
         // Role with no incoming references is orphan
         let no_refs: Vec<(EdgeType, &str)> = vec![];
-        assert!(Role::is_orphan(&no_refs));
-        assert!(is_resource_orphan("Role", &no_refs));
+        assert!(Role::is_orphan("test-role", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("Role", "test-role", Some("default"), &no_refs, None, None));
 
         // Role with incoming References from RoleBinding is not orphan
         let with_rb = vec![(EdgeType::References, "RoleBinding")];
-        assert!(!Role::is_orphan(&with_rb));
-        assert!(!is_resource_orphan("Role", &with_rb));
+        assert!(!Role::is_orphan("test-role", Some("default"), &with_rb, None, None));
+        assert!(!is_resource_orphan("Role", "test-role", Some("default"), &with_rb, None, None));
 
         // Role with References from other resources is orphan
         let with_other = vec![(EdgeType::References, "Pod")];
-        assert!(Role::is_orphan(&with_other));
-        assert!(is_resource_orphan("Role", &with_other));
+        assert!(Role::is_orphan("test-role", Some("default"), &with_other, None, None));
+        assert!(is_resource_orphan("Role", "test-role", Some("default"), &with_other, None, None));
 
         // Role with only Owns edge is orphan
         let only_owns = vec![(EdgeType::Owns, "RoleBinding")];
-        assert!(Role::is_orphan(&only_owns));
-        assert!(is_resource_orphan("Role", &only_owns));
+        assert!(Role::is_orphan("test-role", Some("default"), &only_owns, None, None));
+        assert!(is_resource_orphan("Role", "test-role", Some("default"), &only_owns, None, None));
     }
 
     #[test]
     fn test_clusterrole_orphan_detection() {
         use super::super::tree::EdgeType;
+        use std::collections::HashMap;
 
         // ClusterRole with no incoming references is orphan
         let no_refs: Vec<(EdgeType, &str)> = vec![];
-        assert!(ClusterRole::is_orphan(&no_refs));
-        assert!(is_resource_orphan("ClusterRole", &no_refs));
+        assert!(ClusterRole::is_orphan("test-role", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("ClusterRole", "test-clusterrole", None, &no_refs, None, None));
 
         // ClusterRole with incoming References from RoleBinding is not orphan
         let with_rb = vec![(EdgeType::References, "RoleBinding")];
-        assert!(!ClusterRole::is_orphan(&with_rb));
-        assert!(!is_resource_orphan("ClusterRole", &with_rb));
+        assert!(!ClusterRole::is_orphan("test-role", Some("default"), &with_rb, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "test-clusterrole", None, &with_rb, None, None));
 
         // ClusterRole with incoming References from ClusterRoleBinding is not orphan
         let with_crb = vec![(EdgeType::References, "ClusterRoleBinding")];
-        assert!(!ClusterRole::is_orphan(&with_crb));
-        assert!(!is_resource_orphan("ClusterRole", &with_crb));
+        assert!(!ClusterRole::is_orphan("test-clusterrole", None, &with_crb, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "test-clusterrole", None, &with_crb, None, None));
 
         // ClusterRole with References from other resources is orphan
         let with_other = vec![(EdgeType::References, "Pod")];
-        assert!(ClusterRole::is_orphan(&with_other));
-        assert!(is_resource_orphan("ClusterRole", &with_other));
+        assert!(ClusterRole::is_orphan("test-role", Some("default"), &with_other, None, None));
+        assert!(is_resource_orphan("ClusterRole", "test-clusterrole", None, &with_other, None, None));
 
         // ClusterRole with only Owns edge is orphan
         let only_owns = vec![(EdgeType::Owns, "ClusterRoleBinding")];
-        assert!(ClusterRole::is_orphan(&only_owns));
-        assert!(is_resource_orphan("ClusterRole", &only_owns));
+        assert!(ClusterRole::is_orphan("test-role", Some("default"), &only_owns, None, None));
+        assert!(is_resource_orphan("ClusterRole", "test-clusterrole", None, &only_owns, None, None));
+
+        // ClusterRole with aggregation label is not orphan (even with no refs)
+        let mut labels = HashMap::new();
+        labels.insert("rbac.authorization.k8s.io/aggregate-to-admin".to_string(), "true".to_string());
+        assert!(!ClusterRole::is_orphan("test-clusterrole", None, &no_refs, Some(&labels), None));
+        assert!(!is_resource_orphan("ClusterRole", "test-clusterrole", None, &no_refs, Some(&labels), None));
+
+        // ClusterRole with non-aggregation labels but no refs is still orphan
+        let mut other_labels = HashMap::new();
+        other_labels.insert("app".to_string(), "my-app".to_string());
+        assert!(ClusterRole::is_orphan("test-clusterrole", None, &no_refs, Some(&other_labels), None));
+        assert!(is_resource_orphan("ClusterRole", "test-clusterrole", None, &no_refs, Some(&other_labels), None));
     }
 
     #[test]
@@ -378,23 +395,88 @@ mod tests {
         let no_refs: Vec<(EdgeType, &str)> = vec![];
 
         // Test supported resource types
-        assert!(is_resource_orphan("ConfigMap", &no_refs));
-        assert!(is_resource_orphan("Secret", &no_refs));
-        assert!(is_resource_orphan("Service", &no_refs));
-        assert!(is_resource_orphan("PersistentVolumeClaim", &no_refs));
-        assert!(is_resource_orphan("ServiceAccount", &no_refs));
-        assert!(is_resource_orphan("Role", &no_refs));
-        assert!(is_resource_orphan("ClusterRole", &no_refs));
+        assert!(is_resource_orphan("ConfigMap", "test-cm", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("Secret", "test-secret", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("Service", "test-svc", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("PersistentVolumeClaim", "test-pvc", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("ServiceAccount", "test-sa", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("Role", "test-role", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("ClusterRole", "test-clusterrole", None, &no_refs, None, None));
 
         // Test case-insensitive matching
-        assert!(is_resource_orphan("configmap", &no_refs));
-        assert!(is_resource_orphan("secret", &no_refs));
-        assert!(is_resource_orphan("role", &no_refs));
-        assert!(is_resource_orphan("clusterrole", &no_refs));
+        assert!(is_resource_orphan("configmap", "test", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("secret", "test", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("role", "test", Some("default"), &no_refs, None, None));
+        assert!(is_resource_orphan("clusterrole", "test", None, &no_refs, None, None));
 
         // Test unsupported resource types (should never be orphans)
-        assert!(!is_resource_orphan("Pod", &no_refs));
-        assert!(!is_resource_orphan("Deployment", &no_refs));
-        assert!(!is_resource_orphan("Node", &no_refs));
+        assert!(!is_resource_orphan("Pod", "test", Some("default"), &no_refs, None, None));
+        assert!(!is_resource_orphan("Deployment", "test", Some("default"), &no_refs, None, None));
+        assert!(!is_resource_orphan("Node", "test-node", None, &no_refs, None, None));
+    }
+
+    #[test]
+    fn test_system_resource_exceptions() {
+        use super::super::tree::EdgeType;
+
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+
+        // System ClusterRoles are never orphans
+        assert!(!is_resource_orphan("ClusterRole", "admin", None, &no_refs, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "edit", None, &no_refs, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "view", None, &no_refs, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "sudoer", None, &no_refs, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "cluster-admin", None, &no_refs, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "system:node", None, &no_refs, None, None));
+        assert!(!is_resource_orphan("ClusterRole", "system:metrics-server", None, &no_refs, None, None));
+
+        // Non-system ClusterRole with no refs is orphan
+        assert!(is_resource_orphan("ClusterRole", "my-custom-role", None, &no_refs, None, None));
+
+        // Default ServiceAccount is never orphan (in any namespace)
+        assert!(!is_resource_orphan("ServiceAccount", "default", Some("default"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ServiceAccount", "default", Some("kube-system"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ServiceAccount", "default", Some("my-namespace"), &no_refs, None, None));
+
+        // ServiceAccounts in system namespaces are never orphans
+        assert!(!is_resource_orphan("ServiceAccount", "my-sa", Some("kube-system"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ServiceAccount", "my-sa", Some("kube-public"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ServiceAccount", "my-sa", Some("kube-node-lease"), &no_refs, None, None));
+
+        // Non-system ServiceAccount with no refs is orphan
+        assert!(is_resource_orphan("ServiceAccount", "my-sa", Some("default"), &no_refs, None, None));
+
+        // System ConfigMaps are never orphans
+        assert!(!is_resource_orphan("ConfigMap", "kube-root-ca.crt", Some("default"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ConfigMap", "extension-apiserver-authentication", Some("kube-system"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ConfigMap", "my-cm", Some("kube-system"), &no_refs, None, None));
+        assert!(!is_resource_orphan("ConfigMap", "my-cm", Some("kube-public"), &no_refs, None, None));
+
+        // Non-system ConfigMap with no refs is orphan
+        assert!(is_resource_orphan("ConfigMap", "my-cm", Some("default"), &no_refs, None, None));
+
+        // Secrets in system namespaces are never orphans
+        assert!(!is_resource_orphan("Secret", "my-secret", Some("kube-system"), &no_refs, None, None));
+        assert!(!is_resource_orphan("Secret", "my-secret", Some("kube-public"), &no_refs, None, None));
+        assert!(!is_resource_orphan("Secret", "my-secret", Some("kube-node-lease"), &no_refs, None, None));
+
+        // Service account token secrets are never orphans (checked via label or type)
+        let mut sa_labels = std::collections::HashMap::new();
+        sa_labels.insert("kubernetes.io/service-account.name".to_string(), "default".to_string());
+        assert!(!is_resource_orphan("Secret", "token-secret", Some("default"), &no_refs, Some(&sa_labels), None));
+
+        // Service account token secrets detected by type
+        assert!(!is_resource_orphan("Secret", "token-secret", Some("default"), &no_refs, None, Some("kubernetes.io/service-account-token")));
+
+        // Non-system Secret with no refs is orphan
+        assert!(is_resource_orphan("Secret", "my-secret", Some("default"), &no_refs, None, None));
+
+        // System Services are never orphans
+        assert!(!is_resource_orphan("Service", "kubernetes", Some("default"), &no_refs, None, None));
+        assert!(!is_resource_orphan("Service", "my-service", Some("kube-system"), &no_refs, None, None));
+        assert!(!is_resource_orphan("Service", "my-service", Some("kube-public"), &no_refs, None, None));
+
+        // Non-system Service with no refs is orphan
+        assert!(is_resource_orphan("Service", "my-service", Some("default"), &no_refs, None, None));
     }
 }
