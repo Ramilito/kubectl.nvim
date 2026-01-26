@@ -378,42 +378,54 @@ impl Tree {
 
         let mut impacted = Vec::new();
         let mut visited = HashSet::new();
-        let mut queue = std::collections::VecDeque::new();
 
-        // Start BFS from the target node
-        queue.push_back(node_idx);
-        visited.insert(node_idx);
-
-        while let Some(current_idx) = queue.pop_front() {
-            // Get all incoming edges (who depends on current node?)
-            for edge in self.graph.edges_directed(current_idx, Direction::Incoming) {
+        // Step 1: Find all resources that directly REFERENCE the target
+        // (incoming Reference edges only, not Owns)
+        let mut direct_referencers = Vec::new();
+        for edge in self.graph.edges_directed(node_idx, Direction::Incoming) {
+            if matches!(edge.weight(), EdgeType::References) {
                 let source_idx = edge.source();
                 let source_key = self.get_key_for_index(source_idx);
 
-                // Skip the root cluster node
-                if source_key == self.root_key {
-                    continue;
-                }
-
-                // Only process if not visited
-                if !visited.contains(&source_idx) {
+                if source_key != self.root_key && !visited.contains(&source_idx) {
                     visited.insert(source_idx);
-                    queue.push_back(source_idx);
-
-                    // Determine edge type
-                    let edge_type = match edge.weight() {
-                        EdgeType::Owns => "owns",
-                        EdgeType::References => "references",
-                    };
-
-                    impacted.push((source_key, edge_type.to_string()));
+                    direct_referencers.push(source_idx);
+                    impacted.push((source_key, "references".to_string()));
                 }
             }
+        }
+
+        // Step 2: For each direct referencer, find their owned children (cascade)
+        // This shows what would break if the referencer fails
+        for referencer_idx in direct_referencers {
+            self.collect_owned_children(referencer_idx, &mut visited, &mut impacted);
         }
 
         // Sort for consistent output
         impacted.sort_by(|a, b| a.0.cmp(&b.0));
         impacted
+    }
+
+    /// Helper to collect all children owned by a node (DFS on outgoing Owns edges)
+    fn collect_owned_children(
+        &self,
+        node_idx: NodeIndex,
+        visited: &mut HashSet<NodeIndex>,
+        impacted: &mut Vec<(String, String)>,
+    ) {
+        for edge in self.graph.edges_directed(node_idx, Direction::Outgoing) {
+            if matches!(edge.weight(), EdgeType::Owns) {
+                let child_idx = edge.target();
+                let child_key = self.get_key_for_index(child_idx);
+
+                if child_key != self.root_key && !visited.contains(&child_idx) {
+                    visited.insert(child_idx);
+                    impacted.push((child_key, "owned by affected".to_string()));
+                    // Recursively collect children
+                    self.collect_owned_children(child_idx, visited, impacted);
+                }
+            }
+        }
     }
 
     /// Extract subgraph nodes and edges for a given resource key
