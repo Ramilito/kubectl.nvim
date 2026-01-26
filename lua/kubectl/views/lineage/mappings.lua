@@ -164,10 +164,10 @@ M.overrides = {
 }
 
 M.register = function()
-  mappings.map_if_plug_not_set("n", "go", "<Plug>(kubectl.toggle_orphan_filter)")
+  mappings.map_if_plug_not_set("n", "gO", "<Plug>(kubectl.toggle_orphan_filter)")
   mappings.map_if_plug_not_set("n", "gD", "<Plug>(kubectl.export_dot)")
   mappings.map_if_plug_not_set("n", "gM", "<Plug>(kubectl.export_mermaid)")
-  mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.impact_analysis)")
+  mappings.map_if_plug_not_set("n", "gI", "<Plug>(kubectl.impact_analysis)")
 end
 
 return M

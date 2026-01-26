@@ -269,9 +269,74 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
   local lines = {}
   local marks = {}
 
-  -- Get orphans if filter is enabled
-  local orphan_lookup = orphan_filter_enabled and M.get_orphans(graph) or {}
+  -- Create node lookup from graph.nodes
+  local node_lookup = {}
+  for i = 1, #graph.nodes do
+    local node = graph.nodes[i]
+    node_lookup[node.key] = node
+  end
 
+  -- When orphan filter is enabled, show ONLY orphans (ignore selected resource)
+  if orphan_filter_enabled then
+    local orphan_lookup = M.get_orphans(graph)
+
+    -- Sort orphan keys for consistent display
+    local orphan_keys = {}
+    for key, _ in pairs(orphan_lookup) do
+      table.insert(orphan_keys, key)
+    end
+    table.sort(orphan_keys)
+
+    if #orphan_keys == 0 then
+      table.insert(lines, "No orphan resources found.")
+      return lines, marks
+    end
+
+    for _, key in ipairs(orphan_keys) do
+      local node = node_lookup[key]
+      if node and node.key ~= graph.root_key then
+        local key_values = {
+          node.kind,
+          safe_value(node.ns, "cluster"),
+          node.name,
+        }
+
+        local line = key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
+        local kind_len = #key_values[1]
+        local ns_len = #key_values[2]
+
+        -- Kind (white)
+        table.insert(marks, {
+          row = #lines,
+          start_col = 0,
+          end_col = kind_len,
+          hl_group = hl.symbols.white,
+        })
+
+        -- ": namespace/" (gray)
+        table.insert(marks, {
+          row = #lines,
+          start_col = kind_len,
+          end_col = kind_len + 2 + ns_len + 1,
+          hl_group = hl.symbols.gray,
+        })
+
+        -- Resource name (white)
+        table.insert(marks, {
+          row = #lines,
+          start_col = kind_len + 2 + ns_len + 1,
+          end_col = #line,
+          hl_group = hl.symbols.white,
+        })
+
+        table.insert(lines, line)
+      end
+    end
+
+    return lines, marks
+  end
+
+  -- Normal mode: show relationships of selected resource
   -- Get related node keys from Rust
   local related_keys_table = graph.get_related_nodes(selected_node_key)
 
@@ -279,20 +344,6 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
   local related_keys_lookup = {}
   for i = 1, #related_keys_table do
     related_keys_lookup[related_keys_table[i]] = true
-  end
-
-  -- If orphan filter is enabled, also add all orphans to related keys
-  if orphan_filter_enabled then
-    for orphan_key, _ in pairs(orphan_lookup) do
-      related_keys_lookup[orphan_key] = true
-    end
-  end
-
-  -- Create node lookup from graph.nodes
-  local node_lookup = {}
-  for i = 1, #graph.nodes do
-    local node = graph.nodes[i]
-    node_lookup[node.key] = node
   end
 
   -- Find the root ancestor of the selected node (following ownership chain)
@@ -339,62 +390,42 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
       return
     end
 
-    -- Skip non-orphans if filter is enabled
-    if orphan_filter_enabled and not orphan_lookup[node.key] then
-      return
-    end
-
     local key_values = {
       node.kind,
       safe_value(node.ns, "cluster"),
       node.name,
     }
 
-    -- Build the line to display with orphan indicator
-    local orphan_prefix = orphan_lookup[node.key] and "[orphan] " or ""
-    local line = indent .. orphan_prefix .. key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
+    local line = indent .. key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
 
     local is_selected = node.key == selected_node_key
     local text_hl = is_selected and hl.symbols.success_bold or hl.symbols.white
-    local orphan_hl = hl.symbols.warning
 
     if line then
       local indent_len = #indent
-      local orphan_prefix_len = #orphan_prefix
-
-      -- Orphan indicator (warning color)
-      if orphan_prefix_len > 0 then
-        table.insert(marks, {
-          row = #lines,
-          start_col = indent_len,
-          end_col = indent_len + orphan_prefix_len,
-          hl_group = orphan_hl,
-        })
-      end
-
       local kind_len = #key_values[1]
       local ns_len = #key_values[2]
 
       -- Kind (highlighted)
       table.insert(marks, {
         row = #lines,
-        start_col = indent_len + orphan_prefix_len,
-        end_col = indent_len + orphan_prefix_len + kind_len,
+        start_col = indent_len,
+        end_col = indent_len + kind_len,
         hl_group = text_hl,
       })
 
       -- ": namespace/" (gray)
       table.insert(marks, {
         row = #lines,
-        start_col = indent_len + orphan_prefix_len + kind_len,
-        end_col = indent_len + orphan_prefix_len + kind_len + 2 + ns_len + 1,
+        start_col = indent_len + kind_len,
+        end_col = indent_len + kind_len + 2 + ns_len + 1,
         hl_group = hl.symbols.gray,
       })
 
       -- Resource name (highlighted)
       table.insert(marks, {
         row = #lines,
-        start_col = indent_len + orphan_prefix_len + kind_len + 2 + ns_len + 1,
+        start_col = indent_len + kind_len + 2 + ns_len + 1,
         end_col = #line,
         hl_group = text_hl,
       })
@@ -428,64 +459,47 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
   for i = 1, #related_keys_table do
     local key = related_keys_table[i]
     if not displayed_in_tree[key] then
-      -- Skip non-orphans if filter is enabled
-      if not orphan_filter_enabled or orphan_lookup[key] then
-        local node = node_lookup[key]
-        if node and node.key ~= graph.root_key then
-          local key_values = {
-            node.kind,
-            safe_value(node.ns, "cluster"),
-            node.name,
-          }
-          local orphan_prefix = orphan_lookup[key] and "[orphan] " or ""
-          local line = orphan_prefix .. key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
+      local node = node_lookup[key]
+      if node and node.key ~= graph.root_key then
+        local key_values = {
+          node.kind,
+          safe_value(node.ns, "cluster"),
+          node.name,
+        }
+        local line = key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
 
-          local is_selected = node.key == selected_node_key
-          local text_hl = is_selected and hl.symbols.success_bold or hl.symbols.white
-          local orphan_hl = hl.symbols.warning
+        local is_selected = node.key == selected_node_key
+        local text_hl = is_selected and hl.symbols.success_bold or hl.symbols.white
 
-          local orphan_prefix_len = #orphan_prefix
+        local kind_len = #key_values[1]
+        local ns_len = #key_values[2]
 
-          -- Orphan indicator (warning color)
-          if orphan_prefix_len > 0 then
-            table.insert(marks, {
-              row = #lines,
-              start_col = 0,
-              end_col = orphan_prefix_len,
-              hl_group = orphan_hl,
-            })
-          end
+        -- Kind (highlighted)
+        table.insert(marks, {
+          row = #lines,
+          start_col = 0,
+          end_col = kind_len,
+          hl_group = text_hl,
+        })
 
-          local kind_len = #key_values[1]
-          local ns_len = #key_values[2]
+        -- ": namespace/" (gray)
+        table.insert(marks, {
+          row = #lines,
+          start_col = kind_len,
+          end_col = kind_len + 2 + ns_len + 1,
+          hl_group = hl.symbols.gray,
+        })
 
-          -- Kind (highlighted)
-          table.insert(marks, {
-            row = #lines,
-            start_col = orphan_prefix_len,
-            end_col = orphan_prefix_len + kind_len,
-            hl_group = text_hl,
-          })
+        -- Resource name (highlighted)
+        table.insert(marks, {
+          row = #lines,
+          start_col = kind_len + 2 + ns_len + 1,
+          end_col = #line,
+          hl_group = text_hl,
+        })
 
-          -- ": namespace/" (gray)
-          table.insert(marks, {
-            row = #lines,
-            start_col = orphan_prefix_len + kind_len,
-            end_col = orphan_prefix_len + kind_len + 2 + ns_len + 1,
-            hl_group = hl.symbols.gray,
-          })
-
-          -- Resource name (highlighted)
-          table.insert(marks, {
-            row = #lines,
-            start_col = orphan_prefix_len + kind_len + 2 + ns_len + 1,
-            end_col = #line,
-            hl_group = text_hl,
-          })
-
-          table.insert(lines, line)
-          displayed_in_tree[key] = true
-        end
+        table.insert(lines, line)
+        displayed_in_tree[key] = true
       end
     end
   end
