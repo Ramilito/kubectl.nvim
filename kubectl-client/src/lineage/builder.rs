@@ -20,6 +20,7 @@ struct SerializableNode {
     children_keys: Vec<String>,
     leaf_keys: Vec<String>,
     parent_key: Option<String>,
+    is_orphan: bool,
     resource: SerializableResource,
 }
 
@@ -28,6 +29,7 @@ struct SerializableResource {
     kind: String,
     name: String,
     ns: Option<String>,
+    is_orphan: bool,
 }
 
 impl SerializableNode {
@@ -46,10 +48,12 @@ impl SerializableNode {
             children_keys,
             leaf_keys,
             parent_key,
+            is_orphan: resource.is_orphan,
             resource: SerializableResource {
                 kind: resource.kind.clone(),
                 name: resource.name.clone(),
                 ns: resource.namespace.clone(),
+                is_orphan: resource.is_orphan,
             },
         }
     }
@@ -118,6 +122,7 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
         selectors: None,
         owners: None,
         relations: None,
+        is_orphan: false,
     };
 
     // Build the tree with pre-allocated capacity
@@ -314,6 +319,7 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
         selectors: None,
         owners: None,
         relations: None,
+        is_orphan: false,
     };
 
     // Build the tree with pre-allocated capacity
@@ -400,6 +406,7 @@ fn parse_resource_typed(input: ResourceInput) -> Resource {
         selectors: input.selectors,
         owners: if owners.is_empty() { None } else { Some(owners) },
         relations: if relations.is_empty() { None } else { Some(relations) },
+        is_orphan: false,
     }
 }
 
@@ -460,12 +467,13 @@ fn node_to_lua_table(
     leaf_keys: Vec<String>,
     parent_key: Option<String>,
 ) -> LuaResult<LuaTable> {
-    // Pre-allocate table with known field count (7 fields)
-    let table = lua.create_table_with_capacity(0, 7)?;
+    // Pre-allocate table with known field count (8 fields - added is_orphan)
+    let table = lua.create_table_with_capacity(0, 8)?;
 
     table.set("key", key)?;
     table.set("kind", resource.kind.as_str())?;
     table.set("name", resource.name.as_str())?;
+    table.set("is_orphan", resource.is_orphan)?;
 
     if let Some(ref ns) = resource.namespace {
         table.set("ns", ns.as_str())?;
@@ -495,9 +503,10 @@ fn node_to_lua_table(
     }
 
     // Resource data (for debugging/display)
-    let resource_table = lua.create_table_with_capacity(0, 3)?;
+    let resource_table = lua.create_table_with_capacity(0, 4)?;
     resource_table.set("kind", resource.kind.as_str())?;
     resource_table.set("name", resource.name.as_str())?;
+    resource_table.set("is_orphan", resource.is_orphan)?;
     if let Some(ref ns) = resource.namespace {
         resource_table.set("ns", ns.as_str())?;
     }

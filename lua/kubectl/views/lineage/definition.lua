@@ -156,16 +156,16 @@ end
 --- @param graph table The lineage graph
 --- @return table Lookup table of orphan keys
 function M.get_orphans(graph)
-  if not graph or not graph.tree_id then
+  if not graph or not graph.nodes then
     return {}
   end
 
   local orphan_lookup = {}
-  local ok, orphans_json = pcall(client.find_lineage_orphans, graph.tree_id)
-  if ok then
-    local orphans = vim.json.decode(orphans_json)
-    for i = 1, #orphans do
-      orphan_lookup[orphans[i]] = true
+  -- Collect orphans from node.is_orphan property
+  for i = 1, #graph.nodes do
+    local node = graph.nodes[i]
+    if node.is_orphan then
+      orphan_lookup[node.key] = true
     end
   end
   return orphan_lookup

@@ -1,5 +1,6 @@
 pub mod builder;
 pub mod relationships;
+pub mod resource_behavior;
 pub mod tree;
 
 pub use builder::{

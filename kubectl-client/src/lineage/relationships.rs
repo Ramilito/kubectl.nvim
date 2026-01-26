@@ -3,722 +3,113 @@ use k8s_openapi::{
         apps::v1::{DaemonSet, StatefulSet},
         autoscaling::v2::HorizontalPodAutoscaler,
         batch::v1::{CronJob, Job},
-        core::v1::{Event, ObjectReference, PersistentVolume, PersistentVolumeClaim, Pod, Service},
+        core::v1::{Event, PersistentVolume, PersistentVolumeClaim, Pod, Service},
         networking::v1::{Ingress, IngressClass, NetworkPolicy},
         policy::v1::PodDisruptionBudget,
         rbac::v1::{ClusterRole, ClusterRoleBinding, RoleBinding},
     },
     serde_json::{from_value, Value},
 };
+
+use super::resource_behavior::{
+    ConfigMapBehavior, ResourceBehavior, SecretBehavior, ServiceAccountBehavior,
+};
 use super::tree::RelationRef;
 
 /// Extract relationships from a Kubernetes resource based on its kind
+/// This is the main dispatcher that deserializes JSON and delegates to trait implementations
 pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
     match kind {
         "Event" => from_value::<Event>(item.clone())
             .ok()
-            .map(|typed| extract_event_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "Ingress" => from_value::<Ingress>(item.clone())
             .ok()
-            .map(|typed| extract_ingress_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "IngressClass" => from_value::<IngressClass>(item.clone())
             .ok()
-            .map(|typed| extract_ingressclass_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "Pod" => from_value::<Pod>(item.clone())
             .ok()
-            .map(|typed| extract_pod_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "ClusterRole" => from_value::<ClusterRole>(item.clone())
             .ok()
-            .map(|typed| extract_clusterrole_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "PersistentVolumeClaim" => from_value::<PersistentVolumeClaim>(item.clone())
             .ok()
-            .map(|typed| extract_pvc_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "PersistentVolume" => from_value::<PersistentVolume>(item.clone())
             .ok()
-            .map(|typed| extract_pv_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "ClusterRoleBinding" => from_value::<ClusterRoleBinding>(item.clone())
             .ok()
-            .map(|typed| extract_clusterrolebinding_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "StatefulSet" => from_value::<StatefulSet>(item.clone())
             .ok()
-            .map(|typed| extract_statefulset_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "DaemonSet" => from_value::<DaemonSet>(item.clone())
             .ok()
-            .map(|typed| extract_daemonset_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "Job" => from_value::<Job>(item.clone())
             .ok()
-            .map(|typed| extract_job_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "CronJob" => from_value::<CronJob>(item.clone())
             .ok()
-            .map(|typed| extract_cronjob_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "HorizontalPodAutoscaler" => from_value::<HorizontalPodAutoscaler>(item.clone())
             .ok()
-            .map(|typed| extract_hpa_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "Service" => from_value::<Service>(item.clone())
             .ok()
-            .map(|typed| extract_service_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "NetworkPolicy" => from_value::<NetworkPolicy>(item.clone())
             .ok()
-            .map(|typed| extract_networkpolicy_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "RoleBinding" => from_value::<RoleBinding>(item.clone())
             .ok()
-            .map(|typed| extract_rolebinding_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "PodDisruptionBudget" => from_value::<PodDisruptionBudget>(item.clone())
             .ok()
-            .map(|typed| extract_poddisruptionbudget_relationships(&typed))
+            .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         _ => Vec::new(),
     }
 }
 
-/// Helper to convert ObjectReference to RelationRef
-fn object_ref_to_relation(obj_ref: &ObjectReference) -> Option<RelationRef> {
-    let kind = obj_ref.kind.as_ref()?;
-    let name = obj_ref.name.as_ref()?;
-
-    Some(RelationRef {
-        kind: kind.clone(),
-        name: name.clone(),
-        namespace: obj_ref.namespace.clone(),
-        api_version: obj_ref.api_version.clone(),
-        uid: obj_ref.uid.clone(),
-    })
-}
-
-/// Extract container environment variable relationships using typed Container struct
-fn extract_container_env_relations_typed(container: &k8s_openapi::api::core::v1::Container, namespace: Option<&str>) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    // env with valueFrom
-    if let Some(env_vars) = &container.env {
-        for env in env_vars {
-            if let Some(value_from) = &env.value_from {
-                // configMapKeyRef
-                if let Some(config_map_ref) = &value_from.config_map_key_ref {
-                    relations.push(RelationRef {
-                        kind: "ConfigMap".to_string(),
-                        name: config_map_ref.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
-                }
-                // secretKeyRef
-                if let Some(secret_ref) = &value_from.secret_key_ref {
-                    relations.push(RelationRef {
-                        kind: "Secret".to_string(),
-                        name: secret_ref.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
-                }
-            }
+/// Determine if a resource is orphaned based on its kind and graph context
+/// A resource is orphaned if it should have consumers but doesn't have any incoming references
+/// This dispatcher routes to the appropriate trait implementation
+pub fn is_resource_orphan(
+    kind: &str,
+    incoming_refs: &[(super::tree::EdgeType, &str)],
+) -> bool {
+    match kind {
+        "ConfigMap" | "configmap" => ConfigMapBehavior::is_orphan(incoming_refs),
+        "Secret" | "secret" => SecretBehavior::is_orphan(incoming_refs),
+        "Service" | "service" => Service::is_orphan(incoming_refs),
+        "PersistentVolumeClaim" | "persistentvolumeclaim" => {
+            PersistentVolumeClaim::is_orphan(incoming_refs)
         }
+        "PersistentVolume" | "persistentvolume" => PersistentVolume::is_orphan(incoming_refs),
+        "ServiceAccount" | "serviceaccount" => ServiceAccountBehavior::is_orphan(incoming_refs),
+        _ => false, // Other resource types are never considered orphans
     }
-
-    // envFrom
-    if let Some(env_from) = &container.env_from {
-        for env in env_from {
-            // configMapRef
-            if let Some(config_map_ref) = &env.config_map_ref {
-                relations.push(RelationRef {
-                    kind: "ConfigMap".to_string(),
-                    name: config_map_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-            // secretRef
-            if let Some(secret_ref) = &env.secret_ref {
-                relations.push(RelationRef {
-                    kind: "Secret".to_string(),
-                    name: secret_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
-    }
-
-    relations
-}
-
-/// Extract volume relationships using typed Volume struct
-fn extract_volume_relations_typed(volume: &k8s_openapi::api::core::v1::Volume, namespace: Option<&str>) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    // ConfigMap
-    if let Some(config_map) = &volume.config_map {
-        relations.push(RelationRef {
-            kind: "ConfigMap".to_string(),
-            name: config_map.name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // Secret
-    if let Some(secret) = &volume.secret {
-        if let Some(name) = &secret.secret_name {
-            relations.push(RelationRef {
-                kind: "Secret".to_string(),
-                name: name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    // PersistentVolumeClaim
-    if let Some(pvc) = &volume.persistent_volume_claim {
-        relations.push(RelationRef {
-            kind: "PersistentVolumeClaim".to_string(),
-            name: pvc.claim_name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // CSI
-    if let Some(csi) = &volume.csi {
-        relations.push(RelationRef {
-            kind: "CSIDriver".to_string(),
-            name: csi.driver.clone(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-        if let Some(secret_ref) = &csi.node_publish_secret_ref {
-            relations.push(RelationRef {
-                kind: "Secret".to_string(),
-                name: secret_ref.name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    // Projected
-    if let Some(projected) = &volume.projected {
-        if let Some(sources) = &projected.sources {
-            for source in sources {
-                if let Some(config_map) = &source.config_map {
-                    relations.push(RelationRef {
-                        kind: "ConfigMap".to_string(),
-                        name: config_map.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
-                }
-                if let Some(secret) = &source.secret {
-                    relations.push(RelationRef {
-                        kind: "Secret".to_string(),
-                        name: secret.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
-                }
-            }
-        }
-    }
-
-    relations
-}
-
-/// Extract relationships from a PodSpec (used by DaemonSet, Job, CronJob)
-fn extract_pod_spec_relations(spec: &k8s_openapi::api::core::v1::PodSpec, namespace: Option<&str>) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    // serviceAccountName
-    if let Some(sa_name) = &spec.service_account_name {
-        relations.push(RelationRef {
-            kind: "ServiceAccount".to_string(),
-            name: sa_name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // volumes
-    if let Some(volumes) = &spec.volumes {
-        for volume in volumes {
-            relations.extend(extract_volume_relations_typed(volume, namespace));
-        }
-    }
-
-    // environment variables from containers
-    for container in &spec.containers {
-        relations.extend(extract_container_env_relations_typed(container, namespace));
-    }
-
-    // environment variables from initContainers
-    if let Some(init_containers) = &spec.init_containers {
-        for container in init_containers {
-            relations.extend(extract_container_env_relations_typed(container, namespace));
-        }
-    }
-
-    relations
-}
-
-fn extract_event_relationships(event: &Event) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    // involved_object field (required field in Event)
-    if let Some(rel) = object_ref_to_relation(&event.involved_object) {
-        relations.push(rel);
-    }
-
-    // related field (optional)
-    if let Some(related) = &event.related {
-        if let Some(rel) = object_ref_to_relation(related) {
-            relations.push(rel);
-        }
-    }
-
-    relations
-}
-
-fn extract_ingress_relationships(ingress: &Ingress) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-    let namespace = ingress.metadata.namespace.as_deref();
-
-    let spec = match &ingress.spec {
-        Some(s) => s,
-        None => return relations,
-    };
-
-    // ingressClassName
-    if let Some(class_name) = &spec.ingress_class_name {
-        relations.push(RelationRef {
-            kind: "IngressClass".to_string(),
-            name: class_name.clone(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // default backend
-    if let Some(backend) = &spec.default_backend {
-        if let Some(service) = &backend.service {
-            relations.push(RelationRef {
-                kind: "Service".to_string(),
-                name: service.name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-        if let Some(resource) = &backend.resource {
-            relations.push(RelationRef {
-                kind: resource.kind.clone(),
-                name: resource.name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: resource.api_group.clone(),
-                uid: None,
-            });
-        }
-    }
-
-    // rules
-    if let Some(rules) = &spec.rules {
-        for rule in rules {
-            if let Some(http) = &rule.http {
-                for path in &http.paths {
-                    if let Some(service) = &path.backend.service {
-                        relations.push(RelationRef {
-                            kind: "Service".to_string(),
-                            name: service.name.clone(),
-                            namespace: namespace.map(String::from),
-                            api_version: None,
-                            uid: None,
-                        });
-                    }
-                    if let Some(resource) = &path.backend.resource {
-                        relations.push(RelationRef {
-                            kind: resource.kind.clone(),
-                            name: resource.name.clone(),
-                            namespace: namespace.map(String::from),
-                            api_version: resource.api_group.clone(),
-                            uid: None,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    // tls secrets
-    if let Some(tls_list) = &spec.tls {
-        for tls in tls_list {
-            if let Some(secret_name) = &tls.secret_name {
-                relations.push(RelationRef {
-                    kind: "Secret".to_string(),
-                    name: secret_name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
-    }
-
-    relations
-}
-
-fn extract_ingressclass_relationships(ingress_class: &IngressClass) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    if let Some(spec) = &ingress_class.spec {
-        if let Some(parameters) = &spec.parameters {
-            relations.push(RelationRef {
-                kind: parameters.kind.clone(),
-                name: parameters.name.clone(),
-                namespace: parameters.namespace.clone(),
-                api_version: parameters.api_group.clone(),
-                uid: None,
-            });
-        }
-    }
-
-    relations
-}
-
-fn extract_pod_relationships(pod: &Pod) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-    let namespace = pod.metadata.namespace.as_deref();
-
-    let spec = match &pod.spec {
-        Some(s) => s,
-        None => return relations,
-    };
-
-    // nodeName
-    if let Some(node_name) = &spec.node_name {
-        relations.push(RelationRef {
-            kind: "Node".to_string(),
-            name: node_name.clone(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // priorityClassName
-    if let Some(priority_class) = &spec.priority_class_name {
-        relations.push(RelationRef {
-            kind: "PriorityClass".to_string(),
-            name: priority_class.clone(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // runtimeClassName
-    if let Some(runtime_class) = &spec.runtime_class_name {
-        relations.push(RelationRef {
-            kind: "RuntimeClass".to_string(),
-            name: runtime_class.clone(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // serviceAccountName
-    if let Some(sa_name) = &spec.service_account_name {
-        relations.push(RelationRef {
-            kind: "ServiceAccount".to_string(),
-            name: sa_name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    // volumes (includes ConfigMap and Secret references)
-    if let Some(volumes) = &spec.volumes {
-        for volume in volumes {
-            relations.extend(extract_volume_relations_typed(volume, namespace));
-        }
-    }
-
-    // environment variables from containers
-    for container in &spec.containers {
-        relations.extend(extract_container_env_relations_typed(container, namespace));
-    }
-
-    // environment variables from initContainers
-    if let Some(init_containers) = &spec.init_containers {
-        for container in init_containers {
-            relations.extend(extract_container_env_relations_typed(container, namespace));
-        }
-    }
-
-    relations
-}
-
-fn extract_clusterrole_relationships(_cluster_role: &ClusterRole) -> Vec<RelationRef> {
-    // ClusterRole relationships are complex and selector-based
-    // For now, return empty - can be enhanced later
-    Vec::new()
-}
-
-fn extract_pvc_relationships(pvc: &PersistentVolumeClaim) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    if let Some(spec) = &pvc.spec {
-        if let Some(volume_name) = &spec.volume_name {
-            relations.push(RelationRef {
-                kind: "PersistentVolume".to_string(),
-                name: volume_name.clone(),
-                namespace: None,
-                api_version: None,
-                uid: None,
-            });
-        }
-    }
-
-    relations
-}
-
-fn extract_pv_relationships(pv: &PersistentVolume) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    if let Some(spec) = &pv.spec {
-        if let Some(claim_ref) = &spec.claim_ref {
-            if let Some(rel) = object_ref_to_relation(claim_ref) {
-                relations.push(rel);
-            }
-        }
-    }
-
-    relations
-}
-
-fn extract_clusterrolebinding_relationships(crb: &ClusterRoleBinding) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    // roleRef
-    if crb.role_ref.kind == "ClusterRole" {
-        relations.push(RelationRef {
-            kind: crb.role_ref.kind.clone(),
-            name: crb.role_ref.name.clone(),
-            namespace: None,
-            api_version: Some(crb.role_ref.api_group.clone()),
-            uid: None,
-        });
-    }
-
-    // subjects (ServiceAccounts)
-    if let Some(subjects) = &crb.subjects {
-        for subject in subjects {
-            if subject.kind == "ServiceAccount" {
-                relations.push(RelationRef {
-                    kind: "ServiceAccount".to_string(),
-                    name: subject.name.clone(),
-                    namespace: subject.namespace.clone(),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
-    }
-
-    relations
-}
-
-fn extract_statefulset_relationships(sts: &StatefulSet) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-    let namespace = sts.metadata.namespace.as_deref();
-
-    let spec = match &sts.spec {
-        Some(s) => s,
-        None => return relations,
-    };
-
-    // volumeClaimTemplates
-    if let Some(templates) = &spec.volume_claim_templates {
-        for template in templates {
-            if let Some(name) = &template.metadata.name {
-                relations.push(RelationRef {
-                    kind: "PersistentVolumeClaim".to_string(),
-                    name: name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
-    }
-
-    // serviceName
-    if let Some(service_name) = &spec.service_name {
-        relations.push(RelationRef {
-            kind: "Service".to_string(),
-            name: service_name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
-
-    relations
-}
-
-fn extract_daemonset_relationships(ds: &DaemonSet) -> Vec<RelationRef> {
-    let namespace = ds.metadata.namespace.as_deref();
-
-    let spec = match &ds.spec {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-
-    let pod_spec = match &spec.template.spec {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-
-    extract_pod_spec_relations(pod_spec, namespace)
-}
-
-fn extract_job_relationships(job: &Job) -> Vec<RelationRef> {
-    let namespace = job.metadata.namespace.as_deref();
-
-    let spec = match &job.spec {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-
-    let pod_spec = match &spec.template.spec {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-
-    extract_pod_spec_relations(pod_spec, namespace)
-}
-
-fn extract_cronjob_relationships(cronjob: &CronJob) -> Vec<RelationRef> {
-    let namespace = cronjob.metadata.namespace.as_deref();
-
-    let spec = match &cronjob.spec {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-
-    let job_spec = match &spec.job_template.spec {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-
-    let pod_spec = match &job_spec.template.spec {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-
-    extract_pod_spec_relations(pod_spec, namespace)
-}
-
-fn extract_hpa_relationships(hpa: &HorizontalPodAutoscaler) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-    let namespace = hpa.metadata.namespace.as_deref();
-
-    if let Some(spec) = &hpa.spec {
-        // scaleTargetRef
-        let scale_target = &spec.scale_target_ref;
-        relations.push(RelationRef {
-            kind: scale_target.kind.clone(),
-            name: scale_target.name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: scale_target.api_version.clone(),
-            uid: None,
-        });
-    }
-
-    relations
-}
-
-fn extract_service_relationships(_service: &Service) -> Vec<RelationRef> {
-    // Service → Pod relationships are selector-based and handled via the selector field
-    // in the Resource struct, which is processed in tree.rs link_nodes()
-    // The selector matching happens in tree.rs using the selectors_match function
-    Vec::new()
-}
-
-fn extract_networkpolicy_relationships(_network_policy: &NetworkPolicy) -> Vec<RelationRef> {
-    // NetworkPolicy → Pod relationships are selector-based (via spec.podSelector)
-    // and handled via the selector field in the Resource struct
-    // The selector matching happens in tree.rs link_nodes()
-    Vec::new()
-}
-
-fn extract_rolebinding_relationships(rb: &RoleBinding) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-
-    // roleRef - can be Role or ClusterRole
-    relations.push(RelationRef {
-        kind: rb.role_ref.kind.clone(),
-        name: rb.role_ref.name.clone(),
-        namespace: if rb.role_ref.kind == "Role" {
-            rb.metadata.namespace.clone()
-        } else {
-            None
-        },
-        api_version: Some(rb.role_ref.api_group.clone()),
-        uid: None,
-    });
-
-    // subjects (ServiceAccounts, Users, Groups)
-    if let Some(subjects) = &rb.subjects {
-        for subject in subjects {
-            if subject.kind == "ServiceAccount" {
-                relations.push(RelationRef {
-                    kind: "ServiceAccount".to_string(),
-                    name: subject.name.clone(),
-                    namespace: subject.namespace.clone(),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
-    }
-
-    relations
-}
-
-fn extract_poddisruptionbudget_relationships(_pdb: &PodDisruptionBudget) -> Vec<RelationRef> {
-    // PodDisruptionBudget → Pod relationships are selector-based (via spec.selector)
-    // and handled via the selector field in the Resource struct
-    // The selector matching happens in tree.rs link_nodes()
-    Vec::new()
 }
 
 #[cfg(test)]
@@ -736,11 +127,16 @@ mod tests {
             }
         });
 
-        let event: Event = from_value(event_json).unwrap();
-        let relations = extract_event_relationships(&event);
+        let event: Event = from_value(event_json.clone()).unwrap();
+        let relations = event.extract_relationships(None);
         assert_eq!(relations.len(), 1);
         assert_eq!(relations[0].kind, "Pod");
         assert_eq!(relations[0].name, "test-pod");
+
+        // Also test via dispatcher
+        let relations_via_dispatcher = extract_relationships("Event", &event_json);
+        assert_eq!(relations_via_dispatcher.len(), 1);
+        assert_eq!(relations_via_dispatcher[0].kind, "Pod");
     }
 
     #[test]
@@ -756,10 +152,137 @@ mod tests {
             }
         });
 
-        let pod: Pod = from_value(pod_json).unwrap();
-        let relations = extract_pod_relationships(&pod);
+        let pod: Pod = from_value(pod_json.clone()).unwrap();
+        let relations = pod.extract_relationships(None);
         assert_eq!(relations.len(), 2);
         assert!(relations.iter().any(|r| r.kind == "Node"));
         assert!(relations.iter().any(|r| r.kind == "ServiceAccount"));
+
+        // Also test via dispatcher
+        let relations_via_dispatcher = extract_relationships("Pod", &pod_json);
+        assert_eq!(relations_via_dispatcher.len(), 2);
+    }
+
+    #[test]
+    fn test_configmap_orphan_detection() {
+        use super::super::tree::EdgeType;
+
+        // ConfigMap with no incoming references is orphan
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+        assert!(ConfigMapBehavior::is_orphan(&no_refs));
+        assert!(is_resource_orphan("ConfigMap", &no_refs));
+
+        // ConfigMap with incoming References from Pod is not orphan
+        let with_ref = vec![(EdgeType::References, "Pod")];
+        assert!(!ConfigMapBehavior::is_orphan(&with_ref));
+        assert!(!is_resource_orphan("ConfigMap", &with_ref));
+
+        // ConfigMap with only Owns edge is orphan (shouldn't happen but test it)
+        let only_owns = vec![(EdgeType::Owns, "Pod")];
+        assert!(ConfigMapBehavior::is_orphan(&only_owns));
+        assert!(is_resource_orphan("ConfigMap", &only_owns));
+    }
+
+    #[test]
+    fn test_service_orphan_detection() {
+        use super::super::tree::EdgeType;
+
+        // Service with no incoming references is orphan
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+        assert!(Service::is_orphan(&no_refs));
+        assert!(is_resource_orphan("Service", &no_refs));
+
+        // Service with incoming References from Pod is not orphan
+        let with_pod = vec![(EdgeType::References, "Pod")];
+        assert!(!Service::is_orphan(&with_pod));
+        assert!(!is_resource_orphan("Service", &with_pod));
+
+        // Service with incoming References from Ingress is not orphan
+        let with_ingress = vec![(EdgeType::References, "Ingress")];
+        assert!(!Service::is_orphan(&with_ingress));
+        assert!(!is_resource_orphan("Service", &with_ingress));
+
+        // Service with References from other resources (not Pod/Ingress) is orphan
+        let with_other = vec![(EdgeType::References, "ConfigMap")];
+        assert!(Service::is_orphan(&with_other));
+        assert!(is_resource_orphan("Service", &with_other));
+    }
+
+    #[test]
+    fn test_pvc_orphan_detection() {
+        use super::super::tree::EdgeType;
+
+        // PVC with no incoming references is orphan
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+        assert!(PersistentVolumeClaim::is_orphan(&no_refs));
+        assert!(is_resource_orphan("PersistentVolumeClaim", &no_refs));
+
+        // PVC with incoming References from Pod is not orphan
+        let with_pod = vec![(EdgeType::References, "Pod")];
+        assert!(!PersistentVolumeClaim::is_orphan(&with_pod));
+        assert!(!is_resource_orphan("PersistentVolumeClaim", &with_pod));
+
+        // PVC with incoming References from StatefulSet is not orphan
+        let with_sts = vec![(EdgeType::References, "StatefulSet")];
+        assert!(!PersistentVolumeClaim::is_orphan(&with_sts));
+        assert!(!is_resource_orphan("PersistentVolumeClaim", &with_sts));
+
+        // PVC with References from other resources is orphan
+        let with_other = vec![(EdgeType::References, "ConfigMap")];
+        assert!(PersistentVolumeClaim::is_orphan(&with_other));
+        assert!(is_resource_orphan("PersistentVolumeClaim", &with_other));
+    }
+
+    #[test]
+    fn test_serviceaccount_orphan_detection() {
+        use super::super::tree::EdgeType;
+
+        // ServiceAccount with no incoming references is orphan
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+        assert!(ServiceAccountBehavior::is_orphan(&no_refs));
+        assert!(is_resource_orphan("ServiceAccount", &no_refs));
+
+        // ServiceAccount with incoming References from Pod is not orphan
+        let with_pod = vec![(EdgeType::References, "Pod")];
+        assert!(!ServiceAccountBehavior::is_orphan(&with_pod));
+        assert!(!is_resource_orphan("ServiceAccount", &with_pod));
+
+        // ServiceAccount with incoming References from RoleBinding is not orphan
+        let with_rb = vec![(EdgeType::References, "RoleBinding")];
+        assert!(!ServiceAccountBehavior::is_orphan(&with_rb));
+        assert!(!is_resource_orphan("ServiceAccount", &with_rb));
+
+        // ServiceAccount with incoming References from ClusterRoleBinding is not orphan
+        let with_crb = vec![(EdgeType::References, "ClusterRoleBinding")];
+        assert!(!ServiceAccountBehavior::is_orphan(&with_crb));
+        assert!(!is_resource_orphan("ServiceAccount", &with_crb));
+
+        // ServiceAccount with References from other resources is orphan
+        let with_other = vec![(EdgeType::References, "ConfigMap")];
+        assert!(ServiceAccountBehavior::is_orphan(&with_other));
+        assert!(is_resource_orphan("ServiceAccount", &with_other));
+    }
+
+    #[test]
+    fn test_is_resource_orphan_dispatcher() {
+        use super::super::tree::EdgeType;
+
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+
+        // Test supported resource types
+        assert!(is_resource_orphan("ConfigMap", &no_refs));
+        assert!(is_resource_orphan("Secret", &no_refs));
+        assert!(is_resource_orphan("Service", &no_refs));
+        assert!(is_resource_orphan("PersistentVolumeClaim", &no_refs));
+        assert!(is_resource_orphan("ServiceAccount", &no_refs));
+
+        // Test case-insensitive matching
+        assert!(is_resource_orphan("configmap", &no_refs));
+        assert!(is_resource_orphan("secret", &no_refs));
+
+        // Test unsupported resource types (should never be orphans)
+        assert!(!is_resource_orphan("Pod", &no_refs));
+        assert!(!is_resource_orphan("Deployment", &no_refs));
+        assert!(!is_resource_orphan("Node", &no_refs));
     }
 }
