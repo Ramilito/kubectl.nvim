@@ -12,12 +12,18 @@ pub use builder::{
 };
 
 pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
+    // Lineage graph builder
+    exports.set(
+        "build_lineage_graph",
+        lua.create_function(|lua, (resources_json, root_name): (String, String)| {
+            build_lineage_graph(lua, resources_json, root_name)
+        })?,
+    )?;
+
     // Lineage graph builder for worker threads (used with commands.run_async)
     exports.set(
         "build_lineage_graph_worker",
-        lua.create_function(|_, json_input: String| {
-            build_lineage_graph_worker(json_input)
-        })?,
+        lua.create_function(|_, json_input: String| build_lineage_graph_worker(json_input))?,
     )?;
 
     // Get related nodes from stored lineage tree
