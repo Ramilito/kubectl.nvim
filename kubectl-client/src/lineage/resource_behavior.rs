@@ -1,16 +1,18 @@
 use super::tree::{EdgeType, RelationRef};
 use k8s_openapi::api::{
-    apps::v1::{DaemonSet, StatefulSet},
+    admissionregistration::v1::{MutatingWebhookConfiguration, ValidatingWebhookConfiguration},
+    apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet},
     autoscaling::v2::HorizontalPodAutoscaler,
     batch::v1::{CronJob, Job},
     core::v1::{
-        Container, Event, ObjectReference, PersistentVolume, PersistentVolumeClaim, Pod,
-        PodSpec, Service, Volume,
+        Container, EphemeralContainer, Event, ObjectReference, PersistentVolume,
+        PersistentVolumeClaim, Pod, PodSpec, Service, ServiceAccount, Volume,
     },
     networking::v1::{Ingress, IngressClass, NetworkPolicy},
     policy::v1::PodDisruptionBudget,
-    rbac::v1::{ClusterRole, ClusterRoleBinding, RoleBinding},
+    rbac::v1::{ClusterRole, ClusterRoleBinding, Role, RoleBinding},
 };
+use k8s_openapi::kube_aggregator::pkg::apis::apiregistration::v1::APIService;
 
 /// Trait for defining resource-specific behavior in the lineage graph
 pub trait ResourceBehavior {
@@ -231,6 +233,28 @@ impl ResourceBehavior for Pod {
             }
         }
 
+        // environment variables from ephemeralContainers
+        if let Some(ephemeral_containers) = &spec.ephemeral_containers {
+            for container in ephemeral_containers {
+                relations.extend(extract_ephemeral_container_env_relations(
+                    container, namespace,
+                ));
+            }
+        }
+
+        // imagePullSecrets
+        if let Some(image_pull_secrets) = &spec.image_pull_secrets {
+            for secret_ref in image_pull_secrets {
+                relations.push(RelationRef {
+                    kind: "Secret".to_string(),
+                    name: secret_ref.name.clone(),
+                    namespace: namespace.map(String::from),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+        }
+
         relations
     }
 }
@@ -241,6 +265,32 @@ impl ResourceBehavior for ClusterRole {
         // ClusterRole relationships are complex and selector-based
         // For now, return empty - can be enhanced later
         Vec::new()
+    }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // ClusterRole is orphaned if it has no incoming References from RoleBinding or ClusterRoleBinding
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            let source_lower = source_kind.to_lowercase();
+            matches!(edge_type, EdgeType::References)
+                && (source_lower == "rolebinding" || source_lower == "clusterrolebinding")
+        })
+    }
+}
+
+// Role resource behavior
+impl ResourceBehavior for Role {
+    fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
+        // Role relationships are similar to ClusterRole
+        // For now, return empty - can be enhanced later
+        Vec::new()
+    }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // Role is orphaned if it has no incoming References from RoleBinding
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            let source_lower = source_kind.to_lowercase();
+            matches!(edge_type, EdgeType::References) && source_lower == "rolebinding"
+        })
     }
 }
 
@@ -254,6 +304,16 @@ impl ResourceBehavior for PersistentVolumeClaim {
                 relations.push(RelationRef {
                     kind: "PersistentVolume".to_string(),
                     name: volume_name.clone(),
+                    namespace: None,
+                    api_version: None,
+                    uid: None,
+                });
+            }
+
+            if let Some(storage_class) = &spec.storage_class_name {
+                relations.push(RelationRef {
+                    kind: "StorageClass".to_string(),
+                    name: storage_class.clone(),
                     namespace: None,
                     api_version: None,
                     uid: None,
@@ -283,6 +343,16 @@ impl ResourceBehavior for PersistentVolume {
                 if let Some(rel) = object_ref_to_relation(claim_ref) {
                     relations.push(rel);
                 }
+            }
+
+            if let Some(storage_class) = &spec.storage_class_name {
+                relations.push(RelationRef {
+                    kind: "StorageClass".to_string(),
+                    name: storage_class.clone(),
+                    namespace: None,
+                    api_version: None,
+                    uid: None,
+                });
             }
         }
 
@@ -370,7 +440,53 @@ impl ResourceBehavior for StatefulSet {
             });
         }
 
+        // Extract pod spec relations (ConfigMaps, Secrets, etc.)
+        if let Some(pod_spec) = &spec.template.spec {
+            relations.extend(extract_pod_spec_relations(pod_spec, namespace));
+        }
+
         relations
+    }
+}
+
+// Deployment resource behavior
+impl ResourceBehavior for Deployment {
+    fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
+        let namespace = self.metadata.namespace.as_deref();
+
+        let spec = match &self.spec {
+            Some(s) => s,
+            None => return Vec::new(),
+        };
+
+        let pod_spec = match &spec.template.spec {
+            Some(s) => s,
+            None => return Vec::new(),
+        };
+
+        extract_pod_spec_relations(pod_spec, namespace)
+    }
+}
+
+// ReplicaSet resource behavior
+impl ResourceBehavior for ReplicaSet {
+    fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
+        let namespace = self.metadata.namespace.as_deref();
+
+        let spec = match &self.spec {
+            Some(s) => s,
+            None => return Vec::new(),
+        };
+
+        let pod_spec = match &spec.template {
+            Some(t) => match &t.spec {
+                Some(s) => s,
+                None => return Vec::new(),
+            },
+            None => return Vec::new(),
+        };
+
+        extract_pod_spec_relations(pod_spec, namespace)
     }
 }
 
@@ -471,7 +587,11 @@ impl ResourceBehavior for Service {
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
             matches!(edge_type, EdgeType::References)
-                && (source_lower == "pod" || source_lower == "ingress")
+                && (source_lower == "pod"
+                    || source_lower == "ingress"
+                    || source_lower == "validatingwebhookconfiguration"
+                    || source_lower == "mutatingwebhookconfiguration"
+                    || source_lower == "apiservice")
         })
     }
 }
@@ -533,6 +653,75 @@ impl ResourceBehavior for PodDisruptionBudget {
     }
 }
 
+// ValidatingWebhookConfiguration resource behavior
+impl ResourceBehavior for ValidatingWebhookConfiguration {
+    fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
+        let mut relations = Vec::new();
+
+        if let Some(webhooks) = &self.webhooks {
+            for webhook in webhooks {
+                if let Some(service) = &webhook.client_config.service {
+                    relations.push(RelationRef {
+                        kind: "Service".to_string(),
+                        name: service.name.clone(),
+                        namespace: Some(service.namespace.clone()),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+            }
+        }
+
+        relations
+    }
+}
+
+// MutatingWebhookConfiguration resource behavior
+impl ResourceBehavior for MutatingWebhookConfiguration {
+    fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
+        let mut relations = Vec::new();
+
+        if let Some(webhooks) = &self.webhooks {
+            for webhook in webhooks {
+                if let Some(service) = &webhook.client_config.service {
+                    relations.push(RelationRef {
+                        kind: "Service".to_string(),
+                        name: service.name.clone(),
+                        namespace: Some(service.namespace.clone()),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+            }
+        }
+
+        relations
+    }
+}
+
+// APIService resource behavior
+impl ResourceBehavior for APIService {
+    fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
+        let mut relations = Vec::new();
+
+        if let Some(spec) = &self.spec {
+            if let Some(service) = &spec.service {
+                if let Some(name) = &service.name {
+                    relations.push(RelationRef {
+                        kind: "Service".to_string(),
+                        name: name.clone(),
+                        namespace: service.namespace.clone(),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+            }
+        }
+
+        relations
+    }
+}
+
 // Marker structs for resources without k8s_openapi types
 pub struct ConfigMapBehavior;
 impl ResourceBehavior for ConfigMapBehavior {
@@ -554,16 +743,49 @@ impl ResourceBehavior for SecretBehavior {
     }
 
     fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // Secret is orphaned if it has NO incoming References edge from any resource
+        // (Pods, ServiceAccounts, Ingress, etc. all create References edges to Secrets)
         !incoming_refs
             .iter()
             .any(|(edge_type, _)| matches!(edge_type, EdgeType::References))
     }
 }
 
-pub struct ServiceAccountBehavior;
-impl ResourceBehavior for ServiceAccountBehavior {
+// ServiceAccount resource behavior
+impl ResourceBehavior for ServiceAccount {
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
-        Vec::new()
+        let mut relations = Vec::new();
+        let namespace = self.metadata.namespace.as_deref();
+
+        // secrets[] - manually added secrets
+        if let Some(secrets) = &self.secrets {
+            for secret_ref in secrets {
+                if let Some(name) = &secret_ref.name {
+                    relations.push(RelationRef {
+                        kind: "Secret".to_string(),
+                        name: name.clone(),
+                        namespace: namespace.map(String::from),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+            }
+        }
+
+        // imagePullSecrets[]
+        if let Some(image_pull_secrets) = &self.image_pull_secrets {
+            for secret_ref in image_pull_secrets {
+                relations.push(RelationRef {
+                    kind: "Secret".to_string(),
+                    name: secret_ref.name.clone(),
+                    namespace: namespace.map(String::from),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+        }
+
+        relations
     }
 
     fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
@@ -571,11 +793,18 @@ impl ResourceBehavior for ServiceAccountBehavior {
             let source_lower = source_kind.to_lowercase();
             matches!(edge_type, EdgeType::References)
                 && (source_lower == "pod"
+                    || source_lower == "deployment"
+                    || source_lower == "statefulset"
+                    || source_lower == "daemonset"
+                    || source_lower == "job"
+                    || source_lower == "cronjob"
+                    || source_lower == "replicaset"
                     || source_lower == "rolebinding"
                     || source_lower == "clusterrolebinding")
         })
     }
 }
+
 
 // Helper functions
 
@@ -595,6 +824,70 @@ fn object_ref_to_relation(obj_ref: &ObjectReference) -> Option<RelationRef> {
 
 /// Extract container environment variable relationships
 fn extract_container_env_relations(container: &Container, namespace: Option<&str>) -> Vec<RelationRef> {
+    let mut relations = Vec::new();
+
+    // env with valueFrom
+    if let Some(env_vars) = &container.env {
+        for env in env_vars {
+            if let Some(value_from) = &env.value_from {
+                // configMapKeyRef
+                if let Some(config_map_ref) = &value_from.config_map_key_ref {
+                    relations.push(RelationRef {
+                        kind: "ConfigMap".to_string(),
+                        name: config_map_ref.name.clone(),
+                        namespace: namespace.map(String::from),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+                // secretKeyRef
+                if let Some(secret_ref) = &value_from.secret_key_ref {
+                    relations.push(RelationRef {
+                        kind: "Secret".to_string(),
+                        name: secret_ref.name.clone(),
+                        namespace: namespace.map(String::from),
+                        api_version: None,
+                        uid: None,
+                    });
+                }
+            }
+        }
+    }
+
+    // envFrom
+    if let Some(env_from) = &container.env_from {
+        for env in env_from {
+            // configMapRef
+            if let Some(config_map_ref) = &env.config_map_ref {
+                relations.push(RelationRef {
+                    kind: "ConfigMap".to_string(),
+                    name: config_map_ref.name.clone(),
+                    namespace: namespace.map(String::from),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+            // secretRef
+            if let Some(secret_ref) = &env.secret_ref {
+                relations.push(RelationRef {
+                    kind: "Secret".to_string(),
+                    name: secret_ref.name.clone(),
+                    namespace: namespace.map(String::from),
+                    api_version: None,
+                    uid: None,
+                });
+            }
+        }
+    }
+
+    relations
+}
+
+/// Extract ephemeral container environment variable relationships
+fn extract_ephemeral_container_env_relations(
+    container: &EphemeralContainer,
+    namespace: Option<&str>,
+) -> Vec<RelationRef> {
     let mut relations = Vec::new();
 
     // env with valueFrom
@@ -773,6 +1066,28 @@ fn extract_pod_spec_relations(spec: &PodSpec, namespace: Option<&str>) -> Vec<Re
     if let Some(init_containers) = &spec.init_containers {
         for container in init_containers {
             relations.extend(extract_container_env_relations(container, namespace));
+        }
+    }
+
+    // environment variables from ephemeralContainers
+    if let Some(ephemeral_containers) = &spec.ephemeral_containers {
+        for container in ephemeral_containers {
+            relations.extend(extract_ephemeral_container_env_relations(
+                container, namespace,
+            ));
+        }
+    }
+
+    // imagePullSecrets
+    if let Some(image_pull_secrets) = &spec.image_pull_secrets {
+        for secret_ref in image_pull_secrets {
+            relations.push(RelationRef {
+                kind: "Secret".to_string(),
+                name: secret_ref.name.clone(),
+                namespace: namespace.map(String::from),
+                api_version: None,
+                uid: None,
+            });
         }
     }
 

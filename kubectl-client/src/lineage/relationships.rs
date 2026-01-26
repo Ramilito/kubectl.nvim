@@ -1,19 +1,19 @@
 use k8s_openapi::{
     api::{
-        apps::v1::{DaemonSet, StatefulSet},
+        admissionregistration::v1::{MutatingWebhookConfiguration, ValidatingWebhookConfiguration},
+        apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet},
         autoscaling::v2::HorizontalPodAutoscaler,
         batch::v1::{CronJob, Job},
-        core::v1::{Event, PersistentVolume, PersistentVolumeClaim, Pod, Service},
+        core::v1::{Event, PersistentVolume, PersistentVolumeClaim, Pod, Service, ServiceAccount},
         networking::v1::{Ingress, IngressClass, NetworkPolicy},
         policy::v1::PodDisruptionBudget,
-        rbac::v1::{ClusterRole, ClusterRoleBinding, RoleBinding},
+        rbac::v1::{ClusterRole, ClusterRoleBinding, Role, RoleBinding},
     },
+    kube_aggregator::pkg::apis::apiregistration::v1::APIService,
     serde_json::{from_value, Value},
 };
 
-use super::resource_behavior::{
-    ConfigMapBehavior, ResourceBehavior, SecretBehavior, ServiceAccountBehavior,
-};
+use super::resource_behavior::{ConfigMapBehavior, ResourceBehavior, SecretBehavior};
 use super::tree::RelationRef;
 
 /// Extract relationships from a Kubernetes resource based on its kind
@@ -40,6 +40,10 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
             .ok()
             .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
+        "Role" => from_value::<Role>(item.clone())
+            .ok()
+            .map(|typed| typed.extract_relationships(None))
+            .unwrap_or_default(),
         "PersistentVolumeClaim" => from_value::<PersistentVolumeClaim>(item.clone())
             .ok()
             .map(|typed| typed.extract_relationships(None))
@@ -49,6 +53,14 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
             .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
         "ClusterRoleBinding" => from_value::<ClusterRoleBinding>(item.clone())
+            .ok()
+            .map(|typed| typed.extract_relationships(None))
+            .unwrap_or_default(),
+        "Deployment" => from_value::<Deployment>(item.clone())
+            .ok()
+            .map(|typed| typed.extract_relationships(None))
+            .unwrap_or_default(),
+        "ReplicaSet" => from_value::<ReplicaSet>(item.clone())
             .ok()
             .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
@@ -88,6 +100,24 @@ pub fn extract_relationships(kind: &str, item: &Value) -> Vec<RelationRef> {
             .ok()
             .map(|typed| typed.extract_relationships(None))
             .unwrap_or_default(),
+        "ServiceAccount" => from_value::<ServiceAccount>(item.clone())
+            .ok()
+            .map(|typed| typed.extract_relationships(None))
+            .unwrap_or_default(),
+        "ValidatingWebhookConfiguration" => {
+            from_value::<ValidatingWebhookConfiguration>(item.clone())
+                .ok()
+                .map(|typed| typed.extract_relationships(None))
+                .unwrap_or_default()
+        }
+        "MutatingWebhookConfiguration" => from_value::<MutatingWebhookConfiguration>(item.clone())
+            .ok()
+            .map(|typed| typed.extract_relationships(None))
+            .unwrap_or_default(),
+        "APIService" => from_value::<APIService>(item.clone())
+            .ok()
+            .map(|typed: APIService| typed.extract_relationships(None))
+            .unwrap_or_default(),
         _ => Vec::new(),
     }
 }
@@ -107,7 +137,9 @@ pub fn is_resource_orphan(
             PersistentVolumeClaim::is_orphan(incoming_refs)
         }
         "PersistentVolume" | "persistentvolume" => PersistentVolume::is_orphan(incoming_refs),
-        "ServiceAccount" | "serviceaccount" => ServiceAccountBehavior::is_orphan(incoming_refs),
+        "ServiceAccount" | "serviceaccount" => ServiceAccount::is_orphan(incoming_refs),
+        "Role" | "role" => Role::is_orphan(incoming_refs),
+        "ClusterRole" | "clusterrole" => ClusterRole::is_orphan(incoming_refs),
         _ => false, // Other resource types are never considered orphans
     }
 }
@@ -239,28 +271,83 @@ mod tests {
 
         // ServiceAccount with no incoming references is orphan
         let no_refs: Vec<(EdgeType, &str)> = vec![];
-        assert!(ServiceAccountBehavior::is_orphan(&no_refs));
+        assert!(ServiceAccount::is_orphan(&no_refs));
         assert!(is_resource_orphan("ServiceAccount", &no_refs));
 
         // ServiceAccount with incoming References from Pod is not orphan
         let with_pod = vec![(EdgeType::References, "Pod")];
-        assert!(!ServiceAccountBehavior::is_orphan(&with_pod));
+        assert!(!ServiceAccount::is_orphan(&with_pod));
         assert!(!is_resource_orphan("ServiceAccount", &with_pod));
 
         // ServiceAccount with incoming References from RoleBinding is not orphan
         let with_rb = vec![(EdgeType::References, "RoleBinding")];
-        assert!(!ServiceAccountBehavior::is_orphan(&with_rb));
+        assert!(!ServiceAccount::is_orphan(&with_rb));
         assert!(!is_resource_orphan("ServiceAccount", &with_rb));
 
         // ServiceAccount with incoming References from ClusterRoleBinding is not orphan
         let with_crb = vec![(EdgeType::References, "ClusterRoleBinding")];
-        assert!(!ServiceAccountBehavior::is_orphan(&with_crb));
+        assert!(!ServiceAccount::is_orphan(&with_crb));
         assert!(!is_resource_orphan("ServiceAccount", &with_crb));
 
         // ServiceAccount with References from other resources is orphan
         let with_other = vec![(EdgeType::References, "ConfigMap")];
-        assert!(ServiceAccountBehavior::is_orphan(&with_other));
+        assert!(ServiceAccount::is_orphan(&with_other));
         assert!(is_resource_orphan("ServiceAccount", &with_other));
+    }
+
+    #[test]
+    fn test_role_orphan_detection() {
+        use super::super::tree::EdgeType;
+
+        // Role with no incoming references is orphan
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+        assert!(Role::is_orphan(&no_refs));
+        assert!(is_resource_orphan("Role", &no_refs));
+
+        // Role with incoming References from RoleBinding is not orphan
+        let with_rb = vec![(EdgeType::References, "RoleBinding")];
+        assert!(!Role::is_orphan(&with_rb));
+        assert!(!is_resource_orphan("Role", &with_rb));
+
+        // Role with References from other resources is orphan
+        let with_other = vec![(EdgeType::References, "Pod")];
+        assert!(Role::is_orphan(&with_other));
+        assert!(is_resource_orphan("Role", &with_other));
+
+        // Role with only Owns edge is orphan
+        let only_owns = vec![(EdgeType::Owns, "RoleBinding")];
+        assert!(Role::is_orphan(&only_owns));
+        assert!(is_resource_orphan("Role", &only_owns));
+    }
+
+    #[test]
+    fn test_clusterrole_orphan_detection() {
+        use super::super::tree::EdgeType;
+
+        // ClusterRole with no incoming references is orphan
+        let no_refs: Vec<(EdgeType, &str)> = vec![];
+        assert!(ClusterRole::is_orphan(&no_refs));
+        assert!(is_resource_orphan("ClusterRole", &no_refs));
+
+        // ClusterRole with incoming References from RoleBinding is not orphan
+        let with_rb = vec![(EdgeType::References, "RoleBinding")];
+        assert!(!ClusterRole::is_orphan(&with_rb));
+        assert!(!is_resource_orphan("ClusterRole", &with_rb));
+
+        // ClusterRole with incoming References from ClusterRoleBinding is not orphan
+        let with_crb = vec![(EdgeType::References, "ClusterRoleBinding")];
+        assert!(!ClusterRole::is_orphan(&with_crb));
+        assert!(!is_resource_orphan("ClusterRole", &with_crb));
+
+        // ClusterRole with References from other resources is orphan
+        let with_other = vec![(EdgeType::References, "Pod")];
+        assert!(ClusterRole::is_orphan(&with_other));
+        assert!(is_resource_orphan("ClusterRole", &with_other));
+
+        // ClusterRole with only Owns edge is orphan
+        let only_owns = vec![(EdgeType::Owns, "ClusterRoleBinding")];
+        assert!(ClusterRole::is_orphan(&only_owns));
+        assert!(is_resource_orphan("ClusterRole", &only_owns));
     }
 
     #[test]
@@ -275,10 +362,14 @@ mod tests {
         assert!(is_resource_orphan("Service", &no_refs));
         assert!(is_resource_orphan("PersistentVolumeClaim", &no_refs));
         assert!(is_resource_orphan("ServiceAccount", &no_refs));
+        assert!(is_resource_orphan("Role", &no_refs));
+        assert!(is_resource_orphan("ClusterRole", &no_refs));
 
         // Test case-insensitive matching
         assert!(is_resource_orphan("configmap", &no_refs));
         assert!(is_resource_orphan("secret", &no_refs));
+        assert!(is_resource_orphan("role", &no_refs));
+        assert!(is_resource_orphan("clusterrole", &no_refs));
 
         // Test unsupported resource types (should never be orphans)
         assert!(!is_resource_orphan("Pod", &no_refs));
