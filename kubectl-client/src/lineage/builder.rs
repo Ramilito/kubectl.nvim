@@ -74,28 +74,9 @@ struct BuildGraphInput {
     root_name: String,
 }
 
-/// Input resource structure from Lua (matches processRow output)
-#[derive(Debug, serde::Deserialize)]
-struct ResourceInput {
-    kind: String,
-    name: String,
-    #[serde(rename = "ns")]
-    ns: Option<String>,
-    #[serde(rename = "apiVersion")]
-    api_version: Option<String>,
-    #[serde(default)]
-    labels: Option<HashMap<String, String>>,
-    #[serde(default)]
-    selectors: Option<HashMap<String, String>>,
-    #[serde(default)]
-    metadata: Option<Value>,
-    #[serde(default)]
-    spec: Option<Value>,
-    /// Raw resource data for relationship extraction (for resources like RBAC
-    /// that have top-level fields like roleRef, subjects instead of spec)
-    #[serde(default)]
-    raw: Option<Value>,
-}
+/// Input resource structure from Lua - just the raw K8s resource JSON
+/// Rust extracts all needed fields (kind, name, namespace, labels, selectors, etc.)
+type ResourceInput = Value;
 
 /// Build lineage graph in a worker thread - called via commands.run_async
 /// Takes a single JSON string with {resources, root_name}, returns JSON result
@@ -112,7 +93,7 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
     let parsed_resources: Vec<Resource> = input
         .resources
         .into_iter()
-        .map(parse_resource_typed)
+        .filter_map(parse_resource_typed)
         .collect();
 
     // Create root resource (cluster) - use tree_id which is root_name
@@ -309,7 +290,7 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
     // Convert typed input resources to our Resource struct
     let parsed_resources: Vec<Resource> = resources
         .into_iter()
-        .map(parse_resource_typed)
+        .filter_map(parse_resource_typed)
         .collect();
 
     // Create root resource (cluster)
@@ -341,15 +322,61 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
     tree_to_lua_table(lua, &tree)
 }
 
-/// Parse a typed ResourceInput into a Resource struct
-fn parse_resource_typed(input: ResourceInput) -> Resource {
-    let namespace = input.ns.as_deref();
+/// Parse a raw K8s resource JSON into a Resource struct
+/// Extracts all needed fields from the JSON
+fn parse_resource_typed(input: ResourceInput) -> Option<Resource> {
+    // Extract kind - can be at top level or we skip this resource
+    let kind = input.get("kind").and_then(|v| v.as_str())?.to_string();
 
-    // Extract ownerReferences from metadata if available
-    let owners = input
-        .metadata
-        .as_ref()
-        .and_then(|m| m.get("ownerReferences"))
+    // Extract metadata
+    let metadata = input.get("metadata")?;
+    let name = metadata.get("name").and_then(|v| v.as_str())?.to_string();
+    let namespace = metadata
+        .get("namespace")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+
+    // Extract apiVersion
+    let api_version = input
+        .get("apiVersion")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+
+    // Extract UID
+    let uid = metadata
+        .get("uid")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+
+    // Extract labels from metadata.labels
+    let labels = metadata.get("labels").and_then(|v| {
+        v.as_object().map(|obj| {
+            obj.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect::<HashMap<String, String>>()
+        })
+    });
+
+    // Extract selectors from spec.selector.matchLabels or spec.selector
+    let selectors = input.get("spec").and_then(|spec| {
+        spec.get("selector").and_then(|sel| {
+            // Try matchLabels first (Deployments, ReplicaSets, etc.)
+            let label_map = sel
+                .get("matchLabels")
+                .or(Some(sel))
+                .and_then(|m| m.as_object());
+
+            label_map.map(|obj| {
+                obj.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+        })
+    });
+
+    // Extract ownerReferences from metadata
+    let owners = metadata
+        .get("ownerReferences")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -361,14 +388,17 @@ fn parse_resource_typed(input: ResourceInput) -> Resource {
                     let owner_namespace = owner
                         .get("namespace")
                         .and_then(|v| v.as_str())
-                        .or(namespace)
-                        .map(String::from);
+                        .map(String::from)
+                        .or_else(|| namespace.clone());
 
                     Some(RelationRef {
                         kind: owner_kind,
                         name: owner_name,
                         namespace: owner_namespace,
-                        api_version: owner.get("apiVersion").and_then(|v| v.as_str()).map(String::from),
+                        api_version: owner
+                            .get("apiVersion")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
                         uid: owner.get("uid").and_then(|v| v.as_str()).map(String::from),
                     })
                 })
@@ -376,49 +406,25 @@ fn parse_resource_typed(input: ResourceInput) -> Resource {
         })
         .unwrap_or_default();
 
-    // Get UID from metadata if available
-    let uid = input
-        .metadata
-        .as_ref()
-        .and_then(|m| m.get("uid"))
-        .and_then(|v| v.as_str())
-        .map(String::from);
+    // Extract relationships using Rust relationship extraction (uses full raw JSON)
+    let relations = super::relationships::extract_relationships(&kind, &input);
 
-    // Build a combined Value for relationship extraction
-    // Use raw data if available (for RBAC resources with top-level fields like roleRef),
-    // otherwise build from metadata + spec
-    let combined_value = if let Some(raw) = &input.raw {
-        raw.clone()
-    } else {
-        let mut value = serde_json::json!({
-            "kind": input.kind,
-            "apiVersion": input.api_version,
-        });
-
-        if let Some(metadata) = &input.metadata {
-            value["metadata"] = metadata.clone();
-        }
-        if let Some(spec) = &input.spec {
-            value["spec"] = spec.clone();
-        }
-        value
-    };
-
-    // Extract relationships using Rust relationship extraction
-    let relations = super::relationships::extract_relationships(&input.kind, &combined_value);
-
-    Resource {
-        kind: input.kind,
-        name: input.name,
-        namespace: input.ns,
-        api_version: input.api_version,
+    Some(Resource {
+        kind,
+        name,
+        namespace,
+        api_version,
         uid,
-        labels: input.labels,
-        selectors: input.selectors,
+        labels,
+        selectors,
         owners: if owners.is_empty() { None } else { Some(owners) },
-        relations: if relations.is_empty() { None } else { Some(relations) },
+        relations: if relations.is_empty() {
+            None
+        } else {
+            Some(relations)
+        },
         is_orphan: false,
-    }
+    })
 }
 
 /// Convert the tree structure to a Lua table
@@ -532,23 +538,19 @@ mod tests {
 
     #[test]
     fn test_parse_resource_typed() {
-        let input = ResourceInput {
-            kind: "Pod".to_string(),
-            name: "test-pod".to_string(),
-            ns: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            labels: Some({
-                let mut map = HashMap::new();
-                map.insert("app".to_string(), "nginx".to_string());
-                map
-            }),
-            selectors: None,
-            metadata: None,
-            spec: None,
-            raw: None,
-        };
+        let input = serde_json::json!({
+            "kind": "Pod",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "test-pod",
+                "namespace": "default",
+                "labels": {
+                    "app": "nginx"
+                }
+            }
+        });
 
-        let resource = parse_resource_typed(input);
+        let resource = parse_resource_typed(input).unwrap();
         assert_eq!(resource.kind, "Pod");
         assert_eq!(resource.name, "test-pod");
         assert_eq!(resource.namespace, Some("default".to_string()));
@@ -557,30 +559,22 @@ mod tests {
 
     #[test]
     fn test_parse_resource_with_owner_refs() {
-        let metadata = serde_json::json!({
-            "name": "test-pod",
-            "namespace": "default",
-            "ownerReferences": [{
-                "kind": "ReplicaSet",
-                "name": "test-rs",
-                "apiVersion": "apps/v1",
-                "uid": "123"
-            }]
+        let input = serde_json::json!({
+            "kind": "Pod",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "test-pod",
+                "namespace": "default",
+                "ownerReferences": [{
+                    "kind": "ReplicaSet",
+                    "name": "test-rs",
+                    "apiVersion": "apps/v1",
+                    "uid": "123"
+                }]
+            }
         });
 
-        let input = ResourceInput {
-            kind: "Pod".to_string(),
-            name: "test-pod".to_string(),
-            ns: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            labels: None,
-            selectors: None,
-            metadata: Some(metadata),
-            spec: None,
-            raw: None,
-        };
-
-        let resource = parse_resource_typed(input);
+        let resource = parse_resource_typed(input).unwrap();
         assert_eq!(resource.kind, "Pod");
         assert!(resource.owners.is_some());
         let owners = resource.owners.unwrap();

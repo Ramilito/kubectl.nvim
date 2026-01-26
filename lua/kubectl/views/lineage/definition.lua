@@ -27,52 +27,29 @@ function M.processRow(rows, cached_api_resources)
     return
   end
   for _, item in ipairs(rows) do
-    if not item.kind then
+    if not item.kind or not item.metadata or not item.metadata.name then
       return
     end
 
-    item.metadata.managedFields = {}
+    -- Clear managedFields to reduce payload size
+    item.metadata.managedFields = nil
 
+    -- Find cache key for this resource
     local cache_key = nil
     for _, value in pairs(cached_api_resources.values) do
-      if value.api_version and item.api_version then
-        if string.lower(value.api_version) == string.lower(item.api_version) and value.gvk.k == item.kind then
+      if value.api_version and item.apiVersion then
+        if string.lower(value.api_version) == string.lower(item.apiVersion) and value.gvk.k == item.kind then
           cache_key = value.crd_name
         end
       end
     end
 
-    local row
-
-    if item.metadata.name then
-      -- Build the row data - relationships will be extracted in Rust
-      row = {
-        kind = item.kind,
-        name = item.metadata.name,
-        ns = item.metadata.namespace,
-        apiVersion = item.apiVersion or rows.apiVersion,
-        labels = item.metadata.labels,
-        metadata = item.metadata,
-        spec = item.spec,
-        -- Include raw data for resources with top-level fields (e.g., RBAC with roleRef, subjects)
-        raw = item,
-      }
-
-      -- Add selectors if available
-      if item.spec and item.spec.selector then
-        local label_selector = item.spec.selector.matchLabels or item.spec.selector
-        if label_selector then
-          row.selectors = label_selector
-        end
+    -- Add the raw item to the cache - Rust will extract all needed fields
+    if cache_key then
+      if not cached_api_resources.values[cache_key].data then
+        cached_api_resources.values[cache_key].data = {}
       end
-
-      -- Add the row to the cache if cache_key is available
-      if cache_key then
-        if not cached_api_resources.values[cache_key].data then
-          cached_api_resources.values[cache_key].data = {}
-        end
-        table.insert(cached_api_resources.values[cache_key].data, row)
-      end
+      table.insert(cached_api_resources.values[cache_key].data, item)
     end
   end
 end
