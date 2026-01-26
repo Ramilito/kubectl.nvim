@@ -130,16 +130,37 @@ pub fn is_resource_orphan(
     incoming_refs: &[(super::tree::EdgeType, &str)],
 ) -> bool {
     match kind {
+        // Core resources with clear consumer relationships
         "ConfigMap" | "configmap" => ConfigMapBehavior::is_orphan(incoming_refs),
         "Secret" | "secret" => SecretBehavior::is_orphan(incoming_refs),
         "Service" | "service" => Service::is_orphan(incoming_refs),
+        "ServiceAccount" | "serviceaccount" => ServiceAccount::is_orphan(incoming_refs),
+        // Storage resources
         "PersistentVolumeClaim" | "persistentvolumeclaim" => {
             PersistentVolumeClaim::is_orphan(incoming_refs)
         }
         "PersistentVolume" | "persistentvolume" => PersistentVolume::is_orphan(incoming_refs),
-        "ServiceAccount" | "serviceaccount" => ServiceAccount::is_orphan(incoming_refs),
+        // RBAC resources
         "Role" | "role" => Role::is_orphan(incoming_refs),
         "ClusterRole" | "clusterrole" => ClusterRole::is_orphan(incoming_refs),
+        "RoleBinding" | "rolebinding" => RoleBinding::is_orphan(incoming_refs),
+        "ClusterRoleBinding" | "clusterrolebinding" => {
+            ClusterRoleBinding::is_orphan(incoming_refs)
+        }
+        // Policy resources with selector-based relationships
+        "NetworkPolicy" | "networkpolicy" => NetworkPolicy::is_orphan(incoming_refs),
+        "PodDisruptionBudget" | "poddisruptionbudget" => {
+            PodDisruptionBudget::is_orphan(incoming_refs)
+        }
+        // Networking resources
+        "IngressClass" | "ingressclass" => IngressClass::is_orphan(incoming_refs),
+        "Ingress" | "ingress" => Ingress::is_orphan(incoming_refs),
+        // Autoscaling
+        "HorizontalPodAutoscaler" | "horizontalpodautoscaler" => {
+            HorizontalPodAutoscaler::is_orphan(incoming_refs)
+        }
+        // Workload helpers
+        "ReplicaSet" | "replicaset" => ReplicaSet::is_orphan(incoming_refs),
         _ => false, // Other resource types are never considered orphans
     }
 }

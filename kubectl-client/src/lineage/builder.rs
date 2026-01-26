@@ -91,6 +91,10 @@ struct ResourceInput {
     metadata: Option<Value>,
     #[serde(default)]
     spec: Option<Value>,
+    /// Raw resource data for relationship extraction (for resources like RBAC
+    /// that have top-level fields like roleRef, subjects instead of spec)
+    #[serde(default)]
+    raw: Option<Value>,
 }
 
 /// Build lineage graph in a worker thread - called via commands.run_async
@@ -380,18 +384,25 @@ fn parse_resource_typed(input: ResourceInput) -> Resource {
         .and_then(|v| v.as_str())
         .map(String::from);
 
-    // Build a combined Value for relationship extraction (metadata + spec)
-    let mut combined_value = serde_json::json!({
-        "kind": input.kind,
-        "apiVersion": input.api_version,
-    });
+    // Build a combined Value for relationship extraction
+    // Use raw data if available (for RBAC resources with top-level fields like roleRef),
+    // otherwise build from metadata + spec
+    let combined_value = if let Some(raw) = &input.raw {
+        raw.clone()
+    } else {
+        let mut value = serde_json::json!({
+            "kind": input.kind,
+            "apiVersion": input.api_version,
+        });
 
-    if let Some(metadata) = &input.metadata {
-        combined_value["metadata"] = metadata.clone();
-    }
-    if let Some(spec) = &input.spec {
-        combined_value["spec"] = spec.clone();
-    }
+        if let Some(metadata) = &input.metadata {
+            value["metadata"] = metadata.clone();
+        }
+        if let Some(spec) = &input.spec {
+            value["spec"] = spec.clone();
+        }
+        value
+    };
 
     // Extract relationships using Rust relationship extraction
     let relations = super::relationships::extract_relationships(&input.kind, &combined_value);
@@ -534,6 +545,7 @@ mod tests {
             selectors: None,
             metadata: None,
             spec: None,
+            raw: None,
         };
 
         let resource = parse_resource_typed(input);
@@ -565,6 +577,7 @@ mod tests {
             selectors: None,
             metadata: Some(metadata),
             spec: None,
+            raw: None,
         };
 
         let resource = parse_resource_typed(input);

@@ -11,6 +11,7 @@ use k8s_openapi::api::{
     networking::v1::{Ingress, IngressClass, NetworkPolicy},
     policy::v1::PodDisruptionBudget,
     rbac::v1::{ClusterRole, ClusterRoleBinding, Role, RoleBinding},
+    storage::v1::StorageClass,
 };
 use k8s_openapi::kube_aggregator::pkg::apis::apiregistration::v1::APIService;
 
@@ -136,6 +137,14 @@ impl ResourceBehavior for Ingress {
 
         relations
     }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // Ingress is orphaned if it has no incoming References from Service
+        // (meaning its backend services don't exist in the cluster)
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            matches!(edge_type, EdgeType::References) && source_kind.eq_ignore_ascii_case("service")
+        })
+    }
 }
 
 // IngressClass resource behavior
@@ -156,6 +165,13 @@ impl ResourceBehavior for IngressClass {
         }
 
         relations
+    }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // IngressClass is orphaned if no Ingress references it
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            matches!(edge_type, EdgeType::References) && source_kind.eq_ignore_ascii_case("ingress")
+        })
     }
 }
 
@@ -368,6 +384,23 @@ impl ResourceBehavior for PersistentVolume {
     }
 }
 
+// StorageClass resource behavior
+impl ResourceBehavior for StorageClass {
+    fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
+        // StorageClass is referenced by PVCs and PVs, it doesn't reference other resources
+        Vec::new()
+    }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // StorageClass is orphaned if no PVC or PV references it
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            let source_lower = source_kind.to_lowercase();
+            matches!(edge_type, EdgeType::References)
+                && (source_lower == "persistentvolumeclaim" || source_lower == "persistentvolume")
+        })
+    }
+}
+
 // ClusterRoleBinding resource behavior
 impl ResourceBehavior for ClusterRoleBinding {
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
@@ -400,6 +433,14 @@ impl ResourceBehavior for ClusterRoleBinding {
         }
 
         relations
+    }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // ClusterRoleBinding is orphaned if the ClusterRole it references doesn't exist
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            matches!(edge_type, EdgeType::References)
+                && source_kind.eq_ignore_ascii_case("clusterrole")
+        })
     }
 }
 
@@ -488,6 +529,19 @@ impl ResourceBehavior for ReplicaSet {
 
         extract_pod_spec_relations(pod_spec, namespace)
     }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // ReplicaSet is orphaned if:
+        // 1. It has no owning Deployment (no incoming Owns edge)
+        // 2. AND it has no Pods (no incoming References from Pod)
+        let has_owner = incoming_refs
+            .iter()
+            .any(|(edge_type, _)| matches!(edge_type, EdgeType::Owns));
+        let has_pods = incoming_refs.iter().any(|(edge_type, source_kind)| {
+            matches!(edge_type, EdgeType::References) && source_kind.eq_ignore_ascii_case("pod")
+        });
+        !has_owner && !has_pods
+    }
 }
 
 // DaemonSet resource behavior
@@ -572,6 +626,17 @@ impl ResourceBehavior for HorizontalPodAutoscaler {
 
         relations
     }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // HPA is orphaned if its target (Deployment/StatefulSet/ReplicaSet) doesn't exist
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            let source_lower = source_kind.to_lowercase();
+            matches!(edge_type, EdgeType::References)
+                && (source_lower == "deployment"
+                    || source_lower == "statefulset"
+                    || source_lower == "replicaset")
+        })
+    }
 }
 
 // Service resource behavior
@@ -603,6 +668,14 @@ impl ResourceBehavior for NetworkPolicy {
         // and handled via the selector field in the Resource struct
         // The selector matching happens in tree.rs link_nodes()
         Vec::new()
+    }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // NetworkPolicy is orphaned if it has no incoming References from Pod
+        // (meaning its podSelector doesn't match any pods)
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            matches!(edge_type, EdgeType::References) && source_kind.eq_ignore_ascii_case("pod")
+        })
     }
 }
 
@@ -641,6 +714,15 @@ impl ResourceBehavior for RoleBinding {
 
         relations
     }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // RoleBinding is orphaned if the Role or ClusterRole it references doesn't exist
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            let source_lower = source_kind.to_lowercase();
+            matches!(edge_type, EdgeType::References)
+                && (source_lower == "role" || source_lower == "clusterrole")
+        })
+    }
 }
 
 // PodDisruptionBudget resource behavior
@@ -650,6 +732,14 @@ impl ResourceBehavior for PodDisruptionBudget {
         // and handled via the selector field in the Resource struct
         // The selector matching happens in tree.rs link_nodes()
         Vec::new()
+    }
+
+    fn is_orphan(incoming_refs: &[(EdgeType, &str)]) -> bool {
+        // PodDisruptionBudget is orphaned if it has no incoming References from Pod
+        // (meaning its selector doesn't match any pods it's supposed to protect)
+        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+            matches!(edge_type, EdgeType::References) && source_kind.eq_ignore_ascii_case("pod")
+        })
     }
 }
 

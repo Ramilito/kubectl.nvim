@@ -54,6 +54,8 @@ function M.processRow(rows, cached_api_resources)
         labels = item.metadata.labels,
         metadata = item.metadata,
         spec = item.spec,
+        -- Include raw data for resources with top-level fields (e.g., RBAC with roleRef, subjects)
+        raw = item,
       }
 
       -- Add selectors if available

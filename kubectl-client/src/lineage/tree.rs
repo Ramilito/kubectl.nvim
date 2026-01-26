@@ -220,16 +220,14 @@ impl Tree {
                     }
                 }
 
-                for (relation_idx, is_config_or_secret) in relation_updates {
-                    // Add forward reference edge (node -> relation)
+                for (relation_idx, _is_config_or_secret) in relation_updates {
+                    // Add bidirectional reference edges for all explicit relationships
+                    // This allows orphan detection to work (e.g., Ingress with no Services,
+                    // HPA with no target, RoleBinding with no Role)
                     self.graph
                         .add_edge(node_idx, relation_idx, EdgeType::References);
-
-                    // Add reverse relationship for ConfigMap/Secret
-                    if is_config_or_secret {
-                        self.graph
-                            .add_edge(relation_idx, node_idx, EdgeType::References);
-                    }
+                    self.graph
+                        .add_edge(relation_idx, node_idx, EdgeType::References);
                 }
             }
         }
