@@ -15,10 +15,80 @@ use k8s_openapi::api::{
 };
 use k8s_openapi::kube_aggregator::pkg::apis::apiregistration::v1::APIService;
 
-/// Check if a resource is a system ClusterRole that should never be considered orphan
-fn is_system_cluster_role(name: &str) -> bool {
-    matches!(name, "admin" | "edit" | "view" | "sudoer" | "cluster-admin")
-        || name.starts_with("system:")
+fn is_exception_cluster_role(name: &str) -> bool {
+    matches!(
+        name,
+        "admin"
+            | "alert-routing-edit"
+            | "cloud-provider"
+            | "cluster-admin"
+            | "cluster-debugger"
+            | "edit"
+            | "eks:extension-metrics-apiserver"
+            | "global-operators-admin"
+            | "global-operators-edit"
+            | "global-operators-view"
+            | "monitoring-edit"
+            | "monitoring-rules-edit"
+            | "monitoring-rules-view"
+            | "olm-operators-admin"
+            | "olm-operators-edit"
+            | "olm-operators-view"
+            | "openshift-cluster-monitoring-admin"
+            | "openshift-cluster-monitoring-edit"
+            | "openshift-cluster-monitoring-view"
+            | "openshift-csi-main-attacher-role"
+            | "openshift-csi-main-provisioner-role"
+            | "openshift-csi-main-resizer-role"
+            | "openshift-csi-main-snapshotter-role"
+            | "openshift-csi-provisioner-configmap-and-secret-reader-role"
+            | "openshift-csi-provisioner-volumeattachment-reader-role"
+            | "openshift-csi-provisioner-volumesnapshot-reader-role"
+            | "openshift-csi-resizer-infrastructure-reader-role"
+            | "openshift-csi-resizer-storageclass-reader-role"
+            | "resource-metrics-server-resources"
+            | "storage-admin"
+            | "sudoer"
+            | "system:aggregate-to-admin"
+            | "system:aggregate-to-edit"
+            | "system:aggregate-to-view"
+            | "system:aggregated-metrics-reader"
+            | "system:auth-delegator"
+            | "system:build-strategy-custom"
+            | "system:certificates.k8s.io:certificatesigningrequests:nodeclient"
+            | "system:certificates.k8s.io:certificatesigningrequests:selfnodeclient"
+            | "system:certificates.k8s.io:kube-apiserver-client-approver"
+            | "system:certificates.k8s.io:kube-apiserver-client-kubelet-approver"
+            | "system:certificates.k8s.io:kubelet-serving-approver"
+            | "system:certificates.k8s.io:legacy-unknown-approver"
+            | "system:controller:cloud-node-controller"
+            | "system:controller:glbc"
+            | "system:heapster"
+            | "system:image-auditor"
+            | "system:image-pusher"
+            | "system:image-signer"
+            | "system:kube-aggregator"
+            | "system:kubelet-api-admin"
+            | "system:metrics-server-aggregated-reader"
+            | "system:node"
+            | "system:node-bootstrapper"
+            | "system:node-problem-detector"
+            | "system:node-reader"
+            | "system:openshift:aggregate-snapshots-to-storage-admin"
+            | "system:openshift:aggregate-to-storage-admin"
+            | "system:openshift:scc:hostaccess"
+            | "system:openshift:scc:hostmount"
+            | "system:openshift:scc:hostnetwork"
+            | "system:openshift:scc:nonroot"
+            | "system:openshift:scc:nonroot-v2"
+            | "system:openshift:scc:privileged"
+            | "system:openshift:scc:restricted"
+            | "system:openshift:templateservicebroker-client"
+            | "system:persistent-volume-provisioner"
+            | "system:router"
+            | "system:sdn-manager"
+            | "view"
+    )
 }
 
 /// Check if a ServiceAccount is a system default (only "default" SA, not all in system namespaces)
@@ -26,9 +96,114 @@ fn is_system_service_account(name: &str) -> bool {
     name == "default"
 }
 
-/// Check if a ConfigMap is a system resource (specific ConfigMaps, not all in system namespaces)
-fn is_system_config_map(name: &str) -> bool {
-    name == "kube-root-ca.crt" || name == "extension-apiserver-authentication"
+/// Check if a ClusterRoleBinding is a system resource that should never be considered orphan
+fn is_exception_cluster_role_binding(name: &str) -> bool {
+    matches!(
+        name,
+        "kubeadm:kubelet-bootstrap"
+            | "kubeadm:node-autoapprove-bootstrap"
+            | "kubeadm:node-autoapprove-certificate-rotation"
+            | "system:controller:route-controller"
+            | "system:kube-dns"
+            | "system:node"
+            | "event-exporter-rb"
+            | "kubelet-bootstrap"
+            | "kubelet-bootstrap-node-bootstrapper"
+            | "kubelet-cluster-admin"
+            | "kubelet-nodepool-bootstrapper"
+            | "kubelet-user-npd-binding"
+            | "metrics-server-nanny:system:auth-delegator"
+            | "metrics-server:system:auth-delegator"
+            | "npd-binding"
+            | "system:controller:horizontal-pod-autoscaler"
+            | "system:controller:selinux-warning-controller"
+            | "system:konnectivity-server"
+    )
+}
+
+/// Check if a RoleBinding is a system resource that should never be considered orphan
+fn is_exception_role_binding(name: &str, namespace: Option<&str>) -> bool {
+    match namespace {
+        Some("kube-system") => {
+            // system::* and system:controller:* patterns
+            name.starts_with("system::") || name.starts_with("system:controller:")
+                || matches!(name, "kube-proxy" | "kubeadm:kubelet-config" | "kubeadm:nodes-kubeadm-config" | "gce:podsecuritypolicy:pdcsi-node-sa")
+        }
+        Some("kube-public") => {
+            matches!(name, "kubeadm:bootstrap-signer-clusterinfo" | "system:controller:bootstrap-signer")
+        }
+        Some("gmp-public") => name == "operator",
+        _ => false,
+    }
+}
+
+/// Check if a ConfigMap is a system resource that should never be considered orphan
+fn is_exception_config_map(name: &str, namespace: Option<&str>) -> bool {
+    // Pattern-based exceptions (any namespace)
+    if name == "kube-root-ca.crt" || name == "openshift-service-ca.crt" {
+        return true;
+    }
+
+    match namespace {
+        Some("kube-system") => matches!(
+            name,
+            "amazon-vpc-cni"
+                | "aws-auth"
+                | "bootstrap"
+                | "cluster-autoscaler-status"
+                | "cluster-config-v1"
+                | "cluster-dns"
+                | "cluster-kubestore"
+                | "clustermetrics"
+                | "coredns-autoscaler"
+                | "extension-apiserver-authentication"
+                | "gke-common-webhook-heartbeat"
+                | "ingress-uid"
+                | "konnectivity-agent-autoscaler-config"
+                | "kube-apiserver-legacy-service-account-token-tracking"
+                | "kube-dns-autoscaler"
+                | "kube-proxy"
+                | "kube-proxy-config"
+                | "kubeadm-config"
+                | "kubedns-config-images"
+                | "kubelet-config"
+                | "overlay-upgrade-data"
+                | "root-ca"
+                | "efficiency-daemon-config"
+                | "metrics-agent-linux-config-images"
+                | "metrics-agent-windows-config-images"
+                | "nvidia-metrics-collector-config-map"
+        ),
+        Some("kube-public") => name == "cluster-info",
+        Some("gmp-system") => {
+            matches!(name, "config-images" | "webhook-ca" | "rule-evaluator" | "rules-generated")
+        }
+        Some("kubernetes-dashboard") => name == "kubernetes-dashboard-settings",
+        Some("gke-managed-system") => name == "dcgm-exporter-metrics",
+        Some(ns) if ns.starts_with("openshift-") => true,
+        _ => false,
+    }
+}
+
+/// Check if a Secret is a system resource that should never be considered orphan
+fn is_exception_secret(name: &str, namespace: Option<&str>) -> bool {
+    match namespace {
+        Some("kube-system") => {
+            // bootstrap-token-* pattern
+            name.starts_with("bootstrap-token-")
+                || name.ends_with(".node-password.k3s")
+                || matches!(name, "k3s-serving" | "kube-cloud-cfg" | "kubeadmin")
+        }
+        Some("kubernetes-dashboard") => matches!(
+            name,
+            "kubernetes-dashboard-certs"
+                | "kubernetes-dashboard-csrf"
+                | "kubernetes-dashboard-key-holder"
+        ),
+        Some("gmp-system") => matches!(name, "alertmanager" | "rules" | "webhook-tls"),
+        Some(ns) if ns.starts_with("openshift-") => true,
+        _ => false,
+    }
 }
 
 /// Check if a Service is a system resource (only "kubernetes" service in default namespace)
@@ -49,6 +224,7 @@ pub trait ResourceBehavior {
         _incoming_refs: &[(EdgeType, &str)],
         _labels: Option<&std::collections::HashMap<String, String>>,
         _resource_type: Option<&str>,
+        _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>,
     ) -> bool {
         false
     }
@@ -165,7 +341,7 @@ impl ResourceBehavior for Ingress {
         relations
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // Ingress is orphaned if it has no incoming References from Service
         // (meaning its backend services don't exist in the cluster)
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
@@ -194,7 +370,7 @@ impl ResourceBehavior for IngressClass {
         relations
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // IngressClass is orphaned if no Ingress references it
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             matches!(edge_type, EdgeType::References) && source_kind.eq_ignore_ascii_case("ingress")
@@ -314,26 +490,18 @@ impl ResourceBehavior for ClusterRole {
         name: &str,
         _namespace: Option<&str>,
         incoming_refs: &[(EdgeType, &str)],
-        labels: Option<&std::collections::HashMap<String, String>>,
+        _labels: Option<&std::collections::HashMap<String, String>>,
         _resource_type: Option<&str>,
+        _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>,
     ) -> bool {
-        // System ClusterRoles are never orphans
-        if is_system_cluster_role(name) {
+        // Check exception list first
+        if is_exception_cluster_role(name) {
             return false;
         }
 
-        // ClusterRole with aggregation labels is NOT orphaned because it's consumed by aggregation
-        // Check for labels like "rbac.authorization.k8s.io/aggregate-to-*"
-        if let Some(label_map) = labels {
-            for key in label_map.keys() {
-                if key.starts_with("rbac.authorization.k8s.io/aggregate-to-") {
-                    // This role aggregates into another role, so it's consumed
-                    return false;
-                }
-            }
-        }
-
-        // Otherwise, ClusterRole is orphaned if it has no incoming References from RoleBinding or ClusterRoleBinding
+        // ClusterRole is orphaned if it has no incoming References from RoleBinding or ClusterRoleBinding
+        // Note: We don't check aggregation labels here because that requires checking if another
+        // ClusterRole's aggregation rule actually matches this role's labels (complex cross-reference)
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
             matches!(edge_type, EdgeType::References)
@@ -350,7 +518,7 @@ impl ResourceBehavior for Role {
         Vec::new()
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // Role is orphaned if it has no incoming References from RoleBinding
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
@@ -389,7 +557,7 @@ impl ResourceBehavior for PersistentVolumeClaim {
         relations
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
             matches!(edge_type, EdgeType::References)
@@ -424,7 +592,7 @@ impl ResourceBehavior for PersistentVolume {
         relations
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
             matches!(edge_type, EdgeType::References)
@@ -440,7 +608,7 @@ impl ResourceBehavior for StorageClass {
         Vec::new()
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // StorageClass is orphaned if no PVC or PV references it
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
@@ -484,12 +652,34 @@ impl ResourceBehavior for ClusterRoleBinding {
         relations
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
-        // ClusterRoleBinding is orphaned if the ClusterRole it references doesn't exist
-        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+    fn is_orphan(name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
+        // Check exception list first
+        if is_exception_cluster_role_binding(name) {
+            return false;
+        }
+
+        // ClusterRoleBinding is orphaned if:
+        // 1. The ClusterRole it references doesn't exist, OR
+        // 2. Any ServiceAccount subjects it references don't exist
+
+        // Check if ClusterRole exists
+        let has_cluster_role = incoming_refs.iter().any(|(edge_type, source_kind)| {
             matches!(edge_type, EdgeType::References)
                 && source_kind.eq_ignore_ascii_case("clusterrole")
-        })
+        });
+
+        if !has_cluster_role {
+            return true;
+        }
+
+        // Check if any ServiceAccount subjects are missing
+        if let Some(missing) = missing_refs {
+            if missing.contains_key("ServiceAccount") {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
@@ -579,7 +769,7 @@ impl ResourceBehavior for ReplicaSet {
         extract_pod_spec_relations(pod_spec, namespace)
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // ReplicaSet is orphaned if:
         // 1. It has no owning Deployment (no incoming Owns edge)
         // 2. AND it has no Pods (no incoming References from Pod)
@@ -676,7 +866,7 @@ impl ResourceBehavior for HorizontalPodAutoscaler {
         relations
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // HPA is orphaned if its target (Deployment/StatefulSet/ReplicaSet) doesn't exist
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
@@ -697,7 +887,7 @@ impl ResourceBehavior for Service {
         Vec::new()
     }
 
-    fn is_orphan(name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // System Services are never orphans
         if is_system_service(name, namespace) {
             return false;
@@ -724,7 +914,7 @@ impl ResourceBehavior for NetworkPolicy {
         Vec::new()
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // NetworkPolicy is orphaned if it has no incoming References from Pod
         // (meaning its podSelector doesn't match any pods)
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
@@ -769,13 +959,35 @@ impl ResourceBehavior for RoleBinding {
         relations
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
-        // RoleBinding is orphaned if the Role or ClusterRole it references doesn't exist
-        !incoming_refs.iter().any(|(edge_type, source_kind)| {
+    fn is_orphan(name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
+        // Check exception list first
+        if is_exception_role_binding(name, namespace) {
+            return false;
+        }
+
+        // RoleBinding is orphaned if:
+        // 1. The Role or ClusterRole it references doesn't exist, OR
+        // 2. Any ServiceAccount subjects it references don't exist
+
+        // Check if Role or ClusterRole exists
+        let has_role = incoming_refs.iter().any(|(edge_type, source_kind)| {
             let source_lower = source_kind.to_lowercase();
             matches!(edge_type, EdgeType::References)
                 && (source_lower == "role" || source_lower == "clusterrole")
-        })
+        });
+
+        if !has_role {
+            return true;
+        }
+
+        // Check if any ServiceAccount subjects are missing
+        if let Some(missing) = missing_refs {
+            if missing.contains_key("ServiceAccount") {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
@@ -788,7 +1000,7 @@ impl ResourceBehavior for PodDisruptionBudget {
         Vec::new()
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // PodDisruptionBudget is orphaned if it has no incoming References from Pod
         // (meaning its selector doesn't match any pods it's supposed to protect)
         !incoming_refs.iter().any(|(edge_type, source_kind)| {
@@ -873,9 +1085,9 @@ impl ResourceBehavior for ConfigMapBehavior {
         Vec::new()
     }
 
-    fn is_orphan(name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
-        // System ConfigMaps are never orphans (kube-root-ca.crt, extension-apiserver-authentication)
-        if is_system_config_map(name) {
+    fn is_orphan(name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
+        // Check exception list first
+        if is_exception_config_map(name, namespace) {
             return false;
         }
 
@@ -891,7 +1103,12 @@ impl ResourceBehavior for SecretBehavior {
         Vec::new()
     }
 
-    fn is_orphan(_name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], labels: Option<&std::collections::HashMap<String, String>>, resource_type: Option<&str>) -> bool {
+    fn is_orphan(name: &str, namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], labels: Option<&std::collections::HashMap<String, String>>, resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
+        // Check exception list first
+        if is_exception_secret(name, namespace) {
+            return false;
+        }
+
         // Service account token secrets are never orphans (automatically managed by Kubernetes)
         // Check the Secret type field first (most reliable)
         if let Some(secret_type) = resource_type {
@@ -952,7 +1169,7 @@ impl ResourceBehavior for ServiceAccount {
         relations
     }
 
-    fn is_orphan(name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>) -> bool {
+    fn is_orphan(name: &str, _namespace: Option<&str>, incoming_refs: &[(EdgeType, &str)], _labels: Option<&std::collections::HashMap<String, String>>, _resource_type: Option<&str>, _missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>) -> bool {
         // Only "default" ServiceAccount is never an orphan (it's auto-created in every namespace)
         if is_system_service_account(name) {
             return false;

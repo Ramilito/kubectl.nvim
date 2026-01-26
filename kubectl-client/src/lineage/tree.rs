@@ -30,6 +30,10 @@ pub struct Resource {
     /// Resource-specific type information (e.g., Secret type like "kubernetes.io/service-account-token")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource_type: Option<String>,
+    /// Missing outgoing relationship targets (kind -> [target names])
+    /// Used to detect resources with broken references (e.g., RoleBinding referencing non-existent ServiceAccount)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missing_refs: Option<HashMap<String, Vec<String>>>,
 }
 
 /// Reference to a related resource
@@ -110,6 +114,8 @@ impl Tree {
     pub fn link_nodes(&mut self) {
         // Track missing relationship targets for summary reporting
         let mut missing_targets: HashMap<String, Vec<(String, String)>> = HashMap::new();
+        // Track missing refs per node: node_key -> (kind -> [target_names])
+        let mut node_missing_refs: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
 
         // Collect all node keys to avoid borrow checker issues
         let node_keys: Vec<String> = self.key_to_index.keys().cloned().collect();
@@ -140,6 +146,7 @@ impl Tree {
                         relations: None,
                         is_orphan: false,
                         resource_type: None,
+                        missing_refs: None,
                     }.get_resource_key())
                 } else {
                     None
@@ -188,8 +195,18 @@ impl Tree {
             if let Some(ref selectors) = selectors_opt {
                 let matching_children: Vec<(String, NodeIndex)> = nodes_with_labels
                     .iter()
-                    .filter(|(potential_child_key, _, labels)| {
-                        potential_child_key != node_key && selectors_match(selectors, labels)
+                    .filter(|(potential_child_key, potential_child_idx, labels)| {
+                        if potential_child_key == node_key {
+                            return false;
+                        }
+                        // Don't create selector-based references TO ConfigMaps/Secrets
+                        // They should only be referenced via explicit Pod volume/env references
+                        // Otherwise ConfigMaps with common labels get incorrectly marked as "used"
+                        let child_kind = &self.graph[*potential_child_idx].kind;
+                        if child_kind == "ConfigMap" || child_kind == "Secret" {
+                            return false;
+                        }
+                        selectors_match(selectors, labels)
                     })
                     .map(|(key, idx, _)| (key.clone(), *idx))
                     .collect();
@@ -219,6 +236,7 @@ impl Tree {
                         relations: None,
                         is_orphan: false,
                         resource_type: None,
+                        missing_refs: None,
                     }.get_resource_key();
 
                     if let Some(&relation_idx) = self.key_to_index.get(&relation_key) {
@@ -237,6 +255,14 @@ impl Tree {
                             .entry(relation.kind.clone())
                             .or_insert_with(Vec::new)
                             .push((node_key.clone(), relation.name.clone()));
+
+                        // Track missing ref for this specific node
+                        node_missing_refs
+                            .entry(node_key.clone())
+                            .or_insert_with(HashMap::new)
+                            .entry(relation.kind.clone())
+                            .or_insert_with(Vec::new)
+                            .push(relation.name.clone());
 
                         tracing::warn!(
                             source_key = %node_key,
@@ -293,6 +319,15 @@ impl Tree {
             }
         }
 
+        // Store missing refs in the resource nodes
+        for (node_key, missing_refs_map) in node_missing_refs {
+            if let Some(&idx) = self.key_to_index.get(&node_key) {
+                if let Some(resource) = self.graph.node_weight_mut(idx) {
+                    resource.missing_refs = Some(missing_refs_map);
+                }
+            }
+        }
+
         // Third pass: compute orphan status for each node
         self.compute_orphan_status();
 
@@ -332,6 +367,7 @@ impl Tree {
             let namespace = resource.namespace.as_deref();
             let labels = resource.labels.as_ref();
             let resource_type = resource.resource_type.as_deref();
+            let missing_refs = resource.missing_refs.as_ref();
 
             // Collect incoming References edges with their source kinds (excluding root)
             let incoming_refs: Vec<(EdgeType, String)> = self
@@ -351,7 +387,7 @@ impl Tree {
                 .collect();
 
             // Determine orphan status using per-resource logic
-            let is_orphan = super::relationships::is_resource_orphan(kind, name, namespace, &incoming_refs_slice, labels, resource_type);
+            let is_orphan = super::relationships::is_resource_orphan(kind, name, namespace, &incoming_refs_slice, labels, resource_type, missing_refs);
 
             // Update the resource's orphan status
             if let Some(resource) = self.graph.node_weight_mut(idx) {
@@ -847,6 +883,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let key = resource.get_resource_key();
@@ -867,6 +904,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let key = resource.get_resource_key();
@@ -910,6 +948,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -931,6 +970,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         tree.add_node(deployment);
@@ -958,6 +998,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         tree.add_node(pod);
@@ -1004,6 +1045,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1020,6 +1062,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(deployment);
 
@@ -1041,6 +1084,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(pod);
 
@@ -1067,6 +1111,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1083,6 +1128,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(deployment);
 
@@ -1104,6 +1150,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(pod);
 
@@ -1131,6 +1178,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1152,6 +1200,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(deployment);
 
@@ -1178,6 +1227,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(pod);
 
@@ -1194,6 +1244,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(configmap);
 
@@ -1216,6 +1267,7 @@ mod tests {
             }]),
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(pod_with_relation);
 
@@ -1285,6 +1337,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1302,6 +1355,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(configmap);
 
@@ -1324,6 +1378,7 @@ mod tests {
             }]),
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(pod);
 
@@ -1340,6 +1395,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(deployment);
 
@@ -1368,6 +1424,7 @@ mod tests {
             }]),
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         // Replace the pod node with the updated version
@@ -1423,6 +1480,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1440,6 +1498,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(orphan_configmap);
 
@@ -1456,6 +1515,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(used_configmap);
 
@@ -1478,6 +1538,7 @@ mod tests {
             }]),
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(pod);
 
@@ -1494,6 +1555,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(deployment);
 
@@ -1510,6 +1572,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(namespace);
 
@@ -1558,6 +1621,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1575,6 +1639,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(orphan_secret);
 
@@ -1591,6 +1656,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(orphan_service);
 
@@ -1607,6 +1673,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(used_secret);
 
@@ -1629,6 +1696,7 @@ mod tests {
             }]),
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(pod);
 
@@ -1645,6 +1713,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(used_service);
 
@@ -1667,6 +1736,7 @@ mod tests {
             }]),
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
         tree.add_node(ingress);
 
@@ -1726,6 +1796,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: None,
+            missing_refs: None,
         };
 
         let mut tree = Tree::new(root);
@@ -1743,6 +1814,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: Some("kubernetes.io/service-account-token".to_string()),
+            missing_refs: None,
         };
         tree.add_node(sa_token_secret);
 
@@ -1759,6 +1831,7 @@ mod tests {
             relations: None,
             is_orphan: false,
             resource_type: Some("Opaque".to_string()),
+            missing_refs: None,
         };
         tree.add_node(orphan_secret);
 

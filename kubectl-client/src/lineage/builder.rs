@@ -117,6 +117,7 @@ pub fn build_lineage_graph_worker(json_input: String) -> LuaResult<String> {
         relations: None,
         is_orphan: false,
         resource_type: None,
+        missing_refs: None,
     };
 
     // Build the tree with pre-allocated capacity
@@ -315,6 +316,7 @@ pub fn build_lineage_graph(lua: &Lua, resources_json: String, root_name: String)
         relations: None,
         is_orphan: false,
         resource_type: None,
+        missing_refs: None,
     };
 
     // Build the tree with pre-allocated capacity
@@ -455,6 +457,7 @@ fn parse_resource_typed(input: ResourceInput) -> Option<Resource> {
         },
         is_orphan: false,
         resource_type,
+        missing_refs: None,
     })
 }
 
