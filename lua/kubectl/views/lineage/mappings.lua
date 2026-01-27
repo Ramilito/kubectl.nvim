@@ -65,16 +65,18 @@ M.overrides = {
         vim.notify("Failed to export DOT: " .. tostring(dot_content), vim.log.levels.ERROR)
         return
       end
-
-      -- Open in vertical split buffer
-      vim.cmd("vsplit")
-      local buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_win_set_buf(0, buf)
-      vim.api.nvim_buf_set_name(buf, "lineage_subgraph.dot")
-      vim.api.nvim_set_option_value("filetype", "dot", { buf = buf })
-      vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-      local lines = vim.split(dot_content, "\n")
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      vim.cmd("fclose!")
+      vim.schedule(function()
+        -- Open in vertical split buffer
+        vim.cmd("vsplit")
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.api.nvim_buf_set_name(buf, "lineage_subgraph.dot")
+        vim.api.nvim_set_option_value("filetype", "dot", { buf = buf })
+        vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+        local lines = vim.split(dot_content, "\n")
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      end)
     end,
   },
   ["<Plug>(kubectl.export_mermaid)"] = {
@@ -106,15 +108,18 @@ M.overrides = {
         return
       end
 
-      -- Open in vertical split buffer
-      vim.cmd("vsplit")
-      local buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_win_set_buf(0, buf)
-      vim.api.nvim_buf_set_name(buf, "lineage_subgraph.mmd")
-      vim.api.nvim_set_option_value("filetype", "mermaid", { buf = buf })
-      vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-      local lines = vim.split(mermaid_content, "\n")
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      vim.cmd("fclose!")
+      vim.schedule(function()
+        -- Open in vertical split buffer
+        vim.cmd("vsplit")
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.api.nvim_buf_set_name(buf, "lineage_subgraph.mmd")
+        vim.api.nvim_set_option_value("filetype", "mermaid", { buf = buf })
+        vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+        local lines = vim.split(mermaid_content, "\n")
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      end)
     end,
   },
   ["<Plug>(kubectl.toggle_orphan_filter)"] = {
