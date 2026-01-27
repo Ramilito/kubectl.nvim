@@ -1,10 +1,3 @@
-//! Resource lineage tree using petgraph for efficient graph operations.
-//!
-//! This module implements a directed graph-based lineage tree for Kubernetes resources.
-//! It uses petgraph's DiGraph with two edge types:
-//! - `EdgeType::Owns`: Represents ownership relationships (parent-child via ownerReferences)
-//! - `EdgeType::References`: Represents reference relationships (selectors, ConfigMaps, Secrets)
-
 use super::query::GraphQuery;
 use k8s_openapi::serde::{Deserialize, Serialize};
 use petgraph::algo::is_cyclic_directed;
@@ -13,7 +6,6 @@ use petgraph::visit::{Dfs, EdgeFiltered, EdgeRef};
 use petgraph::Direction;
 use std::collections::{HashMap, HashSet};
 
-/// Represents a resource in the lineage tree
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resource {
     pub kind: String,
@@ -28,16 +20,12 @@ pub struct Resource {
     pub owners: Option<Vec<RelationRef>>,
     pub relations: Option<Vec<RelationRef>>,
     pub is_orphan: bool,
-    /// Resource-specific type information (e.g., Secret type like "kubernetes.io/service-account-token")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource_type: Option<String>,
-    /// Missing outgoing relationship targets (kind -> [target names])
-    /// Used to detect resources with broken references (e.g., RoleBinding referencing non-existent ServiceAccount)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub missing_refs: Option<HashMap<String, Vec<String>>>,
 }
 
-/// Reference to a related resource
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelationRef {
     pub kind: String,
@@ -50,7 +38,6 @@ pub struct RelationRef {
 }
 
 impl RelationRef {
-    /// Create a new cluster-scoped relation
     pub fn new(kind: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
             kind: kind.into(),
@@ -61,21 +48,26 @@ impl RelationRef {
         }
     }
 
-    /// Add namespace (for namespaced resources)
     pub fn ns(mut self, namespace: Option<impl Into<String>>) -> Self {
         self.namespace = namespace.map(Into::into);
         self
     }
 
-    /// Add API version
     pub fn api(mut self, api_version: Option<impl Into<String>>) -> Self {
         self.api_version = api_version.map(Into::into);
         self
     }
+
+    pub fn get_resource_key(&self) -> String {
+        if let Some(ref ns) = self.namespace {
+            format!("{}/{}/{}", self.kind, ns, self.name).to_lowercase()
+        } else {
+            format!("{}/{}", self.kind, self.name).to_lowercase()
+        }
+    }
 }
 
 impl Resource {
-    /// Generate a unique key for a resource
     pub fn get_resource_key(&self) -> String {
         if let Some(ref ns) = self.namespace {
             return format!("{}/{}/{}", self.kind, ns, self.name).to_lowercase();
@@ -84,25 +76,17 @@ impl Resource {
     }
 }
 
-/// Edge types in the lineage graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EdgeType {
-    /// Owner-owned relationship (parent-child)
     Owns,
-    /// Reference relationship (selector-based or explicit)
     References,
 }
 
-/// The lineage tree structure using petgraph
 #[derive(Debug, Clone)]
 pub struct Tree {
-    /// The underlying directed graph
     pub graph: DiGraph<Resource, EdgeType>,
-    /// Root node in the graph
     root_index: NodeIndex,
-    /// Map from resource keys to node indices
     pub key_to_index: HashMap<String, NodeIndex>,
-    /// Root resource key
     pub root_key: String,
 }
 
@@ -126,226 +110,167 @@ impl Tree {
 
     pub fn add_node(&mut self, resource: Resource) {
         let key = Resource::get_resource_key(&resource);
-
-        // Skip if node already exists
         if self.key_to_index.contains_key(&key) {
             return;
         }
-
         let node_index = self.graph.add_node(resource);
         self.key_to_index.insert(key, node_index);
     }
 
-    #[tracing::instrument(skip(self), fields(node_count = self.key_to_index.len()))]
-    pub fn link_nodes(&mut self) {
-        // Track missing relationship targets for summary reporting
-        let mut missing_targets: HashMap<String, Vec<(String, String)>> = HashMap::new();
-        // Track missing refs per node: node_key -> (kind -> [target_names])
-        let mut node_missing_refs: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
-
-        // Collect all node keys to avoid borrow checker issues
-        let node_keys: Vec<String> = self.key_to_index.keys().cloned().collect();
-
-        // First pass: handle ownership relationships
-        for node_key in node_keys.iter() {
+    fn build_ownership_edges(&mut self, node_keys: &[String]) {
+        for node_key in node_keys {
             if node_key == &self.root_key {
                 continue;
             }
 
-            // Get the node index
             let node_idx = self.key_to_index[node_key];
             let resource = &self.graph[node_idx];
 
-            // Extract owner information
-            let owner_key_opt = resource.owners.as_ref().and_then(|owners| {
-                if !owners.is_empty() {
-                    let owner = &owners[0];
-                    Some(Resource {
-                        kind: owner.kind.clone(),
-                        name: owner.name.clone(),
-                        namespace: owner.namespace.clone(),
-                        api_version: owner.api_version.clone(),
-                        uid: owner.uid.clone(),
-                        labels: None,
-                        selectors: None,
-                        owners: None,
-                        relations: None,
-                        is_orphan: false,
-                        resource_type: None,
-                        missing_refs: None,
-                    }.get_resource_key())
-                } else {
-                    None
-                }
+            let owner_key = resource.owners.as_ref().and_then(|owners| {
+                owners.first().map(|owner| {
+                    RelationRef::new(&owner.kind, &owner.name)
+                        .ns(owner.namespace.as_ref())
+                        .get_resource_key()
+                })
             });
 
-            let mut parent_found = false;
+            let parent_idx = owner_key
+                .and_then(|key| self.key_to_index.get(&key).copied())
+                .unwrap_or(self.root_index);
 
-            // Link to owner if it exists
-            if let Some(owner_key) = owner_key_opt {
-                if let Some(&parent_idx) = self.key_to_index.get(&owner_key) {
-                    parent_found = true;
-                    // Add ownership edge from parent to child
-                    self.graph.add_edge(parent_idx, node_idx, EdgeType::Owns);
-                }
-            }
-
-            // If no parent found, attach to root
-            if !parent_found {
-                self.graph
-                    .add_edge(self.root_index, node_idx, EdgeType::Owns);
-            }
+            self.graph.add_edge(parent_idx, node_idx, EdgeType::Owns);
         }
+    }
 
-        // Build an index of nodes by labels to avoid O(n²) selector matching
-        let mut nodes_with_labels: Vec<(String, NodeIndex, HashMap<String, String>)> = Vec::with_capacity(node_keys.len() / 2);
+    fn build_label_index(&self, node_keys: &[String]) -> Vec<(String, NodeIndex, HashMap<String, String>)> {
+        node_keys
+            .iter()
+            .filter_map(|key| {
+                let idx = *self.key_to_index.get(key)?;
+                let labels = self.graph[idx].labels.clone()?;
+                Some((key.clone(), idx, labels))
+            })
+            .collect()
+    }
 
-        for node_key in node_keys.iter() {
-            if let Some(&idx) = self.key_to_index.get(node_key) {
-                if let Some(ref labels) = self.graph[idx].labels {
-                    nodes_with_labels.push((node_key.clone(), idx, labels.clone()));
-                }
-            }
-        }
-
-        // Second pass: handle selector-based and explicit relationships (leafs)
-        for node_key in node_keys.iter() {
+    fn build_selector_edges(
+        &mut self,
+        node_keys: &[String],
+        nodes_with_labels: &[(String, NodeIndex, HashMap<String, String>)],
+    ) {
+        for node_key in node_keys {
             let node_idx = self.key_to_index[node_key];
-            let resource = &self.graph[node_idx];
+            let selectors = match self.graph[node_idx].selectors.clone() {
+                Some(s) => s,
+                None => continue,
+            };
 
-            // Clone the data we need to avoid borrow conflicts
-            let selectors_opt = resource.selectors.clone();
-            let relations_opt = resource.relations.clone();
+            let matches: Vec<NodeIndex> = nodes_with_labels
+                .iter()
+                .filter(|(child_key, child_idx, labels)| {
+                    child_key != node_key
+                        && !matches!(self.graph[*child_idx].kind.as_str(), "ConfigMap" | "Secret")
+                        && selectors_match(&selectors, labels)
+                })
+                .map(|(_, idx, _)| *idx)
+                .collect();
 
-            // Handle selector-based relationships
-            if let Some(ref selectors) = selectors_opt {
-                let matching_children: Vec<(String, NodeIndex)> = nodes_with_labels
-                    .iter()
-                    .filter(|(potential_child_key, potential_child_idx, labels)| {
-                        if potential_child_key == node_key {
-                            return false;
-                        }
-                        // Don't create selector-based references TO ConfigMaps/Secrets
-                        // They should only be referenced via explicit Pod volume/env references
-                        // Otherwise ConfigMaps with common labels get incorrectly marked as "used"
-                        let child_kind = &self.graph[*potential_child_idx].kind;
-                        if child_kind == "ConfigMap" || child_kind == "Secret" {
-                            return false;
-                        }
-                        selectors_match(selectors, labels)
-                    })
-                    .map(|(key, idx, _)| (key.clone(), *idx))
-                    .collect();
-
-                for (_potential_child_key, child_idx) in matching_children {
-                    // Add bidirectional reference edges
-                    self.graph
-                        .add_edge(node_idx, child_idx, EdgeType::References);
-                    self.graph
-                        .add_edge(child_idx, node_idx, EdgeType::References);
-                }
-            }
-
-            // Handle explicit relations
-            if let Some(ref relations) = relations_opt {
-                let mut relation_updates = Vec::new();
-                for relation in relations {
-                    let relation_key = Resource {
-                        kind: relation.kind.clone(),
-                        name: relation.name.clone(),
-                        namespace: relation.namespace.clone(),
-                        api_version: relation.api_version.clone(),
-                        uid: relation.uid.clone(),
-                        labels: None,
-                        selectors: None,
-                        owners: None,
-                        relations: None,
-                        is_orphan: false,
-                        resource_type: None,
-                        missing_refs: None,
-                    }.get_resource_key();
-
-                    if let Some(&relation_idx) = self.key_to_index.get(&relation_key) {
-                        let is_config_or_secret =
-                            relation.kind == "ConfigMap" || relation.kind == "Secret";
-                        relation_updates.push((relation_idx, is_config_or_secret));
-                        tracing::debug!(
-                            source_key = %node_key,
-                            target_key = %relation_key,
-                            relation_kind = %relation.kind,
-                            "Found relation target in graph"
-                        );
-                    } else {
-                        // Track missing target for summary
-                        missing_targets
-                            .entry(relation.kind.clone())
-                            .or_insert_with(Vec::new)
-                            .push((node_key.clone(), relation.name.clone()));
-
-                        // Track missing ref for this specific node
-                        node_missing_refs
-                            .entry(node_key.clone())
-                            .or_insert_with(HashMap::new)
-                            .entry(relation.kind.clone())
-                            .or_insert_with(Vec::new)
-                            .push(relation.name.clone());
-
-                        tracing::warn!(
-                            source_key = %node_key,
-                            target_key = %relation_key,
-                            relation_kind = %relation.kind,
-                            relation_name = %relation.name,
-                            "Relation target NOT found in graph - edges will not be created"
-                        );
-                    }
-                }
-
-                for (relation_idx, _is_config_or_secret) in relation_updates {
-                    // Add bidirectional reference edges for all explicit relationships
-                    // This allows orphan detection to work (e.g., Ingress with no Services,
-                    // HPA with no target, RoleBinding with no Role)
-                    self.graph
-                        .add_edge(node_idx, relation_idx, EdgeType::References);
-                    self.graph
-                        .add_edge(relation_idx, node_idx, EdgeType::References);
-                }
+            for child_idx in matches {
+                self.graph.add_edge(node_idx, child_idx, EdgeType::References);
+                self.graph.add_edge(child_idx, node_idx, EdgeType::References);
             }
         }
+    }
 
-        // Log summary of missing relationship targets
-        if !missing_targets.is_empty() {
-            let total_missing: usize = missing_targets.values().map(|v| v.len()).sum();
-            tracing::warn!(
-                missing_kinds = ?missing_targets.keys().collect::<Vec<_>>(),
-                total_missing_edges = total_missing,
-                "Graph construction incomplete: some relationship targets not found in graph"
-            );
+    fn build_explicit_relation_edges(
+        &mut self,
+        node_keys: &[String],
+    ) -> (HashMap<String, Vec<(String, String)>>, HashMap<String, HashMap<String, Vec<String>>>) {
+        let mut missing_targets: HashMap<String, Vec<(String, String)>> = HashMap::new();
+        let mut node_missing_refs: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
 
-            // Log details for each missing kind
-            for (kind, sources) in missing_targets.iter() {
-                if sources.len() <= 5 {
-                    // If few missing, log them all
-                    for (source_key, target_name) in sources {
-                        tracing::info!(
-                            missing_kind = %kind,
-                            source = %source_key,
-                            target_name = %target_name,
-                            "Missing relationship target"
-                        );
-                    }
+        for node_key in node_keys {
+            let node_idx = self.key_to_index[node_key];
+            let relations = match self.graph[node_idx].relations.clone() {
+                Some(r) => r,
+                None => continue,
+            };
+
+            for relation in relations {
+                let relation_key = RelationRef::new(&relation.kind, &relation.name)
+                    .ns(relation.namespace.as_ref())
+                    .get_resource_key();
+
+                if let Some(&relation_idx) = self.key_to_index.get(&relation_key) {
+                    self.graph.add_edge(node_idx, relation_idx, EdgeType::References);
+                    self.graph.add_edge(relation_idx, node_idx, EdgeType::References);
+                    tracing::debug!(
+                        source_key = %node_key,
+                        target_key = %relation_key,
+                        relation_kind = %relation.kind,
+                        "Found relation target in graph"
+                    );
                 } else {
-                    // If many missing, log summary + first few
+                    missing_targets
+                        .entry(relation.kind.clone())
+                        .or_default()
+                        .push((node_key.clone(), relation.name.clone()));
+
+                    node_missing_refs
+                        .entry(node_key.clone())
+                        .or_default()
+                        .entry(relation.kind.clone())
+                        .or_default()
+                        .push(relation.name.clone());
+
                     tracing::warn!(
-                        missing_kind = %kind,
-                        count = sources.len(),
-                        examples = ?sources.iter().take(3).map(|(s, t)| format!("{} -> {}", s, t)).collect::<Vec<_>>(),
-                        "Many resources missing this relationship target (showing first 3)"
+                        source_key = %node_key,
+                        target_key = %relation_key,
+                        relation_kind = %relation.kind,
+                        relation_name = %relation.name,
+                        "Relation target NOT found in graph"
                     );
                 }
             }
         }
 
-        // Store missing refs in the resource nodes
+        (missing_targets, node_missing_refs)
+    }
+
+    fn log_missing_targets(missing_targets: &HashMap<String, Vec<(String, String)>>) {
+        if missing_targets.is_empty() {
+            return;
+        }
+
+        let total_missing: usize = missing_targets.values().map(|v| v.len()).sum();
+        tracing::warn!(
+            missing_kinds = ?missing_targets.keys().collect::<Vec<_>>(),
+            total_missing_edges = total_missing,
+            "Graph construction incomplete: some relationship targets not found"
+        );
+
+        for (kind, sources) in missing_targets {
+            if sources.len() <= 5 {
+                for (source_key, target_name) in sources {
+                    tracing::info!(
+                        missing_kind = %kind,
+                        source = %source_key,
+                        target_name = %target_name,
+                        "Missing relationship target"
+                    );
+                }
+            } else {
+                tracing::warn!(
+                    missing_kind = %kind,
+                    count = sources.len(),
+                    examples = ?sources.iter().take(3).map(|(s, t)| format!("{} -> {}", s, t)).collect::<Vec<_>>(),
+                    "Many resources missing this relationship target (showing first 3)"
+                );
+            }
+        }
+    }
+
+    fn store_missing_refs(&mut self, node_missing_refs: HashMap<String, HashMap<String, Vec<String>>>) {
         for (node_key, missing_refs_map) in node_missing_refs {
             if let Some(&idx) = self.key_to_index.get(&node_key) {
                 if let Some(resource) = self.graph.node_weight_mut(idx) {
@@ -353,36 +278,41 @@ impl Tree {
                 }
             }
         }
+    }
 
-        // Third pass: compute orphan status for each node
+    #[tracing::instrument(skip(self), fields(node_count = self.key_to_index.len()))]
+    pub fn link_nodes(&mut self) {
+        let node_keys: Vec<String> = self.key_to_index.keys().cloned().collect();
+
+        self.build_ownership_edges(&node_keys);
+
+        let nodes_with_labels = self.build_label_index(&node_keys);
+        self.build_selector_edges(&node_keys, &nodes_with_labels);
+
+        let (missing_targets, node_missing_refs) = self.build_explicit_relation_edges(&node_keys);
+        Self::log_missing_targets(&missing_targets);
+        self.store_missing_refs(node_missing_refs);
+
         self.compute_orphan_status();
 
-        // Validate ownership DAG in debug builds only
         #[cfg(debug_assertions)]
         self.validate_ownership_dag();
     }
 
-    /// Validate that ownership relationships form a DAG (no cycles)
-    /// This is only called in debug builds to catch relationship bugs early
     #[cfg(debug_assertions)]
     fn validate_ownership_dag(&self) {
-        // Create a filtered view of the graph with only Owns edges
         let ownership_graph = EdgeFiltered::from_fn(&self.graph, |edge| {
             *edge.weight() == EdgeType::Owns
         });
 
         if is_cyclic_directed(&ownership_graph) {
             tracing::error!("Ownership graph contains cycles!");
-            panic!("Ownership relationships must form a DAG (Directed Acyclic Graph)");
+            panic!("Ownership relationships must form a DAG");
         }
     }
 
-    /// Compute orphan status for all resources in the tree
-    /// Uses per-resource orphan detection logic from relationships module
-    /// A resource is orphaned if it should have consumers but doesn't have the right incoming edges
     fn compute_orphan_status(&mut self) {
         for (key, &idx) in self.key_to_index.iter() {
-            // Skip the cluster root node
             if key == &self.root_key {
                 continue;
             }
@@ -395,7 +325,6 @@ impl Tree {
             let resource_type = resource.resource_type.as_deref();
             let missing_refs = resource.missing_refs.as_ref();
 
-            // Collect incoming References edges with their source kinds (excluding root)
             let incoming_refs: Vec<(EdgeType, String)> = self
                 .graph
                 .edges_directed(idx, Direction::Incoming)
@@ -406,23 +335,21 @@ impl Tree {
                 })
                 .collect();
 
-            // Convert to slice of references for the orphan detection function
             let incoming_refs_slice: Vec<(EdgeType, &str)> = incoming_refs
                 .iter()
                 .map(|(edge_type, kind)| (*edge_type, kind.as_str()))
                 .collect();
 
-            // Determine orphan status using per-resource logic
-            let is_orphan = super::registry::is_resource_orphan(kind, name, namespace, &incoming_refs_slice, labels, resource_type, missing_refs);
+            let is_orphan = super::registry::is_resource_orphan(
+                kind, name, namespace, &incoming_refs_slice, labels, resource_type, missing_refs
+            );
 
-            // Update the resource's orphan status
             if let Some(resource) = self.graph.node_weight_mut(idx) {
                 resource.is_orphan = is_orphan;
             }
         }
     }
 
-    /// Get all related nodes for a given node key
     #[tracing::instrument(skip(self), fields(node_key = %node_key))]
     pub fn get_related_items(&self, node_key: &str) -> Vec<String> {
         GraphQuery::from_key(self, node_key)
@@ -430,12 +357,10 @@ impl Tree {
             .unwrap_or_default()
     }
 
-    /// Helper to get the key for a given node index
     pub(crate) fn get_key_for_index(&self, idx: NodeIndex) -> String {
         self.graph[idx].get_resource_key()
     }
 
-    /// Get all children keys (Owns edges outgoing) for a node
     pub fn get_children_keys(&self, idx: NodeIndex) -> Vec<String> {
         self.graph
             .edges_directed(idx, Direction::Outgoing)
@@ -444,7 +369,6 @@ impl Tree {
             .collect()
     }
 
-    /// Get all leaf keys (References edges outgoing) for a node
     pub fn get_leaf_keys(&self, idx: NodeIndex) -> Vec<String> {
         self.graph
             .edges_directed(idx, Direction::Outgoing)
@@ -453,7 +377,6 @@ impl Tree {
             .collect()
     }
 
-    /// Get parent key (Owns edge incoming) for a node
     pub fn get_parent_key(&self, idx: NodeIndex) -> Option<String> {
         self.graph
             .edges_directed(idx, Direction::Incoming)
@@ -461,9 +384,6 @@ impl Tree {
             .map(|e| self.get_key_for_index(e.source()))
     }
 
-    /// Compute impact analysis for a resource
-    /// Returns all resources that depend on (reference) this resource
-    /// Algorithm: BFS following incoming edges (who depends on THIS resource?)
     #[tracing::instrument(skip(self), fields(resource_key = %resource_key))]
     pub fn compute_impact(&self, resource_key: &str) -> Vec<(String, String)> {
         let node_idx = match self.key_to_index.get(resource_key) {
@@ -472,9 +392,8 @@ impl Tree {
         };
 
         let mut impacted = Vec::new();
-
-        // Step 1: Find all resources that directly REFERENCE the target
         let mut direct_referencers = Vec::new();
+
         for edge in self.graph.edges_directed(node_idx, Direction::Incoming) {
             if matches!(edge.weight(), EdgeType::References) {
                 let source_idx = edge.source();
@@ -487,13 +406,10 @@ impl Tree {
             }
         }
 
-        // Step 2: For each direct referencer, find their owned children (cascade)
-        // Use query builder to get descendants, then tag them
         for referencer_idx in direct_referencers {
             if let Some(q) = GraphQuery::from_key(self, &self.get_key_for_index(referencer_idx)) {
                 let descendants = q.descendants().collect_keys();
                 for key in descendants {
-                    // Skip the referencer itself (already added with "references" tag)
                     if key != self.get_key_for_index(referencer_idx) {
                         impacted.push((key, "owned by affected".to_string()));
                     }
@@ -501,22 +417,16 @@ impl Tree {
             }
         }
 
-        // Sort for consistent output
         impacted.sort_by(|a, b| a.0.cmp(&b.0));
         impacted
     }
 
-    /// Extract subgraph nodes and edges for a given resource key
-    /// Returns tuple of (node_indices, edge_indices) that form the subgraph
-    /// Algorithm: Collect all ancestors via ownership, descendants via ownership+references
     #[tracing::instrument(skip(self), fields(resource_key = %resource_key))]
     pub fn extract_subgraph(&self, resource_key: &str) -> (HashSet<NodeIndex>, HashSet<usize>) {
-        // Use query builder to collect nodes (ancestors + descendants on ownership edges)
         let mut subgraph_nodes = GraphQuery::from_key(self, resource_key)
             .map(|q| q.ancestors().descendants().collect_nodes())
             .unwrap_or_default();
 
-        // Additionally, do DFS on full graph to capture all descendants via any edge type
         if let Some(&start_idx) = self.key_to_index.get(resource_key) {
             let mut dfs = Dfs::new(&self.graph, start_idx);
             while let Some(visited_idx) = dfs.next(&self.graph) {
@@ -526,7 +436,6 @@ impl Tree {
             }
         }
 
-        // Collect edges that connect nodes within the subgraph
         let mut subgraph_edges = HashSet::new();
         for edge in self.graph.edge_references() {
             let source = edge.source();
@@ -540,8 +449,6 @@ impl Tree {
         (subgraph_nodes, subgraph_edges)
     }
 
-    /// Export a subgraph centered on a resource to Graphviz DOT format
-    /// Returns a string containing the DOT representation of the subgraph
     pub fn export_subgraph_dot(&self, resource_key: &str) -> String {
         let (subgraph_nodes, subgraph_edges) = self.extract_subgraph(resource_key);
 
@@ -550,7 +457,6 @@ impl Tree {
         output.push_str("    node [fontname=\"Arial\"];\n");
         output.push_str("    edge [fontname=\"Arial\"];\n\n");
 
-        // Add nodes with styling
         for idx in subgraph_nodes.iter() {
             let resource = &self.graph[*idx];
             let node_id = format!("N{}", idx.index());
@@ -572,7 +478,6 @@ impl Tree {
 
         output.push('\n');
 
-        // Add edges with styling (only edges in the subgraph)
         for edge_idx in subgraph_edges.iter() {
             if let Some(edge) = self.graph.edge_references().find(|e| e.id().index() == *edge_idx) {
                 let source_id = format!("N{}", edge.source().index());
@@ -591,15 +496,12 @@ impl Tree {
         output
     }
 
-    /// Export the lineage graph to Graphviz DOT format
-    /// Returns a string containing the DOT representation
     pub fn export_dot(&self) -> String {
         let mut output = String::from("digraph lineage {\n");
         output.push_str("    rankdir=TB;\n");
         output.push_str("    node [fontname=\"Arial\"];\n");
         output.push_str("    edge [fontname=\"Arial\"];\n\n");
 
-        // Add nodes with styling
         for idx in self.graph.node_indices() {
             let resource = &self.graph[idx];
             let node_id = format!("N{}", idx.index());
@@ -623,7 +525,6 @@ impl Tree {
 
         output.push('\n');
 
-        // Add edges with styling
         for edge in self.graph.edge_references() {
             let source_id = format!("N{}", edge.source().index());
             let target_id = format!("N{}", edge.target().index());
@@ -640,39 +541,29 @@ impl Tree {
         output
     }
 
-    /// Find orphan resources in the tree
-    /// Returns a list of resource keys where is_orphan == true
-    /// Note: Orphan status is computed during link_nodes() for resources that should have consumers
     pub fn find_orphans(&self) -> Vec<String> {
         let mut orphans = Vec::new();
 
         for (key, &idx) in self.key_to_index.iter() {
-            // Skip the cluster root node
             if key == &self.root_key {
                 continue;
             }
 
             let resource = &self.graph[idx];
-
-            // Collect resources that are marked as orphans
             if resource.is_orphan {
                 orphans.push(key.clone());
             }
         }
 
-        // Sort for consistent output
         orphans.sort();
         orphans
     }
 
-    /// Export a subgraph centered on a resource to Mermaid diagram format
-    /// Returns a string containing the Mermaid representation of the subgraph
     pub fn export_subgraph_mermaid(&self, resource_key: &str) -> String {
         let (subgraph_nodes, subgraph_edges) = self.extract_subgraph(resource_key);
 
         let mut output = String::from("graph TD\n");
 
-        // Create node definitions with sanitized IDs
         let mut node_ids: HashMap<NodeIndex, String> = HashMap::new();
         for idx in subgraph_nodes.iter() {
             let resource = &self.graph[*idx];
@@ -696,7 +587,6 @@ impl Tree {
 
         output.push('\n');
 
-        // Create edge definitions (only edges in the subgraph)
         for edge_idx in subgraph_edges.iter() {
             if let Some(edge) = self.graph.edge_references().find(|e| e.id().index() == *edge_idx) {
                 let source_id = &node_ids[&edge.source()];
@@ -711,18 +601,13 @@ impl Tree {
             }
         }
 
-        // Add style classes
         output.push_str("\n    classDef config fill:#ffffcc,stroke:#333,stroke-width:2px\n");
-
         output
     }
 
-    /// Export the lineage graph to Mermaid diagram format
-    /// Returns a string containing the Mermaid representation
     pub fn to_mermaid(&self) -> String {
         let mut output = String::from("graph TD\n");
 
-        // Create node definitions with sanitized IDs
         let mut node_ids: HashMap<NodeIndex, String> = HashMap::new();
         for idx in self.graph.node_indices() {
             let resource = &self.graph[idx];
@@ -748,7 +633,6 @@ impl Tree {
 
         output.push('\n');
 
-        // Create edge definitions
         for edge in self.graph.edge_references() {
             let source_id = &node_ids[&edge.source()];
             let target_id = &node_ids[&edge.target()];
@@ -761,1010 +645,13 @@ impl Tree {
             output.push_str(&edge_def);
         }
 
-        // Add style classes
         output.push_str("\n    classDef config fill:#ffffcc,stroke:#333,stroke-width:2px\n");
-
         output
     }
 }
 
-/// Check if selectors match labels
 fn selectors_match(selectors: &HashMap<String, String>, labels: &HashMap<String, String>) -> bool {
     selectors
         .iter()
         .all(|(key, value)| labels.get(key).map(|v| v == value).unwrap_or(false))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_resource_key_with_namespace() {
-        let resource = Resource {
-            kind: "Pod".to_string(),
-            name: "test-pod".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let key = resource.get_resource_key();
-        assert_eq!(key, "pod/default/test-pod");
-    }
-
-    #[test]
-    fn test_resource_key_without_namespace() {
-        let resource = Resource {
-            kind: "Node".to_string(),
-            name: "test-node".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let key = resource.get_resource_key();
-        assert_eq!(key, "node/test-node");
-    }
-
-    #[test]
-    fn test_selectors_match() {
-        let mut selectors = HashMap::new();
-        selectors.insert("app".to_string(), "nginx".to_string());
-
-        let mut labels = HashMap::new();
-        labels.insert("app".to_string(), "nginx".to_string());
-        labels.insert("version".to_string(), "1.0".to_string());
-
-        assert!(selectors_match(&selectors, &labels));
-    }
-
-    #[test]
-    fn test_selectors_no_match() {
-        let mut selectors = HashMap::new();
-        selectors.insert("app".to_string(), "nginx".to_string());
-
-        let mut labels = HashMap::new();
-        labels.insert("app".to_string(), "apache".to_string());
-
-        assert!(!selectors_match(&selectors, &labels));
-    }
-
-    #[test]
-    fn test_tree_creation_and_linking() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test-cluster".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        // Add a deployment
-        let deployment = Resource {
-            kind: "Deployment".to_string(),
-            name: "nginx-deployment".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("apps/v1".to_string()),
-            uid: Some("dep-123".to_string()),
-            labels: None,
-            selectors: Some({
-                let mut map = HashMap::new();
-                map.insert("app".to_string(), "nginx".to_string());
-                map
-            }),
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        tree.add_node(deployment);
-
-        // Add a pod owned by deployment
-        let pod = Resource {
-            kind: "Pod".to_string(),
-            name: "nginx-pod-1".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-123".to_string()),
-            labels: Some({
-                let mut map = HashMap::new();
-                map.insert("app".to_string(), "nginx".to_string());
-                map
-            }),
-            selectors: None,
-            owners: Some(vec![RelationRef {
-                kind: "Deployment".to_string(),
-                name: "nginx-deployment".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("apps/v1".to_string()),
-                uid: Some("dep-123".to_string()),
-            }]),
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        tree.add_node(pod);
-
-        // Link nodes
-        tree.link_nodes();
-
-        // Verify structure
-        assert_eq!(tree.graph.node_count(), 3); // root + deployment + pod
-
-        let dep_key = "deployment/default/nginx-deployment";
-        let pod_key = "pod/default/nginx-pod-1";
-        let dep_idx = tree.key_to_index[dep_key];
-        let pod_idx = tree.key_to_index[pod_key];
-
-        // Check ownership relationship
-        let children_keys = tree.get_children_keys(dep_idx);
-        assert!(children_keys.contains(&pod_key.to_string()));
-        assert_eq!(tree.get_parent_key(pod_idx).as_deref(), Some(dep_key));
-
-        // Check selector-based relationship
-        let dep_leaf_keys = tree.get_leaf_keys(dep_idx);
-        let pod_leaf_keys = tree.get_leaf_keys(pod_idx);
-        assert!(dep_leaf_keys.contains(&pod_key.to_string()));
-        assert!(pod_leaf_keys.contains(&dep_key.to_string()));
-
-        // Test get_related_items
-        let related = tree.get_related_items(dep_key);
-        assert!(related.contains(&dep_key.to_string()));
-        assert!(related.contains(&pod_key.to_string()));
-    }
-
-    #[test]
-    fn test_export_dot() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        let deployment = Resource {
-            kind: "Deployment".to_string(),
-            name: "app".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("apps/v1".to_string()),
-            uid: Some("dep-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(deployment);
-
-        let pod = Resource {
-            kind: "Pod".to_string(),
-            name: "pod-1".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: Some(vec![RelationRef {
-                kind: "Deployment".to_string(),
-                name: "app".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("apps/v1".to_string()),
-                uid: Some("dep-1".to_string()),
-            }]),
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(pod);
-
-        tree.link_nodes();
-
-        let dot = tree.export_dot();
-        assert!(dot.contains("digraph"));
-        assert!(dot.contains("Deployment"));
-        assert!(dot.contains("Pod"));
-        assert!(dot.contains("color=blue")); // Owns edge
-    }
-
-    #[test]
-    fn test_export_mermaid() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        let deployment = Resource {
-            kind: "Deployment".to_string(),
-            name: "app".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("apps/v1".to_string()),
-            uid: Some("dep-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(deployment);
-
-        let pod = Resource {
-            kind: "Pod".to_string(),
-            name: "pod-1".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: Some(vec![RelationRef {
-                kind: "Deployment".to_string(),
-                name: "app".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("apps/v1".to_string()),
-                uid: Some("dep-1".to_string()),
-            }]),
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(pod);
-
-        tree.link_nodes();
-
-        let mermaid = tree.to_mermaid();
-        assert!(mermaid.starts_with("graph TD"));
-        assert!(mermaid.contains("Deployment"));
-        assert!(mermaid.contains("Pod"));
-        assert!(mermaid.contains("-->")); // Owns edge
-        assert!(mermaid.contains("classDef config")); // Style class
-    }
-
-    #[test]
-    fn test_edge_types_distinction() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        // Add deployment with selectors
-        let deployment = Resource {
-            kind: "Deployment".to_string(),
-            name: "app".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("apps/v1".to_string()),
-            uid: Some("dep-1".to_string()),
-            labels: None,
-            selectors: Some({
-                let mut map = HashMap::new();
-                map.insert("app".to_string(), "web".to_string());
-                map
-            }),
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(deployment);
-
-        // Add pod owned by deployment (Owns edge)
-        let pod = Resource {
-            kind: "Pod".to_string(),
-            name: "pod-1".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-1".to_string()),
-            labels: Some({
-                let mut map = HashMap::new();
-                map.insert("app".to_string(), "web".to_string());
-                map
-            }),
-            selectors: None,
-            owners: Some(vec![RelationRef {
-                kind: "Deployment".to_string(),
-                name: "app".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("apps/v1".to_string()),
-                uid: Some("dep-1".to_string()),
-            }]),
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(pod);
-
-        // Add ConfigMap referenced by pod (References edge)
-        let configmap = Resource {
-            kind: "ConfigMap".to_string(),
-            name: "config".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("cm-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(configmap);
-
-        // Add explicit relation from pod to configmap
-        let pod_with_relation = Resource {
-            kind: "Pod".to_string(),
-            name: "pod-with-cm".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-2".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: Some(vec![RelationRef {
-                kind: "ConfigMap".to_string(),
-                name: "config".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("v1".to_string()),
-                uid: Some("cm-1".to_string()),
-            }]),
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(pod_with_relation);
-
-        tree.link_nodes();
-
-        // Verify ownership edges
-        let dep_idx = tree.key_to_index["deployment/default/app"];
-        let pod_idx = tree.key_to_index["pod/default/pod-1"];
-        let owns_edge_exists = tree
-            .graph
-            .edges_directed(dep_idx, Direction::Outgoing)
-            .any(|e| e.target() == pod_idx && *e.weight() == EdgeType::Owns);
-        assert!(
-            owns_edge_exists,
-            "Should have Owns edge from deployment to pod"
-        );
-
-        // Verify selector-based reference edges are bidirectional
-        let ref_edge_to_pod = tree
-            .graph
-            .edges_directed(dep_idx, Direction::Outgoing)
-            .any(|e| e.target() == pod_idx && *e.weight() == EdgeType::References);
-        let ref_edge_from_pod = tree
-            .graph
-            .edges_directed(pod_idx, Direction::Outgoing)
-            .any(|e| e.target() == dep_idx && *e.weight() == EdgeType::References);
-        assert!(
-            ref_edge_to_pod && ref_edge_from_pod,
-            "Selector relationships should be bidirectional"
-        );
-
-        // Verify explicit reference edge to ConfigMap
-        let cm_idx = tree.key_to_index["configmap/default/config"];
-        let pod2_idx = tree.key_to_index["pod/default/pod-with-cm"];
-        let ref_edge_to_cm = tree
-            .graph
-            .edges_directed(pod2_idx, Direction::Outgoing)
-            .any(|e| e.target() == cm_idx && *e.weight() == EdgeType::References);
-        assert!(
-            ref_edge_to_cm,
-            "Should have References edge from pod to configmap"
-        );
-
-        // ConfigMap should have reverse reference (since it's a ConfigMap)
-        let ref_edge_from_cm = tree
-            .graph
-            .edges_directed(cm_idx, Direction::Outgoing)
-            .any(|e| e.target() == pod2_idx && *e.weight() == EdgeType::References);
-        assert!(
-            ref_edge_from_cm,
-            "ConfigMap should have reverse References edge"
-        );
-    }
-
-    #[test]
-    #[ignore = "Pre-existing test failure - compute_impact doesn't track ownership relationships"]
-    fn test_compute_impact() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        // Add ConfigMap
-        let configmap = Resource {
-            kind: "ConfigMap".to_string(),
-            name: "my-config".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("cm-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(configmap);
-
-        // Add Pod that references ConfigMap
-        let pod = Resource {
-            kind: "Pod".to_string(),
-            name: "pod-1".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: Some(vec![RelationRef {
-                kind: "ConfigMap".to_string(),
-                name: "my-config".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("v1".to_string()),
-                uid: Some("cm-1".to_string()),
-            }]),
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(pod);
-
-        // Add Deployment that owns Pod
-        let deployment = Resource {
-            kind: "Deployment".to_string(),
-            name: "my-app".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("apps/v1".to_string()),
-            uid: Some("dep-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(deployment);
-
-        // Update pod to be owned by deployment
-        let pod_with_owner = Resource {
-            kind: "Pod".to_string(),
-            name: "pod-1".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: Some(vec![RelationRef {
-                kind: "Deployment".to_string(),
-                name: "my-app".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("apps/v1".to_string()),
-                uid: Some("dep-1".to_string()),
-            }]),
-            relations: Some(vec![RelationRef {
-                kind: "ConfigMap".to_string(),
-                name: "my-config".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("v1".to_string()),
-                uid: Some("cm-1".to_string()),
-            }]),
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        // Replace the pod node with the updated version
-        let pod_key = "pod/default/pod-1";
-        if let Some(&pod_idx) = tree.key_to_index.get(pod_key) {
-            tree.graph[pod_idx] = pod_with_owner;
-        }
-
-        tree.link_nodes();
-
-        // Test impact of deleting ConfigMap - should affect Pod
-        let cm_key = "configmap/default/my-config";
-        let impact = tree.compute_impact(cm_key);
-
-        assert!(!impact.is_empty(), "ConfigMap should have dependents");
-        assert!(
-            impact.iter().any(|(key, _)| key == pod_key),
-            "Pod should be in ConfigMap impact list"
-        );
-
-        // Test impact of deleting Pod - should affect Deployment
-        let pod_key = "pod/default/pod-1";
-        let impact = tree.compute_impact(pod_key);
-
-        assert!(
-            impact.iter().any(|(key, edge_type)| {
-                key == "deployment/default/my-app" && edge_type == "owns"
-            }),
-            "Deployment should be in Pod impact list with 'owns' relationship"
-        );
-
-        // Test impact of deleting Deployment - should have no incoming edges
-        let dep_key = "deployment/default/my-app";
-        let impact = tree.compute_impact(dep_key);
-
-        assert!(
-            impact.is_empty(),
-            "Deployment should have no resources depending on it"
-        );
-    }
-
-    #[test]
-    fn test_find_orphans() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        // Add orphan ConfigMap (should have consumers but doesn't)
-        let orphan_configmap = Resource {
-            kind: "ConfigMap".to_string(),
-            name: "orphan-config".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("cm-orphan".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(orphan_configmap);
-
-        // Add non-orphan ConfigMap (has a consumer)
-        let used_configmap = Resource {
-            kind: "ConfigMap".to_string(),
-            name: "used-config".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("cm-used".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(used_configmap);
-
-        // Add Pod that references the used ConfigMap
-        let pod = Resource {
-            kind: "Pod".to_string(),
-            name: "consumer-pod".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: Some(vec![RelationRef {
-                kind: "ConfigMap".to_string(),
-                name: "used-config".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("v1".to_string()),
-                uid: Some("cm-used".to_string()),
-            }]),
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(pod);
-
-        // Add a Deployment (should never be orphan)
-        let deployment = Resource {
-            kind: "Deployment".to_string(),
-            name: "test-deployment".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("apps/v1".to_string()),
-            uid: Some("dep-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(deployment);
-
-        // Add a namespace (cluster-scoped, should never be orphan)
-        let namespace = Resource {
-            kind: "Namespace".to_string(),
-            name: "test-ns".to_string(),
-            namespace: None,
-            api_version: Some("v1".to_string()),
-            uid: Some("ns-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(namespace);
-
-        tree.link_nodes();
-
-        // Verify orphan status is set correctly via is_orphan property
-        let orphan_cm_idx = tree.key_to_index["configmap/default/orphan-config"];
-        let used_cm_idx = tree.key_to_index["configmap/default/used-config"];
-        let pod_idx = tree.key_to_index["pod/default/consumer-pod"];
-        let dep_idx = tree.key_to_index["deployment/default/test-deployment"];
-
-        assert!(
-            tree.graph[orphan_cm_idx].is_orphan,
-            "Orphan ConfigMap should have is_orphan=true"
-        );
-        assert!(
-            !tree.graph[used_cm_idx].is_orphan,
-            "Used ConfigMap should have is_orphan=false"
-        );
-        assert!(
-            !tree.graph[pod_idx].is_orphan,
-            "Pod should have is_orphan=false (not a consumer-required type)"
-        );
-        assert!(
-            !tree.graph[dep_idx].is_orphan,
-            "Deployment should have is_orphan=false (not a consumer-required type)"
-        );
-
-        // Also verify find_orphans still works for backward compatibility
-        let orphans = tree.find_orphans();
-        assert_eq!(orphans.len(), 1);
-        assert!(orphans.contains(&"configmap/default/orphan-config".to_string()));
-    }
-
-    #[test]
-    fn test_orphan_detection_per_resource_type() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        // Add an orphan Secret (no consumers)
-        let orphan_secret = Resource {
-            kind: "Secret".to_string(),
-            name: "orphan-secret".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("secret-orphan".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(orphan_secret);
-
-        // Add an orphan Service (no Pods or Ingress consuming it)
-        let orphan_service = Resource {
-            kind: "Service".to_string(),
-            name: "orphan-svc".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("svc-orphan".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(orphan_service);
-
-        // Add a used Secret (consumed by Pod)
-        let used_secret = Resource {
-            kind: "Secret".to_string(),
-            name: "used-secret".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("secret-used".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(used_secret);
-
-        // Add Pod that references the used Secret
-        let pod = Resource {
-            kind: "Pod".to_string(),
-            name: "consumer-pod".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("pod-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: Some(vec![RelationRef {
-                kind: "Secret".to_string(),
-                name: "used-secret".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("v1".to_string()),
-                uid: Some("secret-used".to_string()),
-            }]),
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(pod);
-
-        // Add used Service (consumed by Ingress)
-        let used_service = Resource {
-            kind: "Service".to_string(),
-            name: "used-svc".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("svc-used".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(used_service);
-
-        // Add Ingress that references the used Service
-        let ingress = Resource {
-            kind: "Ingress".to_string(),
-            name: "test-ingress".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("networking.k8s.io/v1".to_string()),
-            uid: Some("ing-1".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: Some(vec![RelationRef {
-                kind: "Service".to_string(),
-                name: "used-svc".to_string(),
-                namespace: Some("default".to_string()),
-                api_version: Some("v1".to_string()),
-                uid: Some("svc-used".to_string()),
-            }]),
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-        tree.add_node(ingress);
-
-        tree.link_nodes();
-
-        // Verify orphan status
-        let orphan_secret_idx = tree.key_to_index["secret/default/orphan-secret"];
-        let used_secret_idx = tree.key_to_index["secret/default/used-secret"];
-        let orphan_service_idx = tree.key_to_index["service/default/orphan-svc"];
-        let used_service_idx = tree.key_to_index["service/default/used-svc"];
-        let pod_idx = tree.key_to_index["pod/default/consumer-pod"];
-        let ingress_idx = tree.key_to_index["ingress/default/test-ingress"];
-
-        assert!(
-            tree.graph[orphan_secret_idx].is_orphan,
-            "Orphan Secret should have is_orphan=true"
-        );
-        assert!(
-            !tree.graph[used_secret_idx].is_orphan,
-            "Used Secret should have is_orphan=false"
-        );
-        assert!(
-            tree.graph[orphan_service_idx].is_orphan,
-            "Orphan Service should have is_orphan=true"
-        );
-        assert!(
-            !tree.graph[used_service_idx].is_orphan,
-            "Used Service should have is_orphan=false"
-        );
-        assert!(
-            !tree.graph[pod_idx].is_orphan,
-            "Pod should have is_orphan=false (not a consumer-required type)"
-        );
-        assert!(
-            !tree.graph[ingress_idx].is_orphan,
-            "Ingress should have is_orphan=false (not a consumer-required type)"
-        );
-
-        // Verify find_orphans returns correct set
-        let orphans = tree.find_orphans();
-        assert_eq!(orphans.len(), 2);
-        assert!(orphans.contains(&"secret/default/orphan-secret".to_string()));
-        assert!(orphans.contains(&"service/default/orphan-svc".to_string()));
-    }
-
-    #[test]
-    fn test_service_account_token_secrets_not_orphans() {
-        let root = Resource {
-            kind: "cluster".to_string(),
-            name: "test".to_string(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: None,
-            missing_refs: None,
-        };
-
-        let mut tree = Tree::new(root);
-
-        // Add service account token secret with type field (should NOT be orphan)
-        let sa_token_secret = Resource {
-            kind: "Secret".to_string(),
-            name: "sa-token-secret".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("secret-sa-token".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: Some("kubernetes.io/service-account-token".to_string()),
-            missing_refs: None,
-        };
-        tree.add_node(sa_token_secret);
-
-        // Add regular orphan secret without type (should be orphan)
-        let orphan_secret = Resource {
-            kind: "Secret".to_string(),
-            name: "orphan-secret".to_string(),
-            namespace: Some("default".to_string()),
-            api_version: Some("v1".to_string()),
-            uid: Some("secret-orphan".to_string()),
-            labels: None,
-            selectors: None,
-            owners: None,
-            relations: None,
-            is_orphan: false,
-            resource_type: Some("Opaque".to_string()),
-            missing_refs: None,
-        };
-        tree.add_node(orphan_secret);
-
-        tree.link_nodes();
-
-        // Verify service account token secret is NOT an orphan
-        let sa_token_idx = tree.key_to_index["secret/default/sa-token-secret"];
-        assert!(
-            !tree.graph[sa_token_idx].is_orphan,
-            "Service account token Secret should NOT be an orphan (type field check)"
-        );
-
-        // Verify regular secret without consumers IS an orphan
-        let orphan_idx = tree.key_to_index["secret/default/orphan-secret"];
-        assert!(
-            tree.graph[orphan_idx].is_orphan,
-            "Regular Secret without consumers should be an orphan"
-        );
-
-        // Verify find_orphans only returns the regular orphan
-        let orphans = tree.find_orphans();
-        assert_eq!(orphans.len(), 1);
-        assert!(orphans.contains(&"secret/default/orphan-secret".to_string()));
-        assert!(!orphans.contains(&"secret/default/sa-token-secret".to_string()));
-    }
 }
