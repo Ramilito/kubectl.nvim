@@ -283,6 +283,17 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
       return lines, marks
     end
 
+    -- Add warning about orphan detection accuracy
+    local warning = "Note: Orphan detection is not 100% accurate. Verify before deleting."
+    table.insert(marks, {
+      row = #lines,
+      start_col = 0,
+      end_col = #warning,
+      hl_group = hl.symbols.warning,
+    })
+    table.insert(lines, warning)
+    table.insert(lines, "")
+
     -- Indentation for fold support (matches shiftwidth=4)
     local indent = "    "
     -- Tree characters
