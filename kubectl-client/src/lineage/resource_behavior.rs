@@ -16,6 +16,25 @@ use k8s_openapi::api::{
 };
 use k8s_openapi::kube_aggregator::pkg::apis::apiregistration::v1::APIService;
 
+// Accessor traits for common K8s structures
+/// Trait for resources that contain a PodSpec
+trait HasPodSpec {
+    fn pod_spec(&self) -> Option<&PodSpec>;
+}
+
+/// Trait for resources that have namespace in metadata
+trait HasMetadataNamespace {
+    fn namespace(&self) -> Option<&str>;
+}
+
+/// Extract relationships from any resource that has a PodSpec
+fn extract_workload_relationships(resource: &(impl HasPodSpec + HasMetadataNamespace)) -> Vec<RelationRef> {
+    let Some(spec) = resource.pod_spec() else {
+        return Vec::new();
+    };
+    extract_pod_spec_relations(spec, resource.namespace())
+}
+
 /// Trait for defining resource-specific behavior in the lineage graph
 pub trait ResourceBehavior {
     /// Extract relationships this resource has to other resources
@@ -48,6 +67,92 @@ pub trait ResourceBehavior {
             resource_type,
             missing_refs,
         )
+    }
+}
+
+// Implement accessor traits for workload resources
+
+impl HasMetadataNamespace for Pod {
+    fn namespace(&self) -> Option<&str> {
+        self.metadata.namespace.as_deref()
+    }
+}
+
+impl HasPodSpec for Pod {
+    fn pod_spec(&self) -> Option<&PodSpec> {
+        self.spec.as_ref()
+    }
+}
+
+impl HasMetadataNamespace for Deployment {
+    fn namespace(&self) -> Option<&str> {
+        self.metadata.namespace.as_deref()
+    }
+}
+
+impl HasPodSpec for Deployment {
+    fn pod_spec(&self) -> Option<&PodSpec> {
+        self.spec.as_ref()?.template.spec.as_ref()
+    }
+}
+
+impl HasMetadataNamespace for StatefulSet {
+    fn namespace(&self) -> Option<&str> {
+        self.metadata.namespace.as_deref()
+    }
+}
+
+impl HasPodSpec for StatefulSet {
+    fn pod_spec(&self) -> Option<&PodSpec> {
+        self.spec.as_ref()?.template.spec.as_ref()
+    }
+}
+
+impl HasMetadataNamespace for DaemonSet {
+    fn namespace(&self) -> Option<&str> {
+        self.metadata.namespace.as_deref()
+    }
+}
+
+impl HasPodSpec for DaemonSet {
+    fn pod_spec(&self) -> Option<&PodSpec> {
+        self.spec.as_ref()?.template.spec.as_ref()
+    }
+}
+
+impl HasMetadataNamespace for Job {
+    fn namespace(&self) -> Option<&str> {
+        self.metadata.namespace.as_deref()
+    }
+}
+
+impl HasPodSpec for Job {
+    fn pod_spec(&self) -> Option<&PodSpec> {
+        self.spec.as_ref()?.template.spec.as_ref()
+    }
+}
+
+impl HasMetadataNamespace for CronJob {
+    fn namespace(&self) -> Option<&str> {
+        self.metadata.namespace.as_deref()
+    }
+}
+
+impl HasPodSpec for CronJob {
+    fn pod_spec(&self) -> Option<&PodSpec> {
+        self.spec.as_ref()?.job_template.spec.as_ref()?.template.spec.as_ref()
+    }
+}
+
+impl HasMetadataNamespace for ReplicaSet {
+    fn namespace(&self) -> Option<&str> {
+        self.metadata.namespace.as_deref()
+    }
+}
+
+impl HasPodSpec for ReplicaSet {
+    fn pod_spec(&self) -> Option<&PodSpec> {
+        self.spec.as_ref()?.template.as_ref()?.spec.as_ref()
     }
 }
 
@@ -93,34 +198,20 @@ impl ResourceBehavior for Ingress {
 
         // ingressClassName
         if let Some(class_name) = &spec.ingress_class_name {
-            relations.push(RelationRef {
-                kind: "IngressClass".to_string(),
-                name: class_name.clone(),
-                namespace: None,
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("IngressClass", class_name.clone()));
         }
 
         // default backend
         if let Some(backend) = &spec.default_backend {
             if let Some(service) = &backend.service {
-                relations.push(RelationRef {
-                    kind: "Service".to_string(),
-                    name: service.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("Service", service.name.clone()).ns(namespace));
             }
             if let Some(resource) = &backend.resource {
-                relations.push(RelationRef {
-                    kind: resource.kind.clone(),
-                    name: resource.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: resource.api_group.clone(),
-                    uid: None,
-                });
+                relations.push(
+                    RelationRef::new(resource.kind.clone(), resource.name.clone())
+                        .ns(namespace)
+                        .api(resource.api_group.as_ref()),
+                );
             }
         }
 
@@ -130,22 +221,14 @@ impl ResourceBehavior for Ingress {
                 if let Some(http) = &rule.http {
                     for path in &http.paths {
                         if let Some(service) = &path.backend.service {
-                            relations.push(RelationRef {
-                                kind: "Service".to_string(),
-                                name: service.name.clone(),
-                                namespace: namespace.map(String::from),
-                                api_version: None,
-                                uid: None,
-                            });
+                            relations.push(RelationRef::new("Service", service.name.clone()).ns(namespace));
                         }
                         if let Some(resource) = &path.backend.resource {
-                            relations.push(RelationRef {
-                                kind: resource.kind.clone(),
-                                name: resource.name.clone(),
-                                namespace: namespace.map(String::from),
-                                api_version: resource.api_group.clone(),
-                                uid: None,
-                            });
+                            relations.push(
+                                RelationRef::new(resource.kind.clone(), resource.name.clone())
+                                    .ns(namespace)
+                                    .api(resource.api_group.as_ref()),
+                            );
                         }
                     }
                 }
@@ -156,13 +239,7 @@ impl ResourceBehavior for Ingress {
         if let Some(tls_list) = &spec.tls {
             for tls in tls_list {
                 if let Some(secret_name) = &tls.secret_name {
-                    relations.push(RelationRef {
-                        kind: "Secret".to_string(),
-                        name: secret_name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("Secret", secret_name.clone()).ns(namespace));
                 }
             }
         }
@@ -182,13 +259,11 @@ impl ResourceBehavior for IngressClass {
 
         if let Some(spec) = &self.spec {
             if let Some(parameters) = &spec.parameters {
-                relations.push(RelationRef {
-                    kind: parameters.kind.clone(),
-                    name: parameters.name.clone(),
-                    namespace: parameters.namespace.clone(),
-                    api_version: parameters.api_group.clone(),
-                    uid: None,
-                });
+                relations.push(
+                    RelationRef::new(parameters.kind.clone(), parameters.name.clone())
+                        .ns(parameters.namespace.as_ref())
+                        .api(parameters.api_group.as_ref()),
+                );
             }
         }
 
@@ -204,97 +279,31 @@ impl ResourceBehavior for Pod {
 
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
         let mut relations = Vec::new();
-        let namespace = self.metadata.namespace.as_deref();
 
         let spec = match &self.spec {
             Some(s) => s,
             None => return relations,
         };
 
+        // Pod-specific relationships (not in PodSpec helper)
+
         // nodeName
         if let Some(node_name) = &spec.node_name {
-            relations.push(RelationRef {
-                kind: "Node".to_string(),
-                name: node_name.clone(),
-                namespace: None,
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("Node", node_name.clone()));
         }
 
         // priorityClassName
         if let Some(priority_class) = &spec.priority_class_name {
-            relations.push(RelationRef {
-                kind: "PriorityClass".to_string(),
-                name: priority_class.clone(),
-                namespace: None,
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("PriorityClass", priority_class.clone()));
         }
 
         // runtimeClassName
         if let Some(runtime_class) = &spec.runtime_class_name {
-            relations.push(RelationRef {
-                kind: "RuntimeClass".to_string(),
-                name: runtime_class.clone(),
-                namespace: None,
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("RuntimeClass", runtime_class.clone()));
         }
 
-        // serviceAccountName
-        if let Some(sa_name) = &spec.service_account_name {
-            relations.push(RelationRef {
-                kind: "ServiceAccount".to_string(),
-                name: sa_name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
-        }
-
-        // volumes (includes ConfigMap and Secret references)
-        if let Some(volumes) = &spec.volumes {
-            for volume in volumes {
-                relations.extend(extract_volume_relations(volume, namespace));
-            }
-        }
-
-        // environment variables from containers
-        for container in &spec.containers {
-            relations.extend(extract_container_env_relations(container, namespace));
-        }
-
-        // environment variables from initContainers
-        if let Some(init_containers) = &spec.init_containers {
-            for container in init_containers {
-                relations.extend(extract_container_env_relations(container, namespace));
-            }
-        }
-
-        // environment variables from ephemeralContainers
-        if let Some(ephemeral_containers) = &spec.ephemeral_containers {
-            for container in ephemeral_containers {
-                relations.extend(extract_ephemeral_container_env_relations(
-                    container, namespace,
-                ));
-            }
-        }
-
-        // imagePullSecrets
-        if let Some(image_pull_secrets) = &spec.image_pull_secrets {
-            for secret_ref in image_pull_secrets {
-                relations.push(RelationRef {
-                    kind: "Secret".to_string(),
-                    name: secret_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
-            }
-        }
+        // Common PodSpec relationships (ServiceAccount, ConfigMaps, Secrets, etc.) using the trait
+        relations.extend(extract_workload_relationships(self));
 
         relations
     }
@@ -337,23 +346,11 @@ impl ResourceBehavior for PersistentVolumeClaim {
 
         if let Some(spec) = &self.spec {
             if let Some(volume_name) = &spec.volume_name {
-                relations.push(RelationRef {
-                    kind: "PersistentVolume".to_string(),
-                    name: volume_name.clone(),
-                    namespace: None,
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("PersistentVolume", volume_name.clone()));
             }
 
             if let Some(storage_class) = &spec.storage_class_name {
-                relations.push(RelationRef {
-                    kind: "StorageClass".to_string(),
-                    name: storage_class.clone(),
-                    namespace: None,
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("StorageClass", storage_class.clone()));
             }
         }
 
@@ -378,13 +375,7 @@ impl ResourceBehavior for PersistentVolume {
             }
 
             if let Some(storage_class) = &spec.storage_class_name {
-                relations.push(RelationRef {
-                    kind: "StorageClass".to_string(),
-                    name: storage_class.clone(),
-                    namespace: None,
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("StorageClass", storage_class.clone()));
             }
         }
 
@@ -415,26 +406,20 @@ impl ResourceBehavior for ClusterRoleBinding {
 
         // roleRef
         if self.role_ref.kind == "ClusterRole" {
-            relations.push(RelationRef {
-                kind: self.role_ref.kind.clone(),
-                name: self.role_ref.name.clone(),
-                namespace: None,
-                api_version: Some(self.role_ref.api_group.clone()),
-                uid: None,
-            });
+            relations.push(
+                RelationRef::new(self.role_ref.kind.clone(), self.role_ref.name.clone())
+                    .api(Some(&self.role_ref.api_group)),
+            );
         }
 
         // subjects (ServiceAccounts)
         if let Some(subjects) = &self.subjects {
             for subject in subjects {
                 if subject.kind == "ServiceAccount" {
-                    relations.push(RelationRef {
-                        kind: "ServiceAccount".to_string(),
-                        name: subject.name.clone(),
-                        namespace: subject.namespace.clone(),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(
+                        RelationRef::new("ServiceAccount", subject.name.clone())
+                            .ns(subject.namespace.as_ref()),
+                    );
                 }
             }
         }
@@ -462,32 +447,18 @@ impl ResourceBehavior for StatefulSet {
         if let Some(templates) = &spec.volume_claim_templates {
             for template in templates {
                 if let Some(name) = &template.metadata.name {
-                    relations.push(RelationRef {
-                        kind: "PersistentVolumeClaim".to_string(),
-                        name: name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("PersistentVolumeClaim", name.clone()).ns(namespace));
                 }
             }
         }
 
         // serviceName
         if let Some(service_name) = &spec.service_name {
-            relations.push(RelationRef {
-                kind: "Service".to_string(),
-                name: service_name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("Service", service_name.clone()).ns(namespace));
         }
 
-        // Extract pod spec relations (ConfigMaps, Secrets, etc.)
-        if let Some(pod_spec) = &spec.template.spec {
-            relations.extend(extract_pod_spec_relations(pod_spec, namespace));
-        }
+        // Extract pod spec relations (ConfigMaps, Secrets, etc.) using the trait
+        relations.extend(extract_workload_relationships(self));
 
         relations
     }
@@ -500,19 +471,7 @@ impl ResourceBehavior for Deployment {
     }
 
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
-        let namespace = self.metadata.namespace.as_deref();
-
-        let spec = match &self.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        let pod_spec = match &spec.template.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        extract_pod_spec_relations(pod_spec, namespace)
+        extract_workload_relationships(self)
     }
 }
 
@@ -523,22 +482,7 @@ impl ResourceBehavior for ReplicaSet {
     }
 
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
-        let namespace = self.metadata.namespace.as_deref();
-
-        let spec = match &self.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        let pod_spec = match &spec.template {
-            Some(t) => match &t.spec {
-                Some(s) => s,
-                None => return Vec::new(),
-            },
-            None => return Vec::new(),
-        };
-
-        extract_pod_spec_relations(pod_spec, namespace)
+        extract_workload_relationships(self)
     }
 }
 
@@ -549,19 +493,7 @@ impl ResourceBehavior for DaemonSet {
     }
 
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
-        let namespace = self.metadata.namespace.as_deref();
-
-        let spec = match &self.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        let pod_spec = match &spec.template.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        extract_pod_spec_relations(pod_spec, namespace)
+        extract_workload_relationships(self)
     }
 }
 
@@ -572,19 +504,7 @@ impl ResourceBehavior for Job {
     }
 
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
-        let namespace = self.metadata.namespace.as_deref();
-
-        let spec = match &self.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        let pod_spec = match &spec.template.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        extract_pod_spec_relations(pod_spec, namespace)
+        extract_workload_relationships(self)
     }
 }
 
@@ -595,24 +515,7 @@ impl ResourceBehavior for CronJob {
     }
 
     fn extract_relationships(&self, _namespace: Option<&str>) -> Vec<RelationRef> {
-        let namespace = self.metadata.namespace.as_deref();
-
-        let spec = match &self.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        let job_spec = match &spec.job_template.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        let pod_spec = match &job_spec.template.spec {
-            Some(s) => s,
-            None => return Vec::new(),
-        };
-
-        extract_pod_spec_relations(pod_spec, namespace)
+        extract_workload_relationships(self)
     }
 }
 
@@ -629,13 +532,11 @@ impl ResourceBehavior for HorizontalPodAutoscaler {
         if let Some(spec) = &self.spec {
             // scaleTargetRef
             let scale_target = &spec.scale_target_ref;
-            relations.push(RelationRef {
-                kind: scale_target.kind.clone(),
-                name: scale_target.name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: scale_target.api_version.clone(),
-                uid: None,
-            });
+            relations.push(
+                RelationRef::new(scale_target.kind.clone(), scale_target.name.clone())
+                    .ns(namespace)
+                    .api(scale_target.api_version.as_ref()),
+            );
         }
 
         relations
@@ -680,29 +581,25 @@ impl ResourceBehavior for RoleBinding {
         let mut relations = Vec::new();
 
         // roleRef - can be Role or ClusterRole
-        relations.push(RelationRef {
-            kind: self.role_ref.kind.clone(),
-            name: self.role_ref.name.clone(),
-            namespace: if self.role_ref.kind == "Role" {
-                self.metadata.namespace.clone()
-            } else {
-                None
-            },
-            api_version: Some(self.role_ref.api_group.clone()),
-            uid: None,
-        });
+        let role_namespace = if self.role_ref.kind == "Role" {
+            self.metadata.namespace.as_ref()
+        } else {
+            None
+        };
+        relations.push(
+            RelationRef::new(self.role_ref.kind.clone(), self.role_ref.name.clone())
+                .ns(role_namespace)
+                .api(Some(&self.role_ref.api_group)),
+        );
 
         // subjects (ServiceAccounts, Users, Groups)
         if let Some(subjects) = &self.subjects {
             for subject in subjects {
                 if subject.kind == "ServiceAccount" {
-                    relations.push(RelationRef {
-                        kind: "ServiceAccount".to_string(),
-                        name: subject.name.clone(),
-                        namespace: subject.namespace.clone(),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(
+                        RelationRef::new("ServiceAccount", subject.name.clone())
+                            .ns(subject.namespace.as_ref()),
+                    );
                 }
             }
         }
@@ -737,13 +634,9 @@ impl ResourceBehavior for ValidatingWebhookConfiguration {
         if let Some(webhooks) = &self.webhooks {
             for webhook in webhooks {
                 if let Some(service) = &webhook.client_config.service {
-                    relations.push(RelationRef {
-                        kind: "Service".to_string(),
-                        name: service.name.clone(),
-                        namespace: Some(service.namespace.clone()),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(
+                        RelationRef::new("Service", service.name.clone()).ns(Some(&service.namespace)),
+                    );
                 }
             }
         }
@@ -764,13 +657,9 @@ impl ResourceBehavior for MutatingWebhookConfiguration {
         if let Some(webhooks) = &self.webhooks {
             for webhook in webhooks {
                 if let Some(service) = &webhook.client_config.service {
-                    relations.push(RelationRef {
-                        kind: "Service".to_string(),
-                        name: service.name.clone(),
-                        namespace: Some(service.namespace.clone()),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(
+                        RelationRef::new("Service", service.name.clone()).ns(Some(&service.namespace)),
+                    );
                 }
             }
         }
@@ -791,13 +680,7 @@ impl ResourceBehavior for APIService {
         if let Some(spec) = &self.spec {
             if let Some(service) = &spec.service {
                 if let Some(name) = &service.name {
-                    relations.push(RelationRef {
-                        kind: "Service".to_string(),
-                        name: name.clone(),
-                        namespace: service.namespace.clone(),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("Service", name.clone()).ns(service.namespace.as_ref()));
                 }
             }
         }
@@ -843,13 +726,7 @@ impl ResourceBehavior for ServiceAccount {
         if let Some(secrets) = &self.secrets {
             for secret_ref in secrets {
                 if let Some(name) = &secret_ref.name {
-                    relations.push(RelationRef {
-                        kind: "Secret".to_string(),
-                        name: name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("Secret", name.clone()).ns(namespace));
                 }
             }
         }
@@ -857,13 +734,7 @@ impl ResourceBehavior for ServiceAccount {
         // imagePullSecrets[]
         if let Some(image_pull_secrets) = &self.image_pull_secrets {
             for secret_ref in image_pull_secrets {
-                relations.push(RelationRef {
-                    kind: "Secret".to_string(),
-                    name: secret_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("Secret", secret_ref.name.clone()).ns(namespace));
             }
         }
 
@@ -898,23 +769,11 @@ fn extract_container_env_relations(container: &Container, namespace: Option<&str
             if let Some(value_from) = &env.value_from {
                 // configMapKeyRef
                 if let Some(config_map_ref) = &value_from.config_map_key_ref {
-                    relations.push(RelationRef {
-                        kind: "ConfigMap".to_string(),
-                        name: config_map_ref.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("ConfigMap", config_map_ref.name.clone()).ns(namespace));
                 }
                 // secretKeyRef
                 if let Some(secret_ref) = &value_from.secret_key_ref {
-                    relations.push(RelationRef {
-                        kind: "Secret".to_string(),
-                        name: secret_ref.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("Secret", secret_ref.name.clone()).ns(namespace));
                 }
             }
         }
@@ -925,23 +784,11 @@ fn extract_container_env_relations(container: &Container, namespace: Option<&str
         for env in env_from {
             // configMapRef
             if let Some(config_map_ref) = &env.config_map_ref {
-                relations.push(RelationRef {
-                    kind: "ConfigMap".to_string(),
-                    name: config_map_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("ConfigMap", config_map_ref.name.clone()).ns(namespace));
             }
             // secretRef
             if let Some(secret_ref) = &env.secret_ref {
-                relations.push(RelationRef {
-                    kind: "Secret".to_string(),
-                    name: secret_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("Secret", secret_ref.name.clone()).ns(namespace));
             }
         }
     }
@@ -962,23 +809,11 @@ fn extract_ephemeral_container_env_relations(
             if let Some(value_from) = &env.value_from {
                 // configMapKeyRef
                 if let Some(config_map_ref) = &value_from.config_map_key_ref {
-                    relations.push(RelationRef {
-                        kind: "ConfigMap".to_string(),
-                        name: config_map_ref.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("ConfigMap", config_map_ref.name.clone()).ns(namespace));
                 }
                 // secretKeyRef
                 if let Some(secret_ref) = &value_from.secret_key_ref {
-                    relations.push(RelationRef {
-                        kind: "Secret".to_string(),
-                        name: secret_ref.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("Secret", secret_ref.name.clone()).ns(namespace));
                 }
             }
         }
@@ -989,23 +824,11 @@ fn extract_ephemeral_container_env_relations(
         for env in env_from {
             // configMapRef
             if let Some(config_map_ref) = &env.config_map_ref {
-                relations.push(RelationRef {
-                    kind: "ConfigMap".to_string(),
-                    name: config_map_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("ConfigMap", config_map_ref.name.clone()).ns(namespace));
             }
             // secretRef
             if let Some(secret_ref) = &env.secret_ref {
-                relations.push(RelationRef {
-                    kind: "Secret".to_string(),
-                    name: secret_ref.name.clone(),
-                    namespace: namespace.map(String::from),
-                    api_version: None,
-                    uid: None,
-                });
+                relations.push(RelationRef::new("Secret", secret_ref.name.clone()).ns(namespace));
             }
         }
     }
@@ -1019,56 +842,26 @@ fn extract_volume_relations(volume: &Volume, namespace: Option<&str>) -> Vec<Rel
 
     // ConfigMap
     if let Some(config_map) = &volume.config_map {
-        relations.push(RelationRef {
-            kind: "ConfigMap".to_string(),
-            name: config_map.name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
+        relations.push(RelationRef::new("ConfigMap", config_map.name.clone()).ns(namespace));
     }
 
     // Secret
     if let Some(secret) = &volume.secret {
         if let Some(name) = &secret.secret_name {
-            relations.push(RelationRef {
-                kind: "Secret".to_string(),
-                name: name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("Secret", name.clone()).ns(namespace));
         }
     }
 
     // PersistentVolumeClaim
     if let Some(pvc) = &volume.persistent_volume_claim {
-        relations.push(RelationRef {
-            kind: "PersistentVolumeClaim".to_string(),
-            name: pvc.claim_name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
+        relations.push(RelationRef::new("PersistentVolumeClaim", pvc.claim_name.clone()).ns(namespace));
     }
 
     // CSI
     if let Some(csi) = &volume.csi {
-        relations.push(RelationRef {
-            kind: "CSIDriver".to_string(),
-            name: csi.driver.clone(),
-            namespace: None,
-            api_version: None,
-            uid: None,
-        });
+        relations.push(RelationRef::new("CSIDriver", csi.driver.clone()));
         if let Some(secret_ref) = &csi.node_publish_secret_ref {
-            relations.push(RelationRef {
-                kind: "Secret".to_string(),
-                name: secret_ref.name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("Secret", secret_ref.name.clone()).ns(namespace));
         }
     }
 
@@ -1077,22 +870,10 @@ fn extract_volume_relations(volume: &Volume, namespace: Option<&str>) -> Vec<Rel
         if let Some(sources) = &projected.sources {
             for source in sources {
                 if let Some(config_map) = &source.config_map {
-                    relations.push(RelationRef {
-                        kind: "ConfigMap".to_string(),
-                        name: config_map.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("ConfigMap", config_map.name.clone()).ns(namespace));
                 }
                 if let Some(secret) = &source.secret {
-                    relations.push(RelationRef {
-                        kind: "Secret".to_string(),
-                        name: secret.name.clone(),
-                        namespace: namespace.map(String::from),
-                        api_version: None,
-                        uid: None,
-                    });
+                    relations.push(RelationRef::new("Secret", secret.name.clone()).ns(namespace));
                 }
             }
         }
@@ -1107,13 +888,7 @@ fn extract_pod_spec_relations(spec: &PodSpec, namespace: Option<&str>) -> Vec<Re
 
     // serviceAccountName
     if let Some(sa_name) = &spec.service_account_name {
-        relations.push(RelationRef {
-            kind: "ServiceAccount".to_string(),
-            name: sa_name.clone(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
+        relations.push(RelationRef::new("ServiceAccount", sa_name.clone()).ns(namespace));
     }
 
     // volumes
@@ -1147,13 +922,7 @@ fn extract_pod_spec_relations(spec: &PodSpec, namespace: Option<&str>) -> Vec<Re
     // imagePullSecrets
     if let Some(image_pull_secrets) = &spec.image_pull_secrets {
         for secret_ref in image_pull_secrets {
-            relations.push(RelationRef {
-                kind: "Secret".to_string(),
-                name: secret_ref.name.clone(),
-                namespace: namespace.map(String::from),
-                api_version: None,
-                uid: None,
-            });
+            relations.push(RelationRef::new("Secret", secret_ref.name.clone()).ns(namespace));
         }
     }
 

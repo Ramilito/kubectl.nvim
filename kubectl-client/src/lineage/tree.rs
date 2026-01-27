@@ -48,6 +48,31 @@ pub struct RelationRef {
     pub uid: Option<String>,
 }
 
+impl RelationRef {
+    /// Create a new cluster-scoped relation
+    pub fn new(kind: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            kind: kind.into(),
+            name: name.into(),
+            namespace: None,
+            api_version: None,
+            uid: None,
+        }
+    }
+
+    /// Add namespace (for namespaced resources)
+    pub fn ns(mut self, namespace: Option<impl Into<String>>) -> Self {
+        self.namespace = namespace.map(Into::into);
+        self
+    }
+
+    /// Add API version
+    pub fn api(mut self, api_version: Option<impl Into<String>>) -> Self {
+        self.api_version = api_version.map(Into::into);
+        self
+    }
+}
+
 impl Resource {
     /// Generate a unique key for a resource
     pub fn get_resource_key(&self) -> String {
