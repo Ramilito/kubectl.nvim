@@ -28,15 +28,7 @@ M.overrides = {
     desc = "refresh cache",
     callback = function()
       local lineage = require("kubectl.views.lineage")
-      if lineage.is_loading or lineage.is_building_graph then
-        vim.notify("Already loading, please wait...", vim.log.levels.INFO)
-        return
-      end
-      -- Reset and reload cache, which will trigger graph build via autocmd
-      lineage.is_loading = true
-      lineage.graph = nil
-      lineage.Draw() -- Show loading message
-      lineage.load_cache()
+      lineage.refresh()
     end,
   },
   ["<Plug>(kubectl.export_dot)"] = {

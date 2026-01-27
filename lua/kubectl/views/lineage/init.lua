@@ -51,12 +51,16 @@ function M.generate_content()
   local header_marks = {}
 
   if cache.loading or M.is_loading then
-    table.insert(content, "Associated Resources:")
+    table.insert(content, "Loading lineage data...")
     table.insert(content, "")
-    table.insert(content, M.processed .. "/" .. M.total)
-    table.insert(content, "Cache still loading...")
+    local percentage = M.total > 0 and math.floor((M.processed / M.total) * 100) or 0
+    table.insert(content, string.format("Progress: %d/%d (%d%%)", M.processed, M.total, percentage))
+    table.insert(content, "")
+    table.insert(content, "Please wait while resources are being fetched...")
   elseif M.is_building_graph then
     table.insert(content, "Building lineage graph...")
+    table.insert(content, "")
+    table.insert(content, "Analyzing resource relationships...")
   elseif not M.graph then
     table.insert(content, "No graph available. Press r to refresh.")
   else
@@ -139,12 +143,8 @@ function M.View(name, ns, kind)
     return
   end
 
-  M.total = 0
-  for _, _ in pairs(cache.cached_api_resources.values) do
-    M.total = M.total + 1
-  end
-
-  if M.total == 0 then
+  -- Check if cache has any resources
+  if not next(cache.cached_api_resources.values) then
     vim.notify("cache is not ready")
     return
   end
@@ -163,22 +163,27 @@ function M.View(name, ns, kind)
   M.selection.ns = ns
   M.selection.kind = kind
 
-  if not M.loaded and not M.is_loading then
-    M.is_loading = true
-    M.load_cache()
-  end
-
   M.builder = manager.get_or_create(M.definition.resource)
   M.builder.view_framed(M.definition)
 
-  -- If we already have a graph or are building one, just draw
-  if has_existing_state then
+  if not M.loaded and not M.is_loading then
+    -- Count total resources before starting load (needed for progress display)
+    M.total = 0
+    for _, resource in pairs(cache.cached_api_resources.values) do
+      if resource.gvk then
+        M.total = M.total + 1
+      end
+    end
+
+    M.is_loading = true
+    M.load_cache()
+    M.Draw() -- Show loading message with progress
+  elseif has_existing_state then
+    -- If we already have a graph or are building one, just draw
     M.Draw()
   elseif M.loaded and not M.is_loading then
     -- Cache is loaded, start building graph
     M.build_graph()
-  else
-    M.Draw() -- Show loading message
   end
 end
 
@@ -208,6 +213,7 @@ function M.load_cache(callback)
   local cached_api_resources = cache.cached_api_resources
   local all_gvk = {}
   M.processed = 0
+
   for _, resource in pairs(cached_api_resources.values) do
     if resource.gvk then
       table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk } })
@@ -221,11 +227,7 @@ function M.load_cache(callback)
 
   commands.await_all(all_gvk, function()
     M.processed = M.processed + 1
-    vim.schedule(function()
-      if M.builder and M.builder.buf_nr and vim.api.nvim_buf_is_valid(M.builder.buf_nr) then
-        M.Draw()
-      end
-    end)
+    vim.schedule(M.Draw)
   end, function(data)
     M.builder.data = data
     M.builder.splitData()
@@ -253,6 +255,30 @@ function M.load_cache(callback)
       vim.cmd("doautocmd User K8sLineageDataLoaded")
     end)
   end)
+end
+
+function M.refresh()
+  if M.is_loading or M.is_building_graph then
+    vim.notify("Already loading, please wait...", vim.log.levels.INFO)
+    return
+  end
+
+  -- Reset state
+  M.loaded = false
+  M.graph = nil
+  M.processed = 0
+
+  -- Count total resources before starting load (needed for progress display)
+  M.total = 0
+  for _, resource in pairs(cache.cached_api_resources.values) do
+    if resource.gvk then
+      M.total = M.total + 1
+    end
+  end
+
+  M.is_loading = true
+  M.Draw() -- Show loading message with 0/N progress
+  M.load_cache()
 end
 
 function M.set_folding(win_nr, buf_nr)
