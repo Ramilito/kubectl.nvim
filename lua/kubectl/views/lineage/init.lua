@@ -15,6 +15,7 @@ local M = {
   processed = 0,
   total = 0,
   orphan_filter_enabled = false,
+  progress_timer = nil,
 }
 
 M.definition = {
@@ -34,13 +35,6 @@ M.definition = {
   },
 }
 
-vim.api.nvim_create_autocmd("User", {
-  pattern = "K8sLineageDataLoaded",
-  callback = function()
-    -- Cache is loaded, now build the graph asynchronously
-    M.build_graph()
-  end,
-})
 
 --- Generate content for the lineage view
 --- @return { content: table, marks: table, header_data: table, header_marks: table }
@@ -209,6 +203,33 @@ function M.Draw()
   collectgarbage("collect")
 end
 
+local function stop_progress_timer()
+  if M.progress_timer then
+    ---@diagnostic disable-next-line: undefined-field
+    M.progress_timer:stop()
+    ---@diagnostic disable-next-line: undefined-field
+    M.progress_timer:close()
+    M.progress_timer = nil
+  end
+end
+
+local function start_progress_timer()
+  stop_progress_timer()
+  M.progress_timer = vim.uv.new_timer()
+  ---@diagnostic disable-next-line: undefined-field
+  M.progress_timer:start(
+    0, -- Initial delay
+    100, -- Repeat every 100ms
+    vim.schedule_wrap(function()
+      if M.is_loading and M.builder and vim.api.nvim_buf_is_valid(M.builder.buf_nr) then
+        M.Draw()
+      else
+        stop_progress_timer()
+      end
+    end)
+  )
+end
+
 function M.load_cache(callback)
   local cached_api_resources = cache.cached_api_resources
   local all_gvk = {}
@@ -222,12 +243,15 @@ function M.load_cache(callback)
 
   collectgarbage("collect")
 
+  -- Start progress timer to update display periodically
+  start_progress_timer()
+
   -- Memory usage before creating the table
   local mem_before = collectgarbage("count")
 
   commands.await_all(all_gvk, function()
     M.processed = M.processed + 1
-    vim.schedule(M.Draw)
+    -- Progress timer handles drawing, no need to schedule here
   end, function(data)
     M.builder.data = data
     M.builder.splitData()
@@ -246,13 +270,18 @@ function M.load_cache(callback)
     print("Memory used by the table (in MB):", mem_diff_mb)
     print("finished loading cache")
 
-    M.is_loading = false
     M.loaded = true
+
     if callback then
       callback()
     end
+
+    -- Schedule the build - we're in a fast event context from libuv
     vim.schedule(function()
+      stop_progress_timer()
+      M.is_loading = false
       vim.cmd("doautocmd User K8sLineageDataLoaded")
+      M.build_graph()
     end)
   end)
 end
