@@ -2,6 +2,7 @@ use mlua::{Lua, Result as LuaResult, Table as LuaTable};
 
 pub mod builder;
 pub mod orphan_rules;
+pub mod registry;
 pub mod relationships;
 pub mod resource_behavior;
 pub mod tree;

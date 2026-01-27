@@ -483,39 +483,3 @@ pub fn get_orphan_rule(kind: &str) -> Option<&'static OrphanRule> {
         })
         .get(kind)
 }
-
-/// Check if a resource is an orphan using the declarative system
-pub fn is_orphan(
-    kind: &str,
-    name: &str,
-    namespace: Option<&str>,
-    incoming_refs: &[(EdgeType, &str)],
-    labels: Option<&std::collections::HashMap<String, String>>,
-    resource_type: Option<&str>,
-    missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>,
-) -> bool {
-    // Get the rule for this kind
-    let rule = match get_orphan_rule(kind) {
-        Some(r) => r,
-        None => return false, // No rule = not orphanable
-    };
-
-    // Check exception first
-    if let Some(exception_fn) = rule.exception {
-        if exception_fn(name, namespace) {
-            return false;
-        }
-    }
-
-    // Evaluate the condition
-    let ctx = OrphanContext {
-        name,
-        namespace,
-        incoming_refs,
-        labels,
-        resource_type,
-        missing_refs,
-    };
-
-    evaluate(&rule.condition, &ctx)
-}
