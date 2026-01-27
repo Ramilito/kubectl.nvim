@@ -41,3 +41,4 @@ uuid = { version = "1.17.0", features = ["v4"] }
 strip-ansi-escapes = "0.2"
 sha2 = "0.10"
 kubediff = { version = "1.2.0", default-features = false }
+petgraph = { version = "0.6", features = ["serde-1"] }

@@ -1,14 +1,14 @@
 // lib.rs
+use health::{get_health_status, shutdown_health_collector, spawn_health_collector};
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
 use kube::config::ExecInteractiveMode;
 use kube::{api::GroupVersionKind, config::KubeConfigOptions, Client, Config};
-use health::{get_health_status, shutdown_health_collector, spawn_health_collector};
 use metrics::nodes::{shutdown_node_collector, spawn_node_collector, NodeStat, SharedNodeStats};
 use metrics::pods::{shutdown_pod_collector, spawn_pod_collector, PodKey, PodStat, SharedPodStats};
-use std::collections::HashMap;
 use mlua::prelude::*;
 use mlua::Lua;
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, StartReflectorArgs};
@@ -33,10 +33,11 @@ mod dao;
 mod describe_session;
 mod drain;
 mod event_queue;
-mod health;
 mod events;
 mod filter;
+mod health;
 mod hover;
+mod lineage;
 mod metrics;
 mod processors;
 mod sort;
@@ -228,15 +229,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             }
 
             {
-                *CLIENT_INSTANCE
-                    .lock()
-                    .map_err(|_| LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into()))? =
-                    None;
-                *CLIENT_STREAM_INSTANCE
-                    .lock()
-                    .map_err(|_| {
-                        LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into())
-                    })? = None;
+                *CLIENT_INSTANCE.lock().map_err(|_| {
+                    LuaError::RuntimeError("poisoned CLIENT_INSTANCE lock".into())
+                })? = None;
+                *CLIENT_STREAM_INSTANCE.lock().map_err(|_| {
+                    LuaError::RuntimeError("poisoned CLIENT_STREAM_INSTANCE lock".into())
+                })? = None;
             }
 
             Ok::<(), LuaError>(())
@@ -309,8 +307,9 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
 
 #[tracing::instrument]
 async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
-    let args: StartReflectorArgs = serde_json::from_str(&json)
-        .map_err(|e| mlua::Error::external(format!("invalid JSON in start_reflector_async: {e}")))?;
+    let args: StartReflectorArgs = serde_json::from_str(&json).map_err(|e| {
+        mlua::Error::external(format!("invalid JSON in start_reflector_async: {e}"))
+    })?;
 
     with_client(move |client| async move {
         let gvk = GroupVersionKind::gvk(&args.gvk.g, &args.gvk.v, &args.gvk.k);
@@ -445,10 +444,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         "get_container_table_async",
         lua.create_function(get_container_table)?,
     )?;
-    exports.set(
-        "get_table_async",
-        lua.create_function(get_table)?,
-    )?;
+    exports.set("get_table_async", lua.create_function(get_table)?)?;
     exports.set(
         "get_fallback_table_async",
         lua.create_async_function(get_fallback_table_async)?,
@@ -474,8 +470,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
 
     exports.set(
         "toggle_json",
-        lua.create_function(|lua, input: String| {
-            match cmd::log_session::toggle_json(&input) {
+        lua.create_function(
+            |lua, input: String| match cmd::log_session::toggle_json(&input) {
                 Some(result) => {
                     let tbl = lua.create_table()?;
                     tbl.set("json", result.json)?;
@@ -484,8 +480,8 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
                     Ok(mlua::Value::Table(tbl))
                 }
                 None => Ok(mlua::Value::Nil),
-            }
-        })?,
+            },
+        )?,
     )?;
 
     // Sync health check - reads cached result from background task
@@ -500,6 +496,7 @@ fn kubectl_client(lua: &Lua) -> LuaResult<mlua::Table> {
         })?,
     )?;
 
+    lineage::install(lua, &exports)?;
     dao::install(lua, &exports)?;
     cmd::install(lua, &exports)?;
     event_queue::install(lua, &exports)?;

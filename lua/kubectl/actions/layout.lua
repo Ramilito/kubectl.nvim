@@ -312,6 +312,14 @@ function M.fit_framed_to_content(frame, height_offset)
   local col = math.floor((vim.o.columns - total_width) / 2)
   local row = config.options.float_size.row
 
+  -- Calculate maximum available height for content window
+  -- Account for: row offset, hints window, borders, and bottom margin
+  local _, editor_height = M.get_editor_dimensions()
+  local max_content_height = editor_height - row - hints_height - (border_size * 2) - 1
+
+  -- Cap content height to prevent overlap with hints or exceeding screen bounds
+  local content_height = math.min(dims.height, max_content_height)
+
   -- Update hints window
   if vim.api.nvim_win_is_valid(hints_win) then
     local hints_config = vim.api.nvim_win_get_config(hints_win)
@@ -324,7 +332,7 @@ function M.fit_framed_to_content(frame, height_offset)
   -- Update content window
   local content_config = vim.api.nvim_win_get_config(content_win)
   content_config.width = dims.width
-  content_config.height = dims.height
+  content_config.height = content_height
   content_config.col = col
   content_config.row = row + hints_height + border_size
   vim.api.nvim_win_set_config(content_win, content_config)
