@@ -35,7 +35,6 @@ M.definition = {
   },
 }
 
-
 --- Generate content for the lineage view
 --- @return { content: table, marks: table, header_data: table, header_marks: table }
 function M.generate_content()

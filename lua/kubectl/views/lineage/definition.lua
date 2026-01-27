@@ -258,51 +258,102 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
   if orphan_filter_enabled then
     local orphan_lookup = M.get_orphans(graph)
 
-    -- Sort orphan keys for consistent display
-    local orphan_keys = {}
+    -- Group orphans by kind
+    local orphans_by_kind = {}
     for key, _ in pairs(orphan_lookup) do
-      table.insert(orphan_keys, key)
+      local node = node_lookup[key]
+      if node and node.key ~= graph.root_key then
+        local kind = node.kind or "Unknown"
+        if not orphans_by_kind[kind] then
+          orphans_by_kind[kind] = {}
+        end
+        table.insert(orphans_by_kind[kind], node)
+      end
     end
-    table.sort(orphan_keys)
 
-    if #orphan_keys == 0 then
+    -- Sort kinds alphabetically
+    local sorted_kinds = {}
+    for kind, _ in pairs(orphans_by_kind) do
+      table.insert(sorted_kinds, kind)
+    end
+    table.sort(sorted_kinds)
+
+    if #sorted_kinds == 0 then
       table.insert(lines, "No orphan resources found.")
       return lines, marks
     end
 
-    for _, key in ipairs(orphan_keys) do
-      local node = node_lookup[key]
-      if node and node.key ~= graph.root_key then
-        local key_values = {
-          node.kind,
-          safe_value(node.ns, "cluster"),
-          node.name,
-        }
+    -- Indentation for fold support (matches shiftwidth=4)
+    local indent = "    "
+    -- Tree characters
+    local branch = "├─ "
+    local last_branch = "└─ "
 
-        local line = key_values[1] .. ": " .. key_values[2] .. "/" .. key_values[3]
-        local kind_len = #key_values[1]
-        local ns_len = #key_values[2]
+    for kind_idx, kind in ipairs(sorted_kinds) do
+      local nodes = orphans_by_kind[kind]
 
-        -- Kind (white)
+      -- Sort nodes by namespace/name within each kind
+      table.sort(nodes, function(a, b)
+        local a_ns = safe_value(a.ns, "cluster")
+        local b_ns = safe_value(b.ns, "cluster")
+        if a_ns ~= b_ns then
+          return a_ns < b_ns
+        end
+        return a.name < b.name
+      end)
+
+      -- Add blank line between groups (except before first)
+      if kind_idx > 1 then
+        table.insert(lines, "")
+      end
+
+      -- Kind header with count (no indent = fold level 0)
+      local header = kind .. " (" .. #nodes .. ")"
+      table.insert(marks, {
+        row = #lines,
+        start_col = 0,
+        end_col = #kind,
+        hl_group = hl.symbols.white,
+      })
+      table.insert(marks, {
+        row = #lines,
+        start_col = #kind,
+        end_col = #header,
+        hl_group = hl.symbols.gray,
+      })
+      table.insert(lines, header)
+
+      -- Render each node with indentation + tree branches
+      for i, node in ipairs(nodes) do
+        local is_last = (i == #nodes)
+        local tree_char = is_last and last_branch or branch
+        local ns = safe_value(node.ns, "cluster")
+        local line = indent .. tree_char .. ns .. "/" .. node.name
+
+        local indent_len = #indent
+        local tree_len = #tree_char
+        local ns_len = #ns
+
+        -- Tree branch (gray) - includes indent
         table.insert(marks, {
           row = #lines,
           start_col = 0,
-          end_col = kind_len,
-          hl_group = hl.symbols.white,
+          end_col = indent_len + tree_len,
+          hl_group = hl.symbols.gray,
         })
 
-        -- ": namespace/" (gray)
+        -- Namespace/ (gray)
         table.insert(marks, {
           row = #lines,
-          start_col = kind_len,
-          end_col = kind_len + 2 + ns_len + 1,
+          start_col = indent_len + tree_len,
+          end_col = indent_len + tree_len + ns_len + 1,
           hl_group = hl.symbols.gray,
         })
 
         -- Resource name (white)
         table.insert(marks, {
           row = #lines,
-          start_col = kind_len + 2 + ns_len + 1,
+          start_col = indent_len + tree_len + ns_len + 1,
           end_col = #line,
           hl_group = hl.symbols.white,
         })
