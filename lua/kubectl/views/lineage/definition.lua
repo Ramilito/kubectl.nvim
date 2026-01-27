@@ -192,26 +192,199 @@ function M.display_impact_results(impacted, resource_key)
     return
   end
 
-  local lines = {
-    "Impact Analysis for: " .. resource_key,
-    "",
-    "Resources that would be affected if deleted:",
-    "",
-  }
+  local lines = {}
+  local marks = {}
 
+  -- Header: "Impact Analysis for: <resource_key>"
+  local header = "Impact Analysis for: "
+  table.insert(marks, {
+    row = #lines,
+    start_col = 0,
+    end_col = #header,
+    hl_group = hl.symbols.header,
+  })
+  table.insert(marks, {
+    row = #lines,
+    start_col = #header,
+    end_col = #header + #resource_key,
+    hl_group = hl.symbols.info_bold,
+  })
+  table.insert(lines, header .. resource_key)
+  table.insert(lines, "")
+
+  -- Subheader: "Resources that would be affected if deleted:"
+  local subheader = "Resources that would be affected if deleted:"
+  table.insert(marks, {
+    row = #lines,
+    start_col = 0,
+    end_col = #subheader,
+    hl_group = hl.symbols.warning,
+  })
+  table.insert(lines, subheader)
+  table.insert(lines, "")
+
+  -- Group impacted resources by kind
+  local by_kind = {}
   for _, item in ipairs(impacted) do
     local key = item[1]
     local edge_type = item[2]
-    local relationship = edge_type == "owns" and "owns (parent)" or "references"
-    table.insert(lines, "  " .. key .. " [" .. relationship .. "]")
+
+    -- Parse kind from key (format: "Kind/namespace/name" or "Kind/name")
+    local kind = key:match("^([^/]+)/")
+    if not kind then
+      kind = "Unknown"
+    end
+
+    if not by_kind[kind] then
+      by_kind[kind] = {}
+    end
+    table.insert(by_kind[kind], { key = key, edge_type = edge_type })
+  end
+
+  -- Sort kinds alphabetically
+  local sorted_kinds = {}
+  for kind in pairs(by_kind) do
+    table.insert(sorted_kinds, kind)
+  end
+  table.sort(sorted_kinds)
+
+  -- Render each kind group
+  local indent = "  "
+  local bullet = "• "
+
+  for kind_idx, kind in ipairs(sorted_kinds) do
+    local items = by_kind[kind]
+
+    -- Add spacing between groups (except before first)
+    if kind_idx > 1 then
+      table.insert(lines, "")
+    end
+
+    -- Kind header with count
+    local kind_header = kind .. " (" .. #items .. ")"
+    table.insert(marks, {
+      row = #lines,
+      start_col = 0,
+      end_col = #kind,
+      hl_group = hl.symbols.white,
+    })
+    table.insert(marks, {
+      row = #lines,
+      start_col = #kind,
+      end_col = #kind_header,
+      hl_group = hl.symbols.gray,
+    })
+    table.insert(lines, kind_header)
+
+    -- Render each resource in this kind
+    for _, item in ipairs(items) do
+      local key = item.key
+      local edge_type = item.edge_type
+
+      -- Parse namespace and name from key
+      local namespace, name = key:match("^[^/]+/([^/]+)/(.+)$")
+      if not namespace then
+        -- Cluster-scoped resource (no namespace)
+        name = key:match("^[^/]+/(.+)$") or key
+        namespace = nil
+      end
+
+      -- Build line with bullet and resource info
+      local resource_part = namespace and (namespace .. "/" .. name) or name
+      local relationship = edge_type == "owns" and "[owns]" or "[references]"
+      local line = indent .. bullet .. resource_part .. " " .. relationship
+
+      local indent_len = #indent
+      local bullet_len = #bullet
+      local resource_len = #resource_part
+
+      -- Bullet (gray)
+      table.insert(marks, {
+        row = #lines,
+        start_col = 0,
+        end_col = indent_len + bullet_len,
+        hl_group = hl.symbols.gray,
+      })
+
+      if namespace then
+        -- Namespace/ (gray)
+        table.insert(marks, {
+          row = #lines,
+          start_col = indent_len + bullet_len,
+          end_col = indent_len + bullet_len + #namespace + 1,
+          hl_group = hl.symbols.gray,
+        })
+
+        -- Resource name (white)
+        table.insert(marks, {
+          row = #lines,
+          start_col = indent_len + bullet_len + #namespace + 1,
+          end_col = indent_len + bullet_len + resource_len,
+          hl_group = hl.symbols.white,
+        })
+      else
+        -- Resource name without namespace (white)
+        table.insert(marks, {
+          row = #lines,
+          start_col = indent_len + bullet_len,
+          end_col = indent_len + bullet_len + resource_len,
+          hl_group = hl.symbols.white,
+        })
+      end
+
+      -- Relationship tag
+      local rel_start = indent_len + bullet_len + resource_len + 1
+      local rel_color = edge_type == "owns" and hl.symbols.error or hl.symbols.warning
+      table.insert(marks, {
+        row = #lines,
+        start_col = rel_start,
+        end_col = rel_start + #relationship,
+        hl_group = rel_color,
+      })
+
+      table.insert(lines, line)
+    end
   end
 
   table.insert(lines, "")
-  table.insert(lines, "Total: " .. #impacted .. " resources would be impacted")
+
+  -- Footer: Total count
+  local total_text = "Total: "
+  local count_text = tostring(#impacted)
+  local suffix_text = #impacted == 1 and " resource would be impacted" or " resources would be impacted"
+  table.insert(marks, {
+    row = #lines,
+    start_col = 0,
+    end_col = #total_text,
+    hl_group = hl.symbols.header,
+  })
+  table.insert(marks, {
+    row = #lines,
+    start_col = #total_text,
+    end_col = #total_text + #count_text,
+    hl_group = hl.symbols.error_bold,
+  })
+  table.insert(marks, {
+    row = #lines,
+    start_col = #total_text + #count_text,
+    end_col = #total_text + #count_text + #suffix_text,
+    hl_group = hl.symbols.header,
+  })
+  table.insert(lines, total_text .. count_text .. suffix_text)
 
   -- Create floating window
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+  -- Apply highlights using extmarks
+  local ns_id = vim.api.nvim_create_namespace("kubectl_impact_highlights")
+  for _, mark in ipairs(marks) do
+    vim.api.nvim_buf_set_extmark(buf, ns_id, mark.row, mark.start_col, {
+      end_col = mark.end_col,
+      hl_group = mark.hl_group,
+    })
+  end
+
   vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
   vim.api.nvim_set_option_value("filetype", "k8s_lineage_impact", { buf = buf })
 
