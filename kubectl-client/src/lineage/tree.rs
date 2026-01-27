@@ -5,6 +5,7 @@
 //! - `EdgeType::Owns`: Represents ownership relationships (parent-child via ownerReferences)
 //! - `EdgeType::References`: Represents reference relationships (selectors, ConfigMaps, Secrets)
 
+use super::query::GraphQuery;
 use k8s_openapi::serde::{Deserialize, Serialize};
 use petgraph::algo::is_cyclic_directed;
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -412,7 +413,7 @@ impl Tree {
                 .collect();
 
             // Determine orphan status using per-resource logic
-            let is_orphan = super::relationships::is_resource_orphan(kind, name, namespace, &incoming_refs_slice, labels, resource_type, missing_refs);
+            let is_orphan = super::registry::is_resource_orphan(kind, name, namespace, &incoming_refs_slice, labels, resource_type, missing_refs);
 
             // Update the resource's orphan status
             if let Some(resource) = self.graph.node_weight_mut(idx) {
@@ -424,88 +425,13 @@ impl Tree {
     /// Get all related nodes for a given node key
     #[tracing::instrument(skip(self), fields(node_key = %node_key))]
     pub fn get_related_items(&self, node_key: &str) -> Vec<String> {
-        if !self.key_to_index.contains_key(node_key) {
-            return Vec::new();
-        }
-
-        let node_idx = self.key_to_index[node_key];
-        let mut visited = HashSet::with_capacity(self.key_to_index.len() / 4);
-
-        // Collect all ancestors (but skip root)
-        let mut current_idx = node_idx;
-        loop {
-            // Find parent via Owns edge
-            let parent_opt = self
-                .graph
-                .edges_directed(current_idx, Direction::Incoming)
-                .find(|edge| *edge.weight() == EdgeType::Owns)
-                .map(|edge| edge.source());
-
-            if let Some(parent_idx) = parent_opt {
-                // Get the parent key
-                let parent_key = self.get_key_for_index(parent_idx);
-                if parent_key != self.root_key {
-                    visited.insert(parent_key.clone());
-                }
-                current_idx = parent_idx;
-            } else {
-                break;
-            }
-        }
-
-        // Collect descendants for all ancestors using DFS on ownership edges
-        let ancestors: Vec<NodeIndex> = visited
-            .iter()
-            .filter_map(|key| self.key_to_index.get(key).copied())
-            .collect();
-
-        let ownership_graph = EdgeFiltered::from_fn(&self.graph, |edge| {
-            *edge.weight() == EdgeType::Owns
-        });
-
-        for ancestor_idx in ancestors {
-            let mut dfs = Dfs::new(&ownership_graph, ancestor_idx);
-            while let Some(visited_idx) = dfs.next(&ownership_graph) {
-                let key = self.get_key_for_index(visited_idx);
-                if key != self.root_key {
-                    visited.insert(key);
-                }
-            }
-        }
-
-        // Add the selected node itself and its descendants using DFS
-        visited.insert(node_key.to_string());
-        let mut dfs = Dfs::new(&ownership_graph, node_idx);
-        while let Some(visited_idx) = dfs.next(&ownership_graph) {
-            let key = self.get_key_for_index(visited_idx);
-            if key != self.root_key {
-                visited.insert(key);
-            }
-        }
-
-        // Collect all reference relationships for all visited nodes
-        let visited_indices: Vec<NodeIndex> = visited
-            .iter()
-            .filter_map(|key| self.key_to_index.get(key).copied())
-            .collect();
-
-        for idx in visited_indices {
-            for edge in self.graph.edges_directed(idx, Direction::Outgoing) {
-                if *edge.weight() == EdgeType::References {
-                    let leaf_key = self.get_key_for_index(edge.target());
-                    visited.insert(leaf_key);
-                }
-            }
-        }
-
-        // Convert HashSet to sorted Vec
-        let mut related_nodes: Vec<String> = visited.into_iter().collect();
-        related_nodes.sort();
-        related_nodes
+        GraphQuery::from_key(self, node_key)
+            .map(|q| q.ancestors().descendants().with_references().collect_keys())
+            .unwrap_or_default()
     }
 
     /// Helper to get the key for a given node index
-    fn get_key_for_index(&self, idx: NodeIndex) -> String {
+    pub(crate) fn get_key_for_index(&self, idx: NodeIndex) -> String {
         self.graph[idx].get_resource_key()
     }
 
@@ -540,25 +466,21 @@ impl Tree {
     /// Algorithm: BFS following incoming edges (who depends on THIS resource?)
     #[tracing::instrument(skip(self), fields(resource_key = %resource_key))]
     pub fn compute_impact(&self, resource_key: &str) -> Vec<(String, String)> {
-        // Find the node index for the given key
         let node_idx = match self.key_to_index.get(resource_key) {
             Some(&idx) => idx,
             None => return Vec::new(),
         };
 
         let mut impacted = Vec::new();
-        let mut visited = HashSet::new();
 
         // Step 1: Find all resources that directly REFERENCE the target
-        // (incoming Reference edges only, not Owns)
         let mut direct_referencers = Vec::new();
         for edge in self.graph.edges_directed(node_idx, Direction::Incoming) {
             if matches!(edge.weight(), EdgeType::References) {
                 let source_idx = edge.source();
                 let source_key = self.get_key_for_index(source_idx);
 
-                if source_key != self.root_key && !visited.contains(&source_idx) {
-                    visited.insert(source_idx);
+                if source_key != self.root_key {
                     direct_referencers.push(source_idx);
                     impacted.push((source_key, "references".to_string()));
                 }
@@ -566,9 +488,17 @@ impl Tree {
         }
 
         // Step 2: For each direct referencer, find their owned children (cascade)
-        // This shows what would break if the referencer fails
+        // Use query builder to get descendants, then tag them
         for referencer_idx in direct_referencers {
-            self.collect_owned_children(referencer_idx, &mut visited, &mut impacted);
+            if let Some(q) = GraphQuery::from_key(self, &self.get_key_for_index(referencer_idx)) {
+                let descendants = q.descendants().collect_keys();
+                for key in descendants {
+                    // Skip the referencer itself (already added with "references" tag)
+                    if key != self.get_key_for_index(referencer_idx) {
+                        impacted.push((key, "owned by affected".to_string()));
+                    }
+                }
+            }
         }
 
         // Sort for consistent output
@@ -576,73 +506,28 @@ impl Tree {
         impacted
     }
 
-    /// Helper to collect all children owned by a node (DFS on outgoing Owns edges)
-    fn collect_owned_children(
-        &self,
-        node_idx: NodeIndex,
-        visited: &mut HashSet<NodeIndex>,
-        impacted: &mut Vec<(String, String)>,
-    ) {
-        for edge in self.graph.edges_directed(node_idx, Direction::Outgoing) {
-            if matches!(edge.weight(), EdgeType::Owns) {
-                let child_idx = edge.target();
-                let child_key = self.get_key_for_index(child_idx);
-
-                if child_key != self.root_key && !visited.contains(&child_idx) {
-                    visited.insert(child_idx);
-                    impacted.push((child_key, "owned by affected".to_string()));
-                    // Recursively collect children
-                    self.collect_owned_children(child_idx, visited, impacted);
-                }
-            }
-        }
-    }
-
     /// Extract subgraph nodes and edges for a given resource key
     /// Returns tuple of (node_indices, edge_indices) that form the subgraph
     /// Algorithm: Collect all ancestors via ownership, descendants via ownership+references
     #[tracing::instrument(skip(self), fields(resource_key = %resource_key))]
     pub fn extract_subgraph(&self, resource_key: &str) -> (HashSet<NodeIndex>, HashSet<usize>) {
-        let mut subgraph_nodes = HashSet::new();
-        let mut subgraph_edges = HashSet::new();
+        // Use query builder to collect nodes (ancestors + descendants on ownership edges)
+        let mut subgraph_nodes = GraphQuery::from_key(self, resource_key)
+            .map(|q| q.ancestors().descendants().collect_nodes())
+            .unwrap_or_default();
 
-        // Find the starting node
-        let start_idx = match self.key_to_index.get(resource_key) {
-            Some(&idx) => idx,
-            None => return (subgraph_nodes, subgraph_edges),
-        };
-
-        subgraph_nodes.insert(start_idx);
-
-        // Collect all ancestors (following ownership up to root)
-        let mut current_idx = start_idx;
-        loop {
-            let parent_opt = self
-                .graph
-                .edges_directed(current_idx, Direction::Incoming)
-                .find(|edge| *edge.weight() == EdgeType::Owns)
-                .map(|edge| edge.source());
-
-            if let Some(parent_idx) = parent_opt {
-                // Don't include the cluster root in the subgraph
-                if parent_idx != self.root_index {
-                    subgraph_nodes.insert(parent_idx);
+        // Additionally, do DFS on full graph to capture all descendants via any edge type
+        if let Some(&start_idx) = self.key_to_index.get(resource_key) {
+            let mut dfs = Dfs::new(&self.graph, start_idx);
+            while let Some(visited_idx) = dfs.next(&self.graph) {
+                if visited_idx != self.root_index {
+                    subgraph_nodes.insert(visited_idx);
                 }
-                current_idx = parent_idx;
-            } else {
-                break;
-            }
-        }
-
-        // Collect all descendants using DFS on full graph (both edge types)
-        let mut dfs = Dfs::new(&self.graph, start_idx);
-        while let Some(visited_idx) = dfs.next(&self.graph) {
-            if visited_idx != self.root_index {
-                subgraph_nodes.insert(visited_idx);
             }
         }
 
         // Collect edges that connect nodes within the subgraph
+        let mut subgraph_edges = HashSet::new();
         for edge in self.graph.edge_references() {
             let source = edge.source();
             let target = edge.target();

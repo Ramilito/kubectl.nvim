@@ -1,6 +1,68 @@
 use super::tree::EdgeType;
 use std::collections::HashMap;
 
+/// Declarative exception pattern for matching resource names
+pub struct ExceptionPattern {
+    pub exact_names: &'static [&'static str],
+    pub name_prefixes: &'static [&'static str],
+    pub name_suffixes: &'static [&'static str],
+    pub namespace_prefixes: &'static [&'static str],
+    pub namespace_names: &'static [(&'static str, &'static [&'static str])],
+}
+
+impl ExceptionPattern {
+    pub fn matches(&self, name: &str, namespace: Option<&str>) -> bool {
+        // Check exact name match
+        if self.exact_names.iter().any(|&n| n == name) {
+            return true;
+        }
+
+        // Check name prefix match
+        if self
+            .name_prefixes
+            .iter()
+            .any(|&prefix| name.starts_with(prefix))
+        {
+            return true;
+        }
+
+        // Check name suffix match
+        if self
+            .name_suffixes
+            .iter()
+            .any(|&suffix| name.ends_with(suffix))
+        {
+            return true;
+        }
+
+        // Check namespace prefix match
+        if let Some(ns) = namespace {
+            if self
+                .namespace_prefixes
+                .iter()
+                .any(|&prefix| ns.starts_with(prefix))
+            {
+                return true;
+            }
+
+            // Check namespace-specific name matches
+            for (ns_name, names) in self.namespace_names {
+                if ns == *ns_name && names.iter().any(|&n| n == name) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+/// Exception specification for orphan rules
+pub enum ExceptionSpec {
+    Pattern(&'static ExceptionPattern),
+    Function(fn(&str, Option<&str>) -> bool),
+}
+
 /// Declarative orphan condition DSL
 #[derive(Debug, Clone)]
 pub enum OrphanCondition {
@@ -21,10 +83,7 @@ pub enum OrphanCondition {
 }
 
 /// Context data needed for evaluating orphan conditions
-#[allow(dead_code)]
 pub struct OrphanContext<'a> {
-    pub name: &'a str,
-    pub namespace: Option<&'a str>,
     pub incoming_refs: &'a [(EdgeType, &'a str)],
     pub labels: Option<&'a HashMap<String, String>>,
     pub resource_type: Option<&'a str>,
@@ -33,7 +92,7 @@ pub struct OrphanContext<'a> {
 
 /// Orphan rule for a resource type
 pub struct OrphanRule {
-    pub exception: Option<fn(&str, Option<&str>) -> bool>,
+    pub exception: Option<ExceptionSpec>,
     pub condition: OrphanCondition,
 }
 
@@ -87,108 +146,7 @@ pub fn evaluate(condition: &OrphanCondition, ctx: &OrphanContext) -> bool {
     }
 }
 
-/// Exception functions (moved from resource_behavior.rs)
-
-pub fn is_exception_cluster_role(name: &str) -> bool {
-    matches!(
-        name,
-        "admin"
-            | "alert-routing-edit"
-            | "cloud-provider"
-            | "cluster-admin"
-            | "cluster-debugger"
-            | "edit"
-            | "eks:extension-metrics-apiserver"
-            | "global-operators-admin"
-            | "global-operators-edit"
-            | "global-operators-view"
-            | "monitoring-edit"
-            | "monitoring-rules-edit"
-            | "monitoring-rules-view"
-            | "olm-operators-admin"
-            | "olm-operators-edit"
-            | "olm-operators-view"
-            | "openshift-cluster-monitoring-admin"
-            | "openshift-cluster-monitoring-edit"
-            | "openshift-cluster-monitoring-view"
-            | "openshift-csi-main-attacher-role"
-            | "openshift-csi-main-provisioner-role"
-            | "openshift-csi-main-resizer-role"
-            | "openshift-csi-main-snapshotter-role"
-            | "openshift-csi-provisioner-configmap-and-secret-reader-role"
-            | "openshift-csi-provisioner-volumeattachment-reader-role"
-            | "openshift-csi-provisioner-volumesnapshot-reader-role"
-            | "openshift-csi-resizer-infrastructure-reader-role"
-            | "openshift-csi-resizer-storageclass-reader-role"
-            | "resource-metrics-server-resources"
-            | "storage-admin"
-            | "sudoer"
-            | "system:aggregate-to-admin"
-            | "system:aggregate-to-edit"
-            | "system:aggregate-to-view"
-            | "system:aggregated-metrics-reader"
-            | "system:auth-delegator"
-            | "system:build-strategy-custom"
-            | "system:certificates.k8s.io:certificatesigningrequests:nodeclient"
-            | "system:certificates.k8s.io:certificatesigningrequests:selfnodeclient"
-            | "system:certificates.k8s.io:kube-apiserver-client-approver"
-            | "system:certificates.k8s.io:kube-apiserver-client-kubelet-approver"
-            | "system:certificates.k8s.io:kubelet-serving-approver"
-            | "system:certificates.k8s.io:legacy-unknown-approver"
-            | "system:controller:cloud-node-controller"
-            | "system:controller:glbc"
-            | "system:heapster"
-            | "system:image-auditor"
-            | "system:image-pusher"
-            | "system:image-signer"
-            | "system:kube-aggregator"
-            | "system:kubelet-api-admin"
-            | "system:metrics-server-aggregated-reader"
-            | "system:node"
-            | "system:node-bootstrapper"
-            | "system:node-problem-detector"
-            | "system:node-reader"
-            | "system:openshift:aggregate-snapshots-to-storage-admin"
-            | "system:openshift:aggregate-to-storage-admin"
-            | "system:openshift:scc:hostaccess"
-            | "system:openshift:scc:hostmount"
-            | "system:openshift:scc:hostnetwork"
-            | "system:openshift:scc:nonroot"
-            | "system:openshift:scc:nonroot-v2"
-            | "system:openshift:scc:privileged"
-            | "system:openshift:scc:restricted"
-            | "system:openshift:templateservicebroker-client"
-            | "system:persistent-volume-provisioner"
-            | "system:router"
-            | "system:sdn-manager"
-            | "view"
-    )
-}
-
-pub fn is_exception_cluster_role_binding(name: &str) -> bool {
-    matches!(
-        name,
-        "kubeadm:kubelet-bootstrap"
-            | "kubeadm:node-autoapprove-bootstrap"
-            | "kubeadm:node-autoapprove-certificate-rotation"
-            | "system:controller:route-controller"
-            | "system:kube-dns"
-            | "system:node"
-            | "event-exporter-rb"
-            | "kubelet-bootstrap"
-            | "kubelet-bootstrap-node-bootstrapper"
-            | "kubelet-cluster-admin"
-            | "kubelet-nodepool-bootstrapper"
-            | "kubelet-user-npd-binding"
-            | "metrics-server-nanny:system:auth-delegator"
-            | "metrics-server:system:auth-delegator"
-            | "npd-binding"
-            | "system:controller:horizontal-pod-autoscaler"
-            | "system:controller:selinux-warning-controller"
-            | "system:konnectivity-server"
-    )
-}
-
+/// Exception function for RoleBinding still used in patterns
 pub fn is_exception_role_binding(name: &str, namespace: Option<&str>) -> bool {
     match namespace {
         Some("kube-system") => {
@@ -204,282 +162,199 @@ pub fn is_exception_role_binding(name: &str, namespace: Option<&str>) -> bool {
     }
 }
 
-pub fn is_exception_config_map(name: &str, namespace: Option<&str>) -> bool {
-    // Pattern-based exceptions (any namespace)
-    if name == "kube-root-ca.crt" || name == "openshift-service-ca.crt" {
-        return true;
-    }
+// Static exception patterns - declarative alternatives to exception functions
 
-    match namespace {
-        Some("kube-system") => matches!(
-            name,
-            "amazon-vpc-cni"
-                | "aws-auth"
-                | "bootstrap"
-                | "cluster-autoscaler-status"
-                | "cluster-config-v1"
-                | "cluster-dns"
-                | "cluster-kubestore"
-                | "clustermetrics"
-                | "coredns-autoscaler"
-                | "extension-apiserver-authentication"
-                | "gke-common-webhook-heartbeat"
-                | "ingress-uid"
-                | "konnectivity-agent-autoscaler-config"
-                | "kube-apiserver-legacy-service-account-token-tracking"
-                | "kube-dns-autoscaler"
-                | "kube-proxy"
-                | "kube-proxy-config"
-                | "kubeadm-config"
-                | "kubedns-config-images"
-                | "kubelet-config"
-                | "overlay-upgrade-data"
-                | "root-ca"
-                | "efficiency-daemon-config"
-                | "metrics-agent-linux-config-images"
-                | "metrics-agent-windows-config-images"
-                | "nvidia-metrics-collector-config-map"
-        ),
-        Some("kube-public") => name == "cluster-info",
-        Some("gmp-system") => {
-            matches!(name, "config-images" | "webhook-ca" | "rule-evaluator" | "rules-generated")
-        }
-        Some("kubernetes-dashboard") => name == "kubernetes-dashboard-settings",
-        Some("gke-managed-system") => name == "dcgm-exporter-metrics",
-        Some(ns) if ns.starts_with("openshift-") => true,
-        _ => false,
-    }
-}
+pub static CLUSTER_ROLE_EXCEPTION_PATTERN: ExceptionPattern = ExceptionPattern {
+    exact_names: &[
+        "admin",
+        "alert-routing-edit",
+        "cloud-provider",
+        "cluster-admin",
+        "cluster-debugger",
+        "edit",
+        "eks:extension-metrics-apiserver",
+        "global-operators-admin",
+        "global-operators-edit",
+        "global-operators-view",
+        "monitoring-edit",
+        "monitoring-rules-edit",
+        "monitoring-rules-view",
+        "olm-operators-admin",
+        "olm-operators-edit",
+        "olm-operators-view",
+        "openshift-cluster-monitoring-admin",
+        "openshift-cluster-monitoring-edit",
+        "openshift-cluster-monitoring-view",
+        "openshift-csi-main-attacher-role",
+        "openshift-csi-main-provisioner-role",
+        "openshift-csi-main-resizer-role",
+        "openshift-csi-main-snapshotter-role",
+        "openshift-csi-provisioner-configmap-and-secret-reader-role",
+        "openshift-csi-provisioner-volumeattachment-reader-role",
+        "openshift-csi-provisioner-volumesnapshot-reader-role",
+        "openshift-csi-resizer-infrastructure-reader-role",
+        "openshift-csi-resizer-storageclass-reader-role",
+        "resource-metrics-server-resources",
+        "storage-admin",
+        "sudoer",
+        "system:aggregate-to-admin",
+        "system:aggregate-to-edit",
+        "system:aggregate-to-view",
+        "system:aggregated-metrics-reader",
+        "system:auth-delegator",
+        "system:build-strategy-custom",
+        "system:certificates.k8s.io:certificatesigningrequests:nodeclient",
+        "system:certificates.k8s.io:certificatesigningrequests:selfnodeclient",
+        "system:certificates.k8s.io:kube-apiserver-client-approver",
+        "system:certificates.k8s.io:kube-apiserver-client-kubelet-approver",
+        "system:certificates.k8s.io:kubelet-serving-approver",
+        "system:certificates.k8s.io:legacy-unknown-approver",
+        "system:controller:cloud-node-controller",
+        "system:controller:glbc",
+        "system:heapster",
+        "system:image-auditor",
+        "system:image-pusher",
+        "system:image-signer",
+        "system:kube-aggregator",
+        "system:kubelet-api-admin",
+        "system:metrics-server-aggregated-reader",
+        "system:node",
+        "system:node-bootstrapper",
+        "system:node-problem-detector",
+        "system:node-reader",
+        "system:openshift:aggregate-snapshots-to-storage-admin",
+        "system:openshift:aggregate-to-storage-admin",
+        "system:openshift:scc:hostaccess",
+        "system:openshift:scc:hostmount",
+        "system:openshift:scc:hostnetwork",
+        "system:openshift:scc:nonroot",
+        "system:openshift:scc:nonroot-v2",
+        "system:openshift:scc:privileged",
+        "system:openshift:scc:restricted",
+        "system:openshift:templateservicebroker-client",
+        "system:persistent-volume-provisioner",
+        "system:router",
+        "system:sdn-manager",
+        "view",
+    ],
+    name_prefixes: &[],
+    name_suffixes: &[],
+    namespace_prefixes: &[],
+    namespace_names: &[],
+};
 
-pub fn is_exception_secret(name: &str, namespace: Option<&str>) -> bool {
-    match namespace {
-        Some("kube-system") => {
-            // bootstrap-token-* pattern
-            name.starts_with("bootstrap-token-")
-                || name.ends_with(".node-password.k3s")
-                || matches!(name, "k3s-serving" | "kube-cloud-cfg" | "kubeadmin")
-        }
-        Some("kubernetes-dashboard") => matches!(
-            name,
-            "kubernetes-dashboard-certs"
-                | "kubernetes-dashboard-csrf"
-                | "kubernetes-dashboard-key-holder"
-        ),
-        Some("gmp-system") => matches!(name, "alertmanager" | "rules" | "webhook-tls"),
-        Some(ns) if ns.starts_with("openshift-") => true,
-        _ => false,
-    }
-}
+pub static CLUSTER_ROLE_BINDING_EXCEPTION_PATTERN: ExceptionPattern = ExceptionPattern {
+    exact_names: &[
+        "kubeadm:kubelet-bootstrap",
+        "kubeadm:node-autoapprove-bootstrap",
+        "kubeadm:node-autoapprove-certificate-rotation",
+        "system:controller:route-controller",
+        "system:kube-dns",
+        "system:node",
+        "event-exporter-rb",
+        "kubelet-bootstrap",
+        "kubelet-bootstrap-node-bootstrapper",
+        "kubelet-cluster-admin",
+        "kubelet-nodepool-bootstrapper",
+        "kubelet-user-npd-binding",
+        "metrics-server-nanny:system:auth-delegator",
+        "metrics-server:system:auth-delegator",
+        "npd-binding",
+        "system:controller:horizontal-pod-autoscaler",
+        "system:controller:selinux-warning-controller",
+        "system:konnectivity-server",
+    ],
+    name_prefixes: &[],
+    name_suffixes: &[],
+    namespace_prefixes: &[],
+    namespace_names: &[],
+};
 
-pub fn is_system_service_account(name: &str) -> bool {
-    name == "default"
-}
+pub static CONFIG_MAP_EXCEPTION_PATTERN: ExceptionPattern = ExceptionPattern {
+    exact_names: &[
+        "kube-root-ca.crt",
+        "openshift-service-ca.crt",
+    ],
+    name_prefixes: &[],
+    name_suffixes: &[],
+    namespace_prefixes: &["openshift-"],
+    namespace_names: &[
+        ("kube-system", &[
+            "amazon-vpc-cni",
+            "aws-auth",
+            "bootstrap",
+            "cluster-autoscaler-status",
+            "cluster-config-v1",
+            "cluster-dns",
+            "cluster-kubestore",
+            "clustermetrics",
+            "coredns-autoscaler",
+            "extension-apiserver-authentication",
+            "gke-common-webhook-heartbeat",
+            "ingress-uid",
+            "konnectivity-agent-autoscaler-config",
+            "kube-apiserver-legacy-service-account-token-tracking",
+            "kube-dns-autoscaler",
+            "kube-proxy",
+            "kube-proxy-config",
+            "kubeadm-config",
+            "kubedns-config-images",
+            "kubelet-config",
+            "overlay-upgrade-data",
+            "root-ca",
+            "efficiency-daemon-config",
+            "metrics-agent-linux-config-images",
+            "metrics-agent-windows-config-images",
+            "nvidia-metrics-collector-config-map",
+        ]),
+        ("kube-public", &["cluster-info"]),
+        ("gmp-system", &[
+            "config-images",
+            "webhook-ca",
+            "rule-evaluator",
+            "rules-generated",
+        ]),
+        ("kubernetes-dashboard", &["kubernetes-dashboard-settings"]),
+        ("gke-managed-system", &["dcgm-exporter-metrics"]),
+    ],
+};
 
-pub fn is_system_service(name: &str, namespace: Option<&str>) -> bool {
-    name == "kubernetes" && namespace == Some("default")
-}
+pub static SECRET_EXCEPTION_PATTERN: ExceptionPattern = ExceptionPattern {
+    exact_names: &[],
+    name_prefixes: &["bootstrap-token-"],
+    name_suffixes: &[".node-password.k3s"],
+    namespace_prefixes: &["openshift-"],
+    namespace_names: &[
+        ("kube-system", &[
+            "k3s-serving",
+            "kube-cloud-cfg",
+            "kubeadmin",
+        ]),
+        ("kubernetes-dashboard", &[
+            "kubernetes-dashboard-certs",
+            "kubernetes-dashboard-csrf",
+            "kubernetes-dashboard-key-holder",
+        ]),
+        ("gmp-system", &[
+            "alertmanager",
+            "rules",
+            "webhook-tls",
+        ]),
+    ],
+};
 
-/// Static orphan rules table
-pub fn get_orphan_rule(kind: &str) -> Option<&'static OrphanRule> {
-    static RULES: std::sync::OnceLock<HashMap<&'static str, OrphanRule>> =
-        std::sync::OnceLock::new();
+pub static SERVICE_ACCOUNT_EXCEPTION_PATTERN: ExceptionPattern = ExceptionPattern {
+    exact_names: &["default"],
+    name_prefixes: &[],
+    name_suffixes: &[],
+    namespace_prefixes: &[],
+    namespace_names: &[],
+};
 
-    RULES
-        .get_or_init(|| {
-            let mut rules = HashMap::new();
-
-            // ConfigMap
-            rules.insert(
-                "ConfigMap",
-                OrphanRule {
-                    exception: Some(|name, ns| is_exception_config_map(name, ns)),
-                    condition: OrphanCondition::NoIncomingRefs,
-                },
-            );
-
-            // Secret - has exception and special SA token handling
-            rules.insert(
-                "Secret",
-                OrphanRule {
-                    exception: Some(|name, ns| is_exception_secret(name, ns)),
-                    condition: OrphanCondition::And(&[
-                        OrphanCondition::IsServiceAccountToken,
-                        OrphanCondition::NoIncomingRefs,
-                    ]),
-                },
-            );
-
-            // Service
-            rules.insert(
-                "Service",
-                OrphanRule {
-                    exception: Some(|name, ns| is_system_service(name, ns)),
-                    condition: OrphanCondition::NoIncomingFrom(&[
-                        "Pod",
-                        "Ingress",
-                        "ValidatingWebhookConfiguration",
-                        "MutatingWebhookConfiguration",
-                        "APIService",
-                    ]),
-                },
-            );
-
-            // ServiceAccount
-            rules.insert(
-                "ServiceAccount",
-                OrphanRule {
-                    exception: Some(|name, _ns| is_system_service_account(name)),
-                    condition: OrphanCondition::NoIncomingFrom(&[
-                        "Pod",
-                        "Deployment",
-                        "StatefulSet",
-                        "DaemonSet",
-                        "Job",
-                        "CronJob",
-                        "ReplicaSet",
-                        "RoleBinding",
-                        "ClusterRoleBinding",
-                    ]),
-                },
-            );
-
-            // PersistentVolumeClaim
-            rules.insert(
-                "PersistentVolumeClaim",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&["Pod", "StatefulSet"]),
-                },
-            );
-
-            // PersistentVolume
-            rules.insert(
-                "PersistentVolume",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&["PersistentVolumeClaim"]),
-                },
-            );
-
-            // StorageClass
-            rules.insert(
-                "StorageClass",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&[
-                        "PersistentVolumeClaim",
-                        "PersistentVolume",
-                    ]),
-                },
-            );
-
-            // ClusterRole
-            rules.insert(
-                "ClusterRole",
-                OrphanRule {
-                    exception: Some(|name, _ns| is_exception_cluster_role(name)),
-                    condition: OrphanCondition::NoIncomingFrom(&[
-                        "RoleBinding",
-                        "ClusterRoleBinding",
-                    ]),
-                },
-            );
-
-            // Role
-            rules.insert(
-                "Role",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&["RoleBinding"]),
-                },
-            );
-
-            // ClusterRoleBinding
-            rules.insert(
-                "ClusterRoleBinding",
-                OrphanRule {
-                    exception: Some(|name, _ns| is_exception_cluster_role_binding(name)),
-                    condition: OrphanCondition::Or(&[
-                        OrphanCondition::NoIncomingFrom(&["ClusterRole"]),
-                        OrphanCondition::HasMissingRef("ServiceAccount"),
-                    ]),
-                },
-            );
-
-            // RoleBinding
-            rules.insert(
-                "RoleBinding",
-                OrphanRule {
-                    exception: Some(|name, ns| is_exception_role_binding(name, ns)),
-                    condition: OrphanCondition::Or(&[
-                        OrphanCondition::NoIncomingFrom(&["Role", "ClusterRole"]),
-                        OrphanCondition::HasMissingRef("ServiceAccount"),
-                    ]),
-                },
-            );
-
-            // HorizontalPodAutoscaler
-            rules.insert(
-                "HorizontalPodAutoscaler",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&[
-                        "Deployment",
-                        "StatefulSet",
-                        "ReplicaSet",
-                    ]),
-                },
-            );
-
-            // NetworkPolicy
-            rules.insert(
-                "NetworkPolicy",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&["Pod"]),
-                },
-            );
-
-            // PodDisruptionBudget
-            rules.insert(
-                "PodDisruptionBudget",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&["Pod"]),
-                },
-            );
-
-            // IngressClass
-            rules.insert(
-                "IngressClass",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&["Ingress"]),
-                },
-            );
-
-            // Ingress
-            rules.insert(
-                "Ingress",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::NoIncomingFrom(&["Service"]),
-                },
-            );
-
-            // ReplicaSet
-            rules.insert(
-                "ReplicaSet",
-                OrphanRule {
-                    exception: None,
-                    condition: OrphanCondition::And(&[
-                        OrphanCondition::NoOwner,
-                        OrphanCondition::NoIncomingFrom(&["Pod"]),
-                    ]),
-                },
-            );
-
-            rules
-        })
-        .get(kind)
-}
+pub static SERVICE_EXCEPTION_PATTERN: ExceptionPattern = ExceptionPattern {
+    exact_names: &[],
+    name_prefixes: &[],
+    name_suffixes: &[],
+    namespace_prefixes: &[],
+    namespace_names: &[("default", &["kubernetes"])],
+};

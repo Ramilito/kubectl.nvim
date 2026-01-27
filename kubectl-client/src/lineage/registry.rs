@@ -8,7 +8,11 @@
 //! The registry pattern eliminates scattered resource-specific logic and makes the codebase
 //! more maintainable by centralizing all resource-specific behavior in one place.
 
-use super::orphan_rules::OrphanRule;
+use super::orphan_rules::{
+    is_exception_role_binding, ExceptionSpec, OrphanCondition, OrphanRule, CLUSTER_ROLE_BINDING_EXCEPTION_PATTERN,
+    CLUSTER_ROLE_EXCEPTION_PATTERN, CONFIG_MAP_EXCEPTION_PATTERN, SECRET_EXCEPTION_PATTERN,
+    SERVICE_ACCOUNT_EXCEPTION_PATTERN, SERVICE_EXCEPTION_PATTERN,
+};
 use super::resource_behavior::extract_pod_spec_relations;
 use super::tree::RelationRef;
 use k8s_openapi::api::{
@@ -26,12 +30,123 @@ use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+// Static orphan rules - defined inline for each resource type
+
+static CONFIGMAP_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: Some(ExceptionSpec::Pattern(&CONFIG_MAP_EXCEPTION_PATTERN)),
+    condition: OrphanCondition::NoIncomingRefs,
+};
+
+static SECRET_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: Some(ExceptionSpec::Pattern(&SECRET_EXCEPTION_PATTERN)),
+    condition: OrphanCondition::And(&[
+        OrphanCondition::IsServiceAccountToken,
+        OrphanCondition::NoIncomingRefs,
+    ]),
+};
+
+static SERVICE_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: Some(ExceptionSpec::Pattern(&SERVICE_EXCEPTION_PATTERN)),
+    condition: OrphanCondition::NoIncomingFrom(&[
+        "Pod",
+        "Ingress",
+        "ValidatingWebhookConfiguration",
+        "MutatingWebhookConfiguration",
+        "APIService",
+    ]),
+};
+
+static SERVICE_ACCOUNT_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: Some(ExceptionSpec::Pattern(&SERVICE_ACCOUNT_EXCEPTION_PATTERN)),
+    condition: OrphanCondition::NoIncomingFrom(&[
+        "Pod",
+        "Deployment",
+        "StatefulSet",
+        "DaemonSet",
+        "Job",
+        "CronJob",
+        "ReplicaSet",
+        "RoleBinding",
+        "ClusterRoleBinding",
+    ]),
+};
+
+static PVC_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["Pod", "StatefulSet"]),
+};
+
+static PV_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["PersistentVolumeClaim"]),
+};
+
+static STORAGE_CLASS_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["PersistentVolumeClaim", "PersistentVolume"]),
+};
+
+static CLUSTER_ROLE_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: Some(ExceptionSpec::Pattern(&CLUSTER_ROLE_EXCEPTION_PATTERN)),
+    condition: OrphanCondition::NoIncomingFrom(&["RoleBinding", "ClusterRoleBinding"]),
+};
+
+static ROLE_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["RoleBinding"]),
+};
+
+static CLUSTER_ROLE_BINDING_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: Some(ExceptionSpec::Pattern(&CLUSTER_ROLE_BINDING_EXCEPTION_PATTERN)),
+    condition: OrphanCondition::Or(&[
+        OrphanCondition::NoIncomingFrom(&["ClusterRole"]),
+        OrphanCondition::HasMissingRef("ServiceAccount"),
+    ]),
+};
+
+static ROLE_BINDING_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: Some(ExceptionSpec::Function(is_exception_role_binding)),
+    condition: OrphanCondition::Or(&[
+        OrphanCondition::NoIncomingFrom(&["Role", "ClusterRole"]),
+        OrphanCondition::HasMissingRef("ServiceAccount"),
+    ]),
+};
+
+static HPA_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["Deployment", "StatefulSet", "ReplicaSet"]),
+};
+
+static NETWORK_POLICY_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["Pod"]),
+};
+
+static POD_DISRUPTION_BUDGET_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["Pod"]),
+};
+
+static INGRESS_CLASS_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["Ingress"]),
+};
+
+static INGRESS_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::NoIncomingFrom(&["Service"]),
+};
+
+static REPLICA_SET_ORPHAN_RULE: OrphanRule = OrphanRule {
+    exception: None,
+    condition: OrphanCondition::And(&[
+        OrphanCondition::NoOwner,
+        OrphanCondition::NoIncomingFrom(&["Pod"]),
+    ]),
+};
+
 /// Handler for a specific Kubernetes resource kind
 pub(crate) struct ResourceHandler {
-    /// Resource kind (e.g., "Pod", "ConfigMap", "Deployment")
-    /// Note: This field duplicates the hash map key but is kept for debugging and documentation
-    #[allow(dead_code)]
-    pub kind: &'static str,
     /// Function to extract relationships from resource JSON
     pub extract_relations: fn(&Value, Option<&str>) -> Vec<RelationRef>,
     /// Optional orphan detection rule
@@ -90,162 +205,132 @@ pub(crate) fn get_handler(kind: &str) -> Option<&'static ResourceHandler> {
 
             // Workload resources
             registry.insert("Pod", ResourceHandler {
-                kind: "Pod",
                 extract_relations: extract_pod_relations,
                 orphan_rule: None,
             });
             registry.insert("Deployment", ResourceHandler {
-                kind: "Deployment",
                 extract_relations: extract_deployment_relations,
                 orphan_rule: None,
             });
             registry.insert("ReplicaSet", ResourceHandler {
-                kind: "ReplicaSet",
                 extract_relations: extract_replicaset_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("ReplicaSet"),
+                orphan_rule: Some(&REPLICA_SET_ORPHAN_RULE),
             });
             registry.insert("StatefulSet", ResourceHandler {
-                kind: "StatefulSet",
                 extract_relations: extract_statefulset_relations,
                 orphan_rule: None,
             });
             registry.insert("DaemonSet", ResourceHandler {
-                kind: "DaemonSet",
                 extract_relations: extract_daemonset_relations,
                 orphan_rule: None,
             });
             registry.insert("Job", ResourceHandler {
-                kind: "Job",
                 extract_relations: extract_job_relations,
                 orphan_rule: None,
             });
             registry.insert("CronJob", ResourceHandler {
-                kind: "CronJob",
                 extract_relations: extract_cronjob_relations,
                 orphan_rule: None,
             });
 
             // Network resources
             registry.insert("Service", ResourceHandler {
-                kind: "Service",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("Service"),
+                orphan_rule: Some(&SERVICE_ORPHAN_RULE),
             });
             registry.insert("Ingress", ResourceHandler {
-                kind: "Ingress",
                 extract_relations: extract_ingress_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("Ingress"),
+                orphan_rule: Some(&INGRESS_ORPHAN_RULE),
             });
             registry.insert("IngressClass", ResourceHandler {
-                kind: "IngressClass",
                 extract_relations: extract_ingressclass_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("IngressClass"),
+                orphan_rule: Some(&INGRESS_CLASS_ORPHAN_RULE),
             });
             registry.insert("NetworkPolicy", ResourceHandler {
-                kind: "NetworkPolicy",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("NetworkPolicy"),
+                orphan_rule: Some(&NETWORK_POLICY_ORPHAN_RULE),
             });
             registry.insert("EndpointSlice", ResourceHandler {
-                kind: "EndpointSlice",
                 extract_relations: empty_relations,
                 orphan_rule: None,
             });
 
             // Config and storage resources
             registry.insert("ConfigMap", ResourceHandler {
-                kind: "ConfigMap",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("ConfigMap"),
+                orphan_rule: Some(&CONFIGMAP_ORPHAN_RULE),
             });
             registry.insert("Secret", ResourceHandler {
-                kind: "Secret",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("Secret"),
+                orphan_rule: Some(&SECRET_ORPHAN_RULE),
             });
             registry.insert("PersistentVolumeClaim", ResourceHandler {
-                kind: "PersistentVolumeClaim",
                 extract_relations: extract_pvc_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("PersistentVolumeClaim"),
+                orphan_rule: Some(&PVC_ORPHAN_RULE),
             });
             registry.insert("PersistentVolume", ResourceHandler {
-                kind: "PersistentVolume",
                 extract_relations: extract_pv_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("PersistentVolume"),
+                orphan_rule: Some(&PV_ORPHAN_RULE),
             });
             registry.insert("StorageClass", ResourceHandler {
-                kind: "StorageClass",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("StorageClass"),
+                orphan_rule: Some(&STORAGE_CLASS_ORPHAN_RULE),
             });
 
             // RBAC resources
             registry.insert("ServiceAccount", ResourceHandler {
-                kind: "ServiceAccount",
                 extract_relations: extract_serviceaccount_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("ServiceAccount"),
+                orphan_rule: Some(&SERVICE_ACCOUNT_ORPHAN_RULE),
             });
             registry.insert("Role", ResourceHandler {
-                kind: "Role",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("Role"),
+                orphan_rule: Some(&ROLE_ORPHAN_RULE),
             });
             registry.insert("RoleBinding", ResourceHandler {
-                kind: "RoleBinding",
                 extract_relations: extract_rolebinding_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("RoleBinding"),
+                orphan_rule: Some(&ROLE_BINDING_ORPHAN_RULE),
             });
             registry.insert("ClusterRole", ResourceHandler {
-                kind: "ClusterRole",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("ClusterRole"),
+                orphan_rule: Some(&CLUSTER_ROLE_ORPHAN_RULE),
             });
             registry.insert("ClusterRoleBinding", ResourceHandler {
-                kind: "ClusterRoleBinding",
                 extract_relations: extract_clusterrolebinding_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("ClusterRoleBinding"),
+                orphan_rule: Some(&CLUSTER_ROLE_BINDING_ORPHAN_RULE),
             });
 
             // Webhook and API resources
             registry.insert("ValidatingWebhookConfiguration", ResourceHandler {
-                kind: "ValidatingWebhookConfiguration",
                 extract_relations: extract_validatingwebhook_relations,
                 orphan_rule: None,
             });
             registry.insert("MutatingWebhookConfiguration", ResourceHandler {
-                kind: "MutatingWebhookConfiguration",
                 extract_relations: extract_mutatingwebhook_relations,
                 orphan_rule: None,
             });
             registry.insert("APIService", ResourceHandler {
-                kind: "APIService",
                 extract_relations: extract_apiservice_relations,
                 orphan_rule: None,
             });
 
             // Other resources
             registry.insert("HorizontalPodAutoscaler", ResourceHandler {
-                kind: "HorizontalPodAutoscaler",
                 extract_relations: extract_hpa_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("HorizontalPodAutoscaler"),
+                orphan_rule: Some(&HPA_ORPHAN_RULE),
             });
             registry.insert("PodDisruptionBudget", ResourceHandler {
-                kind: "PodDisruptionBudget",
                 extract_relations: empty_relations,
-                orphan_rule: super::orphan_rules::get_orphan_rule("PodDisruptionBudget"),
+                orphan_rule: Some(&POD_DISRUPTION_BUDGET_ORPHAN_RULE),
             });
             registry.insert("Namespace", ResourceHandler {
-                kind: "Namespace",
                 extract_relations: empty_relations,
                 orphan_rule: None,
             });
             registry.insert("Node", ResourceHandler {
-                kind: "Node",
                 extract_relations: empty_relations,
                 orphan_rule: None,
             });
             registry.insert("Event", ResourceHandler {
-                kind: "Event",
                 extract_relations: extract_event_relations,
                 orphan_rule: None,
             });
@@ -724,4 +809,49 @@ fn extract_event_relations(item: &Value, _namespace: Option<&str>) -> Vec<Relati
 
         relations
     })
+}
+
+/// Determine if a resource is orphaned based on its kind and graph context
+/// A resource is orphaned if it should have consumers but doesn't have any incoming references
+/// Uses the centralized resource handler registry
+pub(crate) fn is_resource_orphan(
+    kind: &str,
+    name: &str,
+    namespace: Option<&str>,
+    incoming_refs: &[(super::tree::EdgeType, &str)],
+    labels: Option<&std::collections::HashMap<String, String>>,
+    resource_type: Option<&str>,
+    missing_refs: Option<&std::collections::HashMap<String, Vec<String>>>,
+) -> bool {
+    // Get the handler for this resource kind
+    let Some(handler) = get_handler(kind) else {
+        return false; // Unknown resource types are never orphans
+    };
+
+    // If no orphan rule is defined, the resource is never an orphan
+    let Some(rule) = handler.orphan_rule else {
+        return false;
+    };
+
+    // Check exception first (e.g., system resources, default service accounts)
+    // If this resource is an exception (system resource), it's never an orphan
+    if let Some(exception_spec) = &rule.exception {
+        let is_exception = match exception_spec {
+            ExceptionSpec::Pattern(pattern) => pattern.matches(name, namespace),
+            ExceptionSpec::Function(func) => func(name, namespace),
+        };
+        if is_exception {
+            return false;
+        }
+    }
+
+    // Evaluate the orphan condition
+    let ctx = super::orphan_rules::OrphanContext {
+        incoming_refs,
+        labels,
+        resource_type,
+        missing_refs,
+    };
+
+    super::orphan_rules::evaluate(&rule.condition, &ctx)
 }
