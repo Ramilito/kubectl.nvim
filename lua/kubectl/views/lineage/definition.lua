@@ -149,6 +149,24 @@ function M.get_orphans(graph)
   return orphan_lookup
 end
 
+--- Find resource name (cache key) from Kind using reverse cache lookup
+--- @param kind string The Kind like "Pod", "Deployment"
+--- @return string|nil The resource name like "pods", "deployments"
+function M.find_resource_name(kind)
+  local cache = require("kubectl.cache")
+  local kind_lower = string.lower(kind)
+
+  for resource_name, resource_info in pairs(cache.cached_api_resources.values) do
+    if resource_info.gvk and resource_info.gvk.k then
+      if string.lower(resource_info.gvk.k) == kind_lower then
+        return resource_name
+      end
+    end
+  end
+
+  return nil
+end
+
 --- Parse current line to extract resource key
 --- @param line string The current line text
 --- @return string|nil The resource key in format "kind/ns/name" or nil if parse fails
@@ -419,6 +437,7 @@ end
 function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
   local lines = {}
   local marks = {}
+  local line_nodes = {} -- Maps line number (1-indexed) to node
 
   -- Create node lookup from graph.nodes
   local node_lookup = {}
@@ -453,7 +472,7 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
 
     if #sorted_kinds == 0 then
       table.insert(lines, "No orphan resources found.")
-      return lines, marks
+      return lines, marks, line_nodes
     end
 
     -- Add warning about orphan detection accuracy
@@ -543,10 +562,11 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
         })
 
         table.insert(lines, line)
+        line_nodes[#lines] = node
       end
     end
 
-    return lines, marks
+    return lines, marks, line_nodes
   end
 
   -- Normal mode: show relationships of selected resource
@@ -562,7 +582,7 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
   -- Find the root ancestor of the selected node (following ownership chain)
   local selected_node = node_lookup[selected_node_key]
   if not selected_node then
-    return lines, marks
+    return lines, marks, line_nodes
   end
 
   local root_node = selected_node
@@ -644,6 +664,7 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
       })
 
       table.insert(lines, line)
+      line_nodes[#lines] = node
       displayed_in_tree[node.key] = true
     end
 
@@ -712,12 +733,13 @@ function M.build_display_lines(graph, selected_node_key, orphan_filter_enabled)
         })
 
         table.insert(lines, line)
+        line_nodes[#lines] = node
         displayed_in_tree[key] = true
       end
     end
   end
 
-  return lines, marks
+  return lines, marks, line_nodes
 end
 
 return M

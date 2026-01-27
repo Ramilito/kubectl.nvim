@@ -7,21 +7,27 @@ M.overrides = {
     desc = "go to",
     callback = function()
       local lineage = require("kubectl.views.lineage")
+      local definition = require("kubectl.views.lineage.definition")
       local kind, ns, name = lineage.getCurrentSelection()
-      if name and ns then
-        local state = require("kubectl.state")
-        local view = require("kubectl.views")
-        vim.api.nvim_set_option_value("modified", false, { buf = 0 })
-        vim.cmd.fclose()
 
-        state.filter_key = "metadata.name=" .. name
-        if ns then
-          state.filter_key = state.filter_key .. ",metadata.namespace=" .. ns
-        end
-        view.resource_or_fallback(kind)
-      else
-        vim.notify("Failed to select resource.", vim.log.levels.ERROR)
+      if not kind or not name then
+        return
       end
+
+      local state = require("kubectl.state")
+      local view = require("kubectl.views")
+
+      vim.api.nvim_set_option_value("modified", false, { buf = 0 })
+      vim.cmd.fclose()
+
+      -- Convert Kind (e.g., "Pod") to resource name (e.g., "pods")
+      local view_name = definition.find_resource_name(kind) or kind
+
+      state.filter_key = "metadata.name=" .. name
+      if ns and ns ~= "cluster" then
+        state.filter_key = state.filter_key .. ",metadata.namespace=" .. ns
+      end
+      view.resource_or_fallback(view_name)
     end,
   },
   ["<Plug>(kubectl.refresh)"] = {
@@ -59,16 +65,18 @@ M.overrides = {
         vim.notify("Failed to export DOT: " .. tostring(dot_content), vim.log.levels.ERROR)
         return
       end
-
-      -- Open in vertical split buffer
-      vim.cmd("vsplit")
-      local buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_win_set_buf(0, buf)
-      vim.api.nvim_buf_set_name(buf, "lineage_subgraph.dot")
-      vim.api.nvim_set_option_value("filetype", "dot", { buf = buf })
-      vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-      local lines = vim.split(dot_content, "\n")
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      vim.cmd("fclose!")
+      vim.schedule(function()
+        -- Open in vertical split buffer
+        vim.cmd("vsplit")
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.api.nvim_buf_set_name(buf, "lineage_subgraph.dot")
+        vim.api.nvim_set_option_value("filetype", "dot", { buf = buf })
+        vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+        local lines = vim.split(dot_content, "\n")
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      end)
     end,
   },
   ["<Plug>(kubectl.export_mermaid)"] = {
@@ -100,15 +108,18 @@ M.overrides = {
         return
       end
 
-      -- Open in vertical split buffer
-      vim.cmd("vsplit")
-      local buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_win_set_buf(0, buf)
-      vim.api.nvim_buf_set_name(buf, "lineage_subgraph.mmd")
-      vim.api.nvim_set_option_value("filetype", "mermaid", { buf = buf })
-      vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-      local lines = vim.split(mermaid_content, "\n")
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      vim.cmd("fclose!")
+      vim.schedule(function()
+        -- Open in vertical split buffer
+        vim.cmd("vsplit")
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.api.nvim_buf_set_name(buf, "lineage_subgraph.mmd")
+        vim.api.nvim_set_option_value("filetype", "mermaid", { buf = buf })
+        vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+        local lines = vim.split(mermaid_content, "\n")
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      end)
     end,
   },
   ["<Plug>(kubectl.toggle_orphan_filter)"] = {

@@ -16,6 +16,7 @@ local M = {
   total = 0,
   orphan_filter_enabled = false,
   progress_timer = nil,
+  line_nodes = {}, -- Maps line number to node for current display
 }
 
 M.definition = {
@@ -79,7 +80,9 @@ function M.generate_content()
     end
     selected_key = selected_key .. "/" .. string.lower(name)
 
-    content, marks = definition.build_display_lines(M.graph, selected_key, M.orphan_filter_enabled)
+    local line_nodes
+    content, marks, line_nodes = definition.build_display_lines(M.graph, selected_key, M.orphan_filter_enabled)
+    M.line_nodes = line_nodes or {}
 
     -- Add cache timestamp and filter status to header
     if cache.timestamp and not cache.loading then
@@ -333,16 +336,24 @@ function M.set_folding(win_nr, buf_nr)
   )
 end
 --- Get current selection for view
+--- @return string|nil kind The resource Kind (e.g., "Pod", "Deployment")
+--- @return string|nil ns The namespace (or "cluster" for cluster-scoped)
+--- @return string|nil name The resource name
 function M.getCurrentSelection()
-  local line = vim.api.nvim_get_current_line()
-  local selection = vim.split(line, ":")
-  local columns = vim.split(selection[2], "/")
+  -- Use stored line-to-node mapping from last render
+  local line_nr = vim.api.nvim_win_get_cursor(0)[1]
+  local node = M.line_nodes[line_nr]
 
-  local kind = string.lower(vim.trim(selection[1]))
-  local ns = vim.trim(columns[1])
-  local name = vim.trim(columns[2])
+  if not node then
+    return nil, nil, nil
+  end
 
-  return kind, ns, name
+  local ns = node.ns
+  if ns == nil or ns == vim.NIL then
+    ns = "cluster"
+  end
+
+  return node.kind, ns, node.name
 end
 
 return M
