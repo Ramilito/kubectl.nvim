@@ -352,9 +352,11 @@ impl Tree {
 
     #[tracing::instrument(skip(self), fields(node_key = %node_key))]
     pub fn get_related_items(&self, node_key: &str) -> Vec<String> {
-        GraphQuery::from_key(self, node_key)
+        let mut keys = GraphQuery::from_key(self, node_key)
             .map(|q| q.ancestors().descendants().with_references().collect_keys())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        keys.sort();
+        keys
     }
 
     pub(crate) fn get_key_for_index(&self, idx: NodeIndex) -> String {
@@ -362,11 +364,14 @@ impl Tree {
     }
 
     pub fn get_children_keys(&self, idx: NodeIndex) -> Vec<String> {
-        self.graph
+        let mut keys: Vec<String> = self
+            .graph
             .edges_directed(idx, Direction::Outgoing)
             .filter(|e| *e.weight() == EdgeType::Owns)
             .map(|e| self.get_key_for_index(e.target()))
-            .collect()
+            .collect();
+        keys.sort();
+        keys
     }
 
     pub fn get_leaf_keys(&self, idx: NodeIndex) -> Vec<String> {
