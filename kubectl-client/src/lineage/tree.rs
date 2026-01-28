@@ -2,7 +2,7 @@ use super::query::GraphQuery;
 use k8s_openapi::serde::{Deserialize, Serialize};
 use petgraph::algo::is_cyclic_directed;
 use petgraph::graph::{DiGraph, NodeIndex};
-use petgraph::visit::{Dfs, EdgeFiltered, EdgeRef};
+use petgraph::visit::{EdgeFiltered, EdgeRef};
 use petgraph::Direction;
 use std::collections::{HashMap, HashSet};
 
@@ -425,18 +425,9 @@ impl Tree {
 
     #[tracing::instrument(skip(self), fields(resource_key = %resource_key))]
     pub fn extract_subgraph(&self, resource_key: &str) -> (HashSet<NodeIndex>, HashSet<usize>) {
-        let mut subgraph_nodes = GraphQuery::from_key(self, resource_key)
-            .map(|q| q.ancestors().descendants().collect_nodes())
+        let subgraph_nodes = GraphQuery::from_key(self, resource_key)
+            .map(|q| q.ancestors().descendants().with_references().collect_nodes())
             .unwrap_or_default();
-
-        if let Some(&start_idx) = self.key_to_index.get(resource_key) {
-            let mut dfs = Dfs::new(&self.graph, start_idx);
-            while let Some(visited_idx) = dfs.next(&self.graph) {
-                if visited_idx != self.root_index {
-                    subgraph_nodes.insert(visited_idx);
-                }
-            }
-        }
 
         let mut subgraph_edges = HashSet::new();
         for edge in self.graph.edge_references() {
