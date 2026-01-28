@@ -157,30 +157,25 @@ function M.impact_analysis(tree_id, resource_key)
   })
 end
 
+local export_formats = {
+  dot = { client_fn = "export_lineage_subgraph_dot", ext = "dot", ft = "dot" },
+  mermaid = { client_fn = "export_lineage_subgraph_mermaid", ext = "mmd", ft = "mermaid" },
+}
+
 --- Export lineage subgraph in the specified format.
 --- @param tree_id string The lineage tree id
 --- @param resource_key string The resource key (kind/ns/name)
 --- @param format string "dot" or "mermaid"
 function M.export(tree_id, resource_key, format)
-  local client = require("kubectl.client")
-
-  local export_fn, ext, ft
-  if format == "dot" then
-    export_fn = client.export_lineage_subgraph_dot
-    ext = "dot"
-    ft = "dot"
-  elseif format == "mermaid" then
-    export_fn = client.export_lineage_subgraph_mermaid
-    ext = "mmd"
-    ft = "mermaid"
-  else
+  local fmt = export_formats[format]
+  if not fmt then
     vim.notify("Unknown export format: " .. format, vim.log.levels.ERROR)
     return
   end
 
-  ---@diagnostic disable-next-line: undefined-field
-  local ok_export, content = pcall(export_fn, tree_id, resource_key)
-  if not ok_export then
+  local client = require("kubectl.client")
+  local ok, content = pcall(client[fmt.client_fn], tree_id, resource_key)
+  if not ok then
     vim.notify("Failed to export " .. format .. ": " .. tostring(content), vim.log.levels.ERROR)
     return
   end
@@ -190,11 +185,10 @@ function M.export(tree_id, resource_key, format)
     vim.cmd("vsplit")
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_win_set_buf(0, buf)
-    vim.api.nvim_buf_set_name(buf, "lineage_subgraph." .. ext)
-    vim.api.nvim_set_option_value("filetype", ft, { buf = buf })
+    vim.api.nvim_buf_set_name(buf, "lineage_subgraph." .. fmt.ext)
+    vim.api.nvim_set_option_value("filetype", fmt.ft, { buf = buf })
     vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-    local export_lines = vim.split(content, "\n")
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, export_lines)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(content, "\n"))
   end)
 end
 

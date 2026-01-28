@@ -2,15 +2,22 @@ local mappings = require("kubectl.mappings")
 
 local M = {}
 
---- Get the resource key for the node under cursor, or nil.
---- @return string|nil
-local function cursor_resource_key()
-  local lineage = require("kubectl.views.lineage")
-  local node = lineage.get_line_node(vim.api.nvim_win_get_cursor(0)[1])
-  if not node then
-    return nil
+--- Decorator: validates graph + cursor node, then calls fn(graph, resource_key).
+local function with_graph_node(fn)
+  return function()
+    local lineage = require("kubectl.views.lineage")
+    local graph = lineage.get_graph()
+    if not graph or not graph.tree_id then
+      vim.notify("No lineage graph available", vim.log.levels.WARN)
+      return
+    end
+    local node = lineage.get_line_node(vim.api.nvim_win_get_cursor(0)[1])
+    if not node then
+      vim.notify("No resource under cursor", vim.log.levels.ERROR)
+      return
+    end
+    fn(graph, node.key)
   end
-  return node.key
 end
 
 M.overrides = {
@@ -33,39 +40,15 @@ M.overrides = {
   },
   ["<Plug>(kubectl.export_dot)"] = {
     desc = "export DOT",
-    callback = function()
-      local lineage = require("kubectl.views.lineage")
-      local actions = require("kubectl.views.lineage.actions")
-      local graph = lineage.get_graph()
-      if not graph or not graph.tree_id then
-        vim.notify("No lineage graph available", vim.log.levels.WARN)
-        return
-      end
-      local resource_key = cursor_resource_key()
-      if not resource_key then
-        vim.notify("No resource under cursor", vim.log.levels.ERROR)
-        return
-      end
-      actions.export(graph.tree_id, resource_key, "dot")
-    end,
+    callback = with_graph_node(function(graph, key)
+      require("kubectl.views.lineage.actions").export(graph.tree_id, key, "dot")
+    end),
   },
   ["<Plug>(kubectl.export_mermaid)"] = {
     desc = "export Mermaid",
-    callback = function()
-      local lineage = require("kubectl.views.lineage")
-      local actions = require("kubectl.views.lineage.actions")
-      local graph = lineage.get_graph()
-      if not graph or not graph.tree_id then
-        vim.notify("No lineage graph available", vim.log.levels.WARN)
-        return
-      end
-      local resource_key = cursor_resource_key()
-      if not resource_key then
-        vim.notify("No resource under cursor", vim.log.levels.ERROR)
-        return
-      end
-      actions.export(graph.tree_id, resource_key, "mermaid")
-    end,
+    callback = with_graph_node(function(graph, key)
+      require("kubectl.views.lineage.actions").export(graph.tree_id, key, "mermaid")
+    end),
   },
   ["<Plug>(kubectl.toggle_orphan_filter)"] = {
     desc = "toggle orphan filter",
@@ -75,21 +58,9 @@ M.overrides = {
   },
   ["<Plug>(kubectl.impact_analysis)"] = {
     desc = "impact analysis",
-    callback = function()
-      local lineage = require("kubectl.views.lineage")
-      local actions = require("kubectl.views.lineage.actions")
-      local graph = lineage.get_graph()
-      if not graph or not graph.tree_id then
-        vim.notify("No lineage graph available", vim.log.levels.WARN)
-        return
-      end
-      local resource_key = cursor_resource_key()
-      if not resource_key then
-        vim.notify("No resource under cursor", vim.log.levels.ERROR)
-        return
-      end
-      actions.impact_analysis(graph.tree_id, resource_key)
-    end,
+    callback = with_graph_node(function(graph, key)
+      require("kubectl.views.lineage.actions").impact_analysis(graph.tree_id, key)
+    end),
   },
 }
 

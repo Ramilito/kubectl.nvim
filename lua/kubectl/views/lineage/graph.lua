@@ -42,8 +42,6 @@ function M.collect_all_resources(data_sample)
   for kind_key, resource_group in pairs(data_sample) do
     if resource_group.data then
       for _, resource in ipairs(resource_group.data) do
-        -- Guard against mlua nil/vim.NIL — only include resources with a real
-        -- metadata.name string so downstream JSON encoding never drops the field.
         local meta = resource.metadata
         if meta and type(meta.name) == "string" then
           resource.kind = (resource.kind and resource.kind) or (resource_group.gvk.k or kind_key)
@@ -82,20 +80,79 @@ function M.build_graph_async(data, callback)
       return
     end
 
-    local graph = {
-      nodes = result.nodes,
-      root_key = result.root_key,
-      tree_id = result.tree_id,
-      get_related_nodes = function(node_key)
-        local related_json = client.get_lineage_related_nodes(result.tree_id, node_key)
-        return vim.json.decode(related_json)
-      end,
-    }
-
     vim.schedule(function()
-      callback(graph)
+      callback({
+        nodes = result.nodes,
+        root_key = result.root_key,
+        tree_id = result.tree_id,
+        get_related_nodes = function(node_key)
+          local related_json = client.get_lineage_related_nodes(result.tree_id, node_key)
+          return vim.json.decode(related_json)
+        end,
+      })
     end)
   end)
+end
+
+--- Fetch all cluster resources and populate cache, then build the lineage graph.
+--- Facade that encapsulates the multi-step fetch → process → build pipeline.
+--- @param on_progress function(processed, total) Called after each resource type loads
+--- @param on_building function() Called when fetch is done, graph build starts
+--- @param on_graph function(graph|nil) Called with the built graph (or nil on error)
+function M.load_and_build(on_progress, on_building, on_graph)
+  local cache_mod = require("kubectl.cache")
+  local api = cache_mod.cached_api_resources
+  local all_gvk = {}
+
+  for _, resource in pairs(api.values) do
+    if resource.gvk then
+      table.insert(all_gvk, { cmd = "get_all_async", args = { gvk = resource.gvk } })
+    end
+  end
+
+  collectgarbage("collect")
+
+  commands.await_all(all_gvk, function()
+    on_progress()
+  end, function(results)
+    for _, raw in pairs(results) do
+      if raw ~= vim.NIL then
+        local chunks = type(raw) == "string" and vim.split(raw, "\n") or { raw }
+        for _, chunk in ipairs(chunks) do
+          if type(chunk) == "string" then
+            local ok, decoded = pcall(vim.json.decode, chunk, { luanil = { object = true, array = true } })
+            if ok then
+              M.processRow(decoded, api)
+            end
+          elseif type(chunk) == "table" then
+            M.processRow(chunk, api)
+          end
+        end
+      end
+    end
+
+    collectgarbage("collect")
+
+    vim.schedule(function()
+      vim.cmd("doautocmd User K8sLineageDataLoaded")
+      on_building()
+      local data = M.collect_all_resources(api.values)
+      M.build_graph_async(data, on_graph)
+    end)
+  end)
+end
+
+--- Count how many resource types have a GVK (for progress display).
+--- @return number
+function M.count_gvk_resources()
+  local cache_mod = require("kubectl.cache")
+  local count = 0
+  for _, resource in pairs(cache_mod.cached_api_resources.values) do
+    if resource.gvk then
+      count = count + 1
+    end
+  end
+  return count
 end
 
 return M
