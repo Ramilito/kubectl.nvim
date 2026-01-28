@@ -12,6 +12,10 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, crane, rust-overlay, ... }:
+    let
+      # Version from git: short commit hash or "dev" for dirty builds
+      version = self.shortRev or self.dirtyShortRev or "dev";
+    in
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -22,11 +26,17 @@
         rustToolchain = pkgs.rust-bin.stable.latest.default;
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
+        # Go source (filter out built artifacts)
+        goSrc = pkgs.lib.fileset.toSource {
+          root = ./go;
+          fileset = pkgs.lib.fileset.fileFilter (file: file.hasExt "go" || file.name == "go.mod" || file.name == "go.sum") ./go;
+        };
+
         # Go static library
         kubectl-go = pkgs.buildGoModule {
           pname = "kubectl-go";
-          version = "0.1.0";
-          src = ./go;
+          inherit version;
+          src = goSrc;
           vendorHash = "sha256-lh5DAqr8o13q++5VnfJnVOcBpfKI6fSm+Qch15B/DRE=";
           buildPhase = ''
             runHook preBuild
@@ -55,7 +65,7 @@
         # Common args for crane builds
         commonArgs = {
           pname = "kubectl-client";
-          version = "0.1.0";
+          inherit version;
           src = rustSrc;
           strictDeps = true;
 
@@ -92,14 +102,23 @@
         # Library extension for this platform
         libExt = if pkgs.stdenv.isDarwin then "dylib" else "so";
 
+        # Plugin source (only what's needed for the vim plugin)
+        pluginSrc = pkgs.lib.fileset.toSource {
+          root = ./.;
+          fileset = pkgs.lib.fileset.unions [
+            ./lua
+            ./syntax
+          ];
+        };
+
       in {
         packages = {
           inherit kubectl-go kubectl-client;
 
           kubectl-nvim = pkgs.vimUtils.buildVimPlugin {
             pname = "kubectl.nvim";
-            version = "main";
-            src = pkgs.lib.cleanSource ./.;
+            inherit version;
+            src = pluginSrc;
             preInstall = ''
               mkdir -p target/release
               ln -s ${kubectl-client}/lib/libkubectl_client.${libExt} target/release/
