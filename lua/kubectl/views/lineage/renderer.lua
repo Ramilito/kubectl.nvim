@@ -297,9 +297,15 @@ function M.render_tree(ctx, graph, selected_key)
 
   local displayed_in_tree = {}
 
-  local function build_tree(node, indent, visited)
-    indent = indent or ""
+  -- Tree drawing characters
+  local branch = "├─ " -- ├─ for non-last children
+  local last_branch = "└─ " -- └─ for last child
+  local vertical = "│   " -- │ for continuing vertical line
+  local spacing = "    " -- spacing for completed branches
+
+  local function build_tree(node, prefix_parts, visited, is_last)
     visited = visited or {}
+    is_last = is_last or false
 
     if visited[node.key] then
       return
@@ -313,30 +319,61 @@ function M.render_tree(ctx, graph, selected_key)
         if related_keys_lookup[child_key] then
           local child = node_lookup[child_key]
           if child then
-            build_tree(child, indent, visited)
+            local is_last_child = (i == #node.children_keys)
+            build_tree(child, {}, visited, is_last_child)
           end
         end
       end
       return
     end
 
-    ctx:resource_line(node, { indent = indent, selected_key = selected_key })
+    -- Build the full prefix from parts
+    local prefix = table.concat(prefix_parts, "")
+    local tree_prefix = ""
+
+    if #prefix_parts > 0 then
+      tree_prefix = is_last and last_branch or branch
+    end
+
+    ctx:resource_line(node, { indent = prefix, prefix = tree_prefix, selected_key = selected_key })
     displayed_in_tree[node.key] = true
 
-    -- Recurse into owned children
+    -- Collect valid children that should be displayed
+    local valid_children = {}
     for i = 1, #node.children_keys do
       local child_key = node.children_keys[i]
       if related_keys_lookup[child_key] and not visited[child_key] then
         local child = node_lookup[child_key]
         if child then
-          build_tree(child, indent .. "    ", visited)
+          table.insert(valid_children, child)
         end
       end
+    end
+
+    -- Recurse into owned children with proper prefix
+    for i = 1, #valid_children do
+      local child = valid_children[i]
+      local is_last_child = (i == #valid_children)
+
+      -- Build new prefix parts for child
+      local new_prefix_parts = {}
+      for j = 1, #prefix_parts do
+        table.insert(new_prefix_parts, prefix_parts[j])
+      end
+
+      -- Add vertical continuation or spacing based on whether this node is last
+      if #prefix_parts > 0 then
+        table.insert(new_prefix_parts, is_last and spacing or vertical)
+      else
+        table.insert(new_prefix_parts, spacing)
+      end
+
+      build_tree(child, new_prefix_parts, visited, is_last_child)
     end
   end
 
   if root_node then
-    build_tree(root_node, "", {})
+    build_tree(root_node, {}, {}, false)
   end
 
   -- Reference-only related nodes (not in ownership tree)

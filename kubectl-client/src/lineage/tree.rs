@@ -362,11 +362,13 @@ impl Tree {
     }
 
     pub fn get_children_keys(&self, idx: NodeIndex) -> Vec<String> {
-        self.graph
+        let mut keys: Vec<String> = self.graph
             .edges_directed(idx, Direction::Outgoing)
             .filter(|e| *e.weight() == EdgeType::Owns)
             .map(|e| self.get_key_for_index(e.target()))
-            .collect()
+            .collect();
+        keys.sort();
+        keys
     }
 
     pub fn get_leaf_keys(&self, idx: NodeIndex) -> Vec<String> {

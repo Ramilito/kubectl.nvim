@@ -190,7 +190,9 @@ function M.refresh()
 end
 
 function M.getCurrentSelection()
-  local node = line_nodes[vim.api.nvim_win_get_cursor(0)[1]]
+  local header_count = M.builder and M.builder.header and M.builder.header.data and #M.builder.header.data or 0
+  local line_nr = vim.api.nvim_win_get_cursor(0)[1] - header_count
+  local node = line_nodes[line_nr]
   if not node then
     return nil, nil, nil
   end
@@ -211,7 +213,8 @@ function M.get_graph()
 end
 
 function M.get_line_node(line_nr)
-  return line_nodes[line_nr]
+  local header_count = M.builder and M.builder.header and M.builder.header.data and #M.builder.header.data or 0
+  return line_nodes[line_nr - header_count]
 end
 
 local folding_buf_opts = { shiftwidth = 4, tabstop = 4, expandtab = true }
@@ -219,7 +222,7 @@ local folding_win_opts = {
   foldmethod = "indent",
   foldenable = true,
   foldtext = "",
-  foldcolumn = "auto:4",
+  foldcolumn = "1",
   foldlevel = 99,
   fillchars = "fold: ,foldopen:\226\150\188,foldclose:\226\150\182,foldsep: ,eob: ",
 }
