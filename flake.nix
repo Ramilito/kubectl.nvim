@@ -19,7 +19,7 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) ];
+          overlays = [ rust-overlay.overlays.default ];
         };
 
         rustToolchain = pkgs.rust-bin.stable.latest.default;
@@ -77,13 +77,6 @@
             mkdir -p go
             ln -sf ${kubectl-go}/libkubectl_go.a go/
             ln -sf ${kubectl-go}/libkubectl_go.h go/
-          '';
-
-          # cdylib output goes to lib/
-          postInstall = ''
-            mkdir -p $out/lib
-            find target -name "libkubectl_client.so" -exec cp {} $out/lib/ \; 2>/dev/null || true
-            find target -name "libkubectl_client.dylib" -exec cp {} $out/lib/ \; 2>/dev/null || true
           '';
 
           env = {
