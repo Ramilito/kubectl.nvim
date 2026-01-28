@@ -11,9 +11,10 @@ model: sonnet
 - Resource lineage display or tree visualization
 - Owner reference traversal
 - Relationship definitions between K8s resources
-- Label selector matching for resource relationships
+- Orphan detection and filtering
+- Impact analysis
+- Export (DOT/Mermaid)
 - Lineage cache loading or refresh
-- Folding behavior in lineage view
 
 For general Lua patterns or Neovim API usage, use the `lua` subagent.
 
@@ -24,250 +25,192 @@ For general Lua patterns or Neovim API usage, use the `lua` subagent.
 - Telemetry or logging changes
 - Any cross-cutting Rust concerns not specific to lineage logic
 
-## Token Efficiency
-
-**File read strategy:**
-- **Use Grep with -A context** to find specific functions instead of full file reads
-- **Rust files**: Read lines 1-50 for imports + structs, use Grep for specific functions
-
 ## File Map
 
-| Layer | File | Purpose |
-|-------|------|---------|
-| Rust | `kubectl-client/src/lineage/relationships.rs` | K8s resource relationship extraction |
-| Rust | `kubectl-client/src/lineage/builder.rs` | Parse resources, build tree, convert to Lua |
-| Rust | `kubectl-client/src/lineage/tree.rs` | Tree/TreeNode structs, graph algorithms |
-| Lua | `lua/kubectl/views/lineage/init.lua` | View lifecycle (View, Draw, load_cache), keymaps, folding |
-| Lua | `lua/kubectl/views/lineage/definition.lua` | Resource collection, display formatting |
-| Lua | `lua/kubectl/views/lineage/mappings.lua` | Lineage-specific keybindings |
+### Lua (`lua/kubectl/views/lineage/`)
+
+| File | Responsibility |
+|------|---------------|
+| `init.lua` | **Orchestrator** — View lifecycle, Draw dispatch, state machine, progress timer, folding. Thin layer that delegates data ops to `graph.lua` and rendering to `renderer.lua` |
+| `graph.lua` | **Data pipeline** — Facade for fetch → process → build. Owns `processRow`, `collect_all_resources`, `build_graph_async`, and `load_and_build`. Uses `commands.run_async` / `commands.await_all` |
+| `definition.lua` | **Static metadata only** — resource name, ft, hints, panes, `find_resource_name()` |
+| `renderer.lua` | **Rendering** — `RenderContext` builder class, render functions for each phase (status, header, tree, orphans, error) |
+| `actions.lua` | **User actions** — `go_to_resource`, `impact_analysis` (floating buffer), `export` (DOT/Mermaid, table-driven format dispatch) |
+| `mappings.lua` | **Keybindings** — Uses `with_graph_node(fn)` decorator for callbacks needing graph+cursor validation |
+
+### Rust (`kubectl-client/src/lineage/`)
+
+| File | Responsibility |
+|------|---------------|
+| `builder.rs` | FFI entry points — `build_lineage_graph_worker`, `get_lineage_related_nodes`, export/impact/orphan functions. Stores trees in `LINEAGE_TREES` mutex |
+| `tree.rs` | `Resource`, `RelationRef`, `EdgeType`, `Tree` structs. Uses `petgraph::DiGraph` for the graph. Key methods: `new`, `add_node`, `link_nodes` |
+| `query.rs` | `GraphQuery` — traversal algorithms for related nodes, subgraph extraction, impact computation |
+| `relationships.rs` | `extract_relationships(kind, item)` — extracts dependency refs from resource JSON by kind |
+| `orphan_rules.rs` | Orphan detection rules and exceptions |
+| `resource_behavior.rs` | Resource-specific behavior traits |
+| `registry.rs` | Resource behavior registry |
+| `mod.rs` | Module exports and `install()` for Lua FFI registration |
+
+## Architecture & Design Patterns
+
+### State Machine (`init.lua`)
+Phases: `"idle"` → `"loading"` → `"building"` → `"ready"` | `"error"`
+
+`Draw()` dispatches to the correct renderer function based on phase. The progress timer runs during `"loading"` to update the display.
+
+### Facade Pattern (`graph.lua: load_and_build`)
+Single entry point encapsulating: GVK enumeration → `await_all` fetch → JSON decode → `processRow` → `collect_all_resources` → `build_graph_async`. Takes three callbacks: `on_progress`, `on_building`, `on_graph`.
+
+### Decorator Pattern (`mappings.lua: with_graph_node`)
+Wraps mapping callbacks with graph existence + cursor node validation. Callbacks receive `(graph, resource_key)`.
+
+### Table-Driven Dispatch
+- `actions.lua: export_formats` — format config table for DOT/Mermaid
+- `init.lua: folding_buf_opts / folding_win_opts` — fold settings as data
+
+### RenderContext (`renderer.lua`)
+Builder class that tracks lines, marks, line_nodes, and header separately. Key methods: `line()`, `blank()`, `mark()`, `set_node()`, `header()`, `resource_line()`, `kind_header()`, `get()`. Used by both the main view and impact analysis popup.
 
 ## Data Flow
 
 ```
-Lua --> Rust Integration
------------------------------------------------------------
-View(name, ns, kind) --> Check cache ready
-                    --> load_cache() if first time
-                    --> Create floating buffer
-                    --> Draw()
+User triggers gxx on a resource
+  → mappings dispatches to init.View(name, ns, kind)
 
-load_cache() --> Fetch all API resources via get_all_async
-            --> processRow() stores raw resource data
-            --> Store in cached_api_resources.values[].data
-            --> Fire K8sLineageDataLoaded autocmd
+init.View()
+  → manager.get_or_create(definition.resource)
+  → builder.view_framed(definition, {recreate_func, recreate_args})
+  → state.addToHistory()
+  → Registers BufWipeout cleanup
+  → Calls begin_loading() if no graph
 
-Draw() --> collect_all_resources() from cache (with namespaced flag)
-       --> build_graph() --> Rust build_lineage_graph()
-           --> Parse resources
-           --> Extract ownerReferences from metadata
-           --> Extract relationships via relationships::extract_relationships()
-           --> Build tree structure
-           --> Return Lua table with nodes and get_related_nodes function
-       --> build_display_lines() for selected node
-       --> displayContentRaw() with folding
+begin_loading()
+  → Sets phase="loading", starts progress timer
+  → graph_mod.load_and_build(on_progress, on_building, on_graph)
+    → commands.await_all(get_all_async for each GVK)
+    → processRow() stores data in cached_api_resources
+    → on_building: phase="building", Draw()
+    → build_graph_async → commands.run_async("build_lineage_graph_worker")
+      → Rust: parse resources, build petgraph, store in LINEAGE_TREES
+      → Returns JSON {nodes, root_key, tree_id}
+    → on_graph: phase="ready", Draw()
+
+Draw()
+  → renderer.render_tree(ctx, graph, selected_key)
+    → graph.get_related_nodes(selected_key) → Rust lookup
+    → Walk ownership tree + reference nodes
+  → builder.displayContentRaw()
+  → set_folding()
 ```
 
-## Core Data Structures
+## Key Rust FFI Functions
 
-### Resource (Rust: `tree.rs:6-18`)
+| Lua Call | Rust Function | Worker? | Notes |
+|----------|--------------|---------|-------|
+| `commands.run_async("build_lineage_graph_worker", args)` | `build_lineage_graph_worker` | Yes | Stores tree in `LINEAGE_TREES`, returns JSON. Args: `{resources, root_name}` |
+| `client.get_lineage_related_nodes(tree_id, key)` | `get_lineage_related_nodes` | No (sync) | Looks up stored tree, returns JSON array of related keys |
+| `client.compute_lineage_impact(tree_id, key)` | `compute_lineage_impact` | No | Returns JSON array of `[key, edge_type]` tuples |
+| `client.export_lineage_subgraph_dot(tree_id, key)` | `export_lineage_subgraph_dot` | No | Returns DOT string |
+| `client.export_lineage_subgraph_mermaid(tree_id, key)` | `export_lineage_subgraph_mermaid` | No | Returns Mermaid string |
+| `client.find_lineage_orphans(tree_id)` | `find_lineage_orphans` | No | Returns JSON array of orphan keys |
+
+**Important**: `build_lineage_graph_worker` is called via `commands.run_async` (runs in `vim.uv.new_work` thread). All other lineage client functions are synchronous and called directly on the main thread.
+
+## Core Rust Data Structures
 
 ```rust
+// tree.rs
 pub struct Resource {
     pub kind: String,
     pub name: String,
-    pub namespace: Option<String>,
+    pub namespace: Option<String>,  // serialized as "ns"
     pub api_version: Option<String>,
     pub uid: Option<String>,
     pub labels: Option<HashMap<String, String>>,
     pub selectors: Option<HashMap<String, String>>,
-    pub owners: Option<Vec<RelationRef>>,      // From ownerReferences
-    pub relations: Option<Vec<RelationRef>>,   // From relationship extraction
+    pub owners: Option<Vec<RelationRef>>,
+    pub relations: Option<Vec<RelationRef>>,
+    pub is_orphan: bool,
 }
-```
 
-### TreeNode (Rust: `tree.rs:33-40`)
-
-```rust
-pub struct TreeNode {
-    pub resource: Resource,
-    pub children_keys: Vec<String>,  // Child nodes (via ownerReferences)
-    pub leaf_keys: Vec<String>,      // Bidirectional relations (via selectors)
-    pub key: String,                 // Unique identifier: "kind/ns/name" or "kind/name"
-    pub parent_key: Option<String>,  // Parent node reference
-}
-```
-
-### Tree (Rust: `tree.rs:78-82`)
-
-```rust
 pub struct Tree {
-    pub root: TreeNode,              // Cluster root node
-    pub nodes: HashMap<String, TreeNode>,  // Fast lookup by key
+    pub graph: DiGraph<Resource, EdgeType>,  // petgraph directed graph
+    root_index: NodeIndex,
+    pub key_to_index: HashMap<String, NodeIndex>,
+    pub root_key: String,
+}
+
+pub enum EdgeType { Owns, References }
+```
+
+**Key format**: `"kind/namespace/name"` (lowercased) or `"kind/name"` for cluster-scoped.
+
+## Graph JSON (Rust → Lua)
+
+The JSON returned by `build_lineage_graph_worker` contains:
+```json
+{
+  "nodes": [{ "key": "...", "kind": "...", "name": "...", "ns": "...",
+              "parent_key": "...", "children_keys": [...], "is_orphan": false }],
+  "root_key": "cluster/cluster-name",
+  "tree_id": "uuid"
 }
 ```
 
-### Resource Row (Lua: `definition.lua:41-49`)
-
-```lua
-local row = {
-    kind = "Pod",
-    name = "resource-name",
-    ns = "namespace",
-    apiVersion = "v1",
-    labels = { ... },
-    metadata = { ... },      -- Full metadata for Rust extraction
-    spec = { ... },          -- Full spec for Rust extraction
-    selectors = { ... },     -- For matching children by labels
-    namespaced = true,       -- From API resource metadata
-}
-```
-
-## Key Functions
-
-### Rust Functions
-
-| Function | Location | Purpose |
-|----------|----------|---------|
-| `build_lineage_graph_worker()` | `builder.rs:95` | Async entry point, builds tree |
-| `get_lineage_related_nodes()` | `builder.rs:163` | Get related nodes for stored tree |
-| `build_lineage_graph()` | `builder.rs:181` | Sync entry point, returns Lua table |
-| `extract_relationships()` | `relationships.rs:15` | Dispatch relationship extraction by kind |
-| `TreeNode::new()` | `tree.rs:43` | Create node from resource |
-| `TreeNode::get_resource_key()` | `tree.rs:55` | Generate unique key based on namespace |
-| `Tree::new()` | `tree.rs:80` | Create tree with root resource |
-| `Tree::add_node()` | `tree.rs:89` | Add resource node to graph |
-| `Tree::link_nodes()` | `tree.rs:102` | Build parent-child and leaf relationships |
-| `Tree::get_related_items()` | `tree.rs:251` | Find all related nodes for selection |
-
-### Lua Functions
-
-| Function | Location | Purpose |
-|----------|----------|---------|
-| `M.View()` | `init.lua:26-57` | Entry point, setup buffer |
-| `M.Draw()` | `init.lua:59-103` | Render tree to buffer, call Rust graph builder |
-| `M.load_cache()` | `init.lua:133-178` | Fetch all resources async |
-| `M.processRow()` | `definition.lua:14-68` | Store raw resource data with metadata/spec |
-| `M.collect_all_resources()` | `definition.lua:70-83` | Collect resources with namespaced flag |
-| `M.build_graph()` | `definition.lua:85-94` | Convert to JSON and call Rust |
-| `M.build_display_lines()` | `definition.lua:96-220` | Format tree for display |
-| `M.set_folding()` | `init.lua:223-289` | Configure fold expression |
-
-## Relationship Types
-
-Defined in `kubectl-client/src/lineage/relationships.rs`. All relationships are dependency-based (this resource depends on or references the target).
-
-### Supported Resources
-
-- **Event** - regarding, related references
-- **Ingress** - ingressClassName, backend services, TLS secrets
-- **IngressClass** - parameters reference
-- **Pod** - nodeName, priorityClass, runtimeClass, serviceAccount, volumes (ConfigMap, Secret, PVC, CSI)
-- **ClusterRole** - aggregation rules (currently returns empty, can be enhanced)
-- **PersistentVolumeClaim** - volumeName
-- **PersistentVolume** - claimRef
-- **ClusterRoleBinding** - subjects (ServiceAccounts), roleRef
-- **StatefulSet** - volumeClaimTemplates, serviceName
-- **DaemonSet** - (placeholder, can be enhanced)
-- **Job** - (placeholder, can be enhanced)
-- **CronJob** - (placeholder, can be enhanced)
-- **HorizontalPodAutoscaler** - scaleTargetRef
-
-## User Events
-
-| Event | Trigger |
-|-------|---------|
-| `K8sLineageDataLoaded` | Cache loading complete, triggers redraw |
+The Lua graph object wraps this with a `get_related_nodes(key)` closure that calls back into Rust.
 
 ## Keybindings
 
 | Key | Plug | Action |
 |-----|------|--------|
-| `<CR>` | `<Plug>(kubectl.select)` | Navigate to selected resource |
-| `gr` | `<Plug>(kubectl.refresh)` | Refresh lineage cache |
+| `<CR>` | `<Plug>(kubectl.select)` | Navigate to resource view |
+| `gr` | `<Plug>(kubectl.refresh)` | Refresh (reload all resources) |
+| `gO` | `<Plug>(kubectl.toggle_orphan_filter)` | Toggle orphan-only view |
+| `gI` | `<Plug>(kubectl.impact_analysis)` | Show impact analysis popup |
+| `gD` | `<Plug>(kubectl.export_dot)` | Export subgraph as DOT |
+| `gM` | `<Plug>(kubectl.export_mermaid)` | Export subgraph as Mermaid |
 
-## State Management
+## Relationship Types (`relationships.rs`)
 
-```lua
-M.selection = {}    -- Current selection: {name, ns, kind}
-M.builder = nil     -- Resource builder for buffer
-M.loaded = false    -- Cache loaded flag
-M.is_loading = false -- Loading in progress
-M.processed = 0     -- Progress counter
-M.total = 0         -- Total resources to load
-```
-
-## Kind Normalization (`init.lua:75-93`)
-
-Views use plural forms (e.g., "pods"), lineage needs singular forms (e.g., "Pod").
-
-**Implementation:** Lookup in `cached_api_resources` to find the actual GVK kind:
-1. Check `cached_api_resources.values[lowercase_kind]`
-2. Check `cached_api_resources.shortNames[lowercase_kind]`
-3. Extract `resource_info.gvk.k` for the canonical kind
-4. Fallback to simple plural removal if not found in cache
-
-**Benefits:**
-- Robust for all resource types, including CRDs
-- No hardcoded special cases
-- Uses the same API resource metadata as the rest of the plugin
-
-## Folding Implementation
-
-Custom fold expression in `set_folding()` (`init.lua:223-289`):
-- Uses indent-based folding (`foldmethod=expr`)
-- Custom `kubectl_fold_expr()` calculates level from indent
-- Custom `kubectl_get_statuscol()` shows fold icons (,)
-- Shiftwidth: 4 spaces per indent level
+Resources with extracted dependency relationships:
+- **Event** — regarding, related references
+- **Ingress** — ingressClassName, backend services, TLS secrets
+- **IngressClass** — parameters reference
+- **Pod** — nodeName, priorityClass, runtimeClass, serviceAccount, volumes (ConfigMap, Secret, PVC, CSI)
+- **PersistentVolumeClaim** — volumeName
+- **PersistentVolume** — claimRef
+- **ClusterRoleBinding** — subjects, roleRef
+- **StatefulSet** — volumeClaimTemplates, serviceName
+- **HorizontalPodAutoscaler** — scaleTargetRef
 
 ## Common Tasks
 
 ### Adding a New Relationship Type
 
-Add an extraction function in `kubectl-client/src/lineage/relationships.rs`:
+In `kubectl-client/src/lineage/relationships.rs`:
+1. Add kind to match in `extract_relationships()`
+2. Create `extract_<resource>_relationships(item: &Value) -> Vec<RelationRef>`
+3. Use `RelationRef::new(kind, name).ns(namespace)` builder pattern
 
-1. Add the resource kind to the match statement in `extract_relationships()`
-2. Create a new `extract_RESOURCE_relationships()` function
-3. Extract relevant fields from `item: &Value`
-4. Return `Vec<RelationRef>` with all related resources
+### Adding a New Keybinding
 
-Example pattern:
-```rust
-fn extract_deployment_relationships(item: &Value) -> Vec<RelationRef> {
-    let mut relations = Vec::new();
-    let namespace = item
-        .get("metadata")
-        .and_then(|m| m.get("namespace"))
-        .and_then(|v| v.as_str());
+1. Add hint to `definition.lua: M.hints`
+2. Add override in `mappings.lua: M.overrides` — use `with_graph_node()` if it needs graph+cursor
+3. Register default key in `mappings.lua: M.register`
+4. Implement action in `actions.lua` if it's a user-facing feature
 
-    // Example: Extract a simple string reference
-    if let Some(target_name) = item
-        .get("spec")
-        .and_then(|s| s.get("targetRef"))
-        .and_then(|v| v.as_str())
-    {
-        relations.push(RelationRef {
-            kind: "TargetResource".to_string(),
-            name: target_name.to_string(),
-            namespace: namespace.map(String::from),
-            api_version: None,
-            uid: None,
-        });
-    }
+### Adding a New Render Mode
 
-    relations
-}
-```
+1. Add render function in `renderer.lua`
+2. Add phase/condition branch in `init.lua: Draw()`
+3. If it needs new state, add to `init.lua` locals
 
-### Adding Display Information
+### Modifying the Data Pipeline
 
-Modify `build_display_lines()` in `definition.lua:125-197`:
-1. Adjust line formatting in the `build_lines()` inner function
-2. Update marks for highlighting
-3. Modify indent string for different tree styles
+All data operations live in `graph.lua`. The facade `load_and_build` coordinates the pipeline. To change how data is fetched or processed, modify `graph.lua` only — `init.lua` should not know pipeline details.
 
-### Adding Tree Traversal Logic
+## User Events
 
-Modify `Tree:get_related_items()` in `tree.lua:148-216`:
-1. Extend `collect_descendants()` for new traversal patterns
-2. Add new collection helpers similar to `collect_leafs()`
-3. Ensure visited tracking to avoid infinite loops
+| Event | Trigger |
+|-------|---------|
+| `K8sLineageDataLoaded` | All resources fetched, fired before graph build starts |
