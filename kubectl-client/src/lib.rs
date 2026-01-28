@@ -45,6 +45,7 @@ mod statusline;
 mod store;
 mod streaming;
 mod structs;
+mod table_format;
 mod ui;
 mod utils;
 
@@ -359,13 +360,46 @@ fn get_table(lua: &Lua, json: String) -> LuaResult<String> {
     let cached = store::get(&args.gvk.k, args.namespace.clone()).unwrap_or_default();
     let proc = processor_for(&args.gvk.k.to_lowercase());
     let params = FilterParams {
-        sort_by: args.sort_by,
-        sort_order: args.sort_order,
+        sort_by: args.sort_by.clone(),
+        sort_order: args.sort_order.clone(),
         filter: args.filter,
         filter_label: args.filter_label,
         filter_key: args.filter_key,
     };
-    proc.process(&lua, &cached, &params)
+
+    // If formatting parameters are provided, return formatted table
+    if let (Some(headers), Some(window_width), Some(text_offset)) =
+        (args.headers, args.window_width, args.text_offset)
+    {
+        // Use process_to_values to skip JSON string round-trip
+        let values = proc.process_to_values(&cached, &params)?;
+        let rows: Vec<std::collections::HashMap<String, serde_json::Value>> = values
+            .into_iter()
+            .filter_map(|v| {
+                if let serde_json::Value::Object(map) = v {
+                    Some(map.into_iter().collect())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let sort_by = args.sort_by.map(|current_word| table_format::SortBy {
+            current_word,
+            order: args.sort_order.unwrap_or_else(|| "asc".to_string()),
+        });
+
+        let window = table_format::WindowParams {
+            width: window_width,
+            text_offset,
+        };
+
+        let result = table_format::format_table(&rows, &headers, sort_by.as_ref(), &window);
+        serde_json::to_string(&result).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
+    } else {
+        // Return raw processed rows (backward compatible)
+        proc.process(&lua, &cached, &params)
+    }
 }
 
 #[tracing::instrument]
