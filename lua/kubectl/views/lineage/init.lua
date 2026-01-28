@@ -156,6 +156,15 @@ end
 -- Cache loading
 -- ---------------------------------------------------------------------------
 
+--- Decode a single JSON chunk (string) into a Lua table, or return nil.
+local function decode_chunk(chunk)
+  if type(chunk) ~= "string" then
+    return chunk
+  end
+  local ok, decoded = pcall(vim.json.decode, chunk, { luanil = { object = true, array = true } })
+  return ok and decoded or nil
+end
+
 function M.load_cache(callback)
   local cached_api_resources = cache.cached_api_resources
   local all_gvk = {}
@@ -170,26 +179,24 @@ function M.load_cache(callback)
   collectgarbage("collect")
   start_progress_timer()
 
-  local mem_before = collectgarbage("count")
-
   commands.await_all(all_gvk, function()
     view_state.processed = view_state.processed + 1
-  end, function(data)
-    M.builder.data = data
-    M.builder.splitData()
-    M.builder.decodeJson()
-    M.builder.processedData = {}
-
-    for _, values in pairs(M.builder.data) do
-      graph_mod.processRow(values, cached_api_resources)
+  end, function(results)
+    -- Decode each result chunk and feed directly to processRow
+    -- instead of routing through builder.splitData/decodeJson
+    for _, raw in pairs(results) do
+      if raw ~= vim.NIL then
+        local chunks = type(raw) == "string" and vim.split(raw, "\n") or { raw }
+        for _, chunk in ipairs(chunks) do
+          local decoded = decode_chunk(chunk)
+          if decoded then
+            graph_mod.processRow(decoded, cached_api_resources)
+          end
+        end
+      end
     end
 
     collectgarbage("collect")
-    local mem_after = collectgarbage("count")
-    local mem_diff_mb = (mem_after - mem_before) / 1024
-
-    print("Memory used by the table (in MB):", mem_diff_mb)
-    print("finished loading cache")
 
     if callback then
       callback()
@@ -205,16 +212,33 @@ function M.load_cache(callback)
 end
 
 -- ---------------------------------------------------------------------------
+-- Helpers
+-- ---------------------------------------------------------------------------
+
+local function count_gvk_resources()
+  local total = 0
+  for _, resource in pairs(cache.cached_api_resources.values) do
+    if resource.gvk then
+      total = total + 1
+    end
+  end
+  return total
+end
+
+local function begin_loading()
+  view_state.processed = 0
+  view_state.total = count_gvk_resources()
+  view_state.phase = "loading"
+  M.Draw()
+  M.load_cache()
+end
+
+-- ---------------------------------------------------------------------------
 -- Public API
 -- ---------------------------------------------------------------------------
 
 function M.View(name, ns, kind)
-  if cache.loading then
-    vim.notify("cache is not ready")
-    return
-  end
-
-  if not next(cache.cached_api_resources.values) then
+  if cache.loading or not next(cache.cached_api_resources.values) then
     vim.notify("cache is not ready")
     return
   end
@@ -247,7 +271,6 @@ function M.View(name, ns, kind)
 
   state.addToHistory(definition.resource)
 
-  -- Clean up timer when buffer is wiped
   vim.api.nvim_create_autocmd("BufWipeout", {
     buffer = M.builder.buf_nr,
     once = true,
@@ -258,17 +281,7 @@ function M.View(name, ns, kind)
   })
 
   if view_state.phase == "idle" and not view_state.graph then
-    -- Count total resources for progress display
-    view_state.total = 0
-    for _, resource in pairs(cache.cached_api_resources.values) do
-      if resource.gvk then
-        view_state.total = view_state.total + 1
-      end
-    end
-
-    view_state.phase = "loading"
-    M.load_cache()
-    M.Draw()
+    begin_loading()
   elseif has_existing_state then
     M.Draw()
   elseif view_state.phase == "ready" or (view_state.phase == "idle" and view_state.graph) then
@@ -282,20 +295,8 @@ function M.refresh()
     return
   end
 
-  view_state.phase = "idle"
   view_state.graph = nil
-  view_state.processed = 0
-
-  view_state.total = 0
-  for _, resource in pairs(cache.cached_api_resources.values) do
-    if resource.gvk then
-      view_state.total = view_state.total + 1
-    end
-  end
-
-  view_state.phase = "loading"
-  M.Draw()
-  M.load_cache()
+  begin_loading()
 end
 
 --- Get current selection for view
@@ -343,23 +344,31 @@ function M.get_line_node(line_nr)
   return view_state.line_nodes[line_nr]
 end
 
+local fold_buf_opts = {
+  shiftwidth = 4,
+  tabstop = 4,
+  expandtab = true,
+}
+
+local fold_win_opts = {
+  foldmethod = "indent",
+  foldenable = true,
+  foldtext = "",
+  foldcolumn = "auto:4",
+  foldlevel = 99,
+  fillchars = "fold: ,foldopen:\226\150\188,foldclose:\226\150\182,foldsep: ,eob: ",
+}
+
 function M.set_folding(win_nr, buf_nr)
   if not vim.api.nvim_win_is_valid(win_nr) then
     return
   end
-  vim.api.nvim_set_option_value("shiftwidth", 4, { scope = "local", buf = buf_nr })
-  vim.api.nvim_set_option_value("tabstop", 4, { scope = "local", buf = buf_nr })
-  vim.api.nvim_set_option_value("expandtab", true, { scope = "local", buf = buf_nr })
-  vim.api.nvim_set_option_value("foldmethod", "indent", { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("foldenable", true, { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("foldtext", "", { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("foldcolumn", "auto:4", { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value("foldlevel", 99, { scope = "local", win = win_nr })
-  vim.api.nvim_set_option_value(
-    "fillchars",
-    "fold: ,foldopen:\226\150\188,foldclose:\226\150\182,foldsep: ,eob: ",
-    { scope = "local", win = win_nr }
-  )
+  for opt, val in pairs(fold_buf_opts) do
+    vim.api.nvim_set_option_value(opt, val, { scope = "local", buf = buf_nr })
+  end
+  for opt, val in pairs(fold_win_opts) do
+    vim.api.nvim_set_option_value(opt, val, { scope = "local", win = win_nr })
+  end
 end
 
 return M
