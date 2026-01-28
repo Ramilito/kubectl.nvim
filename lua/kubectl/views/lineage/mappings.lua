@@ -20,6 +20,24 @@ local function with_graph_node(fn)
   end
 end
 
+--- Decorator: validates graph + selected node key, then calls fn(graph, selected_key).
+local function with_selected_node(fn)
+  return function()
+    local lineage = require("kubectl.views.lineage")
+    local graph = lineage.get_graph()
+    if not graph or not graph.tree_id then
+      vim.notify("No lineage graph available", vim.log.levels.WARN)
+      return
+    end
+    local key = lineage.get_selected_key()
+    if not key then
+      vim.notify("No selected resource", vim.log.levels.ERROR)
+      return
+    end
+    fn(graph, key)
+  end
+end
+
 M.overrides = {
   ["<Plug>(kubectl.select)"] = {
     desc = "go to",
@@ -40,13 +58,13 @@ M.overrides = {
   },
   ["<Plug>(kubectl.export_dot)"] = {
     desc = "export DOT",
-    callback = with_graph_node(function(graph, key)
+    callback = with_selected_node(function(graph, key)
       require("kubectl.views.lineage.actions").export(graph.tree_id, key, "dot")
     end),
   },
   ["<Plug>(kubectl.export_mermaid)"] = {
     desc = "export Mermaid",
-    callback = with_graph_node(function(graph, key)
+    callback = with_selected_node(function(graph, key)
       require("kubectl.views.lineage.actions").export(graph.tree_id, key, "mermaid")
     end),
   },

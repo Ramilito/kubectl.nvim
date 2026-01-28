@@ -39,7 +39,7 @@ local function start_progress_timer()
   )
 end
 
-local function compute_selected_key()
+function M.get_selected_key()
   local kind = selection.kind
   local ns, name = selection.ns, selection.name
 
@@ -81,7 +81,7 @@ function M.Draw()
     if orphan_filter then
       renderer.render_orphans(ctx, graph)
     else
-      renderer.render_tree(ctx, graph, compute_selected_key())
+      renderer.render_tree(ctx, graph, M.get_selected_key())
     end
   elseif phase == "error" then
     renderer.render_error(ctx)
