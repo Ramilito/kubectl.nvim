@@ -104,7 +104,7 @@ function M.Draw()
   collectgarbage("collect")
 end
 
-local function begin_loading()
+local function begin_loading(force_refresh)
   processed, total = 0, graph_mod.count_gvk_resources()
   phase = "loading"
   M.Draw()
@@ -117,7 +117,7 @@ local function begin_loading()
     phase = "building"
     graph = nil
     M.Draw()
-  end, on_graph_result)
+  end, on_graph_result, force_refresh)
 end
 
 local function rebuild_graph()
@@ -186,7 +186,7 @@ function M.refresh()
     return
   end
   graph = nil
-  begin_loading()
+  begin_loading(true)
 end
 
 function M.getCurrentSelection()
