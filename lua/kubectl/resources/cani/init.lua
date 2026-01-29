@@ -68,7 +68,8 @@ local function resolve_permissions(rules)
       end
 
       local check = function(v)
-        return perms[v] and { value = "✓", symbol = hl.symbols.success } or { value = "✗", symbol = hl.symbols.error }
+        return perms[v] and { value = "✓", symbol = hl.symbols.success }
+          or { value = "✗", symbol = hl.symbols.error }
       end
 
       table.insert(data, {
