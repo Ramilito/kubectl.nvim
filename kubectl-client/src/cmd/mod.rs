@@ -1,6 +1,7 @@
 use mlua::{Lua, Result as LuaResult, Table as LuaTable};
 
 use crate::cmd::apply::apply_async;
+use crate::cmd::auth::get_auth_rules;
 use crate::cmd::config::{
     get_config, get_config_async, get_minified_config_async, get_version_async,
 };
@@ -22,6 +23,7 @@ use crate::hover::get_hover_async;
 use crate::with_stream_client;
 
 pub mod apply;
+pub mod auth;
 pub mod config;
 pub mod delete;
 pub mod drift;
@@ -129,6 +131,7 @@ pub fn install(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
         "get_hover_async",
         lua.create_async_function(get_hover_async)?,
     )?;
+    exports.set("get_auth_rules", lua.create_function(get_auth_rules)?)?;
 
     Ok(())
 }
