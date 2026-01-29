@@ -27,78 +27,60 @@ local M = {
   },
 }
 
---- Check if a rule matches a given resource name and api group
----@param rule table The auth rule from Rust
----@param res_name string The resource plural name
----@param api_group string The API group
----@return boolean
-local function rule_matches(rule, res_name, api_group)
-  local name_match = rule.name == "*" or rule.name == res_name
-  local group_match = rule.apigroup == "*" or rule.apigroup == api_group
-  return name_match and group_match
-end
-
-local verbs = { "get", "list", "watch", "create", "patch", "update", "delete", "deletecollection" }
-
---- Resolve permissions for all API resources against auth rules
----@param rules table[] The raw auth rules from SelfSubjectRulesReview
----@return table[] Resolved rows with per-resource permissions
-local function resolve_permissions(rules)
+--- Build resource list from API resources cache
+---@return table[] List of resources with name, group, and namespaced fields
+local function build_resource_list()
   local api_resources = cache.cached_api_resources.values
-  local data = {}
-
+  local list = {}
   for _, res in pairs(api_resources) do
     if res.gvk then
-      local api_group = res.gvk.g or ""
-      local res_name = res.plural or ""
-
-      local perms = {}
-      for _, v in ipairs(verbs) do
-        perms[v] = false
-      end
-
-      for _, rule in ipairs(rules) do
-        if rule_matches(rule, res_name, api_group) then
-          for _, v in ipairs(verbs) do
-            if rule[v] then
-              perms[v] = true
-            end
-          end
-        end
-      end
-
-      local check = function(v)
-        return perms[v] and { value = "✓", symbol = hl.symbols.success }
-          or { value = "✗", symbol = hl.symbols.error }
-      end
-
-      table.insert(data, {
-        name = res_name,
-        apigroup = api_group,
-        get = check("get"),
-        list = check("list"),
-        watch = check("watch"),
-        create = check("create"),
-        patch = check("patch"),
-        update = check("update"),
-        delete = check("delete"),
-        ["del-list"] = check("deletecollection"),
+      table.insert(list, {
+        name = res.plural or "",
+        group = res.gvk.g or "",
+        namespaced = res.namespaced or false,
       })
     end
   end
+  return list
+end
 
+--- Format auth rule results into display rows
+---@param results table[] Direct boolean results from Rust backend
+---@return table[] Formatted rows with check symbols
+local function format_results(results)
+  local data = {}
+  local check = function(v)
+    return v and { value = "✓", symbol = hl.symbols.success } or { value = "✗", symbol = hl.symbols.error }
+  end
+  for _, rule in ipairs(results) do
+    table.insert(data, {
+      name = rule.name,
+      apigroup = rule.apigroup,
+      get = check(rule.get),
+      list = check(rule.list),
+      watch = check(rule.watch),
+      create = check(rule.create),
+      patch = check(rule.patch),
+      update = check(rule.update),
+      delete = check(rule.delete),
+      ["del-list"] = check(rule.deletecollection),
+    })
+  end
   table.sort(data, function(a, b)
     if a.name == b.name then
       return a.apigroup < b.apigroup
     end
     return a.name < b.name
   end)
-
   return data
 end
 
 local function fetch_and_render(builder)
-  commands.run_async("get_auth_rules", { namespace = state.ns or "default" }, function(data)
+  local resource_list = build_resource_list()
+  commands.run_async("get_auth_rules", {
+    namespace = state.ns or "default",
+    resources = resource_list,
+  }, function(data)
     if not data then
       return
     end
@@ -113,7 +95,7 @@ local function fetch_and_render(builder)
     end
 
     vim.schedule(function()
-      builder.processedData = resolve_permissions(builder.data)
+      builder.processedData = format_results(builder.data)
       local windows = buffers.get_windows_by_name(M.definition.resource)
       for _, win_id in ipairs(windows) do
         builder.prettyPrint(win_id).addDivider(true)
@@ -139,7 +121,7 @@ function M.Draw()
 end
 
 function M.processRow(rows)
-  return resolve_permissions(rows)
+  return format_results(rows)
 end
 
 return M
