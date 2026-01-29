@@ -95,7 +95,7 @@ local function fetch_and_render(builder)
     end
 
     vim.schedule(function()
-      builder.processedData = format_results(builder.data)
+      builder.process(format_results).sort()
       local windows = buffers.get_windows_by_name(M.definition.resource)
       for _, win_id in ipairs(windows) do
         builder.prettyPrint(win_id).addDivider(true)
@@ -114,10 +114,16 @@ end
 
 function M.Draw()
   local builder = manager.get(M.definition.resource)
-  if not builder then
+  if not builder or not builder.data then
     return
   end
-  fetch_and_render(builder)
+
+  builder.process(format_results).sort()
+  local windows = buffers.get_windows_by_name(M.definition.resource)
+  for _, win_id in ipairs(windows) do
+    builder.prettyPrint(win_id).addDivider(true)
+    builder.displayContent(win_id)
+  end
 end
 
 function M.processRow(rows)
