@@ -583,7 +583,7 @@ function M.pretty_print(data, headers, sort_by, win)
         value = tostring(cell)
       end
 
-      local padding = string.rep(" ", widths[col] - #value)
+      local padding = string.rep(" ", widths[col] - vim.fn.strdisplaywidth(value))
       local display_value = value .. padding
 
       table.insert(row_line, display_value)
