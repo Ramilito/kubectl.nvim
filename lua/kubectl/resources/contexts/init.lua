@@ -125,9 +125,6 @@ function M.change_context(cmd)
     local cache = require("kubectl.cache")
     cache.clear_cache()
 
-    local lineage_graph = require("kubectl.views.lineage.graph")
-    lineage_graph.clear_lineage_cache()
-
     local header = require("kubectl.views.header")
     header.Close()
 
