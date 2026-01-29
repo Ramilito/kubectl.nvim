@@ -39,4 +39,5 @@ return {
   drift = { "drift" },
   ingresses = { "ingresses", "ingress", "ing", "ingresses.networking.k8s.io" },
   helm = { "helm" },
+  flux = { "flux" },
 }
