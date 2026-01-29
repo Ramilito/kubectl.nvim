@@ -61,28 +61,22 @@ function M.Draw(cancellationToken)
   end
 
   commands.await_all(fetch_cmds, nil, function(results)
+    builder.data = results
+    builder.decodeJson()
+
     local all_rows = {}
     local section_starts = {}
 
     for i, res_def in ipairs(definition.flux_resources) do
-      local result = results[i]
-      if result and result ~= vim.NIL then
-        local decoded = result
-        if type(decoded) == "string" then
-          local ok, d = pcall(vim.json.decode, decoded, { luanil = { object = true, array = true } })
-          if ok then
-            decoded = d
-          end
-        end
-        if decoded and decoded.rows and #decoded.rows > 0 then
-          local rows = definition.processRow(decoded.rows, res_def.gvk)
-          table.insert(section_starts, {
-            index = #all_rows + 1,
-            label = res_def.label,
-            count = #rows,
-          })
-          vim.list_extend(all_rows, rows)
-        end
+      local decoded = builder.data[i]
+      if decoded and decoded ~= vim.NIL and decoded.rows and #decoded.rows > 0 then
+        local rows = definition.processRow(decoded.rows, res_def.gvk)
+        table.insert(section_starts, {
+          index = #all_rows + 1,
+          label = res_def.label,
+          count = #rows,
+        })
+        vim.list_extend(all_rows, rows)
       end
     end
 
