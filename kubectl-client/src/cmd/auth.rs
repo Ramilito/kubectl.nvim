@@ -156,7 +156,7 @@ async fn get_auth_rules_impl(
     }
 
     // Limit concurrency to 20 requests
-    let semaphore = Arc::new(Semaphore::new(20));
+    let semaphore = Arc::new(Semaphore::new(2));
 
     let results = stream::iter(checks)
         .map(|(client, resource_name, api_group, verb, ns)| {
