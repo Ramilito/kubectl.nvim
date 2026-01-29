@@ -1,14 +1,25 @@
+use futures::stream::{self, StreamExt};
 use k8s_openapi::api::authorization::v1::{
-    SelfSubjectRulesReview, SelfSubjectRulesReviewSpec,
+    ResourceAttributes, SelfSubjectAccessReview, SelfSubjectAccessReviewSpec,
 };
 use k8s_openapi::serde_json;
 use mlua::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+
+#[derive(Deserialize, Debug)]
+struct ResourceInfo {
+    name: String,
+    group: String,
+    namespaced: bool,
+}
 
 #[derive(Deserialize, Debug)]
 struct AuthArgs {
     namespace: Option<String>,
+    resources: Vec<ResourceInfo>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -41,96 +52,133 @@ impl AuthRule {
         }
     }
 
-    fn add_verb(&mut self, verb: &str) {
+    fn set_verb(&mut self, verb: &str, allowed: bool) {
         match verb {
-            "get" => self.get = true,
-            "list" => self.list = true,
-            "watch" => self.watch = true,
-            "create" => self.create = true,
-            "patch" => self.patch = true,
-            "update" => self.update = true,
-            "delete" => self.delete = true,
-            "deletecollection" => self.deletecollection = true,
-            "*" => {
-                // Wildcard means all verbs allowed
-                self.get = true;
-                self.list = true;
-                self.watch = true;
-                self.create = true;
-                self.patch = true;
-                self.update = true;
-                self.delete = true;
-                self.deletecollection = true;
-            }
+            "get" => self.get = allowed,
+            "list" => self.list = allowed,
+            "watch" => self.watch = allowed,
+            "create" => self.create = allowed,
+            "patch" => self.patch = allowed,
+            "update" => self.update = allowed,
+            "delete" => self.delete = allowed,
+            "deletecollection" => self.deletecollection = allowed,
             _ => {}
         }
     }
 }
 
-async fn get_auth_rules_impl(client: kube::Client, namespace: String) -> LuaResult<String> {
-    let review = SelfSubjectRulesReview {
+/// Check a single resource+verb combination using SelfSubjectAccessReview
+async fn check_access(
+    client: kube::Client,
+    resource_name: String,
+    api_group: String,
+    verb: String,
+    namespace: Option<String>,
+) -> (String, String, String, bool) {
+    let resource_attrs = ResourceAttributes {
+        group: Some(api_group.clone()),
+        resource: Some(resource_name.clone()),
+        verb: Some(verb.clone()),
+        namespace,
+        ..Default::default()
+    };
+
+    let review = SelfSubjectAccessReview {
         metadata: Default::default(),
-        spec: SelfSubjectRulesReviewSpec {
-            namespace: Some(namespace),
+        spec: SelfSubjectAccessReviewSpec {
+            resource_attributes: Some(resource_attrs),
+            non_resource_attributes: None,
         },
         status: None,
     };
 
-    // Use raw HTTP POST since SelfSubjectRulesReview is a create-only subresource
-    let body = serde_json::to_vec(&review)
-        .map_err(|e| mlua::Error::external(format!("serialize review: {e}")))?;
-    let req = http::Request::builder()
+    let body = match serde_json::to_vec(&review) {
+        Ok(b) => b,
+        Err(_) => return (resource_name, api_group, verb, false),
+    };
+
+    let req = match http::Request::builder()
         .method("POST")
-        .uri("/apis/authorization.k8s.io/v1/selfsubjectrulesreviews")
+        .uri("/apis/authorization.k8s.io/v1/selfsubjectaccessreviews")
         .header("Content-Type", "application/json")
         .body(body)
-        .map_err(|e| mlua::Error::external(format!("build request: {e}")))?;
+    {
+        Ok(r) => r,
+        Err(_) => return (resource_name, api_group, verb, false),
+    };
 
-    let result: SelfSubjectRulesReview = client
-        .request(req)
-        .await
-        .map_err(|e| mlua::Error::external(format!("auth rules request: {e}")))?;
+    let result: Result<SelfSubjectAccessReview, _> = client.request(req).await;
 
-    // Extract resource rules from the response
-    let resource_rules = result
-        .status
-        .map(|s| s.resource_rules)
-        .unwrap_or_default();
+    let allowed = result
+        .ok()
+        .and_then(|r| r.status)
+        .map(|s| s.allowed)
+        .unwrap_or(false);
 
-    // Aggregate by (resource, apiGroup) pair
+    (resource_name, api_group, verb, allowed)
+}
+
+#[tracing::instrument(skip(client, resources))]
+async fn get_auth_rules_impl(
+    client: kube::Client,
+    namespace: Option<String>,
+    resources: Vec<ResourceInfo>,
+) -> LuaResult<String> {
+    const VERBS: [&str; 8] = [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "patch",
+        "update",
+        "delete",
+        "deletecollection",
+    ];
+
+    // Build list of (resource, verb) checks to perform
+    let mut checks = Vec::new();
+    for resource in &resources {
+        for verb in VERBS {
+            // For namespaced resources, include namespace; for cluster resources, don't
+            let ns = if resource.namespaced {
+                namespace.clone()
+            } else {
+                None
+            };
+            checks.push((
+                client.clone(),
+                resource.name.clone(),
+                resource.group.clone(),
+                verb.to_string(),
+                ns,
+            ));
+        }
+    }
+
+    // Limit concurrency to 20 requests
+    let semaphore = Arc::new(Semaphore::new(2));
+
+    let results = stream::iter(checks)
+        .map(|(client, resource_name, api_group, verb, ns)| {
+            let sem = semaphore.clone();
+            async move {
+                let _permit = sem.acquire().await.expect("semaphore closed");
+                check_access(client, resource_name, api_group, verb, ns).await
+            }
+        })
+        .buffer_unordered(20)
+        .collect::<Vec<_>>()
+        .await;
+
+    // Aggregate results into AuthRule structs
     let mut rules_map: HashMap<(String, String), AuthRule> = HashMap::new();
 
-    for rule in resource_rules {
-        let verbs = rule.verbs;
-        let api_groups = rule.api_groups.unwrap_or_default();
-        let resources = rule.resources.unwrap_or_default();
-
-        // Handle wildcard resources
-        let resource_names: Vec<String> = if resources.contains(&"*".to_string()) {
-            vec!["*".to_string()]
-        } else {
-            resources
-        };
-
-        // Handle wildcard api groups
-        let api_group_names: Vec<String> = if api_groups.contains(&"*".to_string()) {
-            vec!["*".to_string()]
-        } else {
-            api_groups
-        };
-
-        for resource in &resource_names {
-            for api_group in &api_group_names {
-                let key: (String, String) = (resource.clone(), api_group.clone());
-                let entry = rules_map
-                    .entry(key.clone())
-                    .or_insert_with(|| AuthRule::new(resource.clone(), api_group.clone()));
-
-                for verb in &verbs {
-                    entry.add_verb(verb);
-                }
-            }
-        }
+    for (resource_name, api_group, verb, allowed) in results {
+        let key = (resource_name.clone(), api_group.clone());
+        let entry = rules_map
+            .entry(key)
+            .or_insert_with(|| AuthRule::new(resource_name, api_group));
+        entry.set_verb(&verb, allowed);
     }
 
     // Convert to sorted vector
@@ -148,9 +196,12 @@ pub fn get_auth_rules(_lua: &Lua, json: String) -> LuaResult<String> {
 
     let args: AuthArgs = serde_json::from_str(&json)
         .map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
-    let namespace = args.namespace.unwrap_or_else(|| "default".to_string());
+    let namespace = args.namespace;
+    let resources = args.resources;
 
-    match with_client(|client| async move { get_auth_rules_impl(client, namespace).await }) {
+    match with_client(|client| async move {
+        get_auth_rules_impl(client, namespace, resources).await
+    }) {
         Ok(json) => Ok(json),
         Err(e) => Ok(format!(
             r#"{{"error":"{}"}}"#,
