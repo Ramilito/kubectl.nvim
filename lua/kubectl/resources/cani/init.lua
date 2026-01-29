@@ -1,3 +1,4 @@
+local buffers = require("kubectl.actions.buffers")
 local cache = require("kubectl.cache")
 local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
@@ -112,7 +113,11 @@ local function fetch_and_render(builder)
 
     vim.schedule(function()
       builder.processedData = resolve_permissions(builder.data)
-      builder.prettyPrint().displayContent(builder.win_nr)
+      local windows = buffers.get_windows_by_name(M.definition.resource)
+      for _, win_id in ipairs(windows) do
+        builder.prettyPrint(win_id).addDivider(true)
+        builder.displayContent(win_id)
+      end
     end)
   end)
 end
