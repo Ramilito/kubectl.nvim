@@ -1,7 +1,6 @@
-use crate::processors::processor::Processor;
+use crate::processors::processor::{dynamic_to_typed, Processor};
 use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::DaemonSet;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -27,8 +26,7 @@ impl Processor for DaemonsetProcessor {
     type Row = DaemonsetProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let ds: DaemonSet =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let ds: DaemonSet = dynamic_to_typed(obj)?;
 
         let namespace = ds.metadata.namespace.clone().unwrap_or_default();
         let name = ds.metadata.name.clone().unwrap_or_default();

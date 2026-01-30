@@ -14,7 +14,7 @@ use k8s_openapi::{
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
-use super::processor::Processor;
+use super::processor::{dynamic_to_typed, Processor};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PodProcessed {
@@ -46,10 +46,8 @@ impl Processor for PodProcessor {
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
         use k8s_openapi::api::core::v1::Pod;
-        use k8s_openapi::serde_json::{from_value, to_value};
 
-        let pod: Pod =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let pod: Pod = dynamic_to_typed(obj)?;
 
         let now = Timestamp::now();
 

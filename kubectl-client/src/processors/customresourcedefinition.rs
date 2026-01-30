@@ -1,10 +1,7 @@
-use crate::processors::processor::Processor;
+use crate::processors::processor::{dynamic_to_typed, Processor};
 use crate::utils::{AccessorMode, FieldValue};
-use k8s_openapi::{
-    apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-        CustomResourceDefinition, CustomResourceDefinitionVersion,
-    },
-    serde_json::{from_value, to_value},
+use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
+    CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
 use kube::api::DynamicObject;
 use mlua::prelude::*;
@@ -26,8 +23,7 @@ impl Processor for ClusterResourceDefinitionProcessor {
     type Row = ClusterResourceDefinitionProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let crd: CustomResourceDefinition =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let crd: CustomResourceDefinition = dynamic_to_typed(obj)?;
 
         let name = crd.metadata.name.unwrap_or_default();
         let group = crd.spec.group.clone();

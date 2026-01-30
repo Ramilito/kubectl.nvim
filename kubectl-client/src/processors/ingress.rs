@@ -4,7 +4,7 @@ use kube::api::DynamicObject;
 use mlua::prelude::*;
 use std::collections::BTreeSet;
 
-use crate::processors::processor::Processor;
+use crate::processors::processor::{dynamic_to_typed, Processor};
 use crate::utils::{AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -25,10 +25,7 @@ impl Processor for IngressProcessor {
     type Row = IngressProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::serde_json::{from_value, to_value};
-
-        let ingress: Ingress =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let ingress: Ingress = dynamic_to_typed(obj)?;
 
         Ok(IngressProcessed {
             namespace: ingress.metadata.namespace.clone().unwrap_or_default(),

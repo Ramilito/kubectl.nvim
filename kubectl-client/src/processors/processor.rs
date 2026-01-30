@@ -1,7 +1,9 @@
 use jiff::Timestamp;
+use k8s_openapi::serde_json::{self, Value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use rayon::prelude::*;
+use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 use crate::{
@@ -11,6 +13,26 @@ use crate::{
     structs::Gvk,
     utils::{time_since_jiff, AccessorMode, FieldValue},
 };
+
+/// Convert a `DynamicObject` to a typed K8s resource without a full serialize round-trip.
+///
+/// `DynamicObject.data` is already a `serde_json::Value` containing `spec`, `status`, etc.
+/// We insert `metadata` into that map and deserialize once, skipping `to_value(obj)`.
+pub fn dynamic_to_typed<T: DeserializeOwned>(obj: &DynamicObject) -> LuaResult<T> {
+    let mut map = match obj.data.clone() {
+        Value::Object(m) => m,
+        _ => serde_json::Map::new(),
+    };
+    map.insert(
+        "metadata".into(),
+        serde_json::to_value(&obj.metadata).map_err(LuaError::external)?,
+    );
+    if let Some(ref types) = obj.types {
+        map.insert("apiVersion".into(), Value::String(types.api_version.clone()));
+        map.insert("kind".into(), Value::String(types.kind.clone()));
+    }
+    serde_json::from_value(Value::Object(map)).map_err(LuaError::external)
+}
 
 type FieldAccessorFn<'a, R> = Box<dyn Fn(&R, &str) -> Option<String> + 'a>;
 

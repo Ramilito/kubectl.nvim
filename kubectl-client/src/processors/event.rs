@@ -4,7 +4,7 @@ use kube::api::DynamicObject;
 use mlua::prelude::*;
 
 use crate::events::color_status;
-use crate::processors::processor::Processor;
+use crate::processors::processor::{dynamic_to_typed, Processor};
 use crate::utils::{pad_key, time_since_jiff, AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -28,9 +28,7 @@ impl Processor for EventProcessor {
     type Row = EventProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::serde_json::{from_value, to_value};
-        let ev: CoreEvent =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let ev: CoreEvent = dynamic_to_typed(obj)?;
 
         let namespace = ev.metadata.namespace.clone().unwrap_or_default();
 

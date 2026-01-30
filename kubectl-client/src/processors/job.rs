@@ -1,11 +1,8 @@
 use crate::events::symbols;
-use crate::processors::processor::Processor;
+use crate::processors::processor::{dynamic_to_typed, Processor};
 use crate::utils::{AccessorMode, FieldValue};
 use jiff::Timestamp;
-use k8s_openapi::{
-    api::batch::v1::Job,
-    serde_json::{from_value, to_value},
-};
+use k8s_openapi::api::batch::v1::Job;
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -27,8 +24,7 @@ impl Processor for JobProcessor {
     type Row = JobProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let job: Job =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let job: Job = dynamic_to_typed(obj)?;
 
         let namespace = job.metadata.namespace.clone().unwrap_or_default();
         let name = job.metadata.name.clone().unwrap_or_default();

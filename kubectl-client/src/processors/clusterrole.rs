@@ -2,7 +2,7 @@ use k8s_openapi::api::rbac::v1::ClusterRole;
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
-use crate::processors::processor::Processor;
+use crate::processors::processor::{dynamic_to_typed, Processor};
 use crate::utils::{AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -18,10 +18,7 @@ impl Processor for ClusterRoleProcessor {
     type Row = ClusterRoleProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::serde_json::{from_value, to_value};
-
-        let cr: ClusterRole =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let cr: ClusterRole = dynamic_to_typed(obj)?;
 
         Ok(ClusterRoleProcessed {
             name: cr.metadata.name.clone().unwrap_or_default(),

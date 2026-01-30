@@ -1,8 +1,7 @@
-use crate::processors::processor::Processor;
+use crate::processors::processor::{dynamic_to_typed, Processor};
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::core::v1::{PersistentVolumeClaim, VolumeResourceRequirements};
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use std::collections::BTreeMap;
@@ -28,8 +27,7 @@ impl Processor for PersistentVolumeClaimProcessor {
     type Row = PersistentVolumeClaimProcessed;
 
     fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let pvc: PersistentVolumeClaim =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let pvc: PersistentVolumeClaim = dynamic_to_typed(obj)?;
 
         let namespace = pvc.metadata.namespace.clone().unwrap_or_default();
         let name = pvc.metadata.name.clone().unwrap_or_default();
