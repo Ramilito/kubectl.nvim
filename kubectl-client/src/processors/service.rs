@@ -1,4 +1,4 @@
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::core::v1::{Service, ServicePort};
 use kube::api::DynamicObject;
@@ -23,9 +23,9 @@ pub struct ServiceProcessor;
 
 impl Processor for ServiceProcessor {
     type Row = ServiceProcessed;
+    type Resource = Service;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let svc: Service = dynamic_to_typed(obj)?;
+    fn build_row(&self, svc: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let namespace = svc.metadata.namespace.clone().unwrap_or_default();
         let name = svc.metadata.name.clone().unwrap_or_default();
         let svc_type = get_type(&svc);

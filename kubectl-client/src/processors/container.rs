@@ -11,7 +11,7 @@ use k8s_openapi::{
 use kube::api::DynamicObject;
 use mlua::{prelude::*, Error as LuaError};
 
-use super::processor::{dynamic_to_typed, Processor};
+use super::processor::Processor;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ContainerRow {
@@ -52,9 +52,9 @@ pub struct ContainerProcessor;
 
 impl Processor for ContainerProcessor {
     type Row = PodContainersProcessed;
+    type Resource = Pod;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let pod: Pod = dynamic_to_typed(obj)?;
+    fn build_row(&self, pod: &Self::Resource, _obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let ns = pod.metadata.namespace.clone().unwrap_or_default();
         let pod_name = pod.metadata.name.clone().unwrap_or_default();

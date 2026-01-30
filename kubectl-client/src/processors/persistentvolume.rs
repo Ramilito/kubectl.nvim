@@ -1,5 +1,5 @@
 use crate::events::color_status;
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::core::v1::PersistentVolume;
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
@@ -27,9 +27,9 @@ pub struct PersistentVolumeProcessor;
 
 impl Processor for PersistentVolumeProcessor {
     type Row = PersistentVolumeProcessed;
+    type Resource = PersistentVolume;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let pv: PersistentVolume = dynamic_to_typed(obj)?;
+    fn build_row(&self, pv: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let name = pv.metadata.name.clone().unwrap_or_default();
 

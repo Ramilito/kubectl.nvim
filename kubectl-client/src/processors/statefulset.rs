@@ -1,4 +1,4 @@
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::StatefulSet;
 use kube::api::DynamicObject;
@@ -17,9 +17,9 @@ pub struct StatefulsetProcessor;
 
 impl Processor for StatefulsetProcessor {
     type Row = StatefulsetProcessed;
+    type Resource = StatefulSet;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let statefulset: StatefulSet = dynamic_to_typed(obj)?;
+    fn build_row(&self, statefulset: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let namespace = statefulset.metadata.namespace.clone().unwrap_or_default();
         let name = statefulset.metadata.name.clone().unwrap_or_default();
         let age = self.get_age(obj);

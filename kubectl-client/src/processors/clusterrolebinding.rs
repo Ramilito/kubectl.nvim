@@ -3,7 +3,7 @@ use kube::api::DynamicObject;
 use mlua::prelude::*;
 
 use crate::events::{color_status, symbols};
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -21,15 +21,15 @@ pub struct ClusterRoleBindingProcessor;
 
 impl Processor for ClusterRoleBindingProcessor {
     type Row = ClusterRoleBindingProcessed;
+    type Resource = ClusterRoleBinding;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let crb: ClusterRoleBinding = dynamic_to_typed(obj)?;
+    fn build_row(&self, crb: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         Ok(ClusterRoleBindingProcessed {
             name: crb.metadata.name.clone().unwrap_or_default(),
             role: crb.role_ref.name.clone(),
             subject_kind: get_subject_kind(crb.subjects.clone()),
-            subjects: get_subjects(crb.subjects),
+            subjects: get_subjects(crb.subjects.clone()),
             age: self.get_age(obj),
         })
     }

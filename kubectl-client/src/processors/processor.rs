@@ -4,8 +4,10 @@ use kube::api::DynamicObject;
 use mlua::prelude::*;
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
+use std::any::Any;
+use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock, RwLock};
 
 use crate::{
     events::symbols,
@@ -15,11 +17,53 @@ use crate::{
     utils::{time_since_jiff, AccessorMode, FieldValue},
 };
 
-/// Convert a `DynamicObject` to a typed K8s resource without a full serialize round-trip.
-///
-/// `DynamicObject.data` is already a `serde_json::Value` containing `spec`, `status`, etc.
-/// We insert `metadata` into that map and deserialize once, skipping `to_value(obj)`.
-pub fn dynamic_to_typed<T: DeserializeOwned>(obj: &DynamicObject) -> LuaResult<T> {
+/// Global deserialization cache: Arc pointer address → (resourceVersion, typed resource).
+/// Skips expensive `from_value` when the underlying DynamicObject hasn't changed.
+static RESOURCE_CACHE: OnceLock<RwLock<HashMap<usize, (String, Arc<dyn Any + Send + Sync>)>>> =
+    OnceLock::new();
+
+pub fn clear_resource_cache() {
+    if let Some(cache) = RESOURCE_CACHE.get() {
+        if let Ok(mut guard) = cache.write() {
+            guard.clear();
+        }
+    }
+}
+
+fn deserialize_cached<T: DeserializeOwned + Send + Sync + 'static>(
+    obj: &Arc<DynamicObject>,
+) -> Result<Arc<T>, String> {
+    let ptr = Arc::as_ptr(obj) as usize;
+    let rv = obj.metadata.resource_version.as_deref().unwrap_or("");
+
+    // Check cache
+    let cache = RESOURCE_CACHE.get_or_init(Default::default);
+    if let Ok(guard) = cache.read() {
+        if let Some((cached_rv, cached)) = guard.get(&ptr) {
+            if cached_rv == rv {
+                if let Ok(typed) = Arc::clone(cached).downcast::<T>() {
+                    return Ok(typed);
+                }
+            }
+        }
+    }
+
+    // Cache miss — deserialize
+    let value = dynamic_to_value(obj).map_err(|e| e.to_string())?;
+    let resource: T = serde_json::from_value(value).map_err(|e| e.to_string())?;
+    let arc = Arc::new(resource);
+
+    // Store in cache
+    if let Ok(mut guard) = cache.write() {
+        guard.insert(ptr, (rv.to_string(), arc.clone() as Arc<dyn Any + Send + Sync>));
+    }
+
+    Ok(arc)
+}
+
+/// Build a merged serde_json::Value from a DynamicObject (data + metadata + types).
+/// Does NOT deserialize into a typed struct.
+pub fn dynamic_to_value(obj: &DynamicObject) -> LuaResult<Value> {
     let mut map = match obj.data.clone() {
         Value::Object(m) => m,
         _ => serde_json::Map::new(),
@@ -32,8 +76,9 @@ pub fn dynamic_to_typed<T: DeserializeOwned>(obj: &DynamicObject) -> LuaResult<T
         map.insert("apiVersion".into(), Value::String(types.api_version.clone()));
         map.insert("kind".into(), Value::String(types.kind.clone()));
     }
-    serde_json::from_value(Value::Object(map)).map_err(LuaError::external)
+    Ok(Value::Object(map))
 }
+
 
 type FieldAccessorFn<'a, R> = Box<dyn Fn(&R, &str) -> Option<String> + 'a>;
 
@@ -75,8 +120,11 @@ impl FilterParams {
 
 pub trait Processor: Debug + Send + Sync {
     type Row: Debug + Clone + Send + Sync + serde::Serialize;
+    type Resource: DeserializeOwned + Send + Sync + 'static;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row>;
+    /// Build a processed row from an already-deserialized typed resource.
+    /// `obj` is the original DynamicObject (for metadata access like get_age).
+    fn build_row(&self, resource: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row>;
 
     fn filterable_fields(&self) -> &'static [&'static str];
 
@@ -134,7 +182,10 @@ pub trait Processor: Debug + Send + Sync {
             .par_iter()
             .filter(|obj| Self::labels_match(obj, &label_filters))
             .filter(|obj| Self::key_filters_match(obj, &key_filters))
-            .map(|obj| self.build_row(obj).map_err(|e| e.to_string()))
+            .map(|obj| {
+                let resource = deserialize_cached::<Self::Resource>(obj)?;
+                self.build_row(&resource, obj).map_err(|e| e.to_string())
+            })
             .collect::<Result<Vec<_>, _>>()
             .map_err(LuaError::external)?;
 

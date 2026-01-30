@@ -1,4 +1,4 @@
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
@@ -21,14 +21,14 @@ pub struct ClusterResourceDefinitionProcessor;
 
 impl Processor for ClusterResourceDefinitionProcessor {
     type Row = ClusterResourceDefinitionProcessed;
+    type Resource = CustomResourceDefinition;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let crd: CustomResourceDefinition = dynamic_to_typed(obj)?;
+    fn build_row(&self, crd: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
-        let name = crd.metadata.name.unwrap_or_default();
+        let name = crd.metadata.name.clone().unwrap_or_default();
         let group = crd.spec.group.clone();
         let kind = crd.spec.names.kind.clone();
-        let versions = get_versions(crd.spec.versions);
+        let versions = get_versions(crd.spec.versions.clone());
         let scope = crd.spec.scope.clone();
         let age = self.get_age(obj);
 

@@ -1,4 +1,4 @@
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::DaemonSet;
 use kube::api::DynamicObject;
@@ -24,9 +24,9 @@ pub struct DaemonsetProcessor;
 
 impl Processor for DaemonsetProcessor {
     type Row = DaemonsetProcessed;
+    type Resource = DaemonSet;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let ds: DaemonSet = dynamic_to_typed(obj)?;
+    fn build_row(&self, ds: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let namespace = ds.metadata.namespace.clone().unwrap_or_default();
         let name = ds.metadata.name.clone().unwrap_or_default();

@@ -15,6 +15,7 @@ use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, Sta
 use tokio::runtime::Runtime;
 
 use crate::cmd::get::get_resources_async;
+use crate::processors::processor::clear_resource_cache;
 use crate::processors::{processor_for, FilterParams};
 use crate::statusline::get_statusline;
 use crate::store::shutdown_all_reflectors;
@@ -198,6 +199,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
     let init_res: LuaResult<()> = rt.block_on(async {
         let store_future = async {
             shutdown_all_reflectors().await;
+            clear_resource_cache();
             Ok::<(), LuaError>(())
         };
 
@@ -349,7 +351,7 @@ fn get_container_table(lua: &Lua, json: String) -> LuaResult<String> {
         None => Vec::new(),
     };
     let proc = processor_for("container");
-    proc.process(&lua, &vec, &FilterParams::default())
+    proc.process(lua, &vec, &FilterParams::default())
 }
 
 #[tracing::instrument]
@@ -365,7 +367,7 @@ fn get_table(lua: &Lua, json: String) -> LuaResult<String> {
         filter_label: args.filter_label,
         filter_key: args.filter_key,
     };
-    proc.process(&lua, &cached, &params)
+    proc.process(lua, &cached, &params)
 }
 
 #[tracing::instrument]
@@ -391,6 +393,7 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_node_collector();
     shutdown_health_collector();
     shutdown_all_reflectors().await;
+    clear_resource_cache();
 
     {
         *CLIENT_INSTANCE

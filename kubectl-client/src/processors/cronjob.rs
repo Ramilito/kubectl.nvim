@@ -1,5 +1,5 @@
 use crate::events::symbols;
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{time_since_jiff, AccessorMode, FieldValue};
 use k8s_openapi::api::batch::v1::CronJob;
 use kube::api::DynamicObject;
@@ -25,9 +25,9 @@ pub struct CronJobProcessor;
 
 impl Processor for CronJobProcessor {
     type Row = CronJobProcessed;
+    type Resource = CronJob;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let cj: CronJob = dynamic_to_typed(obj)?;
+    fn build_row(&self, cj: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let namespace = cj.metadata.namespace.clone().unwrap_or_default();
         let name = cj.metadata.name.clone().unwrap_or_default();

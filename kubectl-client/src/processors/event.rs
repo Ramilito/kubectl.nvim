@@ -4,7 +4,7 @@ use kube::api::DynamicObject;
 use mlua::prelude::*;
 
 use crate::events::color_status;
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{pad_key, time_since_jiff, AccessorMode, FieldValue};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -26,9 +26,9 @@ pub struct EventProcessor;
 
 impl Processor for EventProcessor {
     type Row = EventProcessed;
+    type Resource = CoreEvent;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let ev: CoreEvent = dynamic_to_typed(obj)?;
+    fn build_row(&self, ev: &Self::Resource, _obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let namespace = ev.metadata.namespace.clone().unwrap_or_default();
 
@@ -64,7 +64,7 @@ impl Processor for EventProcessor {
             last_seen,
             type_: FieldValue {
                 value: ev.type_.clone().unwrap_or_default(),
-                symbol: Some(color_status(&ev.type_.unwrap_or_default())),
+                symbol: Some(color_status(&ev.type_.clone().unwrap_or_default())),
                 ..Default::default()
             },
             reason: ev.reason.clone().unwrap_or_default(),

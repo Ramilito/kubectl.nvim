@@ -1,4 +1,4 @@
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::storage::v1::StorageClass;
 use kube::api::DynamicObject;
@@ -19,9 +19,9 @@ pub struct StorageClassProcessor;
 
 impl Processor for StorageClassProcessor {
     type Row = StorageClassProcessed;
+    type Resource = StorageClass;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let sc: StorageClass = dynamic_to_typed(obj)?;
+    fn build_row(&self, sc: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let name = sc.metadata.name.clone().unwrap_or_default();
         let provisioner = sc.provisioner.clone();
         let reclaimpolicy = sc.reclaim_policy.clone().unwrap_or_default();

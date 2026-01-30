@@ -1,5 +1,5 @@
 use crate::events::symbols;
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use jiff::Timestamp;
 use k8s_openapi::api::batch::v1::Job;
@@ -22,9 +22,9 @@ pub struct JobProcessor;
 
 impl Processor for JobProcessor {
     type Row = JobProcessed;
+    type Resource = Job;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let job: Job = dynamic_to_typed(obj)?;
+    fn build_row(&self, job: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let namespace = job.metadata.namespace.clone().unwrap_or_default();
         let name = job.metadata.name.clone().unwrap_or_default();

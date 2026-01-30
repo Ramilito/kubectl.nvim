@@ -1,4 +1,4 @@
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::Deployment;
 use kube::api::DynamicObject;
@@ -20,9 +20,9 @@ pub struct DeploymentProcessor;
 
 impl Processor for DeploymentProcessor {
     type Row = DeploymentProcessed;
+    type Resource = Deployment;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let deployment: Deployment = dynamic_to_typed(obj)?;
+    fn build_row(&self, deployment: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let namespace = deployment.metadata.namespace.clone().unwrap_or_default();
         let name = deployment.metadata.name.clone().unwrap_or_default();
         let up_to_date = deployment

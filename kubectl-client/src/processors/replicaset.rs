@@ -1,5 +1,5 @@
 use crate::events::symbols;
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::ReplicaSet;
 use kube::api::DynamicObject;
@@ -23,9 +23,9 @@ pub struct ReplicaSetProcessor;
 
 impl Processor for ReplicaSetProcessor {
     type Row = ReplicaSetProcessed;
+    type Resource = ReplicaSet;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let rs: ReplicaSet = dynamic_to_typed(obj)?;
+    fn build_row(&self, rs: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let namespace = rs.metadata.namespace.clone().unwrap_or_default();
         let name = rs.metadata.name.clone().unwrap_or_default();

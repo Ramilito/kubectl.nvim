@@ -1,5 +1,5 @@
 use crate::events::color_status;
-use crate::processors::processor::{dynamic_to_typed, Processor};
+use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::core::v1::Namespace;
 use kube::api::DynamicObject;
@@ -17,9 +17,9 @@ pub struct NamespaceProcessor;
 
 impl Processor for NamespaceProcessor {
     type Row = NamespaceProcessed;
+    type Resource = Namespace;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let node: Namespace = dynamic_to_typed(obj)?;
+    fn build_row(&self, node: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let name = node.metadata.name.clone().unwrap_or_default();
         let status = get_status(&node);
