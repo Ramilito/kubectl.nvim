@@ -8,7 +8,6 @@ use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, ResourceExt},
     Client,
 };
-use rayon::prelude::*;
 
 use kube::runtime::reflector::Store;
 use std::collections::HashMap;
@@ -73,9 +72,7 @@ pub async fn init_reflector_for_kind(
     gvk: GroupVersionKind,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut map = store_map()
-        .write()
-        .map_err(|_| "STORE_MAP lock poisoned")?;
+    let mut map = store_map().write().map_err(|_| "STORE_MAP lock poisoned")?;
     let kind = &gvk.kind;
     let requested_key = key(kind, namespace.as_deref());
 
@@ -185,7 +182,7 @@ fn emit_event(kind: &str, event: &Event<DynamicObject>) {
 }
 
 #[tracing::instrument]
-pub fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, mlua::Error> {
+pub fn get(kind: &str, namespace: Option<String>) -> Result<Vec<Arc<DynamicObject>>, mlua::Error> {
     let map = store_map()
         .read()
         .map_err(|_| mlua::Error::RuntimeError("STORE_MAP lock poisoned".into()))?;
@@ -201,9 +198,8 @@ pub fn get(kind: &str, namespace: Option<String>) -> Result<Vec<DynamicObject>, 
     let result = data
         .store
         .state()
-        .par_iter()
+        .into_iter()
         .filter(|obj| matches_namespace(obj, namespace.as_deref()))
-        .map(|obj| obj.as_ref().clone())
         .collect();
 
     Ok(result)

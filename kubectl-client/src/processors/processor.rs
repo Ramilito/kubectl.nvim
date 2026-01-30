@@ -5,6 +5,7 @@ use mlua::prelude::*;
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use crate::{
     events::symbols,
@@ -125,7 +126,7 @@ pub trait Processor: Debug + Send + Sync {
     }
 
     #[tracing::instrument(skip(self, items), fields(item_count = items.len()))]
-    fn process(&self, items: &[DynamicObject], params: &FilterParams) -> LuaResult<Vec<Self::Row>> {
+    fn process(&self, items: &[Arc<DynamicObject>], params: &FilterParams) -> LuaResult<Vec<Self::Row>> {
         let label_filters = params.parse_label_filters();
         let key_filters = params.parse_key_filters();
 

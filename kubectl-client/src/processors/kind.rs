@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
@@ -96,7 +97,7 @@ pub fn processor_for(kind: &str) -> ProcessorKind {
 fn run<P: Processor>(
     proc_impl: &P,
     lua: &Lua,
-    items: &[DynamicObject],
+    items: &[Arc<DynamicObject>],
     params: &FilterParams,
 ) -> LuaResult<String> {
     let rows = proc_impl.process(items, params)?;
@@ -133,7 +134,7 @@ impl ProcessorKind {
     pub fn process(
         &self,
         lua: &Lua,
-        items: &[DynamicObject],
+        items: &[Arc<DynamicObject>],
         params: &FilterParams,
     ) -> LuaResult<String> {
         use ProcessorKind::*;

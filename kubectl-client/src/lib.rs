@@ -275,7 +275,7 @@ fn get_all(_lua: &Lua, json: String) -> LuaResult<String> {
                 .await
                 .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
-            cached
+            cached.iter().map(|obj| obj.as_ref().clone()).collect()
         };
         let json_str = k8s_openapi::serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
@@ -296,7 +296,7 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
                 .await
                 .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
-            cached
+            cached.iter().map(|obj| obj.as_ref().clone()).collect()
         };
         let json_str = k8s_openapi::serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
@@ -345,7 +345,7 @@ fn get_container_table(lua: &Lua, json: String) -> LuaResult<String> {
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
     let vec = match pod {
-        Some(p) => vec![p],
+        Some(p) => vec![Arc::new(p)],
         None => Vec::new(),
     };
     let proc = processor_for("container");

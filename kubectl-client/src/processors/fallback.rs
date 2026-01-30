@@ -9,6 +9,7 @@ use kube::{
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use tokio::try_join;
 
 use super::processor::{FilterParams, Processor};
@@ -126,7 +127,7 @@ impl Processor for FallbackProcessor {
 
     fn process(
         &self,
-        _items: &[DynamicObject],
+        _items: &[Arc<DynamicObject>],
         _params: &FilterParams,
     ) -> LuaResult<Vec<Self::Row>> {
         Err(LuaError::external("use process_fallback"))
@@ -203,7 +204,7 @@ impl Processor for FallbackProcessor {
                 }
             });
 
-            let items = list.items;
+            let items: Vec<Arc<DynamicObject>> = list.items.into_iter().map(Arc::new).collect();
             let namespaced = matches!(caps.scope, Scope::Namespaced);
             let runtime = RuntimeFallbackProcessor {
                 cols: cols.clone(),
