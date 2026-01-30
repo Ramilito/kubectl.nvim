@@ -46,4 +46,17 @@ function manager.foreach(prefix, fn)
   end
 end
 
+--- Close all managed windows, delete their buffers, and clear instances
+function manager.close_all()
+  for key, instance in pairs(manager.instances) do
+    if instance.win_nr then
+      pcall(vim.api.nvim_win_close, instance.win_nr, true)
+    end
+    if instance.buf_nr then
+      pcall(vim.api.nvim_buf_delete, instance.buf_nr, { force = true })
+    end
+    manager.instances[key] = nil
+  end
+end
+
 return manager

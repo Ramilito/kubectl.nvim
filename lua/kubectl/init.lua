@@ -80,21 +80,18 @@ function M.init(callback)
 end
 
 function M.close()
-  local win_config = vim.api.nvim_win_get_config(0)
   local state = require("kubectl.state")
   local statusline = require("kubectl.views.statusline")
   local header = require("kubectl.views.header")
+  local queue = require("kubectl.event_queue")
+  local manager = require("kubectl.resource_manager")
 
-  if win_config.relative == "" then
-    state.stop_livez()
-  end
+  state.stop_livez()
   statusline.Close()
   header.Close()
   splash.hide()
-  local queue = require("kubectl.event_queue")
   queue.stop()
-
-  vim.api.nvim_buf_delete(0, { force = true })
+  manager.close_all()
 end
 
 --- @param opts { tab: boolean }: Options for toggle function
