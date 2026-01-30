@@ -135,7 +135,7 @@ impl TopView {
 
         // Group pods by namespace
         self.grouped_pods.clear();
-        if let Ok(guard) = pod_stats().lock() {
+        if let Ok(guard) = pod_stats().read() {
             for pod in guard.values().cloned() {
                 self.grouped_pods
                     .entry(pod.namespace.clone())
@@ -231,7 +231,7 @@ impl View for TopView {
             // Use live data to ensure buffer is sized correctly for new pods
             // Must account for expanded pods which take more space
             let pod_height: u16 = pod_stats()
-                .lock()
+                .read()
                 .map(|guard| {
                     guard.iter().map(|((ns, name), _)| {
                         if self.state.is_expanded(ns, name) { EXPANDED_H } else { ROW_H }

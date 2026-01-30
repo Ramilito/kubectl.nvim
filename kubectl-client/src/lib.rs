@@ -57,7 +57,7 @@ static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
 static BASE_CONFIG: Mutex<Option<Config>> = Mutex::new(None);
 
 pub fn pod_stats() -> &'static SharedPodStats {
-    POD_STATS.get_or_init(|| Arc::new(Mutex::new(HashMap::<PodKey, PodStat>::new())))
+    POD_STATS.get_or_init(|| Arc::new(RwLock::new(HashMap::<PodKey, PodStat>::new())))
 }
 
 pub fn node_stats() -> &'static SharedNodeStats {
@@ -66,7 +66,7 @@ pub fn node_stats() -> &'static SharedNodeStats {
 
 /// Clears all cached pod metrics (called on context change)
 pub fn clear_pod_stats() {
-    if let Ok(mut guard) = pod_stats().lock() {
+    if let Ok(mut guard) = pod_stats().write() {
         guard.clear();
     }
 }

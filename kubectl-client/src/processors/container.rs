@@ -63,7 +63,7 @@ impl Processor for ContainerProcessor {
         let pod_name = pod.metadata.name.clone().unwrap_or_default();
 
         let stats_guard = pod_stats()
-            .lock()
+            .read()
             .map_err(|_| LuaError::RuntimeError("poisoned pod_stats lock".into()))?;
 
         let pod_stats_entry = stats_guard.get(&(ns.clone(), pod_name.clone()));

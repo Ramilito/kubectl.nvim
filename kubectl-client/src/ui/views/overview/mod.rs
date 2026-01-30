@@ -186,7 +186,7 @@ fn draw(f: &mut Frame, area: Rect, top_row_h: u16, bot_row_h: u16) {
     // Snapshot pod data for Top-CPU/Top-MEM panels
     let pod_snapshot: Vec<PodStat> = {
         pod_stats()
-            .lock()
+            .read()
             .map(|guard| guard.values().cloned().collect())
             .unwrap_or_default()
     };
