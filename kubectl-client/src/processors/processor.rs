@@ -17,16 +17,17 @@ use crate::{
     utils::{time_since_jiff, AccessorMode, FieldValue},
 };
 
-/// Global deserialization cache: Arc pointer address → (resourceVersion, typed resource).
-/// Skips expensive `from_value` when the underlying DynamicObject hasn't changed.
-static RESOURCE_CACHE: OnceLock<RwLock<HashMap<usize, (String, Arc<dyn Any + Send + Sync>)>>> =
-    OnceLock::new();
+type CacheEntry = (String, Arc<dyn Any + Send + Sync>);
+type Cache = RwLock<HashMap<usize, CacheEntry>>;
+static RESOURCE_CACHE: OnceLock<Cache> = OnceLock::new();
+
+fn cache() -> &'static Cache {
+    RESOURCE_CACHE.get_or_init(Default::default)
+}
 
 pub fn clear_resource_cache() {
-    if let Some(cache) = RESOURCE_CACHE.get() {
-        if let Ok(mut guard) = cache.write() {
-            guard.clear();
-        }
+    if let Some(c) = RESOURCE_CACHE.get() {
+        let _ = c.write().map(|mut g| g.clear());
     }
 }
 
@@ -36,28 +37,18 @@ fn deserialize_cached<T: DeserializeOwned + Send + Sync + 'static>(
     let ptr = Arc::as_ptr(obj) as usize;
     let rv = obj.metadata.resource_version.as_deref().unwrap_or("");
 
-    // Check cache
-    let cache = RESOURCE_CACHE.get_or_init(Default::default);
-    if let Ok(guard) = cache.read() {
-        if let Some((cached_rv, cached)) = guard.get(&ptr) {
-            if cached_rv == rv {
-                if let Ok(typed) = Arc::clone(cached).downcast::<T>() {
-                    return Ok(typed);
-                }
-            }
-        }
+    let hit = cache().read().ok().and_then(|guard| {
+        let (cached_rv, cached) = guard.get(&ptr)?;
+        (cached_rv == rv).then(|| Arc::clone(cached).downcast::<T>().ok())?
+    });
+
+    if let Some(resource) = hit {
+        return Ok(resource);
     }
 
-    // Cache miss — deserialize
     let value = dynamic_to_value(obj).map_err(|e| e.to_string())?;
-    let resource: T = serde_json::from_value(value).map_err(|e| e.to_string())?;
-    let arc = Arc::new(resource);
-
-    // Store in cache
-    if let Ok(mut guard) = cache.write() {
-        guard.insert(ptr, (rv.to_string(), arc.clone() as Arc<dyn Any + Send + Sync>));
-    }
-
+    let arc = Arc::new(serde_json::from_value::<T>(value).map_err(|e| e.to_string())?);
+    let _ = cache().write().map(|mut g| g.insert(ptr, (rv.to_string(), arc.clone() as _)));
     Ok(arc)
 }
 
