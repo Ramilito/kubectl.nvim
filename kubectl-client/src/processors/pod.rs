@@ -72,9 +72,10 @@ impl Processor for PodProcessor {
         let mem_pct_r_val = (req_mem_mi > 0).then(|| percent(mem_mi, req_mem_mi));
         let mem_pct_l_val = (lim_mem_mi > 0).then(|| percent(mem_mi, lim_mem_mi));
 
+        let status = get_pod_status(&pod);
         Ok(PodProcessed {
-            ready: get_ready(&pod),
-            status: get_pod_status(&pod),
+            ready: get_ready(&pod, &status),
+            status,
             restarts: get_restarts(&pod, &now),
             ip: {
                 let raw_ip = pod
@@ -521,11 +522,11 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
     }
 }
 
-fn get_ready(pod: &Pod) -> FieldValue {
+fn get_ready(pod: &Pod, pod_status: &FieldValue) -> FieldValue {
     let containers = pod
         .spec
         .as_ref()
-        .map(|spec| spec.containers.len()) // Directly access containers field
+        .map(|spec| spec.containers.len())
         .unwrap_or(0);
 
     let mut ready_count = 0;
@@ -545,7 +546,6 @@ fn get_ready(pod: &Pod) -> FieldValue {
         &symbols().deprecated
     };
 
-    let pod_status = get_pod_status(pod);
     if pod_status.value == "Completed" {
         symbol = &symbols().note;
     }
