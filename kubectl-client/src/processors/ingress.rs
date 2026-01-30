@@ -23,12 +23,9 @@ pub struct IngressProcessor;
 
 impl Processor for IngressProcessor {
     type Row = IngressProcessed;
+    type Resource = Ingress;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::serde_json::{from_value, to_value};
-
-        let ingress: Ingress =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, ingress: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         Ok(IngressProcessed {
             namespace: ingress.metadata.namespace.clone().unwrap_or_default(),

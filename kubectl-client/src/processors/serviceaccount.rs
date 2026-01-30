@@ -1,5 +1,4 @@
 use k8s_openapi::api::core::v1::ServiceAccount;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -19,16 +18,13 @@ pub struct ServiceAccountProcessor;
 
 impl Processor for ServiceAccountProcessor {
     type Row = ServiceAccountProcessed;
+    type Resource = ServiceAccount;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let sa: ServiceAccount = from_value(
-            to_value(obj).map_err(|e| LuaError::external(format!("Failed to serialize ServiceAccount: {e}")))?,
-        )
-        .map_err(|e| LuaError::external(format!("Failed to deserialize ServiceAccount: {e}")))?;
+    fn build_row(&self, sa: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         Ok(ServiceAccountProcessed {
             namespace: sa.metadata.namespace.clone().unwrap_or_default(),
             name: sa.metadata.name.clone().unwrap_or_default(),
-            secret: sa.secrets.unwrap_or_default().len(),
+            secret: sa.secrets.clone().unwrap_or_default().len(),
             age: self.get_age(obj),
         })
     }

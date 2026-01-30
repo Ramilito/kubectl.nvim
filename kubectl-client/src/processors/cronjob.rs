@@ -2,7 +2,6 @@ use crate::events::symbols;
 use crate::processors::processor::Processor;
 use crate::utils::{time_since_jiff, AccessorMode, FieldValue};
 use k8s_openapi::api::batch::v1::CronJob;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -26,10 +25,9 @@ pub struct CronJobProcessor;
 
 impl Processor for CronJobProcessor {
     type Row = CronJobProcessed;
+    type Resource = CronJob;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let cj: CronJob =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, cj: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let namespace = cj.metadata.namespace.clone().unwrap_or_default();
         let name = cj.metadata.name.clone().unwrap_or_default();

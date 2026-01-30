@@ -2,7 +2,7 @@ use k8s_metrics::{v1beta1 as metricsv1, QuantityExt};
 use kube::{api, Api, Client, ResourceExt};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock, RwLock},
     time::Duration,
 };
 use tokio::{task::JoinHandle, time};
@@ -236,7 +236,7 @@ impl PodStat {
     }
 }
 
-pub type SharedPodStats = Arc<Mutex<HashMap<PodKey, PodStat>>>;
+pub type SharedPodStats = Arc<RwLock<HashMap<PodKey, PodStat>>>;
 const POLL_INTERVAL: Duration = Duration::from_secs(30);
 
 struct PodCollector {
@@ -286,7 +286,7 @@ impl PodCollector {
 
                         // Take a snapshot of current stats outside the lock
                         let mut current_stats = {
-                            match stats.lock() {
+                            match stats.read() {
                                 Ok(guard) => guard.clone(),
                                 Err(poisoned) => {
                                     warn!("poisoned pod_stats lock in collector, recovering");
@@ -356,7 +356,7 @@ impl PodCollector {
                         current_stats.retain(|k, _| seen_keys.contains(k));
 
                         // Swap atomically - minimal lock time
-                        match stats.lock() {
+                        match stats.write() {
                             Ok(mut guard) => *guard = current_stats,
                             Err(poisoned) => {
                                 warn!("poisoned pod_stats lock during update, recovering");

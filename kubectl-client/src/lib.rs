@@ -15,6 +15,7 @@ use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, Sta
 use tokio::runtime::Runtime;
 
 use crate::cmd::get::get_resources_async;
+use crate::processors::processor::clear_resource_cache;
 use crate::processors::{processor_for, FilterParams};
 use crate::statusline::get_statusline;
 use crate::store::shutdown_all_reflectors;
@@ -57,7 +58,7 @@ static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
 static BASE_CONFIG: Mutex<Option<Config>> = Mutex::new(None);
 
 pub fn pod_stats() -> &'static SharedPodStats {
-    POD_STATS.get_or_init(|| Arc::new(Mutex::new(HashMap::<PodKey, PodStat>::new())))
+    POD_STATS.get_or_init(|| Arc::new(RwLock::new(HashMap::<PodKey, PodStat>::new())))
 }
 
 pub fn node_stats() -> &'static SharedNodeStats {
@@ -66,7 +67,7 @@ pub fn node_stats() -> &'static SharedNodeStats {
 
 /// Clears all cached pod metrics (called on context change)
 pub fn clear_pod_stats() {
-    if let Ok(mut guard) = pod_stats().lock() {
+    if let Ok(mut guard) = pod_stats().write() {
         guard.clear();
     }
 }
@@ -198,6 +199,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
     let init_res: LuaResult<()> = rt.block_on(async {
         let store_future = async {
             shutdown_all_reflectors().await;
+            clear_resource_cache();
             Ok::<(), LuaError>(())
         };
 
@@ -275,7 +277,7 @@ fn get_all(_lua: &Lua, json: String) -> LuaResult<String> {
                 .await
                 .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
-            cached
+            cached.iter().map(|obj| obj.as_ref().clone()).collect()
         };
         let json_str = k8s_openapi::serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
@@ -296,7 +298,7 @@ async fn get_all_async(_lua: Lua, json: String) -> LuaResult<String> {
                 .await
                 .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
         } else {
-            cached
+            cached.iter().map(|obj| obj.as_ref().clone()).collect()
         };
         let json_str = k8s_openapi::serde_json::to_string(&resources)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
@@ -337,7 +339,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
 }
 
 #[tracing::instrument]
-fn get_container_table(lua: &Lua, json: String) -> LuaResult<String> {
+fn get_container_table(_lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetSingleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
@@ -345,15 +347,15 @@ fn get_container_table(lua: &Lua, json: String) -> LuaResult<String> {
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
     let vec = match pod {
-        Some(p) => vec![p],
+        Some(p) => vec![Arc::new(p)],
         None => Vec::new(),
     };
     let proc = processor_for("container");
-    proc.process(&lua, &vec, &FilterParams::default())
+    proc.process(&vec, &FilterParams::default())
 }
 
 #[tracing::instrument]
-fn get_table(lua: &Lua, json: String) -> LuaResult<String> {
+fn get_table(_lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
     let cached = store::get(&args.gvk.k, args.namespace.clone()).unwrap_or_default();
@@ -365,7 +367,7 @@ fn get_table(lua: &Lua, json: String) -> LuaResult<String> {
         filter_label: args.filter_label,
         filter_key: args.filter_key,
     };
-    proc.process(&lua, &cached, &params)
+    proc.process(&cached, &params)
 }
 
 #[tracing::instrument]
@@ -391,6 +393,7 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_node_collector();
     shutdown_health_collector();
     shutdown_all_reflectors().await;
+    clear_resource_cache();
 
     {
         *CLIENT_INSTANCE

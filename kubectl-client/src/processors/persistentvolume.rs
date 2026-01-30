@@ -3,7 +3,6 @@ use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::core::v1::PersistentVolume;
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -28,10 +27,9 @@ pub struct PersistentVolumeProcessor;
 
 impl Processor for PersistentVolumeProcessor {
     type Row = PersistentVolumeProcessed;
+    type Resource = PersistentVolume;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let pv: PersistentVolume =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, pv: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let name = pv.metadata.name.clone().unwrap_or_default();
 

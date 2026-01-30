@@ -26,11 +26,9 @@ pub struct EventProcessor;
 
 impl Processor for EventProcessor {
     type Row = EventProcessed;
+    type Resource = CoreEvent;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::serde_json::{from_value, to_value};
-        let ev: CoreEvent =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, ev: &Self::Resource, _obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let namespace = ev.metadata.namespace.clone().unwrap_or_default();
 
@@ -66,7 +64,7 @@ impl Processor for EventProcessor {
             last_seen,
             type_: FieldValue {
                 value: ev.type_.clone().unwrap_or_default(),
-                symbol: Some(color_status(&ev.type_.unwrap_or_default())),
+                symbol: Some(color_status(&ev.type_.clone().unwrap_or_default())),
                 ..Default::default()
             },
             reason: ev.reason.clone().unwrap_or_default(),

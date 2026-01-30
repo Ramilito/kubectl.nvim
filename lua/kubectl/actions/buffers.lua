@@ -128,25 +128,23 @@ function M.apply_marks(bufnr, marks, header)
   local header_data = header and header.data
   local header_row_offset = header_data and #header_data or 0
 
-  vim.schedule(function()
-    pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
+  pcall(api.nvim_buf_clear_namespace, bufnr, ns_id, 0, -1)
 
-    -- Apply header marks
-    if header and header.marks then
-      for _, mark in ipairs(header.marks) do
-        apply_single_mark(bufnr, ns_id, mark, 0)
-      end
+  -- Apply header marks
+  if header and header.marks then
+    for _, mark in ipairs(header.marks) do
+      apply_single_mark(bufnr, ns_id, mark, 0)
     end
+  end
 
-    -- Apply content marks
-    if marks then
-      for _, mark in ipairs(marks) do
-        apply_single_mark(bufnr, ns_id, mark, header_row_offset)
-      end
+  -- Apply content marks
+  if marks then
+    for _, mark in ipairs(marks) do
+      apply_single_mark(bufnr, ns_id, mark, header_row_offset)
     end
+  end
 
-    M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset)
-  end)
+  M.setup_buffer_marks_state(bufnr, ns_id, header_row_offset)
 end
 
 function M.fit_to_content(buf, win, offset)

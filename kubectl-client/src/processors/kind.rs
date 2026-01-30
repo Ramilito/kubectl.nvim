@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use k8s_openapi::serde_json;
 use kube::api::DynamicObject;
@@ -92,23 +93,17 @@ pub fn processor_for(kind: &str) -> ProcessorKind {
     kind.parse().unwrap_or(ProcessorKind::Default)
 }
 
-#[tracing::instrument(skip(proc_impl, lua, items))]
+#[tracing::instrument(skip(proc_impl, items))]
 fn run<P: Processor>(
     proc_impl: &P,
-    lua: &Lua,
-    items: &[DynamicObject],
+    items: &[Arc<DynamicObject>],
     params: &FilterParams,
 ) -> LuaResult<String> {
     let rows = proc_impl.process(items, params)?;
 
-    let json_span = span!(Level::INFO, "json_convert").entered();
+    let _json_span = span!(Level::INFO, "json_convert").entered();
 
-    let mut buf = Vec::with_capacity(rows.len().saturating_mul(512).max(4 * 1024));
-    serde_json::to_writer(&mut buf, &rows).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-    let json_str = lua.create_string(&buf)?.to_str()?.to_owned();
-    json_span.record("out_bytes", json_str.len() as u64);
-
-    Ok(json_str)
+    serde_json::to_string(&rows).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
 }
 
 impl ProcessorKind {
@@ -132,37 +127,36 @@ impl ProcessorKind {
 
     pub fn process(
         &self,
-        lua: &Lua,
-        items: &[DynamicObject],
+        items: &[Arc<DynamicObject>],
         params: &FilterParams,
     ) -> LuaResult<String> {
         use ProcessorKind::*;
         match self {
-            ClusterRole => run(&ClusterRoleProcessor, lua, items, params),
-            ClusterRoleBinding => run(&ClusterRoleBindingProcessor, lua, items, params),
-            ConfigMap => run(&ConfigmapProcessor, lua, items, params),
-            Container => run(&ContainerProcessor, lua, items, params),
-            CronJob => run(&CronJobProcessor, lua, items, params),
-            CustomResourceDefinition => run(&ClusterResourceDefinitionProcessor, lua, items, params),
-            DaemonSet => run(&DaemonsetProcessor, lua, items, params),
-            Default => run(&DefaultProcessor, lua, items, params),
-            Deployment => run(&DeploymentProcessor, lua, items, params),
-            Event => run(&EventProcessor, lua, items, params),
-            Fallback => run(&FallbackProcessor, lua, items, params),
-            HorizontalPodAutoscaler => run(&HorizontalPodAutoscalerProcessor, lua, items, params),
-            Ingress => run(&IngressProcessor, lua, items, params),
-            Job => run(&JobProcessor, lua, items, params),
-            Namespace => run(&NamespaceProcessor, lua, items, params),
-            Node => run(&NodeProcessor, lua, items, params),
-            PersistentVolume => run(&PersistentVolumeProcessor, lua, items, params),
-            PersistentVolumeClaim => run(&PersistentVolumeClaimProcessor, lua, items, params),
-            Pod => run(&PodProcessor, lua, items, params),
-            ReplicaSet => run(&ReplicaSetProcessor, lua, items, params),
-            Secret => run(&SecretProcessor, lua, items, params),
-            Service => run(&ServiceProcessor, lua, items, params),
-            ServiceAccount => run(&ServiceAccountProcessor, lua, items, params),
-            StatefulSet => run(&StatefulsetProcessor, lua, items, params),
-            StorageClass => run(&StorageClassProcessor, lua, items, params),
+            ClusterRole => run(&ClusterRoleProcessor, items, params),
+            ClusterRoleBinding => run(&ClusterRoleBindingProcessor, items, params),
+            ConfigMap => run(&ConfigmapProcessor, items, params),
+            Container => run(&ContainerProcessor, items, params),
+            CronJob => run(&CronJobProcessor, items, params),
+            CustomResourceDefinition => run(&ClusterResourceDefinitionProcessor, items, params),
+            DaemonSet => run(&DaemonsetProcessor, items, params),
+            Default => run(&DefaultProcessor, items, params),
+            Deployment => run(&DeploymentProcessor, items, params),
+            Event => run(&EventProcessor, items, params),
+            Fallback => run(&FallbackProcessor, items, params),
+            HorizontalPodAutoscaler => run(&HorizontalPodAutoscalerProcessor, items, params),
+            Ingress => run(&IngressProcessor, items, params),
+            Job => run(&JobProcessor, items, params),
+            Namespace => run(&NamespaceProcessor, items, params),
+            Node => run(&NodeProcessor, items, params),
+            PersistentVolume => run(&PersistentVolumeProcessor, items, params),
+            PersistentVolumeClaim => run(&PersistentVolumeClaimProcessor, items, params),
+            Pod => run(&PodProcessor, items, params),
+            ReplicaSet => run(&ReplicaSetProcessor, items, params),
+            Secret => run(&SecretProcessor, items, params),
+            Service => run(&ServiceProcessor, items, params),
+            ServiceAccount => run(&ServiceAccountProcessor, items, params),
+            StatefulSet => run(&StatefulsetProcessor, items, params),
+            StorageClass => run(&StorageClassProcessor, items, params),
         }
     }
 }

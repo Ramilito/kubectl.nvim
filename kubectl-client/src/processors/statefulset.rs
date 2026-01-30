@@ -1,7 +1,6 @@
 use crate::processors::processor::Processor;
 use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::StatefulSet;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -18,10 +17,9 @@ pub struct StatefulsetProcessor;
 
 impl Processor for StatefulsetProcessor {
     type Row = StatefulsetProcessed;
+    type Resource = StatefulSet;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let statefulset: StatefulSet =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, statefulset: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let namespace = statefulset.metadata.namespace.clone().unwrap_or_default();
         let name = statefulset.metadata.name.clone().unwrap_or_default();
         let age = self.get_age(obj);

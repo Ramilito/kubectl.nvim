@@ -1,5 +1,4 @@
 use k8s_openapi::api::autoscaling::v2::HorizontalPodAutoscaler;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 use std::collections::BTreeMap;
@@ -24,10 +23,9 @@ pub struct HorizontalPodAutoscalerProcessor;
 
 impl Processor for HorizontalPodAutoscalerProcessor {
     type Row = HorizontalPodAutoscalerProcessed;
+    type Resource = HorizontalPodAutoscaler;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let hpa: HorizontalPodAutoscaler =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, hpa: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let (namespace, name) = (
             hpa.metadata.namespace.clone().unwrap_or_default(),

@@ -9,6 +9,7 @@ use kube::{
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use tokio::try_join;
 
 use super::processor::{FilterParams, Processor};
@@ -42,15 +43,15 @@ struct FallbackRow {
 
 impl Processor for RuntimeFallbackProcessor {
     type Row = FallbackRow;
+    type Resource = serde_json::Value;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let item_json = serde_json::to_value(obj).map_err(LuaError::external)?;
+    fn build_row(&self, item_json: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let mut extra = HashMap::<String, FieldValue>::new();
         for col in &self.cols {
             let raw_val = JsonPath::parse(&fix_crd_path(&col.json_path))
                 .ok()
-                .and_then(|p| p.query(&item_json).all().first().cloned());
+                .and_then(|p| p.query(item_json).all().first().cloned());
 
             let str_val = raw_val
                 .as_ref()
@@ -108,8 +109,9 @@ pub struct FallbackProcessor;
 
 impl Processor for FallbackProcessor {
     type Row = (); // never used
+    type Resource = (); // never used
 
-    fn build_row(&self, _obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, _resource: &Self::Resource, _obj: &DynamicObject) -> LuaResult<Self::Row> {
         Err(LuaError::external("use process_fallback"))
     }
 
@@ -126,7 +128,7 @@ impl Processor for FallbackProcessor {
 
     fn process(
         &self,
-        _items: &[DynamicObject],
+        _items: &[Arc<DynamicObject>],
         _params: &FilterParams,
     ) -> LuaResult<Vec<Self::Row>> {
         Err(LuaError::external("use process_fallback"))
@@ -203,7 +205,7 @@ impl Processor for FallbackProcessor {
                 }
             });
 
-            let items = list.items;
+            let items: Vec<Arc<DynamicObject>> = list.items.into_iter().map(Arc::new).collect();
             let namespaced = matches!(caps.scope, Scope::Namespaced);
             let runtime = RuntimeFallbackProcessor {
                 cols: cols.clone(),

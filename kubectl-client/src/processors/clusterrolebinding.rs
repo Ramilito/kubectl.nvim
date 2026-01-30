@@ -21,18 +21,15 @@ pub struct ClusterRoleBindingProcessor;
 
 impl Processor for ClusterRoleBindingProcessor {
     type Row = ClusterRoleBindingProcessed;
+    type Resource = ClusterRoleBinding;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::serde_json::{from_value, to_value};
-
-        let crb: ClusterRoleBinding =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, crb: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         Ok(ClusterRoleBindingProcessed {
             name: crb.metadata.name.clone().unwrap_or_default(),
             role: crb.role_ref.name.clone(),
             subject_kind: get_subject_kind(crb.subjects.clone()),
-            subjects: get_subjects(crb.subjects),
+            subjects: get_subjects(crb.subjects.clone()),
             age: self.get_age(obj),
         })
     }

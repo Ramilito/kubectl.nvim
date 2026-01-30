@@ -1,5 +1,4 @@
 use k8s_openapi::api::core::v1::Secret;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -21,17 +20,14 @@ pub struct SecretProcessor;
 
 impl Processor for SecretProcessor {
     type Row = SecretProcessed;
+    type Resource = Secret;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let secret: Secret = from_value(
-            to_value(obj).map_err(|e| LuaError::external(format!("Failed to serialize Secret: {e}")))?,
-        )
-        .map_err(|e| LuaError::external(format!("Failed to deserialize Secret: {e}")))?;
+    fn build_row(&self, secret: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         Ok(SecretProcessed {
             namespace: secret.metadata.namespace.clone().unwrap_or_default(),
             name: secret.metadata.name.clone().unwrap_or_default(),
-            secret_type: secret.type_.unwrap_or_default(),
-            data: secret.data.unwrap_or_default().len(),
+            secret_type: secret.type_.clone().unwrap_or_default(),
+            data: secret.data.clone().unwrap_or_default().len(),
             age: self.get_age(obj),
         })
     }

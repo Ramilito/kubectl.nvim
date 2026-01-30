@@ -1,5 +1,4 @@
 use k8s_openapi::api::core::v1::ConfigMap;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -20,12 +19,9 @@ pub struct ConfigmapProcessor;
 
 impl Processor for ConfigmapProcessor {
     type Row = ConfigmapProcessed;
+    type Resource = ConfigMap;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let map: ConfigMap = from_value(
-            to_value(obj).map_err(|e| LuaError::external(format!("Failed to serialize ConfigMap: {e}")))?,
-        )
-        .map_err(|e| LuaError::external(format!("Failed to deserialize ConfigMap: {e}")))?;
+    fn build_row(&self, map: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let binary_data = map.data.as_ref().map_or(0, |map| map.len());
         Ok(ConfigmapProcessed {
             namespace: map.metadata.namespace.clone().unwrap_or_default(),

@@ -9,9 +9,10 @@ pub struct DefaultProcessor;
 impl Processor for DefaultProcessor {
     /// Each row is the original Kubernetes object.
     type Row = DynamicObject;
+    type Resource = DynamicObject;
 
     /// Simply clone the object into the output vector.
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
+    fn build_row(&self, _resource: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         Ok(obj.clone())
     }
 

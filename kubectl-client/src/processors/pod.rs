@@ -43,13 +43,9 @@ pub struct PodProcessor;
 
 impl Processor for PodProcessor {
     type Row = PodProcessed;
+    type Resource = Pod;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::api::core::v1::Pod;
-        use k8s_openapi::serde_json::{from_value, to_value};
-
-        let pod: Pod =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, pod: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let now = Timestamp::now();
 
@@ -57,7 +53,7 @@ impl Processor for PodProcessor {
         let name = pod.metadata.name.clone().unwrap_or_default();
 
         let (cpu_m, mem_mi) = {
-            let guard = match pod_stats().lock() {
+            let guard = match pod_stats().read() {
                 Ok(g) => g,
                 Err(_) => return Err(LuaError::RuntimeError("poisoned pod_stats lock".into())),
             };
@@ -67,16 +63,16 @@ impl Processor for PodProcessor {
                 .unwrap_or((0, 0))
         };
 
-        let (req_cpu_m, req_mem_mi) = sum_requests(&pod);
-        let (lim_cpu_m, lim_mem_mi) = sum_limits(&pod);
+        let (req_cpu_m, req_mem_mi, lim_cpu_m, lim_mem_mi) = sum_resources(&pod);
         let cpu_pct_r_val = (req_cpu_m > 0).then(|| percent(cpu_m, req_cpu_m));
         let cpu_pct_l_val = (lim_cpu_m > 0).then(|| percent(cpu_m, lim_cpu_m));
         let mem_pct_r_val = (req_mem_mi > 0).then(|| percent(mem_mi, req_mem_mi));
         let mem_pct_l_val = (lim_mem_mi > 0).then(|| percent(mem_mi, lim_mem_mi));
 
+        let status = get_pod_status(&pod);
         Ok(PodProcessed {
-            ready: get_ready(&pod),
-            status: get_pod_status(&pod),
+            ready: get_ready(&pod, &status),
+            status,
             restarts: get_restarts(&pod, &now),
             ip: {
                 let raw_ip = pod
@@ -198,43 +194,36 @@ impl Processor for PodProcessor {
     }
 }
 
-fn sum_requests(pod: &Pod) -> (u64, u64) {
-    let mut cpu_m = 0_u64;
-    let mut mem_mi = 0_u64;
+/// Returns (req_cpu_m, req_mem_mi, lim_cpu_m, lim_mem_mi)
+fn sum_resources(pod: &Pod) -> (u64, u64, u64, u64) {
+    let mut req_cpu = 0u64;
+    let mut req_mem = 0u64;
+    let mut lim_cpu = 0u64;
+    let mut lim_mem = 0u64;
 
     if let Some(spec) = &pod.spec {
         for c in &spec.containers {
-            if let Some(reqs) = c.resources.as_ref().and_then(|r| r.requests.as_ref()) {
-                if let Some(q) = reqs.get("cpu") {
-                    cpu_m += quantity_to_millicpu(q);
+            if let Some(res) = &c.resources {
+                if let Some(reqs) = &res.requests {
+                    if let Some(q) = reqs.get("cpu") {
+                        req_cpu += quantity_to_millicpu(q);
+                    }
+                    if let Some(q) = reqs.get("memory") {
+                        req_mem += quantity_to_mib(q);
+                    }
                 }
-                if let Some(q) = reqs.get("memory") {
-                    mem_mi += quantity_to_mib(q);
+                if let Some(limits) = &res.limits {
+                    if let Some(q) = limits.get("cpu") {
+                        lim_cpu += quantity_to_millicpu(q);
+                    }
+                    if let Some(q) = limits.get("memory") {
+                        lim_mem += quantity_to_mib(q);
+                    }
                 }
             }
         }
     }
-    (cpu_m, mem_mi)
-}
-
-fn sum_limits(pod: &Pod) -> (u64, u64) {
-    /* returns (cpu_m, mem_mi) */
-    let mut cpu_m = 0_u64;
-    let mut mem_mi = 0_u64;
-
-    if let Some(spec) = &pod.spec {
-        for c in &spec.containers {
-            if let Some(limits) = c.resources.as_ref().and_then(|r| r.limits.as_ref()) {
-                if let Some(q) = limits.get("cpu") {
-                    cpu_m += quantity_to_millicpu(q);
-                }
-                if let Some(q) = limits.get("memory") {
-                    mem_mi += quantity_to_mib(q);
-                }
-            }
-        }
-    }
-    (cpu_m, mem_mi)
+    (req_cpu, req_mem, lim_cpu, lim_mem)
 }
 
 fn quantity_to_millicpu(q: &Quantity) -> u64 {
@@ -523,11 +512,11 @@ fn get_pod_status(pod: &Pod) -> FieldValue {
     }
 }
 
-fn get_ready(pod: &Pod) -> FieldValue {
+fn get_ready(pod: &Pod, pod_status: &FieldValue) -> FieldValue {
     let containers = pod
         .spec
         .as_ref()
-        .map(|spec| spec.containers.len()) // Directly access containers field
+        .map(|spec| spec.containers.len())
         .unwrap_or(0);
 
     let mut ready_count = 0;
@@ -547,7 +536,6 @@ fn get_ready(pod: &Pod) -> FieldValue {
         &symbols().deprecated
     };
 
-    let pod_status = get_pod_status(pod);
     if pod_status.value == "Completed" {
         symbol = &symbols().note;
     }

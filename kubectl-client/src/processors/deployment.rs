@@ -1,7 +1,6 @@
 use crate::processors::processor::Processor;
 use crate::utils::{pad_key, AccessorMode, FieldValue};
 use k8s_openapi::api::apps::v1::Deployment;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -21,10 +20,9 @@ pub struct DeploymentProcessor;
 
 impl Processor for DeploymentProcessor {
     type Row = DeploymentProcessed;
+    type Resource = Deployment;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let deployment: Deployment =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, deployment: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let namespace = deployment.metadata.namespace.clone().unwrap_or_default();
         let name = deployment.metadata.name.clone().unwrap_or_default();
         let up_to_date = deployment

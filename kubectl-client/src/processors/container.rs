@@ -52,18 +52,15 @@ pub struct ContainerProcessor;
 
 impl Processor for ContainerProcessor {
     type Row = PodContainersProcessed;
+    type Resource = Pod;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        use k8s_openapi::serde_json::{from_value, to_value};
-
-        let pod: Pod =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, pod: &Self::Resource, _obj: &DynamicObject) -> LuaResult<Self::Row> {
 
         let ns = pod.metadata.namespace.clone().unwrap_or_default();
         let pod_name = pod.metadata.name.clone().unwrap_or_default();
 
         let stats_guard = pod_stats()
-            .lock()
+            .read()
             .map_err(|_| LuaError::RuntimeError("poisoned pod_stats lock".into()))?;
 
         let pod_stats_entry = stats_guard.get(&(ns.clone(), pod_name.clone()));

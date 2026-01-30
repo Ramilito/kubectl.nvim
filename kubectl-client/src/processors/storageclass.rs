@@ -1,7 +1,6 @@
 use crate::processors::processor::Processor;
 use crate::utils::{AccessorMode, FieldValue};
 use k8s_openapi::api::storage::v1::StorageClass;
-use k8s_openapi::serde_json::{from_value, to_value};
 use kube::api::DynamicObject;
 use mlua::prelude::*;
 
@@ -20,10 +19,9 @@ pub struct StorageClassProcessor;
 
 impl Processor for StorageClassProcessor {
     type Row = StorageClassProcessed;
+    type Resource = StorageClass;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
-        let sc: StorageClass =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+    fn build_row(&self, sc: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
         let name = sc.metadata.name.clone().unwrap_or_default();
         let provisioner = sc.provisioner.clone();
         let reclaimpolicy = sc.reclaim_policy.clone().unwrap_or_default();
