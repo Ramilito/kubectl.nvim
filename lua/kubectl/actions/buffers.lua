@@ -368,7 +368,7 @@ function M.header_buffer(win)
 
   if not buf then
     buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_name(buf, "kubect://" .. bufname)
+    vim.api.nvim_buf_set_name(buf, "kubectl://" .. bufname)
     M.set_content(buf, { content = { "Loading..." } })
   end
   local width = 50
