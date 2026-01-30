@@ -13,8 +13,10 @@ use k8s_openapi::{
 };
 use kube::api::DynamicObject;
 use mlua::prelude::*;
+use rayon::prelude::*;
+use tracing::Span;
 
-use super::processor::Processor;
+use super::processor::{FilterParams, Processor};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PodProcessed {
@@ -41,31 +43,46 @@ pub struct PodProcessed {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PodProcessor;
 
-impl Processor for PodProcessor {
-    type Row = PodProcessed;
+type StatsSnapshot = HashMap<(String, String), (u64, u64)>;
 
-    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
+impl PodProcessor {
+    /// Snapshot pod_stats once — avoids locking the mutex per pod in par_iter.
+    fn snapshot_stats() -> StatsSnapshot {
+        pod_stats()
+            .lock()
+            .map(|guard| {
+                guard
+                    .iter()
+                    .map(|(k, v)| (k.clone(), (v.cpu_m, v.mem_mi)))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Build row with pre-snapshotted stats and explicit parent span for rayon threads.
+    fn build_row_with_stats(
+        &self,
+        obj: &DynamicObject,
+        stats: &StatsSnapshot,
+        parent: &Span,
+    ) -> LuaResult<PodProcessed> {
         use k8s_openapi::api::core::v1::Pod;
         use k8s_openapi::serde_json::{from_value, to_value};
 
-        let pod: Pod =
-            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?;
+        let pod: Pod = {
+            let _span = tracing::info_span!(parent: parent, "deserialize_pod").entered();
+            from_value(to_value(obj).map_err(LuaError::external)?).map_err(LuaError::external)?
+        };
 
         let now = Timestamp::now();
 
         let namespace = pod.metadata.namespace.clone().unwrap_or_default();
         let name = pod.metadata.name.clone().unwrap_or_default();
 
-        let (cpu_m, mem_mi) = {
-            let guard = match pod_stats().lock() {
-                Ok(g) => g,
-                Err(_) => return Err(LuaError::RuntimeError("poisoned pod_stats lock".into())),
-            };
-            guard
-                .get(&(namespace.clone(), name.clone()))
-                .map(|s| (s.cpu_m, s.mem_mi))
-                .unwrap_or((0, 0))
-        };
+        let (cpu_m, mem_mi) = stats
+            .get(&(namespace.clone(), name.clone()))
+            .copied()
+            .unwrap_or((0, 0));
 
         let (req_cpu_m, req_mem_mi) = sum_requests(&pod);
         let (lim_cpu_m, lim_mem_mi) = sum_limits(&pod);
@@ -141,6 +158,53 @@ impl Processor for PodProcessor {
                 hint: None,
             },
         })
+    }
+}
+
+impl Processor for PodProcessor {
+    type Row = PodProcessed;
+
+    fn build_row(&self, obj: &DynamicObject) -> LuaResult<Self::Row> {
+        // Fallback: lock mutex per call (used when process() isn't the caller)
+        let stats = Self::snapshot_stats();
+        self.build_row_with_stats(obj, &stats, &Span::none())
+    }
+
+    #[tracing::instrument(skip(self, items), fields(item_count = items.len()))]
+    fn process(&self, items: &[DynamicObject], params: &FilterParams) -> LuaResult<Vec<Self::Row>> {
+        let parent = Span::current();
+        let stats = Self::snapshot_stats();
+        let label_filters = params.parse_label_filters();
+        let key_filters = params.parse_key_filters();
+
+        let mut rows: Vec<Self::Row> = items
+            .par_iter()
+            .filter(|obj| Self::labels_match(obj, &label_filters))
+            .filter(|obj| Self::key_filters_match(obj, &key_filters))
+            .map(|obj| self.build_row_with_stats(obj, &stats, &parent).map_err(|e| e.to_string()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(LuaError::external)?;
+
+        crate::sort::sort_dynamic(
+            &mut rows,
+            params.sort_by.clone(),
+            params.sort_order.clone(),
+            self.field_accessor(AccessorMode::Sort),
+        );
+
+        if let Some(ref query) = params.filter {
+            rows = crate::filter::filter_dynamic(
+                &rows,
+                query,
+                self.filterable_fields(),
+                self.field_accessor(AccessorMode::Filter),
+            )
+            .into_iter()
+            .cloned()
+            .collect();
+        }
+
+        Ok(rows)
     }
 
     fn filterable_fields(&self) -> &'static [&'static str] {
