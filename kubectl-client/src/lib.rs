@@ -339,7 +339,7 @@ pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<Strin
 }
 
 #[tracing::instrument]
-fn get_container_table(lua: &Lua, json: String) -> LuaResult<String> {
+fn get_container_table(_lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetSingleArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
 
@@ -351,11 +351,11 @@ fn get_container_table(lua: &Lua, json: String) -> LuaResult<String> {
         None => Vec::new(),
     };
     let proc = processor_for("container");
-    proc.process(lua, &vec, &FilterParams::default())
+    proc.process(&vec, &FilterParams::default())
 }
 
 #[tracing::instrument]
-fn get_table(lua: &Lua, json: String) -> LuaResult<String> {
+fn get_table(_lua: &Lua, json: String) -> LuaResult<String> {
     let args: GetTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
     let cached = store::get(&args.gvk.k, args.namespace.clone()).unwrap_or_default();
@@ -367,7 +367,7 @@ fn get_table(lua: &Lua, json: String) -> LuaResult<String> {
         filter_label: args.filter_label,
         filter_key: args.filter_key,
     };
-    proc.process(lua, &cached, &params)
+    proc.process(&cached, &params)
 }
 
 #[tracing::instrument]
