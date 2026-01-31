@@ -736,6 +736,5 @@ function M.setup(ev)
       end
     end,
   })
-
 end
 return M
