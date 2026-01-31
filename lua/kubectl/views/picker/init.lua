@@ -19,19 +19,9 @@ M.definition = {
   },
 }
 
-function M.View()
-  local win_config = vim.api.nvim_win_get_config(0)
-  if win_config.relative ~= "" then
-    vim.cmd("fclose!")
-  end
+local headers = { "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
 
-  local builder = manager.get_or_create("Picker")
-  builder.view_framed(M.definition)
-
-  -- Get sorted entries from state
-  local entries = state.picker_list()
-
-  -- Build display data
+local function build_picker_data(entries)
   local data = {}
   for i, entry in ipairs(entries) do
     local parts = vim.split(entry.title, "|")
@@ -52,26 +42,39 @@ function M.View()
     end
 
     data[i] = {
-      _entry = entry, -- Store reference for callbacks
+      _entry = entry,
       kind = { value = kind, symbol = symbol },
       type = { value = view_type, symbol = symbol },
       resource = { value = resource, symbol = symbol },
       namespace = { value = namespace, symbol = hl.symbols.gray },
     }
   end
+  return data
+end
 
+local function apply_data(builder, data)
   builder.data = data
   builder.processedData = data
-
-  local headers = { "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
   builder.prettyData, builder.extmarks = tables.pretty_print(data, headers)
-
   buffers.set_content(builder.buf_nr, {
     content = builder.prettyData,
     marks = builder.extmarks,
     header = { data = {}, marks = {} },
   })
   builder.fitToContent(1)
+end
+
+function M.View()
+  local win_config = vim.api.nvim_win_get_config(0)
+  if win_config.relative ~= "" then
+    vim.cmd("fclose!")
+  end
+
+  local builder = manager.get_or_create("Picker")
+  builder.view_framed(M.definition)
+
+  local data = build_picker_data(state.picker_list())
+  apply_data(builder, data)
 end
 
 return M

@@ -408,10 +408,50 @@ function M.picker_list()
   for _, entry in pairs(M.buffers) do
     table.insert(entries, entry)
   end
+
   table.sort(entries, function(a, b)
     return (a.created_at or 0) < (b.created_at or 0)
   end)
   return entries
+end
+
+--- Marks storage: char -> picker entry (with open function + args)
+M.marks = {}
+
+--- Set a mark for the current view
+---@param char string Single character mark
+---@return boolean success
+function M.mark_set(char)
+  local ft = vim.bo.filetype
+  local tab_id = vim.api.nvim_get_current_tabpage()
+  for _, entry in pairs(M.buffers) do
+    if entry.filetype == ft and entry.tab_id == tab_id then
+      M.marks[char] = entry
+      return true
+    end
+  end
+  return false
+end
+
+--- Jump to a mark (calls the stored open function)
+---@param char string Single character mark
+---@return boolean success
+function M.mark_jump(char)
+  local entry = M.marks[char]
+  if not entry then
+    return false
+  end
+  if not M.buffers[entry.key] then
+    M.marks[char] = nil
+    return false
+  end
+  if not vim.api.nvim_tabpage_is_valid(entry.tab_id) then
+    vim.cmd("tabnew")
+    entry.tab_id = vim.api.nvim_get_current_tabpage()
+  end
+  vim.api.nvim_set_current_tabpage(entry.tab_id)
+  entry.open(unpack(entry.args))
+  return true
 end
 
 return M
