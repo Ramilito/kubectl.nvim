@@ -19,9 +19,18 @@ M.definition = {
   },
 }
 
-local headers = { "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
+local headers = { "MARK", "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
+
+local function build_marks_lookup()
+  local lookup = {}
+  for char, entry in pairs(state.marks) do
+    lookup[entry.key] = char
+  end
+  return lookup
+end
 
 local function build_picker_data(entries)
+  local marks_lookup = build_marks_lookup()
   local data = {}
   for i, entry in ipairs(entries) do
     local parts = vim.split(entry.title, "|")
@@ -43,6 +52,7 @@ local function build_picker_data(entries)
 
     data[i] = {
       _entry = entry,
+      mark = { value = marks_lookup[entry.key] or "", symbol = hl.symbols.pending },
       kind = { value = kind, symbol = symbol },
       type = { value = view_type, symbol = symbol },
       resource = { value = resource, symbol = symbol },
@@ -74,6 +84,18 @@ function M.View()
   builder.view_framed(M.definition)
 
   local data = build_picker_data(state.picker_list())
+  table.sort(data, function(a, b)
+    local a_mark = a.mark.value
+    local b_mark = b.mark.value
+    if a_mark ~= "" and b_mark ~= "" then
+      return a_mark < b_mark
+    elseif a_mark ~= "" then
+      return true
+    elseif b_mark ~= "" then
+      return false
+    end
+    return false
+  end)
   apply_data(builder, data)
 end
 
