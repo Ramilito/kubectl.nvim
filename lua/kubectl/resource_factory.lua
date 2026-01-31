@@ -444,7 +444,6 @@ function M.new(resource)
       panes = definition.panes,
       width = definition.width,
       height = definition.height,
-      -- For picker restoration - view provides function to recreate itself
       recreate_func = opts.recreate_func,
       recreate_args = opts.recreate_args,
     })

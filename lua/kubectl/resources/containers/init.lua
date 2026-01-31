@@ -74,7 +74,7 @@ local function draw(builder, pod, ns)
 end
 
 function M.View(pod, ns)
-  M.definition.display_name = "pods | " .. pod .. " | " .. ns
+  M.definition.title = "pods | " .. pod .. " | " .. ns
   local builder = manager.get_or_create(M.definition.resource)
   builder.view_framed(M.definition, {
     recreate_func = M.View,

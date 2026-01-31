@@ -112,10 +112,11 @@ function M.LogsWithPods(pods, display_name, container)
   -- Get current options for display
   local opts = log_session.get_options()
 
+  local ns = pods[1] and pods[1].namespace or ""
   local def = {
     resource = "pod_logs",
-    ft = "k8s_pod_logs",
-    title = display_name,
+    ft = "k8s_logs",
+    title = "logs | " .. display_name .. " | " .. ns,
     syntax = "k8s_pod_logs",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },

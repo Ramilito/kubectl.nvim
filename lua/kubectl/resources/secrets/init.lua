@@ -24,7 +24,7 @@ function M.Yaml(name, ns)
 
   local def = {
     resource = M.definition.resource .. "_yaml",
-    ft = "k8s_" .. M.definition.resource .. "_yaml",
+    ft = "k8s_yaml",
     title = title,
     syntax = "yaml",
     cmd = "get_single_async",
