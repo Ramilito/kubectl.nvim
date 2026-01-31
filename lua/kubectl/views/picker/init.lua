@@ -19,7 +19,7 @@ M.definition = {
   },
 }
 
-local headers = { "MARK", "KIND", "TYPE", "RESOURCE", "NAMESPACE" }
+local headers = { "MARK", "NAME", "KIND", "TYPE", "NAMESPACE" }
 
 local function build_marks_lookup()
   local lookup = {}
@@ -40,22 +40,22 @@ local function build_picker_data(entries)
     local view_type = entry.filetype:gsub("k8s_", "")
     local symbol = hl.symbols.success
 
-    if view_type == "exec" then
-      symbol = hl.symbols.experimental
+    if view_type == "yaml" then
+      symbol = hl.symbols.header
     elseif view_type == "desc" then
       symbol = hl.symbols.debug
-    elseif view_type:match("yaml") then
-      symbol = hl.symbols.header
-    elseif view_type == "pod_logs" then
+    elseif view_type == "exec" then
+      symbol = hl.symbols.experimental
+    elseif view_type == "logs" then
       symbol = hl.symbols.note
     end
 
     data[i] = {
       _entry = entry,
       mark = { value = marks_lookup[entry.key] or "", symbol = hl.symbols.pending },
+      name = { value = resource, symbol = symbol },
       kind = { value = kind, symbol = symbol },
       type = { value = view_type, symbol = symbol },
-      resource = { value = resource, symbol = symbol },
       namespace = { value = namespace, symbol = hl.symbols.gray },
     }
   end
@@ -94,7 +94,7 @@ function M.View()
     elseif b_mark ~= "" then
       return false
     end
-    return false
+    return (a._entry.created_at or 0) > (b._entry.created_at or 0)
   end)
   apply_data(builder, data)
 end
