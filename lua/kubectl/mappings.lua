@@ -319,32 +319,12 @@ function M.get_mappings()
         picker.View()
       end,
     },
-    ["<Plug>(kubectl.mark_set)"] = {
-      mode = "n",
-      desc = "Set mark",
-      callback = function()
-        local char = vim.fn.getcharstr()
-        if not char or char == "" or char == "\27" then
-          return
-        end
-        if #char ~= 1 or char:byte() < 33 or char:byte() > 126 then
-          return
-        end
-        local state = require("kubectl.state")
-        if not state.mark_set(char) then
-          vim.notify("No view to mark", vim.log.levels.WARN)
-        end
-      end,
-    },
     ["<Plug>(kubectl.mark_jump)"] = {
       mode = "n",
       desc = "Jump to mark",
       callback = function()
         local char = vim.fn.getcharstr()
         if not char or char == "" or char == "\27" then
-          return
-        end
-        if #char ~= 1 or char:byte() < 33 or char:byte() > 126 then
           return
         end
         local state = require("kubectl.state")
@@ -684,7 +664,6 @@ function M.register()
   M.map_if_plug_not_set("n", "gq", "<Plug>(kubectl.quickfix)")
   M.map_if_plug_not_set("n", "gk", "<Plug>(kubectl.toggle_diagnostics)")
   M.map_if_plug_not_set("n", "go", "<Plug>(kubectl.jump_to_resource)")
-  M.map_if_plug_not_set("n", "m", "<Plug>(kubectl.mark_set)")
   M.map_if_plug_not_set("n", "'", "<Plug>(kubectl.mark_jump)")
 
   if config.options.lineage.enabled then
@@ -746,5 +725,17 @@ function M.setup(ev)
 
   -- Also apply immediately for buffers where LSP doesn't attach
   apply_mappings(bufnr, view_name)
+
+  -- Hook into native marks: MarkSet fires after m, :mark, or nvim_buf_set_mark
+  vim.api.nvim_create_autocmd("MarkSet", {
+    buffer = bufnr,
+    callback = function(mark_ev)
+      local char = mark_ev.data and mark_ev.data.name
+      if char then
+        require("kubectl.state").mark_set(char)
+      end
+    end,
+  })
+
 end
 return M
