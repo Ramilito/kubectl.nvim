@@ -86,8 +86,8 @@ function M.start()
       },
     },
     handlers = {
-      ["textDocument/completion"] = function(_method, _params, callback)
-        local buf = vim.api.nvim_get_current_buf()
+      ["textDocument/completion"] = function(_method, params, callback)
+        local buf = vim.uri_to_bufnr(params.textDocument.uri)
         if not vim.api.nvim_buf_is_valid(buf) then
           callback(nil, { isIncomplete = false, items = {} })
           return
