@@ -41,9 +41,10 @@ M.flux_resources = {
 ---@return table
 local function as_field_value(field, color_fn)
   if type(field) == "table" and field.value ~= nil then
+    field.value = tostring(field.value):gsub("\n", " ")
     return field
   end
-  local str = tostring(field or "")
+  local str = tostring(field or ""):gsub("\n", " ")
   return {
     value = str,
     symbol = color_fn and color_fn(str) or "",
