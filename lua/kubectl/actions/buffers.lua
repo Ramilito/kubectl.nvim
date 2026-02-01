@@ -464,11 +464,13 @@ function M.framed_buffer(opts)
   local buf_base = "kubectl://" .. (opts.filetype or "frame")
   if opts.title then
     local p = vim.split(opts.title, "|")
-    local path = vim.iter({ p[1], p[3], p[2] }) -- reorder: resource, namespace, name
-      :map(function(v) return v and vim.trim(v) or "" end)
-      :filter(function(v) return v ~= "" end)
-      :map(function(v) return v:gsub("[/\\]", "_") end)
-      :totable()
+    local resource, name, ns = vim.trim(p[1] or ""), vim.trim(p[2] or ""), vim.trim(p[3] or "")
+    local path = {}
+    for _, v in ipairs({ resource, ns, name }) do
+      if v ~= "" then
+        table.insert(path, (v:gsub("[/\\]", "_")))
+      end
+    end
     buf_base = buf_base .. (#path > 0 and ("/" .. table.concat(path, "/")) or "")
   end
 
