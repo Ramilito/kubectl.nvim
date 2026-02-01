@@ -202,7 +202,7 @@ describe("actions.layout", function()
       local win_config = vim.api.nvim_win_get_config(win)
 
       -- nvim_win_get_config returns title as nested table [[text, hl_group], ...]
-      assert.is_truthy(win_config.title)
+      assert.is_not_nil(win_config.title)
       if type(win_config.title) == "table" then
         assert.are.equal("k8s_pods - my-pod", win_config.title[1][1])
       else
@@ -218,7 +218,7 @@ describe("actions.layout", function()
 
       -- When filetype is empty, title is passed as-is (not prefixed)
       -- nvim_win_get_config returns title as nested table [[text, hl_group], ...]
-      assert.is_truthy(win_config.title)
+      assert.is_not_nil(win_config.title)
       if type(win_config.title) == "table" then
         assert.are.equal("my-title", win_config.title[1][1])
       else
@@ -254,7 +254,7 @@ describe("actions.layout", function()
       local win_config = vim.api.nvim_win_get_config(win)
 
       -- nvim_win_get_config returns border as table of characters for "rounded"
-      assert.is_truthy(win_config.border)
+      assert.is_not_nil(win_config.border)
       if type(win_config.border) == "table" then
         -- Rounded border starts with top-left corner character
         assert.are.equal("╭", win_config.border[1])
@@ -557,7 +557,7 @@ describe("actions.layout", function()
 
       local pane_config = vim.api.nvim_win_get_config(result.pane_wins[1])
       -- Title in nvim_win_get_config returns as nested table structure
-      assert.is_truthy(pane_config.title)
+      assert.is_not_nil(pane_config.title)
     end)
   end)
 
