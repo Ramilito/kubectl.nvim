@@ -25,6 +25,7 @@ When a task touches a domain, use that subagent. No exceptions.
 | LSP | `lsp` | ANY task involving completion, hover, diagnostics |
 | Statusline | `statusline` | ANY task involving statusline metrics or display |
 | Lineage | `lineage` | ANY task involving resource lineage, relationship graphs, owner references |
+| Testing | `testing` | ANY task involving writing, modifying, or running tests |
 
 ### Rule 3: Use Verification Subagents
 
@@ -73,10 +74,15 @@ make clean         # Remove build artifacts
 
 ## Testing
 
-No automated test suite. Manual testing via minimal reproduction setup:
+**Framework:** Plenary.nvim busted-style tests in `tests/` directory.
+
 ```bash
-nvim -u repro.lua
+make test          # Run all tests (clones plenary.nvim if needed)
 ```
+
+Test files use `*_spec.lua` naming and mirror the `lua/kubectl/` structure. See `.claude/agents/testing.md` for full documentation on writing tests.
+
+**Manual testing:** For UI/integration testing use `nvim -u repro.lua`
 
 ## Architecture
 

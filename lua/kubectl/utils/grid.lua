@@ -178,4 +178,9 @@ function M.pretty_print(data, sections)
   return layout, extmarks
 end
 
+-- Export local functions for testing
+M._calculate_extra_padding = calculate_extra_padding
+M._section_widths = section_widths
+M._pad_string = pad_string
+
 return M
