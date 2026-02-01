@@ -88,16 +88,12 @@ function M.start()
     handlers = {
       ["textDocument/completion"] = function(_method, _params, callback)
         local buf = vim.api.nvim_get_current_buf()
+        if not vim.api.nvim_buf_is_valid(buf) then
+          callback(nil, { isIncomplete = false, items = {} })
+          return
+        end
         local items = get_completion_items(buf)
-        -- Defer callback to allow text/window changes
-        vim.schedule(function()
-          -- Check buffer validity before using items (buf may be deleted)
-          if not vim.api.nvim_buf_is_valid(buf) then
-            callback(nil, { isIncomplete = false, items = {} })
-            return
-          end
-          callback(nil, { isIncomplete = false, items = items })
-        end)
+        callback(nil, { isIncomplete = false, items = items })
       end,
       ["textDocument/hover"] = function(_method, params, callback)
         local hover = require("kubectl.lsp.hover")
