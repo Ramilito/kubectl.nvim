@@ -460,25 +460,16 @@ end
 --- @return FramedBufferResult
 function M.framed_buffer(opts)
   -- Build breadcrumb-style buffer name: kubectl://{filetype}/{resource}/{namespace}/{name}
-  -- Title format is: "{resource} | {name} | {namespace}" or "{resource} | {name}"
+  -- Title format: "{resource} | {name} | {namespace}" -> reordered to resource/namespace/name
   local buf_base = "kubectl://" .. (opts.filetype or "frame")
   if opts.title then
-    local parts = vim.split(opts.title, "|")
-    local resource = parts[1] and vim.trim(parts[1]) or nil
-    local name = parts[2] and vim.trim(parts[2]) or nil
-    local namespace = parts[3] and vim.trim(parts[3]) or nil
-    -- Build path as: resource/namespace/name (namespace may be nil)
-    local path_parts = vim.iter({ resource, namespace, name })
-      :filter(function(v)
-        return v and v ~= ""
-      end)
-      :map(function(v)
-        return v:gsub("[/\\]", "_")
-      end)
+    local p = vim.split(opts.title, "|")
+    local path = vim.iter({ p[1], p[3], p[2] }) -- reorder: resource, namespace, name
+      :map(function(v) return v and vim.trim(v) or "" end)
+      :filter(function(v) return v ~= "" end)
+      :map(function(v) return v:gsub("[/\\]", "_") end)
       :totable()
-    if #path_parts > 0 then
-      buf_base = buf_base .. "/" .. table.concat(path_parts, "/")
-    end
+    buf_base = buf_base .. (#path > 0 and ("/" .. table.concat(path, "/")) or "")
   end
 
   local hints_buf = api.nvim_create_buf(false, true)
@@ -486,15 +477,11 @@ function M.framed_buffer(opts)
 
   local pane_bufs = {}
   for i, pane_opts in ipairs(opts.panes) do
+    pane_bufs[i] = api.nvim_create_buf(false, true)
     if pane_opts.prompt then
-      pane_bufs[i] = api.nvim_create_buf(false, true)
       api.nvim_set_option_value("buftype", "prompt", { buf = pane_bufs[i] })
-    else
-      pane_bufs[i] = api.nvim_create_buf(false, true)
     end
-    -- First pane gets clean name, additional panes get numbered suffix
-    local pane_name = i == 1 and buf_base or (buf_base .. "/pane_" .. i)
-    api.nvim_buf_set_name(pane_bufs[i], pane_name)
+    api.nvim_buf_set_name(pane_bufs[i], i == 1 and buf_base or (buf_base .. "/pane_" .. i))
   end
 
   -- Create windows via layout
