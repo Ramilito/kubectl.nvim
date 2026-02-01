@@ -258,15 +258,20 @@ end)
 describe("actions.commands file operations", function()
   local commands
   local test_file_name = "_test_commands_spec_.json"
+  local data_dir
 
   before_each(function()
     package.loaded["kubectl.actions.commands"] = nil
     commands = require("kubectl.actions.commands")
+    data_dir = vim.fn.stdpath("data") .. "/kubectl/"
+
+    -- Ensure the full directory path exists (including all parents)
+    -- This is needed because vim.uv.fs_mkdir only creates one level
+    vim.fn.mkdir(data_dir, "p")
   end)
 
   after_each(function()
     -- Clean up test file
-    local data_dir = vim.fn.stdpath("data") .. "/kubectl/"
     local file_path = data_dir .. test_file_name
     os.remove(file_path)
   end)
