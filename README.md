@@ -12,6 +12,9 @@
   <a href="https://github.com/Ramilito/kubectl.nvim/releases/latest">
     <img src="https://img.shields.io/github/v/release/Ramilito/kubectl.nvim">
   </a>
+  <a href="https://github.com/Ramilito/kubectl.nvim/actions/workflows/tests.yml">
+    <img src="https://github.com/Ramilito/kubectl.nvim/actions/workflows/tests.yml/badge.svg">
+  </a>
 </p>
 
 Processes kubectl outputs to enable vim-like navigation in a buffer for your cluster.

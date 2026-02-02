@@ -335,7 +335,7 @@ function M.generateDividerWinbar(divider, win)
   local text_width = vim.api.nvim_win_get_width(win)
 
   if not divider then
-    return ("%#KubectlSuccess#%s%%*"):format(string.rep("-", text_width))
+    return "%%#KubectlSuccess#" .. string.rep("-", text_width) .. "%%%%*"
   end
 
   local resource = divider.resource or ""
@@ -722,26 +722,27 @@ function M.find_index(haystack, needle)
 end
 
 function M.find_resource(data, name, namespace)
+  if not data then
+    return nil
+  end
   if data.items then
     return vim.iter(data.items):find(function(row)
-      return row.metadata.name == name and (namespace and row.metadata.namespace == namespace or true)
+      return row.metadata.name == name and (not namespace or row.metadata.namespace == namespace)
     end)
   end
   if data.rows then
-    return vim.iter(data.rows):find(function(row)
-      return row.object.metadata.name == name and (namespace and row.object.metadata.namespace == namespace or true)
-    end).object
-  end
-  if data then
-    return vim.iter(data):find(function(row)
-      if row.metadata then
-        return row.metadata.name == name and (row.metadata.namespace == namespace or true)
-      else
-        return row.name == name and (row.namespace == namespace or true)
-      end
+    local found = vim.iter(data.rows):find(function(row)
+      return row.object.metadata.name == name and (not namespace or row.object.metadata.namespace == namespace)
     end)
+    return found and found.object or nil
   end
-  return nil
+  return vim.iter(data):find(function(row)
+    if row.metadata then
+      return row.metadata.name == name and (not namespace or row.metadata.namespace == namespace)
+    else
+      return row.name == name and (not namespace or row.namespace == namespace)
+    end
+  end)
 end
 
 --- Check if a table is empty
