@@ -115,7 +115,7 @@ function M.LogsWithPods(pods, display_name, container)
   local ns = pods[1] and pods[1].namespace or ""
   local def = {
     resource = "pod_logs",
-    ft = "k8s_logs",
+    ft = "k8s_pod_logs",
     title = "logs | " .. display_name .. " | " .. ns,
     syntax = "k8s_pod_logs",
     hints = {
