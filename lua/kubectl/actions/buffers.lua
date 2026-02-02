@@ -459,19 +459,31 @@ end
 --- @param opts FramedBufferConfig
 --- @return FramedBufferResult
 function M.framed_buffer(opts)
-  -- Create buffers
+  -- Build breadcrumb-style buffer name: kubectl://{filetype}/{resource}/{namespace}/{name}
+  -- Title format: "{resource} | {name} | {namespace}" -> reordered to resource/namespace/name
+  local buf_base = "kubectl://" .. (opts.filetype or "frame")
+  if opts.title then
+    local p = vim.split(opts.title, "|")
+    local resource, name, ns = vim.trim(p[1] or ""), vim.trim(p[2] or ""), vim.trim(p[3] or "")
+    local path = {}
+    for _, v in ipairs({ resource, ns, name }) do
+      if v ~= "" then
+        table.insert(path, (v:gsub("[/\\]", "_")))
+      end
+    end
+    buf_base = buf_base .. (#path > 0 and ("/" .. table.concat(path, "/")) or "")
+  end
+
   local hints_buf = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_name(hints_buf, "kubectl://" .. (opts.filetype or "frame") .. "_hints")
+  api.nvim_buf_set_name(hints_buf, buf_base .. "/hints")
 
   local pane_bufs = {}
   for i, pane_opts in ipairs(opts.panes) do
+    pane_bufs[i] = api.nvim_create_buf(false, true)
     if pane_opts.prompt then
-      pane_bufs[i] = api.nvim_create_buf(false, true)
       api.nvim_set_option_value("buftype", "prompt", { buf = pane_bufs[i] })
-    else
-      pane_bufs[i] = api.nvim_create_buf(false, true)
     end
-    api.nvim_buf_set_name(pane_bufs[i], "kubectl://" .. (opts.filetype or "frame") .. "_pane_" .. i)
+    api.nvim_buf_set_name(pane_bufs[i], i == 1 and buf_base or (buf_base .. "/pane_" .. i))
   end
 
   -- Create windows via layout
