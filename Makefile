@@ -1,4 +1,4 @@
-.PHONY: llscheck luacheck stylua test prepare
+.PHONY: llscheck luacheck stylua
 
 llscheck:
 	llscheck --configpath .luarc.json .
@@ -42,10 +42,3 @@ build_windows: build_go
 build: build_go
 	cargo build --release
 
-.PHONY: prepare
-prepare:
-	@test -d ../plenary.nvim || git clone --depth 1 https://github.com/nvim-lua/plenary.nvim ../plenary.nvim
-
-.PHONY: test
-test: prepare
-	nvim --headless --noplugin -u tests/minimal_init.vim -c "PlenaryBustedDirectory tests  { minimal_init = './tests/minimal_init.vim' }"
