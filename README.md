@@ -12,8 +12,8 @@
   <a href="https://github.com/Ramilito/kubectl.nvim/releases/latest">
     <img src="https://img.shields.io/github/v/release/Ramilito/kubectl.nvim">
   </a>
-  <a href="https://github.com/mosheavni/yaml-companion.nvim/actions/workflows/main.yml">
-    <img src="https://github.com/mosheavni/yaml-companion.nvim/actions/workflows/main.yml/badge.svg">
+  <a href="https://github.com/Ramilito/kubectl.nvim/actions/workflows/tests.yml">
+    <img src="https://github.com/Ramilito/kubectl.nvim/actions/workflows/tests.yml/badge.svg">
   </a>
 </p>
 
