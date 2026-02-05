@@ -1,5 +1,6 @@
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local string_utils = require("kubectl.utils.string")
 local tables = require("kubectl.utils.tables")
@@ -105,6 +106,7 @@ function M.get_mappings()
             value = "» " .. display,
             cmd = { name = value.name, namespace = value.namespace },
             type = "positional",
+            hl = hl.symbols.pending,
           })
         end
         builder.data = data

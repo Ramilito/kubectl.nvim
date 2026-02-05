@@ -1,4 +1,5 @@
 local BaseResource = require("kubectl.resources.base_resource")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 
 local resource = "cronjobs"
@@ -47,11 +48,13 @@ function M.create_from_cronjob(name, ns)
       text = "name:",
       value = name .. "-" .. tostring(unix_time),
       type = "positional",
+      hl = hl.symbols.pending,
     },
     {
       text = "dry run:",
       value = "false",
       type = "flag",
+      hl = hl.symbols.pending,
     },
   }
 
