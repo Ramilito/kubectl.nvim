@@ -156,8 +156,6 @@ function M.View(definition, data, callback)
   vim.keymap.set("n", "n", function()
     builder.frame.close()
   end, { buffer = buf, noremap = true, silent = true })
-
-  vim.cmd([[syntax match KubectlPending /.*/]])
 end
 
 return M
