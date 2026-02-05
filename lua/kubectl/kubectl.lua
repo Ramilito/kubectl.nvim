@@ -215,6 +215,59 @@ function M.execute(args)
     return
   end
 
+  -- Special case: "apply" shows diff and confirms before applying
+  if cmd == "apply" then
+    local tmpfile
+    local apply_args = {} -- Arguments to pass to kubectl apply/diff
+
+    if #args == 1 then
+      -- No file supplied, use current buffer
+      local content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+      tmpfile = vim.fn.tempname() .. ".yaml"
+      local file = assert(io.open(tmpfile, "w"))
+      file:write(content)
+      file:close()
+      apply_args = { "-f", tmpfile }
+    else
+      -- User provided arguments (e.g., -f path, -k path, etc.)
+      -- Pass through all arguments after "apply"
+      for i = 2, #args do
+        table.insert(apply_args, args[i])
+      end
+    end
+
+    -- Run diff first (exit code 1 means differences exist, which is expected)
+    local diff_cmd = vim.list_extend({ "kubectl", "diff" }, apply_args)
+    local diff_output = vim.fn.systemlist(diff_cmd)
+
+    -- Show diff in action view with confirmation
+    local action_view = require("kubectl.views.action")
+    local definition = {
+      ft = "diff",
+      display = "Apply changes?",
+    }
+
+    -- Convert diff lines to data items for display
+    local data = {}
+    for _, line in ipairs(diff_output) do
+      table.insert(data, { text = "", value = line })
+    end
+
+    action_view.View(definition, data, function()
+      local final_args = vim.list_extend({ "apply" }, apply_args)
+      local output, apply_err = kubectl_sync(final_args)
+      if apply_err then
+        vim.notify(apply_err, vim.log.levels.ERROR)
+      elseif #output > 0 then
+        vim.notify(table.concat(output, "\n"), vim.log.levels.INFO)
+      end
+      if tmpfile then
+        os.remove(tmpfile)
+      end
+    end)
+    return
+  end
+
   -- Run kubectl and show output
   local output, err = kubectl_sync(args)
   if err then

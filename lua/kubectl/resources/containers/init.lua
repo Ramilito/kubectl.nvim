@@ -2,6 +2,7 @@ local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.resources.containers.definition")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local pod_view = require("kubectl.resources.pods")
 local queue = require("kubectl.event_queue")
@@ -119,8 +120,8 @@ function M.debug(pod, ns, is_fullscreen)
   local builder = manager.get_or_create(def.resource)
 
   local data = {
-    { text = "name:", value = M.selection .. "-debug", type = "option" },
-    { text = "image:", value = "busybox", type = "option" },
+    { text = "name:", value = M.selection .. "-debug", type = "option", hl = hl.symbols.pending },
+    { text = "image:", value = "busybox", type = "option", hl = hl.symbols.pending },
   }
 
   builder.action_view(def, data, function(args)
