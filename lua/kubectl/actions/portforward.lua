@@ -96,9 +96,22 @@ function M.portforward(resource_type, gvk, name, ns)
           options = { "localhost", "0.0.0.0" },
           cmd = "",
           type = "positional",
+          hl = hl.symbols.pending,
         },
-        { text = "local:", value = tostring(ports[1].port.value), cmd = "", type = "positional" },
-        { text = "container port:", value = tostring(ports[1].port.value), cmd = ":", type = "merge_above" },
+        {
+          text = "local:",
+          value = tostring(ports[1].port.value),
+          cmd = "",
+          type = "positional",
+          hl = hl.symbols.pending,
+        },
+        {
+          text = "container port:",
+          value = tostring(ports[1].port.value),
+          cmd = ":",
+          type = "merge_above",
+          hl = hl.symbols.pending,
+        },
       }
 
       builder.action_view(def, pf_data, function(args)

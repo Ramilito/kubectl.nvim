@@ -122,6 +122,14 @@ function M.View(definition, data, callback)
       virt_text_pos = "inline",
       right_gravity = false,
     })
+    if item.hl then
+      table.insert(marks, {
+        row = #content - 1,
+        start_col = 0,
+        end_col = #item.value,
+        hl_group = item.hl,
+      })
+    end
   end
 
   -- Add confirmation lines
@@ -156,8 +164,6 @@ function M.View(definition, data, callback)
   vim.keymap.set("n", "n", function()
     builder.frame.close()
   end, { buffer = buf, noremap = true, silent = true })
-
-  vim.cmd([[syntax match KubectlPending /.*/]])
 end
 
 return M

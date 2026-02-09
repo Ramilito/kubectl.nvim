@@ -1,6 +1,7 @@
 local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.resources.deployments")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 local mapping_helpers = require("kubectl.utils.mapping_helpers")
 local mappings = require("kubectl.mappings")
@@ -88,6 +89,7 @@ M.overrides = {
           text = "",
           value = ns .. "/" .. name,
           type = "positional",
+          hl = hl.symbols.pending,
         },
       }
 

@@ -1,4 +1,5 @@
 local commands = require("kubectl.actions.commands")
+local hl = require("kubectl.actions.highlight")
 local manager = require("kubectl.resource_manager")
 
 local M = {}
@@ -52,6 +53,7 @@ function M.set_image(resource_type, gvk, name, ns)
           init = container.init,
           options = {},
           type = "positional",
+          hl = hl.symbols.pending,
         })
       end
 
