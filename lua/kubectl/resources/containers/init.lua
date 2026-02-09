@@ -41,7 +41,7 @@ local M = {
       { key = "<Plug>(kubectl.logs)", desc = "logs" },
       { key = "<Plug>(kubectl.debug)", desc = "debug" },
       { key = "<Plug>(kubectl.select)", desc = "exec" },
-      { key = "<Plug>(kubectl.select_fullscreen)", desc = "exec" },
+      { key = "<Plug>(kubectl.select_fullscreen)", desc = "full screen exec" },
     },
     panes = {
       { title = "Containers" },

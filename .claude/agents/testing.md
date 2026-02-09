@@ -42,7 +42,7 @@ Some features are purely algorithmic (e.g., status coloring) and don't need a nv
 - Things that only fail if Neovim itself is broken
 - **Dead code** — grep for usage before writing tests. If a function has 0 callers, don't test it
 - **Functions in isolation** — if `time.diff_str` only serves the heartbeat feature, test the heartbeat feature through `generateHeader()`, not `diff_str` directly
-- **Internal plumbing** — URL parsing, header building, etc. that users never interact with
+- **Internal plumbing** — URL parsing, header building, pretty_print, data processing pipelines (processRow, collect_all_resources), etc. that users never interact with directly
 
 ### Before Writing a Test
 
@@ -50,6 +50,19 @@ Some features are purely algorithmic (e.g., status coloring) and don't need a nv
 2. **Find the entry point**: What public function do callers actually invoke?
 3. **Verify the code is live**: `grep -r "function_name" lua/` — if 0 callers, don't test it
 4. **Check existing coverage**: Is this already tested through a higher-level feature test?
+
+### Rejected Test Patterns (real examples)
+
+These were written and later deleted for violating "features not functions":
+
+| Deleted test | Why it was wrong | What to do instead |
+|---|---|---|
+| `test_time.lua` — tested `time.diff_str()` | Function test. `diff_str` only serves the heartbeat feature | Test heartbeat through `generateHeader()` (now `test_heartbeat.lua`) |
+| `test_ansi.lua` — tested `utils/ansi.lua` | Dead code. ANSI stripping is done in Rust, `ansi.lua` has 0 imports | Don't test dead code |
+| `test_url.lua` — tested `breakUrl`, `addHeaders` | Internal plumbing. URL building is not user-facing | Don't test infrastructure utilities |
+| `test_find.lua` — tested `escape`, `array`, `tbl_idx`, `filter` | Dead code (0 callers). `is_in_table` already covered by `test_filtering.lua` | Only test through feature entry points |
+| `test_pretty_print.lua` — tested `tables.pretty_print()` | Internal plumbing. `pretty_print` is used by ALL resource views but is not itself a feature | The feature is what the user sees in a specific view, not the rendering function |
+| `test_lineage_data.lua` — tested `processRow`, `collect_all_resources` | Internal pipeline functions. Data processing feeds the lineage view but isn't the view | Test the lineage view rendering instead (`test_lineage_rendering.lua`) |
 
 ## Environment
 
@@ -71,8 +84,10 @@ tests/
   test_sorting.lua        -- feature: column sorting
   test_columns.lua        -- feature: column visibility and reordering
   test_heartbeat.lua      -- feature: heartbeat display in headers
-  test_status_colors.lua  -- feature: status-to-highlight mapping
-  test_view_aliases.lua   -- feature: alias resolution (po → pods)
+  test_status_colors.lua      -- feature: status-to-highlight mapping
+  test_view_aliases.lua       -- feature: alias resolution (po → pods)
+  test_lineage_rendering.lua  -- feature: lineage tree view rendering
+  test_keymaps.lua            -- feature: resource view keymap registration
 ```
 
 ### Test File Convention
@@ -114,6 +129,40 @@ make test FILE=<path>  # Run specific test file
 3. **One assertion concept per test**: a test can have multiple `expect` calls if they verify the same behavior
 4. **No mocking unless absolutely necessary**: if you need to mock everything, the test is too coupled
 5. **Use realistic Rust-layer data shapes**: don't invent simplified structures, match actual processor output
+6. **Clean up buffer state between tests**: create fresh buffers per test, delete after assertions
+7. **Scope config to isolate behavior**: set `config.options.headers.hints = false` etc. to test one feature at a time
+
+### Test Patterns
+
+**Keymap registration** (`test_keymaps.lua`):
+```lua
+local function setup_view(view_name)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_current_buf(buf)
+  mappings.setup({ match = "k8s_" .. view_name, buf = buf })
+  return buf
+end
+
+-- Check LHS → <Plug> binding exists
+local map = vim.fn.maparg("gl", "n", false, true)
+expect.no_equality(map.lhs, nil)
+```
+
+**View rendering** (`test_lineage_rendering.lua`):
+```lua
+local ctx = RenderContext.new()
+renderer.render_orphans(ctx, graph)
+local result = ctx:get()
+-- result.lines = buffer text, result.marks = highlights, result.line_nodes = node mapping
+```
+
+**Config scoping** (`test_heartbeat.lua`):
+```lua
+config.options.headers.enabled = true
+config.options.headers.hints = false      -- isolate heartbeat behavior
+config.options.headers.context = false    -- don't test context display
+config.options.headers.heartbeat = true
+```
 
 ### Test Data: Rust FieldValue Shape
 
