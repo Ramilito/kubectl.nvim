@@ -152,6 +152,15 @@ function M.setup(options)
         if skip[ev.match] or ev.match:match("_yaml$") or ev.match:match("_describe$") then
           return
         end
+
+        -- Skip float windows that don't need completion to avoid LSP
+        -- keybinding conflicts (e.g. gl, gd) overwriting plugin mappings
+        local win = vim.api.nvim_get_current_win()
+        local win_config = vim.api.nvim_win_get_config(win)
+        if win_config.relative ~= "" and not require("kubectl.lsp").sources[ev.match] then
+          return
+        end
+
         require("kubectl.lsp").start()
       end,
     })
