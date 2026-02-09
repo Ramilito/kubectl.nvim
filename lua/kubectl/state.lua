@@ -445,6 +445,11 @@ function M.mark_jump(char)
     M.marks[char] = nil
     return false
   end
+
+  local win_config = vim.api.nvim_win_get_config(0)
+  if win_config.relative ~= "" then
+    vim.cmd("fclose!")
+  end
   if not vim.api.nvim_tabpage_is_valid(entry.tab_id) then
     vim.cmd("tabnew")
     entry.tab_id = vim.api.nvim_get_current_tabpage()
