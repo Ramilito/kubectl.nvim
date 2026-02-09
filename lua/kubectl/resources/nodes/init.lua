@@ -1,5 +1,6 @@
 local BaseResource = require("kubectl.resources.base_resource")
 local commands = require("kubectl.actions.commands")
+local hl = require("kubectl.actions.highlight")
 local kubectl_client = require("kubectl.client")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
@@ -44,12 +45,12 @@ function M.Drain(node)
     resource = node,
   }
   local data = {
-    { text = "grace period:", value = "-1", type = "option" },
-    { text = "timeout sec:", value = "5", type = "option" },
-    { text = "ignore daemonset:", value = "false", type = "flag" },
-    { text = "delete emptydir data:", value = "false", type = "flag" },
-    { text = "force:", value = "false", type = "flag" },
-    { text = "dry run:", value = "false", type = "flag" },
+    { text = "grace period:", value = "-1", type = "option", hl = hl.symbols.pending },
+    { text = "timeout sec:", value = "5", type = "option", hl = hl.symbols.pending },
+    { text = "ignore daemonset:", value = "false", type = "flag", hl = hl.symbols.pending },
+    { text = "delete emptydir data:", value = "false", type = "flag", hl = hl.symbols.pending },
+    { text = "force:", value = "false", type = "flag", hl = hl.symbols.pending },
+    { text = "dry run:", value = "false", type = "flag", hl = hl.symbols.pending },
   }
   if builder then
     builder.action_view(node_def, data, function(args)
@@ -98,10 +99,10 @@ function M.Shell(node)
   local builder = manager.get_or_create(def.resource)
 
   local data = {
-    { text = "namespace:", value = "default", type = "option" },
-    { text = "image:", value = "busybox:latest", type = "option" },
-    { text = "cpu limit:", value = "", type = "option" },
-    { text = "mem limit:", value = "", type = "option" },
+    { text = "namespace:", value = "default", type = "option", hl = hl.symbols.pending },
+    { text = "image:", value = "busybox:latest", type = "option", hl = hl.symbols.pending },
+    { text = "cpu limit:", value = "", type = "option", hl = hl.symbols.pending },
+    { text = "mem limit:", value = "", type = "option", hl = hl.symbols.pending },
   }
 
   builder.action_view(def, data, function(args)
