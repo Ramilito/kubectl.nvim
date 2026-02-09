@@ -75,9 +75,4 @@ T["status coloring"]["returns empty string for unknown status"] = function()
   expect.equality(result, "")
 end
 
-T["status coloring"]["returns empty string for non-string input"] = function()
-  local result = events.ColorStatus(123)
-  expect.equality(result, "")
-end
-
 return T

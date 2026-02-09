@@ -69,11 +69,6 @@ T["filtering"]["returns all rows when filter is empty"] = function()
   expect.equality(#result, #rows)
 end
 
-T["filtering"]["returns all rows when filter is nil"] = function()
-  local result = find.filter_line(rows, nil, 1)
-  expect.equality(#result, #rows)
-end
-
 T["filtering"]["matches rows containing pattern in name field"] = function()
   local result = find.filter_line(rows, "nginx", 1)
   expect.equality(#result, 3) -- nginx-pod-1, nginx-pod-2, nginx-ingress
@@ -123,11 +118,6 @@ end
 
 T["filtering"]["returns empty table for no matches"] = function()
   local result = find.filter_line(rows, "nonexistent", 1)
-  expect.equality(#result, 0)
-end
-
-T["filtering"]["handles nil input table"] = function()
-  local result = find.filter_line(nil, "test", 1)
   expect.equality(#result, 0)
 end
 

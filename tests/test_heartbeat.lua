@@ -40,6 +40,7 @@ T["heartbeat"]["shows ok when API server is healthy"] = function()
   local hb = get_heartbeat_mark(marks)
 
   expect.no_equality(hb, nil)
+  ---@cast hb -nil
   expect.equality(hb.virt_text[1][1], "Heartbeat: ")
   expect.equality(hb.virt_text[1][2], hl.symbols.note)
   expect.equality(hb.virt_text[2][1], "ok")
@@ -54,6 +55,7 @@ T["heartbeat"]["shows pending when health is unknown"] = function()
   local hb = get_heartbeat_mark(marks)
 
   expect.no_equality(hb, nil)
+  ---@cast hb -nil
   expect.equality(hb.virt_text[2][1], "pending")
   expect.equality(hb.virt_text[2][2], hl.symbols.warning)
 end
@@ -67,6 +69,7 @@ T["heartbeat"]["shows failed with elapsed time when API server is down"] = funct
   local hb = get_heartbeat_mark(marks)
 
   expect.no_equality(hb, nil)
+  ---@cast hb -nil
   expect.equality(hb.virt_text[1][1], "Heartbeat: ")
   expect.equality(hb.virt_text[2][1], "failed ")
   expect.equality(hb.virt_text[2][2], hl.symbols.error)
