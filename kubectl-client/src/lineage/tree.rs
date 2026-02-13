@@ -1,10 +1,12 @@
 use super::query::GraphQuery;
 use k8s_openapi::serde::{Deserialize, Serialize};
-use petgraph::algo::is_cyclic_directed;
 use petgraph::graph::{DiGraph, NodeIndex};
-use petgraph::visit::{EdgeFiltered, EdgeRef};
+use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 use std::collections::{HashMap, HashSet};
+
+type MissingTargets = HashMap<String, Vec<(String, String)>>;
+type NodeMissingRefs = HashMap<String, HashMap<String, Vec<String>>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resource {
@@ -185,9 +187,9 @@ impl Tree {
     fn build_explicit_relation_edges(
         &mut self,
         node_keys: &[String],
-    ) -> (HashMap<String, Vec<(String, String)>>, HashMap<String, HashMap<String, Vec<String>>>) {
-        let mut missing_targets: HashMap<String, Vec<(String, String)>> = HashMap::new();
-        let mut node_missing_refs: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
+    ) -> (MissingTargets, NodeMissingRefs) {
+        let mut missing_targets: MissingTargets = HashMap::new();
+        let mut node_missing_refs: NodeMissingRefs = HashMap::new();
 
         for node_key in node_keys {
             let node_idx = self.key_to_index[node_key];
@@ -237,7 +239,7 @@ impl Tree {
         (missing_targets, node_missing_refs)
     }
 
-    fn log_missing_targets(missing_targets: &HashMap<String, Vec<(String, String)>>) {
+    fn log_missing_targets(missing_targets: &MissingTargets) {
         if missing_targets.is_empty() {
             return;
         }
@@ -270,7 +272,7 @@ impl Tree {
         }
     }
 
-    fn store_missing_refs(&mut self, node_missing_refs: HashMap<String, HashMap<String, Vec<String>>>) {
+    fn store_missing_refs(&mut self, node_missing_refs: NodeMissingRefs) {
         for (node_key, missing_refs_map) in node_missing_refs {
             if let Some(&idx) = self.key_to_index.get(&node_key) {
                 if let Some(resource) = self.graph.node_weight_mut(idx) {
@@ -301,6 +303,9 @@ impl Tree {
 
     #[cfg(debug_assertions)]
     fn validate_ownership_dag(&self) {
+        use petgraph::algo::is_cyclic_directed;
+        use petgraph::visit::EdgeFiltered;
+
         let ownership_graph = EdgeFiltered::from_fn(&self.graph, |edge| {
             *edge.weight() == EdgeType::Owns
         });
