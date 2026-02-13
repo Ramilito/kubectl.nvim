@@ -1,7 +1,6 @@
 local BaseResource = require("kubectl.resources.base_resource")
 local commands = require("kubectl.actions.commands")
 local hl = require("kubectl.actions.highlight")
-local kubectl_client = require("kubectl.client")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
 local terminal = require("kubectl.utils.terminal")
@@ -117,7 +116,7 @@ function M.Shell(node)
       terminal.spawn_terminal(
         string.format("node-shell | %s", node),
         "k8s_node_shell",
-        kubectl_client.node_shell,
+        require("kubectl.client").node_shell,
         false,
         shell_config
       )

@@ -1,4 +1,3 @@
-local client = require("kubectl.client")
 local commands = require("kubectl.actions.commands")
 local config = require("kubectl.config")
 local definition = require("kubectl.resources.containers.definition")
@@ -104,7 +103,7 @@ function M.exec(pod, ns, is_fullscreen)
   terminal.spawn_terminal(
     string.format("%s | %s: %s | %s", "container", pod, M.selection, ns),
     "k8s_exec",
-    client.exec,
+    require("kubectl.client").exec,
     is_fullscreen,
     { namespace = ns, pod = pod, container = M.selection, cmd = exec_cmd }
   )
@@ -132,7 +131,7 @@ function M.debug(pod, ns, is_fullscreen)
     terminal.spawn_terminal(
       cmd_args.name,
       "k8s_debug",
-      client.debug,
+      require("kubectl.client").debug,
       is_fullscreen,
       { namespace = ns, pod = pod, image = cmd_args.image, target = M.selection }
     )

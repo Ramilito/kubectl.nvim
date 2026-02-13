@@ -1,6 +1,5 @@
 --- LogSession manager
 --- Uses resource_manager for instance lifecycle, adds streaming-specific behavior
-local client = require("kubectl.client")
 local config = require("kubectl.config")
 local manager = require("kubectl.resource_manager")
 
@@ -96,6 +95,7 @@ local function create_session(buf, win, options)
       return false
     end
 
+    local client = require("kubectl.client")
     local ok, sess = pcall(client.log_session, {
       pods = pods,
       container = container,

@@ -1,7 +1,6 @@
 --- DescribeSession manager
 --- Handles polling-based describe with auto-refresh toggle
 local buffers = require("kubectl.actions.buffers")
-local client = require("kubectl.client")
 local loop = require("kubectl.utils.loop")
 local manager = require("kubectl.resource_manager")
 local state = require("kubectl.state")
@@ -70,6 +69,7 @@ local function create_session(buf, win, args, builder)
   function session:start()
     self:update_hints(true)
 
+    local client = require("kubectl.client")
     local ok, sess = pcall(client.describe_session, {
       name = self.args.name,
       namespace = self.args.namespace,
