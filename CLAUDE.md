@@ -25,6 +25,7 @@ When a task touches a domain, use that subagent. No exceptions.
 | LSP | `lsp` | ANY task involving completion, hover, diagnostics |
 | Statusline | `statusline` | ANY task involving statusline metrics or display |
 | Lineage | `lineage` | ANY task involving resource lineage, relationship graphs, owner references |
+| Testing | `testing` | ANY task involving writing tests, test infrastructure, mini.test |
 
 ### Rule 3: Use Verification Subagents
 
@@ -73,7 +74,15 @@ make clean         # Remove build artifacts
 
 ## Testing
 
-No automated test suite. Manual testing via minimal reproduction setup:
+Automated tests use `mini.test` (from mini.nvim), run via `nvim --headless`:
+```bash
+make test              # Run all tests
+make test FILE=<path>  # Run specific test file
+```
+
+Tests live in `tests/`. See `.claude/agents/testing.md` for the testing philosophy.
+
+Manual testing via minimal reproduction setup:
 ```bash
 nvim -u repro.lua
 ```

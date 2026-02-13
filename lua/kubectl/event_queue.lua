@@ -1,5 +1,3 @@
-local client = require("kubectl.client")
-
 local M = {
   callbacks = {},
 }
@@ -25,6 +23,7 @@ function M.unregister(name)
 end
 
 function M.start(interval_ms)
+  local client = require("kubectl.client")
   client.setup_queue()
   M.timer = vim.uv.new_timer()
   M.timer:start(

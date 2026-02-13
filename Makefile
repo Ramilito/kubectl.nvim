@@ -12,6 +12,14 @@ stylua:
 .PHONY: check
 check: llscheck luacheck stylua
 
+.PHONY: test
+test:
+ifdef FILE
+	nvim --headless --noplugin -u tests/helpers/init.lua -c "lua MiniTest.run_file('$(FILE)')"
+else
+	nvim --headless --noplugin -u tests/helpers/init.lua -c "lua MiniTest.run()"
+endif
+
 .PHONY: clean
 clean:
 	cargo clean
