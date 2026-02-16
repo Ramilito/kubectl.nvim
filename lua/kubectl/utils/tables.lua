@@ -270,11 +270,20 @@ local function addContextRows(context)
   return items
 end
 
+local function parseVersion(value)
+  return tonumber(tostring(value):match("%d+"))
+end
+
 local function addVersionsRows(versions)
-  local client_major = tonumber(versions.client.major)
-  local client_minor = tonumber(versions.client.minor)
-  local server_major = tonumber(versions.server.major)
-  local server_minor = tonumber(versions.server.minor)
+  local client_major = parseVersion(versions.client.major)
+  local client_minor = parseVersion(versions.client.minor)
+  local server_major = parseVersion(versions.server.major)
+  local server_minor = parseVersion(versions.server.minor)
+
+  if not client_major or not client_minor or not server_major or not server_minor then
+    return {}
+  end
+
   local client_ver = client_major .. "." .. client_minor
   local server_ver = server_major .. "." .. server_minor
   local items = {}
