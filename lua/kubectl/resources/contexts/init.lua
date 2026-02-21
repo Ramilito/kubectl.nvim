@@ -49,7 +49,9 @@ function M.View()
     end
     vim.cmd("stopinsert")
     vim.api.nvim_set_option_value("modified", false, { buf = buf })
-    vim.cmd.fclose()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
   end)
 
   vim.cmd("startinsert")

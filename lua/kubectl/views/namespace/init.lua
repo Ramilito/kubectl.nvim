@@ -48,7 +48,9 @@ function M.View()
     end
     vim.cmd("stopinsert")
     vim.api.nvim_set_option_value("modified", false, { buf = buf })
-    vim.cmd.fclose()
+    if vim.api.nvim_win_is_valid(builder.win_nr) then
+      vim.api.nvim_win_close(builder.win_nr, true)
+    end
     vim.schedule(function()
       vim.api.nvim_input("<Plug>(kubectl.refresh)")
     end)

@@ -268,19 +268,27 @@ function M.execute(args)
     return
   end
 
-  -- Run kubectl and show output
+  -- Run kubectl and show output.
+  -- Use vim.schedule to defer window creation until after CmdlineLeave handlers
+  -- finish, preventing E481/invalid-window-id conflicts with blink.cmp.
   local output, err = kubectl_sync(args)
   if err then
-    vim.notify("kubectl error: " .. err, vim.log.levels.ERROR)
+    vim.schedule(function()
+      vim.notify("kubectl error: " .. err, vim.log.levels.ERROR)
+    end)
     return
   end
   if #output == 0 then
-    vim.notify("kubectl: command produced no output", vim.log.levels.INFO)
+    vim.schedule(function()
+      vim.notify("kubectl: command produced no output", vim.log.levels.INFO)
+    end)
     return
   end
 
   local title = "kubectl " .. table.concat(args, " ")
-  open_split(output, title, args)
+  vim.schedule(function()
+    open_split(output, title, args)
+  end)
 end
 
 --- Filter completions by prefix
