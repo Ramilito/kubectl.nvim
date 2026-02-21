@@ -65,7 +65,9 @@ function M.View()
     end
 
     vim.api.nvim_set_option_value("modified", false, { buf = buf })
-    vim.cmd.fclose()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
     vim.api.nvim_input("<Plug>(kubectl.refresh)")
   end)
 
