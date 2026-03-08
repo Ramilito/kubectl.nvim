@@ -84,7 +84,7 @@ impl NodeCollector {
                                         let mem_q = capacity.get("memory")?;
 
                                         let cpu_cores = cpu_q.to_f64().unwrap_or(0.0);
-                                        let mem_bytes = mem_q.to_f64().unwrap_or(0.0) as i64;
+                                        let mem_bytes = mem_q.to_memory().unwrap_or(0);
                                         let status = get_status(&n);
                                         Some((n.name_any(), (status.value, cpu_cores, mem_bytes)))
                                     })
@@ -98,7 +98,7 @@ impl NodeCollector {
                                         let (status, cap_cpu, cap_mem) = cap.get(&name)?;
 
                                         let used_cpu = m.usage.cpu.to_f64().unwrap_or(0.0);
-                                        let used_mem = m.usage.memory.to_f64().unwrap_or(0.0).max(0.0);
+                                        let used_mem = m.usage.memory.to_memory().unwrap_or(0).max(0) as f64;
                                         let cap_mem_f = *cap_mem as f64;
 
                                         let cpu_pct = if *cap_cpu > 0.0 {
