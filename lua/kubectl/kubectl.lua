@@ -209,7 +209,11 @@ function M.execute(args)
 
     kubectl_main.init(function(ok)
       if ok then
-        require("kubectl.views").resource_or_fallback(resource)
+        if resource == "alias" then
+          require("kubectl.views.alias").View()
+        else
+          require("kubectl.views").resource_or_fallback(resource)
+        end
       end
     end)
     return
