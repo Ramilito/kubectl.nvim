@@ -423,6 +423,10 @@ function M.buffer(filetype, title)
   local buf = M.get_buffer_by_name(bufname)
   local win = layout.main_layout()
 
+  if not win then
+    return nil, nil
+  end
+
   if not buf then
     buf = create_buffer(bufname)
     vim.schedule(function()

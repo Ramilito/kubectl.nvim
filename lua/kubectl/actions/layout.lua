@@ -33,10 +33,14 @@ function M.set_buf_options(buf, filetype, syntax, bufname)
 end
 
 --- Get the main layout window.
---- @return integer: The current window number.
+--- @return integer|nil: The current window number.
 function M.main_layout()
-  -- TODO: Should we create a new win?
-  return api.nvim_get_current_win()
+  local current_win = api.nvim_get_current_win()
+  local cfg = api.nvim_win_get_config(current_win)
+  if cfg.relative ~= "" then
+    return nil
+  end
+  return current_win
 end
 
 --- Create a float dynamic layout.
