@@ -469,19 +469,25 @@ end
 --- @param opts FramedBufferConfig
 --- @return FramedBufferResult
 function M.framed_buffer(opts)
-  -- Create buffers
-  local hints_buf = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_name(hints_buf, "kubectl://" .. (opts.filetype or "frame") .. "_hints")
+  -- Create or reuse buffers
+  local hints_bufname = (opts.filetype or "frame") .. "_hints"
+  local hints_buf = M.get_buffer_by_name(hints_bufname)
+  if not hints_buf then
+    hints_buf = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_name(hints_buf, "kubectl://" .. hints_bufname)
+  end
 
   local pane_bufs = {}
   for i, pane_opts in ipairs(opts.panes) do
-    if pane_opts.prompt then
+    local pane_bufname = (opts.filetype or "frame") .. "_pane_" .. i
+    pane_bufs[i] = M.get_buffer_by_name(pane_bufname)
+    if not pane_bufs[i] then
       pane_bufs[i] = api.nvim_create_buf(false, true)
-      api.nvim_set_option_value("buftype", "prompt", { buf = pane_bufs[i] })
-    else
-      pane_bufs[i] = api.nvim_create_buf(false, true)
+      if pane_opts.prompt then
+        api.nvim_set_option_value("buftype", "prompt", { buf = pane_bufs[i] })
+      end
+      api.nvim_buf_set_name(pane_bufs[i], "kubectl://" .. pane_bufname)
     end
-    api.nvim_buf_set_name(pane_bufs[i], "kubectl://" .. (opts.filetype or "frame") .. "_pane_" .. i)
   end
 
   -- Create windows via layout
