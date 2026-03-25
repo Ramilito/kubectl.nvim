@@ -1,4 +1,3 @@
-local buffers = require("kubectl.actions.buffers")
 local commands = require("kubectl.actions.commands")
 local deployment_view = require("kubectl.resources.deployments")
 local hl = require("kubectl.actions.highlight")
@@ -35,34 +34,37 @@ M.overrides = {
           local current_replicas = tostring(builder.data.spec.replicas)
 
           vim.schedule(function()
-            vim.ui.input({ prompt = "Scale replicas: ", default = current_replicas }, function(input)
-              if not input then
-                return
-              end
-              buffers.confirmation_buffer(
-                string.format("Are you sure that you want to scale the deployment to %s replicas?", input),
-                "prompt",
-                function(confirm)
-                  if not confirm then
-                    return
-                  end
+            local def = {
+              resource = "deployment_scale",
+              display = "Scale " .. ns .. "/" .. name,
+              ft = "k8s_action",
+            }
 
-                  commands.run_async("scale_async", {
-                    gvk = deployment_view.definition.gvk,
-                    name = name,
-                    namespace = ns,
-                    replicas = tonumber(input),
-                  }, function(result, err)
-                    vim.schedule(function()
-                      if err then
-                        vim.notify("could not scale resource: ", err)
-                      else
-                        vim.notify(result)
-                      end
-                    end)
-                  end)
-                end
-              )
+            local action_data = {
+              {
+                text = "Replicas:",
+                value = current_replicas,
+                type = "positional",
+              },
+            }
+
+            builder.data = {}
+            builder.action_view(def, action_data, function(args)
+              local replicas = args[1] and args[1].value or current_replicas
+              commands.run_async("scale_async", {
+                gvk = deployment_view.definition.gvk,
+                name = name,
+                namespace = ns,
+                replicas = tonumber(replicas),
+              }, function(result, err)
+                vim.schedule(function()
+                  if err then
+                    vim.notify("could not scale resource: " .. err)
+                  else
+                    vim.notify(result)
+                  end
+                end)
+              end)
             end)
           end)
         end
