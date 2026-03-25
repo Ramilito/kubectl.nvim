@@ -139,7 +139,7 @@ end
 --- Get current seletion for view
 ---@return string|nil, string|nil
 function M.getCurrentSelection()
-  local name_col, ns_col = tables.getColumnIndices(M.definition.resource, M.definition.headers)
+  local name_col, ns_col = tables.getColumnIndices(M.definition.resource, M.definition.headers or {})
   if not name_col then
     return nil, nil
   end
