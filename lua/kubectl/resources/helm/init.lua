@@ -11,7 +11,7 @@ local M = {
     display_name = "Helm",
     ft = "k8s_helm",
     cmd = "helm",
-    url = { "ls", "-a", "-A", "--output", "json" },
+    url = { "ls", "-A", "--output", "json" },
     hints = {
       { key = "<Plug>(kubectl.kill)", desc = "uninstall" },
       { key = "<Plug>(kubectl.values)", desc = "values" },
@@ -43,7 +43,7 @@ end
 
 local function get_args()
   local ns_filter = state.getNamespace()
-  local args = add_namespace({ "ls", "-a", "--output", "json" }, ns_filter)
+  local args = add_namespace({ "ls", "--output", "json" }, ns_filter)
   return args
 end
 
@@ -90,7 +90,8 @@ function M.Desc(name, ns)
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     syntax = "yaml",
-    args = { "status", name, "-n", ns, "--show-desc" },
+    -- Helm 4 removed --show-desc; default status output still includes the release description.
+    args = { "status", name, "-n", ns },
   }
 
   local builder = manager.get_or_create(def.resource)
@@ -114,7 +115,8 @@ function M.Yaml(name, ns)
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_yaml",
     syntax = "yaml",
-    args = { "get", "manifest", name },
+    -- Namespace required when the same release name exists in more than one namespace.
+    args = { "get", "manifest", name, "-n", ns },
   }
 
   local builder = manager.get_or_create(def.resource)
