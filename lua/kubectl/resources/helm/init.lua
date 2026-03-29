@@ -90,7 +90,7 @@ function M.Desc(name, ns)
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     syntax = "yaml",
-    args = { "status", name, "-n", ns, "--show-desc" },
+    args = { "status", name, "-n", ns },
   }
 
   local builder = manager.get_or_create(def.resource)
