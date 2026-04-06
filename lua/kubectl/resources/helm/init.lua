@@ -11,7 +11,8 @@ local M = {
     display_name = "Helm",
     ft = "k8s_helm",
     cmd = "helm",
-    url = { "ls", "-A", "--output", "json" },
+    url = {},
+    version = nil,
     hints = {
       { key = "<Plug>(kubectl.kill)", desc = "uninstall" },
       { key = "<Plug>(kubectl.values)", desc = "values" },
@@ -29,6 +30,16 @@ local M = {
   },
 }
 
+local function get_version()
+  if M.version then
+    return M.version
+  end
+
+  local result = commands.shell_command("helm", { "version", "--template='{{.Version}}'" })
+  M.version = tonumber(result:match("v(%d+)")) or 3
+  return M.version
+end
+
 local function add_namespace(args, ns)
   if ns then
     if ns == "All" then
@@ -41,14 +52,16 @@ local function add_namespace(args, ns)
   return args
 end
 
-local function get_args()
+local function get_args(version)
   local ns_filter = state.getNamespace()
-  local args = add_namespace({ "ls", "--output", "json" }, ns_filter)
+  local base = version < 4 and { "ls", "-a", "--output", "json" } or { "ls", "--output", "json" }
+  local args = add_namespace(base, ns_filter)
   return args
 end
 
 function M.View(cancellationToken)
-  M.definition.url = get_args()
+  M.definition.version = get_version()
+  M.definition.url = get_args(M.definition.version)
   local builder = manager.get_or_create(M.definition.resource)
   builder.definition = M.definition
   builder.buf_nr, builder.win_nr = buffers.buffer(M.definition.ft, builder.resource)
@@ -85,12 +98,16 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(name, ns)
+  local status_args = { "status", name, "-n", ns }
+  if get_version() < 4 then
+    table.insert(status_args, "--show-desc")
+  end
   local def = {
     resource = M.definition.resource .. "_desc",
     display_name = M.definition.resource .. " | " .. name .. " | " .. ns,
     ft = "k8s_desc",
     syntax = "yaml",
-    args = { "status", name, "-n", ns },
+    args = status_args,
   }
 
   local builder = manager.get_or_create(def.resource)
