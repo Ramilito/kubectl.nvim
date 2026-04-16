@@ -17,11 +17,10 @@ function BaseResource.extend(definition, options)
     is_cluster_scoped = not vim.tbl_contains(definition.headers or {}, "NAMESPACE")
   end
 
+  definition.is_cluster_scoped = is_cluster_scoped
+
   local M = {
     definition = definition,
-    _options = {
-      is_cluster_scoped = is_cluster_scoped,
-    },
   }
 
   --- View the resource list
@@ -49,7 +48,7 @@ function BaseResource.extend(definition, options)
   ---@param _ boolean|nil Whether to reload (deprecated, kept for API compatibility)
   function M.Desc(name, ns, _)
     local gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v }
-    local namespace = M._options.is_cluster_scoped and nil or ns
+    local namespace = M.definition.is_cluster_scoped and nil or ns
     describe_session.view(M.definition.resource, name, namespace, gvk)
   end
 
@@ -76,7 +75,7 @@ function BaseResource.extend(definition, options)
     builder.view_framed(def, {
       args = {
         gvk = M.definition.gvk,
-        namespace = M._options.is_cluster_scoped and nil or ns,
+        namespace = M.definition.is_cluster_scoped and nil or ns,
         name = name,
         output = "yaml",
       },

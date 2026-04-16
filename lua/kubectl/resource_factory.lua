@@ -262,8 +262,12 @@ function M.new(resource)
     builder.buf_nr, builder.win_nr = buffers.buffer(definition.ft, builder.resource)
     state.addToHistory(builder.resource)
 
-    -- Use namespace from state to support users with namespace-scoped permissions only
-    local ns = (state.ns and state.ns ~= "All") and state.ns or nil
+    local ns = nil
+    if not definition.is_cluster_scoped then
+      if state.ns and state.ns ~= "All" then
+        ns = state.ns
+      end
+    end
     commands.run_async("start_reflector_async", { gvk = definition.gvk, namespace = ns }, function(_, err)
       if err then
         return
@@ -297,7 +301,12 @@ function M.new(resource)
     local definition = builder.definition or {}
     local sort_data = state.sortby[resource]
 
-    local namespace = (state.ns and state.ns ~= "All") and state.ns or nil
+    local namespace = nil
+    if not definition.is_cluster_scoped then
+      if state.ns and state.ns ~= "All" then
+        namespace = state.ns
+      end
+    end
     local sort_by = sort_data and sort_data.current_word or nil
     local sort_order = sort_data and sort_data.order or nil
     local filter = state.getFilter() or nil
