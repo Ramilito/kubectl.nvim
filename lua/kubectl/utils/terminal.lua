@@ -83,8 +83,12 @@ function M.spawn_terminal(title, key, fn, is_fullscreen, ...)
   end
 
   vim.schedule(function()
-    vim.api.nvim_set_current_win(win)
-    M.attach_session(sess, buf, win)
+    if win and buf then
+      vim.api.nvim_set_current_win(win)
+      M.attach_session(sess, buf, win)
+    else
+      vim.notify("Cannot attach to terminal without a valid buffer or window", vim.log.levels.WARN)
+    end
   end)
 end
 
