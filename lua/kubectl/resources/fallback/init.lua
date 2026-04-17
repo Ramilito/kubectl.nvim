@@ -36,14 +36,14 @@ function M.View(cancellationToken, kind)
   M.definition.ft = "k8s_" .. resource.name
   M.definition.plural = resource.plural
   M.definition.crd_name = resource.crd_name
-  M.definition.is_cluster_scoped = not resource.namespaced
+  M.definition.namespaced = resource.namespaced
 
   local builder = manager.get_or_create(M.definition.resource)
   builder.definition = M.definition
   builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, resource.name)
 
   local ns = nil
-  if not M.definition.is_cluster_scoped then
+  if M.definition.namespaced then
     if state.ns and state.ns ~= "All" then
       ns = state.ns
     end
@@ -64,7 +64,7 @@ function M.Draw(cancellationToken)
   end
 
   local ns = nil
-  if not builder.definition.is_cluster_scoped then
+  if builder.definition.namespaced then
     if state.ns and state.ns ~= "All" then
       ns = state.ns
     end

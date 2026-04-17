@@ -6,18 +6,11 @@ local BaseResource = {}
 
 --- Create a new resource module based on BaseResource
 ---@param definition table The resource definition table
----@param options? table Optional configuration (is_cluster_scoped)
 ---@return table The resource module with View, Draw, Desc, getCurrentSelection
-function BaseResource.extend(definition, options)
-  options = options or {}
-
-  -- Auto-detect cluster-scoped from headers (no NAMESPACE = cluster-scoped)
-  local is_cluster_scoped = options.is_cluster_scoped
-  if is_cluster_scoped == nil then
-    is_cluster_scoped = not vim.tbl_contains(definition.headers or {}, "NAMESPACE")
+function BaseResource.extend(definition)
+  if definition.namespaced == nil then
+    definition.namespaced = vim.tbl_contains(definition.headers or {}, "NAMESPACE")
   end
-
-  definition.is_cluster_scoped = is_cluster_scoped
 
   local M = {
     definition = definition,
@@ -48,7 +41,10 @@ function BaseResource.extend(definition, options)
   ---@param _ boolean|nil Whether to reload (deprecated, kept for API compatibility)
   function M.Desc(name, ns, _)
     local gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v }
-    local namespace = M.definition.is_cluster_scoped and nil or ns
+    local namespace = nil
+    if M.definition.namespaced then
+      namespace = ns
+    end
     describe_session.view(M.definition.resource, name, namespace, gvk)
   end
 
@@ -75,7 +71,7 @@ function BaseResource.extend(definition, options)
     builder.view_framed(def, {
       args = {
         gvk = M.definition.gvk,
-        namespace = M.definition.is_cluster_scoped and nil or ns,
+        namespace = M.definition.namespaced and ns or nil,
         name = name,
         output = "yaml",
       },

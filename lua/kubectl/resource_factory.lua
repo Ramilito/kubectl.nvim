@@ -263,7 +263,7 @@ function M.new(resource)
     state.addToHistory(builder.resource)
 
     local ns = nil
-    if not definition.is_cluster_scoped then
+    if definition.namespaced then
       if state.ns and state.ns ~= "All" then
         ns = state.ns
       end
@@ -302,7 +302,7 @@ function M.new(resource)
     local sort_data = state.sortby[resource]
 
     local namespace = nil
-    if not definition.is_cluster_scoped then
+    if definition.namespaced then
       if state.ns and state.ns ~= "All" then
         namespace = state.ns
       end
