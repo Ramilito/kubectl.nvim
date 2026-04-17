@@ -22,9 +22,6 @@ local M = BaseResource.extend({
     "MESSAGE",
     "NAME",
   },
-}, {
-  name_column_index = 8,
-  namespace_column_index = 1,
 })
 
 function M.ShowMessage(ns, object, event)

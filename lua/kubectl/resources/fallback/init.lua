@@ -36,13 +36,18 @@ function M.View(cancellationToken, kind)
   M.definition.ft = "k8s_" .. resource.name
   M.definition.plural = resource.plural
   M.definition.crd_name = resource.crd_name
+  M.definition.namespaced = resource.namespaced
 
   local builder = manager.get_or_create(M.definition.resource)
   builder.definition = M.definition
   builder.buf_nr, builder.win_nr = buffers.buffer(builder.definition.ft, resource.name)
 
-  -- Use namespace from state to support users with namespace-scoped permissions only
-  local ns = (state.ns and state.ns ~= "All") and state.ns or nil
+  local ns = nil
+  if M.definition.namespaced then
+    if state.ns and state.ns ~= "All" then
+      ns = state.ns
+    end
+  end
   commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = ns }, function()
     vim.schedule(function()
       M.Draw(cancellationToken)
@@ -59,8 +64,10 @@ function M.Draw(cancellationToken)
   end
 
   local ns = nil
-  if state.ns and state.ns ~= "All" then
-    ns = state.ns
+  if builder.definition.namespaced then
+    if state.ns and state.ns ~= "All" then
+      ns = state.ns
+    end
   end
 
   local filter = state.getFilter()
