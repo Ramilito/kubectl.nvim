@@ -253,12 +253,6 @@ function M.download_if_available(callback)
         vim.log.levels.WARN,
         { title = "kubectl.nvim" }
       )
-    else
-      vim.notify(
-        "[kubectl.nvim] Binary download complete. Please restart Neovim.",
-        vim.log.levels.INFO,
-        { title = "kubectl.nvim" }
-      )
     end
     callback(err)
   end)
