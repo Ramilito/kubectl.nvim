@@ -245,7 +245,7 @@ function M.download_if_available(callback)
     output_dir = "/target/release",
     binary_name = "kubectl_client", -- excluding `lib` prefix
   }, function(err)
-    if err ~= nil then
+    if err and err ~= nil then
       vim.notify(
         "[kubectl.nvim] Binary not downloaded: "
           .. tostring(err)
