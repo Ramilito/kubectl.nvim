@@ -244,7 +244,18 @@ function M.download_if_available(callback)
     root_dir = root_dir,
     output_dir = "/target/release",
     binary_name = "kubectl_client", -- excluding `lib` prefix
-  }, callback)
+  }, function(err)
+    if err and err ~= nil then
+      vim.notify(
+        "[kubectl.nvim] Binary not downloaded: "
+          .. tostring(err)
+          .. ". Ensure your plugin manager has kubectl.nvim checked out at a tagged release commit.",
+        vim.log.levels.WARN,
+        { title = "kubectl.nvim" }
+      )
+    end
+    callback(err)
+  end)
 end
 
 return M
