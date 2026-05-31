@@ -95,7 +95,10 @@ function M.View()
     pattern = "K8sDataLoaded",
     callback = function()
       vim.schedule(function()
-        M.Draw()
+        local ft = vim.bo.filetype
+        if ft and ft:match("^k8s_") then
+          M.Draw()
+        end
       end)
     end,
   })
@@ -146,7 +149,7 @@ function M.View()
 end
 
 function M.Draw()
-  if not config.options.headers.enabled and M.is_drawing then
+  if not config.options.headers.enabled or M.is_drawing then
     return
   end
   if is_overlapping() then
