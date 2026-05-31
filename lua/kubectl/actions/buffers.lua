@@ -393,10 +393,10 @@ function M.header_buffer(win)
   local win_opts = {
     relative = "editor",
     anchor = "NW",
-    width = col,
+    width = width,
     height = height,
     row = row,
-    col = total_cols,
+    col = col,
     style = "minimal",
     border = "rounded",
     focusable = false,
