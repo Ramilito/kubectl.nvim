@@ -447,6 +447,8 @@ function M.new(resource)
     opts = opts or {}
     builder.definition = definition or {}
 
+    local show_hints = definition.hints ~= nil and #definition.hints > 0
+
     local frame = buffers.framed_buffer({
       title = definition.title,
       filetype = definition.ft,
@@ -455,20 +457,15 @@ function M.new(resource)
       height = definition.height,
       recreate_func = opts.recreate_func,
       recreate_args = opts.recreate_args,
+      show_hints = show_hints,
     })
 
     builder.frame = frame
     builder.buf_nr = frame.panes[1].buf
     builder.win_nr = frame.panes[1].win
 
-    -- When there are no hints, drop the empty hints bar and move the panes up
-    -- to reclaim its space (1 hint line + 2 border rows).
-    local has_hints = definition.hints ~= nil and #definition.hints > 0
-    if not has_hints then
-      builder.removeHintsBar()
-    else
-      builder.renderHints()
-    end
+    -- Auto-render hints (no-op when the hints bar was omitted)
+    builder.renderHints()
 
     -- Set syntax if provided
     if definition.syntax then
@@ -515,6 +512,9 @@ function M.new(resource)
     end
 
     local hints_buf = builder.frame.hints_buf
+    if not hints_buf then
+      return builder
+    end
     local definition = builder.definition or {}
     local hints = definition.hints or {}
 
@@ -525,34 +525,6 @@ function M.new(resource)
     buffers.apply_marks(hints_buf, header_marks, {})
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = hints_buf })
-
-    return builder
-  end
-
-  --- Remove the (empty) hints bar window and shift the content panes up to
-  --- fill the gap. Used by hint-less framed views such as the YAML view.
-  --- @return table builder
-  function builder.removeHintsBar()
-    local frame = builder.frame
-    if not frame or not frame.hints_win then
-      return builder
-    end
-
-    -- Hints bar occupies 1 content line plus its top/bottom border.
-    local reclaimed = 3
-    if vim.api.nvim_win_is_valid(frame.hints_win) then
-      vim.api.nvim_win_close(frame.hints_win, true)
-    end
-    frame.hints_win = nil
-
-    for _, pane in ipairs(frame.panes) do
-      if vim.api.nvim_win_is_valid(pane.win) then
-        local cfg = vim.api.nvim_win_get_config(pane.win)
-        cfg.row = cfg.row - reclaimed
-        cfg.height = cfg.height + reclaimed
-        vim.api.nvim_win_set_config(pane.win, cfg)
-      end
-    end
 
     return builder
   end

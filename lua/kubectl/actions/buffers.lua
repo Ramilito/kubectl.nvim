@@ -457,6 +457,7 @@ end
 ---@field height number|nil Overall height ratio (default 0.8)
 ---@field recreate_func function|nil Function to recreate the view for picker restoration
 ---@field recreate_args table|nil Arguments to pass to recreate_func
+---@field show_hints boolean|nil Whether to render the hints bar (default true)
 
 ---@class FramedBufferResult
 ---@field hints_buf number Hints buffer
@@ -469,12 +470,17 @@ end
 --- @param opts FramedBufferConfig
 --- @return FramedBufferResult
 function M.framed_buffer(opts)
-  -- Create or reuse buffers
-  local hints_bufname = (opts.filetype or "frame") .. "_hints"
-  local hints_buf = M.get_buffer_by_name(hints_bufname)
-  if not hints_buf then
-    hints_buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_name(hints_buf, "kubectl://" .. hints_bufname)
+  local show_hints = opts.show_hints ~= false
+
+  -- Create or reuse buffers (skip the hints buffer when there's no hints bar)
+  local hints_buf = nil
+  if show_hints then
+    local hints_bufname = (opts.filetype or "frame") .. "_hints"
+    hints_buf = M.get_buffer_by_name(hints_bufname)
+    if not hints_buf then
+      hints_buf = api.nvim_create_buf(false, true)
+      api.nvim_buf_set_name(hints_buf, "kubectl://" .. hints_bufname)
+    end
   end
 
   local pane_bufs = {}
@@ -493,14 +499,16 @@ function M.framed_buffer(opts)
   -- Create windows via layout
   local win_result = layout.float_framed_windows(
     { hints_buf = hints_buf, pane_bufs = pane_bufs },
-    { title = opts.title, panes = opts.panes, width = opts.width, height = opts.height }
+    { title = opts.title, panes = opts.panes, width = opts.width, height = opts.height, show_hints = show_hints }
   )
 
   -- Set buffer options for hints buffer
-  api.nvim_set_option_value("buftype", "nofile", { buf = hints_buf })
-  api.nvim_set_option_value("bufhidden", "wipe", { buf = hints_buf })
-  api.nvim_set_option_value("swapfile", false, { buf = hints_buf })
-  api.nvim_set_option_value("modifiable", false, { buf = hints_buf })
+  if hints_buf then
+    api.nvim_set_option_value("buftype", "nofile", { buf = hints_buf })
+    api.nvim_set_option_value("bufhidden", "wipe", { buf = hints_buf })
+    api.nvim_set_option_value("swapfile", false, { buf = hints_buf })
+    api.nvim_set_option_value("modifiable", false, { buf = hints_buf })
+  end
 
   -- Set buffer options for pane buffers
   for i, pane_buf in ipairs(pane_bufs) do
@@ -525,7 +533,7 @@ function M.framed_buffer(opts)
 
   -- Close function
   local function close()
-    if api.nvim_win_is_valid(win_result.hints_win) then
+    if win_result.hints_win and api.nvim_win_is_valid(win_result.hints_win) then
       api.nvim_win_close(win_result.hints_win, true)
     end
     for _, pane in ipairs(panes) do
@@ -536,7 +544,7 @@ function M.framed_buffer(opts)
   end
 
   -- Setup cleanup autocmd on first pane close
-  local augroup = api.nvim_create_augroup("KubectlFramedBuffer_" .. hints_buf, { clear = true })
+  local augroup = api.nvim_create_augroup("KubectlFramedBuffer_" .. panes[1].buf, { clear = true })
   api.nvim_create_autocmd("WinClosed", {
     group = augroup,
     pattern = tostring(panes[1].win),
