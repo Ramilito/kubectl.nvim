@@ -275,9 +275,14 @@ function M.get_mappings()
               callback = function()
                 commands.run_async("edit_async", {
                   tmpfilename,
-                }, function(result)
+                }, function(result, err)
                   vim.schedule(function()
-                    vim.notify(result)
+                    if err then
+                      vim.notify(tostring(err), vim.log.levels.ERROR)
+                    else
+                      vim.notify(result, vim.log.levels.INFO)
+                      vim.fn.delete(tmpfilename)
+                    end
                   end)
                 end)
               end,
