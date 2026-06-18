@@ -460,8 +460,8 @@ end
 ---@field show_hints boolean|nil Whether to render the hints bar (default true)
 
 ---@class FramedBufferResult
----@field hints_buf number Hints buffer
----@field hints_win number Hints window
+---@field hints_buf number|nil Hints buffer (nil when the hints bar is omitted)
+---@field hints_win number|nil Hints window (nil when the hints bar is omitted)
 ---@field panes { buf: number, win: number }[] Array of pane buffer/window pairs
 ---@field close fun() Close all windows
 

@@ -160,7 +160,7 @@ end
 
 --- Create framed float windows with hints bar at top and content pane(s) below.
 --- This function only creates windows - buffer creation is handled by buffers.lua
---- @param bufs { hints_buf: number, pane_bufs: number[] } Buffers to attach to windows
+--- @param bufs { hints_buf: number|nil, pane_bufs: number[] } Buffers to attach to windows
 --- @param opts FramedLayoutConfig
 --- @return FramedWindowResult
 function M.float_framed_windows(bufs, opts)
@@ -179,7 +179,7 @@ function M.float_framed_windows(bufs, opts)
   -- Hints bar: 1 line of content (omitted entirely when there are no hints)
   local hints_win = nil
   local hints_height = 0
-  if show_hints then
+  if show_hints and bufs.hints_buf then
     hints_height = 1
     hints_win = api.nvim_open_win(bufs.hints_buf, false, {
       relative = "editor",
