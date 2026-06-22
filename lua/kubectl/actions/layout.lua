@@ -151,15 +151,16 @@ end
 ---@field panes FramedPaneConfig[] Pane configurations (1 or more)
 ---@field width number|nil Overall width ratio (default 0.8)
 ---@field height number|nil Overall height ratio (default 0.8)
+---@field show_hints boolean|nil Whether to create the hints bar window (default true)
 
 ---@class FramedWindowResult
----@field hints_win number Hints window
+---@field hints_win number|nil Hints window (nil when the hints bar is omitted)
 ---@field pane_wins number[] Array of pane window handles
 ---@field dimensions { total_width: number, total_height: number, content_height: number }
 
 --- Create framed float windows with hints bar at top and content pane(s) below.
 --- This function only creates windows - buffer creation is handled by buffers.lua
---- @param bufs { hints_buf: number, pane_bufs: number[] } Buffers to attach to windows
+--- @param bufs { hints_buf: number|nil, pane_bufs: number[] } Buffers to attach to windows
 --- @param opts FramedLayoutConfig
 --- @return FramedWindowResult
 function M.float_framed_windows(bufs, opts)
@@ -173,27 +174,33 @@ function M.float_framed_windows(bufs, opts)
   local col = math.floor((editor_width - total_width) / 2)
   local row = config.options.float_size.row
 
-  -- Hints bar: 1 line of content
-  local hints_height = 1
-  local content_height = total_height - hints_height - 2 -- subtract hints + border gap
+  local show_hints = opts.show_hints ~= false
 
-  -- Create hints window
-  local hints_win = api.nvim_open_win(bufs.hints_buf, false, {
-    relative = "editor",
-    width = total_width,
-    height = hints_height,
-    col = col,
-    row = row,
-    style = "minimal",
-    border = "rounded",
-    focusable = false,
-  })
+  -- Hints bar: 1 line of content (omitted entirely when there are no hints)
+  local hints_win = nil
+  local hints_height = 0
+  if show_hints and bufs.hints_buf then
+    hints_height = 1
+    hints_win = api.nvim_open_win(bufs.hints_buf, false, {
+      relative = "editor",
+      width = total_width,
+      height = hints_height,
+      col = col,
+      row = row,
+      style = "minimal",
+      border = "rounded",
+      focusable = false,
+    })
+  end
+
+  -- subtract hints + border gap (just the content border when there's no bar)
+  local content_height = total_height - hints_height - 2
 
   -- Create content pane windows
   local pane_wins = {}
   local num_panes = #opts.panes
   local pane_col = col
-  local content_row = row + hints_height + 2
+  local content_row = show_hints and (row + hints_height + 2) or row
 
   for i, pane_config in ipairs(opts.panes) do
     local pane_width
@@ -304,11 +311,9 @@ function M.fit_framed_to_content(frame, height_offset)
   local min_width = 100
   local dims = calc_content_dimensions(content_buf, height_offset, min_width)
 
-  -- Get current hints height
-  local hints_height = 1
-  if vim.api.nvim_win_is_valid(hints_win) then
-    hints_height = vim.api.nvim_win_get_config(hints_win).height or 1
-  end
+  -- Get current hints height (0 when the hints bar was omitted)
+  local has_hints = hints_win ~= nil and vim.api.nvim_win_is_valid(hints_win)
+  local hints_height = has_hints and (vim.api.nvim_win_get_config(hints_win).height or 1) or 0
 
   -- Calculate position for the whole frame (fixed top offset, centered horizontally)
   local border_size = 2
@@ -325,7 +330,7 @@ function M.fit_framed_to_content(frame, height_offset)
   local content_height = math.min(dims.height, max_content_height)
 
   -- Update hints window
-  if vim.api.nvim_win_is_valid(hints_win) then
+  if has_hints then
     local hints_config = vim.api.nvim_win_get_config(hints_win)
     hints_config.width = dims.width
     hints_config.col = col
@@ -338,7 +343,7 @@ function M.fit_framed_to_content(frame, height_offset)
   content_config.width = dims.width
   content_config.height = content_height
   content_config.col = col
-  content_config.row = row + hints_height + border_size
+  content_config.row = has_hints and (row + hints_height + border_size) or row
   vim.api.nvim_win_set_config(content_win, content_config)
 end
 
