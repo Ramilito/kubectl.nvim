@@ -1,5 +1,6 @@
 use k8s_openapi::serde_json;
-use kube::api::{Api, DynamicObject, GroupVersionKind, Patch, PatchParams, ResourceExt};
+use kube::api::{Api, DynamicObject, GroupVersionKind, PostParams, ResourceExt};
+use kube::core::Status;
 use kube::discovery;
 use mlua::prelude::*;
 use mlua::Result as LuaResult;
@@ -7,19 +8,24 @@ use mlua::Result as LuaResult;
 use crate::structs::CmdEditArgs;
 use crate::with_client;
 
+const FIELD_MANAGER: &str = "kubectl-edit-lua";
+
 #[tracing::instrument]
 pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
     let args: CmdEditArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
     with_client(move |client| async move {
-        let yaml_raw = std::fs::read_to_string(&args.path)
+        let edited_raw = std::fs::read_to_string(&args.path)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-        let yaml_val: serde_yaml::Value = serde_yaml::from_str(&yaml_raw)
+        let edited_yaml: serde_yaml::Value = serde_yaml::from_str(&edited_raw)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
-
-        let mut obj: DynamicObject = serde_yaml::from_value(yaml_val)
+        let mut obj: DynamicObject = serde_yaml::from_value(edited_yaml)
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+        obj.metadata.managed_fields = None;
+        if let Some(data) = obj.data.as_object_mut() {
+            data.remove("status");
+        }
 
         let namespace = obj.metadata.namespace.as_deref();
         let gvk = obj
@@ -47,52 +53,73 @@ pub async fn edit_async(_lua: Lua, json: String) -> LuaResult<String> {
             .await
             .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
 
-        live.managed_fields_mut().clear();
-        obj.managed_fields_mut().clear();
-        obj.metadata.managed_fields = None;
-        normalize_finalizers_for_ssa(&mut obj, &live);
-
-        let field_manager = "kubectl-edit-lua";
-        let patch = Patch::Merge(&obj);
-        let pp = PatchParams::apply(field_manager);
-
-        let mut simulated = match api.patch(&name, &pp.clone().dry_run(), &patch).await {
+        let mut simulated = match api.replace(&name, &put_params(true), &obj).await {
             Ok(o) => o,
             Err(kube::Error::Api(ae)) => {
-                return Ok(ae.message);
+                return Err(mlua::Error::RuntimeError(fmt_api_err(&ar.plural, &name, &ae)))
             }
-            Err(e) => {
-                return Ok(e.to_string());
-            }
+            Err(e) => return Err(mlua::Error::RuntimeError(e.to_string())),
         };
-        simulated.managed_fields_mut().clear();
 
-        let live_val = serde_json::to_value(&live)
-            .map_err(|e| mlua::Error::RuntimeError(format!("failed to serialize live object: {e}")))?;
-        let simulated_val = serde_json::to_value(&simulated)
-            .map_err(|e| mlua::Error::RuntimeError(format!("failed to serialize simulated object: {e}")))?;
-        let changed = live_val != simulated_val;
+        let mut edited = obj.clone();
+        clear_volatile(&mut live);
+        clear_volatile(&mut simulated);
+        clear_volatile(&mut edited);
 
-        if !changed {
-            return Ok(format!("no changes detected for {}/{}", ar.plural, name));
+        if live == simulated {
+            if edited == live {
+                return Ok(format!("no changes detected for {}/{}", ar.plural, name));
+            }
+            return Ok(format!(
+                "no effective change for {}/{}: the server kept the current value (defaulted, immutable, or status field)",
+                ar.plural, name
+            ));
         }
 
-        match api.patch(&name, &pp, &patch).await {
+        match api.replace(&name, &put_params(false), &obj).await {
             Ok(_) => Ok(format!("{}/{} edited", ar.kind, name)),
-            Err(kube::Error::Api(ae)) => Ok(ae.message),
-            Err(e) => Ok(e.to_string()),
+            Err(kube::Error::Api(ae)) => {
+                Err(mlua::Error::RuntimeError(fmt_api_err(&ar.plural, &name, &ae)))
+            }
+            Err(e) => Err(mlua::Error::RuntimeError(e.to_string())),
         }
     })
 }
 
-fn normalize_finalizers_for_ssa(obj: &mut DynamicObject, live: &DynamicObject) {
-    let user_removed_field = obj.metadata.finalizers.is_none();
-    let live_has_finalizers = live
-        .metadata
-        .finalizers
-        .as_ref().is_some_and(|v| !v.is_empty());
+fn put_params(dry_run: bool) -> PostParams {
+    PostParams {
+        dry_run,
+        field_manager: Some(FIELD_MANAGER.into()),
+    }
+}
 
-    if user_removed_field && live_has_finalizers {
-        obj.metadata.finalizers = Some(Vec::new());
+fn fmt_api_err(plural: &str, name: &str, s: &Status) -> String {
+    let mut out = if s.is_conflict() {
+        format!("conflict: {plural}/{name} changed on the server since you opened it — re-open (ge) and re-apply")
+    } else if s.is_not_found() {
+        format!("{plural}/{name} no longer exists (deleted while editing); nothing applied")
+    } else if s.is_invalid() {
+        format!("{plural}/{name} rejected as invalid: {}", s.message)
+    } else if s.is_forbidden() {
+        format!("{plural}/{name} forbidden: {}", s.message)
+    } else {
+        format!("failed to edit {plural}/{name}: {}", s.message)
+    };
+    if let Some(details) = &s.details {
+        for cause in &details.causes {
+            if !cause.field.is_empty() {
+                out.push_str(&format!("\n  - {}: {}", cause.field, cause.message));
+            }
+        }
+    }
+    out
+}
+
+fn clear_volatile(o: &mut DynamicObject) {
+    o.metadata.managed_fields = None;
+    o.metadata.resource_version = None;
+    o.metadata.generation = None;
+    if let Some(data) = o.data.as_object_mut() {
+        data.remove("status");
     }
 }
