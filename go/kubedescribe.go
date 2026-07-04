@@ -7,7 +7,9 @@ import "C"
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
+	"unsafe"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -20,6 +22,24 @@ import (
 	"k8s.io/kubectl/pkg/describe"
 )
 
+// libcGetenv reads an environment variable through libc's getenv(3) instead of
+// Go's runtime.envs cache. The Go runtime captures a snapshot of environ at
+// process startup; subsequent setenv(3) calls performed by the host process
+// (here: Neovim/libuv via vim.fn.setenv) are invisible to os.Getenv but visible
+// to libc. Without this bypass, KUBECONFIG changes made by the user after
+// Neovim has started (e.g. switching kube context via a plugin) are silently
+// ignored, and client-go falls back to ~/.kube/config — leading to requests
+// hitting the wrong cluster URL.
+func libcGetenv(key string) string {
+	cKey := C.CString(key)
+	defer C.free(unsafe.Pointer(cKey))
+	cVal := C.getenv(cKey)
+	if cVal == nil {
+		return ""
+	}
+	return C.GoString(cVal)
+}
+
 var (
 	cfgCache    sync.Map
 	mapperCache sync.Map
@@ -31,18 +51,32 @@ func gvrKey(ctx string, gvr schema.GroupVersionResource) string {
 }
 
 func getRestConfig(ctx string) (*rest.Config, error) {
-	if v, ok := cfgCache.Load(ctx); ok {
+	// Read KUBECONFIG via libc so that runtime updates from the host process
+	// (e.g. setenv() from the embedding plugin) are honored.
+	kubeconfigPath := libcGetenv("KUBECONFIG")
+
+	// Cache key includes the path: a KUBECONFIG switch must invalidate the
+	// cached *rest.Config for the same context name.
+	cacheKey := ctx + "|" + kubeconfigPath
+
+	if v, ok := cfgCache.Load(cacheKey); ok {
 		return v.(*rest.Config), nil
 	}
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if kubeconfigPath != "" {
+		// Force client-go to use the path read from libc, not the value cached
+		// by the Go runtime (which may be empty and would fall back to
+		// ~/.kube/config — the source of the bug above).
+		loadingRules.Precedence = filepath.SplitList(kubeconfigPath)
+	}
 	overrides := &clientcmd.ConfigOverrides{CurrentContext: ctx}
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
 	cfg, err := clientConfig.ClientConfig()
 	if err != nil {
 		return nil, err
 	}
-	if v, dup := cfgCache.LoadOrStore(ctx, cfg); dup {
+	if v, dup := cfgCache.LoadOrStore(cacheKey, cfg); dup {
 		return v.(*rest.Config), nil
 	}
 	return cfg, nil
