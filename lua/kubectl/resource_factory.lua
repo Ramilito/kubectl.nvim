@@ -447,6 +447,8 @@ function M.new(resource)
     opts = opts or {}
     builder.definition = definition or {}
 
+    local show_hints = definition.hints ~= nil and #definition.hints > 0
+
     local frame = buffers.framed_buffer({
       title = definition.title,
       filetype = definition.ft,
@@ -455,13 +457,14 @@ function M.new(resource)
       height = definition.height,
       recreate_func = opts.recreate_func,
       recreate_args = opts.recreate_args,
+      show_hints = show_hints,
     })
 
     builder.frame = frame
     builder.buf_nr = frame.panes[1].buf
     builder.win_nr = frame.panes[1].win
 
-    -- Auto-render hints
+    -- Auto-render hints (no-op when the hints bar was omitted)
     builder.renderHints()
 
     -- Set syntax if provided
@@ -509,6 +512,9 @@ function M.new(resource)
     end
 
     local hints_buf = builder.frame.hints_buf
+    if not hints_buf then
+      return builder
+    end
     local definition = builder.definition or {}
     local hints = definition.hints or {}
 
