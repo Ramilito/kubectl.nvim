@@ -645,6 +645,7 @@ end
 function M.register()
   local win_id = vim.api.nvim_get_current_win()
   local win_config = vim.api.nvim_win_get_config(win_id)
+  local is_action = vim.bo.filetype == "k8s_action"
   -- Global mappings
   if win_config.relative == "" then
     M.map_if_plug_not_set("n", "1", "<Plug>(kubectl.view_deployments)")
@@ -666,6 +667,10 @@ function M.register()
     vim.api.nvim_buf_set_keymap(0, "n", "<esc>", "<Plug>(kubectl.quit)", opts)
     vim.api.nvim_buf_set_keymap(0, "i", "<C-c>", "<Esc><Plug>(kubectl.quit)", opts)
     vim.api.nvim_buf_set_keymap(0, "n", "<f4>", "<Plug>(kubectl.toggle_fullscreen)", opts)
+  end
+
+  if is_action then
+    return
   end
 
   M.map_if_plug_not_set("n", "<Tab>", "<Plug>(kubectl.tab)")
