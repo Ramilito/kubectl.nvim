@@ -66,6 +66,9 @@ function M.View()
       builder.data = data
       builder.decodeJson()
       vim.schedule(function()
+        if not vim.api.nvim_buf_is_valid(buf) then
+          return
+        end
         builder.process(definition.processRow, true).prettyPrint()
         builder.displayContent(builder.win_nr)
         builder.fitToContent()
