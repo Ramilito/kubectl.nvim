@@ -247,9 +247,6 @@ function M.run_async(method_name, args, callback)
     if not ok then
       return nil, tostring(result)
     end
-    if type(result) ~= "string" then
-      return tostring(result), nil
-    end
     return result, nil
   end
 
