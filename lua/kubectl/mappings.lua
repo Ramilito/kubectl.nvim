@@ -274,7 +274,7 @@ function M.get_mappings()
               group = group,
               callback = function()
                 commands.run_async("edit_async", {
-                  path = tmpfilename,
+                  tmpfilename,
                 }, function(result, err)
                   vim.schedule(function()
                     if err then
