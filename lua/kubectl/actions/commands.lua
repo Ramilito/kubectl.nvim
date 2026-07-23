@@ -245,7 +245,7 @@ function M.run_async(method_name, args, callback)
     local mod = require("kubectl_client")
     local ok, result = pcall(mod[method], json_str)
     if not ok then
-      return nil, result
+      return nil, tostring(result)
     end
     return result, nil
   end
