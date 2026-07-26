@@ -51,11 +51,11 @@ function M.init(callback)
   if M.is_open then
     vim.schedule(function()
       local state = require("kubectl.state")
-      local ok = pcall(state.restore_session)
+      local ok, err = pcall(state.restore_session)
       if ok then
         splash.done("Context: " .. (state.context["current-context"] or ""))
       else
-        splash.fail("Failed to restore session")
+        splash.fail(("Failed to restore session: %s"):format(tostring(err)))
       end
       if callback then
         callback(ok)
