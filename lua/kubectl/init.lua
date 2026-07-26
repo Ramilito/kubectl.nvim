@@ -49,9 +49,18 @@ end
 --- @param callback? fun(ok: boolean) Optional callback after initialization
 function M.init(callback)
   if M.is_open then
-    if callback then
-      callback(true)
-    end
+    vim.schedule(function()
+      local state = require("kubectl.state")
+      local ok, err = pcall(state.restore_session)
+      if ok then
+        splash.done("Context: " .. (state.context["current-context"] or ""))
+      else
+        splash.fail(("Failed to restore session: %s"):format(tostring(err)))
+      end
+      if callback then
+        callback(ok)
+      end
+    end)
     return
   end
 
