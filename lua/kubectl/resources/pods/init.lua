@@ -49,6 +49,24 @@ function M.selectPod(pod, ns, container)
   M.selection = { pod = pod, ns = ns, container = container }
 end
 
+--- Join pod names within a width budget, collapsing overflow into a "+N" suffix
+---@param pods table[] Array of {name, namespace} tables
+---@param budget integer Max width in columns for the name list
+---@return string display Joined pod names, or truncated with a "+N" suffix
+local function build_display(pods, budget)
+  local result = pods[1].name
+  for i = 2, #pods do
+    local remaining = #pods - i
+    local candidate = result .. ", " .. pods[i].name
+    local suffix_len = remaining > 0 and #(" +" .. remaining) or 0
+    if #candidate + suffix_len > budget then
+      return result .. " +" .. (#pods - i + 1)
+    end
+    result = candidate
+  end
+  return result
+end
+
 --- Build pods list from selections or single selection
 ---@return table pods List of { name, namespace } entries
 ---@return string display_name Display name for the view
@@ -73,14 +91,15 @@ local function get_pods_for_logs()
     for _, sel in ipairs(selections) do
       table.insert(pods, { name = sel.name, namespace = sel.namespace })
     end
-    local display = #pods == 1 and pods[1].name or (#pods .. " pods")
+    local budget = math.max(math.floor(vim.o.columns * 0.8), 100) - 2 - #"logs | "
+    local display = #pods == 1 and pods[1].name or build_display(pods, budget)
     return pods, display
   end
 
   -- Fall back to single selection
   if M.selection.pod then
     table.insert(pods, { name = M.selection.pod, namespace = M.selection.ns })
-    return pods, M.selection.pod .. " | " .. M.selection.ns
+    return pods, M.selection.pod
   end
 
   return pods, "No pods selected"
@@ -112,11 +131,11 @@ function M.LogsWithPods(pods, display_name, container)
   -- Get current options for display
   local opts = log_session.get_options()
 
-  local ns = pods[1] and pods[1].namespace or ""
+  local title = "logs | " .. display_name
   local def = {
     resource = "pod_logs",
     ft = "k8s_pod_logs",
-    title = "logs | " .. display_name .. " | " .. ns,
+    title = title .. " | " .. (pods[1] and pods[1].namespace or ""),
     syntax = "k8s_pod_logs",
     hints = {
       { key = "<Plug>(kubectl.follow)", desc = "Follow" },
@@ -128,7 +147,7 @@ function M.LogsWithPods(pods, display_name, container)
       { key = "<Plug>(kubectl.expand_json)", desc = "Toggle JSON" },
     },
     panes = {
-      { title = "Logs" },
+      { title = title },
     },
   }
 
