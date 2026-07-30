@@ -102,7 +102,7 @@ local function create_session(buf, win, options)
       timestamps = self.options.timestamps,
       follow = true,
       previous = false,
-      prefix = self.options.prefix and true or nil,
+      prefix = self.options.prefix,
     })
 
     if not ok or not sess then
