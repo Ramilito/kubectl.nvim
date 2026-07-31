@@ -44,6 +44,7 @@ local function create_session(buf, win, options)
     buf = buf,
     win = win,
     stopped = false,
+    on_stop = nil, -- optional callback invoked after the session stops, on any teardown path
   }
 
   --- Check if the session is currently active (streaming)
@@ -83,6 +84,11 @@ local function create_session(buf, win, options)
     -- Only remove from manager if cleanup succeeded to avoid orphaned resources
     if cleanup_ok then
       manager.remove(session_key(buf))
+    end
+
+    -- Streaming is over regardless of cleanup_ok, so always notify (never break cleanup)
+    if self.on_stop then
+      pcall(self.on_stop)
     end
   end
 
