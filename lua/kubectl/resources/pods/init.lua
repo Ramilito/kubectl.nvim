@@ -105,26 +105,6 @@ local function get_pods_for_logs()
   return pods, "No pods selected"
 end
 
---- Update the follow hint to reflect session state and re-render the hints bar
----@param buf integer Buffer the follow toggle applied to
----@param active boolean Whether follow is now active
-local function update_follow_hint(buf, active)
-  local builder = manager.get("pod_logs")
-  if not builder or builder.buf_nr ~= buf or not builder.frame then
-    return
-  end
-  local hints_buf = builder.frame.hints_buf
-  if not hints_buf or not vim.api.nvim_buf_is_valid(hints_buf) then
-    return
-  end
-  for _, hint in ipairs(builder.definition and builder.definition.hints or {}) do
-    if hint.key == "<Plug>(kubectl.follow)" then
-      hint.desc = "Follow[" .. tostring(active) .. "]"
-    end
-  end
-  builder.renderHints()
-end
-
 --- Internal function that takes pods/display_name directly for recreation
 ---@param pods table[] Array of {name, namespace} tables
 ---@param display_name string Display name for the title
@@ -238,13 +218,9 @@ function M.TailLogs()
 
   -- Create and start new session
   local session = log_session.get_or_create(buf, win, opts)
-  session.on_stop = function()
-    update_follow_hint(buf, false)
-  end
   local success = session:start(pods, M.selection.container)
 
   if success then
-    update_follow_hint(buf, true)
     -- Move cursor to end
     local line_count = vim.api.nvim_buf_line_count(buf)
     pcall(vim.api.nvim_win_set_cursor, win, { line_count, 0 })
