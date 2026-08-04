@@ -45,7 +45,7 @@ local function update_follow_hint(buf, active)
   end
   for _, hint in ipairs(builder.definition and builder.definition.hints or {}) do
     if hint.key == "<Plug>(kubectl.follow)" then
-      hint.desc = "Follow[" .. tostring(active) .. "]"
+      hint.desc = "Follow (" .. (active and "on" or "off") .. ")"
     end
   end
   builder.renderHints()

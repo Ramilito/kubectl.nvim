@@ -135,11 +135,11 @@ function M.LogsWithPods(pods, display_name, container)
   local def = {
     resource = "pod_logs",
     ft = "k8s_pod_logs",
-    title = title .. " | " .. (pods[1] and pods[1].namespace or ""),
+    title = title,
     syntax = "k8s_pod_logs",
     hints = {
       -- Follow is always inactive here: any prior session was just stopped above.
-      { key = "<Plug>(kubectl.follow)", desc = "Follow[false]" },
+      { key = "<Plug>(kubectl.follow)", desc = "Follow (off)" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. tostring(opts.since) .. "]" },
       { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. tostring(opts.prefix) .. "]" },
       { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. tostring(opts.timestamps) .. "]" },
