@@ -32,6 +32,7 @@ local M = BaseResource.extend({
     end,
   },
   hints = {
+    { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Logs for all pods of statefulset" },
     { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change statefulset image" },
     { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected statefulset" },
     { key = "<Plug>(kubectl.scale)", desc = "scale", long_desc = "Scale replicas" },
@@ -47,6 +48,14 @@ local M = BaseResource.extend({
 
 function M.SetImage(name, ns)
   set_image.set_image("statefulset", M.definition.gvk, name, ns)
+end
+
+--- Show logs for all pods matching this StatefulSet's selector
+---@param name string
+---@param ns string
+function M.Logs(name, ns)
+  local filter = M.definition.child_view.predicate(name, ns)
+  require("kubectl.resources.pods").LogsForFilter(filter, ns, "StatefulSet/" .. name)
 end
 
 return M

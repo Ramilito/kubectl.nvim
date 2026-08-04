@@ -49,6 +49,24 @@ function M.selectPod(pod, ns, container)
   M.selection = { pod = pod, ns = ns, container = container }
 end
 
+--- Join pod names within a width budget, collapsing overflow into a "+N" suffix
+---@param pods table[] Array of {name, namespace} tables
+---@param budget integer Max width in columns for the name list
+---@return string display Joined pod names, or truncated with a "+N" suffix
+local function build_display(pods, budget)
+  local result = pods[1].name
+  for i = 2, #pods do
+    local remaining = #pods - i
+    local candidate = result .. ", " .. pods[i].name
+    local suffix_len = remaining > 0 and #(" +" .. remaining) or 0
+    if #candidate + suffix_len > budget then
+      return result .. " +" .. (#pods - i + 1)
+    end
+    result = candidate
+  end
+  return result
+end
+
 --- Build pods list from selections or single selection
 ---@return table pods List of { name, namespace } entries
 ---@return string display_name Display name for the view
@@ -73,14 +91,15 @@ local function get_pods_for_logs()
     for _, sel in ipairs(selections) do
       table.insert(pods, { name = sel.name, namespace = sel.namespace })
     end
-    local display = #pods == 1 and pods[1].name or (#pods .. " pods")
+    local budget = math.max(math.floor(vim.o.columns * 0.8), 100) - 2 - #"logs | "
+    local display = #pods == 1 and pods[1].name or build_display(pods, budget)
     return pods, display
   end
 
   -- Fall back to single selection
   if M.selection.pod then
     table.insert(pods, { name = M.selection.pod, namespace = M.selection.ns })
-    return pods, M.selection.pod .. " | " .. M.selection.ns
+    return pods, M.selection.pod
   end
 
   return pods, "No pods selected"
@@ -112,14 +131,15 @@ function M.LogsWithPods(pods, display_name, container)
   -- Get current options for display
   local opts = log_session.get_options()
 
-  local ns = pods[1] and pods[1].namespace or ""
+  local title = "logs | " .. display_name
   local def = {
     resource = "pod_logs",
     ft = "k8s_pod_logs",
-    title = "logs | " .. display_name .. " | " .. ns,
+    title = title,
     syntax = "k8s_pod_logs",
     hints = {
-      { key = "<Plug>(kubectl.follow)", desc = "Follow" },
+      -- Follow is always inactive here: any prior session was just stopped above.
+      { key = "<Plug>(kubectl.follow)", desc = "Follow (off)" },
       { key = "<Plug>(kubectl.history)", desc = "History [" .. tostring(opts.since) .. "]" },
       { key = "<Plug>(kubectl.prefix)", desc = "Prefix[" .. tostring(opts.prefix) .. "]" },
       { key = "<Plug>(kubectl.timestamps)", desc = "Timestamps[" .. tostring(opts.timestamps) .. "]" },
@@ -128,7 +148,7 @@ function M.LogsWithPods(pods, display_name, container)
       { key = "<Plug>(kubectl.expand_json)", desc = "Toggle JSON" },
     },
     panes = {
-      { title = "Logs" },
+      { title = title },
     },
   }
 
@@ -172,6 +192,56 @@ end
 function M.Logs()
   local pods, display_name = get_pods_for_logs()
   M.LogsWithPods(pods, display_name, M.selection.container)
+end
+
+--- Open logs for all pods matching a key filter (used by workload views' `gl`,
+--- e.g. Deployments/StatefulSets, to jump into the multi-pod logs flow).
+---@param filter_key string Key filter from the workload's child_view.predicate(name, ns)
+---@param ns string Namespace to resolve pods in
+---@param source string Display label, e.g. "Deployment/foo"
+function M.LogsForFilter(filter_key, ns, source)
+  local commands = require("kubectl.actions.commands")
+
+  -- get_table_async only reads the store; start_reflector_async is idempotent and
+  -- waits for the initial sync before its callback fires, same warm-up as opening
+  -- the pods view.
+  commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = ns }, function(_, rerr)
+    if rerr then
+      vim.schedule(function()
+        vim.notify("Failed to load pods: " .. tostring(rerr), vim.log.levels.ERROR)
+      end)
+      return
+    end
+
+    local args = { gvk = M.definition.gvk, namespace = ns, filter_key = filter_key }
+    commands.run_async("get_table_async", args, function(data, err)
+      vim.schedule(function()
+        local ok, rows = pcall(vim.json.decode, data, { luanil = { object = true, array = true } })
+        if err or not ok or not rows then
+          vim.notify("Failed to load pods: " .. tostring(err), vim.log.levels.ERROR)
+          return
+        end
+
+        local pods = {}
+        for _, row in ipairs(rows) do
+          table.insert(pods, { name = row.name, namespace = row.namespace })
+        end
+        table.sort(pods, function(a, b)
+          return a.name < b.name
+        end)
+
+        if #pods == 0 then
+          vim.notify("No pods found for " .. source, vim.log.levels.WARN)
+          return
+        end
+
+        -- Reset container selection so a stale container filter from a previous
+        -- containers-view selection doesn't carry into this multi-pod session.
+        M.selectPod(nil, nil, nil)
+        M.LogsWithPods(pods, source, nil)
+      end)
+    end)
+  end)
 end
 
 --- Toggle follow mode - stops current session or starts streaming from now

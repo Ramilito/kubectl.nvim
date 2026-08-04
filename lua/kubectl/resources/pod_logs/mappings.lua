@@ -98,8 +98,8 @@ M.overrides = {
       vim.ui.input({ prompt = "Since (5s, 2m, 3h)=", default = opts.since }, function(input)
         if input then
           update_option("since", input)
+          pod_view.Logs()
         end
-        pod_view.Logs()
       end)
     end,
   },

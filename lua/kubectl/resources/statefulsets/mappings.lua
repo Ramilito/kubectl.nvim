@@ -8,6 +8,13 @@ local statefulset_view = require("kubectl.resources.statefulsets")
 local M = {}
 
 M.overrides = {
+  ["<Plug>(kubectl.logs)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Logs for statefulset",
+    callback = mapping_helpers.safe_callback(statefulset_view, statefulset_view.Logs),
+  },
+
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,
@@ -108,6 +115,7 @@ M.overrides = {
 }
 
 M.register = function()
+  mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
   mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
   mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
   mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")

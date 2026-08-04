@@ -30,6 +30,27 @@ local function session_key(buf)
   return KEY_PREFIX .. buf
 end
 
+--- Update the follow hint to reflect session state and re-render the hints bar.
+--- Silently no-ops unless the pod_logs frame is currently displaying `buf` with a valid hints buffer.
+---@param buf integer Buffer the follow toggle applied to
+---@param active boolean Whether follow is now active
+local function update_follow_hint(buf, active)
+  local builder = manager.get("pod_logs")
+  if not builder or builder.buf_nr ~= buf or not builder.frame then
+    return
+  end
+  local hints_buf = builder.frame.hints_buf
+  if not hints_buf or not vim.api.nvim_buf_is_valid(hints_buf) then
+    return
+  end
+  for _, hint in ipairs(builder.definition and builder.definition.hints or {}) do
+    if hint.key == "<Plug>(kubectl.follow)" then
+      hint.desc = "Follow (" .. (active and "on" or "off") .. ")"
+    end
+  end
+  builder.renderHints()
+end
+
 --- Create a new log session instance (plain table)
 ---@param buf integer Buffer number
 ---@param win integer Window number
@@ -84,6 +105,9 @@ local function create_session(buf, win, options)
     if cleanup_ok then
       manager.remove(session_key(buf))
     end
+
+    -- Refresh the hint regardless of cleanup_ok; pcall so a render error can never break teardown
+    pcall(update_follow_hint, self.buf, false)
   end
 
   --- Start streaming logs for the given pods
@@ -102,7 +126,7 @@ local function create_session(buf, win, options)
       timestamps = self.options.timestamps,
       follow = true,
       previous = false,
-      prefix = self.options.prefix and true or nil,
+      prefix = self.options.prefix,
     })
 
     if not ok or not sess then
@@ -161,6 +185,7 @@ local function create_session(buf, win, options)
       end,
     })
 
+    update_follow_hint(self.buf, true)
     return true
   end
 

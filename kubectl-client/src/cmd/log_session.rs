@@ -414,9 +414,24 @@ fn spawn_container_log_task(
                         break;
                     }
                 }
-                Ok(None) => break,
+                Ok(None) => {
+                    let _ = log_sender.send(format_log_line(
+                        "--- log stream ended ---",
+                        &target.pod_name,
+                        &target.container_name,
+                        params.use_prefix,
+                        params.is_multi_container,
+                    ));
+                    break;
+                }
                 Err(e) => {
-                    let _ = log_sender.send(format!("[{}] Stream error: {}", target.pod_name, e));
+                    let _ = log_sender.send(format_log_line(
+                        &format!("--- log stream error: {} ---", e),
+                        &target.pod_name,
+                        &target.container_name,
+                        params.use_prefix,
+                        params.is_multi_container,
+                    ));
                     break;
                 }
             }
