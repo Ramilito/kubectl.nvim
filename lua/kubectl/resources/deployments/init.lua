@@ -27,6 +27,7 @@ local M = BaseResource.extend({
     end,
   },
   hints = {
+    { key = "<Plug>(kubectl.logs)", desc = "logs", long_desc = "Logs for all pods of deployment" },
     { key = "<Plug>(kubectl.set_image)", desc = "set image", long_desc = "Change deployment image" },
     { key = "<Plug>(kubectl.rollout_restart)", desc = "restart", long_desc = "Restart selected deployment" },
     { key = "<Plug>(kubectl.scale)", desc = "scale", long_desc = "Scale replicas" },
@@ -44,6 +45,14 @@ local M = BaseResource.extend({
 
 function M.SetImage(name, ns)
   set_image.set_image("deployment", M.definition.gvk, name, ns)
+end
+
+--- Show logs for all pods matching this Deployment's selector
+---@param name string
+---@param ns string
+function M.Logs(name, ns)
+  local filter = M.definition.child_view.predicate(name, ns)
+  require("kubectl.resources.pods").LogsForFilter(filter, ns, "Deployment/" .. name)
 end
 
 return M

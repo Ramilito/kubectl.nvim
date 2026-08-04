@@ -194,6 +194,56 @@ function M.Logs()
   M.LogsWithPods(pods, display_name, M.selection.container)
 end
 
+--- Open logs for all pods matching a key filter (used by workload views' `gl`,
+--- e.g. Deployments/StatefulSets, to jump into the multi-pod logs flow).
+---@param filter_key string Key filter from the workload's child_view.predicate(name, ns)
+---@param ns string Namespace to resolve pods in
+---@param source string Display label, e.g. "Deployment/foo"
+function M.LogsForFilter(filter_key, ns, source)
+  local commands = require("kubectl.actions.commands")
+
+  -- get_table_async only reads the store; start_reflector_async is idempotent and
+  -- waits for the initial sync before its callback fires, same warm-up as opening
+  -- the pods view.
+  commands.run_async("start_reflector_async", { gvk = M.definition.gvk, namespace = ns }, function(_, rerr)
+    if rerr then
+      vim.schedule(function()
+        vim.notify("Failed to load pods: " .. tostring(rerr), vim.log.levels.ERROR)
+      end)
+      return
+    end
+
+    local args = { gvk = M.definition.gvk, namespace = ns, filter_key = filter_key }
+    commands.run_async("get_table_async", args, function(data, err)
+      vim.schedule(function()
+        local ok, rows = pcall(vim.json.decode, data, { luanil = { object = true, array = true } })
+        if err or not ok or not rows then
+          vim.notify("Failed to load pods: " .. tostring(err), vim.log.levels.ERROR)
+          return
+        end
+
+        local pods = {}
+        for _, row in ipairs(rows) do
+          table.insert(pods, { name = row.name, namespace = row.namespace })
+        end
+        table.sort(pods, function(a, b)
+          return a.name < b.name
+        end)
+
+        if #pods == 0 then
+          vim.notify("No pods found for " .. source, vim.log.levels.WARN)
+          return
+        end
+
+        -- Reset container selection so a stale container filter from a previous
+        -- containers-view selection doesn't carry into this multi-pod session.
+        M.selectPod(nil, nil, nil)
+        M.LogsWithPods(pods, source, nil)
+      end)
+    end)
+  end)
+end
+
 --- Toggle follow mode - stops current session or starts streaming from now
 function M.TailLogs()
   local pods, display_name = get_pods_for_logs()

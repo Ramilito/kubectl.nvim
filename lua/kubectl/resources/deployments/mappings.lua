@@ -8,6 +8,13 @@ local mappings = require("kubectl.mappings")
 local M = {}
 
 M.overrides = {
+  ["<Plug>(kubectl.logs)"] = {
+    noremap = true,
+    silent = true,
+    desc = "Logs for deployment",
+    callback = mapping_helpers.safe_callback(deployment_view, deployment_view.Logs),
+  },
+
   ["<Plug>(kubectl.set_image)"] = {
     noremap = true,
     silent = true,
@@ -112,6 +119,7 @@ M.overrides = {
 }
 
 M.register = function()
+  mappings.map_if_plug_not_set("n", "gl", "<Plug>(kubectl.logs)")
   mappings.map_if_plug_not_set("n", "gi", "<Plug>(kubectl.set_image)")
   mappings.map_if_plug_not_set("n", "grr", "<Plug>(kubectl.rollout_restart)")
   mappings.map_if_plug_not_set("n", "gss", "<Plug>(kubectl.scale)")
