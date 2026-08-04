@@ -26,7 +26,7 @@ For general mlua FFI patterns (async functions, JSON serialization, error handli
 | Rust | `kubectl-client/src/structs.rs` | `LogConfig`/`PodRef` structs + custom `FromLua` impl |
 | Lua | `lua/kubectl/client/init.lua` | `client.log_session()` / `client.toggle_json()` wrappers |
 | Lua | `lua/kubectl/client/types.lua` | `kubectl.LogSession` / `kubectl.ToggleJsonResult` annotations |
-| Lua | `lua/kubectl/resources/pods/init.lua` | Entry points: `Logs()`, `TailLogs()`, `LogsWithPods()`, `get_pods_for_logs()` |
+| Lua | `lua/kubectl/resources/pods/init.lua` | Entry points: `Logs()`, `TailLogs()`, `LogsWithPods()`, `LogsForFilter()`, `get_pods_for_logs()` |
 | Lua | `lua/kubectl/views/logs/session.lua` | Session manager: options, timer polling, lifecycle |
 | Lua | `lua/kubectl/resources/pod_logs/mappings.lua` | Keybindings only — **no sibling `init.lua`/`definition.lua`** |
 | Vim | `syntax/k8s_pod_logs.vim` | Syntax highlighting |
@@ -58,6 +58,8 @@ toggle_json() -----------------------------------------------------> cmd::log_se
 1. Buffer-local vars `kubectl_log_pods`/`kubectl_log_display` — used when already inside a `k8s_pod_logs` buffer (option toggles, refresh).
 2. Tab multi-selections — `state.getSelections(bufnr)` (populated by the generic `<Plug>(kubectl.tab)` mapping, not logs-specific).
 3. Single selection fallback — `M.selection.pod`/`M.selection.ns` on the `pods` module.
+
+**Workload flow** (`gl` on Deployments/StatefulSets): their `<Plug>(kubectl.logs)` override calls the workload module's `M.Logs(name, ns)`, which builds a label filter via `child_view.predicate(name, ns)` and calls `pods.LogsForFilter(filter_key, ns, source)`. That helper warms the pod store via `start_reflector_async` (idempotent, waits for initial sync — required because `get_table_async` is store-only with no API fallback), resolves matching pods via `get_table_async` + `filter_key` (the Rust key-filter engine), sorts by name, then hands the explicit list to `LogsWithPods` after resetting the container selection. Zero matches → `vim.notify`, no view opened. Follow is a snapshot: `f` re-follows the pods captured at `gl` time — press `gl` again after a rollout to pick up replacement pods.
 
 ## Rust: LogSession UserData
 
@@ -132,6 +134,7 @@ Owns per-buffer session objects plus module-level `global_options` (since/prefix
 | `gh` | `<Plug>(kubectl.history)` | Set since duration |
 | `gpp` | `<Plug>(kubectl.previous_logs)` | Previous container logs |
 | `gj` | `<Plug>(kubectl.expand_json)` | Expand/collapse JSON |
+| `gl` (Deployments/StatefulSets views) | `<Plug>(kubectl.logs)` | Logs for all pods of the workload |
 
 ## Syntax Highlighting
 
@@ -153,6 +156,7 @@ Uses `syn sync minlines=100` for performance on large buffers.
 - **`LogConfig` is deserialized two different ways.** The sync follow path (`client.log_session`) goes through `LogConfig`'s custom `FromLua` impl (direct Lua table → struct, no JSON). The async one-shot path (`log_stream_async` → `fetch_logs_async`) JSON-encodes the args in Lua and does `serde_json::from_str::<LogConfig>` in Rust. Keep both conversions in sync when adding a field.
 - **Any option toggle drops follow mode.** `LogsWithPods()` unconditionally stops the active session for the current buffer before doing a one-shot fetch, so toggling prefix/timestamps/history/previous while following stops streaming; the user has to press `f` again to resume.
 - **Histogram is one-shot only.** It's computed solely inside `fetch_logs_async`/`render_histogram` from timestamps found in line text — follow mode never recomputes it, and it renders nothing if no line contains a parseable ISO-8601 timestamp.
+- **Follow streams emit disconnect markers.** `spawn_container_log_task` sends `--- log stream ended ---` on clean stream end and `--- log stream error: <e> ---` on error, routed through `format_log_line` (so `[pod]`-prefixed in multi-pod views) — this is how a pod dying in the background becomes visible mid-follow. Only the follow/session path emits them; the one-shot `fetch_logs_async` never does, and manual stops (`f` toggle, closing the view) break the loop before those arms are reached. A marker can also appear on benign long-connection terminations (kubelet closing the stream) — pressing `f` reconnects; there is deliberately no auto-retry.
 - **Teardown relies on the WinClosed → BufWinLeave chain.** Session cleanup is wired to a `BufWinLeave` autocmd on the log buffer; that fires because closing the framed view's main pane cascades to close its other windows, and pane buffers are `bufhidden=wipe`. Any new teardown path should go through (or explicitly call) `session:stop()` / `log_session.stop()` rather than assume buffer deletion alone triggers cleanup.
 
 ## Common Tasks
