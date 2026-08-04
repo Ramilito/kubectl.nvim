@@ -166,12 +166,17 @@ T["keymaps"]["deployments view has set_image Plug callback"] = function()
   vim.api.nvim_buf_delete(buf, { force = true })
 end
 
-T["keymaps"]["deployments view does not have logs Plug"] = function()
+T["keymaps"]["deployments view has logs Plug callback"] = function()
   local buf = setup_view("deployments")
-  -- Deployments don't override logs - it's pods-specific
-  -- Neither gl mapping nor <Plug>(kubectl.logs) should exist
-  expect.equality(has_mapping("gl", "n"), false)
-  expect.equality(has_plug_mapping("<Plug>(kubectl.logs)", "n"), false)
+  expect.equality(has_plug_mapping("<Plug>(kubectl.logs)", "n"), true)
+  expect.equality(maps_to_plug("gl", "<Plug>(kubectl.logs)", "n"), true)
+  vim.api.nvim_buf_delete(buf, { force = true })
+end
+
+T["keymaps"]["statefulsets view has logs Plug callback"] = function()
+  local buf = setup_view("statefulsets")
+  expect.equality(has_plug_mapping("<Plug>(kubectl.logs)", "n"), true)
+  expect.equality(maps_to_plug("gl", "<Plug>(kubectl.logs)", "n"), true)
   vim.api.nvim_buf_delete(buf, { force = true })
 end
 
