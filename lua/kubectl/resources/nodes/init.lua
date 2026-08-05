@@ -45,7 +45,7 @@ function M.Drain(node)
   }
   local data = {
     { text = "grace period:", value = "-1", type = "option", hl = hl.symbols.pending },
-    { text = "timeout sec:", value = "5", type = "option", hl = hl.symbols.pending },
+    { text = "timeout sec:", value = "0", type = "option", hl = hl.symbols.pending },
     { text = "ignore daemonset:", value = "false", type = "flag", hl = hl.symbols.pending },
     { text = "delete emptydir data:", value = "false", type = "flag", hl = hl.symbols.pending },
     { text = "force:", value = "false", type = "flag", hl = hl.symbols.pending },
