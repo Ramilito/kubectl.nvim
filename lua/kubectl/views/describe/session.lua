@@ -185,8 +185,9 @@ end
 
 --- Stop all active describe sessions
 function M.stop_all()
-  manager.foreach(KEY_PREFIX, function(_, session)
+  manager.foreach(KEY_PREFIX, function(key, session)
     session:stop()
+    manager.remove(key)
   end)
 end
 

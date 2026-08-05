@@ -12,6 +12,7 @@ extern "C" {
     fn DrainNode(
         node_name: *const c_char,
         context_name: *const c_char,
+        kubeconfig: *const c_char,
         grace_secs: i32,
         timeout_secs: i32,
         ignore_ds: i32,
@@ -44,11 +45,14 @@ pub async fn drain_node_async(_lua: Lua, json: String) -> LuaResult<String> {
         .map_err(|e| LuaError::RuntimeError(format!("invalid node name (null byte): {e}")))?;
     let ctx_c = CString::new(args.context)
         .map_err(|e| LuaError::RuntimeError(format!("invalid context name (null byte): {e}")))?;
+    let kubeconfig_c = CString::new(crate::current_kubeconfig().unwrap_or_default())
+        .map_err(|e| LuaError::RuntimeError(format!("invalid kubeconfig (null byte): {e}")))?;
 
     let res_ptr = unsafe {
         DrainNode(
             node_c.as_ptr(),
             ctx_c.as_ptr(),
+            kubeconfig_c.as_ptr(),
             grace,
             timeout,
             args.ignore_ds as i32,

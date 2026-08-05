@@ -24,10 +24,9 @@ local M = BaseResource.extend({
 
 M.selection = {}
 
--- Override Desc to use plural for the gvk.k
+-- Override Desc to pass the real Kind (CRDs are cluster-scoped)
 function M.Desc(name, _, _)
-  local gvk = { k = M.definition.plural, g = M.definition.gvk.g, v = M.definition.gvk.v }
-  describe_session.view(M.definition.resource, name, nil, gvk)
+  describe_session.view(M.definition.resource, name, nil, M.definition.gvk)
 end
 
 return M

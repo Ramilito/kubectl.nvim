@@ -109,9 +109,7 @@ function M.Draw(cancellationToken)
 end
 
 function M.Desc(name, ns, _)
-  -- Use plural for the gvk.k as fallback resources need it
-  local gvk = { k = M.definition.plural, g = M.definition.gvk.g, v = M.definition.gvk.v }
-  describe_session.view(M.definition.resource, name, ns, gvk)
+  describe_session.view(M.definition.resource, name, ns, M.definition.gvk)
 end
 
 function M.Yaml(name, ns)

@@ -119,6 +119,9 @@ function M.change_context(cmd)
   local loop = require("kubectl.utils.loop")
   loop.stop_all()
 
+  local describe_session = require("kubectl.views.describe.session")
+  describe_session.stop_all()
+
   M.clear_buffers(cmd)
 
   splash.show()
