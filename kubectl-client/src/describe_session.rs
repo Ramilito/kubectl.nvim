@@ -14,10 +14,12 @@ extern "C" {
     fn DescribeResource(
         cGroup: *const c_char,
         cVersion: *const c_char,
+        cKind: *const c_char,
         cResource: *const c_char,
         cNamespace: *const c_char,
         cName: *const c_char,
         cContext: *const c_char,
+        cKubeconfig: *const c_char,
     ) -> *mut c_char;
 }
 
@@ -35,19 +37,23 @@ fn hash_content(s: &str) -> String {
 fn call_describe(args: &DescribeArgs) -> Result<String, String> {
     let group = CString::new(args.group.as_str()).map_err(|e| e.to_string())?;
     let version = CString::new(args.version.as_str()).map_err(|e| e.to_string())?;
+    let kind = CString::new(args.kind.as_str()).map_err(|e| e.to_string())?;
     let resource = CString::new(args.resource.as_str()).map_err(|e| e.to_string())?;
     let namespace = CString::new(args.namespace.as_str()).map_err(|e| e.to_string())?;
     let name = CString::new(args.name.as_str()).map_err(|e| e.to_string())?;
     let context = CString::new(args.context.as_str()).map_err(|e| e.to_string())?;
+    let kubeconfig = CString::new(args.kubeconfig.as_str()).map_err(|e| e.to_string())?;
 
     unsafe {
         let result_ptr = DescribeResource(
             group.as_ptr(),
             version.as_ptr(),
+            kind.as_ptr(),
             resource.as_ptr(),
             namespace.as_ptr(),
             name.as_ptr(),
             context.as_ptr(),
+            kubeconfig.as_ptr(),
         );
 
         if result_ptr.is_null() {
@@ -60,15 +66,30 @@ fn call_describe(args: &DescribeArgs) -> Result<String, String> {
     }
 }
 
+/// Resolve the plural REST name for a GVK via server discovery,
+/// mirroring cmd/apply.rs / cmd/get.rs. Falls back to kube's naive
+/// pluralization when the client or discovery is unavailable.
+fn resolve_plural(gvk: &kube::api::GroupVersionKind) -> String {
+    crate::with_client(|client| async move {
+        let (ar, _caps) = kube::discovery::pinned_kind(&client, gvk)
+            .await
+            .map_err(|e| LuaError::RuntimeError(e.to_string()))?;
+        Ok(ar.plural)
+    })
+    .unwrap_or_else(|_| kube::api::ApiResource::from_gvk(gvk).plural)
+}
+
 /// Arguments for describe polling task.
 #[derive(Clone)]
 struct DescribeArgs {
     group: String,
     version: String,
+    kind: String,
     resource: String,
     namespace: String,
     name: String,
     context: String,
+    kubeconfig: String,
 }
 
 /// A streaming describe session that polls for updates.
@@ -78,13 +99,22 @@ pub struct DescribeSession {
 
 impl DescribeSession {
     pub fn new(args: CmdDescribeArgs) -> LuaResult<Self> {
+        let gvk = kube::api::GroupVersionKind {
+            group: args.gvk.g.clone(),
+            version: args.gvk.v.clone(),
+            kind: args.gvk.k.clone(),
+        };
+        let resource = resolve_plural(&gvk);
+
         let describe_args = DescribeArgs {
             group: args.gvk.g,
             version: args.gvk.v,
-            resource: args.gvk.k,
+            kind: args.gvk.k.clone(),
+            resource,
             namespace: args.namespace.unwrap_or_default(),
             name: args.name,
             context: args.context,
+            kubeconfig: crate::current_kubeconfig().unwrap_or_default(),
         };
 
         // Do initial describe synchronously to fail fast on errors

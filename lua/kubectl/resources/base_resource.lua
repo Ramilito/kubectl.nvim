@@ -40,12 +40,11 @@ function BaseResource.extend(definition)
   ---@param ns string|nil Namespace (nil for cluster-scoped)
   ---@param _ boolean|nil Whether to reload (deprecated, kept for API compatibility)
   function M.Desc(name, ns, _)
-    local gvk = { k = M.definition.resource, g = M.definition.gvk.g, v = M.definition.gvk.v }
     local namespace = nil
     if M.definition.namespaced then
       namespace = ns
     end
-    describe_session.view(M.definition.resource, name, namespace, gvk)
+    describe_session.view(M.definition.resource, name, namespace, M.definition.gvk)
   end
 
   --- View YAML for a specific resource

@@ -6,34 +6,28 @@ package main
 import "C"
 
 import (
-    "bytes"
-    "context"
-    "fmt"
-    "time"
+	"bytes"
+	"context"
+	"fmt"
+	"time"
 
-    metav1   "k8s.io/apimachinery/pkg/apis/meta/v1"
-    cmdutil  "k8s.io/kubectl/pkg/cmd/util"
-    "k8s.io/kubectl/pkg/drain"
-    "k8s.io/client-go/kubernetes"
-    "k8s.io/client-go/tools/clientcmd"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/drain"
 )
 
 //export DrainNode
 func DrainNode(
-	cNodeName *C.char,
-	cContext *C.char,
-	cGrace C.int,
-	cTimeout C.int,
-	cIgnoreDS C.int,
-	cDeleteEmptyDir C.int,
-	cForce C.int,
-	cDryRun C.int,
+	cNodeName, cContext, cKubeconfig *C.char,
+	cGrace, cTimeout, cIgnoreDS, cDeleteEmptyDir, cForce, cDryRun C.int,
 ) *C.char {
 	//------------------------------------------------------------//
 	// 1.  Pull params off the C heap                             //
 	//------------------------------------------------------------//
 	nodeName := C.GoString(cNodeName)
 	contextName := C.GoString(cContext)
+	kubeconfig := C.GoString(cKubeconfig)
 	graceSeconds := int(cGrace)
 	timeoutSeconds := int(cTimeout)
 	ignoreDS := cIgnoreDS != 0
@@ -44,11 +38,7 @@ func DrainNode(
 	//------------------------------------------------------------//
 	// 2.  Build client-go *rest.Config exactly once              //
 	//------------------------------------------------------------//
-	cfgOverrides := &clientcmd.ConfigOverrides{CurrentContext: contextName}
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	cfg, err := clientcmd.
-		NewNonInteractiveDeferredLoadingClientConfig(loadingRules, cfgOverrides).
-		ClientConfig()
+	cfg, err := buildRestConfig(kubeconfig, contextName)
 	if err != nil {
 		return cString(fmt.Sprintf("error building rest.Config: %v", err))
 	}
@@ -94,10 +84,6 @@ func DrainNode(
 	if err := drain.RunCordonOrUncordon(&helper, nodeObj, true); err != nil {
 		return cString(fmt.Sprintf("cordon failed: %v", err))
 	}
-
-	// if err := drain.RunCordonOrUncordon(&helper, nodeName, true); err != nil {
-	// 	return cString(fmt.Sprintf("cordon failed: %v", err))
-	// }
 
 	//   4b. pick the pods to delete/evict
 	pods, errs := helper.GetPodsForDeletion(nodeName)

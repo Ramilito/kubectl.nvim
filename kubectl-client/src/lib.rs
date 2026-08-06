@@ -53,6 +53,7 @@ static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static CLIENT_STREAM_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
+static KUBECONFIG: RwLock<Option<String>> = RwLock::new(None);
 static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
 static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();
 static BASE_CONFIG: Mutex<Option<Config>> = Mutex::new(None);
@@ -77,6 +78,10 @@ pub fn clear_node_stats() {
     if let Ok(mut guard) = node_stats().lock() {
         guard.clear();
     }
+}
+
+pub(crate) fn current_kubeconfig() -> Option<String> {
+    KUBECONFIG.read().ok()?.clone()
 }
 
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
@@ -194,6 +199,12 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
             .write()
             .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
         *ctx = context_name.clone();
+    }
+    {
+        let mut kubeconfig = KUBECONFIG
+            .write()
+            .map_err(|_| LuaError::RuntimeError("poisoned KUBECONFIG lock".into()))?;
+        *kubeconfig = std::env::var("KUBECONFIG").ok().filter(|s| !s.is_empty());
     }
 
     let init_res: LuaResult<()> = rt.block_on(async {
@@ -409,6 +420,12 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
             .write()
             .map_err(|_| LuaError::RuntimeError("poisoned ACTIVE_CONTEXT lock".into()))?;
         *ctx = None;
+    }
+    {
+        let mut kubeconfig = KUBECONFIG
+            .write()
+            .map_err(|_| LuaError::RuntimeError("poisoned KUBECONFIG lock".into()))?;
+        *kubeconfig = None;
     }
 
     logging::shutdown();
