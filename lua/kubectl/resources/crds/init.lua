@@ -1,5 +1,4 @@
 local BaseResource = require("kubectl.resources.base_resource")
-local describe_session = require("kubectl.views.describe.session")
 
 local resource = "crds"
 
@@ -23,10 +22,5 @@ local M = BaseResource.extend({
 })
 
 M.selection = {}
-
--- Override Desc to pass the real Kind (CRDs are cluster-scoped)
-function M.Desc(name, _, _)
-  describe_session.view(M.definition.resource, name, nil, M.definition.gvk)
-end
 
 return M

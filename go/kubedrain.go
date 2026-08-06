@@ -85,10 +85,6 @@ func DrainNode(
 		return cString(fmt.Sprintf("cordon failed: %v", err))
 	}
 
-	// if err := drain.RunCordonOrUncordon(&helper, nodeName, true); err != nil {
-	// 	return cString(fmt.Sprintf("cordon failed: %v", err))
-	// }
-
 	//   4b. pick the pods to delete/evict
 	pods, errs := helper.GetPodsForDeletion(nodeName)
 	if len(errs) != 0 {
