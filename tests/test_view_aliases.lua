@@ -81,6 +81,10 @@ T["alias resolution"]["resolves no to nodes"] = function()
   expect.equality(resolve_alias("no"), "nodes")
 end
 
+T["alias resolution"]["resolves argo to argocd"] = function()
+  expect.equality(resolve_alias("argo"), "argocd")
+end
+
 T["alias resolution"]["returns nil for unknown alias"] = function()
   expect.equality(resolve_alias("unknown"), nil)
 end

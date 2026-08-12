@@ -47,6 +47,7 @@ function M.ColorStatus(status)
     InvalidImageName = true,
     KubeletSetupFailed = true,
     Lost = true,
+    Missing = true,
     NetworkUnavailable = true,
     NodeNotSchedulable = true,
     OOMKilled = true,
