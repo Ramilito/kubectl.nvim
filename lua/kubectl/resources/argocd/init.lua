@@ -19,6 +19,8 @@ local M = {
       "NAME",
       "SYNC",
       "HEALTH",
+      "AUTOSYNC",
+      "OWNER",
       "PROJECT",
       "AGE",
     },
@@ -69,6 +71,24 @@ function M.Draw(cancellationToken)
     })
   end
 
+  -- The fallback table only exposes each CRD's additionalPrinterColumns, which
+  -- cover neither syncPolicy.automated nor ownerReferences, so pull the raw
+  -- objects too. Indices are tracked because await_all keys results by
+  -- fetch position.
+  local raw_index_of = {}
+  for i, res in ipairs(definition.argocd_resources) do
+    if res.fetch_raw then
+      table.insert(fetch_cmds, {
+        cmd = "get_all_async",
+        args = {
+          gvk = res.gvk,
+          namespace = ns,
+        },
+      })
+      raw_index_of[i] = #fetch_cmds
+    end
+  end
+
   commands.await_all(fetch_cmds, nil, function(results)
     builder.data = results
     builder.decodeJson()
@@ -78,9 +98,18 @@ function M.Draw(cancellationToken)
     for i, res_def in ipairs(definition.argocd_resources) do
       local decoded = builder.data[i]
       if decoded and decoded ~= vim.NIL and decoded.rows and #decoded.rows > 0 then
+        local extras = {}
+        local raw_index = raw_index_of[i]
+        if raw_index then
+          local raw = builder.data[raw_index]
+          if raw and raw ~= vim.NIL then
+            extras = definition.buildRowExtras(raw, res_def.autosync_path)
+          end
+        end
+
         table.insert(sections, {
           label = res_def.label,
-          rows = definition.processRow(decoded.rows, res_def.gvk),
+          rows = definition.processRow(decoded.rows, res_def.gvk, extras),
         })
       end
     end
