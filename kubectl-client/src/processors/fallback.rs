@@ -9,12 +9,13 @@ use kube::{
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock, RwLock};
 use tokio::try_join;
 
 use super::processor::{FilterParams, Processor};
 use crate::{
     cmd::utils::dynamic_api,
+    store,
     structs::Gvk,
     utils::{AccessorMode, FieldValue},
     with_client,
@@ -24,6 +25,27 @@ use crate::{
 struct PrinterCol {
     name: String,
     json_path: String,
+}
+
+static COLS_CACHE: OnceLock<RwLock<HashMap<String, Vec<PrinterCol>>>> = OnceLock::new();
+
+fn cols_cache_key(crd_name: &str) -> String {
+    let ctx = crate::ACTIVE_CONTEXT
+        .read()
+        .ok()
+        .and_then(|c| c.clone())
+        .unwrap_or_default();
+    format!("{ctx}|{crd_name}")
+}
+
+fn cached_cols(key: &str) -> Option<Vec<PrinterCol>> {
+    COLS_CACHE.get_or_init(Default::default).read().ok()?.get(key).cloned()
+}
+
+fn store_cols(key: String, cols: &[PrinterCol]) {
+    if let Ok(mut cache) = COLS_CACHE.get_or_init(Default::default).write() {
+        cache.insert(key, cols.to_vec());
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -46,7 +68,6 @@ impl Processor for RuntimeFallbackProcessor {
     type Resource = serde_json::Value;
 
     fn build_row(&self, item_json: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
-
         let mut extra = HashMap::<String, FieldValue>::new();
         for col in &self.cols {
             let raw_val = JsonPath::parse(&fix_crd_path(&col.json_path))
@@ -134,7 +155,7 @@ impl Processor for FallbackProcessor {
         Err(LuaError::external("use process_fallback"))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all, fields(kind = %gvk.k, ns = ns.as_deref().unwrap_or("<all>")))]
     fn process_fallback(
         &self,
         lua: &Lua,
@@ -164,27 +185,55 @@ impl Processor for FallbackProcessor {
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
             let crd_name = format!("{}.{}", ar.plural, gvk.group);
 
-            let lp = ListParams::default();
-            let (crd_opt, list) = try_join!(crd_api.get_opt(&crd_name), api.list(&lp),)
-                .map_err(LuaError::external)?;
+            let cached = store::get(&gvk.kind, ns.clone()).unwrap_or_default();
+            let use_live = cached.is_empty();
 
-            let mut cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
-                crd.spec
-                    .versions
-                    .iter()
-                    .find(|v| v.served && v.name == gvk.version)
-                    .and_then(|v| v.additional_printer_columns.as_ref())
-                    .map(|v| {
-                        v.iter()
-                            .map(|c| PrinterCol {
-                                name: c.name.clone(),
-                                json_path: c.json_path.clone(),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default()
+            let cols_key = cols_cache_key(&crd_name);
+            let cols_cached = cached_cols(&cols_key);
+
+            let (crd_opt, items) = if use_live {
+                let lp = ListParams::default();
+                if cols_cached.is_some() {
+                    let list = api.list(&lp).await.map_err(LuaError::external)?;
+                    (None, list.items.into_iter().map(Arc::new).collect::<Vec<_>>())
+                } else {
+                    let (crd_opt, list) = try_join!(crd_api.get_opt(&crd_name), api.list(&lp),)
+                        .map_err(LuaError::external)?;
+                    (crd_opt, list.items.into_iter().map(Arc::new).collect::<Vec<_>>())
+                }
+            } else if cols_cached.is_some() {
+                (None, cached)
             } else {
-                Vec::new()
+                let crd_opt = crd_api
+                    .get_opt(&crd_name)
+                    .await
+                    .map_err(LuaError::external)?;
+                (crd_opt, cached)
+            };
+
+            let mut cols: Vec<PrinterCol> = match cols_cached {
+                Some(cols) => cols,
+                None => {
+                    let cols: Vec<PrinterCol> = crd_opt
+                        .and_then(|crd| {
+                            crd.spec
+                                .versions
+                                .iter()
+                                .find(|v| v.served && v.name == gvk.version)
+                                .and_then(|v| v.additional_printer_columns.as_ref())
+                                .map(|v| {
+                                    v.iter()
+                                        .map(|c| PrinterCol {
+                                            name: c.name.clone(),
+                                            json_path: c.json_path.clone(),
+                                        })
+                                        .collect()
+                                })
+                        })
+                        .unwrap_or_default();
+                    store_cols(cols_key, &cols);
+                    cols
+                }
             };
 
             let canonical: &[&str] = if matches!(caps.scope, Scope::Namespaced) {
@@ -205,7 +254,6 @@ impl Processor for FallbackProcessor {
                 }
             });
 
-            let items: Vec<Arc<DynamicObject>> = list.items.into_iter().map(Arc::new).collect();
             let namespaced = matches!(caps.scope, Scope::Namespaced);
             let runtime = RuntimeFallbackProcessor {
                 cols: cols.clone(),

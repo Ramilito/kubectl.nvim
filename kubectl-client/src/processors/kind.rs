@@ -107,7 +107,6 @@ fn run<P: Processor>(
 }
 
 impl ProcessorKind {
-    #[tracing::instrument]
     pub fn process_fallback(
         &self,
         lua: &Lua,
