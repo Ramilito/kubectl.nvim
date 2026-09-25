@@ -53,7 +53,7 @@ mod utils;
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static CLIENT_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
 static CLIENT_STREAM_INSTANCE: Mutex<Option<Client>> = Mutex::new(None);
-pub(crate) static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
+static ACTIVE_CONTEXT: RwLock<Option<String>> = RwLock::new(None);
 static KUBECONFIG: RwLock<Option<String>> = RwLock::new(None);
 static POD_STATS: OnceLock<SharedPodStats> = OnceLock::new();
 static NODE_STATS: OnceLock<SharedNodeStats> = OnceLock::new();

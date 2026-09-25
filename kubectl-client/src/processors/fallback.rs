@@ -211,7 +211,7 @@ impl Processor for FallbackProcessor {
         Err(LuaError::external("use process_fallback"))
     }
 
-    #[tracing::instrument(skip_all, fields(kind = %gvk.k, ns = ns.as_deref().unwrap_or("<all>")))]
+    #[tracing::instrument(skip_all)]
     fn process_fallback(
         &self,
         lua: &Lua,
