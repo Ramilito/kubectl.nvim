@@ -39,12 +39,12 @@ pub(crate) fn clear_column_cache() {
 
 struct CachedColumns {
     expires_at: Instant,
-    by_version: HashMap<String, Vec<PrinterCol>>,
+    columns: Vec<PrinterCol>,
 }
 
 #[derive(Default)]
 struct ColumnCache {
-    entries: RwLock<HashMap<String, CachedColumns>>,
+    entries: RwLock<HashMap<(String, String), CachedColumns>>,
 }
 
 impl ColumnCache {
@@ -54,13 +54,13 @@ impl ColumnCache {
         }
     }
 
-    fn cached_columns(&self, crd_name: &str, version: &str) -> Option<Vec<PrinterCol>> {
+    fn cached_columns(&self, key: &(String, String)) -> Option<Vec<PrinterCol>> {
         let entries = self.entries.read().ok()?;
-        let entry = entries.get(crd_name)?;
+        let entry = entries.get(key)?;
         if Instant::now() >= entry.expires_at {
             return None;
         }
-        Some(entry.by_version.get(version).cloned().unwrap_or_default())
+        Some(entry.columns.clone())
     }
 
     async fn load_columns(
@@ -69,38 +69,37 @@ impl ColumnCache {
         crd_name: &str,
         version: &str,
     ) -> LuaResult<Vec<PrinterCol>> {
-        if let Some(cols) = self.cached_columns(crd_name, version) {
+        let key = (crd_name.to_owned(), version.to_owned());
+        if let Some(cols) = self.cached_columns(&key) {
             return Ok(cols);
         }
 
-        // A single GET supplies every version. Only a successful response (including
-        // 404) is cached; permission and transport errors remain errors.
+        // Cache empty definitions and missing CRDs, but not API errors.
         let crd = api.get_opt(crd_name).await.map_err(LuaError::external)?;
-        let mut by_version = HashMap::new();
-        if let Some(crd) = crd {
-            for version in crd.spec.versions.into_iter().filter(|v| v.served) {
-                let cols = version
-                    .additional_printer_columns
-                    .unwrap_or_default()
+        let columns: Vec<PrinterCol> = crd
+            .and_then(|crd| {
+                crd.spec
+                    .versions
                     .into_iter()
-                    .map(|col| PrinterCol {
-                        name: col.name,
-                        json_path: col.json_path,
-                    })
-                    .collect();
-                by_version.insert(version.name, cols);
-            }
-        }
+                    .find(|v| v.served && v.name == version)
+            })
+            .and_then(|version| version.additional_printer_columns)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|column| PrinterCol {
+                name: column.name,
+                json_path: column.json_path,
+            })
+            .collect();
 
-        let cols = by_version.get(version).cloned().unwrap_or_default();
         let entry = CachedColumns {
             expires_at: Instant::now() + COLUMNS_TTL,
-            by_version,
+            columns: columns.clone(),
         };
         if let Ok(mut entries) = self.entries.write() {
-            entries.insert(crd_name.to_owned(), entry);
+            entries.insert(key, entry);
         }
-        Ok(cols)
+        Ok(columns)
     }
 }
 
