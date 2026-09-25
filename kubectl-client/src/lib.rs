@@ -15,6 +15,7 @@ use structs::{GetAllArgs, GetFallbackTableArgs, GetSingleArgs, GetTableArgs, Sta
 use tokio::runtime::Runtime;
 
 use crate::cmd::get::get_resources_async;
+use crate::processors::fallback::clear_column_cache;
 use crate::processors::processor::clear_resource_cache;
 use crate::processors::{processor_for, FilterParams};
 use crate::statusline::get_statusline;
@@ -211,6 +212,7 @@ fn init_runtime(_lua: &Lua, context_name: Option<String>) -> LuaResult<(bool, St
         let store_future = async {
             shutdown_all_reflectors().await;
             clear_resource_cache();
+            clear_column_cache();
             Ok::<(), LuaError>(())
         };
 
@@ -331,7 +333,7 @@ async fn start_reflector_async(_lua: Lua, json: String) -> LuaResult<()> {
     })
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn get_fallback_table_async(lua: Lua, json: String) -> LuaResult<String> {
     let args: GetFallbackTableArgs =
         serde_json::from_str(&json).map_err(|e| mlua::Error::external(format!("bad json: {e}")))?;
@@ -405,6 +407,7 @@ async fn shutdown_async(_lua: Lua, _args: ()) -> LuaResult<String> {
     shutdown_health_collector();
     shutdown_all_reflectors().await;
     clear_resource_cache();
+    clear_column_cache();
 
     {
         *CLIENT_INSTANCE

@@ -9,12 +9,14 @@ use kube::{
 use mlua::prelude::*;
 use serde_json_path::JsonPath;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock, RwLock};
+use std::time::{Duration, Instant};
 use tokio::try_join;
 
 use super::processor::{FilterParams, Processor};
 use crate::{
     cmd::utils::dynamic_api,
+    store,
     structs::Gvk,
     utils::{AccessorMode, FieldValue},
     with_client,
@@ -24,6 +26,81 @@ use crate::{
 struct PrinterCol {
     name: String,
     json_path: String,
+}
+
+const COLUMNS_TTL: Duration = Duration::from_secs(60);
+static COLUMN_CACHE: OnceLock<ColumnCache> = OnceLock::new();
+
+pub(crate) fn clear_column_cache() {
+    if let Some(cache) = COLUMN_CACHE.get() {
+        cache.clear();
+    }
+}
+
+struct CachedColumns {
+    expires_at: Instant,
+    columns: Vec<PrinterCol>,
+}
+
+#[derive(Default)]
+struct ColumnCache {
+    entries: RwLock<HashMap<(String, String), CachedColumns>>,
+}
+
+impl ColumnCache {
+    fn clear(&self) {
+        if let Ok(mut entries) = self.entries.write() {
+            entries.clear();
+        }
+    }
+
+    fn cached_columns(&self, key: &(String, String)) -> Option<Vec<PrinterCol>> {
+        let entries = self.entries.read().ok()?;
+        let entry = entries.get(key)?;
+        if Instant::now() >= entry.expires_at {
+            return None;
+        }
+        Some(entry.columns.clone())
+    }
+
+    async fn load_columns(
+        &self,
+        api: &Api<CustomResourceDefinition>,
+        crd_name: &str,
+        version: &str,
+    ) -> LuaResult<Vec<PrinterCol>> {
+        let key = (crd_name.to_owned(), version.to_owned());
+        if let Some(cols) = self.cached_columns(&key) {
+            return Ok(cols);
+        }
+
+        // Cache empty definitions and missing CRDs, but not API errors.
+        let crd = api.get_opt(crd_name).await.map_err(LuaError::external)?;
+        let columns: Vec<PrinterCol> = crd
+            .and_then(|crd| {
+                crd.spec
+                    .versions
+                    .into_iter()
+                    .find(|v| v.served && v.name == version)
+            })
+            .and_then(|version| version.additional_printer_columns)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|column| PrinterCol {
+                name: column.name,
+                json_path: column.json_path,
+            })
+            .collect();
+
+        let entry = CachedColumns {
+            expires_at: Instant::now() + COLUMNS_TTL,
+            columns: columns.clone(),
+        };
+        if let Ok(mut entries) = self.entries.write() {
+            entries.insert(key, entry);
+        }
+        Ok(columns)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -46,7 +123,6 @@ impl Processor for RuntimeFallbackProcessor {
     type Resource = serde_json::Value;
 
     fn build_row(&self, item_json: &Self::Resource, obj: &DynamicObject) -> LuaResult<Self::Row> {
-
         let mut extra = HashMap::<String, FieldValue>::new();
         for col in &self.cols {
             let raw_val = JsonPath::parse(&fix_crd_path(&col.json_path))
@@ -134,7 +210,7 @@ impl Processor for FallbackProcessor {
         Err(LuaError::external("use process_fallback"))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     fn process_fallback(
         &self,
         lua: &Lua,
@@ -164,30 +240,26 @@ impl Processor for FallbackProcessor {
             let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
             let crd_name = format!("{}.{}", ar.plural, gvk.group);
 
-            let lp = ListParams::default();
-            let (crd_opt, list) = try_join!(crd_api.get_opt(&crd_name), api.list(&lp),)
-                .map_err(LuaError::external)?;
-
-            let mut cols: Vec<PrinterCol> = if let Some(crd) = crd_opt {
-                crd.spec
-                    .versions
-                    .iter()
-                    .find(|v| v.served && v.name == gvk.version)
-                    .and_then(|v| v.additional_printer_columns.as_ref())
-                    .map(|v| {
-                        v.iter()
-                            .map(|c| PrinterCol {
-                                name: c.name.clone(),
-                                json_path: c.json_path.clone(),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
+            let cached = store::get(&gvk.kind, ns.clone()).unwrap_or_default();
+            let load_items = async {
+                if !cached.is_empty() {
+                    return Ok(cached);
+                }
+                let list = api
+                    .list(&ListParams::default())
+                    .await
+                    .map_err(LuaError::external)?;
+                Ok(list.items.into_iter().map(Arc::new).collect::<Vec<_>>())
             };
+            let load_columns = COLUMN_CACHE.get_or_init(ColumnCache::default).load_columns(
+                &crd_api,
+                &crd_name,
+                &gvk.version,
+            );
+            let (mut cols, items) = try_join!(load_columns, load_items)?;
 
-            let canonical: &[&str] = if matches!(caps.scope, Scope::Namespaced) {
+            let namespaced = matches!(caps.scope, Scope::Namespaced);
+            let canonical: &[&str] = if namespaced {
                 &["NAMESPACE", "NAME"]
             } else {
                 &["NAME"]
@@ -195,28 +267,15 @@ impl Processor for FallbackProcessor {
 
             let mut seen: HashSet<String> = canonical.iter().map(|s| s.to_string()).collect();
 
-            cols.retain(|c| {
-                let up = c.name.to_uppercase();
-                if seen.contains(&up) {
-                    false
-                } else {
-                    seen.insert(up);
-                    true
-                }
-            });
-
-            let items: Vec<Arc<DynamicObject>> = list.items.into_iter().map(Arc::new).collect();
-            let namespaced = matches!(caps.scope, Scope::Namespaced);
-            let runtime = RuntimeFallbackProcessor {
-                cols: cols.clone(),
-                namespaced,
-            };
-
-            let rows_vec = runtime.process(&items, &params)?;
-            let rows_lua = lua.to_value(&rows_vec)?;
+            cols.retain(|column| seen.insert(column.name.to_uppercase()));
 
             let mut headers: Vec<String> = canonical.iter().map(|s| s.to_string()).collect();
             headers.extend(cols.iter().map(|c| c.name.to_uppercase()));
+
+            let runtime = RuntimeFallbackProcessor { cols, namespaced };
+
+            let rows_vec = runtime.process(&items, &params)?;
+            let rows_lua = lua.to_value(&rows_vec)?;
 
             let headers_lua = lua.to_value(&headers)?;
             let tbl = lua.create_table()?;

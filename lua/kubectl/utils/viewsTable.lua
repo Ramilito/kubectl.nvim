@@ -40,5 +40,6 @@ return {
   ingresses = { "ingresses", "ingress", "ing", "ingresses.networking.k8s.io" },
   helm = { "helm" },
   flux = { "flux" },
+  argocd = { "argocd", "argo" },
   cani = { "cani", "can-i" },
 }
