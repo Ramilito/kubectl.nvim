@@ -23,8 +23,8 @@ pub async fn get_version_async(_lua: Lua, _json: Option<String>) -> LuaResult<St
             .map_err(LuaError::external)?;
 
         let client_ver: Info = Info {
-            major: "1".to_string(),
-            minor: "32".to_string(),
+            major: env!("K8S_CLIENT_MAJOR").to_string(),
+            minor: env!("K8S_CLIENT_MINOR").to_string(),
             ..Default::default()
         };
 
