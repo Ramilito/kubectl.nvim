@@ -12,6 +12,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Resolve Kubernetes version
+        run: |
+          echo "K8S_VERSION=$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '.packages[].dependencies[] | select(.name == "k8s-openapi") | .features[0]')" >> "$GITHUB_ENV"
+        shell: bash
+
       - name: Release
         uses: cycjimmy/semantic-release-action@v4
         env:

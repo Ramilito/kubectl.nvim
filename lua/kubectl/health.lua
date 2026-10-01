@@ -97,7 +97,7 @@ function health.report_native_library()
       H.warn("System not supported by pre-built binaries - requires manual build")
       H.info("Run: cargo build --release (requires Rust nightly)")
     else
-      H.info("Install blink.download for automatic binary management")
+      H.info("Install saghen/blink.lib for automatic binary management")
     end
   end
 end

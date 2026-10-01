@@ -125,13 +125,27 @@ return {
     -- build = 'make build',
     -- OR if you use nix, build from source with:
     -- build = 'nix run .#build-plugin',
-    dependencies = "saghen/blink.download",
+    dependencies = "saghen/blink.lib",
     config = function()
       require("kubectl").setup()
     end,
   },
 }
 ```
+
+## ☸️ Kubernetes compatibility
+
+Each release targets a single Kubernetes version, shown in the release title on
+the [releases page](https://github.com/Ramilito/kubectl.nvim/releases). Releases
+follow Kubernetes forward rather than supporting a range of older versions.
+
+Run `:checkhealth kubectl` to see your client and server versions, along with a
+warning when they are more than one minor version apart, per the
+[version skew policy](https://kubernetes.io/releases/version-skew-policy/#kubectl).
+
+For an older cluster, pin an older plugin release — a specific tag instead of
+`version = "2.*"`. Pre-built binaries are attached to every tag, and the Lua and
+the binary always come from the same tag.
 
 ## ⌨️ Keymaps
 

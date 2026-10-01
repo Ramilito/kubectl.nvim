@@ -229,7 +229,8 @@ function M.download_if_available(callback)
     return callback()
   end
 
-  -- See https://github.com/Saghen/blink.download for more info
+  -- See https://github.com/Saghen/blink.lib for more info (the module is still
+  -- named blink.download; only the repository was renamed)
   local root_dir = vim.fn.resolve(debug.getinfo(1).source:match("@?(.*/)") .. "../../")
 
   downloader.ensure_downloaded({
