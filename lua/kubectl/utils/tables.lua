@@ -270,15 +270,18 @@ local function addContextRows(context)
   return items
 end
 
-local function parseVersion(value)
+--- Extract the numeric part of a version component. Managed clusters report
+--- @param value string|number|nil
+--- @return number|nil
+function M.parseVersion(value)
   return tonumber(tostring(value):match("%d+"))
 end
 
 local function addVersionsRows(versions)
-  local client_major = parseVersion(versions.client.major)
-  local client_minor = parseVersion(versions.client.minor)
-  local server_major = parseVersion(versions.server.major)
-  local server_minor = parseVersion(versions.server.minor)
+  local client_major = M.parseVersion(versions.client.major)
+  local client_minor = M.parseVersion(versions.client.minor)
+  local server_major = M.parseVersion(versions.server.major)
+  local server_minor = M.parseVersion(versions.server.minor)
 
   if not client_major or not client_minor or not server_major or not server_minor then
     return {}
