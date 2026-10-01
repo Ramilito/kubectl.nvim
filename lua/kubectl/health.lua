@@ -97,7 +97,7 @@ function health.report_native_library()
       H.warn("System not supported by pre-built binaries - requires manual build")
       H.info("Run: cargo build --release (requires Rust nightly)")
     else
-      H.info("Install blink.download for automatic binary management")
+      H.info("Install saghen/blink.lib for automatic binary management")
     end
   end
 end
@@ -145,6 +145,41 @@ function health.report_kubeconfig()
   end
 end
 
+--- @param versions table state.versions, with client/server major and minor
+local function report_version_skew(versions)
+  local tables = require("kubectl.utils.tables")
+
+  local client_major = tables.parseVersion(versions.client.major)
+  local client_minor = tables.parseVersion(versions.client.minor)
+  local server_major = tables.parseVersion(versions.server.major)
+  local server_minor = tables.parseVersion(versions.server.minor)
+
+  if not client_major or not client_minor or not server_major or not server_minor then
+    return
+  end
+
+  -- Both zero means checkVersions has not reported back yet
+  if client_minor == 0 and server_minor == 0 then
+    return
+  end
+
+  local client_str = string.format("%d.%d", client_major, client_minor)
+  local server_str = string.format("%d.%d", server_major, server_minor)
+
+  -- https://kubernetes.io/releases/version-skew-policy/#kubectl
+  if client_major ~= server_major then
+    H.error(string.format("Version skew: client %s, server %s (major version mismatch)", client_str, server_str))
+    return
+  end
+
+  local skew = math.abs(client_minor - server_minor)
+  if skew <= 1 then
+    H.ok(string.format("Versions: client %s, server %s", client_str, server_str))
+  else
+    H.warn(string.format("Version skew: client %s, server %s (%d minor versions)", client_str, server_str, skew))
+  end
+end
+
 function health.report_runtime()
   local kubectl = require("kubectl")
 
@@ -185,16 +220,8 @@ function health.report_runtime()
 
   -- Version skew
   local versions = state.versions
-  if versions and (versions.client.minor ~= 0 or versions.server.minor ~= 0) then
-    local client_str = string.format("%d.%d", versions.client.major, versions.client.minor)
-    local server_str = string.format("%d.%d", versions.server.major, versions.server.minor)
-    local skew = math.abs(versions.client.minor - versions.server.minor)
-
-    if skew <= 1 then
-      H.ok(string.format("Versions: client %s, server %s", client_str, server_str))
-    else
-      H.warn(string.format("Version skew: client %s, server %s (%d minor versions)", client_str, server_str, skew))
-    end
+  if versions and versions.client and versions.server then
+    report_version_skew(versions)
   end
 
   -- Cache status
