@@ -52,7 +52,7 @@ pub struct PodResources {
 }
 
 /// Parse CPU quantity string (e.g., "100m", "0.5", "1") to millicores
-fn parse_cpu_to_millicores(s: &str) -> Option<u64> {
+pub(super) fn parse_cpu_to_millicores(s: &str) -> Option<u64> {
     let s = s.trim();
     if s.ends_with('m') {
         s.trim_end_matches('m').parse::<u64>().ok()
@@ -69,7 +69,7 @@ fn parse_cpu_to_millicores(s: &str) -> Option<u64> {
 }
 
 /// Parse memory quantity string (e.g., "128Mi", "1Gi", "1000000") to MiB
-fn parse_memory_to_mib(s: &str) -> Option<u64> {
+pub(super) fn parse_memory_to_mib(s: &str) -> Option<u64> {
     let s = s.trim();
     if s.ends_with("Ki") {
         s.trim_end_matches("Ki")
