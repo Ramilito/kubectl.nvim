@@ -35,6 +35,7 @@ function M.Hints(headers)
 
     -- views
     { key = "<Plug>(kubectl.view_api_resources)", desc = "API-Resources" },
+    { key = "<Plug>(kubectl.view_argocd)", desc = "ArgoCD" },
     { key = "<Plug>(kubectl.view_clusterrolebindings)", desc = "ClusterRoleBindings" },
     { key = "<Plug>(kubectl.view_configmaps)", desc = "Configmaps" },
     { key = "<Plug>(kubectl.view_crds)", desc = "CRDs" },
@@ -42,6 +43,7 @@ function M.Hints(headers)
     { key = "<Plug>(kubectl.view_daemonsets)", desc = "DaemonSets" },
     { key = "<Plug>(kubectl.view_deployments)", desc = "Deployments" },
     { key = "<Plug>(kubectl.view_events)", desc = "Events" },
+    { key = "<Plug>(kubectl.view_flux)", desc = "Flux" },
     { key = "<Plug>(kubectl.view_helm)", desc = "Helm" },
     { key = "<Plug>(kubectl.view_horizontalpodautoscalers)", desc = "HorizontalPodAutoscalers" },
     { key = "<Plug>(kubectl.view_ingresses)", desc = "Ingresses" },

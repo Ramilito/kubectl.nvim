@@ -1,0 +1,143 @@
+---
+name: rust
+description: Rust codebase specialist. ALWAYS use for ANY task involving kubectl-client/, kubectl-telemetry/, Tokio, mlua FFI, Go FFI, or Rust code.
+tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+---
+
+# Rust Codebase Guidance
+
+**ALWAYS use this subagent** for ANY task involving:
+- Reading, editing, or understanding Rust code
+- `kubectl-client/` or `kubectl-telemetry/` directories
+- Tokio async patterns, runtime, or collectors
+- mlua FFI bindings or Lua exports
+- Go FFI integration
+- Telemetry, tracing, or logging setup
+- Researching Rust code for documentation
+
+For Lua-side integration, also consult the `lua` subagent.
+
+---
+
+Guidance for working with the Rust codebase (`kubectl-client/`).
+
+## Context: Neovim Plugin Dylib
+
+This is a **cdylib** loaded by Neovim via the mlua Lua FFI. This context imposes critical constraints:
+
+### Runtime Constraints
+
+**Single Tokio Runtime:** A singleton `OnceLock<Runtime>` manages all async operations. Never create additional runtimes.
+
+**Blocking Bridge:** Lua calls are synchronous. Use `block_on()` to bridge async Rust to sync Lua:
+```rust
+fn block_on<F: std::future::Future>(fut: F) -> F::Output {
+    match Handle::try_current() {
+        Ok(h) => task::block_in_place(|| h.block_on(fut)),
+        Err(_) => {
+            let rt = RUNTIME.get_or_init(|| Runtime::new().expect("tokio runtime"));
+            rt.block_on(fut)
+        }
+    }
+}
+```
+
+**Client Lifecycle:** Kubernetes clients are stored in global `Mutex<Option<Client>>`. Use `with_client()` helper for safe access:
+```rust
+pub fn with_client<F, Fut, R>(f: F) -> LuaResult<R>
+where
+    F: FnOnce(Client) -> Fut,
+    Fut: Future<Output = LuaResult<R>>,
+{
+    let client = CLIENT_INSTANCE.lock()...;
+    block_on(f(client))
+}
+```
+
+### mlua FFI Patterns
+
+**Module Export:** The `#[mlua::lua_module(skip_memory_check)]` attribute exports the module. All public functions must be registered in the exports table:
+```rust
+exports.set("function_name", lua.create_function(function_name)?)?;
+exports.set("async_function", lua.create_async_function(async_function)?)?;
+```
+
+**Async Functions:** Use `lua.create_async_function()` for functions that should not block Neovim's main loop. These functions take `Lua` by value (not reference).
+
+**JSON Serialization:** Arguments from Lua come as JSON strings. Parse with serde_json and return JSON strings:
+```rust
+fn get_all(lua: &Lua, json: String) -> LuaResult<String> {
+    let args: GetAllArgs = serde_json::from_str(&json).unwrap();
+    // ... process ...
+    serde_json::to_string(&result).map_err(|e| mlua::Error::RuntimeError(e.to_string()))
+}
+```
+
+### Architecture
+
+**Processor Pattern:** Each Kubernetes resource type has a processor in `processors/`. Dispatch via GVK:
+```rust
+let proc = processor_for(&args.gvk.k.to_lowercase());
+proc.process(&lua, &cached, sort_by, sort_order, filter, filter_label, filter_key)
+```
+
+**Store/Informer:** `store.rs` implements Kubernetes informer pattern for efficient delta updates. Resources are cached and watched via resourceVersion.
+
+**Metrics Collectors:** Background tasks (`spawn_pod_collector`, `spawn_node_collector`) run on the Tokio runtime. Shut down properly via `shutdown_*_collector()`.
+
+### Go FFI Integration
+
+Go code in `/go/` is compiled as a C archive (`libkubectl_go.a`) and linked into Rust. Used for specialized kubectl operations (describe, drain) that are complex to reimplement.
+
+### Build Notes
+
+- **crate-type:** `["cdylib"]` - produces `.so`/`.dylib`/`.dll`
+- **LTO enabled:** Fat LTO, single codegen unit, symbols stripped for size
+- **Target:** LuaJIT compatibility required (mlua features: `luajit`)
+- **Cross-compilation:** Uses `cross-rs` for linux-musl, darwin, windows targets
+
+### Dependencies
+
+Key crates:
+- `kube` + `k8s-openapi` - Kubernetes client
+- `mlua` - Lua FFI with `module`, `luajit`, `serialize`, `async` features
+- `tokio` - Async runtime (full features)
+- `ratatui` + `crossterm` - TUI for dashboard views
+
+### Error Handling
+
+Always convert errors to `LuaError` for proper propagation:
+```rust
+.map_err(|e| mlua::Error::RuntimeError(e.to_string()))?
+.map_err(LuaError::external)?
+```
+
+### Tracing
+
+Use `#[tracing::instrument]` for OpenTelemetry instrumentation (viewable in Jaeger).
+
+**When to instrument:**
+- Entry point functions (exported to Lua)
+- Key processing functions that are NOT called in loops
+- Functions where you want to understand data flow timing
+
+**When NOT to instrument:**
+- Functions called in tight loops (causes trace explosion)
+- Recursive helpers
+- Simple getters/setters
+- Internal helpers called per-item in collections
+
+**Pattern:**
+```rust
+#[tracing::instrument(skip(large_param), fields(useful_field = %value))]
+pub fn process_something(large_param: &Value, name: &str) -> Result<()> {
+```
+
+- Use `skip()` for large parameters (JSON, structs, `self`)
+- Use `fields()` to add useful context (kind, name, counts)
+
+**Finding functions to instrument:**
+```bash
+grep -n "^pub fn\|^pub async fn" <file>  # Find public functions
+```
