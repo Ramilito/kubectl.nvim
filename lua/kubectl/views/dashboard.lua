@@ -1,6 +1,7 @@
 --- Dashboard view using native Neovim buffers instead of terminal.
 --- This provides live ratatui rendering with full vim motion support.
 local buffers = require("kubectl.actions.buffers")
+local commands = require("kubectl.actions.commands")
 local manager = require("kubectl.resource_manager")
 
 local M = {}
@@ -357,6 +358,9 @@ function M.open(view_name, title)
 end
 
 function M.top()
+  -- Top's node requests/limits read the cluster-wide pod store, so load pods for all namespaces first.
+  local pod_gvk = { g = "", v = "v1", k = "Pod" }
+  commands.run_async("start_reflector_async", { gvk = pod_gvk, namespace = nil }, function() end)
   return M.open("top", "K8s Top")
 end
 
