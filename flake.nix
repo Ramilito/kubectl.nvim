@@ -73,7 +73,7 @@
           buildInputs = with pkgs; [
             openssl
             luajit
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
             pkgs.libiconv
             pkgs.apple-sdk
           ];
@@ -87,7 +87,7 @@
 
           env = {
             OPENSSL_NO_VENDOR = "1";
-          } // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+          } // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
             RUSTFLAGS = "-C link-arg=-undefined -C link-arg=dynamic_lookup";
           };
         };
@@ -100,7 +100,7 @@
         });
 
         # Library extension for this platform
-        libExt = if pkgs.stdenv.isDarwin then "dylib" else "so";
+        libExt = if pkgs.stdenv.hostPlatform.isDarwin then "dylib" else "so";
 
         # Plugin source (only what's needed for the vim plugin)
         pluginSrc = pkgs.lib.fileset.toSource {
