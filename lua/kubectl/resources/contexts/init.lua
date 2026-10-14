@@ -155,7 +155,7 @@ function M.change_context(cmd)
           splash.done("Context: " .. (state.context["current-context"] or ""))
         end)
       else
-        splash.fail("Failed to load context")
+        splash.fail("Failed to load context", M.View)
       end
     end)
   end)

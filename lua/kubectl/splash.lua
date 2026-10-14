@@ -11,7 +11,7 @@ local manager = require("kubectl.resource_manager")
 ---@field show fun(opts?: {status?: string, autohide?: boolean, timeout?: integer, title?: string, tips?: string[]})
 ---@field status fun(text: string)
 ---@field done fun(msg?: string)
----@field fail fun(msg?: string)
+---@field fail fun(msg?: string, callback?: fun())
 ---@field hide fun()
 ---@field is_open fun(): boolean
 
@@ -285,9 +285,12 @@ function Splash.status(text)
   end)
 end
 
-local function finalize(kind, msg, delay_ms)
+local function finalize(kind, msg, delay_ms, callback)
   vim.schedule(function()
     if not is_open() then
+      if callback then
+        callback()
+      end
       return
     end
     -- Stop timers first so our message is not overwritten by the spinner.
@@ -304,7 +307,12 @@ local function finalize(kind, msg, delay_ms)
     local t = uv.new_timer()
     if t then
       t:start(delay_ms, 0, function()
-        vim.schedule(close_window)
+        vim.schedule(function()
+          close_window()
+          if callback then
+            callback()
+          end
+        end)
         pcall(t.stop, t)
         pcall(t.close, t)
       end)
@@ -316,8 +324,8 @@ function Splash.done(msg)
   finalize("ok", msg, 400)
 end
 
-function Splash.fail(msg)
-  finalize("err", msg, 2600)
+function Splash.fail(msg, callback)
+  finalize("err", msg, 1000, callback)
 end
 
 function Splash.hide()

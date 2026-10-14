@@ -80,7 +80,9 @@ function M.init(callback)
         end)
       end
     else
-      splash.fail("Failed to load context")
+      splash.fail("Failed to load context", function()
+        require("kubectl.resources.contexts").View()
+      end)
       if callback then
         callback(false)
       end
