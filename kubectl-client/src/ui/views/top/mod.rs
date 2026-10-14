@@ -1,7 +1,7 @@
 //! Top view - Nodes and Pods metrics display.
 //!
 //! Shows two tabs:
-//! - Nodes: Gauge-based display of CPU/MEM usage per node
+//! - Nodes: CPU/MEM usage bar per node with USED / REQ / LIMIT as % of allocatable
 //! - Pods: Sparkline graphs grouped by namespace with filtering
 
 mod state;
@@ -12,16 +12,20 @@ use ratatui::{
     prelude::*,
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, Paragraph, Sparkline, Tabs},
+    widgets::{Block, Borders, Gauge, Paragraph, Sparkline, Tabs},
     Frame,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::{
-    metrics::{nodes::NodeStat, pods::PodStat},
+    metrics::{
+        mark_node_stats_dirty,
+        nodes::{node_allocations, NodeAllocation, NodeStat},
+        pods::PodStat,
+    },
     node_stats, pod_stats,
     ui::{
-        components::{draw_header, draw_help_bar, make_gauge, top_nodes_hints, top_pods_hints, GaugeStyle},
+        components::{draw_header, draw_help_bar, top_nodes_hints, top_pods_hints},
         layout::column_split,
         views::View,
     },
@@ -111,6 +115,8 @@ pub struct TopView {
     grouped_pods: GroupedPods,
     /// Cached node stats
     node_cache: Vec<NodeStat>,
+    /// Pod requests/limits per node (None until the pod store is loaded)
+    node_allocations: Option<HashMap<String, NodeAllocation>>,
     /// Whether cached data needs refreshing
     cache_dirty: bool,
 }
@@ -121,6 +127,7 @@ impl Default for TopView {
             state: TopViewState::default(),
             grouped_pods: BTreeMap::new(),
             node_cache: Vec::new(),
+            node_allocations: None,
             cache_dirty: true, // Start dirty to load initial data
         }
     }
@@ -148,6 +155,11 @@ impl TopView {
             .lock()
             .map(|guard| guard.values().cloned().collect())
             .unwrap_or_default();
+        self.node_allocations = node_allocations(&self.node_cache);
+        if self.node_allocations.is_none() {
+            // Pod store still loading (e.g. just requested by opening Top): look again on the next 2s UI tick.
+            mark_node_stats_dirty();
+        }
 
         self.cache_dirty = false;
     }
@@ -214,7 +226,14 @@ impl View for TopView {
 
     fn draw(&mut self, f: &mut Frame, area: Rect) {
         self.refresh_caches();
-        draw_with_data(f, area, &mut self.state, &self.grouped_pods, &self.node_cache);
+        draw_with_data(
+            f,
+            area,
+            &mut self.state,
+            &self.grouped_pods,
+            &self.node_cache,
+            self.node_allocations.as_ref(),
+        );
     }
 
     fn content_height(&self) -> Option<u16> {
@@ -268,6 +287,7 @@ fn draw_with_data(
     state: &mut TopViewState,
     grouped_pods: &GroupedPods,
     nodes: &[NodeStat],
+    allocations: Option<&HashMap<String, NodeAllocation>>,
 ) {
     // Layout: help bar - tabs - blank line - header - body
     let [help_area, tabs_area, _blank_area, hdr_area, body_area] = Layout::vertical([
@@ -300,10 +320,21 @@ fn draw_with_data(
 
     // Render appropriate tab content
     if state.selected_tab == 0 {
-        draw_nodes_tab(f, hdr_area, body_area, nodes);
+        draw_nodes_tab(f, hdr_area, body_area, nodes, allocations);
     } else {
         draw_pods_tab(f, hdr_area, body_area, grouped_pods, state);
     }
+}
+
+/// Splits a CPU/MEM column into [bar, USED, REQ, LIMIT].
+fn resource_columns(area: Rect) -> [Rect; 4] {
+    Layout::horizontal([
+        Constraint::Fill(1),
+        Constraint::Length(6),
+        Constraint::Length(6),
+        Constraint::Length(6),
+    ])
+    .areas(area)
 }
 
 /// Draws the Nodes tab content.
@@ -313,13 +344,23 @@ fn draw_nodes_tab(
     hdr_area: Rect,
     body_area: Rect,
     nodes: &[NodeStat],
+    allocations: Option<&HashMap<String, NodeAllocation>>,
 ) {
     use crate::ui::layout::calculate_name_width;
 
     let title_w = calculate_name_width(nodes.iter().map(|n| n.name.as_str()), 1);
 
-    // Header row
-    draw_header(f, hdr_area, title_w);
+    // Header row: resource title over the bar, USED / REQ / LIMIT over the numbers
+    let [name_col, cpu_col, _gap, mem_col] = column_split(hdr_area, title_w);
+    let style = Style::default().fg(colors::GRAY).add_modifier(Modifier::BOLD);
+    f.render_widget(Paragraph::new("NAME").style(style), name_col);
+    for (title, col) in [("CPU", cpu_col), ("MEM", mem_col)] {
+        let [bar, used, req, limit] = resource_columns(col);
+        f.render_widget(Paragraph::new(title).style(style), bar);
+        for (label, area) in [("USED", used), ("REQ", req), ("LIMIT", limit)] {
+            f.render_widget(Paragraph::new(label).alignment(Alignment::Right).style(style), area);
+        }
+    }
 
     // Render nodes directly (no ScrollView - let Neovim handle scrolling)
     for (idx, node) in nodes.iter().enumerate() {
@@ -346,8 +387,33 @@ fn draw_nodes_tab(
                 .fg(colors::HEADER),
             name_col,
         );
-        f.render_widget(make_gauge("CPU", node.cpu_pct, GaugeStyle::Cpu), cpu_col);
-        f.render_widget(make_gauge("MEM", node.mem_pct, GaugeStyle::Memory), mem_col);
+
+        let alloc = allocations.and_then(|a| a.get(&node.name));
+        for (col, color, used, req_lim) in [
+            (cpu_col, colors::INFO, node.cpu_pct, alloc.map(|a| a.cpu)),
+            (mem_col, colors::WARNING, node.mem_pct, alloc.map(|a| a.mem)),
+        ] {
+            let [bar, used_col, req_col, limit_col] = resource_columns(col);
+            // Gauge::ratio panics outside 0..=1
+            let ratio = if used.is_finite() { (used / 100.0).clamp(0.0, 1.0) } else { 0.0 };
+            f.render_widget(
+                Gauge::default()
+                    .gauge_style(Style::default().fg(color))
+                    .use_unicode(true)
+                    .label("")
+                    .ratio(ratio),
+                bar,
+            );
+
+            let pct = |v: f64| format!("{}%", v.round());
+            let (req, limit) = req_lim.map_or(("-".to_string(), "-".to_string()), |(r, l)| (pct(r), pct(l)));
+            for (text, area) in [(pct(used), used_col), (req, req_col), (limit, limit_col)] {
+                f.render_widget(
+                    Paragraph::new(text).alignment(Alignment::Right).style(Style::default().fg(color)),
+                    area,
+                );
+            }
+        }
     }
 }
 
