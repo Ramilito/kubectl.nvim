@@ -345,7 +345,7 @@ function M.save_file(file_name, data)
   -- create the directory if it doesn't exist
   local dir_path = vim.fs.dirname(file_path)
   if not vim.uv.fs_stat(dir_path) then
-    vim.uv.fs_mkdir(dir_path, tonumber("755", 8))
+    vim.fn.mkdir(dir_path, "p")
   end
   local file = io.open(file_path, "w")
   if not file then
