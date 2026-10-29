@@ -15,14 +15,10 @@ use ratatui::{
     widgets::{Block, Borders, Gauge, Paragraph, Sparkline, Tabs},
     Frame,
 };
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use crate::{
-    metrics::{
-        mark_node_stats_dirty,
-        nodes::{node_allocations, NodeAllocation, NodeStat},
-        pods::PodStat,
-    },
+    metrics::{nodes::NodeStat, pods::PodStat},
     node_stats, pod_stats,
     ui::{
         components::{draw_header, draw_help_bar, top_nodes_hints, top_pods_hints},
@@ -115,8 +111,6 @@ pub struct TopView {
     grouped_pods: GroupedPods,
     /// Cached node stats
     node_cache: Vec<NodeStat>,
-    /// Pod requests/limits per node (None until the pod store is loaded)
-    node_allocations: Option<HashMap<String, NodeAllocation>>,
     /// Whether cached data needs refreshing
     cache_dirty: bool,
 }
@@ -127,7 +121,6 @@ impl Default for TopView {
             state: TopViewState::default(),
             grouped_pods: BTreeMap::new(),
             node_cache: Vec::new(),
-            node_allocations: None,
             cache_dirty: true, // Start dirty to load initial data
         }
     }
@@ -155,11 +148,6 @@ impl TopView {
             .lock()
             .map(|guard| guard.values().cloned().collect())
             .unwrap_or_default();
-        self.node_allocations = node_allocations(&self.node_cache);
-        if self.node_allocations.is_none() {
-            // Pod store still loading (e.g. just requested by opening Top): look again on the next 2s UI tick.
-            mark_node_stats_dirty();
-        }
 
         self.cache_dirty = false;
     }
@@ -232,7 +220,6 @@ impl View for TopView {
             &mut self.state,
             &self.grouped_pods,
             &self.node_cache,
-            self.node_allocations.as_ref(),
         );
     }
 
@@ -287,7 +274,6 @@ fn draw_with_data(
     state: &mut TopViewState,
     grouped_pods: &GroupedPods,
     nodes: &[NodeStat],
-    allocations: Option<&HashMap<String, NodeAllocation>>,
 ) {
     // Layout: help bar - tabs - blank line - header - body
     let [help_area, tabs_area, _blank_area, hdr_area, body_area] = Layout::vertical([
@@ -320,7 +306,7 @@ fn draw_with_data(
 
     // Render appropriate tab content
     if state.selected_tab == 0 {
-        draw_nodes_tab(f, hdr_area, body_area, nodes, allocations);
+        draw_nodes_tab(f, hdr_area, body_area, nodes);
     } else {
         draw_pods_tab(f, hdr_area, body_area, grouped_pods, state);
     }
@@ -339,26 +325,27 @@ fn resource_columns(area: Rect) -> [Rect; 4] {
 
 /// Draws the Nodes tab content.
 /// Renders directly to frame - Neovim handles scrolling natively.
-fn draw_nodes_tab(
-    f: &mut Frame,
-    hdr_area: Rect,
-    body_area: Rect,
-    nodes: &[NodeStat],
-    allocations: Option<&HashMap<String, NodeAllocation>>,
-) {
+fn draw_nodes_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, nodes: &[NodeStat]) {
     use crate::ui::layout::calculate_name_width;
 
     let title_w = calculate_name_width(nodes.iter().map(|n| n.name.as_str()), 1);
 
     // Header row: resource title over the bar, USED / REQ / LIMIT over the numbers
     let [name_col, cpu_col, _gap, mem_col] = column_split(hdr_area, title_w);
-    let style = Style::default().fg(colors::GRAY).add_modifier(Modifier::BOLD);
+    let style = Style::default()
+        .fg(colors::GRAY)
+        .add_modifier(Modifier::BOLD);
     f.render_widget(Paragraph::new("NAME").style(style), name_col);
     for (title, col) in [("CPU", cpu_col), ("MEM", mem_col)] {
         let [bar, used, req, limit] = resource_columns(col);
         f.render_widget(Paragraph::new(title).style(style), bar);
         for (label, area) in [("USED", used), ("REQ", req), ("LIMIT", limit)] {
-            f.render_widget(Paragraph::new(label).alignment(Alignment::Right).style(style), area);
+            f.render_widget(
+                Paragraph::new(label)
+                    .alignment(Alignment::Right)
+                    .style(style),
+                area,
+            );
         }
     }
 
@@ -388,14 +375,27 @@ fn draw_nodes_tab(
             name_col,
         );
 
-        let alloc = allocations.and_then(|a| a.get(&node.name));
-        for (col, color, used, req_lim) in [
-            (cpu_col, colors::INFO, node.cpu_pct, alloc.map(|a| a.cpu)),
-            (mem_col, colors::WARNING, node.mem_pct, alloc.map(|a| a.mem)),
+        for (col, color, used, allocation) in [
+            (
+                cpu_col,
+                colors::INFO,
+                node.cpu_pct,
+                node.allocation.map(|a| a.cpu),
+            ),
+            (
+                mem_col,
+                colors::WARNING,
+                node.mem_pct,
+                node.allocation.map(|a| a.mem),
+            ),
         ] {
             let [bar, used_col, req_col, limit_col] = resource_columns(col);
             // Gauge::ratio panics outside 0..=1
-            let ratio = if used.is_finite() { (used / 100.0).clamp(0.0, 1.0) } else { 0.0 };
+            let ratio = if used.is_finite() {
+                (used / 100.0).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
             f.render_widget(
                 Gauge::default()
                     .gauge_style(Style::default().fg(color))
@@ -405,11 +405,16 @@ fn draw_nodes_tab(
                 bar,
             );
 
-            let pct = |v: f64| format!("{}%", v.round());
-            let (req, limit) = req_lim.map_or(("-".to_string(), "-".to_string()), |(r, l)| (pct(r), pct(l)));
-            for (text, area) in [(pct(used), used_col), (req, req_col), (limit, limit_col)] {
+            for (value, area) in [
+                (Some(used), used_col),
+                (allocation.map(|a| a.requests), req_col),
+                (allocation.map(|a| a.limits), limit_col),
+            ] {
+                let text = value.map_or_else(|| "-".into(), |v| format!("{}%", v.round()));
                 f.render_widget(
-                    Paragraph::new(text).alignment(Alignment::Right).style(Style::default().fg(color)),
+                    Paragraph::new(text)
+                        .alignment(Alignment::Right)
+                        .style(Style::default().fg(color)),
                     area,
                 );
             }
