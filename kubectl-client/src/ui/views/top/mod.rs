@@ -1,7 +1,7 @@
 //! Top view - Nodes and Pods metrics display.
 //!
 //! Shows two tabs:
-//! - Nodes: Gauge-based display of CPU/MEM usage per node
+//! - Nodes: CPU/MEM usage bar per node with USED / REQ / LIMIT as % of allocatable
 //! - Pods: Sparkline graphs grouped by namespace with filtering
 
 mod state;
@@ -12,7 +12,7 @@ use ratatui::{
     prelude::*,
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, Paragraph, Sparkline, Tabs},
+    widgets::{Block, Borders, Gauge, Paragraph, Sparkline, Tabs},
     Frame,
 };
 use std::collections::BTreeMap;
@@ -21,7 +21,7 @@ use crate::{
     metrics::{nodes::NodeStat, pods::PodStat},
     node_stats, pod_stats,
     ui::{
-        components::{draw_header, draw_help_bar, make_gauge, top_nodes_hints, top_pods_hints, GaugeStyle},
+        components::{draw_header, draw_help_bar, top_nodes_hints, top_pods_hints},
         layout::column_split,
         views::View,
     },
@@ -214,7 +214,13 @@ impl View for TopView {
 
     fn draw(&mut self, f: &mut Frame, area: Rect) {
         self.refresh_caches();
-        draw_with_data(f, area, &mut self.state, &self.grouped_pods, &self.node_cache);
+        draw_with_data(
+            f,
+            area,
+            &mut self.state,
+            &self.grouped_pods,
+            &self.node_cache,
+        );
     }
 
     fn content_height(&self) -> Option<u16> {
@@ -306,20 +312,42 @@ fn draw_with_data(
     }
 }
 
+/// Splits a CPU/MEM column into [bar, USED, REQ, LIMIT].
+fn resource_columns(area: Rect) -> [Rect; 4] {
+    Layout::horizontal([
+        Constraint::Fill(1),
+        Constraint::Length(6),
+        Constraint::Length(6),
+        Constraint::Length(6),
+    ])
+    .areas(area)
+}
+
 /// Draws the Nodes tab content.
 /// Renders directly to frame - Neovim handles scrolling natively.
-fn draw_nodes_tab(
-    f: &mut Frame,
-    hdr_area: Rect,
-    body_area: Rect,
-    nodes: &[NodeStat],
-) {
+fn draw_nodes_tab(f: &mut Frame, hdr_area: Rect, body_area: Rect, nodes: &[NodeStat]) {
     use crate::ui::layout::calculate_name_width;
 
     let title_w = calculate_name_width(nodes.iter().map(|n| n.name.as_str()), 1);
 
-    // Header row
-    draw_header(f, hdr_area, title_w);
+    // Header row: resource title over the bar, USED / REQ / LIMIT over the numbers
+    let [name_col, cpu_col, _gap, mem_col] = column_split(hdr_area, title_w);
+    let style = Style::default()
+        .fg(colors::GRAY)
+        .add_modifier(Modifier::BOLD);
+    f.render_widget(Paragraph::new("NAME").style(style), name_col);
+    for (title, col) in [("CPU", cpu_col), ("MEM", mem_col)] {
+        let [bar, used, req, limit] = resource_columns(col);
+        f.render_widget(Paragraph::new(title).style(style), bar);
+        for (label, area) in [("USED", used), ("REQ", req), ("LIMIT", limit)] {
+            f.render_widget(
+                Paragraph::new(label)
+                    .alignment(Alignment::Right)
+                    .style(style),
+                area,
+            );
+        }
+    }
 
     // Render nodes directly (no ScrollView - let Neovim handle scrolling)
     for (idx, node) in nodes.iter().enumerate() {
@@ -346,8 +374,51 @@ fn draw_nodes_tab(
                 .fg(colors::HEADER),
             name_col,
         );
-        f.render_widget(make_gauge("CPU", node.cpu_pct, GaugeStyle::Cpu), cpu_col);
-        f.render_widget(make_gauge("MEM", node.mem_pct, GaugeStyle::Memory), mem_col);
+
+        for (col, color, used, allocation) in [
+            (
+                cpu_col,
+                colors::INFO,
+                node.cpu_pct,
+                node.allocation.map(|a| a.cpu),
+            ),
+            (
+                mem_col,
+                colors::WARNING,
+                node.mem_pct,
+                node.allocation.map(|a| a.mem),
+            ),
+        ] {
+            let [bar, used_col, req_col, limit_col] = resource_columns(col);
+            // Gauge::ratio panics outside 0..=1
+            let ratio = if used.is_finite() {
+                (used / 100.0).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            f.render_widget(
+                Gauge::default()
+                    .gauge_style(Style::default().fg(color))
+                    .use_unicode(true)
+                    .label("")
+                    .ratio(ratio),
+                bar,
+            );
+
+            for (value, area) in [
+                (Some(used), used_col),
+                (allocation.map(|a| a.requests), req_col),
+                (allocation.map(|a| a.limits), limit_col),
+            ] {
+                let text = value.map_or_else(|| "-".into(), |v| format!("{}%", v.round()));
+                f.render_widget(
+                    Paragraph::new(text)
+                        .alignment(Alignment::Right)
+                        .style(Style::default().fg(color)),
+                    area,
+                );
+            }
+        }
     }
 }
 
