@@ -449,43 +449,48 @@ function M.new(resource)
 
     local show_hints = definition.hints ~= nil and #definition.hints > 0
 
-    local frame = buffers.framed_buffer({
-      title = definition.title,
-      filetype = definition.ft,
-      panes = definition.panes,
-      width = definition.width,
-      height = definition.height,
-      recreate_func = opts.recreate_func,
-      recreate_args = opts.recreate_args,
-      show_hints = show_hints,
-    })
+    local function open_frame()
+      local frame = buffers.framed_buffer({
+        title = definition.title,
+        filetype = definition.ft,
+        panes = definition.panes,
+        width = definition.width,
+        height = definition.height,
+        recreate_func = opts.recreate_func,
+        recreate_args = opts.recreate_args,
+        show_hints = show_hints,
+      })
 
-    builder.frame = frame
-    builder.buf_nr = frame.panes[1].buf
-    builder.win_nr = frame.panes[1].win
+      builder.frame = frame
+      builder.buf_nr = frame.panes[1].buf
+      builder.win_nr = frame.panes[1].win
 
-    -- Auto-render hints (no-op when the hints bar was omitted)
-    builder.renderHints()
+      -- Auto-render hints (no-op when the hints bar was omitted)
+      builder.renderHints()
 
-    -- Set syntax if provided
-    if definition.syntax then
-      vim.api.nvim_set_option_value("syntax", definition.syntax, { buf = builder.buf_nr })
+      -- Set syntax if provided
+      if definition.syntax then
+        vim.api.nvim_set_option_value("syntax", definition.syntax, { buf = builder.buf_nr })
+      end
     end
 
-    -- If cmd and args provided, run async and set content
+    -- If cmd and args provided, fetch first and open the frame with the content
+    -- already available, so the float never shows up empty and then fills in.
     if definition.cmd and opts.args then
       commands.run_async(definition.cmd, opts.args, function(result)
         if not result then
           return
         end
         vim.schedule(function()
-          local lines = vim.split(result, "\n", { plain = true })
+          open_frame()
           buffers.set_content(builder.buf_nr, {
-            content = lines,
+            content = vim.split(result, "\n", { plain = true }),
             header = { data = {}, marks = {} },
           })
         end)
       end)
+    else
+      open_frame()
     end
 
     return builder
